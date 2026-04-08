@@ -37,12 +37,18 @@ class TerminateAgentOnMachineAction
             $openclawDir = $this->deployment->home_directory . '/.openclaw';
             $systemUser = $this->deployment->system_user;
 
-            $client->exec(
+            $result = $client->exec(
                 'sudo -u ' . escapeshellarg($systemUser)
                 . ' bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose down --rmi local 2>&1')
+                . '; echo "EXIT_CODE:$?"',
+                900,
             );
 
-            $client->exec('sudo userdel -r ' . escapeshellarg($systemUser) . ' 2>/dev/null || true');
+            if (! str_contains($result, 'EXIT_CODE:0')) {
+                throw new ValidationException('Docker compose down failed: ' . $result);
+            }
+
+            $client->exec('sudo userdel -r ' . escapeshellarg($systemUser) . ' 2>/dev/null || true', 60);
 
             $this->deployment->status = DeploymentStatusEnum::TERMINATED->value;
             $this->deployment->terminated_at = now();

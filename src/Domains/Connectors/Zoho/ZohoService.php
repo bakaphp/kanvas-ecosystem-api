@@ -18,7 +18,7 @@ class ZohoService
 {
     protected ZohoCrm $zohoCrm;
     protected string $zohoAgentModule;
-    private const DEFAULT_AGENT_MODULE = 'agents';
+    private const string DEFAULT_AGENT_MODULE = 'agents';
 
     public function __construct(
         protected AppInterface $app,
@@ -109,6 +109,21 @@ class ZohoService
                 $data['Inactive'] = 'Active';
             }
         }
+
+        if ($this->zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
+            return $this->zohoCrm->agents->update($zohoAgentId, $data);
+        }
+
+        return $this->zohoCrm->vendors->update($zohoAgentId, $data);
+    }
+
+    public function updateAgentMemberNumber(Agent $agent): object
+    {
+        $zohoAgentId = $agent->users_linked_source_id;
+
+        $data = [
+            'Member_Number' => $agent->getMemberNumber(),
+        ];
 
         if ($this->zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
             return $this->zohoCrm->agents->update($zohoAgentId, $data);
