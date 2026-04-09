@@ -86,6 +86,14 @@ class SetupRolesCommand extends Command
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
             ],
+            'configure-company' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+            ],
+            'list-paso-rapido' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+            ],
         ];
 
         Bouncer::scope()->to(RolesEnums::getScope($app));

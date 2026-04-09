@@ -61,11 +61,6 @@ class MessageBuilder
                     $q->where('slug', $slug);
                 });
             }
-
-            $messageCacheTime = (int) $app->get('message_tags_cache_time');
-            if ($messageCacheTime > 0) {
-                $query->cacheFor($messageCacheTime);
-            }
         }
 
         if (isset($args['random']) && $args['random'] === true) {
