@@ -98,7 +98,7 @@ class InjectADKSessionEventsActivity extends KanvasActivity
             ->where('name', '!=', ChannelNameEnum::NOTES->value)
             ->where('is_deleted', 0)
             ->fromApp($app)
-            ->latest()
+            ->latest('updated_at')
             ->first();
 
         if (! $communicationChannel) {
