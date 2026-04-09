@@ -113,6 +113,12 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
     public function execute(Message $message, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
+
+        // Optional delay for testing purposes
+        if (isset($params['delay_seconds'])) {
+            sleep((int) $params['delay_seconds']);
+        }
+
         $company = $message->company;
 
         // Validate company integration
