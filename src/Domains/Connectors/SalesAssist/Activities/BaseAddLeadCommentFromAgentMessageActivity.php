@@ -309,7 +309,7 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
 
     protected function isFirstEngagement(Lead $lead, Message $message): bool
     {
-        $channel = $message->channels->first();
+        $channel = $message->channels()->first();
 
         if ($channel === null) {
             return true;
