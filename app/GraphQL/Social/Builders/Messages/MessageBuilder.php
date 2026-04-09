@@ -61,7 +61,6 @@ class MessageBuilder
                     $q->where('slug', $slug);
                 });
             }
-
         }
 
         if (isset($args['random']) && $args['random'] === true) {
