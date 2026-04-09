@@ -16,6 +16,7 @@ class NotifyAvailableMechanicsAction
     public function __construct(
         protected readonly Order $order,
         protected readonly AppInterface $app,
+        protected readonly array $excludeIds = [],
     ) {
     }
 
@@ -30,7 +31,7 @@ class NotifyAvailableMechanicsAction
             $providerCompany = Companies::getById((int) $providerId);
         }
 
-        $mechanics = new GetAvailableMechanicsAction($this->app, $providerCompany)->execute();
+        $mechanics = new GetAvailableMechanicsAction($this->app, $providerCompany, $this->excludeIds)->execute();
 
         if ($mechanics->isEmpty()) {
             throw new ValidationException('No available mechanics to notify for this order');

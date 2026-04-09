@@ -8,10 +8,12 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Actions\AttachRoadsideAssistancePhotosAction;
+use Kanvas\Connectors\Movipass\Actions\CancelMechanicAssignmentAction;
 use Kanvas\Connectors\Movipass\Actions\GenerateRoadsideAssistancePinAction;
 use Kanvas\Connectors\Movipass\Actions\NotifyAvailableMechanicsAction;
 use Kanvas\Connectors\Movipass\Actions\PrepareRoadsideAssistanceCaseAction;
 use Kanvas\Connectors\Movipass\Actions\ValidateRoadsideAssistancePinAction;
+use Kanvas\Users\Models\Users;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Exceptions\ValidationException;
@@ -53,7 +55,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 }
 
                 if ($eventName === WorkflowEnum::UPDATED->value) {
-                    return $this->handleUpdated($order);
+                    return $this->handleUpdated($order, $app);
                 }
 
                 return [
@@ -95,9 +97,43 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         ];
     }
 
-    private function handleUpdated($order): array
+    private function handleUpdated($order, AppInterface $app): array
     {
         $currentStatusSlug = $order->orderStatus?->slug;
+        $metadata = $order->metadata ?? [];
+        $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
+
+        if (($assistanceCase['mechanic_cancel'] ?? false) === true) {
+            if ($currentStatusSlug !== MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value) {
+                return [
+                    'order' => $order->getId(),
+                    'status' => 'success',
+                    'message' => 'Mechanic cancel ignored: order is not in provider_assigned status',
+                ];
+            }
+
+            $mechanic = auth()->user();
+
+            if (! $mechanic instanceof Users) {
+                return [
+                    'order' => $order->getId(),
+                    'status' => 'error',
+                    'message' => 'No authenticated user to cancel mechanic assignment',
+                ];
+            }
+
+            new CancelMechanicAssignmentAction(
+                $order,
+                $mechanic,
+                $app,
+            )->execute();
+
+            return [
+                'order' => $order->getId(),
+                'status' => 'success',
+                'message' => 'Mechanic assignment cancelled, order returned to awaiting_operator',
+            ];
+        }
 
         if ($currentStatusSlug !== MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value) {
             return [
@@ -107,8 +143,6 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             ];
         }
 
-        $metadata = $order->metadata ?? [];
-        $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
         $pinAttempt = $assistanceCase['pin_attempt'] ?? null;
 
         if ($pinAttempt === null || trim((string) $pinAttempt) === '') {
