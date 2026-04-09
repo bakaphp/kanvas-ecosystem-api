@@ -659,17 +659,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         $model = new static();
         $isTypesense = method_exists($model, 'isTypesense') ? $model->isTypesense() : false;
 
-        if (! $isTypesense) {
-            $searchQuery = self::traitSearch($query, function ($algolia, $searchTerm, $options) use ($callback) {
-                if ($callback) {
-                    return $callback($algolia, $searchTerm, $options);
-                }
-
-                return $algolia->search($searchTerm, $options);
-            })->where('apps_id', $app->getId());
-        } else {
-            $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
-        }
+        $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
 
         $user = auth()->user();
 
