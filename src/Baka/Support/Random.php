@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Baka\Support;
 
 use Baka\Contracts\AppInterface;
+use Faker\Factory as FakerFactory;
 use InvalidArgumentException;
 use Kanvas\Users\Models\UsersAssociatedApps;
 
@@ -64,8 +65,9 @@ class Random
 
     private static function generatePrivateRelayUsername(): string
     {
-        $adjective = fake()->word();
-        $noun = fake()->word();
+        $faker = FakerFactory::create();
+        $adjective = $faker->word();
+        $noun = $faker->word();
 
         return strtolower($adjective . $noun);
     }
