@@ -29,4 +29,6 @@ enum ConfigurationEnum: string
     case AI_ENGAGEMENT_MESSAGE_ONLY_ONE_NOTIFICATION = 'ai_engagement_message_only_one_notification';
     case AI_MODE = 'ai_mode';
     case NOTIFICATION_CHANNELS = 'notification_enabled_channels';
+    case FIRST_ENGAGEMENT_NOTIFICATION_CHANNELS = 'first_engagement_notification_channels';
+    case ENGAGEMENT_NOTIFICATION_CHANNELS = 'engagement_notification_channels';
 }
