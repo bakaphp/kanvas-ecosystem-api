@@ -20,6 +20,7 @@ use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Services\LeadTypeConfigurationService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadContextInfoAction;
@@ -119,8 +120,17 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                     if ($isWithinWorkingHours) {
                         $lead->set('ai_mode', $workingHoursDefaultMode);
-                        $disableSending = $workingHoursDefaultMode === IntelligenceModeEnum::OFF->value;
                     }
+                }
+
+                $disableSending = $lead->get('ai_mode') === IntelligenceModeEnum::OFF->value;
+
+                $leadType = $lead->type()->first();
+                $firstMessageDefaultKey = LeadTypeConfigurationService::getFirstMessageDefaultKey($leadType);
+                $leadTypeConfig = $leadType?->config ?? [];
+
+                if (isset($leadTypeConfig[$firstMessageDefaultKey]) && ! $leadTypeConfig[$firstMessageDefaultKey]) {
+                    $disableSending = true;
                 }
 
                 $totalSentMessages = 0;
@@ -145,16 +155,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     $leadContext['first_message'] = $firstLeadMessage;
                     $lead->set(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value, $leadContext);
                     $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, $firstLeadMessage['message']);
-                    // $communicationChannel = $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value);
-
-                    //$lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
-                    // if (empty($communicationChannel)) {
-                    //     return $this->failWorkflow([
-                    //         'error' => 'No communication channel selected , please set one to be able to send messages',
-                    //         'context' => $createContext,
-                    //         'first_message' => $firstLeadMessage,
-                    //     ]);
-                    // }
 
                     $communicationChannelNumber = match ($communicationChannel) {
                         'sms' => $cellPhone,
@@ -249,13 +249,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                                 $sentChannels[] = $communicationChannel;
                                 $totalSentMessages++;
-
-                                if (isset($stageConfig['first_message_default']) && ! $stageConfig['first_message_default']) {
-                                    $createMessage->setPrivate();
-                                    $createMessage->setLock();
-
-                                    continue;
-                                }
 
                                 if ($shouldSendFirstMessageNow) {
                                     new SendMessageToLeadAction($lead)->execute(

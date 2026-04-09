@@ -22,6 +22,7 @@ class CreateLeadTypeAction
         $leadType->name = $this->leadTypeDto->name;
         $leadType->description = $this->leadTypeDto->description;
         $leadType->is_active = $this->leadTypeDto->is_active;
+        $leadType->config = $this->leadTypeDto->config;
         $leadType->saveOrFail();
 
         return $leadType;

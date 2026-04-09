@@ -68,10 +68,18 @@ class ApplyLeadAiModeAction
     {
         match ($this->triggerType) {
             TriggersEnum::NEW_LEAD->value => function () {
-                $aiModeKey = LeadTypeConfigurationService::getAiModeKey($this->lead->type()->first());
-                $aiFollowUpKey = LeadTypeConfigurationService::getFollowUpModeKey($this->lead->type()->first());
-                $followUpValue = FollowUpValueEnum::from($this->lead->company->get($aiFollowUpKey));
-                $aiModeValue = $this->lead->company->get($aiModeKey);
+                $leadType = $this->lead->type()->first();
+                $aiModeKey = LeadTypeConfigurationService::getAiModeKey($leadType);
+                $aiFollowUpKey = LeadTypeConfigurationService::getFollowUpModeKey($leadType);
+
+                $leadTypeConfig = $leadType?->config ?? [];
+                $aiModeDefaultKey = LeadTypeConfigurationService::getAiModeDefaultKey($leadType);
+                $followUpDefaultKey = LeadTypeConfigurationService::getFollowUpDefaultKey($leadType);
+
+                $aiModeValue = $leadTypeConfig[$aiModeDefaultKey] ?? $this->lead->company->get($aiModeKey);
+                $followUpRawValue = $leadTypeConfig[$followUpDefaultKey] ?? $this->lead->company->get($aiFollowUpKey);
+
+                $followUpValue = FollowUpValueEnum::from($followUpRawValue);
                 $this->setFollowUp($followUpValue);
                 $this->setMode($aiModeValue);
             },

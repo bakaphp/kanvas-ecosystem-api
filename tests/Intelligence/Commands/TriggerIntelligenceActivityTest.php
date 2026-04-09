@@ -23,7 +23,7 @@ use Tests\TestCase;
 
 class TriggerIntelligenceActivityTest extends TestCase
 {
-    private function createLead(string $leadTypeName = ''): Lead
+    private function createLead(string $leadTypeName = '', array $leadTypeConfig = []): Lead
     {
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -43,6 +43,12 @@ class TriggerIntelligenceActivityTest extends TestCase
                 ],
                 ['description' => $leadTypeName . ' Lead', 'is_active' => 1]
             );
+
+            if (! empty($leadTypeConfig)) {
+                $leadType->config = $leadTypeConfig;
+                $leadType->saveOrFail();
+            }
+
             $lead->leads_types_id = $leadType->getId();
             $lead->saveOrFail();
         }
@@ -325,6 +331,81 @@ class TriggerIntelligenceActivityTest extends TestCase
         );
 
         Carbon::setTestNow();
+    }
+
+    public function testNewLeadInternetUsesLeadTypeAiModeDefault(): void
+    {
+        $lead = $this->createLead('Internet', ['internet_ai_mode_default' => IntelligenceModeEnum::FULL_ON->value]);
+        $lead->company->set('ai_mode', IntelligenceModeEnum::SUPPORT->value);
+
+        new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
+
+        $this->assertEquals(IntelligenceModeEnum::FULL_ON->value, $lead->get('ai_mode'));
+    }
+
+    public function testNewLeadShowroomUsesLeadTypeAiModeDefault(): void
+    {
+        $lead = $this->createLead('Showroom', ['showroom_ai_mode_default' => IntelligenceModeEnum::SUPPORT->value]);
+        $lead->company->set('showroom_ai_mode', IntelligenceModeEnum::FULL_ON->value);
+
+        new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
+
+        $this->assertEquals(IntelligenceModeEnum::SUPPORT->value, $lead->get('showroom_ai_mode'));
+    }
+
+    public function testNewLeadPhoneUsesLeadTypeAiModeDefault(): void
+    {
+        $lead = $this->createLead('Phone', ['phone_ai_mode_default' => IntelligenceModeEnum::FULL_ON->value]);
+        $lead->company->set('phone_ai_mode', IntelligenceModeEnum::SUPPORT->value);
+
+        new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
+
+        $this->assertEquals(IntelligenceModeEnum::FULL_ON->value, $lead->get('phone_ai_mode'));
+    }
+
+    public function testNewLeadInternetUsesLeadTypeFollowUpDefault(): void
+    {
+        $lead = $this->createLead('Internet', ['internet_followup_default_mode' => FollowUpValueEnum::ON()->value]);
+        $lead->company->set('ai_mode', IntelligenceModeEnum::FULL_ON->value);
+        $lead->company->set('internet_follow_up_mode', FollowUpValueEnum::OFF()->value);
+
+        new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
+
+        $this->assertEquals(FollowUpValueEnum::ON()->value, $lead->get('internet_follow_up_mode'));
+    }
+
+    public function testNewLeadShowroomUsesLeadTypeFollowUpDefault(): void
+    {
+        $lead = $this->createLead('Showroom', ['showroom_followup_default_mode' => FollowUpValueEnum::ON()->value]);
+        $lead->company->set('showroom_ai_mode', IntelligenceModeEnum::FULL_ON->value);
+        $lead->company->set('showroom_follow_up_mode', FollowUpValueEnum::OFF()->value);
+
+        new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
+
+        $this->assertEquals(FollowUpValueEnum::ON()->value, $lead->get('showroom_follow_up_mode'));
+    }
+
+    public function testNewLeadPhoneUsesLeadTypeFollowUpDefault(): void
+    {
+        $lead = $this->createLead('Phone', ['phone_followup_default_mode' => FollowUpValueEnum::ON()->value]);
+        $lead->company->set('phone_ai_mode', IntelligenceModeEnum::FULL_ON->value);
+        $lead->company->set('phone_follow_up_mode', FollowUpValueEnum::OFF()->value);
+
+        new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
+
+        $this->assertEquals(FollowUpValueEnum::ON()->value, $lead->get('phone_follow_up_mode'));
+    }
+
+    public function testNewLeadFallsBackToCompanyConfigWhenLeadTypeConfigNotSet(): void
+    {
+        $lead = $this->createLead('Internet');
+        $lead->company->set('ai_mode', IntelligenceModeEnum::SUPPORT->value);
+        $lead->company->set('internet_follow_up_mode', FollowUpValueEnum::ON()->value);
+
+        new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
+
+        $this->assertEquals(IntelligenceModeEnum::SUPPORT->value, $lead->get('ai_mode'));
+        $this->assertEquals(FollowUpValueEnum::ON()->value, $lead->get('internet_follow_up_mode'));
     }
 
     public function testFullScenarioLeadOffAfterManualOffStaysOff(): void
