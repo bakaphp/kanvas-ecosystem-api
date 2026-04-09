@@ -180,17 +180,17 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 $message->set('sent_to_crm', true);
 
                 // Notify managers
-                $sentManagerNotification = false;
+                $notificationInfo = [];
                 if (! $fromAgent && $lead->company->get('ai_manager_notifications')) {
-                    $this->notifyManagers($message, $lead);
-                    $sentManagerNotification = true;
+                    $notificationInfo = $this->notifyManagers($message, $lead);
                 }
 
                 return [
                     'note' => $externalResult,
                     'from_agent' => $fromAgent,
                     'lead' => $lead->getId(),
-                    'sent_manager_notification' => $sentManagerNotification,
+                    'sent_manager_notification' => ! empty($notificationInfo),
+                    'notification_info' => $notificationInfo,
                 ];
             },
             company: $company,
@@ -200,11 +200,11 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
     /**
      * Notify managers about customer engagement.
      */
-    protected function notifyManagers(Message $message, Lead $lead): void
+    protected function notifyManagers(Message $message, Lead $lead): array
     {
         $hoursTool = new CompanyWorkHoursTool($message)->execute();
         if ($hoursTool['status'] !== 'work_hours') {
-            return;
+            return ['skipped' => 'outside_work_hours'];
         }
 
         // Check if we should only notify once
@@ -212,7 +212,7 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
         if ($notifiedAtKey !== null
             && $lead->company->get(IntelligenceConfigurationEnum::AI_ENGAGEMENT_MESSAGE_ONLY_ONE_NOTIFICATION->value)
             && $lead->get($notifiedAtKey)) {
-            return;
+            return ['skipped' => 'already_notified'];
         }
 
         $notification = new Blank(
@@ -250,6 +250,15 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
         if ($notifiedAtKey !== null) {
             $lead->set($notifiedAtKey, date('Y-m-d H:i:s'));
         }
+
+        return [
+            'channels' => $notification->channels,
+            'is_first_engagement' => $this->isFirstEngagement($lead, $message),
+            'manager_count' => $managers->count(),
+            'manager_ids' => $managers->pluck('id')->toArray(),
+            'first_engagement_config' => $lead->company->get(IntelligenceConfigurationEnum::FIRST_ENGAGEMENT_NOTIFICATION_CHANNELS->value),
+            'engagement_config' => $lead->company->get(IntelligenceConfigurationEnum::ENGAGEMENT_NOTIFICATION_CHANNELS->value),
+        ];
     }
 
     protected function configureManagerNotificationChannels(Blank $notification, Lead $lead, Message $message): void
