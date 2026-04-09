@@ -124,6 +124,14 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             model: "Kanvas\\Inventory\\Attributes\\Models\\Attributes"
-            scopes: ["fromApp", "fromCompany"]
+            scopes: ["fromApp", "fromCompanyAndGlobal"]
+        )
+    attributeValues(
+        where: _ @whereConditions(columns: ["id", "attributes_id", "parent_id", "has_children"])
+        orderBy: _ @orderBy(columns: ["id", "value"])
+    ): [AttributesValue!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Builders\\Attributes\\AttributeValuesBuilder@getAttributeValues"
         )
 }
