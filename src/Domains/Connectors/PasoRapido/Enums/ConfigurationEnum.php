@@ -11,6 +11,8 @@ enum ConfigurationEnum: string
     case CLIENT_ID = 'PASO_RAPIDO_CLIENT_ID';
     case SECRET = 'PASO_RAPIDO_SECRET';
     case VERIFY_MAX_ATTEMPTS = 'PASO_RAPIDO_VERIFY_MAX_ATTEMPTS';
+    case VERIFY_MAX_DAILY = 'PASO_RAPIDO_VERIFY_MAX_DAILY';
+    case VERIFY_SEQUENTIAL_THRESHOLD = 'PASO_RAPIDO_VERIFY_SEQUENTIAL_THRESHOLD';
 
     case AUTHORIZATION_PATH = '/api/v1/RdVial/generarAutorizacion';
     case VERIFY_PATH = '/api/v1/RdVial/Verificar';
