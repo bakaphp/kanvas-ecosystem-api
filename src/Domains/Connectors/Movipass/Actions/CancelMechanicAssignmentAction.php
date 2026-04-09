@@ -29,7 +29,7 @@ class CancelMechanicAssignmentAction
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($order->orderStatus?->slug !== MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value) {
+            if ($order->orderStatus?->slug !== MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug()) {
                 throw new ValidationException('Order is not in provider_assigned status');
             }
 

@@ -57,7 +57,7 @@ class NotifyAvailableMechanicsAction
 
         $this->order->transitionToStatus(
             auth()->user(),
-            MovipassOrderStatusEnum::AWAITING_OPERATOR->value,
+            MovipassOrderStatusEnum::AWAITING_OPERATOR->slug(),
         );
     }
 }

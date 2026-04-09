@@ -104,7 +104,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
 
         if (($assistanceCase['mechanic_cancel'] ?? false) === true) {
-            if ($currentStatusSlug !== MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value) {
+            if ($currentStatusSlug !== MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug()) {
                 return [
                     'order' => $order->getId(),
                     'status' => 'success',
@@ -135,7 +135,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             ];
         }
 
-        if ($currentStatusSlug !== MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value) {
+        if ($currentStatusSlug !== MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug()) {
             return [
                 'order' => $order->getId(),
                 'status' => 'success',
@@ -179,7 +179,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
         $order->transitionToStatus(
             auth()->user(),
-            MovipassOrderStatusEnum::DISPATCHED->value,
+            MovipassOrderStatusEnum::DISPATCHED->slug(),
         );
 
         return [
@@ -209,8 +209,8 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
 
             match ($toStatus) {
-                MovipassOrderStatusEnum::AWAITING_OPERATOR->value => $assistanceCase['awaiting_operator_at'] = $timestamp,
-                MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value => (function () use ($order, &$assistanceCase, $timestamp) {
+                MovipassOrderStatusEnum::AWAITING_OPERATOR->slug() => $assistanceCase['awaiting_operator_at'] = $timestamp,
+                MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug() => (function () use ($order, &$assistanceCase, $timestamp) {
                     $assistanceCase['provider_assigned_at'] = $timestamp;
                     $pin = new GenerateRoadsideAssistancePinAction($order)->execute();
                     $order->refresh();
@@ -220,22 +220,22 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                     ]);
                     $assistanceCase['pin'] = $pin;
                 })(),
-                MovipassOrderStatusEnum::DISPATCHED->value => $assistanceCase['dispatched_at'] = $timestamp,
-                MovipassOrderStatusEnum::ON_SITE->value => $assistanceCase['arrived_at'] = $timestamp,
-                MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->value => $assistanceCase['service_started_at'] = $timestamp,
-                MovipassOrderStatusEnum::SERVICE_COMPLETED->value => (function () use (&$assistanceCase, $timestamp) {
+                MovipassOrderStatusEnum::DISPATCHED->slug() => $assistanceCase['dispatched_at'] = $timestamp,
+                MovipassOrderStatusEnum::ON_SITE->slug() => $assistanceCase['arrived_at'] = $timestamp,
+                MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug() => $assistanceCase['service_started_at'] = $timestamp,
+                MovipassOrderStatusEnum::SERVICE_COMPLETED->slug() => (function () use (&$assistanceCase, $timestamp) {
                     $assistanceCase['completed_at'] = $timestamp;
                     $assistanceCase['resolved'] = true;
                     $assistanceCase['pin_hash'] = null;
                     $assistanceCase['pin_invalidated_at'] = $timestamp;
                 })(),
-                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value => (function () use (&$assistanceCase, $timestamp) {
+                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug() => (function () use (&$assistanceCase, $timestamp) {
                     $assistanceCase['completed_at'] = $timestamp;
                     $assistanceCase['resolved'] = false;
                     $assistanceCase['pin_hash'] = null;
                     $assistanceCase['pin_invalidated_at'] = $timestamp;
                 })(),
-                MovipassOrderStatusEnum::SERVICE_CANCELLED->value => (function () use (&$assistanceCase, $timestamp) {
+                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug() => (function () use (&$assistanceCase, $timestamp) {
                     $assistanceCase['cancelled_at'] = $timestamp;
                     $assistanceCase['pin_hash'] = null;
                     $assistanceCase['pin_invalidated_at'] = $timestamp;
@@ -254,9 +254,9 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             $order->saveQuietly();
 
             match ($toStatus) {
-                MovipassOrderStatusEnum::SERVICE_COMPLETED->value,
-                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value => $order->fulfill(),
-                MovipassOrderStatusEnum::SERVICE_CANCELLED->value => $order->fulfillCancelled(),
+                MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
+                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug() => $order->fulfill(),
+                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug() => $order->fulfillCancelled(),
                 default => null,
             };
         }
