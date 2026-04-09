@@ -90,7 +90,7 @@ class PopulateTrendingFeedAction
                 + (? - DATEDIFF(NOW(), created_at)) * 0.5) as trending_score',
                 [$likesWeight, $sharedWeight, $remixWeight, $timePeriod]
             )
-            ->having('trending_score', '>=', $minTrendingScore)
+            ->having('trending_score', '>=', (string) $minTrendingScore)
             ->orderBy('trending_score', 'desc');
 
         if ($this->messageType) {
