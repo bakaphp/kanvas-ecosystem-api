@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Baka\Support;
 
 use Baka\Contracts\AppInterface;
-use Faker\Factory as FakerFactory;
+use Illuminate\Support\Str as LaravelStr;
 use InvalidArgumentException;
 use Kanvas\Users\Models\UsersAssociatedApps;
 
@@ -65,11 +65,7 @@ class Random
 
     private static function generatePrivateRelayUsername(): string
     {
-        $faker = FakerFactory::create();
-        $adjective = $faker->word();
-        $noun = $faker->word();
-
-        return strtolower($adjective . $noun);
+        return LaravelStr::lower(LaravelStr::random(10));
     }
 
     private static function cleanupEmailUsername(string $username): ?string
