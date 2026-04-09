@@ -51,6 +51,8 @@ class SyncProductCapacityActivity extends KanvasActivity implements WorkflowActi
                     'totalParkingSpaces' => $totalMax,
                 ]);
 
+                $product->save();
+
                 return [
                     'product' => $product->getId(),
                     'status' => 'success',
