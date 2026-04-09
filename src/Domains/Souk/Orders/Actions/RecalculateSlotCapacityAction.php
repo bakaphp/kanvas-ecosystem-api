@@ -68,6 +68,7 @@ class RecalculateSlotCapacityAction
                 'availableParkingSpaces' => $totalAvailable,
                 'totalParkingSpaces'     => $totalMax,
             ]);
+            $product->save();
         } else {
             $channel = $variant->variantChannels()->first();
             $capacity = $product->getAttributeByName('capacity')?->value;
