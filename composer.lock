@@ -6436,16 +6436,16 @@
         },
         {
             "name": "mike-bronner/laravel-model-caching",
-            "version": "13.1.0",
+            "version": "13.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mike-bronner/laravel-model-caching.git",
-                "reference": "b16d2a95ec9171b76a77a638e580ae27441103af"
+                "reference": "ff01c350c35f78ea056413df6f6538732560891f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/b16d2a95ec9171b76a77a638e580ae27441103af",
-                "reference": "b16d2a95ec9171b76a77a638e580ae27441103af",
+                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/ff01c350c35f78ea056413df6f6538732560891f",
+                "reference": "ff01c350c35f78ea056413df6f6538732560891f",
                 "shasum": ""
             },
             "require": {
@@ -6465,8 +6465,6 @@
             },
             "require-dev": {
                 "aws/aws-sdk-php": "^3.322.9",
-                "barryvdh/laravel-debugbar": "^3.15",
-                "barryvdh/laravel-ide-helper": "^3.5",
                 "doctrine/dbal": "^3.3|^4.2",
                 "fakerphp/faker": "^1.11",
                 "larastan/larastan": "^2.0|^3.0",
@@ -6474,8 +6472,8 @@
                 "laravel/pint": "^1.27",
                 "mikebronner/development-settings": "^0.1.15",
                 "orchestra/testbench": "^9.0|^10.0|^11.0",
-                "pestphp/pest": "^3.0",
-                "pestphp/pest-plugin-laravel": "^3.0",
+                "pestphp/pest": "^3.0|^4.0",
+                "pestphp/pest-plugin-laravel": "^3.0|^4.0",
                 "phpunit/phpunit": "^10.5|^11.5|^12.5",
                 "slevomat/coding-standard": "^7.0|^8.14",
                 "squizlabs/php_codesniffer": "^3.6|^4.0",
@@ -6510,9 +6508,9 @@
             "description": "Automatic caching for Eloquent models.",
             "support": {
                 "issues": "https://github.com/mike-bronner/laravel-model-caching/issues",
-                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.0"
+                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.1"
             },
-            "time": "2026-04-07T00:34:13+00:00"
+            "time": "2026-04-08T22:45:39+00:00"
         },
         {
             "name": "mikebronner/laravel-pivot-events",
