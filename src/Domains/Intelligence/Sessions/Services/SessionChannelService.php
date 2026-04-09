@@ -21,6 +21,7 @@ class SessionChannelService
             'whatsapp' => $normalizedId . '@s.whatsapp.net',
             'sms' => '+' . $normalizedId,
             'email' => $id,
+            'respondio' => '+' . $normalizedId,
         };
     }
 
@@ -32,6 +33,7 @@ class SessionChannelService
             'whatsapp' => 'wa-chat-' . $normalizedId . '-at-swhatsappnet',
             'sms' => 'twilio-' . $normalizedId,
             'email' => 'email-' . Str::sanitizeEmail($id),
+            'respondio' => 'respondio-' . $normalizedId,
         };
     }
 

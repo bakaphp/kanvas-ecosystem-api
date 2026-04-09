@@ -99,6 +99,7 @@ use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushMessageToItemActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushProductToItemActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionToEventActivity;
+use Kanvas\Connectors\RespondIO\Workflows\AgentChannelResponderActivity as RespondIOAgentChannelResponderActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AttachFileToChecklistItemActivity;
 use Kanvas\Connectors\SalesAssist\Activities\ConvertMessageImagesToPdfActivity;
 use Kanvas\Connectors\SalesAssist\Activities\DealerAppCenterSubSourcesActivity;
@@ -343,6 +344,7 @@ class KanvasWorkflowSynActionCommand extends Command
             UpdateZohoLeadInfoWebhookJob::class,
             AddLeadCommentFromAgentMessageActivity::class,
             WorkflowsAgentChannelResponderActivity::class,
+            RespondIOAgentChannelResponderActivity::class,
             VinSolutionAddLeadCommentFromAgentMessageActivity::class,
             AgentProcessEmailWebhookJob::class,
             StripePaymentLinkWebhookJob::class,

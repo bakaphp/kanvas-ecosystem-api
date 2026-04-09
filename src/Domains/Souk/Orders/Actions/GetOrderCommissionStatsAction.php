@@ -18,6 +18,7 @@ class GetOrderCommissionStatsAction
         protected readonly Carbon $from,
         protected readonly Carbon $to,
         protected readonly ?string $orderType,
+        protected readonly array $providerCompanyIds = [],
     ) {
     }
 
@@ -43,6 +44,16 @@ class GetOrderCommissionStatsAction
         if ($this->orderType !== null) {
             $query->join('order_types', 'orders.order_types_id', '=', 'order_types.id')
                 ->where('order_types.name', $this->orderType);
+        }
+
+        if (! empty($this->providerCompanyIds)) {
+            $query->whereIn(
+                'orders.id',
+                DB::connection('commerce')
+                    ->table('order_providers')
+                    ->whereIn('company_id', $this->providerCompanyIds)
+                    ->select('order_id')
+            );
         }
 
         $result = $query->first();
