@@ -251,9 +251,14 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
             $lead->set($notifiedAtKey, date('Y-m-d H:i:s'));
         }
 
+        $channel = $message->channels()->disableModelCaching()->first();
+
         return [
             'channels' => $notification->channels,
             'is_first_engagement' => $this->isFirstEngagement($lead, $message),
+            'channel_id' => $channel?->getId(),
+            'channel_name' => $channel?->name,
+            'channel_slug' => $channel?->slug,
             'manager_count' => $managers->count(),
             'manager_ids' => $managers->pluck('id')->toArray(),
             'first_engagement_config' => $lead->company->get(IntelligenceConfigurationEnum::FIRST_ENGAGEMENT_NOTIFICATION_CHANNELS->value),
@@ -309,13 +314,13 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
 
     protected function isFirstEngagement(Lead $lead, Message $message): bool
     {
-        $channel = $message->channels()->first();
+        $channel = $message->channels()->disableModelCaching()->first();
 
         if ($channel === null) {
             return true;
         }
 
-        $previousInboundCount = $channel->messages()
+        $previousInboundCount = $channel->messages()->disableModelCaching()
             ->whereRaw("JSON_EXTRACT(messages.message, '$.from_me') = false")
             ->where('messages.is_deleted', 0)
             ->where('messages.id', '!=', $message->getId())
