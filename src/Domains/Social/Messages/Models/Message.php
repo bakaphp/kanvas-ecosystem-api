@@ -44,6 +44,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
 use Override;
+
 /**
  *  Class Message
  *  @property int $id
