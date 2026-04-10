@@ -58,6 +58,7 @@ class LaunchAgentOnMachineAction
         $client = SshClient::fromMachine($this->machine);
 
         try {
+            $this->ensureSharedImage($client);
             $this->provisionLinuxUser($client, $deployment);
             $this->writeDeploymentFiles($client, $deployment);
             $this->buildAndStart($client, $deployment);
@@ -99,8 +100,47 @@ class LaunchAgentOnMachineAction
     }
 
     /**
+     * Build the shared OpenClaw Docker image once per machine.
+     * Writes Dockerfile + entrypoint to a shared directory and builds if the image doesn't exist.
+     */
+    private function ensureSharedImage(SshClient $client): void
+    {
+        $imageName = DockerComposeBuilder::getSharedImageName($this->app);
+        $imageDir = DockerComposeBuilder::getSharedImageDir($this->app);
+
+        $exists = $client->exec('docker image inspect ' . escapeshellarg($imageName) . ' &>/dev/null && echo "EXISTS" || echo "MISSING"');
+
+        if (str_contains($exists, 'EXISTS')) {
+            return;
+        }
+
+        $client->exec('sudo mkdir -p ' . escapeshellarg($imageDir));
+
+        $client->writeFileAsUser(
+            $imageDir . '/Dockerfile',
+            DockerComposeBuilder::buildDockerfile($this->app),
+            'root',
+        );
+
+        $client->writeFileAsUser(
+            $imageDir . '/entrypoint.sh',
+            DockerComposeBuilder::buildEntrypoint(),
+            'root',
+        );
+        $client->exec('sudo chmod +x ' . escapeshellarg($imageDir . '/entrypoint.sh'));
+
+        $result = $client->exec(
+            'cd ' . escapeshellarg($imageDir) . ' && sudo docker build -t ' . escapeshellarg($imageName) . ' . 2>&1; echo "EXIT_CODE:$?"',
+            900,
+        );
+
+        if (! str_contains($result, 'EXIT_CODE:0')) {
+            throw new ValidationException('Failed to build shared OpenClaw image: ' . $result);
+        }
+    }
+
+    /**
      * Write all config files into the agent's ~/.openclaw directory:
-     *  - Dockerfile (built from template or app override)
      *  - docker-compose.yml (gateway + socat proxy + CLI containers)
      *  - openclaw.json (agent config, models, channels, gateway auth)
      *  - auth-profiles.json (API keys for LLM providers: Google, Anthropic)
@@ -111,12 +151,6 @@ class LaunchAgentOnMachineAction
         $openclawDir = $deployment->home_directory . '/.openclaw';
         $systemUser = $deployment->system_user;
         $gatewayToken = $this->company->get(ConfigurationEnum::GATEWAY_TOKEN->value) ?? bin2hex(random_bytes(32));
-
-        $client->writeFileAsUser(
-            $openclawDir . '/Dockerfile',
-            DockerComposeBuilder::buildDockerfile($this->app),
-            $systemUser,
-        );
 
         $client->writeFileAsUser(
             $openclawDir . '/docker-compose.yml',
@@ -154,7 +188,8 @@ class LaunchAgentOnMachineAction
     }
 
     /**
-     * Run `docker compose up -d --build` as the agent's Linux user.
+     * Run `docker compose up -d` as the agent's Linux user.
+     * Uses the pre-built shared image — no per-agent build needed.
      * Appends EXIT_CODE to detect failures even when Docker writes to stderr.
      */
     private function buildAndStart(SshClient $client, AgentDeployment $deployment): void
@@ -162,7 +197,7 @@ class LaunchAgentOnMachineAction
         $openclawDir = $deployment->home_directory . '/.openclaw';
         $result = $client->exec(
             'sudo -u ' . escapeshellarg($deployment->system_user)
-            . ' bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose up -d --build 2>&1')
+            . ' bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose up -d 2>&1')
             . '; echo "EXIT_CODE:$?"',
             900,
         );
