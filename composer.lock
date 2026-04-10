@@ -382,16 +382,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.378.1",
+            "version": "3.376.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "c7a07701703e95c888a24959d5ea426c3d374240"
+                "reference": "fe7773b1e069a45aa74e09cdd65219af6039ff6b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/c7a07701703e95c888a24959d5ea426c3d374240",
-                "reference": "c7a07701703e95c888a24959d5ea426c3d374240",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/fe7773b1e069a45aa74e09cdd65219af6039ff6b",
+                "reference": "fe7773b1e069a45aa74e09cdd65219af6039ff6b",
                 "shasum": ""
             },
             "require": {
@@ -473,9 +473,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.378.1"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.376.4"
             },
-            "time": "2026-04-09T18:16:50+00:00"
+            "time": "2026-04-06T18:18:41+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -1873,12 +1873,12 @@
             "version": "v7.0.5",
             "source": {
                 "type": "git",
-                "url": "https://github.com/googleapis/php-jwt.git",
+                "url": "https://github.com/firebase/php-jwt.git",
                 "reference": "47ad26bab5e7c70ae8a6f08ed25ff83631121380"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/php-jwt/zipball/47ad26bab5e7c70ae8a6f08ed25ff83631121380",
+                "url": "https://api.github.com/repos/firebase/php-jwt/zipball/47ad26bab5e7c70ae8a6f08ed25ff83631121380",
                 "reference": "47ad26bab5e7c70ae8a6f08ed25ff83631121380",
                 "shasum": ""
             },
@@ -1927,8 +1927,8 @@
                 "php"
             ],
             "support": {
-                "issues": "https://github.com/googleapis/php-jwt/issues",
-                "source": "https://github.com/googleapis/php-jwt/tree/v7.0.5"
+                "issues": "https://github.com/firebase/php-jwt/issues",
+                "source": "https://github.com/firebase/php-jwt/tree/v7.0.5"
             },
             "time": "2026-04-01T20:38:03+00:00"
         },
@@ -2183,16 +2183,16 @@
         },
         {
             "name": "google/cloud-core",
-            "version": "v1.72.0",
+            "version": "v1.71.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-core.git",
-                "reference": "62cf5d2243af167c75019743c5aebcf25c3905ca"
+                "reference": "1030847fcbb6b2ae70c48379cc5dbc7603f8faac"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/62cf5d2243af167c75019743c5aebcf25c3905ca",
-                "reference": "62cf5d2243af167c75019743c5aebcf25c3905ca",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/1030847fcbb6b2ae70c48379cc5dbc7603f8faac",
+                "reference": "1030847fcbb6b2ae70c48379cc5dbc7603f8faac",
                 "shasum": ""
             },
             "require": {
@@ -2244,9 +2244,9 @@
             ],
             "description": "Google Cloud PHP shared dependency, providing functionality useful to all components.",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.72.0"
+                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.71.2"
             },
-            "time": "2026-04-09T21:01:46+00:00"
+            "time": "2026-03-17T23:07:39+00:00"
         },
         {
             "name": "google/cloud-discoveryengine",
@@ -2349,29 +2349,28 @@
         },
         {
             "name": "google/cloud-storage",
-            "version": "v1.51.0",
+            "version": "v1.50.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-storage.git",
-                "reference": "9ba3d5e8cbd53bf67fab644b5be310e719533def"
+                "reference": "8ca5b85ed33776f532bbbf8ae2b34933148c05d2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/9ba3d5e8cbd53bf67fab644b5be310e719533def",
-                "reference": "9ba3d5e8cbd53bf67fab644b5be310e719533def",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/8ca5b85ed33776f532bbbf8ae2b34933148c05d2",
+                "reference": "8ca5b85ed33776f532bbbf8ae2b34933148c05d2",
                 "shasum": ""
             },
             "require": {
-                "google/cloud-core": "^1.72.0",
+                "google/cloud-core": "^1.57",
                 "php": "^8.1",
                 "ramsey/uuid": "^4.2.3"
             },
             "require-dev": {
                 "erusev/parsedown": "^1.6",
                 "google/cloud-pubsub": "^2.0",
-                "nikic/php-parser": "^5",
-                "phpdocumentor/reflection": "^6.0",
-                "phpdocumentor/reflection-docblock": "^5.3.3",
+                "phpdocumentor/reflection": "^5.3.3||^6.0",
+                "phpdocumentor/reflection-docblock": "^5.3.3||^6.0",
                 "phpseclib/phpseclib": "^2.0||^3.0",
                 "phpspec/prophecy-phpunit": "^2.0",
                 "phpunit/phpunit": "^9.0",
@@ -2401,22 +2400,22 @@
             ],
             "description": "Cloud Storage Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v1.51.0"
+                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v1.50.0"
             },
-            "time": "2026-04-09T21:01:46+00:00"
+            "time": "2026-03-23T23:35:56+00:00"
         },
         {
             "name": "google/common-protos",
-            "version": "4.14.0",
+            "version": "4.13.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/common-protos-php.git",
-                "reference": "f8e72f7b581702e7c3ee0776144f4974da172428"
+                "reference": "d9890769dbd7b1f240596db35ddaaec0cfe12cb4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/common-protos-php/zipball/f8e72f7b581702e7c3ee0776144f4974da172428",
-                "reference": "f8e72f7b581702e7c3ee0776144f4974da172428",
+                "url": "https://api.github.com/repos/googleapis/common-protos-php/zipball/d9890769dbd7b1f240596db35ddaaec0cfe12cb4",
+                "reference": "d9890769dbd7b1f240596db35ddaaec0cfe12cb4",
                 "shasum": ""
             },
             "require": {
@@ -2460,9 +2459,9 @@
                 "google"
             ],
             "support": {
-                "source": "https://github.com/googleapis/common-protos-php/tree/v4.14.0"
+                "source": "https://github.com/googleapis/common-protos-php/tree/v4.13.0"
             },
-            "time": "2026-04-09T21:01:46+00:00"
+            "time": "2026-03-31T19:52:22+00:00"
         },
         {
             "name": "google/gax",
@@ -4063,16 +4062,16 @@
         },
         {
             "name": "laravel-workflow/laravel-workflow",
-            "version": "1.0.74",
+            "version": "1.0.73",
             "source": {
                 "type": "git",
                 "url": "https://github.com/durable-workflow/workflow.git",
-                "reference": "53361525f0307e51bd948acd16ad6fdf4b44f18b"
+                "reference": "5126913a9fa48674269e0b634f8df7f1d1fb5fd1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/53361525f0307e51bd948acd16ad6fdf4b44f18b",
-                "reference": "53361525f0307e51bd948acd16ad6fdf4b44f18b",
+                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/5126913a9fa48674269e0b634f8df7f1d1fb5fd1",
+                "reference": "5126913a9fa48674269e0b634f8df7f1d1fb5fd1",
                 "shasum": ""
             },
             "require": {
@@ -4114,22 +4113,22 @@
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/durable-workflow/workflow/issues",
-                "source": "https://github.com/durable-workflow/workflow/tree/1.0.74"
+                "source": "https://github.com/durable-workflow/workflow/tree/1.0.73"
             },
-            "time": "2026-04-10T00:38:29+00:00"
+            "time": "2026-04-05T03:55:47+00:00"
         },
         {
             "name": "laravel/ai",
-            "version": "v0.4.5",
+            "version": "v0.4.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "e6a470f0b6c66743f03cb35f3869d02ad67da148"
+                "reference": "c905c3816a9fa2ef9c6a419566d4b420676f629c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/e6a470f0b6c66743f03cb35f3869d02ad67da148",
-                "reference": "e6a470f0b6c66743f03cb35f3869d02ad67da148",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/c905c3816a9fa2ef9c6a419566d4b420676f629c",
+                "reference": "c905c3816a9fa2ef9c6a419566d4b420676f629c",
                 "shasum": ""
             },
             "require": {
@@ -4182,7 +4181,7 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-04-08T18:02:27+00:00"
+            "time": "2026-04-06T14:02:31+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -6437,16 +6436,16 @@
         },
         {
             "name": "mike-bronner/laravel-model-caching",
-            "version": "13.1.1",
+            "version": "13.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mike-bronner/laravel-model-caching.git",
-                "reference": "ff01c350c35f78ea056413df6f6538732560891f"
+                "reference": "b16d2a95ec9171b76a77a638e580ae27441103af"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/ff01c350c35f78ea056413df6f6538732560891f",
-                "reference": "ff01c350c35f78ea056413df6f6538732560891f",
+                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/b16d2a95ec9171b76a77a638e580ae27441103af",
+                "reference": "b16d2a95ec9171b76a77a638e580ae27441103af",
                 "shasum": ""
             },
             "require": {
@@ -6466,6 +6465,8 @@
             },
             "require-dev": {
                 "aws/aws-sdk-php": "^3.322.9",
+                "barryvdh/laravel-debugbar": "^3.15",
+                "barryvdh/laravel-ide-helper": "^3.5",
                 "doctrine/dbal": "^3.3|^4.2",
                 "fakerphp/faker": "^1.11",
                 "larastan/larastan": "^2.0|^3.0",
@@ -6473,8 +6474,8 @@
                 "laravel/pint": "^1.27",
                 "mikebronner/development-settings": "^0.1.15",
                 "orchestra/testbench": "^9.0|^10.0|^11.0",
-                "pestphp/pest": "^3.0|^4.0",
-                "pestphp/pest-plugin-laravel": "^3.0|^4.0",
+                "pestphp/pest": "^3.0",
+                "pestphp/pest-plugin-laravel": "^3.0",
                 "phpunit/phpunit": "^10.5|^11.5|^12.5",
                 "slevomat/coding-standard": "^7.0|^8.14",
                 "squizlabs/php_codesniffer": "^3.6|^4.0",
@@ -6509,9 +6510,9 @@
             "description": "Automatic caching for Eloquent models.",
             "support": {
                 "issues": "https://github.com/mike-bronner/laravel-model-caching/issues",
-                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.1"
+                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.0"
             },
-            "time": "2026-04-08T22:45:39+00:00"
+            "time": "2026-04-07T00:34:13+00:00"
         },
         {
             "name": "mikebronner/laravel-pivot-events",
@@ -7268,16 +7269,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.3.5",
+            "version": "3.3.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "15cdb83a68bb696100078271949fea72243d4767"
+                "reference": "5b75bb9107757f4377910df33dd63a7c245c0078"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/15cdb83a68bb696100078271949fea72243d4767",
-                "reference": "15cdb83a68bb696100078271949fea72243d4767",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/5b75bb9107757f4377910df33dd63a7c245c0078",
+                "reference": "5b75bb9107757f4377910df33dd63a7c245c0078",
                 "shasum": ""
             },
             "require": {
@@ -7328,7 +7329,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.3.5"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.3.1"
             },
             "funding": [
                 {
@@ -7336,7 +7337,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-04-09T09:35:36+00:00"
+            "time": "2026-04-07T16:54:17+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
@@ -9018,16 +9019,16 @@
         },
         {
             "name": "phpseclib/phpseclib",
-            "version": "3.0.51",
+            "version": "3.0.50",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpseclib/phpseclib.git",
-                "reference": "d59c94077f9c9915abb51ddb52ce85188ece1748"
+                "reference": "aa6ad8321ed103dc3624fb600a25b66ebf78ec7b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/d59c94077f9c9915abb51ddb52ce85188ece1748",
-                "reference": "d59c94077f9c9915abb51ddb52ce85188ece1748",
+                "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/aa6ad8321ed103dc3624fb600a25b66ebf78ec7b",
+                "reference": "aa6ad8321ed103dc3624fb600a25b66ebf78ec7b",
                 "shasum": ""
             },
             "require": {
@@ -9108,7 +9109,7 @@
             ],
             "support": {
                 "issues": "https://github.com/phpseclib/phpseclib/issues",
-                "source": "https://github.com/phpseclib/phpseclib/tree/3.0.51"
+                "source": "https://github.com/phpseclib/phpseclib/tree/3.0.50"
             },
             "funding": [
                 {
@@ -9124,7 +9125,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-10T01:33:53+00:00"
+            "time": "2026-03-19T02:57:58+00:00"
         },
         {
             "name": "phpstan/phpdoc-parser",
@@ -18496,16 +18497,16 @@
         },
         {
             "name": "sebastian/comparator",
-            "version": "7.1.5",
+            "version": "7.1.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/comparator.git",
-                "reference": "c284f55811f43d555e51e8e5c166ac40d3e33c63"
+                "reference": "6a7de5df2e094f9a80b40a522391a7e6022df5f6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/comparator/zipball/c284f55811f43d555e51e8e5c166ac40d3e33c63",
-                "reference": "c284f55811f43d555e51e8e5c166ac40d3e33c63",
+                "url": "https://api.github.com/repos/sebastianbergmann/comparator/zipball/6a7de5df2e094f9a80b40a522391a7e6022df5f6",
+                "reference": "6a7de5df2e094f9a80b40a522391a7e6022df5f6",
                 "shasum": ""
             },
             "require": {
@@ -18564,7 +18565,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/comparator/issues",
                 "security": "https://github.com/sebastianbergmann/comparator/security/policy",
-                "source": "https://github.com/sebastianbergmann/comparator/tree/7.1.5"
+                "source": "https://github.com/sebastianbergmann/comparator/tree/7.1.4"
             },
             "funding": [
                 {
@@ -18584,7 +18585,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-08T04:43:00+00:00"
+            "time": "2026-01-24T09:28:48+00:00"
         },
         {
             "name": "sebastian/complexity",
