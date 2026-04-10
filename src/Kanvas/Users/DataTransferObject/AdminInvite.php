@@ -20,6 +20,7 @@ class AdminInvite extends Data
         public ?string $description,
         public ?string $email_template = null,
         public ?array $customFields = [],
+        public ?int $role_id = null,
     ) {
     }
 }
