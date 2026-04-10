@@ -4120,16 +4120,16 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v0.5.0",
+            "version": "v0.5.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "85f66caccc48da551cda9ace01cd7b70092e45a7"
+                "reference": "bf16555eebc2d78efcc4fa2367a476a91b2e508b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/85f66caccc48da551cda9ace01cd7b70092e45a7",
-                "reference": "85f66caccc48da551cda9ace01cd7b70092e45a7",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/bf16555eebc2d78efcc4fa2367a476a91b2e508b",
+                "reference": "bf16555eebc2d78efcc4fa2367a476a91b2e508b",
                 "shasum": ""
             },
             "require": {
@@ -4147,7 +4147,9 @@
             "require-dev": {
                 "laravel/pint": "^1.26",
                 "mockery/mockery": "^1.6.12",
-                "orchestra/testbench": "^10.6|^11.0"
+                "orchestra/testbench": "^10.6|^11.0",
+                "pestphp/pest": "^3.0|^4.0",
+                "pestphp/pest-plugin-laravel": "^3.0|^4.0"
             },
             "type": "library",
             "extra": {
@@ -4182,7 +4184,7 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-04-09T21:22:35+00:00"
+            "time": "2026-04-10T18:49:05+00:00"
         },
         {
             "name": "laravel/cashier",
