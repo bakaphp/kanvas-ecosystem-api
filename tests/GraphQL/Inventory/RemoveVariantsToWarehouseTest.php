@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
-use Kanvas\Inventory\Products\Models\ProductsWarehouses;
 use Tests\TestCase;
 
 class RemoveVariantsToWarehouseTest extends TestCase
@@ -58,7 +57,7 @@ class RemoveVariantsToWarehouseTest extends TestCase
                     is_published
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createWarehouse' => $data]
+            'data' => ['createWarehouse' => $data],
         ]);
         $warehouseData = [
             'id' => $response->json()['data']['createWarehouse']['id'],
@@ -66,7 +65,7 @@ class RemoveVariantsToWarehouseTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->time
+            'sku' => fake()->time,
         ];
         $response = $this->graphQL('
             mutation($data: ProductInput!) {
@@ -88,7 +87,7 @@ class RemoveVariantsToWarehouseTest extends TestCase
             'description' => fake()->text,
             'products_id' => $productId,
             'sku' => fake()->time,
-            'warehouses' => [$warehouseData]
+            'warehouses' => [$warehouseData],
         ];
         $response = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -122,7 +121,7 @@ class RemoveVariantsToWarehouseTest extends TestCase
                 is_published
             }
         }', ['data' => $warehouseDataUpdate])->assertJson([
-            'data' => ['createWarehouse' => $warehouseDataUpdate]
+            'data' => ['createWarehouse' => $warehouseDataUpdate],
         ]);
         $warehouseData = [
             'id' => $response->json()['data']['createWarehouse']['id'],
@@ -157,7 +156,7 @@ class RemoveVariantsToWarehouseTest extends TestCase
             removeVariantToWarehouse(id: $id warehouse_id: $warehouse_id)
         }', [
             'id' => $variantId,
-            'warehouse_id' => $warehouseData['id']
+            'warehouse_id' => $warehouseData['id'],
         ]);
         $this->assertArrayHasKey('data', $response->json());
     }
