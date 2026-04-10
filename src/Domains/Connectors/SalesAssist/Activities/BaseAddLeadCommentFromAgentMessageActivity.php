@@ -326,7 +326,8 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
             return true;
         }
 
-        $previousInboundCount = $channel->messages()            ->whereRaw("JSON_EXTRACT(messages.message, '$.from_me') = false")
+        $previousInboundCount = $channel->messages()
+            ->whereRaw("JSON_EXTRACT(messages.message, '$.from_me') = false")
             ->where('messages.is_deleted', 0)
             ->where('messages.id', '!=', $message->getId())
             ->count();
