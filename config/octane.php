@@ -84,7 +84,7 @@ return [
         WorkerStarting::class => [
             EnsureUploadedFilesAreValid::class,
             EnsureUploadedFilesCanBeMoved::class,
-            \App\Octane\Listeners\StartAgentTelemetryService::class,
+            \Kanvas\Connectors\OpenClaw\Listeners\StartAgentTelemetryService::class,
         ],
 
         RequestReceived::class => [

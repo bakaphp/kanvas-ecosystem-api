@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Octane\Listeners;
+namespace Kanvas\Connectors\OpenClaw\Listeners;
 
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\OpenClaw\Services\AgentTelemetryService;
