@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Users\Actions;
 
 use Illuminate\Support\Facades\DB;
+use Kanvas\AccessControlList\Actions\AssignRoleAction;
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Actions\CreateAppKeyAction;
 use Kanvas\Apps\DataTransferObject\AppKeyInput;
 use Kanvas\Apps\Models\Apps;
@@ -85,6 +88,10 @@ class ProcessAdminInviteAction
                 app: $app,
                 isActive: StateEnums::YES->getValue()
             );
+
+            $roleParam = $invite->role_id ?? RolesEnums::ADMIN->value;
+            $role = RolesRepository::getByMixedParamFromCompany(param: $roleParam, app: $app);
+            new AssignRoleAction($user, $role, $app)->execute();
 
             $invite->softDelete();
             $app->update(); //clear cache
