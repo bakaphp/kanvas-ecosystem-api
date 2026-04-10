@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\PublicAppScopeTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,7 +13,6 @@ use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
-use Baka\Traits\PublicAppScopeTrait;
 
 class Integrations extends BaseModel
 {
