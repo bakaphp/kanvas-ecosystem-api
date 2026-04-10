@@ -540,8 +540,6 @@ class SshClient
 
     /**
      * Extract plain text from a content array (mixed text/thinking/toolCall blocks).
-     *
-     * @param  mixed  $content
      */
     private function extractTextContent(mixed $content): string
     {
@@ -570,7 +568,6 @@ class SshClient
     /**
      * Extract tool names from a content array.
      *
-     * @param  mixed  $content
      * @return string[]
      */
     private function extractToolNames(mixed $content): array
