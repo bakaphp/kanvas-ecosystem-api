@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Connector\OpenClaw\Queries;
 
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Intelligence\Agents\Models\AgentDeploymentEvent;
 
 class AgentDeploymentEventsQuery
@@ -13,9 +14,9 @@ class AgentDeploymentEventsQuery
 
     /**
      * @param  array<string, mixed>  $args
-     * @return \Illuminate\Database\Eloquent\Collection<int, AgentDeploymentEvent>
+     * @return Collection<int, AgentDeploymentEvent>
      */
-    public function __invoke(mixed $root, array $args): \Illuminate\Database\Eloquent\Collection
+    public function __invoke(mixed $root, array $args): Collection
     {
         $limit = min((int) ($args['limit'] ?? self::DEFAULT_LIMIT), self::MAX_LIMIT);
 

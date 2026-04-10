@@ -260,9 +260,12 @@ class AgentTelemetryService
             $alertEmail = $app->get(ConfigurationEnum::ALERT_EMAIL->value);
 
             if ($alertEmail) {
-                Mail::raw(strip_tags(str_replace(['*', '`', '_'], '', $text)), function ($m) use ($alertEmail, $title, $agentName) {
-                    $m->to($alertEmail)->subject("OpenClaw alert: {$title} — {$agentName}");
-                });
+                Mail::raw(
+                    strip_tags(str_replace(['*', '`', '_'], '', $text)),
+                    function ($m) use ($alertEmail, $title, $agentName) {
+                        $m->to($alertEmail)->subject("OpenClaw alert: {$title} — {$agentName}");
+                    }
+                );
             }
         } catch (Throwable $e) {
             Log::warning("OpenClaw telemetry: alert failed — {$e->getMessage()}");

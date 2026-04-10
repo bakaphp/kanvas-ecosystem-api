@@ -106,8 +106,7 @@ class DockerComposeBuilder
         if ($geminiApiKey !== '') {
             $authProfiles['google:default'] = [
                 'provider' => 'google',
-                'type' => 'api_key',
-                'key' => $geminiApiKey,
+                'mode'     => 'api_key',
             ];
         }
 
@@ -132,16 +131,12 @@ class DockerComposeBuilder
                         'fallbacks' => [
                             'google/gemini-3.1-flash-lite-preview',
                             'google/gemini-3.1-pro-preview',
-                            'google-vertex/gemini-2.5-pro',
-                            'google-vertex/gemini-3-flash-preview',
                         ],
                     ],
                     'models' => [
-                        'google/gemini-2.5-pro' => (object) [],
+                        'google/gemini-2.5-pro'               => (object) [],
                         'google/gemini-3.1-flash-lite-preview' => (object) [],
-                        'google/gemini-3.1-pro-preview' => (object) [],
-                        'google-vertex/gemini-2.5-pro' => (object) [],
-                        'google-vertex/gemini-3-flash-preview' => (object) [],
+                        'google/gemini-3.1-pro-preview'        => (object) [],
                     ],
                     'workspace' => '/home/node/.openclaw/workspace',
                 ],
