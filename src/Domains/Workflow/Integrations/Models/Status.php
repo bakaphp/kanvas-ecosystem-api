@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Integrations\Models;
 
 use Kanvas\Workflow\Models\BaseModel;
-use Kanvas\Workflow\Traits\PublicAppScopeTrait;
+use Baka\Traits\PublicAppScopeTrait;
 
 class Status extends BaseModel
 {

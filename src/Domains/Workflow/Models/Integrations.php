@@ -12,7 +12,7 @@ use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
-use Kanvas\Workflow\Traits\PublicAppScopeTrait;
+use Baka\Traits\PublicAppScopeTrait;
 
 class Integrations extends BaseModel
 {

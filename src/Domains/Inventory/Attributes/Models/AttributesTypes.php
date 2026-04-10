@@ -11,7 +11,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Enums\AttributeTypeEnum;
 use Kanvas\Inventory\Attributes\Models\Attributes as ModelsAttributes;
 use Kanvas\Inventory\Models\BaseModel;
-use Kanvas\Workflow\Traits\PublicAppScopeTrait;
+use Baka\Traits\PublicAppScopeTrait;
 
 /**
  * Class Attributes.
