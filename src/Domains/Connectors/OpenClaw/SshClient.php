@@ -326,8 +326,8 @@ class SshClient
      * `openclaw skills list`, which shows what's installed on the host, this reflects
      * what the specific agent has actually used.
      *
-     * @param  string  $systemUser  Linux user for the deployment (e.g. "agent-whitco")
-     * @param  string  $agentSlug   Openclaw agent slug matching the agents/ sub-dir
+     * @param  string  $containerName  Docker container name running the agent (e.g. "openclaw-whitco")
+     * @param  string  $agentSlug      Openclaw agent slug matching the agents/ sub-dir
      * @return string|null  JSON-encoded array of unique tool names, or null if none found
      */
     public function getAgentTools(string $containerName, string $agentSlug): ?string

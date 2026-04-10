@@ -69,8 +69,8 @@ type AgentDeploymentType {
     error_message: String
     created_at: DateTime!
     updated_at: DateTime!
-    agent: AgentAi! @belongsTo
-    machine: AgentMachineType! @belongsTo
+    agent: AgentAi @belongsTo
+    machine: AgentMachineType @belongsTo
 }
 
 input AgentMachineInput {

@@ -90,7 +90,26 @@ class DockerComposeBuilder
     ): string {
         $slug = $agent->slug;
         $model = $app->get(ConfigurationEnum::DEFAULT_MODEL->value) ?? 'google/gemini-3.1-pro-preview';
-        $geminiApiKey = $app->get(ConfigurationEnum::GEMINI_API_KEY->value) ?? '';
+
+        // Prefer GEMINI_API_KEY; fall back to GOOGLE_API_KEY — both are Google AI Studio keys
+        $geminiApiKey = (string) ($app->get(ConfigurationEnum::GEMINI_API_KEY->value)
+            ?? $app->get(ConfigurationEnum::GOOGLE_API_KEY->value)
+            ?? '');
+
+        $authProfiles = [
+            'openai-codex:default' => [
+                'provider' => 'openai-codex',
+                'mode' => 'oauth',
+            ],
+        ];
+
+        if ($geminiApiKey !== '') {
+            $authProfiles['google:default'] = [
+                'provider' => 'google',
+                'type' => 'api_key',
+                'key' => $geminiApiKey,
+            ];
+        }
 
         $config = [
             'meta' => [
@@ -104,12 +123,7 @@ class DockerComposeBuilder
                 'lastRunMode' => 'local',
             ],
             'auth' => [
-                'profiles' => [
-                    'openai-codex:default' => [
-                        'provider' => 'openai-codex',
-                        'mode' => 'oauth',
-                    ],
-                ],
+                'profiles' => $authProfiles,
             ],
             'agents' => [
                 'defaults' => [
@@ -244,7 +258,9 @@ class DockerComposeBuilder
         $profiles = [];
         $lastGood = [];
 
-        $googleApiKey = $app->get(ConfigurationEnum::GOOGLE_API_KEY->value);
+        // Accept either GOOGLE_API_KEY or GEMINI_API_KEY — both are Google AI Studio keys
+        $googleApiKey = $app->get(ConfigurationEnum::GOOGLE_API_KEY->value)
+            ?? $app->get(ConfigurationEnum::GEMINI_API_KEY->value);
         if (! empty($googleApiKey)) {
             $profiles['google:default'] = [
                 'type' => 'api_key',
