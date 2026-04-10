@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Ecosystem\Users;
 
 use Illuminate\Support\Facades\Notification;
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Models\Users;
+use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
 
 class AdminInviteTest extends TestCase
@@ -216,5 +220,118 @@ class AdminInviteTest extends TestCase
         ->assertSeeText('invite_hash');
 
         $this->assertEquals($response->json('data.getAdminInvite.email'), $invite['email']);
+    }
+
+    public function testProcessAdminInviteWithRoleId(): void
+    {
+        Notification::fake();
+
+        $app = app(Apps::class);
+        $scope = RolesEnums::getScope($app, global: true);
+        Bouncer::scope()->to($scope);
+
+        $role = RolesRepository::getByNameFromCompany(RolesEnums::USER->value, app: $app);
+
+        $response = $this->graphQL(
+            '
+            mutation inviteAdmin($data: AdminInviteInput!) {
+                inviteAdmin(input: $data) {
+                    id
+                    email
+                    invite_hash
+                }
+            }',
+            [
+                'data' => [
+                    'email' => fake()->email(),
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'custom_fields' => [],
+                    'role_id' => $role->id,
+                ],
+            ]
+        )->assertSuccessful();
+
+        $invite = $response->json('data.inviteAdmin');
+
+        $processResponse = $this->graphQL(
+            '
+            mutation processAdminInvite($data: CompleteInviteInput!) {
+                processAdminInvite(input: $data) {
+                    id
+                }
+            }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'password' => fake()->password(8),
+                    'invite_hash' => $invite['invite_hash'],
+                    'phone_number' => fake()->phoneNumber(),
+                ],
+            ]
+        )->assertSuccessful();
+
+        $userId = $processResponse->json('data.processAdminInvite.id');
+        $user = Users::getById($userId);
+
+        $this->assertEquals($user->email, $invite['email']);
+
+        Bouncer::scope()->to($scope);
+        $this->assertTrue($user->isAn(RolesEnums::USER->value));
+    }
+
+    public function testProcessAdminInviteDefaultsToAdminRole(): void
+    {
+        Notification::fake();
+
+        $app = app(Apps::class);
+        $scope = RolesEnums::getScope($app, global: true);
+        Bouncer::scope()->to($scope);
+
+        $response = $this->graphQL(
+            '
+            mutation inviteAdmin($data: AdminInviteInput!) {
+                inviteAdmin(input: $data) {
+                    id
+                    email
+                    invite_hash
+                }
+            }',
+            [
+                'data' => [
+                    'email' => fake()->email(),
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'custom_fields' => [],
+                ],
+            ]
+        )->assertSuccessful();
+
+        $invite = $response->json('data.inviteAdmin');
+
+        $processResponse = $this->graphQL(
+            '
+            mutation processAdminInvite($data: CompleteInviteInput!) {
+                processAdminInvite(input: $data) {
+                    id
+                }
+            }',
+            [
+                'data' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'password' => fake()->password(8),
+                    'invite_hash' => $invite['invite_hash'],
+                    'phone_number' => fake()->phoneNumber(),
+                ],
+            ]
+        )->assertSuccessful();
+
+        $userId = $processResponse->json('data.processAdminInvite.id');
+        $user = Users::getById($userId);
+
+        Bouncer::scope()->to($scope);
+        $this->assertTrue($user->isAn(RolesEnums::ADMIN->value));
     }
 }

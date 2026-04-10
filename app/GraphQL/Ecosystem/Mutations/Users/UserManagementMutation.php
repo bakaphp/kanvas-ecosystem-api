@@ -168,7 +168,8 @@ class UserManagementMutation
                 firstname: $request['firstname'] ?? null,
                 lastname: $request['lastname'] ?? null,
                 description: $request['description'] ?? null,
-                customFields: $request['custom_fields'] ?? []
+                customFields: $request['custom_fields'] ?? [],
+                role_id: isset($request['role_id']) ? (int) $request['role_id'] : null,
             ),
             auth()->user(),
             (bool) $userAssociation
