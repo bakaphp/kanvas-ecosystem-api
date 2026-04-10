@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Connector\OpenClaw\Queries;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
@@ -18,13 +19,19 @@ class AgentDeploymentLogsQuery
      */
     public function __invoke(mixed $root, array $args): array
     {
-        $deployment = AgentDeployment::with(['machine', 'agent'])->find($args['deployment_id']);
+        $app     = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $limit   = min((int) ($args['limit'] ?? self::DEFAULT_LIMIT), self::MAX_LIMIT);
 
-        if ($deployment === null || $deployment->machine === null || $deployment->agent === null) {
+        $deployment = AgentDeployment::with(['machine', 'agent'])
+            ->where('id', $args['deployment_id'])
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->firstOrFail();
+
+        if ($deployment->machine === null || $deployment->agent === null) {
             return [];
         }
-
-        $limit = min((int) ($args['limit'] ?? self::DEFAULT_LIMIT), self::MAX_LIMIT);
 
         $ssh  = SshClient::fromMachine($deployment->machine);
         $logs = $ssh->getDeploymentLogs($deployment->system_user, $deployment->agent->slug, $limit);
