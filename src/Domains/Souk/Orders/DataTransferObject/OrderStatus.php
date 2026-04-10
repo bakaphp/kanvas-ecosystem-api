@@ -12,7 +12,7 @@ class OrderStatus extends Data
     public function __construct(
         public readonly string $name,
         public readonly ?string $slug = null,
-        public readonly ?int $order_types_id = null,
+        public readonly ?int $order_type_id = null,
         public readonly ?OrderTypes $orderType = null,
         public readonly ?int $sequence = null,
         public readonly ?bool $is_default = null,
@@ -27,6 +27,6 @@ class OrderStatus extends Data
             return $this->orderType->getId();
         }
 
-        return $this->order_types_id;
+        return $this->order_type_id;
     }
 }
