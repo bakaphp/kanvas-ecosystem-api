@@ -62,7 +62,6 @@
         "pusher/pusher-php-server": "^7.2",
         "quickbooks/v3-php-sdk": "^6.2",
         "recombee/php-api-client": "^6.0",
-        "rennokki/laravel-eloquent-query-cache": "dev-l13-compatibility",
         "rlanvin/php-rrule": "^2.6",
         "ryanwinchester/netsuite-php": "^2024.2",
         "sentry/sentry-laravel": "^4.2",
@@ -194,10 +193,6 @@
         {
             "type": "vcs",
             "url": "https://github.com/illambo/laravel-tree.git"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/laravel-shift/laravel-eloquent-query-cache.git"
         }
     ],
     "extra": {
