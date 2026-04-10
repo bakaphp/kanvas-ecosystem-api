@@ -28,4 +28,9 @@ enum MovipassOrderStatusEnum: string
     case ACTIVE = 'ACTIVE';
     case COMPLETED = 'completed';
     // case CANCELLED = 'cancelled';
+
+    public function slug(): string
+    {
+        return str_replace('_', '-', $this->value);
+    }
 }
