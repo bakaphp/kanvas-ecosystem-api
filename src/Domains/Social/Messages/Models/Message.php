@@ -13,7 +13,6 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -45,6 +44,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
 use Override;
+use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
  *  Class Message
@@ -91,9 +91,12 @@ class Message extends BaseModel
     use HasLightHouseCache;
     use HasFilesystemTrait;
     use HasCategoriesTrait;
-    use Cachable;
+    use QueryCacheable;
 
     protected $table = 'messages';
+    public $cacheFor = null;
+    public $cacheDriver = 'redis';
+    protected static $flushCacheOnUpdate = true;
 
     protected $guarded = [
         'uuid',

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a829a61312738b0f7f74df28b3ceeb7d",
+    "content-hash": "2877adf5bcc987fc46d5f75033ac4e1f",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -10277,6 +10277,80 @@
             "time": "2026-01-09T14:38:26+00:00"
         },
         {
+            "name": "rennokki/laravel-eloquent-query-cache",
+            "version": "dev-l13-compatibility",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/laravel-shift/laravel-eloquent-query-cache.git",
+                "reference": "17d5ccca6b2e4c7185193eb1293e7db0871db08c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/laravel-shift/laravel-eloquent-query-cache/zipball/17d5ccca6b2e4c7185193eb1293e7db0871db08c",
+                "reference": "17d5ccca6b2e4c7185193eb1293e7db0871db08c",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/database": "^10.5|^11.33|^12.0|^13.0",
+                "illuminate/support": "^10.5|^11.33|^12.0|^13.0"
+            },
+            "require-dev": {
+                "chelout/laravel-relationship-events": "^1.5|^2.0|^3.0",
+                "laravel/legacy-factories": "^1.4",
+                "livewire/livewire": "dev-main",
+                "mockery/mockery": "^1.6",
+                "orchestra/testbench": "^8.1.1|^9|^10.0|^11.0",
+                "phpunit/phpunit": "^9.5.25|^10|^11|^12.5.12"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Rennokki\\QueryCache\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Rennokki\\QueryCache\\Test\\": "tests"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "vendor/bin/phpunit"
+                ]
+            },
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Alex Renoki",
+                    "email": "alex@renoki.org",
+                    "homepage": "https://github.com/rennokki",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Adding cache on your Laravel Eloquent queries' results is now a breeze.",
+            "homepage": "https://github.com/renoki-co/laravel-eloquent-query-cache",
+            "keywords": [
+                "caching",
+                "eloquent",
+                "laravel",
+                "query",
+                "remember",
+                "sql"
+            ],
+            "support": {
+                "source": "https://github.com/laravel-shift/laravel-eloquent-query-cache/tree/l13-compatibility"
+            },
+            "funding": [
+                {
+                    "type": "github",
+                    "url": "https://github.com/rennokki"
+                }
+            ],
+            "time": "2026-02-20T20:30:26+00:00"
+        },
+        {
             "name": "riimu/kit-phpencoder",
             "version": "v2.4.2",
             "source": {
@@ -19511,7 +19585,8 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "maatwebsite/excel": 20,
-        "nevadskiy/laravel-tree": 20
+        "nevadskiy/laravel-tree": 20,
+        "rennokki/laravel-eloquent-query-cache": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

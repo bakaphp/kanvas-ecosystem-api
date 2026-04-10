@@ -22,7 +22,6 @@
         "doctrine/dbal": "^4.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
         "echolabsdev/prism": "^0.100.1",
-        "mike-bronner/laravel-model-caching": "^13.0",
         "google/apiclient": "^2.16",
         "google/cloud-discoveryengine": "^1.1",
         "google/cloud-recommendations-ai": "^0.9.0",
@@ -31,7 +30,6 @@
         "imdhemy/laravel-purchases": "^1.14",
         "inspector-apm/inspector-php": "^3.12",
         "intervention/image": "^4.0",
-        "wearepixel/laravel-cart": "^2.0",
         "kiwilan/php-xml-reader": "^1.1",
         "knplabs/knp-snappy": "^1.5",
         "laravel-notification-channels/expo": "^2.1",
@@ -50,6 +48,7 @@
         "league/oauth2-client": "2.7.0",
         "maatwebsite/excel": "4.x-dev",
         "meilisearch/meilisearch-php": "^1.4",
+        "mike-bronner/laravel-model-caching": "^13.0",
         "mindee/mindee": "^2.0",
         "mll-lab/graphql-php-scalars": "^6.0",
         "mll-lab/laravel-graphiql": "^4.0.1",
@@ -63,6 +62,7 @@
         "pusher/pusher-php-server": "^7.2",
         "quickbooks/v3-php-sdk": "^6.2",
         "recombee/php-api-client": "^6.0",
+        "rennokki/laravel-eloquent-query-cache": "dev-l13-compatibility",
         "rlanvin/php-rrule": "^2.6",
         "ryanwinchester/netsuite-php": "^2024.2",
         "sentry/sentry-laravel": "^4.2",
@@ -87,6 +87,7 @@
         "twilio/sdk": "^8.11",
         "typesense/typesense-php": "^6.0",
         "vlucas/phpdotenv": "^5.5",
+        "wearepixel/laravel-cart": "^2.0",
         "webleit/zohocrmapi": "^5.5",
         "yakovenko/laravel-lighthouse-graphql-multi-schema": "^2.2"
     },
@@ -193,6 +194,10 @@
         {
             "type": "vcs",
             "url": "https://github.com/illambo/laravel-tree.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/laravel-shift/laravel-eloquent-query-cache.git"
         }
     ],
     "extra": {
