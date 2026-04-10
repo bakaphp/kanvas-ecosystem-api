@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\OpenClaw\Listeners;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\OpenClaw\Services\AgentTelemetryService;
 use Laravel\Octane\Events\WorkerStarting;
+use Swoole\Timer;
 
 class StartAgentTelemetryService
 {
@@ -28,10 +29,10 @@ class StartAgentTelemetryService
 
         // Otherwise poll every RETRY_MS until the orphaned lock expires and we can take over.
         $timerId = null;
-        $timerId = \Swoole\Timer::tick(self::RETRY_MS, function () use (&$timerId) {
+        $timerId = Timer::tick(self::RETRY_MS, function () use (&$timerId) {
             if (Cache::add('openclaw:telemetry:worker', getmypid(), self::LOCK_TTL)) {
                 if ($timerId !== null) {
-                    \Swoole\Timer::clear($timerId);
+                    Timer::clear($timerId);
                 }
                 app(AgentTelemetryService::class)->start();
             }
