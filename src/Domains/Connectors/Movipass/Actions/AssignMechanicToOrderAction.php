@@ -52,7 +52,7 @@ class AssignMechanicToOrderAction
 
         $this->order->transitionToStatus(
             auth()->user(),
-            MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value,
+            MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug(),
         );
 
         return $mechanic;

@@ -24,7 +24,7 @@ class GetMechanicPendingOrdersAction
             ->notDeleted()
             ->whereHas(
                 'orderStatus',
-                fn ($q) => $q->where('slug', MovipassOrderStatusEnum::AWAITING_OPERATOR->value)
+                fn ($q) => $q->where('slug', MovipassOrderStatusEnum::AWAITING_OPERATOR->slug())
             )
             ->whereJsonContains(
                 'metadata->assistance_case->notified_mechanic_ids',

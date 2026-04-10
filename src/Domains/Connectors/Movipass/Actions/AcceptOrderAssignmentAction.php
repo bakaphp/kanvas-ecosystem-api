@@ -26,7 +26,7 @@ class AcceptOrderAssignmentAction
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($order->orderStatus?->slug !== MovipassOrderStatusEnum::AWAITING_OPERATOR->value) {
+            if ($order->orderStatus?->slug !== MovipassOrderStatusEnum::AWAITING_OPERATOR->slug()) {
                 throw new ValidationException('Order is no longer available for assignment');
             }
 
@@ -53,7 +53,7 @@ class AcceptOrderAssignmentAction
 
             $order->transitionToStatus(
                 $this->mechanic,
-                MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value,
+                MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug(),
             );
 
             return $order;
