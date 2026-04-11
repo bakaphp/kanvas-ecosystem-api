@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f7e2e2c81138d320bb1d3fd721dceabe",
+    "content-hash": "34a223ff6b7668063c61c48f74179beb",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -3462,16 +3462,16 @@
         },
         {
             "name": "inspector-apm/inspector-php",
-            "version": "3.16.16",
+            "version": "3.17.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/inspector-php.git",
-                "reference": "1ae543cc6953da0f68ed4ac810de36696e91438e"
+                "reference": "43ce00c8d32f50ef9b2ef30a9e0469ab829fad16"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/1ae543cc6953da0f68ed4ac810de36696e91438e",
-                "reference": "1ae543cc6953da0f68ed4ac810de36696e91438e",
+                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/43ce00c8d32f50ef9b2ef30a9e0469ab829fad16",
+                "reference": "43ce00c8d32f50ef9b2ef30a9e0469ab829fad16",
                 "shasum": ""
             },
             "require": {
@@ -3480,7 +3480,7 @@
             "require-dev": {
                 "ext-curl": "*",
                 "friendsofphp/php-cs-fixer": "^3.75",
-                "neuron-core/neuron-ai": "^2.8",
+                "neuron-core/neuron-ai": "^3.0",
                 "phpstan/phpstan": "^2.1",
                 "phpunit/phpunit": "^9.0",
                 "rector/rector": "^2.2",
@@ -3489,8 +3489,8 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "3.16.x-dev",
-                    "dev-develop": "3.16.x-dev"
+                    "dev-main": "3.17.x-dev",
+                    "dev-develop": "3.17.x-dev"
                 }
             },
             "autoload": {
@@ -3518,9 +3518,9 @@
             ],
             "support": {
                 "issues": "https://github.com/inspector-apm/inspector-php/issues",
-                "source": "https://github.com/inspector-apm/inspector-php/tree/3.16.16"
+                "source": "https://github.com/inspector-apm/inspector-php/tree/3.17.1"
             },
-            "time": "2026-03-26T18:13:38+00:00"
+            "time": "2026-04-10T12:22:10+00:00"
         },
         {
             "name": "intervention/gif",
