@@ -13,6 +13,7 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Models\PaymentLogs;
 use Kanvas\Souk\Wallet\Actions\AddFundsToUserWalletAction;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
@@ -952,6 +953,167 @@ class OrderWalletTest extends TestCase
         $response->assertJsonFragment([
             'message' => 'Order has already been fully refunded',
         ]);
+    }
+
+    public function testWalletPaymentCreatesPaymentLog(): void
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $productData = new Product(
+            app: $app,
+            company: $company,
+            user: $user,
+            name: fake()->name(),
+            sku: fake()->unique()->uuid(),
+            warehouses: [[
+                'quantity' => 10,
+                'price' => 100,
+            ]]
+        );
+        $product = (new CreateProductAction($productData, $user))->execute();
+        $variant = $product->variants()->first();
+        $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
+        $channel = Channels::fromApp($app)->fromCompany($company)->first();
+        $variant->updatePriceInWarehouse($warehouse, 100);
+        $variant->updatePriceInChannel($channel, 100);
+
+        $app->del(ConfigurationEnum::SEND_NEW_ORDER_NOTIFICATION->value);
+        $app->del(ConfigurationEnum::SEND_NEW_ORDER_TO_OWNER_NOTIFICATION->value);
+
+        $wallet = $company->createAppWallet($app, ['name' => 'default']);
+        $wallet->deposit(100000, [
+            'description' => 'Deposit for payment log test',
+        ]);
+
+        $response = $this->graphQL('
+            mutation createOrderFromWalletCart($input: OrderCartInput!) {
+                createOrderFromWalletCart(input: $input) {
+                    order {
+                        id
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'cartId' => 'default',
+                'customer' => [
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                ],
+                'items' => [
+                    [
+                        'variant_id' => $variant->getId(),
+                        'quantity' => 1,
+                    ],
+                ],
+                'shipping_address' => [
+                    'address' => fake()->address(),
+                    'address_2' => fake()->postcode(),
+                    'city' => fake()->city(),
+                    'state' => fake()->state(),
+                ],
+                'metadata' => [
+                    'user_company_id' => $company->getId(),
+                ],
+            ],
+        ]);
+
+        $response->assertSuccessful();
+        $orderId = $response->json('data.createOrderFromWalletCart.order.id');
+
+        $log = PaymentLogs::where('payable_id', $orderId)
+            ->where('payable_type', Order::class)
+            ->where('status', 'wallet_payment')
+            ->first();
+
+        $this->assertNotNull($log, 'Wallet payment should create a payment log');
+        $this->assertEquals('wallet_payment', $log->status);
+        $this->assertNotNull($log->metadata);
+        $this->assertArrayHasKey('amount', $log->metadata);
+        $this->assertArrayHasKey('tag', $log->metadata);
+    }
+
+    public function testWalletRefundCreatesPaymentLog(): void
+    {
+        $result = $this->createWalletPaidOrder(200.0);
+
+        $this->graphQL('
+            mutation refundOrderToWallet($input: WalletRefundInput!) {
+                refundOrderToWallet(input: $input) {
+                    balance
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'order_id' => $result['order_id'],
+                'amount' => 75.0,
+                'reason' => 'Payment log test refund',
+            ],
+        ], [], $this->getAppKeyHeader())->assertSuccessful();
+
+        $log = PaymentLogs::where('payable_id', $result['order_id'])
+            ->where('payable_type', Order::class)
+            ->where('status', 'wallet_refund')
+            ->first();
+
+        $this->assertNotNull($log, 'Wallet refund should create a payment log');
+        $this->assertEquals('wallet_refund', $log->status);
+        $this->assertEquals(75.0, $log->metadata['amount']);
+        $this->assertEquals('Payment log test refund', $log->metadata['reason']);
+        $this->assertEquals('default', $log->metadata['tag']);
+    }
+
+    public function testWalletPaymentLogVisibleViaGraphQL(): void
+    {
+        $result = $this->createWalletPaidOrder(200.0);
+
+        $this->graphQL('
+            mutation refundOrderToWallet($input: WalletRefundInput!) {
+                refundOrderToWallet(input: $input) {
+                    balance
+                }
+            }
+        ', [
+            'input' => [
+                'order_id' => $result['order_id'],
+                'reason' => 'GraphQL visibility test',
+            ],
+        ], [], $this->getAppKeyHeader())->assertSuccessful();
+
+        $response = $this->graphQL('
+            query orders($where: QueryOrdersWhereWhereConditions!) {
+                orders(where: $where) {
+                    data {
+                        id
+                        payment_logs {
+                            id
+                            status
+                            metadata
+                            user {
+                                id
+                            }
+                            created_at
+                        }
+                    }
+                }
+            }
+        ', [
+            'where' => [
+                'column' => 'ID',
+                'operator' => 'EQ',
+                'value' => $result['order_id'],
+            ],
+        ]);
+
+        $response->assertSuccessful();
+        $logs = $response->json('data.orders.data.0.payment_logs');
+        $this->assertNotEmpty($logs);
+
+        $statuses = array_column($logs, 'status');
+        $this->assertContains('wallet_refund', $statuses);
     }
 
     public function testCreateOrderFromWalletUsesVariantWalletCreditAmount()
