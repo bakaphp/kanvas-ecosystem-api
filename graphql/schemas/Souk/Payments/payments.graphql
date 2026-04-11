@@ -11,6 +11,18 @@ type PaymentMethod {
     updated_at: String
 }
 
+type PaymentLog @model(class: "Kanvas\\Souk\\Payments\\Models\\PaymentLogs") {
+    id: ID!
+    payment: Payment! @belongsTo(relation: "payment")
+    company: Company! @belongsTo
+    user: User! @belongsTo
+    status: String
+    metadata: Mixed
+    created_at: String!
+    updated_at: String
+    is_deleted: Boolean!
+}
+
 type Payment @model(class: "Kanvas\\Souk\\Payments\\Models\\Payments") {
     id: ID!
     apps_id: ID!
@@ -30,6 +42,7 @@ type Payment @model(class: "Kanvas\\Souk\\Payments\\Models\\Payments") {
     currency: String
     status: String
     metadata: Mixed
+    payment_logs: [PaymentLog!] @hasMany(relation: "paymentLogs")
     created_at: String!
     updated_at: String
     is_deleted: Boolean!
