@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Wallet\Actions;
 
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Models\PaymentLogs;
 use Kanvas\Souk\Wallet\DataTransferObject\WalletRefund;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Souk\Wallet\Traits\HasWalletHolderTrait;
@@ -70,6 +72,8 @@ class RefundOrderToWalletAction
 
         $order->addTag('wallet_refunded');
 
+        $this->logRefundEvent($order, $refundAmount);
+
         return $wallet->refresh();
     }
 
@@ -91,5 +95,25 @@ class RefundOrderToWalletAction
         $totalRefunded = $order->get('wallet_refund_total');
 
         return $totalRefunded !== null ? (float) $totalRefunded : 0.0;
+    }
+
+    protected function logRefundEvent(Order $order, float $refundAmount): void
+    {
+        PaymentLogs::create([
+            'apps_id' => $this->data->app->getId(),
+            'companies_id' => $order->companies_id,
+            'users_id' => $this->data->user->getId(),
+            'payments_id' => 0,
+            'payment_methods_id' => 0,
+            'payable_id' => $order->getId(),
+            'payable_type' => $order::class,
+            'status' => 'wallet_refund',
+            'metadata' => [
+                'amount' => $refundAmount,
+                'reason' => $this->data->reason,
+                'tag' => $this->data->tag,
+                'refunded_by' => $this->data->user->getId(),
+            ],
+        ]);
     }
 }
