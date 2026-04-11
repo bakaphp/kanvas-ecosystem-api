@@ -111,7 +111,8 @@ type Order {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
-    provider_companies: [Company!]! @belongsToMany(relation: "providerCompanies")
+    provider_companies: [Company!]!
+        @belongsToMany(relation: "providerCompanies")
 }
 
 type OrderItem {
@@ -517,22 +518,34 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@transitionOrderStatus"
         )
     createOrderStatus(input: CreateOrderStatusInput!): OrderStatus!
-        @can(ability: "create", model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus")
+        @can(
+            ability: "create"
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
+        )
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@create"
         )
     updateOrderStatus(id: ID!, input: UpdateOrderStatusInput!): OrderStatus!
-        @can(ability: "edit", model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus")
+        @can(
+            ability: "edit"
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
+        )
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@update"
         )
     deleteOrderStatus(id: ID!): Boolean!
-        @can(ability: "delete", model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus")
+        @can(
+            ability: "delete"
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
+        )
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@delete"
         )
     createOrderType(input: CreateOrderTypeInput!): OrderType!
-        @can(ability: "create", model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes")
+        @can(
+            ability: "create"
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes"
+        )
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@create"
         )
@@ -542,7 +555,10 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@update"
         )
     deleteOrderType(id: ID!): Boolean!
-        @can(ability: "delete", model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes")
+        @can(
+            ability: "delete"
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes"
+        )
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@delete"
         )
@@ -601,7 +617,7 @@ extend type Query @guard {
             )
         orderStatus: _
             @whereConditions(
-                columns: ["name", "slug", "order_type_id", "id"]
+                columns: ["name", "slug", "order_types_id", "id"]
                 handler: "App\\GraphQL\\Souk\\Handlers\\OrderStatusHandler"
             )
         hasAddress: _
@@ -689,7 +705,7 @@ extend type Query @guard {
             )
         orderStatus: _
             @whereConditions(
-                columns: ["name", "slug", "order_type_id", "id"]
+                columns: ["name", "slug", "order_types_id", "id"]
                 handler: "App\\GraphQL\\Souk\\Handlers\\OrderStatusHandler"
             )
         hasAddress: _
@@ -841,7 +857,7 @@ extend type Query @guard {
             )
         orderStatus: _
             @whereConditions(
-                columns: ["name", "slug", "order_type_id", "id"]
+                columns: ["name", "slug", "order_types_id", "id"]
                 handler: "App\\GraphQL\\Souk\\Handlers\\OrderStatusHandler"
             )
         hasAddress: _
@@ -935,27 +951,56 @@ extend type Query @guard {
                 handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryProviderHandler"
             )
         paymentMethodType: PaymentMethodType @scope(name: "paymentMethodType")
-        orderBy: _
-            @orderBy(columns: ["id", "created_at", "updated_at"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
     ): OrderExportResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Queries\\Orders\\OrderTransitionHistoryExportQuery@export"
         )
     orderStatus(
         search: String @search
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+        orderBy: _
+            @orderBy(
+                columns: ["id", "created_at", "updated_at", "name", "sequence"]
+            )
         where: _
             @whereConditions(
-                columns: ["id", "companies_id", "name", "slug", "order_type_id"]
+                columns: [
+                    "id"
+                    "companies_id"
+                    "name"
+                    "slug"
+                    "order_types_id"
+                    "sequence"
+                ]
             )
     ): [OrderStatus!]!
         @paginate(
             defaultCount: 25
             model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
-            scopes: ["fromPublicApp", "notDeleted"]
+            scopes: ["fromPublicOrCurrentApp", "notDeleted"]
         )
     orderPipeline(order_id: ID!): OrderPipelineResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Queries\\Orders\\OrderPipelineQuery@resolve"
+        )
+    ordersByUserCustomField(
+        custom_field_name: String!
+        user_id: ID
+        orderStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "order_types_id", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderStatusHandler"
+            )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTypeHandler"
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "status"])
+    ): [Order!]!
+        @paginate(
+            builder: "App\\GraphQL\\Souk\\Queries\\Orders\\OrdersByUserCustomFieldQuery@build"
+            defaultCount: 25
         )
 }

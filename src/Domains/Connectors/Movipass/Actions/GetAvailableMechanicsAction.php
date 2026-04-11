@@ -17,6 +17,7 @@ class GetAvailableMechanicsAction
     public function __construct(
         protected readonly AppInterface $app,
         protected readonly ?Companies $providerCompany = null,
+        protected readonly array $excludeIds = [],
     ) {
     }
 
@@ -50,6 +51,10 @@ class GetAvailableMechanicsAction
                     'users_associated_apps.companies_id',
                     $this->providerCompany->getId()
                 )
+            )
+            ->when(
+                $this->excludeIds !== [],
+                fn ($q) => $q->whereNotIn('users.id', $this->excludeIds)
             )
             ->groupBy('users.id')
             ->get()
