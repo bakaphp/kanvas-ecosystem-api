@@ -22,6 +22,11 @@ class LogPaymentEventAction
                 'payable_id' => $payment->payable_id,
                 'payable_type' => $payment->payable_type,
                 'status' => $event,
+                'event_type' => $context['event_type'] ?? $event,
+                'error_code' => $context['error_code'] ?? null,
+                'error_message' => isset($context['error_message'])
+                    ? mb_substr((string) $context['error_message'], 0, 500)
+                    : null,
                 'metadata' => $context,
             ]);
         } catch (Throwable $e) {

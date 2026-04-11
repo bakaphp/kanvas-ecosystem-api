@@ -46,6 +46,8 @@ use Kanvas\Social\Messages\Observers\UserMessageActivityObserver;
 use Kanvas\Social\Messages\Observers\UserMessageObserver;
 use Kanvas\Social\UsersLists\Models\UserList;
 use Kanvas\Social\UsersLists\Observers\UsersListsObserver;
+use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Souk\Payments\Observers\PaymentObserver;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\Subscription\Subscriptions\Observers\AppsStripeCustomerObserver;
 use Kanvas\Users\Models\UserCompanyApps;
@@ -109,6 +111,7 @@ class EventServiceProvider extends ServiceProvider
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
         People::observe(PeopleObserver::class);
         AppsStripeCustomer::observe(AppsStripeCustomerObserver::class);
+        Payments::observe(PaymentObserver::class);
     }
 
     /**

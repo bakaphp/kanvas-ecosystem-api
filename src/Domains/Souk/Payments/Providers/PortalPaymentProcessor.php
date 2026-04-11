@@ -386,7 +386,6 @@ class PortalPaymentProcessor
 
         $payment->order->updateQuietly([
             'status' => $paymentStatus === PaymentStatusEnum::PENDING_AUTHORIZATION->value ? OrderStatusEnum::PENDING->value : OrderStatusEnum::FAILED->value,
-            'payment_status' => $paymentStatus,
         ]);
 
         $errors = $this->extractErrorsFromEnrollment($enrollmentData);
@@ -500,7 +499,6 @@ class PortalPaymentProcessor
 
             $payment->status = PaymentStatusEnum::FAILED->value;
             $order->updateQuietly([
-                'payment_status' => PaymentStatusEnum::FAILED->value,
                 'status' => OrderStatusEnum::FAILED->value,
                 'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
             ]);
@@ -546,7 +544,6 @@ class PortalPaymentProcessor
 
             $payment->status = PaymentStatusEnum::FAILED->value;
             $order->updateQuietly([
-                'payment_status' => PaymentStatusEnum::FAILED->value,
                 'status' => OrderStatusEnum::FAILED->value,
                 'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
             ]);

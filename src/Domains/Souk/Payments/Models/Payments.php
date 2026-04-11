@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Payments\Models\PaymentMethods;
+use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Payments\Actions\LogPaymentEventAction;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
@@ -42,6 +43,7 @@ class Payments extends BaseModel
 
     protected $casts = [
         'metadata' => Json::class,
+        'payment_method_snapshot' => Json::class,
     ];
 
     public function paymentMethod(): BelongsTo
@@ -52,6 +54,24 @@ class Payments extends BaseModel
     public function paymentLogs(): HasMany
     {
         return $this->hasMany(PaymentLogs::class, 'payments_id', 'id');
+    }
+
+    public function refunds(): HasMany
+    {
+        return $this->hasMany(PaymentRefund::class, 'payments_id', 'id');
+    }
+
+
+    public function getRefundedAmount(): float
+    {
+        return (float) $this->refunds()
+            ->where('status', RefundStatusEnum::COMPLETED->value)
+            ->sum('amount');
+    }
+
+    public function isFullyRefunded(): bool
+    {
+        return $this->getRefundedAmount() >= (float) $this->amount;
     }
 
     public function order(): BelongsTo
@@ -89,12 +109,6 @@ class Payments extends BaseModel
     public function markAsPaid(array $metadata = []): void
     {
         $this->status = PaymentStatusEnum::PAID->value;
-
-        if ($this->payable) {
-            $this->payable->updateQuietly([
-                'payment_status' => PaymentStatusEnum::PAID->value,
-            ]);
-        }
 
         if (! empty($metadata)) {
             $this->addMetadata($metadata);

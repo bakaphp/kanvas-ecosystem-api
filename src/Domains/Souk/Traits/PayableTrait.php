@@ -42,6 +42,14 @@ trait PayableTrait
         return (float) $paidAmount;
     }
 
+    public function getRefundedAmount(): float
+    {
+        return (float) $this->payments()
+            ->where('status', PaymentStatusEnum::PAID->value)
+            ->get()
+            ->sum(fn ($payment) => $payment->getRefundedAmount());
+    }
+
     /**
      * Get the payment method type from the latest paid payment.
      * Checks for actual paid payment records, regardless of payment_status.
