@@ -78,6 +78,7 @@ type Order {
     order_status: OrderStatus @belongsTo(relation: "orderStatus")
     payment_status: String
     payments: [Payment!] @hasMany(relation: "payments")
+    payment_logs: [PaymentLog!] @hasMany(relation: "paymentLogs")
     orderTransitionHistory: [OrderTransitionHistory!]
         @hasMany(relation: "orderTransitionHistory")
     discount_codes: [OrderDiscountRelation]
@@ -144,7 +145,12 @@ type OrderType {
     total_statuses: Int!
     statuses(
         orderBy: _ @orderBy(columns: ["id", "sequence", "name", "created_at"])
-    ): [OrderStatus!]! @hasMany(relation: "statuses", type: PAGINATOR)
+    ): [OrderStatus!]
+        @paginate(
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
+            relation: "statuses"
+            defaultCount: 25
+        )
     created_at: String
     updated_at: String
 }
