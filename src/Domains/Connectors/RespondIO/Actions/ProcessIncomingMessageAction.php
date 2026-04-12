@@ -6,8 +6,8 @@ namespace Kanvas\Connectors\RespondIO\Actions;
 
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\RespondIO\BaseRespondIOAction;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\RespondIO\BaseRespondIOAction;
 use Kanvas\Connectors\RespondIO\Enums\MessageTypeEnum;
 use Kanvas\Connectors\RespondIO\Traits\HasChannelProcessing;
 use Kanvas\Connectors\RespondIO\Traits\HasLeadProcessing;

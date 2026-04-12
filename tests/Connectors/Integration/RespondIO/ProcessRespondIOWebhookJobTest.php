@@ -11,7 +11,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum;
 use Kanvas\Connectors\RespondIO\Webhooks\ProcessRespondIOWebhookJob;
 use Kanvas\Guild\Leads\Models\LeadType;
-use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
