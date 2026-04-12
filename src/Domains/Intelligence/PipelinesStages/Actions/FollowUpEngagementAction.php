@@ -19,7 +19,7 @@ use Kanvas\Intelligence\FollowUp\Exceptions\FollowUpException;
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
 use Kanvas\Intelligence\FollowUp\Repositories\FollowUpRepository;
-use Kanvas\Intelligence\Services\LeadTypeConfigurationService;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Services\DailyReportService;
@@ -38,7 +38,7 @@ class FollowUpEngagementAction
         ?FollowUpLog $log = null
     ) {
         $this->log = $log;
-        $followUpKey = LeadTypeConfigurationService::getFollowUpModeKey($lead->type()->first());
+        $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
         $followUpValue = $lead->get($followUpKey);
 
         if ($followUpValue == FollowUpValueEnum::OFF()->value) {

@@ -11,6 +11,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Facades\Prism;
@@ -59,7 +60,7 @@ class CreateLeadFirstEngagementMessageAction
                 ['lead' => $this->lead->toArray()]
             ),
             'template' => $this->template,
-            'ai_mode' => $this->lead->get('ai_mode'),
+            'ai_mode' => $this->lead->get(LeadConfigurationService::getAiModeKey($this->lead)),
             'follow_up_mode' => $this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
             'allow_call_appointments' => $this->lead->company->get(CompanyConfigurationEnum::ALLOW_CALL_APPOINTMENTS->value) ?? true,
         ];

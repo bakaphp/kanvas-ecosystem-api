@@ -24,7 +24,7 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadContextInfoAction;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadFirstEngagementMessageAction;
-use Kanvas\Intelligence\Services\LeadTypeConfigurationService;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
@@ -57,7 +57,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
-                if ($lead->get('ai_mode') == IntelligenceModeEnum::OFF->value) {
+                if ($lead->get(LeadConfigurationService::getAiModeKey($lead)) == IntelligenceModeEnum::OFF->value) {
                     return [
                         'ai_mode is OFF',
                     ];
@@ -119,14 +119,14 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     }
 
                     if ($isWithinWorkingHours) {
-                        $lead->set('ai_mode', $workingHoursDefaultMode);
+                        $lead->set(LeadConfigurationService::getAiModeKey($lead), $workingHoursDefaultMode);
                     }
                 }
 
-                $disableSending = $lead->get('ai_mode') === IntelligenceModeEnum::OFF->value;
+                $disableSending = $lead->get(LeadConfigurationService::getAiModeKey($lead)) === IntelligenceModeEnum::OFF->value;
 
                 $leadType = $lead->type()->first();
-                $firstMessageDefaultKey = LeadTypeConfigurationService::getFirstMessageDefaultKey($leadType);
+                $firstMessageDefaultKey = LeadConfigurationService::getFirstMessageDefaultKey($lead);
                 $leadTypeConfig = $leadType?->config ?? [];
 
                 if (isset($leadTypeConfig[$firstMessageDefaultKey]) && ! $leadTypeConfig[$firstMessageDefaultKey]) {
@@ -347,7 +347,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
     private function shouldSendFirstMessageNow(Lead $lead): bool
     {
-        if ($lead->get('ai_mode') === IntelligenceModeEnum::OFF->value) {
+        if ($lead->get(LeadConfigurationService::getAiModeKey($lead)) === IntelligenceModeEnum::OFF->value) {
             return false;
         }
 
@@ -359,7 +359,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
         if (! $isWithinWorkingHours) {
             return true;
-        } elseif ($lead->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value) {
+        } elseif ($lead->get(LeadConfigurationService::getAiModeKey($lead)) === IntelligenceModeEnum::SUPPORT->value) {
             return false;
         } else {
             return true;

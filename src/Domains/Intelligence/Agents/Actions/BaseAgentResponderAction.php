@@ -10,7 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
-use Kanvas\Intelligence\Services\LeadTypeConfigurationService;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -39,8 +39,9 @@ class BaseAgentResponderAction
             throw new Exception('No lead found for AI agent');
         }
 
-        $leadType = $lead instanceof Lead ? $lead->type()->first() : null;
-        $aiModeKey = LeadTypeConfigurationService::getAiModeKey($leadType);
+        $aiModeKey = $lead instanceof Lead
+            ? LeadConfigurationService::getAiModeKey($lead)
+            : 'ai_mode';
         if ($lead->get($aiModeKey) == IntelligenceModeEnum::OFF->value) {
             throw new Exception('Ai Agent Off for this lead');
         }

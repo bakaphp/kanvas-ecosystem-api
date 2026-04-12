@@ -21,6 +21,7 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Services\DailyReportService;
@@ -60,7 +61,8 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
 
         $lead = $this->message->entity();
 
-        $aiMode = $lead->get('ai_mode');
+        $aiModeKey = $lead instanceof Lead ? LeadConfigurationService::getAiModeKey($lead) : 'ai_mode';
+        $aiMode = $lead->get($aiModeKey);
         if ($aiMode !== IntelligenceModeEnum::SUPPORT->value) {
             return;
         }
