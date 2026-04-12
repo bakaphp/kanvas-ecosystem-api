@@ -376,4 +376,101 @@ class ChannelsTest extends TestCase
         $this->actingAs(static::$cachedUser, 'api');
         $app->set(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value, false);
     }
+
+    public function testAppWideChannelWithEntityAndSystemModule()
+    {
+        $app = app(Apps::class);
+        $app->set(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value, true);
+
+        $messageType = MessageType::factory()->create();
+        $systemModule = SystemModules::fromApp()
+            ->fromApp()
+            ->notDeleted()
+            ->where('model_name', 'like', 'Kanvas%')
+            ->firstOrFail();
+
+        $channelSlug = 'app-wide-entity-' . fake()->uuid();
+        $entityId = fake()->uuid();
+
+        // Create the channel first with the proper entity via GraphQL
+        $this->graphQL('
+            mutation createSocialChannel($input: SocialChannelInput!) {
+                createSocialChannel(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => [
+                'name' => $channelSlug,
+                'description' => fake()->text(),
+                'entity_id' => $entityId,
+                'entity_namespace_uuid' => $systemModule->uuid,
+                'slug' => $channelSlug,
+            ],
+        ])->assertSuccessful();
+
+        $channel = Channel::where('slug', $channelSlug)
+            ->where('apps_id', $app->getId())
+            ->first();
+        $this->assertNotNull($channel);
+        $this->assertEquals($entityId, $channel->entity_id);
+
+        // User 1 sends a message with matching entity + system_module
+        $message1Text = fake()->text();
+        $this->graphQL('
+            mutation createMessage($input: MessageInput!) {
+                createMessage(input: $input) {
+                    id
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'message' => $message1Text,
+                'message_verb' => $messageType->verb,
+                'channel_slug' => $channelSlug,
+                'system_modules_id' => $systemModule->id,
+                'entity_id' => $entityId,
+            ],
+        ])->assertSuccessful();
+
+        $channel->refresh();
+        $this->assertCount(1, $channel->messages);
+
+        // User 2 (different company) sends a message with same entity + system_module
+        $user2 = $this->createUser();
+        $this->actingAs($user2, 'api');
+
+        $message2Text = fake()->text();
+        $this->graphQL('
+            mutation createMessage($input: MessageInput!) {
+                createMessage(input: $input) {
+                    id
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'message' => $message2Text,
+                'message_verb' => $messageType->verb,
+                'channel_slug' => $channelSlug,
+                'system_modules_id' => $systemModule->id,
+                'entity_id' => $entityId,
+            ],
+        ])->assertSuccessful();
+
+        // Both messages should be in the same channel
+        $channel->refresh();
+        $this->assertCount(2, $channel->messages);
+
+        // Verify only one channel exists for this slug + entity
+        $channelCount = Channel::where('slug', $channelSlug)
+            ->where('apps_id', $app->getId())
+            ->count();
+        $this->assertEquals(1, $channelCount);
+
+        // Restore original user and clean up
+        $this->actingAs(static::$cachedUser, 'api');
+        $app->set(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value, false);
+    }
 }
