@@ -99,6 +99,7 @@ use Kanvas\Connectors\RainForest\Workflows\Activities\ImportProductActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushMessageToItemActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushProductToItemActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionToEventActivity;
+use Kanvas\Connectors\RespondIO\Webhooks\ProcessRespondIOWebhookJob;
 use Kanvas\Connectors\RespondIO\Workflows\AgentChannelResponderActivity as RespondIOAgentChannelResponderActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AttachFileToChecklistItemActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AttachMessageFilesToLeadActivity;
@@ -400,6 +401,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncMicrosoftEmailActivity::class,
             SendLeadAdfByEmailActivity::class,
             InjectADKSessionEventsActivity::class,
+            ProcessRespondIOWebhookJob::class,
         ];
 
         $createdActions = [];

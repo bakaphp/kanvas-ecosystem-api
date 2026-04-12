@@ -25,6 +25,14 @@ final class CalendlyTest extends TestCase
 {
     use HasIntegrationCompany;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Calendly integration tests are skipped in CI');
+        }
+    }
+
     private function skipIfNoApiKey(): void
     {
         if (empty(getenv('TEST_CALENDLY_API_KEY'))) {
