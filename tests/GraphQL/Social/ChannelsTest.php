@@ -469,8 +469,22 @@ class ChannelsTest extends TestCase
             ->count();
         $this->assertEquals(1, $channelCount);
 
-        // Restore original user and clean up
+        // Query channelMessages as admin user to verify both messages are returned
         $this->actingAs(static::$cachedUser, 'api');
+
+        $this->graphQL('
+            query channelMessages($channel_slug: String) {
+                channelMessages(channel_slug: $channel_slug) {
+                    data {
+                        id
+                        message
+                    }
+                }
+            }
+        ', ['channel_slug' => $channelSlug])
+        ->assertSuccessful()
+        ->assertJsonCount(2, 'data.channelMessages.data');
+
         $app->set(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value, false);
     }
 }
