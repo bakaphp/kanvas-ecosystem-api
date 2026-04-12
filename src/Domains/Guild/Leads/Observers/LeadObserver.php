@@ -82,8 +82,8 @@ class LeadObserver
                         (string)$lead->getKey(),
                         Lead::class,
                         ChannelNameEnum::DEFAULT->value,
-                        ! empty($lead->description) ? $lead->description : $lead->uuid->toString(),
-                        $lead->uuid->toString()
+                        ! empty($lead->description) ? $lead->description : (string) $lead->uuid,
+                        (string) $lead->uuid
                     )
                 )
             )->execute();
