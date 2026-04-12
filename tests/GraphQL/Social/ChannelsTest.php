@@ -469,9 +469,7 @@ class ChannelsTest extends TestCase
             ->count();
         $this->assertEquals(1, $channelCount);
 
-        // Query channelMessages as admin user to verify both messages are returned
-        $this->actingAs(static::$cachedUser, 'api');
-
+        // Query channelMessages as user 2 (non-admin, different company) to verify both messages are visible
         $this->graphQL('
             query channelMessages($channel_slug: String) {
                 channelMessages(channel_slug: $channel_slug) {
@@ -485,6 +483,66 @@ class ChannelsTest extends TestCase
         ->assertSuccessful()
         ->assertJsonCount(2, 'data.channelMessages.data');
 
+        // Restore original user and clean up
+        $this->actingAs(static::$cachedUser, 'api');
         $app->set(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value, false);
+    }
+
+    public function testChannelMessagesRestrictedWithoutAppWideFlag()
+    {
+        $app = app(Apps::class);
+        $messageType = MessageType::factory()->create();
+        $channelSlug = 'restricted-test-' . fake()->uuid();
+
+        // With flag OFF: user 1 creates a message in a channel
+        $app->set(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value, false);
+
+        $this->graphQL('
+            mutation createMessage($input: MessageInput!) {
+                createMessage(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+                'channel_slug' => $channelSlug,
+            ],
+        ])->assertSuccessful();
+
+        $channel = Channel::where('slug', $channelSlug)
+            ->where('apps_id', $app->getId())
+            ->first();
+        $this->assertNotNull($channel);
+        $this->assertCount(1, $channel->messages);
+
+        // User 2 (different company) sends a message with same slug — flag is OFF
+        // so a separate channel is created for their company
+        $user2 = $this->createUser();
+        $this->actingAs($user2, 'api');
+
+        $this->graphQL('
+            mutation createMessage($input: MessageInput!) {
+                createMessage(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+                'channel_slug' => $channelSlug,
+            ],
+        ])->assertSuccessful();
+
+        // Original channel still has only 1 message (user 2 got a separate channel)
+        $channel->refresh();
+        $this->assertCount(1, $channel->messages);
+
+        // Two channels exist with the same slug (one per company)
+        $channelCount = Channel::where('slug', $channelSlug)
+            ->where('apps_id', $app->getId())
+            ->count();
+        $this->assertEquals(2, $channelCount);
+
+        // Restore original user
+        $this->actingAs(static::$cachedUser, 'api');
     }
 }

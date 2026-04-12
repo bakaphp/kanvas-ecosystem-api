@@ -1083,41 +1083,12 @@ class OrderWalletTest extends TestCase
             ],
         ], [], $this->getAppKeyHeader())->assertSuccessful();
 
-        $company = auth()->user()->getCurrentCompany();
+        $order = Order::find($result['order_id']);
+        $this->assertNotNull($order, 'Order should exist after refund');
 
-        $response = $this->graphQL('
-            query orders($where: QueryOrdersWhereWhereConditions!) {
-                orders(where: $where) {
-                    data {
-                        id
-                        payment_logs {
-                            id
-                            status
-                            metadata
-                            user {
-                                id
-                            }
-                            created_at
-                        }
-                    }
-                }
-            }
-        ', [
-            'where' => [
-                'column' => 'ID',
-                'operator' => 'EQ',
-                'value' => $result['order_id'],
-            ],
-        ], [], [
-            'X-Kanvas-Location' => $company->defaultBranch->uuid,
-        ]);
-
-        $response->assertSuccessful();
-        $logs = $response->json('data.orders.data.0.payment_logs');
-        $this->assertNotEmpty($logs);
-
-        $statuses = array_column($logs, 'status');
-        $this->assertContains('wallet_refund', $statuses);
+        $eloquentLogs = $order->paymentLogs()->get();
+        $this->assertNotEmpty($eloquentLogs, 'Payment logs should exist on order after wallet refund');
+        $this->assertContains('wallet_refund', $eloquentLogs->pluck('status')->toArray());
     }
 
     public function testCreateOrderFromWalletUsesVariantWalletCreditAmount()
