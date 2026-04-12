@@ -71,11 +71,23 @@ class ChannelsManagementMutation
         $app = app(Apps::class);
 
         try {
-            $roles = RolesRepository::getByMixedParamFromCompany($request['input']['roles_id'], auth()->user()->getCurrentCompany(), $app);
+            $roles = RolesRepository::getByMixedParamFromCompany(
+                $request['input']['roles_id'],
+                auth()->user()->getCurrentCompany(),
+                $app
+            );
         } catch (Exception $e) {
-            $roles = RolesRepository::getByMixedParamFromCompany(RolesEnums::USER->value, auth()->user()->getCurrentCompany(), $app);
+            $roles = RolesRepository::getByMixedParamFromCompany(
+                RolesEnums::USER->value,
+                auth()->user()->getCurrentCompany(),
+                $app
+            );
         }
-        $channel->users()->syncWithoutDetaching([$user->id => ['roles_id' => $roles->id]]);
+        $channel->users()->syncWithoutDetaching([
+            $user->id => [
+                'roles_id' => $roles->id,
+            ],
+        ]);
 
         return $channel;
     }
