@@ -26,6 +26,14 @@ final class ZOrderTest extends TestCase
 {
     use HasShopifyConfiguration;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Shopify integration tests are skipped in CI');
+        }
+    }
+
     public function testOrderWebhook()
     {
         $app = app(Apps::class);

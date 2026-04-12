@@ -24,7 +24,6 @@ class CreateOrderStatusesAction
             'apps_id' => $this->app->getId(),
             'name' => $this->orderTypeName,
         ], [
-            'slug' => Str::slug($this->orderTypeName),
             'is_default' => false,
             'companies_id' => 0,
         ]);

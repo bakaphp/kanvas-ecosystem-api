@@ -53,7 +53,6 @@ use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Override;
-use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
  * Companies Model.
@@ -89,7 +88,6 @@ class Companies extends BaseModel implements CompanyInterface, Customer
     use AddressTraitRelationship;
     use CanPayFloat;
     use HasWalletsTrait;
-    //use QueryCacheable;
 
     protected $table = 'companies';
 

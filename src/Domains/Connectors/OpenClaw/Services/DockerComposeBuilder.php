@@ -40,6 +40,11 @@ class DockerComposeBuilder
         return rtrim((string) file_get_contents(self::TEMPLATES_DIR . '/Dockerfile'));
     }
 
+    public static function buildEntrypoint(): string
+    {
+        return rtrim((string) file_get_contents(self::TEMPLATES_DIR . '/entrypoint.sh'));
+    }
+
     public static function buildDockerCompose(
         AgentDeployment $deployment,
         string $gatewayToken,
@@ -66,14 +71,17 @@ class DockerComposeBuilder
 
         $template = (string) file_get_contents(self::TEMPLATES_DIR . '/docker-compose.yml');
 
+        $imageName = self::getSharedImageName($app);
+
         return str_replace(
-            ['{{CONTAINER_NAME}}', '{{OPENCLAW_DIR}}', '{{GATEWAY_PORT}}', '{{PROXY_PORT}}', '{{ENV_LINES}}'],
+            ['{{CONTAINER_NAME}}', '{{OPENCLAW_DIR}}', '{{GATEWAY_PORT}}', '{{PROXY_PORT}}', '{{ENV_LINES}}', '{{IMAGE_NAME}}'],
             [
                 $deployment->container_name,
                 $deployment->home_directory . '/.openclaw',
                 (string) $deployment->gateway_port,
                 (string) $deployment->proxy_port,
                 $envLines,
+                $imageName,
             ],
             $template,
         );
@@ -142,7 +150,7 @@ class DockerComposeBuilder
                 ],
             ],
             'tools' => [
-                'profile' => 'coding',
+                'profile' => 'full',
                 'exec' => [
                     'security' => 'full',
                 ],
@@ -207,17 +215,22 @@ class DockerComposeBuilder
                 'entries' => (object) [],
             ],
             'plugins' => [
-                'entries' => (object) [],
+                'entries' => [],
             ],
         ];
 
+        $pluginEntries = [];
+
         if (! empty($geminiApiKey)) {
-            $config['tools']['web'] = [
-                'search' => [
-                    'enabled' => true,
-                    'provider' => 'gemini',
-                    'gemini' => [
-                        'apiKey' => $geminiApiKey,
+            $pluginEntries['web-search'] = [
+                'enabled' => true,
+                'config' => [
+                    'webSearch' => [
+                        'enabled' => true,
+                        'provider' => 'gemini',
+                        'gemini' => [
+                            'apiKey' => $geminiApiKey,
+                        ],
                     ],
                 ],
             ];
@@ -230,17 +243,15 @@ class DockerComposeBuilder
 
         if (! empty($channelConfig)) {
             $config['channels'] = $channelConfig;
-            $entries = [];
             if (isset($channelConfig['slack'])) {
-                $entries['slack'] = ['enabled' => true];
+                $pluginEntries['slack'] = ['enabled' => true];
             }
             if (isset($channelConfig['telegram'])) {
-                $entries['telegram'] = ['enabled' => true];
-            }
-            if (! empty($entries)) {
-                $config['plugins']['entries'] = $entries;
+                $pluginEntries['telegram'] = ['enabled' => true];
             }
         }
+
+        $config['plugins']['entries'] = ! empty($pluginEntries) ? $pluginEntries : (object) [];
 
         return (string) json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     }
@@ -322,6 +333,16 @@ class DockerComposeBuilder
         }
 
         return $channels;
+    }
+
+    public static function getSharedImageName(AppInterface $app): string
+    {
+        return (string) ($app->get(ConfigurationEnum::SHARED_IMAGE_NAME->value) ?? 'openclaw-kanvas:latest');
+    }
+
+    public static function getSharedImageDir(AppInterface $app): string
+    {
+        return (string) ($app->get(ConfigurationEnum::SHARED_IMAGE_DIR->value) ?? '/opt/openclaw-image');
     }
 
     /**

@@ -55,7 +55,6 @@ class MessageHumanTakeoverTriggerActivity extends KanvasActivity
                     ];
                 }
 
-                $channel = $message->channels()->first();
                 $lead->fireWorkflow(
                     WorkflowEnum::TRIGGER_AI->value,
                     true,

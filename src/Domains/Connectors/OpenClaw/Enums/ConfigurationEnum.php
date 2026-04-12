@@ -21,4 +21,6 @@ enum ConfigurationEnum: string
     case GEMINI_API_KEY = 'openclaw_gemini_api_key';
     case GOOGLE_API_KEY = 'openclaw_google_api_key';
     case ANTHROPIC_API_KEY = 'openclaw_anthropic_api_key';
+    case SHARED_IMAGE_NAME = 'openclaw_shared_image_name';
+    case SHARED_IMAGE_DIR = 'openclaw_shared_image_dir';
 }

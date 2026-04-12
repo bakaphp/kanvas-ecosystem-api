@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Builders\Messages;
 
-use Algolia\AlgoliaSearch\SearchClient;
+use Algolia\AlgoliaSearch\Api\SearchClient;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
@@ -60,11 +60,6 @@ class MessageBuilder
                 $query->whereHas('tags', function (Builder $q) use ($slug) {
                     $q->where('slug', $slug);
                 });
-            }
-
-            $messageCacheTime = (int) $app->get('message_tags_cache_time');
-            if ($messageCacheTime > 0) {
-                $query->cacheFor($messageCacheTime);
             }
         }
 
@@ -265,13 +260,15 @@ class MessageBuilder
             return ['error' => 'No index for message suggestion configure in your app'];
         }
 
-        $index = $client->initIndex($app->get($suggestionIndex));
-
-        $results = $index->search($args['search'], [
-            'hitsPerPage' => 15,
-            'attributesToRetrieve' => ['name', 'description'],
-            'filters' => 'is_public = 1 AND is_deleted = 0',
-        ]);
+        $results = $client->searchSingleIndex(
+            $app->get($suggestionIndex),
+            [
+                'query' => $args['search'],
+                'hitsPerPage' => 15,
+                'attributesToRetrieve' => ['name', 'description'],
+                'filters' => 'is_public = 1 AND is_deleted = 0',
+            ]
+        );
 
         return $results['hits'];
     }

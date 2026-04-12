@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Social;
 
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Social\Enums\AppEnum;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 class ChannelsTest extends TestCase
@@ -195,5 +198,70 @@ class ChannelsTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testAttachAppWideUserToSocialChannel()
+    {
+        $app = app(Apps::class);
+        $app->set(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value, true);
+
+        $systemModule = SystemModules::fromApp()
+            ->fromApp()
+            ->notDeleted()
+            ->firstOrFail();
+
+        $data = [
+            'name' => fake()->name(),
+            'description' => fake()->text(),
+            'entity_id' => fake()->uuid(),
+            'entity_namespace_uuid' => $systemModule->uuid,
+        ];
+
+        $response = $this->graphQL('
+            mutation createSocialChannel($input: SocialChannelInput!) {
+                createSocialChannel(input: $input) {
+                    id
+                }
+            }
+        ', ['input' => $data]);
+
+        $channelId = $response['data']['createSocialChannel']['id'];
+
+        $user = Users::whereHas(
+            'apps',
+            fn ($q) => $q->where('apps.id', $app->getId())
+        )->where('id', '!=', auth()->user()->getId())
+            ->notDeleted()
+            ->first();
+
+        if (! $user) {
+            $this->markTestSkipped('No other app user available for this test');
+        }
+
+        $this->graphQL('
+            mutation attachUserToSocialChannel($input: AttachUserInput!) {
+                attachUserToSocialChannel(input: $input) {
+                    users {
+                        id
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'channel_id' => $channelId,
+                'user_id' => $user->getId(),
+                'roles_id' => 'Admin',
+            ],
+        ])->assertJsonStructure([
+            'data' => [
+                'attachUserToSocialChannel' => [
+                    'users' => [
+                        0 => ['id'],
+                    ],
+                ],
+            ],
+        ]);
+
+        $app->set(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value, false);
     }
 }

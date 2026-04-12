@@ -4,23 +4,32 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Channels\Repositories;
 
+use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 
 class ChannelRepository
 {
-    public static function getById(int $id, Users $user): Channel
-    {
-        return self::getByIdBuilder($user)->findOrFail($id);
+    public static function getById(
+        int $id,
+        Users $user,
+        ?AppInterface $app = null
+    ): Channel {
+        return self::getByIdBuilder($user, $app)->findOrFail($id);
     }
 
-    public static function getByIdBuilder(Users $user): Builder
-    {
+    public static function getByIdBuilder(
+        Users $user,
+        ?AppInterface $app = null
+    ): Builder {
+        $app = $app ?? app(Apps::class);
         $databaseSocial = config('database.connections.social.database', 'social');
         $builder = Channel::join($databaseSocial . '.channel_users', 'channel_users.channel_id', '=', 'channels.id')
             ->where('channel_users.users_id', $user->getId())
+            ->where('channels.apps_id', $app->getId())
             ->where('channels.is_deleted', 0);
 
         return $builder;

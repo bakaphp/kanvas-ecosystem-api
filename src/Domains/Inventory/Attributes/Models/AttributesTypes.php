@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Attributes\Models;
 
+use Baka\Traits\PublicAppScopeTrait;
 use Baka\Traits\SlugTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,7 +12,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Enums\AttributeTypeEnum;
 use Kanvas\Inventory\Attributes\Models\Attributes as ModelsAttributes;
 use Kanvas\Inventory\Models\BaseModel;
-use Kanvas\Workflow\Traits\PublicAppScopeTrait;
 
 /**
  * Class Attributes.

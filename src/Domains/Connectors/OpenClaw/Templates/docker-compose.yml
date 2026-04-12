@@ -2,7 +2,7 @@ name: {{CONTAINER_NAME}}
 
 services:
   openclaw-gateway:
-    build: .
+    image: {{IMAGE_NAME}}
     container_name: {{CONTAINER_NAME}}
     restart: unless-stopped
     stdin_open: true

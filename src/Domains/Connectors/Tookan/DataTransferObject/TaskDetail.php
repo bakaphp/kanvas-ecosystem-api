@@ -50,7 +50,7 @@ class TaskDetail extends Data
             'job_pickup_datetime' => $this->job_pickup_datetime,
             'team_id' => $this->team_id,
             'fleet_id' => $this->fleet_id,
-            'timezone' => $this->timezone ?? 'UTC',
+            'timezone' => $this->timezone ?? '-240',
             'has_pickup' => $this->has_pickup ? "1" : "0",
             'has_delivery' => $this->has_delivery ? "1" : "0",
             'layout_type' => $this->layout_type ?? "0",

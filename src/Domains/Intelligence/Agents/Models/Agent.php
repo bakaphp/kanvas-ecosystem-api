@@ -10,6 +10,7 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -57,6 +58,7 @@ use Override;
 class Agent extends BaseModel
 {
     use AsTree;
+    use CascadeSoftDeletes;
     use SlugTrait;
     use UuidTrait;
     use HasFilesystemTrait;
@@ -64,6 +66,8 @@ class Agent extends BaseModel
         search as public traitSearch;
     }
     use HasLightHouseCache;
+
+    protected $cascadeDeletes = ['deployments'];
 
     protected $fillable = [
         'uuid',

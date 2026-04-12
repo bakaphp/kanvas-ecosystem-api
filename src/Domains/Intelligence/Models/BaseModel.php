@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Models;
 
 use Baka\Traits\KanvasModelTrait;
 use Baka\Traits\KanvasScopesTrait;
+use Baka\Traits\SoftDeletesTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
@@ -14,7 +15,6 @@ use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Traits\AppsIdTrait;
 use Kanvas\Inventory\Traits\CompaniesIdTrait;
 use Kanvas\Inventory\Traits\SourceTrait;
-use Kanvas\Traits\SoftDeletes;
 
 class BaseModel extends EloquentModel
 {
@@ -26,8 +26,8 @@ class BaseModel extends EloquentModel
     use KanvasScopesTrait;
     use HasCustomFields;
     use HasFilesystemTrait;
+    use SoftDeletesTrait;
     //use Cachable; -> until we implement workflows
-    //use SoftDeletes;
 
     protected $attributes = [
         'is_deleted' => 0,
@@ -43,4 +43,9 @@ class BaseModel extends EloquentModel
     public const DELETED_AT = 'is_deleted';
 
     protected $connection = 'intelligence';
+
+    public function trashed()
+    {
+        return (bool) $this->{$this->getDeletedAtColumn()};
+    }
 }

@@ -25,6 +25,9 @@ class ProcessTwilioWebhookJobTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Twilio integration tests are skipped in CI');
+        }
 
         $app = app(Apps::class);
         $user = auth()->user();
