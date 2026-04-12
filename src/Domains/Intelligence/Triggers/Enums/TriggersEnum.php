@@ -16,4 +16,6 @@ enum TriggersEnum: int
     case MANUAL_SUPPORT = 8;
     case MANUAL_FON = 9;
     case HANDOFF = 10;
+    case FOLLOW_UP_ON = 11;
+    case FOLLOW_UP_OFF = 12;
 }

@@ -24,6 +24,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Factories\LeadFactory;
+use Kanvas\Guild\LeadSubSources\Models\LeadSubSource;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -248,6 +249,11 @@ class Lead extends BaseModel implements EventResourceInterface
     public function source(): BelongsTo
     {
         return $this->belongsTo(LeadSource::class, 'leads_sources_id', 'id');
+    }
+
+    public function subSource(): BelongsTo
+    {
+        return $this->belongsTo(LeadSubSource::class, 'leads_sub_sources_id', 'id');
     }
 
     public function type(): BelongsTo
