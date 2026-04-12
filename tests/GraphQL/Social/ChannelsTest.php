@@ -264,4 +264,56 @@ class ChannelsTest extends TestCase
 
         $app->set(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value, false);
     }
+
+    public function testCreateChannelWithAppWideFlag()
+    {
+        $app = app(Apps::class);
+        $app->set(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value, true);
+
+        $systemModule = SystemModules::fromApp()
+            ->fromApp()
+            ->notDeleted()
+            ->firstOrFail();
+
+        $entityId = fake()->uuid();
+        $name = fake()->name();
+        $data = [
+            'name' => $name,
+            'description' => fake()->text(),
+            'entity_id' => $entityId,
+            'entity_namespace_uuid' => $systemModule->uuid,
+        ];
+
+        $response = $this->graphQL('
+            mutation createSocialChannel($input: SocialChannelInput!) {
+                createSocialChannel(input: $input) {
+                    id
+                    name
+                }
+            }
+        ', ['input' => $data])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'createSocialChannel' => [
+                    'name' => $name,
+                ],
+            ],
+        ]);
+
+        $channelId = $response->json('data.createSocialChannel.id');
+
+        // Creating the same channel again should return the existing one (dedup by app, slug, entity)
+        $duplicateResponse = $this->graphQL('
+            mutation createSocialChannel($input: SocialChannelInput!) {
+                createSocialChannel(input: $input) {
+                    id
+                }
+            }
+        ', ['input' => $data])->assertSuccessful();
+
+        $this->assertEquals($channelId, $duplicateResponse->json('data.createSocialChannel.id'));
+
+        $app->set(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value, false);
+    }
 }
