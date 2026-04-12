@@ -14,10 +14,10 @@ use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Channels\Models\Channel as ModelsChannel;
+use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\ValidParentMessage;
-use Kanvas\Social\Enums\AppEnum;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
