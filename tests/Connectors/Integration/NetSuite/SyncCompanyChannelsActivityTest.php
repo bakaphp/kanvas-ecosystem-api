@@ -124,8 +124,12 @@ final class SyncCompanyChannelsActivityTest extends TestCase
 
     protected function tearDown(): void
     {
-        $this->channel->forceDelete();
-        $this->buyerCompany->forceDelete();
+        if (isset($this->channel)) {
+            $this->channel->forceDelete();
+        }
+        if (isset($this->buyerCompany)) {
+            $this->buyerCompany->forceDelete();
+        }
 
         parent::tearDown();
     }
