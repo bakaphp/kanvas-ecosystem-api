@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Social;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\AppEnum;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
@@ -314,6 +316,64 @@ class ChannelsTest extends TestCase
 
         $this->assertEquals($channelId, $duplicateResponse->json('data.createSocialChannel.id'));
 
+        $app->set(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value, false);
+    }
+
+    public function testAppWideChannelMessagesFromDifferentUsers()
+    {
+        $app = app(Apps::class);
+        $app->set(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value, true);
+
+        $messageType = MessageType::factory()->create();
+        $channelSlug = 'app-wide-test-' . fake()->uuid();
+
+        // User 1 (current user) creates a message in a channel
+        $message1 = fake()->text();
+        $this->graphQL('
+            mutation createMessage($input: MessageInput!) {
+                createMessage(input: $input) {
+                    id
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'message' => $message1,
+                'message_verb' => $messageType->verb,
+                'channel_slug' => $channelSlug,
+            ],
+        ])->assertSuccessful();
+
+        $channel = Channel::where('slug', $channelSlug)->first();
+        $this->assertNotNull($channel);
+        $this->assertCount(1, $channel->messages);
+
+        // User 2 (different company) sends a message to the same channel
+        $user2 = $this->createUser();
+        $this->actingAs($user2, 'api');
+
+        $message2 = fake()->text();
+        $this->graphQL('
+            mutation createMessage($input: MessageInput!) {
+                createMessage(input: $input) {
+                    id
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'message' => $message2,
+                'message_verb' => $messageType->verb,
+                'channel_slug' => $channelSlug,
+            ],
+        ])->assertSuccessful();
+
+        // Both messages should be in the same channel
+        $channel->refresh();
+        $this->assertCount(2, $channel->messages);
+
+        // Restore original user and clean up
+        $this->actingAs(static::$cachedUser, 'api');
         $app->set(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value, false);
     }
 }

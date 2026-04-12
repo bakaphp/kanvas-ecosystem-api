@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Channels\Actions;
 
 use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Enums\RolesEnums;
@@ -35,7 +36,7 @@ class CreateChannelAction
             $allowAppWide = (bool) $this->channelDto->apps->get(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value);
 
             $channel = Channel::where('apps_id', $this->channelDto->apps->id)
-                ->when(! $allowAppWide, fn ($q) => $q->where('companies_id', $this->channelDto->companies->id))
+                ->when(! $allowAppWide, fn (Builder $q): Builder => $q->where('companies_id', $this->channelDto->companies->id))
                 ->where('slug', $slug)
                 ->whereIn('entity_namespace', [
                     $this->channelDto->entity_namespace,
