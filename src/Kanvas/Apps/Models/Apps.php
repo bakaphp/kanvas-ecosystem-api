@@ -78,7 +78,7 @@ class Apps extends BaseModel implements AppInterface
     {
         parent::boot();
         static::creating(function ($model) {
-            $model->key = $model->key ?? Str::uuid();
+            $model->key = $model->key ?? (string) Str::uuid();
         });
     }
 
