@@ -1083,6 +1083,8 @@ class OrderWalletTest extends TestCase
             ],
         ], [], $this->getAppKeyHeader())->assertSuccessful();
 
+        $company = auth()->user()->getCurrentCompany();
+
         $response = $this->graphQL('
             query orders($where: QueryOrdersWhereWhereConditions!) {
                 orders(where: $where) {
@@ -1106,6 +1108,8 @@ class OrderWalletTest extends TestCase
                 'operator' => 'EQ',
                 'value' => $result['order_id'],
             ],
+        ], [], [
+            'X-Kanvas-Location' => $company->defaultBranch->uuid,
         ]);
 
         $response->assertSuccessful();
