@@ -21,6 +21,14 @@ use Tests\TestCase;
 
 class AppleRenewableSubscriptionTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('InAppPurchase integration tests are skipped in CI');
+        }
+    }
+
     public function testCreateRenewableSubscriptionOrderAndPersistSubscription(): void
     {
         $app = app(Apps::class);
