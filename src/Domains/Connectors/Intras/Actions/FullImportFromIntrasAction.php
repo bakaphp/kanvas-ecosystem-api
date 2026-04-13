@@ -73,6 +73,13 @@ class FullImportFromIntrasAction
             $this->agencyId,
         )->execute();
 
+        $results['plans'] = new PullPlansFromIntrasAction(
+            $this->app,
+            $this->company,
+            $this->user,
+            $this->agencyId,
+        )->execute();
+
         $results['leads'] = new PullLeadsFromIntrasAction(
             $this->app,
             $this->company,
