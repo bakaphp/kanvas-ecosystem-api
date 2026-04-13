@@ -13,6 +13,7 @@ use Kanvas\Connectors\Intras\Actions\FullImportFromIntrasAction;
 use Kanvas\Connectors\Intras\Actions\PullEventsFromIntrasAction;
 use Kanvas\Connectors\Intras\Actions\PullFacilitatorsFromIntrasAction;
 use Kanvas\Connectors\Intras\Actions\PullLeadsFromIntrasAction;
+use Kanvas\Connectors\Intras\Actions\PullPlansFromIntrasAction;
 use Kanvas\Connectors\Intras\Actions\PullLookupDataFromIntrasAction;
 use Kanvas\Connectors\Intras\Actions\PullOrganizationsFromIntrasAction;
 use Kanvas\Connectors\Intras\Actions\PullParticipantsFromIntrasAction;
@@ -29,7 +30,7 @@ class ImportFromIntrasCommand extends Command
                             {app_id : The application ID}
                             {company_id : Company ID}
                             {user_id : User ID}
-                            {--entity=all : Entity to import (all, lookup-data, organizations, participants, facilitators, events, registrations, leads)}
+                            {--entity=all : Entity to import (all, lookup-data, organizations, participants, facilitators, events, registrations, leads, plans)}
                             {--agency-id= : Filter by Intras agency ID (1=INTRAS, 2=SKILLS, 3=FRANKLINCOVEY, 4=SUMMIT)}
                             {--since= : Only import records updated since this datetime (Y-m-d H:i:s)}';
 
@@ -75,6 +76,7 @@ class ImportFromIntrasCommand extends Command
                 'events' => ['events' => new PullEventsFromIntrasAction($app, $company, $user, $since, $agencyId)->execute()],
                 'registrations' => ['registrations' => new PullRegistrationsFromIntrasAction($app, $company, $user, $since, $agencyId)->execute()],
                 'leads' => ['leads' => new PullLeadsFromIntrasAction($app, $company, $user, $since, $agencyId)->execute()],
+                'plans' => ['plans' => new PullPlansFromIntrasAction($app, $company, $user, $agencyId)->execute()],
                 default => throw new InvalidArgumentException("Unknown entity: {$entity}"),
             };
 
