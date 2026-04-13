@@ -94,6 +94,7 @@ class OrderTypeTest extends OrderBase
                 createOrderType(input: $input) {
                     id
                     name
+                    slug
                 }
             }
         ', [
@@ -109,6 +110,7 @@ class OrderTypeTest extends OrderBase
         $data = $response->json('data.createOrderType');
         $this->assertEquals($name, $data['name']);
         $this->assertNotEmpty($data['id']);
+        $this->assertNotEmpty($data['slug']);
     }
 
     public function testCreateOrderTypeDuplicateName(): void
