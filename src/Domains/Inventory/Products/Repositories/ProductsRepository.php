@@ -73,7 +73,7 @@ class ProductsRepository
             ->join('products_attributes as pa', 'p.id', '=', 'pa.products_id')
             ->join('attributes as a', 'pa.attributes_id', '=', 'a.id')
             ->where('a.slug', '=', $attributeSlug)
-            ->where('pa.value', '=', $value)
+            ->whereRaw('JSON_UNQUOTE(JSON_EXTRACT(pa.value, \'$.en\')) = ?', [$value])
             ->where('p.companies_id', '=', $company->getId())
             ->where('p.apps_id', '=', $app->getId())
             ->where('p.is_deleted', '=', 0);
