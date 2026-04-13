@@ -1,3 +1,3 @@
 #!/bin/sh
 sudo service cron start
-exec "$@"
+exec node /app/dist/index.js "$@"
