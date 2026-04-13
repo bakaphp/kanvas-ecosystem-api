@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\Movipass;
 
-use Baka\Support\Str;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
@@ -22,55 +21,54 @@ class SetupRoadsideAssistanceCaseCommand extends Command
         $appId = $this->argument('app_id');
         $app = $appId ? Apps::getById((int) $appId) : app(Apps::class);
 
-        $s = fn (MovipassOrderStatusEnum $e) => Str::slug($e->value);
-        $cancelled = $s(MovipassOrderStatusEnum::SERVICE_CANCELLED);
+        $cancelled = MovipassOrderStatusEnum::SERVICE_CANCELLED->value;
 
         new CreateOrderStatusesAction($app, OrderTypeEnum::ROADSIDE_ASSISTANCE->value, [
-            $s(MovipassOrderStatusEnum::REQUEST_SUBMITTED) => [
+            MovipassOrderStatusEnum::REQUEST_SUBMITTED->value => [
                 'is_default' => true,
                 'transitions' => [
-                    $s(MovipassOrderStatusEnum::AWAITING_OPERATOR),
+                    MovipassOrderStatusEnum::AWAITING_OPERATOR->value,
                     $cancelled,
                 ],
             ],
-            $s(MovipassOrderStatusEnum::AWAITING_OPERATOR) => [
+            MovipassOrderStatusEnum::AWAITING_OPERATOR->value => [
                 'transitions' => [
-                    $s(MovipassOrderStatusEnum::PROVIDER_ASSIGNED),
+                    MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value,
                     $cancelled,
                 ],
             ],
-            $s(MovipassOrderStatusEnum::PROVIDER_ASSIGNED) => [
+            MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value => [
                 'transitions' => [
-                    $s(MovipassOrderStatusEnum::DISPATCHED),
+                    MovipassOrderStatusEnum::DISPATCHED->value,
                     $cancelled,
                 ],
             ],
-            $s(MovipassOrderStatusEnum::DISPATCHED) => [
+            MovipassOrderStatusEnum::DISPATCHED->value => [
                 'transitions' => [
-                    $s(MovipassOrderStatusEnum::ON_SITE),
+                    MovipassOrderStatusEnum::ON_SITE->value,
                     $cancelled,
                 ],
             ],
-            $s(MovipassOrderStatusEnum::ON_SITE) => [
+            MovipassOrderStatusEnum::ON_SITE->value => [
                 'transitions' => [
-                    $s(MovipassOrderStatusEnum::SERVICE_IN_PROGRESS),
+                    MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->value,
                     $cancelled,
                 ],
             ],
-            $s(MovipassOrderStatusEnum::SERVICE_IN_PROGRESS) => [
+            MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->value => [
                 'transitions' => [
-                    $s(MovipassOrderStatusEnum::SERVICE_COMPLETED),
-                    $s(MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED),
+                    MovipassOrderStatusEnum::SERVICE_COMPLETED->value,
+                    MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value,
                     $cancelled,
                 ],
             ],
-            $s(MovipassOrderStatusEnum::SERVICE_COMPLETED) => [
+            MovipassOrderStatusEnum::SERVICE_COMPLETED->value => [
                 'is_final' => true,
             ],
-            $s(MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED) => [
+            MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value => [
                 'is_final' => true,
             ],
-            $s(MovipassOrderStatusEnum::SERVICE_CANCELLED) => [
+            MovipassOrderStatusEnum::SERVICE_CANCELLED->value => [
                 'is_final' => true,
             ],
         ])->execute();
