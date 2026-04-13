@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Messages;
 
+use Baka\Support\IPInfo;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -72,7 +73,7 @@ class MessageManagementMutation
             $systemModule = $systemModuleId ? SystemModules::getById((int)$systemModuleId, $app) : null;
         }
 
-        $messageData['ip_address'] = request()->ip();
+        $messageData['ip_address'] = IPInfo::getClientIp();
         $data = MessageInput::fromArray(
             $messageData,
             $user,

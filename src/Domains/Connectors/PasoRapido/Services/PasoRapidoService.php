@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\PasoRapido\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\IPInfo;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
@@ -60,6 +61,7 @@ class PasoRapidoService
             report(new TooManyRequestsHttpException(
                 message: "PasoRapido per-minute limit exceeded - user:{$userId} app:{$appId}"
             ));
+
             throw new TooManyRequestsHttpException(
                 message: 'Too many tag verification requests. Please try again later.'
             );
@@ -70,6 +72,7 @@ class PasoRapidoService
             report(new TooManyRequestsHttpException(
                 message: "PasoRapido daily limit exceeded - user:{$userId} app:{$appId} max:{$maxDaily}"
             ));
+
             throw new TooManyRequestsHttpException(
                 message: 'Daily tag verification limit reached.'
             );
@@ -101,8 +104,8 @@ class PasoRapidoService
         $response = $this->client->post(ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag, []);
 
         return VerifyCustomerResponse::from([
-            'username' => $response['nombreUsuario'] ?? "",
-            'lastname' => $response['apellidoUsuario'] ?? "",
+            'username' => $response['nombreUsuario'] ?? '',
+            'lastname' => $response['apellidoUsuario'] ?? '',
             'device' => $response['dispositivo'],
             'message' => $response['descripcionMensaje'],
             'document' => $response['rnc_Cedula'],
@@ -138,7 +141,7 @@ class PasoRapidoService
                 'invoice' => $response['detallesFactura']['comprobante'] ?? '',
                 'pdf' => $response['detallesFactura']['pdf'] ?? '',
                 'reference' => $response['detallesFactura']['referencia'] ?? '',
-            ])
+            ]),
         ]);
     }
 
@@ -183,7 +186,7 @@ class PasoRapidoService
             ->withProperties([
                 'tag' => $tag,
                 'app_id' => $this->app->getId(),
-                'ip' => $this->getClientIp(),
+                'ip' => IPInfo::getClientIp(),
             ])
             ->log('PasoRapido tag verification');
     }

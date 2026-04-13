@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Orders;
 
+use Baka\Support\IPInfo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
@@ -120,7 +121,7 @@ class OrderManagementMutation
             ])
             ->log('User attempted to create order from cart');
 
-        $ipAddress = request()->ip();
+        $ipAddress = IPInfo::getClientIp();
         $createOrder = new $actionClass(
             $cart,
             $company,
@@ -246,7 +247,7 @@ class OrderManagementMutation
             ])
             ->log('User attempted to create order from cart');
 
-        $ipAddress = request()->ip();
+        $ipAddress = IPInfo::getClientIp();
         $createOrder = new CreateOrderFromCartAction(
             $cart,
             $company,
