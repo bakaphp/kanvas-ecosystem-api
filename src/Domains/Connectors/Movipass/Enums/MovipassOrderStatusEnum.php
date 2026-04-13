@@ -2,6 +2,8 @@
 
 namespace Kanvas\Connectors\Movipass\Enums;
 
+use Baka\Support\Str;
+
 enum MovipassOrderStatusEnum: string
 {
     case REQUEST_SUBMITTED = 'request_submitted';
@@ -31,6 +33,6 @@ enum MovipassOrderStatusEnum: string
 
     public function slug(): string
     {
-        return str_replace('_', '-', $this->value);
+        return Str::slug($this->value);
     }
 }
