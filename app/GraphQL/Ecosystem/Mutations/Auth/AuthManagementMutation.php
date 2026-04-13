@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
+use Baka\Support\IPInfo;
 use Baka\Validations\PasswordValidation;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Support\Facades\Validator;
@@ -57,7 +58,7 @@ class AuthManagementMutation
             LoginInput::from([
                 'email' => $email,
                 'password' => $password,
-                'ip' => $request->ip(),
+                'ip' => IPInfo::getClientIp($request),
                 'deviceId' => $deviceId,
             ])
         );
@@ -72,8 +73,7 @@ class AuthManagementMutation
                     'email' => $email,
                     'app_id' => $app->getId(),
                     'app_name' => $app->name,
-                    'ip' => $request->ip(),
-                    'x_forwarded_for' => $request->header('X-Forwarded-For'),
+                    'ip' => IPInfo::getClientIp($request),
                     'device_id' => $deviceId,
                     'user_agent' => $request->userAgent(),
                 ]);
