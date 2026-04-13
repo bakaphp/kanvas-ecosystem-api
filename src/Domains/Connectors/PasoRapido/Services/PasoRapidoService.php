@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PasoRapido\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\IPInfo;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\Cache;
@@ -174,7 +175,7 @@ class PasoRapidoService
             ->withProperties([
                 'tag' => $tag,
                 'app_id' => $this->app->getId(),
-                'ip' => request()->ip(),
+                'ip' => IPInfo::getClientIp(),
             ])
             ->log('PasoRapido tag verification');
     }

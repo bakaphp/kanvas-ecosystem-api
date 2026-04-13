@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\ActionEngine\Engagements\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\IPInfo;
 use Baka\Support\Str;
 use Baka\Support\Url;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -388,7 +389,7 @@ class CreateEngagementAction
             'total_disliked' => 0,
             'total_saved' => 0,
             'total_shared' => 0,
-            'ip_address' => request()->ip(),
+            'ip_address' => IPInfo::getClientIp(),
         ];
 
         $messageTypeDto = MessageTypeInput::from([

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Payments\Providers;
 
+use Baka\Support\IPInfo;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
@@ -463,7 +464,7 @@ class PortalPaymentProcessor
                 'billTo' => $this->setCustomerBillingAddress($payment, $order),
             ]),
             'deviceInformation' => DeviceInformation::from([
-                'ipAddress' => $order->metadata['data']['user_ip'] ?? request()->ip(),
+                'ipAddress' => $order->metadata['data']['user_ip'] ?? IPInfo::getClientIp(),
                 'fingerprintSessionId' => $merchantAuthentication->id . $order->id,
             ]),
             'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
