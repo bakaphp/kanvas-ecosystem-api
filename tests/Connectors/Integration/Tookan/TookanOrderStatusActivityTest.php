@@ -182,14 +182,10 @@ final class TookanOrderStatusActivityTest extends TestCase
 
             // Assert successful execution
             $this->assertEquals('success', $result['status']);
-            $this->assertEquals('Order status transition handled successfully', $result['message']);
-
-            // Assert notification was sent
-            Notification::assertSent(OrderNotification::class, 1);
+            $this->assertEquals('Parent order status transition handled successfully', $result['message']);
 
             // Verify notification was sent to customer email
-            Notification::assertSentTo(
-                [$this->order->people],
+            Notification::assertSentOnDemand(
                 OrderNotification::class,
                 function ($notification, $channels) use ($status) {
                     $expectedTemplate = 'user-' . strtolower($status->value);

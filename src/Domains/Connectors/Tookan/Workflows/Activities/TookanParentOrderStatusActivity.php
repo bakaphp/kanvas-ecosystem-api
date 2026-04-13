@@ -30,7 +30,7 @@ class TookanParentOrderStatusActivity extends KanvasActivity implements Workflow
                 $toStatus = $params['to_status'] ?? null;
 
                 // lets make sure it is a parent order
-                if (! $order->parent_id == null) {
+                if ($order->parent_id !== null) {
                     return [
                         'order' => $order->getId(),
                         'status' => 'success',
@@ -38,7 +38,8 @@ class TookanParentOrderStatusActivity extends KanvasActivity implements Workflow
                     ];
                 }
 
-                // Parent order notifications - send to end customer
+                $orderNumber = $order->order_number;
+
                 $userNotificationsStatuses = [
                     OrderStatusEnum::RECEIVED->value,
                     OrderStatusEnum::PREPARING->value,
@@ -47,12 +48,24 @@ class TookanParentOrderStatusActivity extends KanvasActivity implements Workflow
                     OrderStatusEnum::CANCELLED->value,
                 ];
 
-                // Main company (parent company) notifications
+                $userSubjects = [
+                    OrderStatusEnum::RECEIVED->value   => "Ordered · Orden #{$orderNumber}",
+                    OrderStatusEnum::PREPARING->value  => "Order confirmed · Orden #{$orderNumber}",
+                    OrderStatusEnum::DISPATCHED->value => "Shipped · Orden #{$orderNumber}",
+                    OrderStatusEnum::DELIVERED->value  => "Delivered · Orden #{$orderNumber}",
+                    OrderStatusEnum::CANCELLED->value  => "Update · Orden #{$orderNumber}",
+                ];
+
                 $mainCompanyStatuses = [
                     OrderStatusEnum::RECEIVED->value,
-                    OrderStatusEnum::READY_FOR_PICKUP->value,
                     OrderStatusEnum::DELIVERED->value,
                     OrderStatusEnum::CANCELLED->value,
+                ];
+
+                $ownerSubjects = [
+                    OrderStatusEnum::RECEIVED->value  => "New Order Received · #{$orderNumber}",
+                    OrderStatusEnum::DELIVERED->value => "Order Completed · Orden #{$orderNumber}",
+                    OrderStatusEnum::CANCELLED->value => "Order Canceled · Orden #{$orderNumber}",
                 ];
 
                 // Create Tookan task when parent order is ready for final delivery to customer
@@ -65,16 +78,28 @@ class TookanParentOrderStatusActivity extends KanvasActivity implements Workflow
                     ))->execute();
                 }
 
-                // Send notifications to end customer
+                // Send notifications to end customer (email + in-app)
                 if (in_array($toStatus, $userNotificationsStatuses)) {
                     $template = 'user-' . strtolower($toStatus);
-                    (new SendOrderEmailsAction($order, $template, []))->execute();
+                    (new SendOrderEmailsAction(
+                        $order,
+                        $template,
+                        [],
+                        ['mail', 'database'],
+                        $userSubjects[$toStatus] ?? null,
+                    ))->execute();
                 }
 
-                // Send notifications to main company (owner)
+                // Send notifications to main company / Giftea team (email only)
                 if (in_array($toStatus, $mainCompanyStatuses)) {
                     $template = 'owner-' . strtolower($toStatus);
-                    (new SendOrderEmailsAction($order, $template, []))->execute();
+                    (new SendOrderEmailsAction(
+                        $order,
+                        $template,
+                        [],
+                        ['mail'],
+                        $ownerSubjects[$toStatus] ?? null,
+                    ))->execute();
                 }
 
                 $childOrder = $order->children->first();

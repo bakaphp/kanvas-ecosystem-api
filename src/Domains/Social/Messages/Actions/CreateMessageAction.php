@@ -14,6 +14,7 @@ use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Channels\Models\Channel as ModelsChannel;
+use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\ValidParentMessage;
@@ -105,14 +106,15 @@ class CreateMessageAction
             }
 
             if ($this->messageInput->channel_slug !== null) {
+                $allowAppWideChannel = (bool) $this->messageInput->app->get(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value);
+
                 $channel = ModelsChannel::where('slug', $this->messageInput->channel_slug)
                     ->where('apps_id', $this->messageInput->app->getId())
-                    ->where('companies_id', $this->messageInput->company->getId())
+                    ->when(! $allowAppWideChannel, fn (Builder $q): Builder => $q->where('companies_id', $this->messageInput->company->getId()))
                     ->where('is_deleted', 0)
                     ->when($this->entityId !== null && $this->systemModule !== null, function (Builder $query) {
                         $query->where('entity_id', $this->entityId)
-                            ->where('entity_namespace', $this->systemModule->model_name)
-                            ->orWhere('entity_namespace', SystemModules::getLegacyNamespace($this->systemModule->model_name));
+                            ->where('entity_namespace', $this->systemModule->model_name);
                     })
                     ->first();
 
@@ -165,15 +167,27 @@ class CreateMessageAction
             return;
         }
 
-        foreach ($this->messageInput->files as $file) {
+        foreach ($this->messageInput->files as $key => $file) {
             if (! $file instanceof UploadedFile) {
                 continue;
             }
 
-            ImageOptimizerService::constrainFileSize(
+            $convertedPath = ImageOptimizerService::constrainFileSize(
                 $file->getRealPath(),
                 $maxFileSize,
             );
+
+            // constrainFileSize may convert HEIC to JPEG at a new path,
+            // so we need to update the file reference
+            if ($convertedPath !== $file->getRealPath()) {
+                $this->messageInput->files[$key] = new UploadedFile(
+                    $convertedPath,
+                    pathinfo($convertedPath, PATHINFO_BASENAME),
+                    (string) mime_content_type($convertedPath),
+                    $file->getError(),
+                    true
+                );
+            }
         }
     }
 }

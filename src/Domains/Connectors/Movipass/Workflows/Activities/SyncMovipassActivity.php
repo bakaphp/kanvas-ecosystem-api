@@ -16,6 +16,7 @@ use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Souk\Discounts\Actions\ApplyDiscountToOrderAction;
 use Kanvas\Souk\Discounts\Models\Discount;
+use Kanvas\Souk\Orders\Actions\CalculateOrderCommissionAction;
 use Kanvas\Souk\Orders\Actions\RecalculateSlotCapacityAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
@@ -80,6 +81,11 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                     $this->applyDiscountFromMetadata($order);
 
                     $order->saveQuietly();
+
+                    if (! ($order->metadata['data']['is_manual'] ?? false)) {
+                        $order->refresh();
+                        new CalculateOrderCommissionAction($order)->execute();
+                    }
                 }
 
                 if ($eventName === WorkflowEnum::UPDATED->value) {
@@ -93,6 +99,9 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                             MovipassOrderStatusEnum::COMPLETED->value
                         );
                         $order->saveQuietly();
+
+                        $order->refresh();
+                        new CalculateOrderCommissionAction($order)->execute();
                     } elseif (! $isManual && $endAt
                         && $order->payment_status === PaymentStatusEnum::PAID->value
                         && $order->orderStatus?->slug === MovipassOrderStatusEnum::CREATED->value

@@ -13,7 +13,6 @@ class KanvasModulesSeeder extends Seeder
      */
     public function run(): void
     {
-
         KanvasModule::firstOrCreate(
             [
                 'id' => KanvasModuleEnum::ECOSYSTEM->value,
@@ -48,6 +47,18 @@ class KanvasModulesSeeder extends Seeder
             [
                 'id' => KanvasModuleEnum::ACTION_ENGINE->value,
                 'name' => 'Action Engine',
+            ]
+        );
+        KanvasModule::firstOrCreate(
+            [
+                'id' => KanvasModuleEnum::AI->value,
+                'name' => 'AI',
+            ]
+        );
+        KanvasModule::firstOrCreate(
+            [
+                'id' => KanvasModuleEnum::COMMERCE->value,
+                'name' => 'Commerce',
             ]
         );
     }

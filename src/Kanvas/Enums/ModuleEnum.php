@@ -15,4 +15,6 @@ enum ModuleEnum: int
     case INTEGRATION = 7;
     case TRANSLATE = 8;
     case SETTING = 9;
+    case AI = 10;
+    case COMMERCE = 11;
 }

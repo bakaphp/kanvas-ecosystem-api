@@ -11,7 +11,7 @@ use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\ServerException;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 
@@ -128,24 +128,25 @@ class GoogleADKService
         string $message,
         ?callable $onChunk = null
     ): string {
-        $response = Http::withHeaders([
-            'Accept' => 'text/event-stream',
-            'Content-Type' => 'application/json',
-        ])->withOptions([
-            'stream' => true,
-        ])->post($this->baseUrl . '/run_sse', [
-            'app_name' => $this->appName,
-            'user_id' => $userId,
-            'session_id' => $sessionId,
-            'new_message' => [
-                'role' => 'user',
-                'parts' => [['text' => $message]],
+        $response = $this->client->post('/run_sse', [
+            'headers' => [
+                'Accept' => 'text/event-stream',
             ],
+            'json' => [
+                'app_name' => $this->appName,
+                'user_id' => $userId,
+                'session_id' => $sessionId,
+                'new_message' => [
+                    'role' => 'user',
+                    'parts' => [['text' => $message]],
+                ],
+            ],
+            'stream' => true,
         ]);
 
         $completeResponse = '';
-        $buffer = ''; // Buffer to handle incomplete JSON across chunks
-        $stream = $response->toPsrResponse()->getBody();
+        $buffer = '';
+        $stream = $response->getBody();
 
         while (! $stream->eof()) {
             $chunk = $stream->read(1024);
@@ -287,6 +288,39 @@ class GoogleADKService
         $endpoint = "apps/{$this->appName}/users/{$userId}/sessions";
 
         $response = $this->client->get($endpoint);
+
+        return json_decode($response->getBody()->getContents(), true) ?? [];
+    }
+
+    /**
+     * Inject messages into an existing session without triggering an agent reply.
+     * Use this to sync conversations that happened while the AI was disabled
+     * (e.g. direct salesperson↔lead exchanges), so the agent has full context on the next turn.
+     *
+     * @param array<int, array{role: string, text: string}> $messages
+     */
+    public function injectSessionEvents(string $userId, string $sessionId, array $messages): array
+    {
+        $validator = Validator::make(
+            ['messages' => $messages],
+            [
+                'messages' => 'required|array|min:1',
+                'messages.*.role' => 'required|string',
+                'messages.*.text' => 'required|string',
+            ]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator->errors()->first());
+        }
+
+        $response = $this->client->post('/events/session', [
+            'json' => [
+                'session_id' => $sessionId,
+                'user_id' => $userId,
+                'messages' => $messages,
+            ],
+        ]);
 
         return json_decode($response->getBody()->getContents(), true) ?? [];
     }

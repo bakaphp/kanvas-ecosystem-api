@@ -17,6 +17,7 @@ use Kanvas\Intelligence\Models\BaseModel;
  * @property int $agent_id
  * @property int $companies_id
  * @property int $apps_id
+ * @property int|null $users_id
  * @property int|null $company_task_engagement_item_id
  * @property int|null $message_id
  * @property string|null $entity_namespace
@@ -39,6 +40,7 @@ class AgentHistory extends BaseModel
         'agent_id',
         'companies_id',
         'apps_id',
+        'users_id',
         'company_task_engagement_item_id',
         'message_id',
         'entity_namespace',

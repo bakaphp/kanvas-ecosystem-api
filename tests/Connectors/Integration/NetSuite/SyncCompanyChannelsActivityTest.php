@@ -26,6 +26,9 @@ final class SyncCompanyChannelsActivityTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('NetSuite integration tests are skipped in CI');
+        }
 
         $this->apps = app(Apps::class);
         $this->mainCompany = Companies::first();
@@ -121,8 +124,12 @@ final class SyncCompanyChannelsActivityTest extends TestCase
 
     protected function tearDown(): void
     {
-        $this->channel->forceDelete();
-        $this->buyerCompany->forceDelete();
+        if (isset($this->channel)) {
+            $this->channel->forceDelete();
+        }
+        if (isset($this->buyerCompany)) {
+            $this->buyerCompany->forceDelete();
+        }
 
         parent::tearDown();
     }

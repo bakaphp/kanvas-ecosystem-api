@@ -7,6 +7,7 @@ namespace App\GraphQL\Inventory\Mutations\Products;
 use Illuminate\Auth\Access\AuthorizationException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Products\Actions\AddAttributeAction;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
@@ -136,6 +137,34 @@ class Products
         );
 
         return $action->execute();
+    }
+
+    public function addAttributeToProduct(mixed $root, array $req): ProductsModel
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+        $input = $req['input'];
+
+        $product = ProductsRepository::getById((int) $req['id'], $company);
+
+        $attribute = Attributes::firstOrCreate(
+            [
+                'slug' => str_replace(' ', '-', strtolower($input['name'])),
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+            ],
+            [
+                'name' => $input['name'],
+                'users_id' => $user->getId(),
+            ]
+        );
+
+        return new AddAttributeAction(
+            $product,
+            $attribute,
+            $input['value'],
+        )->execute();
     }
 
     /**

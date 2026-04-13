@@ -146,7 +146,8 @@ class ZohoAgentsSyncFromFileCommand extends Command
                 $zohoService = new ZohoService($app, $company);
                 $zohoService->updateAgent($agent);
             } catch (Exception $e) {
-                Log::error('Error pushing sponsor update to Zoho for agent ' . $agent->member_id . ': ' . $e->getMessage());
+                //Log::error('Error pushing sponsor update to Zoho for agent ' . $agent->member_id . ': ' . $e->getMessage());
+                $this->error('Error pushing sponsor update to Zoho for agent ' . $agent->member_id . ': ' . $e->getMessage());
             }
         }
     }

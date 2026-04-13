@@ -34,6 +34,7 @@ class CreateAdminInviteAction
             'invite_hash' => Str::random(50),
             'users_id' => $this->user->getId(),
             'apps_id' => $this->inviteDto->app->getId(),
+            'role_id' => $this->inviteDto->role_id,
             'email' => $this->inviteDto->email,
             'firstname' => $this->inviteDto->firstname,
             'lastname' => $this->inviteDto->lastname,

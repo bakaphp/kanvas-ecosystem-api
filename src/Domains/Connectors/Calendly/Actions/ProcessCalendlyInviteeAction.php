@@ -6,9 +6,13 @@ namespace Kanvas\Connectors\Calendly\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
+use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Calendly\Enums\CustomFieldEnum;
+use Kanvas\Event\Events\Actions\CreateEventAction;
+use Kanvas\Event\Events\DataTransferObject\Event as EventData;
+use Kanvas\Event\Events\Models\Event as EventModel;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
@@ -16,6 +20,7 @@ use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadTypeAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadData;
 use Kanvas\Guild\Leads\DataTransferObject\LeadType as LeadTypeData;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource as LeadSourceData;
@@ -85,12 +90,44 @@ class ProcessCalendlyInviteeAction
         }
 
         $questionsAndAnswers = $inviteePayload['questions_and_answers'] ?? [];
+
+        /** @var array<string, array{type: string, field?: string, contact_type?: string}> $questionMapping */
+        $questionMapping = $config['question_mapping'] ?? [];
+
+        $descriptionParts = [];
+        $qaCustomFields = [];
+
+        /** @var array<string, string> $qa */
         foreach ($questionsAndAnswers as $qa) {
-            $answer = $qa['answer'] ?? '';
-            if (filter_var($answer, FILTER_VALIDATE_EMAIL)) {
+            $answer = trim($qa['answer'] ?? '');
+            $question = trim($qa['question'] ?? '');
+
+            if ($answer === '') {
+                continue;
+            }
+
+            $mapping = $questionMapping[$question] ?? null;
+
+            if ($mapping !== null) {
+                $this->applyMappedAnswer(
+                    $mapping,
+                    $answer,
+                    $contacts,
+                    $qaCustomFields,
+                    $descriptionParts,
+                    $question,
+                );
+            } elseif (filter_var($answer, FILTER_VALIDATE_EMAIL)) {
                 $contacts[] = ['type' => 'email', 'value' => $answer];
+            } elseif ($phone === '' && preg_match('/^\+?[\d\s\-().]{7,20}$/', $answer)) {
+                $phone = $answer;
+                $contacts[] = ['type' => 'phone', 'value' => $phone];
+            } else {
+                $descriptionParts[] = $question !== '' ? "{$question}: {$answer}" : $answer;
             }
         }
+
+        $description = implode("\n", $descriptionParts);
 
         $pipelineStageId = (int) ($config['pipeline_stage_id'] ?? 0);
         $sourceId = $this->resolveSourceId($app, $company, $config);
@@ -102,6 +139,7 @@ class ProcessCalendlyInviteeAction
             user: $user,
             title: $title,
             pipeline_stage_id: $pipelineStageId,
+            description: $description !== '' ? $description : null,
             people: People::from([
                 'app' => $app,
                 'branch' => $branch,
@@ -122,17 +160,114 @@ class ProcessCalendlyInviteeAction
                     CustomFieldEnum::CALENDLY_EVENT_NAME->value => $eventName,
                     'calendly_questions_and_answers' => $questionsAndAnswers,
                 ],
+                $qaCustomFields,
                 (array) ($config['custom_fields'] ?? [])
             ),
         );
 
         $lead = new CreateLeadAction($leadDto)->execute();
 
-        return [
+        $result = [
             'lead_id' => $lead->getId(),
             'event' => $eventType,
             'invitee_email' => $email,
         ];
+
+        if (($config['create_event'] ?? true) !== false) {
+            $event = $this->createAppointmentEvent(
+                $app,
+                $company,
+                $user,
+                $lead,
+                $scheduledEvent,
+                $eventName,
+                $config,
+            );
+
+            if ($event !== null) {
+                $result['event_id'] = $event->getId();
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param array{type: string, field?: string, contact_type?: string} $mapping
+     * @param list<array{type: string, value: string}> $contacts
+     * @param array<string, string> $customFields
+     * @param list<string> $descriptionParts
+     */
+    protected function applyMappedAnswer(
+        array $mapping,
+        string $answer,
+        array &$contacts,
+        array &$customFields,
+        array &$descriptionParts,
+        string $question,
+    ): void {
+        $type = $mapping['type'] ?? 'description';
+
+        match ($type) {
+            'contact' => $contacts[] = [
+                'type' => $mapping['contact_type'] ?? 'phone',
+                'value' => $answer,
+            ],
+            'custom_field' => $customFields[$mapping['field'] ?? $question] = $answer,
+            default => $descriptionParts[] = $question !== '' ? "{$question}: {$answer}" : $answer,
+        };
+    }
+
+    protected function createAppointmentEvent(
+        AppInterface $app,
+        Companies $company,
+        mixed $user,
+        Lead $lead,
+        array $scheduledEvent,
+        string $eventName,
+        array $config,
+    ): ?EventModel {
+        $startTime = (string) ($scheduledEvent['start_time'] ?? '');
+        $endTime = (string) ($scheduledEvent['end_time'] ?? '');
+
+        if ($startTime === '' || $endTime === '') {
+            return null;
+        }
+
+        $start = Carbon::parse($startTime);
+        $end = Carbon::parse($endTime);
+
+        /** @var array<string, string> $location */
+        $location = (array) ($scheduledEvent['location'] ?? []);
+        $meetingLink = $location['join_url'] ?? null;
+
+        $dto = EventData::fromMultiple(
+            $app,
+            $user,
+            $company,
+            [
+                'name' => $eventName !== '' ? $eventName : 'Calendly Appointment',
+                'category_id' => $config['event_category_id'] ?? null,
+                'type_id' => $config['event_type_id'] ?? null,
+                'meeting_link' => $meetingLink,
+                'description' => $eventName,
+                'dates' => [
+                    [
+                        'date' => $start->format('Y-m-d'),
+                        'start_time' => $start->format('H:i'),
+                        'end_time' => $end->format('H:i'),
+                    ],
+                ],
+                'resources' => [
+                    [
+                        'resources_id' => $lead->getId(),
+                        'resources_type' => 'lead',
+                    ],
+                ],
+            ],
+        );
+
+        return new CreateEventAction($dto)->disableWorkflow()->execute();
     }
 
     protected function resolveSourceId(AppInterface $app, Companies $company, array $config): int

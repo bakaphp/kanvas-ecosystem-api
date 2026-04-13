@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Blade;
 use InvalidArgumentException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Override;
 use Prism\Prism\Enums\Provider;
@@ -100,7 +101,7 @@ class ContactCheckerTool implements ContextToolInterface
     protected function getLeadFromMessage(Message $message): Model
     {
         $channel = $message->channels()
-            ->where('name', 'Notes')
+            ->where('name', ChannelNameEnum::NOTES->value)
             ->first();
 
         if (! $channel || ! $channel->entity_namespace || ! $channel->entity_id) {

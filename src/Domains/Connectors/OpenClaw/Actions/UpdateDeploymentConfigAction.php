@@ -61,7 +61,8 @@ class UpdateDeploymentConfigAction
             $openclawDir = $this->deployment->home_directory . '/.openclaw';
             $client->exec(
                 'sudo -u ' . escapeshellarg($this->deployment->system_user)
-                . ' bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose restart 2>&1')
+                . ' bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose restart 2>&1'),
+                120,
             );
         } finally {
             $client->disconnect();

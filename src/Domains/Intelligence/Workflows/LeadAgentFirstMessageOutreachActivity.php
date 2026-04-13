@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\AddOutBoundPhoneCallActivityToLeadAction;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
@@ -23,6 +24,7 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadContextInfoAction;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadFirstEngagementMessageAction;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
@@ -55,7 +57,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
-                if ($lead->get('ai_mode') == IntelligenceModeEnum::OFF->value) {
+                if ($lead->get(LeadConfigurationService::getAiModeKey($lead)) == IntelligenceModeEnum::OFF->value) {
                     return [
                         'ai_mode is OFF',
                     ];
@@ -88,13 +90,49 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     ]);
                 }
 
-                $channels = [
-                    'email' => $email,
+                $channelOrder = $lead->company->get(
+                    CompanyConfigurationEnum::CHANNEL_ORDER->value
+                ) ?? ['sms', 'email'];
+
+                $availableChannels = [
                     'sms' => $cellPhone,
+                    'email' => $email,
                     //'whatsapp' => $cellPhone,
                 ];
 
+                $channels = [];
+                foreach ($channelOrder as $ch) {
+                    if (isset($availableChannels[$ch])) {
+                        $channels[$ch] = $availableChannels[$ch];
+                    }
+                }
+
                 $stageConfig = $lead->getCurrentPipelineStage()->config['notification_engagement_rules'];
+                $workingHoursDefaultMode = $lead->company->get(CompanyConfigurationEnum::AI_WORKING_HOURS_DEFAULT_MODE->value);
+                $disableSending = false;
+
+                if ($workingHoursDefaultMode !== null) {
+                    try {
+                        $isWithinWorkingHours = $lead->company->isWithinWorkingHours(now());
+                    } catch (InvalidArgumentException $e) {
+                        $isWithinWorkingHours = false;
+                    }
+
+                    if ($isWithinWorkingHours) {
+                        $lead->set(LeadConfigurationService::getAiModeKey($lead), $workingHoursDefaultMode);
+                    }
+                }
+
+                $disableSending = $lead->get(LeadConfigurationService::getAiModeKey($lead)) === IntelligenceModeEnum::OFF->value;
+
+                $leadType = $lead->type()->first();
+                $firstMessageDefaultKey = LeadConfigurationService::getFirstMessageDefaultKey($lead);
+                $leadTypeConfig = $leadType?->config ?? [];
+
+                if (isset($leadTypeConfig[$firstMessageDefaultKey]) && ! $leadTypeConfig[$firstMessageDefaultKey]) {
+                    $disableSending = true;
+                }
+
                 $totalSentMessages = 0;
                 $stopTheClockIteration = 0;
                 $sentChannels = [];
@@ -117,16 +155,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     $leadContext['first_message'] = $firstLeadMessage;
                     $lead->set(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value, $leadContext);
                     $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, $firstLeadMessage['message']);
-                    // $communicationChannel = $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value);
-
-                    //$lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
-                    // if (empty($communicationChannel)) {
-                    //     return $this->failWorkflow([
-                    //         'error' => 'No communication channel selected , please set one to be able to send messages',
-                    //         'context' => $createContext,
-                    //         'first_message' => $firstLeadMessage,
-                    //     ]);
-                    // }
 
                     $communicationChannelNumber = match ($communicationChannel) {
                         'sms' => $cellPhone,
@@ -158,10 +186,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                             ),
                         ]);
                         $channel = new CreateChannelAction($channel)->execute();
-
-                        if (! $lead->get(LeadsEnumsConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value)) {
-                            $lead->set(LeadsEnumsConfigurationEnum::GUILD_PREFERED_CHANNEL_UUID->value, $channel->uuid);
-                        }
 
                         $sessionDto = Session::from([
                             'agent' => Agent::getById($params['agent_id']),
@@ -198,7 +222,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     }
 
                     //send the first message
-                    if (! isset($params['disable_sending'])) {
+                    if (! isset($params['disable_sending']) && ! $disableSending) {
                         $leadCurrentDateIn = $this->getLeadCreatedAt($lead);
 
                         $messageType = match ($communicationChannel) {
@@ -239,10 +263,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $stopTheClock = true;
                                     $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, date('Y-m-d H:i:s'));
                                     $lead->set('title_email_follow_up', $firstLeadMessage['title'] ?? null);
-                                    // Set preferred channel to the first channel that successfully sent a message
-                                    if (! $lead->get(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value)) {
-                                        $lead->set(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
-                                    }
                                     $sentChannels[] = $communicationChannel;
                                     $totalSentMessages++;
 
@@ -327,7 +347,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
     private function shouldSendFirstMessageNow(Lead $lead): bool
     {
-        if ($lead->get('ai_mode') === IntelligenceModeEnum::OFF->value) {
+        if ($lead->get(LeadConfigurationService::getAiModeKey($lead)) === IntelligenceModeEnum::OFF->value) {
             return false;
         }
 
@@ -339,7 +359,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
         if (! $isWithinWorkingHours) {
             return true;
-        } elseif ($lead->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value) {
+        } elseif ($lead->get(LeadConfigurationService::getAiModeKey($lead)) === IntelligenceModeEnum::SUPPORT->value) {
             return false;
         } else {
             return true;

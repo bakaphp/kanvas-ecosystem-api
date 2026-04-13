@@ -141,8 +141,10 @@ class SyncLeadAction
 
         //update status
         if (! $eLeadOpportunity->isActive()) {
+            $lead->disableWorkflows();
             $lead->close();
         } elseif ($eLeadOpportunity->isActive() && ! $lead->isActive()) {
+            $lead->disableWorkflows();
             $lead->open();
         }
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Builders\Messages;
 
-use Algolia\AlgoliaSearch\SearchClient;
+use Algolia\AlgoliaSearch\Api\SearchClient;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
@@ -60,11 +60,6 @@ class MessageBuilder
                 $query->whereHas('tags', function (Builder $q) use ($slug) {
                     $q->where('slug', $slug);
                 });
-            }
-
-            $messageCacheTime = (int) $app->get('message_tags_cache_time');
-            if ($messageCacheTime > 0) {
-                $query->cacheFor($messageCacheTime);
             }
         }
 
@@ -217,9 +212,13 @@ class MessageBuilder
             throw new InvalidArgumentException('Provide only one of channel_uuid or channel_slug, not both.');
         }
 
+        $app = app(Apps::class);
+        $allowAppWide = (bool) $app->get(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value);
+        $user = auth()->user();
+
         return Message::fromApp()
             ->where('is_deleted', 0)
-            ->whereHas('channels', function ($query) use ($args) {
+            ->whereHas('channels', function (Builder $query) use ($args): void {
                 $query->where('channels.is_deleted', 0);
                 if (isset($args['channel_uuid'])) {
                     $query->where('channels.uuid', $args['channel_uuid']);
@@ -227,8 +226,8 @@ class MessageBuilder
                     $query->where('channels.slug', $args['channel_slug']);
                 }
             })
-            ->when(! auth()->user()->isAdmin(), function ($query) {
-                $query->where('companies_id', auth()->user()->currentCompanyId());
+            ->when(! $allowAppWide && ! $user->isAdmin(), function (Builder $query) use ($user): void {
+                $query->where('companies_id', $user->currentCompanyId());
             });
     }
 
@@ -265,13 +264,15 @@ class MessageBuilder
             return ['error' => 'No index for message suggestion configure in your app'];
         }
 
-        $index = $client->initIndex($app->get($suggestionIndex));
-
-        $results = $index->search($args['search'], [
-            'hitsPerPage' => 15,
-            'attributesToRetrieve' => ['name', 'description'],
-            'filters' => 'is_public = 1 AND is_deleted = 0',
-        ]);
+        $results = $client->searchSingleIndex(
+            $app->get($suggestionIndex),
+            [
+                'query' => $args['search'],
+                'hitsPerPage' => 15,
+                'attributesToRetrieve' => ['name', 'description'],
+                'filters' => 'is_public = 1 AND is_deleted = 0',
+            ]
+        );
 
         return $results['hits'];
     }

@@ -38,7 +38,7 @@ class TaskMultipleDetail extends Data
             'deliveries' => $deliveriesData,
             'team_id' => $this->team_id,
             'fleet_id' => $this->fleet_id,
-            'timezone' => $this->timezone ?? '330',
+            'timezone' => $this->timezone ?? '-240',
             'has_pickup' => $this->has_pickup ? 1 : 0,
             'has_delivery' => $this->has_delivery ? 1 : 0,
             'meta_data' => $this->meta_data,

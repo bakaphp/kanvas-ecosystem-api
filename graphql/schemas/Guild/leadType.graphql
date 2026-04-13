@@ -5,15 +5,17 @@ type LeadType {
     name: String!
     description: String
     is_active: Boolean
+    config: Mixed
     created_at: DateTime!
     updated_at: DateTime!
 }
 
 input LeadTypeInput {
-    companies_id: ID!
+    companies_id: ID
     name: String!
     description: String
     is_active: Boolean
+    config: Mixed
 }
 
 extend type Mutation @guard {

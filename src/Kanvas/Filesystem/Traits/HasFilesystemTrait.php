@@ -95,9 +95,10 @@ trait HasFilesystemTrait
             }
 
             if (isset($file['file']) && $file['file'] instanceof UploadedFile) {
-                // Validate file extension
-                if (! in_array($file['file']->extension(), AllowedFileExtensionEnum::WORK_FILES->getAllowedExtensions())) {
-                    throw new Exception('Invalid file format ' . $file['file']->extension());
+                $extension = strtolower($file['file']->getClientOriginalExtension());
+
+                if (! in_array($extension, AllowedFileExtensionEnum::WORK_FILES->getAllowedExtensions())) {
+                    throw new Exception('Invalid file format ' . $extension);
                 }
 
                 // Attach file to the entity

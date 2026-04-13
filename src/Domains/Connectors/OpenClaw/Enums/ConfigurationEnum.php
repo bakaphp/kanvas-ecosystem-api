@@ -23,4 +23,6 @@ enum ConfigurationEnum: string
     case ANTHROPIC_API_KEY = 'openclaw_anthropic_api_key';
     case SLACK_WEBHOOK_URL = 'openclaw_slack_webhook_url';
     case ALERT_EMAIL = 'openclaw_alert_email';
+    case SHARED_IMAGE_NAME = 'openclaw_shared_image_name';
+    case SHARED_IMAGE_DIR = 'openclaw_shared_image_dir';
 }

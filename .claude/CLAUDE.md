@@ -26,6 +26,7 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
   - Anonymous classes: `new class () extends Foo {` (parentheses + space before brace, brace on same line)
   - Multi-line closures passed as method arguments: place the closure on a new line, e.g. `->whereHas('rel', fn ($q) => ...)` becomes `->whereHas(\n    'rel',\n    fn ($q) => ...\n)`
   - `use` imports: alphabetical order within each namespace group (e.g. `Enums\` before `Models\`)
+- **Email rendering note**: `KanvasMailable` is HTML-first and uses `resources/views/emails/layout.blade.php`. If a feature needs true plain-text body delivery (for example raw ADF/XML in the body with no escaping/wrapping), use a dedicated plain-text view such as `resources/views/emails/plain.blade.php` instead of routing through the HTML layout.
 
 ## Domain CRUD Pattern
 
@@ -1042,6 +1043,38 @@ extend type Mutation @guard {
 
 ### Soft Deletes
 All models use `is_deleted` boolean flag (not Laravel's `SoftDeletes` trait). Use `$model->softDelete()` and the `notDeleted` scope.
+
+### Cascade Soft Deletes
+
+Use `dyrynda/laravel-cascade-soft-deletes` to automatically soft-delete related records when a parent is deleted:
+
+```php
+use Dyrynda\Database\Support\CascadeSoftDeletes;
+
+class Agent extends BaseModel
+{
+    use CascadeSoftDeletes;
+
+    protected $cascadeDeletes = ['deployments'];
+}
+```
+
+**Requirement:** The domain's BaseModel must use `Baka\Traits\SoftDeletesTrait` and override `trashed()`:
+```php
+use Baka\Traits\SoftDeletesTrait;
+
+class BaseModel extends EloquentModel
+{
+    use SoftDeletesTrait;
+
+    public function trashed()
+    {
+        return (bool) $this->{$this->getDeletedAtColumn()};
+    }
+}
+```
+
+**Delete call:** Use `$model->delete()` (not `softDelete()`) — `SoftDeletesTrait` makes `delete()` perform a soft delete via `runSoftDelete()`, which triggers the `deleting` event that `CascadeSoftDeletes` listens on.
 
 ### Scoping Patterns
 - **Global entities** (companies_id = 0): scope queries with `fromApp` + `notDeleted`

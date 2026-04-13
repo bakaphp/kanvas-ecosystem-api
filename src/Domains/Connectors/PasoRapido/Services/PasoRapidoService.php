@@ -6,6 +6,9 @@ namespace Kanvas\Connectors\PasoRapido\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\RateLimiter;
 use Kanvas\Connectors\PasoRapido\Client;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\BillingDetail;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\CancelPaymentResponse;
@@ -15,9 +18,14 @@ use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmResponse;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\VerifyCustomerResponse;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\VerifyPaymentResponse;
 use Kanvas\Connectors\PasoRapido\Enums\ConfigurationEnum;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
 class PasoRapidoService
 {
+    private const MINUTE_WINDOW_SECONDS = 60;
+    private const DAILY_WINDOW_SECONDS = 86400;
+    private const RECENT_TAGS_TTL_SECONDS = 600;
+
     protected Client $client;
 
     public function __construct(
@@ -35,6 +43,61 @@ class PasoRapidoService
      */
     public function verifyCustomer(string $tag): VerifyCustomerResponse
     {
+        $user = auth()->user();
+        $userId = $user?->getId() ?? 0;
+        $appId = $this->app->getId();
+
+        $maxAttempts = (int) ($this->app->get(ConfigurationEnum::VERIFY_MAX_ATTEMPTS->value) ?? 3);
+        $maxDaily = (int) ($this->app->get(ConfigurationEnum::VERIFY_MAX_DAILY->value) ?? 30);
+        $sequentialThreshold = (int) ($this->app->get(ConfigurationEnum::VERIFY_SEQUENTIAL_THRESHOLD->value) ?? 5);
+
+        $minuteKey = "paso-rapido-verify:{$appId}:{$userId}";
+        $dailyKey = "paso-rapido-verify-daily:{$appId}:{$userId}";
+        $recentTagsKey = "paso-rapido-verify-tags:{$appId}:{$userId}";
+
+        // 1. Per-minute rate limit
+        if (RateLimiter::tooManyAttempts($minuteKey, $maxAttempts)) {
+            report(new TooManyRequestsHttpException(
+                message: "PasoRapido per-minute limit exceeded - user:{$userId} app:{$appId}"
+            ));
+            throw new TooManyRequestsHttpException(
+                message: 'Too many tag verification requests. Please try again later.'
+            );
+        }
+
+        // 2. Daily limit
+        if (RateLimiter::tooManyAttempts($dailyKey, $maxDaily)) {
+            report(new TooManyRequestsHttpException(
+                message: "PasoRapido daily limit exceeded - user:{$userId} app:{$appId} max:{$maxDaily}"
+            ));
+            throw new TooManyRequestsHttpException(
+                message: 'Daily tag verification limit reached.'
+            );
+        }
+
+        // 3. Sequential pattern detection
+        $recentTags = Cache::get($recentTagsKey, []);
+        $recentTags[] = $tag;
+        $recentTags = array_slice($recentTags, -$sequentialThreshold);
+
+        if (count($recentTags) >= $sequentialThreshold && $this->isSequentialPattern($recentTags)) {
+            report(new TooManyRequestsHttpException(
+                message: "PasoRapido sequential scan detected - user:{$userId} app:{$appId} tags:" . implode(',', $recentTags)
+            ));
+            RateLimiter::hit($dailyKey, self::DAILY_WINDOW_SECONDS);
+            Cache::forget($recentTagsKey);
+
+            throw new TooManyRequestsHttpException(
+                message: 'Suspicious activity detected. Access temporarily restricted.'
+            );
+        }
+
+        Cache::put($recentTagsKey, $recentTags, self::RECENT_TAGS_TTL_SECONDS);
+        RateLimiter::hit($minuteKey, self::MINUTE_WINDOW_SECONDS);
+        RateLimiter::hit($dailyKey, self::DAILY_WINDOW_SECONDS);
+
+        $this->logTagVerification($user, $tag);
+
         $response = $this->client->post(ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag, []);
 
         return VerifyCustomerResponse::from([
@@ -102,5 +165,42 @@ class PasoRapidoService
         $response = $this->client->post(ConfigurationEnum::CANCEL_PAYMENT_PATH->value . '?numeroTransaccion=' . $transactionNumber, []);
 
         return CancelPaymentResponse::from($response);
+    }
+
+    private function logTagVerification(UserInterface $user, string $tag): void
+    {
+        activity()
+            ->causedBy($user)
+            ->withProperties([
+                'tag' => $tag,
+                'app_id' => $this->app->getId(),
+                'ip' => request()->ip(),
+            ])
+            ->log('PasoRapido tag verification');
+    }
+
+    /**
+     * Detect sequential tag scanning (e.g., 941637, 941638, 941639...).
+     * Returns true if the tags form an ascending sequence with delta <= 2.
+     */
+    private function isSequentialPattern(array $tags): bool
+    {
+        $numeric = array_filter($tags, 'is_numeric');
+
+        if (count($numeric) !== count($tags)) {
+            return false;
+        }
+
+        $values = array_map('intval', array_values($numeric));
+        $sequentialSteps = 0;
+
+        for ($i = 1; $i < count($values); $i++) {
+            $delta = abs($values[$i] - $values[$i - 1]);
+            if ($delta > 0 && $delta <= 2) {
+                $sequentialSteps++;
+            }
+        }
+
+        return $sequentialSteps >= count($values) - 1;
     }
 }

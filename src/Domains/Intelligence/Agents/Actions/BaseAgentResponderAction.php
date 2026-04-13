@@ -7,11 +7,14 @@ namespace Kanvas\Intelligence\Agents\Actions;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -36,9 +39,15 @@ class BaseAgentResponderAction
             throw new Exception('No lead found for AI agent');
         }
 
-        $aiMode = $lead->get('ai_mode');
-        if ($aiMode == IntelligenceModeEnum::OFF->value) {
+        $aiModeKey = $lead instanceof Lead
+            ? LeadConfigurationService::getAiModeKey($lead)
+            : 'ai_mode';
+        if ($lead->get($aiModeKey) == IntelligenceModeEnum::OFF->value) {
             throw new Exception('Ai Agent Off for this lead');
+        }
+
+        if ($message->is_un_response) {
+            throw new Exception('Message is responded previous');
         }
     }
 
@@ -102,6 +111,11 @@ class BaseAgentResponderAction
              ]
         );
         $channel->addMessage($newMessage);
+
+        $lead = $message->entity();
+        if ($lead instanceof Lead) {
+            new MarkLeadMessagesAsRespondedAction($lead, $newMessage)->execute();
+        }
 
         return $newMessage;
     }

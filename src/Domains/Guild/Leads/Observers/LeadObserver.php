@@ -16,6 +16,7 @@ use Kanvas\Intelligence\Sessions\Actions\DeleteSessionAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 
@@ -80,9 +81,9 @@ class LeadObserver
                         $lead->user,
                         (string)$lead->getKey(),
                         Lead::class,
-                        'Default Channel',
-                        ! empty($lead->description) ? $lead->description : $lead->uuid->toString(),
-                        $lead->uuid->toString()
+                        ChannelNameEnum::DEFAULT->value,
+                        ! empty($lead->description) ? $lead->description : (string) $lead->uuid,
+                        (string) $lead->uuid
                     )
                 )
             )->execute();
@@ -97,7 +98,7 @@ class LeadObserver
                         $lead->user,
                         (string)$lead->getKey(),
                         Lead::class,
-                        'Notes',
+                        ChannelNameEnum::NOTES->value,
                         'AI Notes Channel',
                         Str::uuid()->toString()
                     )
@@ -126,13 +127,21 @@ class LeadObserver
         if ($lead->wasChanged('leads_status_id')) {
             $leadStatus = $lead->status()->first();
             if (strtolower($leadStatus->name) === 'sold') {
-                $lead->fireWorkflow(WorkflowEnum::TRIGGER_AI->value, true, [
-                    'trigger_type' => TriggersEnum::SOLD_LEAD->value,
-                ]);
+                $lead->fireWorkflow(
+                    WorkflowEnum::TRIGGER_AI->value,
+                    true,
+                    [
+                        'trigger_type' => TriggersEnum::SOLD_LEAD->value,
+                    ]
+                );
             } elseif (strtolower($leadStatus->name) === 'close') {
-                $lead->fireWorkflow(WorkflowEnum::TRIGGER_AI->value, true, [
-                    'trigger_type' => TriggersEnum::CLOSE_LEAD->value,
-                ]);
+                $lead->fireWorkflow(
+                    WorkflowEnum::TRIGGER_AI->value,
+                    true,
+                    [
+                        'trigger_type' => TriggersEnum::CLOSE_LEAD->value,
+                    ]
+                );
             }
         }
         //$lead->clearLightHouseCacheJob();

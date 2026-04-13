@@ -40,6 +40,11 @@ class DockerComposeBuilder
         return rtrim((string) file_get_contents(self::TEMPLATES_DIR . '/Dockerfile'));
     }
 
+    public static function buildEntrypoint(): string
+    {
+        return rtrim((string) file_get_contents(self::TEMPLATES_DIR . '/entrypoint.sh'));
+    }
+
     public static function buildDockerCompose(
         AgentDeployment $deployment,
         string $gatewayToken,
@@ -66,14 +71,17 @@ class DockerComposeBuilder
 
         $template = (string) file_get_contents(self::TEMPLATES_DIR . '/docker-compose.yml');
 
+        $imageName = self::getSharedImageName($app);
+
         return str_replace(
-            ['{{CONTAINER_NAME}}', '{{OPENCLAW_DIR}}', '{{GATEWAY_PORT}}', '{{PROXY_PORT}}', '{{ENV_LINES}}'],
+            ['{{CONTAINER_NAME}}', '{{OPENCLAW_DIR}}', '{{GATEWAY_PORT}}', '{{PROXY_PORT}}', '{{ENV_LINES}}', '{{IMAGE_NAME}}'],
             [
                 $deployment->container_name,
                 $deployment->home_directory . '/.openclaw',
                 (string) $deployment->gateway_port,
                 (string) $deployment->proxy_port,
                 $envLines,
+                $imageName,
             ],
             $template,
         );
@@ -151,7 +159,7 @@ class DockerComposeBuilder
                 ],
             ],
             'tools' => [
-                'profile' => 'coding',
+                'profile' => 'full',
                 'exec' => [
                     'security' => 'full',
                 ],
@@ -159,6 +167,7 @@ class DockerComposeBuilder
                     'enabled' => true,
                     'allowFrom' => [
                         'slack' => ['*'],
+                        'telegram' => ['*'],
                     ],
                 ],
             ],
@@ -215,17 +224,22 @@ class DockerComposeBuilder
                 'entries' => (object) [],
             ],
             'plugins' => [
-                'entries' => (object) [],
+                'entries' => [],
             ],
         ];
 
+        $pluginEntries = [];
+
         if (! empty($geminiApiKey)) {
-            $config['tools']['web'] = [
-                'search' => [
-                    'enabled' => true,
-                    'provider' => 'gemini',
-                    'gemini' => [
-                        'apiKey' => $geminiApiKey,
+            $pluginEntries['web-search'] = [
+                'enabled' => true,
+                'config' => [
+                    'webSearch' => [
+                        'enabled' => true,
+                        'provider' => 'gemini',
+                        'gemini' => [
+                            'apiKey' => $geminiApiKey,
+                        ],
                     ],
                 ],
             ];
@@ -239,11 +253,14 @@ class DockerComposeBuilder
         if (! empty($channelConfig)) {
             $config['channels'] = $channelConfig;
             if (isset($channelConfig['slack'])) {
-                $config['plugins']['entries'] = [
-                    'slack' => ['enabled' => true],
-                ];
+                $pluginEntries['slack'] = ['enabled' => true];
+            }
+            if (isset($channelConfig['telegram'])) {
+                $pluginEntries['telegram'] = ['enabled' => true];
             }
         }
+
+        $config['plugins']['entries'] = ! empty($pluginEntries) ? $pluginEntries : (object) [];
 
         return (string) json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     }
@@ -290,15 +307,13 @@ class DockerComposeBuilder
      */
     public static function buildChannelConfig(Agent $agent): array
     {
+        $channels = [];
+
         $slackBotToken = $agent->get(CustomFieldEnum::SLACK_BOT_TOKEN->value);
         $slackAppToken = $agent->get(CustomFieldEnum::SLACK_APP_TOKEN->value);
 
-        if (empty($slackBotToken) || empty($slackAppToken)) {
-            return [];
-        }
-
-        return [
-            'slack' => [
+        if (! empty($slackBotToken) && ! empty($slackAppToken)) {
+            $channels['slack'] = [
                 'enabled' => true,
                 'mode' => 'socket',
                 'allowBots' => true,
@@ -313,8 +328,32 @@ class DockerComposeBuilder
                     'groupEnabled' => true,
                 ],
                 'groupPolicy' => 'open',
-            ],
-        ];
+            ];
+        }
+
+        $telegramBotToken = $agent->get(CustomFieldEnum::TELEGRAM_BOT_TOKEN->value);
+
+        if (! empty($telegramBotToken)) {
+            $channels['telegram'] = [
+                'enabled' => true,
+                'botToken' => (string) $telegramBotToken,
+                'dmPolicy' => 'pairing',
+                'groupPolicy' => 'allowlist',
+                'streaming' => 'partial',
+            ];
+        }
+
+        return $channels;
+    }
+
+    public static function getSharedImageName(AppInterface $app): string
+    {
+        return (string) ($app->get(ConfigurationEnum::SHARED_IMAGE_NAME->value) ?? 'openclaw-kanvas:latest');
+    }
+
+    public static function getSharedImageDir(AppInterface $app): string
+    {
+        return (string) ($app->get(ConfigurationEnum::SHARED_IMAGE_DIR->value) ?? '/opt/openclaw-image');
     }
 
     /**

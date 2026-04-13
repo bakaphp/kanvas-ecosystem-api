@@ -138,6 +138,8 @@ class UpdateEventAction
             EmailTemplateEnum::BOOKING_UPDATED->value
         )->execute();
 
+        new ScheduleEventReminderAction($eventVersion)->execute();
+
         return $eventVersion;
     }
 
