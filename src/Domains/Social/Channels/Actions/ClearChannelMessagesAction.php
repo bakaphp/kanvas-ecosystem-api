@@ -18,7 +18,7 @@ class ClearChannelMessagesAction
 
     public function execute(): bool
     {
-        return $this->runTransaction(function (): bool {
+        return DB::connection('social')->transaction(function (): bool {
             /** @var Collection<int, Message> $exclusiveMessages */
             $exclusiveMessages = $this->channel->messages()
                 ->withCount('channels')
@@ -36,10 +36,5 @@ class ClearChannelMessagesAction
 
             return true;
         });
-    }
-
-    protected function runTransaction(callable $callback): bool
-    {
-        return DB::connection('social')->transaction($callback);
     }
 }

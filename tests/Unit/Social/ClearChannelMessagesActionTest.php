@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Social;
 
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Social\Channels\Actions\ClearChannelMessagesAction;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
@@ -54,12 +55,11 @@ class ClearChannelMessagesActionTest extends TestCaseUnit
         $channel->messagesRelation = $messagesRelation;
         $channel->last_message_id = 55;
 
-        $result = new class ($channel) extends ClearChannelMessagesAction {
-            protected function runTransaction(callable $callback): bool
-            {
-                return $callback();
-            }
-        }->execute();
+        DB::shouldReceive('connection->transaction')
+            ->once()
+            ->andReturnUsing(fn (callable $callback): bool => $callback());
+
+        $result = new ClearChannelMessagesAction($channel)->execute();
 
         $this->assertTrue($result);
         $this->assertTrue($channel->saveCalled);

@@ -133,10 +133,14 @@ class ChannelsManagementMutation
         }
 
         $app = app(Apps::class);
-        $channel = Channel::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $user->getCurrentCompany()->getId())
-            ->findOrFail((int) $request['channel_id']);
+        $channelQuery = Channel::query()
+            ->where('apps_id', $app->getId());
+
+        if (! $app->get(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value)) {
+            $channelQuery->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        $channel = $channelQuery->findOrFail((int) $request['channel_id']);
 
         return new ClearChannelMessagesAction($channel)->execute();
     }
