@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\Movipass;
 
-use Illuminate\Console\Command;
 use Baka\Support\Str;
+use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
@@ -22,7 +22,7 @@ class SetupRoadsideAssistanceCaseCommand extends Command
         $appId = $this->argument('app_id');
         $app = $appId ? Apps::getById((int) $appId) : app(Apps::class);
 
-        $s = fn(MovipassOrderStatusEnum $e) => Str::slug($e->value);
+        $s = fn (MovipassOrderStatusEnum $e) => Str::slug($e->value);
         $cancelled = $s(MovipassOrderStatusEnum::SERVICE_CANCELLED);
 
         new CreateOrderStatusesAction($app, OrderTypeEnum::ROADSIDE_ASSISTANCE->value, [
