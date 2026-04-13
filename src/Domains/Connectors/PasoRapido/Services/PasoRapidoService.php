@@ -167,6 +167,15 @@ class PasoRapidoService
         return CancelPaymentResponse::from($response);
     }
 
+    private function getClientIp(): string
+    {
+        $request = request();
+
+        return $request->header('X-Forwarded-For')
+            ? explode(',', $request->header('X-Forwarded-For'))[0]
+            : $request->ip();
+    }
+
     private function logTagVerification(UserInterface $user, string $tag): void
     {
         activity()
@@ -174,7 +183,7 @@ class PasoRapidoService
             ->withProperties([
                 'tag' => $tag,
                 'app_id' => $this->app->getId(),
-                'ip' => request()->ip(),
+                'ip' => $this->getClientIp(),
             ])
             ->log('PasoRapido tag verification');
     }
