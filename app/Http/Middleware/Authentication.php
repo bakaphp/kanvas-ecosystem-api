@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use Baka\Support\IPInfo;
 use Closure;
 use Exception;
 use Illuminate\Http\Request;
@@ -72,7 +73,7 @@ class Authentication
             return $session->check(
                 $user,
                 $token->claims()->get('sessionId'),
-                (string) $request->ip(),
+                IPInfo::getClientIp($request),
                 app(Apps::class),
                 1
             );

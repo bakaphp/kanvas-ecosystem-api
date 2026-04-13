@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Workflow\Mutations\Workflows;
 
+use Baka\Support\IPInfo;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -32,7 +33,7 @@ class WorkflowMutationManagement
         $entityId = $request['entity_id'];
         $entityClass = $request['entity_namespace'];
         $workflowAction = $request['action'];
-        $params = array_merge(['app' => app(Apps::class)], $request['params'] ?? [], ['ip' => request()->ip()]);
+        $params = array_merge(['app' => app(Apps::class)], $request['params'] ?? [], ['ip' => IPInfo::getClientIp()]);
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();

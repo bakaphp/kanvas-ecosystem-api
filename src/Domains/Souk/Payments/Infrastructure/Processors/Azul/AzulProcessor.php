@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Payments\Infrastructure\Processors\Azul;
 
+use Baka\Support\IPInfo;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
@@ -983,7 +984,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
         return array_filter([
             'AcceptHeader'      => $input['accept_header'] ?? $request->header('Accept') ?? '*/*',
-            'IPAddress'         => $input['ip_address'] ?? $request->ip() ?? '',
+            'IPAddress'         => $input['ip_address'] ?? IPInfo::getClientIp($request),
             'Language'          => $input['language'] ?? $request->header('Accept-Language') ?? 'en-US',
             'ColorDepth'        => $input['color_depth'] ?? '24',
             'ScreenWidth'       => $input['screen_width'] ?? '1920',

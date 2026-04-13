@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Guild\Mutations\Leads;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\IPInfo;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -35,7 +36,7 @@ class LeadManagementMutation
             request()->headers->all(),
             $user->getCurrentCompany(),
             $app,
-            request()->ip(),
+            IPInfo::getClientIp(),
             'API - Create'
         );
         $attempt = $leadAttempt->execute();
@@ -79,7 +80,7 @@ class LeadManagementMutation
             request()->headers->all(),
             $user->getCurrentCompany(),
             $app,
-            request()->ip(),
+            IPInfo::getClientIp(),
             'API - Update'
         );
         $attempt = $leadAttempt->execute();
