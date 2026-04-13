@@ -117,3 +117,10 @@ extend type Mutation {
             resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@detachUserToChannel"
         )
 }
+
+extend type Mutation @guardByAdmin {
+    clearSocialChannelMessages(channel_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@clearMessages"
+        )
+}
