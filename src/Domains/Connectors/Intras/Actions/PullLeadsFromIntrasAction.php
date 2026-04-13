@@ -11,10 +11,10 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Intras\Client;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Intras\Mappers\LeadMapper;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 
@@ -65,6 +65,7 @@ class PullLeadsFromIntrasAction
 
                 if ($existing) {
                     $count++;
+
                     continue;
                 }
 

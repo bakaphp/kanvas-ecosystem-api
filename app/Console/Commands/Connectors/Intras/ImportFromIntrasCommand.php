@@ -6,19 +6,19 @@ namespace App\Console\Commands\Connectors\Intras;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Intras\Actions\FullImportFromIntrasAction;
-use Kanvas\Connectors\Intras\Actions\PullLeadsFromIntrasAction;
-use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Intras\Actions\PullEventsFromIntrasAction;
 use Kanvas\Connectors\Intras\Actions\PullFacilitatorsFromIntrasAction;
+use Kanvas\Connectors\Intras\Actions\PullLeadsFromIntrasAction;
 use Kanvas\Connectors\Intras\Actions\PullLookupDataFromIntrasAction;
 use Kanvas\Connectors\Intras\Actions\PullOrganizationsFromIntrasAction;
 use Kanvas\Connectors\Intras\Actions\PullParticipantsFromIntrasAction;
 use Kanvas\Connectors\Intras\Actions\PullRegistrationsFromIntrasAction;
+use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Users\Models\Users;
-use InvalidArgumentException;
 use Throwable;
 
 class ImportFromIntrasCommand extends Command
