@@ -96,9 +96,19 @@ class Payments extends BaseModel
         ];
     }
 
-    public function addLog(string $event, array $context = []): void
-    {
-        app(LogPaymentEventAction::class)->execute($this, $event, $context);
+    public function addLog(
+        string $event,
+        array $context = [],
+        ?string $errorCode = null,
+        ?string $errorMessage = null,
+    ): void {
+        app(LogPaymentEventAction::class)->execute(
+            $this,
+            $event,
+            $context,
+            $errorCode,
+            $errorMessage,
+        );
     }
 
     public function isPaid(): bool

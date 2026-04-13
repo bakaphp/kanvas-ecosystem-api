@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Payments\Actions;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
 
 class SyncPayablePaymentStatusAction
 {
@@ -33,17 +35,25 @@ class SyncPayablePaymentStatusAction
         }
     }
 
-    protected function computeStatus($payments): ?string
+    protected function computeStatus(Collection $payments): ?string
     {
         $totalAmount = (float) ($this->payable->total_net_amount ?? 0);
-        $paidAmount = (float) $payments->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
-        $refundedAmount = (float) $payments->where('status', PaymentStatusEnum::REVERSED->value)->sum('amount');
+        $paidPayments = $payments->where('status', PaymentStatusEnum::PAID->value);
+        $paidAmount = (float) $paidPayments->sum('amount');
 
-        if ($refundedAmount > 0 && $refundedAmount >= $paidAmount) {
+        $refundedAmount = (float) $paidPayments->sum(
+            fn ($payment) => $payment->refunds()
+                ->where('status', RefundStatusEnum::COMPLETED->value)
+                ->sum('amount')
+        );
+
+        $netPaid = $paidAmount - $refundedAmount;
+
+        if ($paidAmount > 0 && $refundedAmount >= $paidAmount) {
             return PaymentStatusEnum::REVERSED->value;
         }
 
-        if ($paidAmount > 0 && $paidAmount >= $totalAmount) {
+        if ($netPaid > 0 && $netPaid >= $totalAmount) {
             return PaymentStatusEnum::PAID->value;
         }
 
@@ -54,13 +64,13 @@ class SyncPayablePaymentStatusAction
         ])->isNotEmpty();
 
         if ($hasProcessing) {
-            return 'processing';
+            return PaymentStatusEnum::PROCESSING->value;
         }
 
         $hasPending = $payments->where('status', PaymentStatusEnum::PENDING->value)->isNotEmpty();
 
         if ($hasPending) {
-            return 'pending';
+            return PaymentStatusEnum::PENDING->value;
         }
 
         $allFailed = $payments->every(fn ($p) => $p->status === PaymentStatusEnum::FAILED->value);

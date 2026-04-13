@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Kanvas\Souk\Payments\Actions;
 
 use Exception;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
@@ -98,7 +101,17 @@ class CreatePaymentAction
             ]),
         ];
 
-        $payment = $this->order->payments()->create($paymentFormData);
+        try {
+            $payment = $this->order->payments()->create($paymentFormData);
+        } catch (UniqueConstraintViolationException $e) {
+            if ($idempotencyKey) {
+                return Payments::where('idempotency_key', $idempotencyKey)
+                    ->where('apps_id', $this->order->apps_id)
+                    ->firstOrFail();
+            }
+
+            throw $e;
+        }
 
         if ($payment->status === PaymentStatusEnum::PAID->value) {
             $this->order->markAsPaid($this->user);

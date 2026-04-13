@@ -8,6 +8,8 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Souk\Models\BaseModel;
+use Kanvas\Souk\Payments\Actions\SyncPayablePaymentStatusAction;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
 use Kanvas\Users\Models\Users;
 
@@ -58,6 +60,23 @@ class PaymentRefund extends BaseModel
         }
 
         $this->save();
+
+        $payment = $this->payment;
+
+        if ($payment->isFullyRefunded()) {
+            $payment->status = PaymentStatusEnum::REVERSED->value;
+            $payment->save();
+        }
+
+        if ($payment->payable) {
+            new SyncPayablePaymentStatusAction($payment->payable)->execute();
+        }
+
+        $payment->addLog('refund_completed', [
+            'refund_id' => $this->id,
+            'amount' => $this->amount,
+            'fully_refunded' => $payment->isFullyRefunded(),
+        ]);
     }
 
     public function markAsFailed(array $metadata = []): void
