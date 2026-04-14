@@ -95,7 +95,7 @@ extend type Query {
         )
 }
 
-extend type Mutation {
+extend type Mutation @guard {
     createSocialChannel(input: SocialChannelInput!): SocialChannel
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@createChannel"
