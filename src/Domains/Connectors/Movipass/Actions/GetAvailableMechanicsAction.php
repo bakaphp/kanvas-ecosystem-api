@@ -22,31 +22,31 @@ class GetAvailableMechanicsAction
 
     public function execute(): Collection
     {
-        return Users::select('users.*')
-            ->join(
-                'users_associated_apps',
-                'users_associated_apps.users_id',
-                '=',
-                'users.id'
+        $providerCompany = $this->providerCompany;
+
+        return Users::getByCustomFieldBuilder(
+            CustomFieldEnum::MECHANIC_AVAILABILITY->value,
+            MechanicAvailabilityEnum::ACTIVO->value
+        )
+        ->whereExists(
+            fn ($q) => $q->selectRaw('1')
+                ->from('users_associated_apps')
+                ->whereColumn('users_associated_apps.users_id', 'users.id')
+                ->where('users_associated_apps.is_active', 1)
+        )
+        ->when(
+            $providerCompany,
+            fn ($q) => $q->whereExists(
+                fn ($sub) => $sub->selectRaw('1')
+                    ->from('users_associated_apps')
+                    ->whereColumn('users_associated_apps.users_id', 'users.id')
+                    ->where('users_associated_apps.companies_id', $providerCompany->getId())
             )
-            ->where('users_associated_apps.apps_id', $this->app->getId())
-            ->where('users_associated_apps.is_active', 1)
-            ->when(
-                $this->providerCompany,
-                fn ($q) => $q->where(
-                    'users_associated_apps.companies_id',
-                    $this->providerCompany->getId()
-                )
-            )
-            ->when(
-                $this->excludeIds !== [],
-                fn ($q) => $q->whereNotIn('users.id', $this->excludeIds)
-            )
-            ->groupBy('users.id')
-            ->get()
-            ->filter(
-                fn (Users $user) => $user->get(CustomFieldEnum::MECHANIC_AVAILABILITY->value) === MechanicAvailabilityEnum::ACTIVO->value
-            )
-            ->values();
+        )
+        ->when(
+            $this->excludeIds !== [],
+            fn ($q) => $q->whereNotIn('users.id', $this->excludeIds)
+        )
+        ->get();
     }
 }
