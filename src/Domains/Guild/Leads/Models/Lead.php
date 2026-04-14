@@ -91,7 +91,7 @@ class Lead extends BaseModel implements EventResourceInterface
     ];
     protected $table = 'leads';
     protected $guarded = [];
-    protected $appends = ['has_ai_chat', 'has_follow_up'];
+    protected $appends = ['ai_mode', 'has_follow_up'];
 
     public function people(): BelongsTo
     {
@@ -743,12 +743,11 @@ class Lead extends BaseModel implements EventResourceInterface
         );
     }
 
-    public function getHasAiChatAttribute(): bool
+    public function getAiModeAttribute(): ?string
     {
         $aiModeKey = LeadConfigurationService::getAiModeKey($this);
-        $aiMode = $this->get($aiModeKey);
 
-        return $aiMode !== null && $aiMode !== IntelligenceModeEnum::OFF->value;
+        return $this->get($aiModeKey);
     }
 
     public function getHasFollowUpAttribute(): bool
