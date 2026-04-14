@@ -32,7 +32,6 @@ use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
-use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Models\Channel;
@@ -745,16 +744,11 @@ class Lead extends BaseModel implements EventResourceInterface
 
     public function getAiModeAttribute(): ?string
     {
-        $aiModeKey = LeadConfigurationService::getAiModeKey($this);
-
-        return $this->get($aiModeKey);
+        return $this->get(ConfigurationEnum::AI_MODE->value);
     }
 
     public function getHasFollowUpAttribute(): bool
     {
-        $followUpKey = LeadConfigurationService::getFollowUpModeKey($this);
-        $followUpValue = $this->get($followUpKey);
-
-        return (int) $followUpValue === FollowUpValueEnum::ON()->value;
+        return (int) $this->get(ConfigurationEnum::HAS_FOLLOW_UP->value) === FollowUpValueEnum::ON()->value;
     }
 }

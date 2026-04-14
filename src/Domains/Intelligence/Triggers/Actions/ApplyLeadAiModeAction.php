@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Triggers\Actions;
 
 use Carbon\Carbon;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
@@ -113,12 +114,14 @@ class ApplyLeadAiModeAction
     {
         $aiModeKey = LeadConfigurationService::getAiModeKey($this->lead);
         $this->lead->set($aiModeKey, $aiMode);
+        $this->lead->set(LeadConfigurationEnum::AI_MODE->value, $aiMode);
     }
 
     protected function setFollowUp(FollowUpValueEnum $followUpValue)
     {
         $followUpKey = LeadConfigurationService::getFollowUpModeKey($this->lead);
         $this->lead->set($followUpKey, $followUpValue->value);
+        $this->lead->set(LeadConfigurationEnum::HAS_FOLLOW_UP->value, $followUpValue->value);
     }
 
     protected function logModeChangeNote(string $newMode): void
