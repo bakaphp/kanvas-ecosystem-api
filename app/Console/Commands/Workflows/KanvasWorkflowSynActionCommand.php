@@ -33,6 +33,7 @@ use Kanvas\Connectors\Elead\Workflow\PushParticipantActivity;
 use Kanvas\Connectors\Elead\Workflow\PushPeopleActivity as WorkflowPushPeopleActivity;
 use Kanvas\Connectors\Elead\Workflow\ScheduleActivityFromEventActivity;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsAgentWebhookJob;
+use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsTranscriptWebhookJob;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderStripePaymentActivity;
 use Kanvas\Connectors\Facebook\Webhooks\ProcessFacebookLeadWebhookJob;
@@ -406,6 +407,7 @@ class KanvasWorkflowSynActionCommand extends Command
             InjectADKSessionEventsActivity::class,
             ProcessRespondIOWebhookJob::class,
             ProcessElevenLabsAgentWebhookJob::class,
+            ProcessElevenLabsTranscriptWebhookJob::class,
         ];
 
         $createdActions = [];
