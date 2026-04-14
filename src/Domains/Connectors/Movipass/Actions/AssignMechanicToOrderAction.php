@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Actions;
 
-use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
@@ -16,7 +15,6 @@ class AssignMechanicToOrderAction
 {
     public function __construct(
         protected readonly Order $order,
-        protected readonly AppInterface $app,
     ) {
     }
 
@@ -27,7 +25,7 @@ class AssignMechanicToOrderAction
 
         $providerCompany = $this->resolveProviderCompany($assistanceCase);
 
-        $mechanics = new GetAvailableMechanicsAction($this->app, $providerCompany)->execute();
+        $mechanics = new GetAvailableMechanicsAction($providerCompany)->execute();
 
         if ($mechanics->isEmpty()) {
             throw new ValidationException('No available mechanics for this order');
