@@ -62,7 +62,7 @@ class AssignMechanicToOrderAction
     {
         $providerId = $assistanceCase['provider_id'] ?? null;
 
-        if ($providerId === null) {
+        if ($providerId === null || ! is_numeric($providerId) || (int) $providerId <= 0) {
             return null;
         }
 
