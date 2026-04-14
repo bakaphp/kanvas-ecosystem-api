@@ -24,6 +24,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Notifications\Templates\Blank;
 use Ramsey\Uuid\Uuid;
 
@@ -377,7 +378,7 @@ class SendMessageToLeadAction
     {
         $agent = Agent::fromApp($this->lead->app)
             ->fromCompany($this->lead->company)
-            ->where('name', 'voiceOutreachAgent')
+            ->where('name', AgentEnum::VOICE_OUTREACH->value)
             ->firstOrFail();
 
         $sessionResult = InitVoiceSessionAction::fromLead(
