@@ -10237,16 +10237,16 @@
         },
         {
             "name": "recombee/php-api-client",
-            "version": "v6.1.0",
+            "version": "v6.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/recombee/php-api-client.git",
-                "reference": "9e9372799407cc82e612cc6aa02cff12a480e796"
+                "reference": "f0c5e4f05a6fb61a0f4e1c51d47eea24982fc28d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/recombee/php-api-client/zipball/9e9372799407cc82e612cc6aa02cff12a480e796",
-                "reference": "9e9372799407cc82e612cc6aa02cff12a480e796",
+                "url": "https://api.github.com/repos/recombee/php-api-client/zipball/f0c5e4f05a6fb61a0f4e1c51d47eea24982fc28d",
+                "reference": "f0c5e4f05a6fb61a0f4e1c51d47eea24982fc28d",
                 "shasum": ""
             },
             "require": {
@@ -10277,9 +10277,9 @@
             "homepage": "https://recombee.com",
             "support": {
                 "issues": "https://github.com/recombee/php-api-client/issues",
-                "source": "https://github.com/recombee/php-api-client/tree/v6.1.0"
+                "source": "https://github.com/recombee/php-api-client/tree/v6.2.0"
             },
-            "time": "2026-01-09T14:38:26+00:00"
+            "time": "2026-04-14T14:10:49+00:00"
         },
         {
             "name": "riimu/kit-phpencoder",
