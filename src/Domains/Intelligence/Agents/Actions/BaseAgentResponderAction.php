@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -42,8 +43,19 @@ class BaseAgentResponderAction
         $aiModeKey = $lead instanceof Lead
             ? LeadConfigurationService::getAiModeKey($lead)
             : 'ai_mode';
-        if ($lead->get($aiModeKey) == IntelligenceModeEnum::OFF->value) {
-            throw new Exception('Ai Agent Off for this lead');
+
+        if ($lead instanceof Lead && ! $lead->get(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value)) {
+            $leadType = $lead->type()->first();
+            $defaultKey = LeadConfigurationService::getAiModeDefaultKey($lead);
+            $defaultMode = IntelligenceModeEnum::tryFrom((string) ($leadType?->config[$defaultKey] ?? ''));
+            if ($defaultMode?->isOff()) {
+                throw new Exception('Ai Agent Off for this lead');
+            }
+        } else {
+            $mode = IntelligenceModeEnum::tryFrom((string) $lead->get($aiModeKey));
+            if ($mode?->isOff()) {
+                throw new Exception('Ai Agent Off for this lead');
+            }
         }
 
         if ($message->is_un_response) {
