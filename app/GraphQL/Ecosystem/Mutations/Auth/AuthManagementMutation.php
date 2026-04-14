@@ -7,8 +7,10 @@ namespace App\GraphQL\Ecosystem\Mutations\Auth;
 use Baka\Support\IPInfo;
 use Baka\Validations\PasswordValidation;
 use GraphQL\Type\Definition\ResolveInfo;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\Actions\SocialLoginAction;
@@ -21,6 +23,7 @@ use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Enums\UserConfigEnum;
@@ -28,10 +31,12 @@ use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
+
+use function Sentry\captureMessage;
+
 use Sentry\Severity;
 use Sentry\State\Scope;
 
-use function Sentry\captureMessage;
 use function Sentry\withScope;
 
 class AuthManagementMutation
@@ -123,9 +128,6 @@ class AuthManagementMutation
         );
     }
 
-    /**
-     * @throws \Exception
-     */
     public function register(
         mixed $rootValue,
         array $request,
@@ -133,6 +135,8 @@ class AuthManagementMutation
         ?ResolveInfo $resolveInfo = null
     ): array {
         $app = app(Apps::class);
+
+        $this->enforceRegistrationRateLimit($app);
 
         Validator::make(
             $request['data'],
@@ -247,5 +251,34 @@ class AuthManagementMutation
         $user->reset($request['data']['new_password'], $request['data']['hash_key']);
 
         return true;
+    }
+
+    protected function enforceRegistrationRateLimit(Apps $app): void
+    {
+        $ip = IPInfo::getClientIp();
+        $key = 'register_attempt:' . $app->getId() . ':' . $ip;
+        $maxAttempts = (int) ($app->get(AppSettingsEnums::REGISTRATION_RATE_LIMIT->getValue()) ?: 10);
+
+        if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
+            $seconds = RateLimiter::availableIn($key);
+
+            withScope(function (Scope $scope) use ($app, $ip, $maxAttempts): void {
+                $scope->setLevel(Severity::warning());
+                $scope->setContext('registration_rate_limit', [
+                    'app_id' => $app->getId(),
+                    'app_name' => $app->name,
+                    'ip' => $ip,
+                    'max_attempts' => $maxAttempts,
+                    'user_agent' => request()->userAgent(),
+                ]);
+                captureMessage('Registration rate limit exceeded — possible spam signup attempt');
+            });
+
+            throw ValidationException::withMessages([
+                'email' => ["Too many registration attempts. Please try again in {$seconds} seconds."],
+            ]);
+        }
+
+        RateLimiter::hit($key, 60);
     }
 }
