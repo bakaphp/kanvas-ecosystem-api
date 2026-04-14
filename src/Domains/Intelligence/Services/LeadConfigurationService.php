@@ -73,12 +73,10 @@ class LeadConfigurationService
         return "{$prefix}_first_fu_active_default";
     }
 
-    public static function getAiModeDefaultKey(Lead $lead): string
+    public static function getAiModeDefaultKey(Lead $lead, bool $isOpen = true): string
     {
         $prefix = self::getTypePrefix($lead->type()->first());
-        $statusSuffix = self::getStatusSuffix($lead);
-
-        $state = $statusSuffix !== '' ? 'closed' : 'open';
+        $state = $isOpen ? 'open' : 'closed';
 
         return "{$prefix}_ai_mode_{$state}_default";
     }
