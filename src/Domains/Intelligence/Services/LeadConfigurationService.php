@@ -76,12 +76,11 @@ class LeadConfigurationService
     public static function getAiModeDefaultKey(Lead $lead): string
     {
         $prefix = self::getTypePrefix($lead->type()->first());
+        $statusSuffix = self::getStatusSuffix($lead);
 
-        return match ($prefix) {
-            'showroom' => 'showroom_ai_mode_default',
-            'phone' => 'phone_ai_mode_default',
-            default => 'internet_ai_mode_default',
-        };
+        $state = $statusSuffix !== '' ? 'closed' : 'open';
+
+        return "{$prefix}_ai_mode_{$state}_default";
     }
 
     public static function getFollowUpDefaultKey(Lead $lead): string
