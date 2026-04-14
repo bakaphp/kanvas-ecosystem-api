@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Actions;
 
 use Illuminate\Support\Collection;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MechanicAvailabilityEnum;
 use Kanvas\Users\Models\Users;
@@ -13,38 +12,18 @@ use Kanvas\Users\Models\Users;
 class GetAvailableMechanicsAction
 {
     public function __construct(
-        protected readonly ?Companies $providerCompany = null,
         protected readonly array $excludeIds = [],
     ) {
     }
 
     public function execute(): Collection
     {
-        $providerCompany = $this->providerCompany;
-
-        return Users::where('users.is_deleted', 0)
-        ->whereExists(
-            fn ($q) => $q->selectRaw('1')
-                ->from('user_config')
-                ->whereColumn('user_config.users_id', 'users.id')
-                ->where('user_config.name', CustomFieldEnum::MECHANIC_AVAILABILITY->value)
-                ->where('user_config.value', MechanicAvailabilityEnum::ACTIVO->value)
-        )
-        ->whereExists(
-            fn ($q) => $q->selectRaw('1')
-                ->from('users_associated_apps')
-                ->whereColumn('users_associated_apps.users_id', 'users.id')
-                ->where('users_associated_apps.is_active', 1)
-        )
-        ->when(
-            $providerCompany,
-            fn ($q) => $q->whereExists(
-                fn ($sub) => $sub->selectRaw('1')
-                    ->from('users_associated_apps')
-                    ->whereColumn('users_associated_apps.users_id', 'users.id')
-                    ->where('users_associated_apps.companies_id', $providerCompany->getId())
-            )
-        )
+        return Users::query()
+        ->select('users.*')
+        ->join('user_config', 'user_config.users_id', '=', 'users.id')
+        ->where('user_config.name', CustomFieldEnum::MECHANIC_AVAILABILITY->value)
+        ->where('user_config.value', MechanicAvailabilityEnum::ACTIVO->value)
+        ->where('users.is_deleted', 0)
         ->when(
             $this->excludeIds !== [],
             fn ($q) => $q->whereNotIn('users.id', $this->excludeIds)
