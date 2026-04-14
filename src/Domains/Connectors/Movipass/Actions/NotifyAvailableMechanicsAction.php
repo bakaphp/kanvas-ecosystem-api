@@ -27,7 +27,7 @@ class NotifyAvailableMechanicsAction
 
         $providerCompany = null;
         $providerId = $assistanceCase['provider_id'] ?? null;
-        if ($providerId !== null) {
+        if ($providerId !== null && is_numeric($providerId) && (int) $providerId > 0) {
             $providerCompany = Companies::getById((int) $providerId);
         }
 
