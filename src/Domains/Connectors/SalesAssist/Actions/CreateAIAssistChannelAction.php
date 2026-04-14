@@ -33,7 +33,7 @@ class CreateAIAssistChannelAction
             'users' => $this->lead->user,
             'entity_id' => $this->lead->getId(),
             'entity_namespace' => Lead::class,
-            'name' => ChannelNameEnum::AI_ASSIST->value . ' ' . $this->lead->getId(),
+            'name' => ChannelNameEnum::AI_ASSIST->value,
             'slug' => $slug,
         ]);
 
