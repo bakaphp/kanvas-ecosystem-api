@@ -27,8 +27,7 @@ class AjaxClient
             throw new ValidationException('WordPress base URL is required');
         }
 
-        // Strip www. to avoid 301 redirects that drop POST body
-        $this->baseUrl = (string) preg_replace('#^(https?://)www\.#i', '$1', $this->baseUrl);
+        $this->baseUrl = rtrim($this->baseUrl, '/');
     }
 
     public function getAllVehicles(?string $filterMake = null, ?callable $onPage = null): array
@@ -192,6 +191,7 @@ class AjaxClient
 
         $title = trim($this->extractMatch('/inv360VehicleCard__title[^>]*>\s*(.+?)\s*<\//s', $card));
         $vin = trim($this->extractMatch('/inv360VehicleCard__icon--vin[^>]*><\/i>\s*<span>\s*(.+?)\s*<\/span>/s', $card));
+        $vin = (string) preg_replace('/^vin:\s*/i', '', $vin);
 
         // Fallback: extract VIN from URL slug (e.g., "usado-2024-ford-f-150-1ftfw1e85pfb03435-564489")
         if ($vin === '' && $link !== '') {
