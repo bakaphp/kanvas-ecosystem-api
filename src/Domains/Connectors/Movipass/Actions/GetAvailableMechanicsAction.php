@@ -20,30 +20,16 @@ class GetAvailableMechanicsAction
 
     public function execute(): Collection
     {
-        $providerCompany = $this->providerCompany;
-
-        return Users::where('users.is_deleted', 0)
-        ->whereExists(
-            fn ($q) => $q->selectRaw('1')
-                ->from('user_config')
-                ->whereColumn('user_config.users_id', 'users.id')
-                ->where('user_config.name', CustomFieldEnum::MECHANIC_AVAILABILITY->value)
-                ->where('user_config.value', MechanicAvailabilityEnum::ACTIVO->value)
-        )
-        ->whereExists(
-            fn ($q) => $q->selectRaw('1')
-                ->from('users_associated_apps')
-                ->whereColumn('users_associated_apps.users_id', 'users.id')
-                ->where('users_associated_apps.is_active', 1)
-        )
+        return Users::query()
+        ->select('users.*')
+        ->join('user_config', 'user_config.users_id', '=', 'users.id')
+        ->where('user_config.name', CustomFieldEnum::MECHANIC_AVAILABILITY->value)
+        ->where('user_config.value', MechanicAvailabilityEnum::ACTIVO->value)
+        ->where('users.is_deleted', 0)
         ->when(
-            $providerCompany,
-            fn ($q) => $q->whereExists(
-                fn ($sub) => $sub->selectRaw('1')
-                    ->from('users_associated_apps')
-                    ->whereColumn('users_associated_apps.users_id', 'users.id')
-                    ->where('users_associated_apps.companies_id', $providerCompany->getId())
-            )
+            $this->providerCompany,
+            fn ($q) => $q->join('users_associated_apps', 'users_associated_apps.users_id', '=', 'users.id')
+                ->where('users_associated_apps.companies_id', $this->providerCompany->getId())
         )
         ->when(
             $this->excludeIds !== [],
