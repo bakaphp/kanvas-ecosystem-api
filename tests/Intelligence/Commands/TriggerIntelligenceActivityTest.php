@@ -335,7 +335,7 @@ class TriggerIntelligenceActivityTest extends TestCase
 
     public function testNewLeadInternetUsesLeadTypeAiModeDefault(): void
     {
-        $lead = $this->createLead('Internet', ['internet_ai_mode_default' => IntelligenceModeEnum::FULL_ON->value]);
+        $lead = $this->createLead('Internet', ['internet_ai_mode_open_default' => IntelligenceModeEnum::FULL_ON->value]);
         $lead->company->set('ai_mode', IntelligenceModeEnum::SUPPORT->value);
 
         new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
@@ -345,7 +345,7 @@ class TriggerIntelligenceActivityTest extends TestCase
 
     public function testNewLeadShowroomUsesLeadTypeAiModeDefault(): void
     {
-        $lead = $this->createLead('Showroom', ['showroom_ai_mode_default' => IntelligenceModeEnum::SUPPORT->value]);
+        $lead = $this->createLead('Showroom', ['showroom_ai_mode_open_default' => IntelligenceModeEnum::SUPPORT->value]);
         $lead->company->set('showroom_ai_mode', IntelligenceModeEnum::FULL_ON->value);
 
         new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
@@ -355,7 +355,7 @@ class TriggerIntelligenceActivityTest extends TestCase
 
     public function testNewLeadPhoneUsesLeadTypeAiModeDefault(): void
     {
-        $lead = $this->createLead('Phone', ['phone_ai_mode_default' => IntelligenceModeEnum::FULL_ON->value]);
+        $lead = $this->createLead('Phone', ['phone_ai_mode_open_default' => IntelligenceModeEnum::FULL_ON->value]);
         $lead->company->set('phone_ai_mode', IntelligenceModeEnum::SUPPORT->value);
 
         new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
@@ -365,7 +365,7 @@ class TriggerIntelligenceActivityTest extends TestCase
 
     public function testNewLeadInternetUsesLeadTypeFollowUpDefault(): void
     {
-        $lead = $this->createLead('Internet', ['internet_followup_default_mode' => FollowUpValueEnum::ON()->value]);
+        $lead = $this->createLead('Internet', ['internet_con_fu_active_default' => FollowUpValueEnum::ON()->value]);
         $lead->company->set('ai_mode', IntelligenceModeEnum::FULL_ON->value);
         $lead->company->set('internet_follow_up_mode', FollowUpValueEnum::OFF()->value);
 
@@ -376,7 +376,7 @@ class TriggerIntelligenceActivityTest extends TestCase
 
     public function testNewLeadShowroomUsesLeadTypeFollowUpDefault(): void
     {
-        $lead = $this->createLead('Showroom', ['showroom_followup_default_mode' => FollowUpValueEnum::ON()->value]);
+        $lead = $this->createLead('Showroom', ['showroom_con_fu_active_default' => FollowUpValueEnum::ON()->value]);
         $lead->company->set('showroom_ai_mode', IntelligenceModeEnum::FULL_ON->value);
         $lead->company->set('showroom_follow_up_mode', FollowUpValueEnum::OFF()->value);
 
@@ -387,7 +387,7 @@ class TriggerIntelligenceActivityTest extends TestCase
 
     public function testNewLeadPhoneUsesLeadTypeFollowUpDefault(): void
     {
-        $lead = $this->createLead('Phone', ['phone_followup_default_mode' => FollowUpValueEnum::ON()->value]);
+        $lead = $this->createLead('Phone', ['phone_con_fu_active_default' => FollowUpValueEnum::ON()->value]);
         $lead->company->set('phone_ai_mode', IntelligenceModeEnum::FULL_ON->value);
         $lead->company->set('phone_follow_up_mode', FollowUpValueEnum::OFF()->value);
 
