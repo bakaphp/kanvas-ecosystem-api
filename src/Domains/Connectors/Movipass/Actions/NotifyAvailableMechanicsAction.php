@@ -31,7 +31,7 @@ class NotifyAvailableMechanicsAction
             $providerCompany = Companies::getById((int) $providerId);
         }
 
-        $mechanics = new GetAvailableMechanicsAction($this->app, $providerCompany, $this->excludeIds)->execute();
+        $mechanics = new GetAvailableMechanicsAction($providerCompany, $this->excludeIds)->execute();
 
         if ($mechanics->isEmpty()) {
             throw new ValidationException('No available mechanics to notify for this order');
