@@ -13,7 +13,6 @@ use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
-use Kanvas\Social\Channels\Models\Channel;
 
 class CreateAIAssistChannelAction
 {
