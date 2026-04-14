@@ -54,6 +54,8 @@ type Lead {
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
+    has_ai_chat: Boolean!
+    has_follow_up: Boolean!
     created_at: DateTime!
     updated_at: DateTime!
 }
