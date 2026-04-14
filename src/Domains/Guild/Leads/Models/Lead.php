@@ -31,7 +31,6 @@ use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
-use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Models\Channel;
@@ -90,7 +89,6 @@ class Lead extends BaseModel implements EventResourceInterface
     ];
     protected $table = 'leads';
     protected $guarded = [];
-    protected $appends = ['ai_mode', 'has_follow_up'];
 
     public function people(): BelongsTo
     {
@@ -740,15 +738,5 @@ class Lead extends BaseModel implements EventResourceInterface
             strtolower($this->type?->name ?? ''),
             'service'
         );
-    }
-
-    public function getAiModeAttribute(): ?string
-    {
-        return $this->get(ConfigurationEnum::AI_MODE->value);
-    }
-
-    public function getHasFollowUpAttribute(): bool
-    {
-        return (int) $this->get(ConfigurationEnum::HAS_FOLLOW_UP->value) === FollowUpValueEnum::ON()->value;
     }
 }

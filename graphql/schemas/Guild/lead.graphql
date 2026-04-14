@@ -25,7 +25,8 @@ type Lead {
     channels: [SocialChannel]! @hasMany(relation: "socialChannels")
     systemModule: SystemModule @belongsTo(relation: "systemModule")
     events: [Event!]! @morphToMany(relation: "events")
-    ai_session: [AIAgentSession!]! @hasMany(relation: "aiSession", type: PAGINATOR)
+    ai_session: [AIAgentSession!]!
+        @hasMany(relation: "aiSession", type: PAGINATOR)
     tags: [Tag!]
         @paginate(
             defaultCount: 25
@@ -54,8 +55,6 @@ type Lead {
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
-    ai_mode: String
-    has_follow_up: Boolean!
     created_at: DateTime!
     updated_at: DateTime!
 }
