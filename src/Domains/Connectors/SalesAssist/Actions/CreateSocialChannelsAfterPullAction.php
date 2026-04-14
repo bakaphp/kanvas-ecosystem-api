@@ -43,5 +43,17 @@ class CreateSocialChannelsAfterPullAction
                 sendPusherNotification: true
             )->execute();
         }
+
+        $aiAssistEnabled = (bool) ($this->lead->company->get('sales_assist_ai_assist_enabled')
+            ?? $this->app->get('sales_assist_ai_assist_enabled')
+            ?? false);
+
+        if ($aiAssistEnabled) {
+            new CreateAIAssistChannelAction(
+                $this->lead,
+                $this->app,
+                $this->agentId,
+            )->execute();
+        }
     }
 }

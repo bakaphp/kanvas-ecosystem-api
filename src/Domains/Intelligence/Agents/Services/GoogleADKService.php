@@ -25,7 +25,8 @@ class GoogleADKService
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
-        protected ?string $agent = null
+        protected ?string $agent = null,
+        protected ?string $baseUrlOverride = null
     ) {
         $this->baseUrl = $this->app->get(ConfigurationEnum::ADK_BASE_URL->value);
         $this->apiKey = $this->app->get(ConfigurationEnum::ADK_API_KEY->value);
@@ -34,6 +35,10 @@ class GoogleADKService
         $companyBaseUrl = $this->company->get(ConfigurationEnum::ADK_BASE_URL->value) ?? null;
         if ($companyBaseUrl !== null && ! empty($companyBaseUrl)) {
             $this->baseUrl = $companyBaseUrl;
+        }
+
+        if ($this->baseUrlOverride !== null && ! empty($this->baseUrlOverride)) {
+            $this->baseUrl = $this->baseUrlOverride;
         }
 
         if (empty($this->baseUrl)) {

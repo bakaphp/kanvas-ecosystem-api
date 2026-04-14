@@ -101,6 +101,7 @@ use Kanvas\Connectors\Recombee\Workflows\PushProductToItemActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionToEventActivity;
 use Kanvas\Connectors\RespondIO\Webhooks\ProcessRespondIOWebhookJob;
 use Kanvas\Connectors\RespondIO\Workflows\AgentChannelResponderActivity as RespondIOAgentChannelResponderActivity;
+use Kanvas\Connectors\SalesAssist\Activities\AIAssistChannelResponderActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AttachFileToChecklistItemActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AttachMessageFilesToLeadActivity;
 use Kanvas\Connectors\SalesAssist\Activities\ConvertMessageImagesToPdfActivity;
@@ -281,6 +282,7 @@ class KanvasWorkflowSynActionCommand extends Command
             MessageReportNotificationActivity::class,
             StripePaymentIntentWebhookJob::class,
             UpdateOrderStripePaymentActivity::class,
+            AIAssistChannelResponderActivity::class,
             AttachFileToChecklistItemActivity::class,
             AttachMessageFilesToLeadActivity::class,
             PromptImageFilterActivity::class,

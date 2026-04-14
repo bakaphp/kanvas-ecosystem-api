@@ -50,13 +50,23 @@ class PasoRapidoService
         $userId = $user?->getId() ?? 0;
         $appId = $this->app->getId();
 
+        $clientIp = IPInfo::getClientIp();
+
+        if ($this->app->get(ConfigurationEnum::VERIFY_REQUIRE_VERIFIED_ACCOUNT->value) && $user && ! $user->getAppIsVerified()) {
+            $email = $user->email ?? 'unknown';
+            report(new ValidationException("PasoRapido unverified account attempt - user:{$userId} email:{$email} ip:{$clientIp} app:{$appId} tag:{$tag}"));
+
+            throw new ValidationException('Account not verified.');
+        }
+
         $tagAttributeSlug = $this->app->get(ConfigurationEnum::VERIFY_TAG_ATTRIBUTE_SLUG->value);
 
         if ($tagAttributeSlug && ! ProductsRepository::existsByAttributeValue($this->app, $this->company, $tagAttributeSlug, $tag, $userId)) {
+            $email = $user?->email ?? 'unknown';
+            report(new ValidationException("PasoRapido unauthorized tag lookup - user:{$userId} email:{$email} ip:{$clientIp} app:{$appId} tag:{$tag}"));
+
             throw new ValidationException('Tag not associated with your account.');
         }
-
-        $clientIp = IPInfo::getClientIp();
 
         $ipMaxUsers = (int) ($this->app->get(ConfigurationEnum::VERIFY_IP_MAX_USERS->value) ?? 5);
         $ipUsersKey = "paso-rapido-ip-users:{$appId}:{$clientIp}";
