@@ -30,12 +30,6 @@ class GetAvailableMechanicsAction
                 ->where('user_config.name', CustomFieldEnum::MECHANIC_AVAILABILITY->value)
                 ->where('user_config.value', MechanicAvailabilityEnum::ACTIVO->value)
         )
-        ->whereExists(
-            fn ($q) => $q->selectRaw('1')
-                ->from('users_associated_apps')
-                ->whereColumn('users_associated_apps.users_id', 'users.id')
-                ->where('users_associated_apps.is_active', 1)
-        )
         ->when(
             $providerCompany,
             fn ($q) => $q->whereExists(
