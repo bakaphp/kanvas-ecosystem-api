@@ -24,7 +24,6 @@ use Kanvas\Connectors\DriveCentric\Workflow\PushLeadActivity as DriveCentricWork
 use Kanvas\Connectors\DriveCentric\Workflow\PushPeopleActivity as DriveCentricWorkflowPushPeopleActivity;
 use Kanvas\Connectors\EchoPay\Webhook\PullPaymentChallengeWebhookJob;
 use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
-use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsAgentWebhookJob;
 use Kanvas\Connectors\Elead\Actions\ScheduleEleadActivityFromEventAction;
 use Kanvas\Connectors\Elead\Workflow\AddLeadCommentFromAgentMessageActivity;
 use Kanvas\Connectors\Elead\Workflow\PullUserByEmployeeActivity;
@@ -33,6 +32,7 @@ use Kanvas\Connectors\Elead\Workflow\PushLeadNotesActivity as WorkflowPushLeadNo
 use Kanvas\Connectors\Elead\Workflow\PushParticipantActivity;
 use Kanvas\Connectors\Elead\Workflow\PushPeopleActivity as WorkflowPushPeopleActivity;
 use Kanvas\Connectors\Elead\Workflow\ScheduleActivityFromEventActivity;
+use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsAgentWebhookJob;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderStripePaymentActivity;
 use Kanvas\Connectors\Facebook\Webhooks\ProcessFacebookLeadWebhookJob;
