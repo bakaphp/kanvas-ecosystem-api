@@ -24,6 +24,7 @@ use Kanvas\Connectors\DriveCentric\Workflow\PushLeadActivity as DriveCentricWork
 use Kanvas\Connectors\DriveCentric\Workflow\PushPeopleActivity as DriveCentricWorkflowPushPeopleActivity;
 use Kanvas\Connectors\EchoPay\Webhook\PullPaymentChallengeWebhookJob;
 use Kanvas\Connectors\EchoPay\Workflows\Activities\ProcessPaymentActivity;
+use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsAgentWebhookJob;
 use Kanvas\Connectors\Elead\Actions\ScheduleEleadActivityFromEventAction;
 use Kanvas\Connectors\Elead\Workflow\AddLeadCommentFromAgentMessageActivity;
 use Kanvas\Connectors\Elead\Workflow\PullUserByEmployeeActivity;
@@ -404,6 +405,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SendLeadAdfByEmailActivity::class,
             InjectADKSessionEventsActivity::class,
             ProcessRespondIOWebhookJob::class,
+            ProcessElevenLabsAgentWebhookJob::class,
         ];
 
         $createdActions = [];
