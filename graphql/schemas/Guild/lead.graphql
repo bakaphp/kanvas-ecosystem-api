@@ -12,6 +12,7 @@ type Lead {
     status: LeadStatus @belongsTo(relation: "status")
     type: LeadType @belongsTo(relation: "type")
     source: LeadSource @belongsTo(relation: "source")
+    subSource: LeadSubSource @belongsTo(relation: "subSource")
     firstname: String
     lastname: String
     email: String
@@ -152,6 +153,7 @@ input LeadInput {
     status_id: ID
     type_id: ID
     source_id: ID
+    sub_source_id: ID
     description: String
     reason_lost: String
     pipeline_stage_id: ID!
@@ -169,6 +171,7 @@ input LeadUpdateInput {
     status_id: ID
     type_id: ID
     source_id: ID
+    sub_source_id: ID
     description: String
     reason_lost: String
     pipeline_stage_id: ID

@@ -24,6 +24,7 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadContextInfoAction;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadFirstEngagementMessageAction;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
@@ -56,7 +57,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
-                if ($lead->get('ai_mode') == IntelligenceModeEnum::OFF->value) {
+                if ($lead->get(LeadConfigurationService::getAiModeKey($lead)) == IntelligenceModeEnum::OFF->value) {
                     return [
                         'ai_mode is OFF',
                     ];
@@ -118,9 +119,18 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     }
 
                     if ($isWithinWorkingHours) {
-                        $lead->set('ai_mode', $workingHoursDefaultMode);
-                        $disableSending = $workingHoursDefaultMode === IntelligenceModeEnum::OFF->value;
+                        $lead->set(LeadConfigurationService::getAiModeKey($lead), $workingHoursDefaultMode);
                     }
+                }
+
+                $disableSending = $lead->get(LeadConfigurationService::getAiModeKey($lead)) === IntelligenceModeEnum::OFF->value;
+
+                $leadType = $lead->type()->first();
+                $firstMessageDefaultKey = LeadConfigurationService::getFirstMessageDefaultKey($lead);
+                $leadTypeConfig = $leadType?->config ?? [];
+
+                if (isset($leadTypeConfig[$firstMessageDefaultKey]) && ! $leadTypeConfig[$firstMessageDefaultKey]) {
+                    $disableSending = true;
                 }
 
                 $totalSentMessages = 0;
@@ -145,16 +155,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     $leadContext['first_message'] = $firstLeadMessage;
                     $lead->set(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value, $leadContext);
                     $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, $firstLeadMessage['message']);
-                    // $communicationChannel = $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value);
-
-                    //$lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
-                    // if (empty($communicationChannel)) {
-                    //     return $this->failWorkflow([
-                    //         'error' => 'No communication channel selected , please set one to be able to send messages',
-                    //         'context' => $createContext,
-                    //         'first_message' => $firstLeadMessage,
-                    //     ]);
-                    // }
 
                     $communicationChannelNumber = match ($communicationChannel) {
                         'sms' => $cellPhone,
@@ -347,7 +347,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
     private function shouldSendFirstMessageNow(Lead $lead): bool
     {
-        if ($lead->get('ai_mode') === IntelligenceModeEnum::OFF->value) {
+        if ($lead->get(LeadConfigurationService::getAiModeKey($lead)) === IntelligenceModeEnum::OFF->value) {
             return false;
         }
 
@@ -359,7 +359,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
         if (! $isWithinWorkingHours) {
             return true;
-        } elseif ($lead->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value) {
+        } elseif ($lead->get(LeadConfigurationService::getAiModeKey($lead)) === IntelligenceModeEnum::SUPPORT->value) {
             return false;
         } else {
             return true;
