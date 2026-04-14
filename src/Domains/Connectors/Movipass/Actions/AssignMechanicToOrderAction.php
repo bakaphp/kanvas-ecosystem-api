@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Actions;
 
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Exceptions\ValidationException;
@@ -23,9 +22,7 @@ class AssignMechanicToOrderAction
         $metadata = $this->order->metadata ?? [];
         $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
 
-        $providerCompany = $this->resolveProviderCompany($assistanceCase);
-
-        $mechanics = new GetAvailableMechanicsAction($providerCompany)->execute();
+        $mechanics = new GetAvailableMechanicsAction()->execute();
 
         if ($mechanics->isEmpty()) {
             throw new ValidationException('No available mechanics for this order');
@@ -54,17 +51,6 @@ class AssignMechanicToOrderAction
         );
 
         return $mechanic;
-    }
-
-    protected function resolveProviderCompany(array $assistanceCase): ?Companies
-    {
-        $providerId = $assistanceCase['provider_id'] ?? null;
-
-        if ($providerId === null || ! is_numeric($providerId) || (int) $providerId <= 0) {
-            return null;
-        }
-
-        return Companies::getById((int) $providerId);
     }
 
     protected function selectBestMechanic($mechanics, array $assistanceCase): Users
