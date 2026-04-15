@@ -295,14 +295,8 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
             return null;
         }
 
-        return Lead::fromApp($this->receiver->app)
-            ->fromCompany($this->receiver->company)
-            ->notDeleted()
-            ->whereHas('customFields', function ($query) use ($conversationId) {
-                $query->where('name', CustomFieldEnum::CONVERSATION_ID->value)
-                    ->where('value', $conversationId);
-            })
-            ->first();
+        /** @var ?Lead */
+        return Lead::getByCustomField(CustomFieldEnum::CONVERSATION_ID->value, $conversationId);
     }
 
     protected function formatTranscript(array $transcript): array
