@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Notifications;
 
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Notification;
@@ -18,13 +16,10 @@ class LeadNotification extends Notification
         protected Lead $lead,
         protected string $message,
         protected array $enabledChannels,
-        Apps $app,
-        Companies $company,
         ?Users $fromUser = null
     ) {
         parent::__construct($lead, [
-            'app' => $app,
-            'company' => $company,
+            'company' => $lead->company,
             'fromUser' => $fromUser,
         ]);
 

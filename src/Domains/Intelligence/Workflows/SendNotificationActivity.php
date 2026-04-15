@@ -57,9 +57,7 @@ class SendNotificationActivity extends KanvasActivity
                 $notification = new LeadNotification(
                     lead: $lead,
                     message: $text,
-                    enabledChannels: $enabledChannels,
-                    app: $app,
-                    company: $company
+                    enabledChannels: $enabledChannels
                 );
 
                 $user->notify($notification);
