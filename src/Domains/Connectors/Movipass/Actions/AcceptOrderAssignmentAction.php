@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Actions;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
@@ -42,6 +43,8 @@ class AcceptOrderAssignmentAction
             $existingMechanicData = is_array($assistanceCase['mechanic'] ?? null) ? $assistanceCase['mechanic'] : [];
             $mechanicBlock = $this->buildMechanicBlock($existingMechanicData);
             $assistanceCase['mechanic'] = $mechanicBlock;
+            $assistanceCase['status'] = MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug();
+            $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
 
             $order->metadata = [
                 ...$metadata,
@@ -57,6 +60,9 @@ class AcceptOrderAssignmentAction
                 $this->mechanic,
                 MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug(),
             );
+
+            $order->refresh();
+            new GenerateRoadsideAssistancePinAction($order)->execute();
 
             AssistanceAssignedEvent::dispatch($order, $this->mechanic);
 

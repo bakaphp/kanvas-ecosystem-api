@@ -18,20 +18,34 @@ class GenerateRoadsideAssistancePinAction
 
     public function execute(): string
     {
-        $pin = $this->generatePin();
-        $pinHash = Hash::make($pin);
-
         $metadata = $this->order->metadata ?? [];
         $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
 
+        // Idempotent: if PIN was already generated, return the stored plain PIN
+        $existingHash = $assistanceCase['pin_hash']
+            ?? $this->order->get(CustomFieldEnum::ROADSIDE_ASSISTANCE_PIN_HASH->value);
+
+        if ($existingHash !== null) {
+            return (string) ($this->order->get(CustomFieldEnum::ROADSIDE_ASSISTANCE_PIN->value) ?? '');
+        }
+
+        $pin = $this->generatePin();
+        $pinHash = Hash::make($pin);
+
         $assistanceCase['pin_hash'] = $pinHash;
         $assistanceCase['pin_generated_at'] = Carbon::now()->toISOString();
+        $assistanceCase['pin'] = $pin;
 
-        $metadata['assistance_case'] = $assistanceCase;
-        $this->order->metadata = $metadata;
+        $this->order->metadata = [
+            ...$metadata,
+            'assistance_case' => $assistanceCase,
+            'data' => [
+                ...($metadata['data'] ?? []),
+                'assistance_case' => $assistanceCase,
+            ],
+        ];
         $this->order->saveQuietly();
 
-        // Store as custom fields to prevent metadata overwrites
         $this->order->set(CustomFieldEnum::ROADSIDE_ASSISTANCE_PIN->value, $pin);
         $this->order->set(CustomFieldEnum::ROADSIDE_ASSISTANCE_PIN_HASH->value, $pinHash);
 

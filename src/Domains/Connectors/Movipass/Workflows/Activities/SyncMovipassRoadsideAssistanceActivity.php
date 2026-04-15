@@ -198,6 +198,8 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
         // PIN is valid — clean up metadata and transition to DISPATCHED
         $assistanceCase['pin_validated_at'] = Carbon::now()->toISOString();
+        $assistanceCase['status'] = MovipassOrderStatusEnum::DISPATCHED->slug();
+        $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
         unset($assistanceCase['pin_attempt'], $assistanceCase['pin_validation_error']);
         $this->saveAssistanceCaseMetadata($order, $metadata, $assistanceCase);
 
