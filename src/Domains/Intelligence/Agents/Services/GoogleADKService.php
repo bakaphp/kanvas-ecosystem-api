@@ -224,7 +224,7 @@ class GoogleADKService
      *
      * @throws GuzzleException
      */
-    public function chatSimple(string $userId, string $sessionId, string $message): array
+    public function chatSimple(string $userId, string $sessionId, string $message, ?Users $user): array
     {
         $response = $this->client->post('/run', [
             'json' => [
@@ -235,7 +235,7 @@ class GoogleADKService
                     'role' => 'user',
                     'parts' => [['text' => $message]],
                     'stateDelta' => [
-                        'currentUserId' => auth()->user()?->id,
+                        'current_user_id' => $user ? $user->id : '',
                     ],
                 ],
             ],
