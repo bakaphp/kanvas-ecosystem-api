@@ -154,7 +154,7 @@ class CreateContentSessionAction
             'lastname' => $people->lastname,
             'middlename' => $people->middlename,
             'inventory_channel' => Channels::getDefault($people->company, $people->app)?->uuid,
-            'leads' => [LeadsRepository::getPeopleActiveLead($people)->toArray()],
+            'leads' => [LeadsRepository::getPeopleActiveLead($people)?->toArray()],
             'address' => $people->address->toArray(),
             'contacts' => $people->contacts->toArray(),
             'checklist' => $checkList,
