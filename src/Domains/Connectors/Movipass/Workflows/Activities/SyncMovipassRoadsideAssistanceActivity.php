@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Actions\AssignMechanicToOrderAction;
+use Kanvas\Connectors\Movipass\Actions\CheckMechanicArrivalAction;
 use Kanvas\Connectors\Movipass\Actions\AttachRoadsideAssistancePhotosAction;
 use Kanvas\Connectors\Movipass\Actions\CancelMechanicAssignmentAction;
 use Kanvas\Connectors\Movipass\Actions\GenerateRoadsideAssistancePinAction;
@@ -126,12 +127,37 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             ];
         }
 
+        if ($currentStatusSlug === MovipassOrderStatusEnum::DISPATCHED->slug()) {
+            $mechanicUserId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
+
+            if ($mechanicUserId > 0) {
+                $mechanic = Users::getById($mechanicUserId);
+                $arrived = new CheckMechanicArrivalAction($order, $mechanic)->execute();
+
+                if ($arrived) {
+                    $order->refresh();
+
+                    return [
+                        'order' => $order->getId(),
+                        'status' => 'success',
+                        'message' => 'Mechanic arrived on site, order transitioned to on_site',
+                        'data' => $order->toArray(),
+                        'response' => $order->toArray(),
+                    ];
+                }
+            }
+        }
+
         if (($assistanceCase['mechanic_cancel'] ?? false) === true) {
-            if ($currentStatusSlug !== MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug()) {
+            $cancellableStatuses = [
+                MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug(),
+                MovipassOrderStatusEnum::DISPATCHED->slug(),
+            ];
+            if (! in_array($currentStatusSlug, $cancellableStatuses, true)) {
                 return [
                     'order' => $order->getId(),
                     'status' => 'success',
-                    'message' => 'Mechanic cancel ignored: order is not in provider_assigned status',
+                    'message' => 'Mechanic cancel ignored: order is not in a cancellable status',
                 ];
             }
 
@@ -159,11 +185,11 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             ];
         }
 
-        if ($currentStatusSlug !== MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug()) {
+        if ($currentStatusSlug !== MovipassOrderStatusEnum::ON_SITE->slug()) {
             return [
                 'order' => $order->getId(),
                 'status' => 'success',
-                'message' => 'PIN validation only applies in provider_assigned status',
+                'message' => 'PIN validation only applies in on_site status',
             ];
         }
 
@@ -196,22 +222,22 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             ];
         }
 
-        // PIN is valid — clean up metadata and transition to DISPATCHED
+        // PIN is valid — clean up metadata and transition to SERVICE_IN_PROGRESS
         $assistanceCase['pin_validated_at'] = Carbon::now()->toISOString();
-        $assistanceCase['status'] = MovipassOrderStatusEnum::DISPATCHED->slug();
+        $assistanceCase['status'] = MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug();
         $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
         unset($assistanceCase['pin_attempt'], $assistanceCase['pin_validation_error']);
         $this->saveAssistanceCaseMetadata($order, $metadata, $assistanceCase);
 
         $order->transitionToStatus(
             Users::getById((int) $order->users_id),
-            MovipassOrderStatusEnum::DISPATCHED->slug(),
+            MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug(),
         );
 
         return [
             'order' => $order->getId(),
             'status' => 'success',
-            'message' => 'PIN validated, order transitioned to dispatched',
+            'message' => 'PIN validated, order transitioned to service_in_progress',
         ];
     }
 

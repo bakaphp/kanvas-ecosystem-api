@@ -64,6 +64,12 @@ class AcceptOrderAssignmentAction
             $order->refresh();
             new GenerateRoadsideAssistancePinAction($order)->execute();
 
+            $order->refresh();
+            $order->transitionToStatus(
+                $this->mechanic,
+                MovipassOrderStatusEnum::DISPATCHED->slug(),
+            );
+
             AssistanceAssignedEvent::dispatch($order, $this->mechanic);
 
             return $order;
