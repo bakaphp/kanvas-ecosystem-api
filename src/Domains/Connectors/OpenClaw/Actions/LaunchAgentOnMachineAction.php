@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\OpenClaw\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\Enums\DeploymentStatusEnum;
@@ -197,20 +198,140 @@ class LaunchAgentOnMachineAction
     private function buildAndStart(SshClient $client, AgentDeployment $deployment): void
     {
         $openclawDir = $deployment->home_directory . '/.openclaw';
-        $result = $client->exec(
-            'sudo -u ' . escapeshellarg($deployment->system_user)
-            . ' bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose up -d 2>&1')
-            . '; echo "EXIT_CODE:$?"',
-            900,
-        );
+        $maxAttempts = 10;
 
-        $hasExitError = str_contains($result, 'EXIT_CODE:1')
-            || str_contains($result, 'unknown user')
-            || str_contains($result, 'Error response from daemon')
-            || ! str_contains($result, 'EXIT_CODE:0');
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            if (! $this->portsAreAvailableOnMachine($client, $deployment)) {
+                $this->reassignDeploymentPorts($client, $deployment);
+                continue;
+            }
 
-        if ($hasExitError) {
+            $result = $client->exec(
+                'sudo -u ' . escapeshellarg($deployment->system_user)
+                . ' bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose up -d 2>&1')
+                . '; echo "EXIT_CODE:$?"',
+                900,
+            );
+
+            $hasExitError = str_contains($result, 'EXIT_CODE:1')
+                || str_contains($result, 'unknown user')
+                || str_contains($result, 'Error response from daemon')
+                || ! str_contains($result, 'EXIT_CODE:0');
+
+            if (! $hasExitError) {
+                return;
+            }
+
+            if ($this->hasPortBindError($result) && $attempt < $maxAttempts) {
+                $this->stopPartialDeployment($client, $openclawDir);
+                $this->reassignDeploymentPorts($client, $deployment);
+
+                continue;
+            }
+
             throw new ValidationException('Docker build/start failed: ' . $result);
         }
+
+        throw new ValidationException(
+            'Docker build/start failed: unable to find an open port pair on machine ' . $this->machine->name
+        );
+    }
+
+    private function portsAreAvailableOnMachine(SshClient $client, AgentDeployment $deployment): bool
+    {
+        return $this->isPortAvailableOnMachine($client, $deployment->gateway_port)
+            && $this->isPortAvailableOnMachine($client, $deployment->proxy_port);
+    }
+
+    private function isPortAvailableOnMachine(SshClient $client, int $port): bool
+    {
+        $result = $client->exec(
+            'sudo ss -ltnH ' . escapeshellarg('( sport = :' . $port . ' )')
+            . ' | grep -q . && echo "USED" || echo "FREE"',
+        );
+
+        return trim($result) === 'FREE';
+    }
+
+    private function hasPortBindError(string $result): bool
+    {
+        return str_contains($result, 'port is already allocated')
+            || str_contains($result, 'Bind for 0.0.0.0:')
+            || str_contains($result, 'driver failed programming external connectivity');
+    }
+
+    private function stopPartialDeployment(SshClient $client, string $openclawDir): void
+    {
+        $client->exec(
+            'sudo bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose down 2>&1 || true'),
+            120,
+        );
+    }
+
+    private function reassignDeploymentPorts(SshClient $client, AgentDeployment $deployment): void
+    {
+        $ports = $this->findAvailablePortPair($client, $deployment);
+
+        $deployment->gateway_port = $ports['gateway_port'];
+        $deployment->proxy_port = $ports['proxy_port'];
+        $deployment->saveOrFail();
+
+        $this->writeDeploymentFiles($client, $deployment);
+    }
+
+    /**
+     * @return array{gateway_port: int, proxy_port: int}
+     */
+    private function findAvailablePortPair(SshClient $client, AgentDeployment $deployment): array
+    {
+        $usedPorts = $this->getReservedPortsForMachine($deployment);
+
+        for ($port = $this->machine->port_range_start; $port < $this->machine->port_range_end; $port += 2) {
+            $proxyPort = $port + 1;
+
+            if (in_array($port, $usedPorts, true) || in_array($proxyPort, $usedPorts, true)) {
+                continue;
+            }
+
+            if (! $this->isPortAvailableOnMachine($client, $port) || ! $this->isPortAvailableOnMachine($client, $proxyPort)) {
+                continue;
+            }
+
+            return [
+                'gateway_port' => $port,
+                'proxy_port' => $proxyPort,
+            ];
+        }
+
+        throw new ValidationException('No available ports on machine: ' . $this->machine->name);
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function getReservedPortsForMachine(AgentDeployment $deployment): array
+    {
+        $deployments = AgentDeployment::where('agent_machine_id', $this->machine->getId())
+            ->where('id', '!=', $deployment->getId())
+            ->whereNotIn('status', [DeploymentStatusEnum::TERMINATED->value])
+            ->where('is_deleted', 0)
+            ->get(['gateway_port', 'proxy_port']);
+
+        return $this->flattenDeploymentPorts($deployments);
+    }
+
+    /**
+     * @param Collection<int, AgentDeployment> $deployments
+     *
+     * @return array<int, int>
+     */
+    private function flattenDeploymentPorts(Collection $deployments): array
+    {
+        return $deployments
+            ->flatMap(fn (AgentDeployment $deployment) => [$deployment->gateway_port, $deployment->proxy_port])
+            ->filter(fn (?int $port) => $port !== null)
+            ->map(fn (int $port) => (int) $port)
+            ->values()
+            ->all();
     }
 }
