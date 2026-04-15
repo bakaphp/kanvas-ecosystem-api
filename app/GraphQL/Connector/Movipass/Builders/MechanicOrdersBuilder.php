@@ -12,13 +12,19 @@ class MechanicOrdersBuilder
 {
     public function build(mixed $root, array $args): Builder
     {
-        $userId = auth()->user()->getId();
+        $userId = (int) auth()->user()->getId();
 
         return Order::fromApp(app(Apps::class))
             ->notDeleted()
             ->where(function ($q) use ($userId) {
-                $q->whereJsonContains('metadata->assistance_case->notified_mechanic_ids', $userId)
-                    ->orWhere('metadata->assistance_case->mechanic->user_id', $userId);
+                $q->whereRaw(
+                    "JSON_CONTAINS(metadata, CAST(? AS JSON), '$.assistance_case.notified_mechanic_ids')",
+                    [$userId]
+                )
+                ->orWhereRaw(
+                    "JSON_EXTRACT(metadata, '$.assistance_case.mechanic.user_id') = ?",
+                    [$userId]
+                );
             });
     }
 }
