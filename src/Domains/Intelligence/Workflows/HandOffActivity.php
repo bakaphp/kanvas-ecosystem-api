@@ -22,6 +22,7 @@ class HandOffActivity extends KanvasActivity
             entity: $lead,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
+            additionalParams: $params,
             integrationOperation: function ($lead, $app) use ($params) {
                 return new HandOffAction($lead, $app, $params)->execute();
             }
