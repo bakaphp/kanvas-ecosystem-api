@@ -188,7 +188,7 @@ class PipelineTest extends TestCase
             ['stages_id' => $stage2Id, 'name' => $updatedName2, 'rotting_days' => 2, 'weight' => 2],
         ];
 
-        $this->graphQL('
+        $updateResponse = $this->graphQL('
             mutation($id: ID!, $input: PipelineInput!) {
                 updatePipeline(id: $id, input: $input) {
                     id
@@ -196,16 +196,15 @@ class PipelineTest extends TestCase
                 }
             }
         ', ['id' => $pipelineId, 'input' => $input])
-        ->assertJson([
-            'data' => [
-                'updatePipeline' => [
-                    'stages' => [
-                        ['id' => $stage1Id, 'name' => $updatedName1],
-                        ['id' => $stage2Id, 'name' => $updatedName2],
-                    ],
-                ],
-            ],
-        ]);
+        ->assertSuccessful();
+
+        $updatedStages = $updateResponse->json('data.updatePipeline.stages');
+
+        $this->assertCount(2, $updatedStages);
+        $this->assertEquals($stage1Id, $updatedStages[0]['id'], 'Stage 1 ID must be preserved after update');
+        $this->assertEquals($stage2Id, $updatedStages[1]['id'], 'Stage 2 ID must be preserved after update');
+        $this->assertEquals($updatedName1, $updatedStages[0]['name']);
+        $this->assertEquals($updatedName2, $updatedStages[1]['name']);
     }
 
     public function testUpdatePipelineRemovesOnlyDeletedStages()
