@@ -15,21 +15,40 @@ class AssociateStageToPipelineAction
     ) {
     }
 
-    public function execute()
+    public function execute(): void
     {
-        $this->pipeline->stages()->delete();
+        $incomingStageIds = collect($this->stages)
+            ->pluck('stages_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        // Remove only stages that are no longer in the input
+        $deleteQuery = $this->pipeline->stages();
+        if (! empty($incomingStageIds)) {
+            $deleteQuery->whereNotIn('id', $incomingStageIds);
+        }
+        $deleteQuery->delete();
+
+        // Update existing stages or create new ones
         foreach ($this->stages as $stage) {
-            PipelineStage::updateOrCreate(
-                ['id' => $stage['stages_id'] ?? null],
-                [
+            $stageId = ! empty($stage['stages_id']) ? (int) $stage['stages_id'] : null;
+            $attributes = [
                 'name' => $stage['name'],
                 'rotting_days' => $stage['rotting_days'],
                 'weight' => $stage['weight'],
                 'has_rotting_days' => 0,
                 'config' => $stage['config'] ?? null,
                 'pipelines_id' => $this->pipeline->id,
-            ]
-            );
+            ];
+
+            if ($stageId !== null) {
+                PipelineStage::where('id', $stageId)
+                    ->where('pipelines_id', $this->pipeline->id)
+                    ->update($attributes);
+            } else {
+                PipelineStage::create($attributes);
+            }
         }
     }
 }
