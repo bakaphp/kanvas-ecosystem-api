@@ -21,6 +21,8 @@ use Kanvas\Intelligence\FollowUp\Exceptions\FollowUpException;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
+use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementV1Action;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Services\DailyReportService;
 
@@ -208,7 +210,10 @@ class FollowUpEngagementCommand extends Command
                 //how do we avoid sending notifications for leads that haven'b been contacted
                 try {
                     $this->info('Executing FollowUpEngagementAction for lead ID ' . $lead->id . ' - ' . $lead->people->name);
-                    $result = new FollowUpEngagementAction($lead, $log)->execute();
+                    $followUpClass = LeadConfigurationService::isV2Enabled()
+                        ? FollowUpEngagementAction::class
+                        : FollowUpEngagementV1Action::class;
+                    $result = new $followUpClass($lead, $log)->execute();
                 } catch (FollowUpException $e) {
                     $this->info('Skipping lead ID ' . $lead->id . ': ' . $e->getMessage());
 

@@ -4,11 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Services;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 
 class LeadConfigurationService
 {
+    public static function isV2Enabled(): bool
+    {
+        return (bool) app(Apps::class)->get('intelligence_lead_type_mode_v2');
+    }
+
     private static function getTypePrefix(?LeadType $leadType): string
     {
         $name = strtolower($leadType?->name ?? '');
@@ -41,6 +48,10 @@ class LeadConfigurationService
 
     public static function getAiModeKey(Lead $lead): string
     {
+        if (! self::isV2Enabled()) {
+            return 'ai_mode';
+        }
+
         $prefix = self::getTypePrefix($lead->type()->first());
 
         return match ($prefix) {
@@ -52,6 +63,10 @@ class LeadConfigurationService
 
     public static function getFollowUpModeKey(Lead $lead): string
     {
+        if (! self::isV2Enabled()) {
+            return IntelligenceModeEnum::AI_FOLLOW_UP->value;
+        }
+
         $prefix = self::getTypePrefix($lead->type()->first());
         $statusSuffix = self::getStatusSuffix($lead);
 
