@@ -57,6 +57,37 @@ class WorkflowMutationManagement
             return ['success' => false, 'message' => $e->getMessage()];
         }
 
+        $activityClass = $request['activity_class'] ?? null;
+
+        if ($activityClass !== null) {
+            if (! class_exists($activityClass)) {
+                throw new Exception('activity_class ' . $activityClass . ' not found');
+            }
+
+            if (! empty($entityId)) {
+                $entity = Str::isUuid($entityId)
+                    ? $entityClass::getByUuid($entityId, $app)
+                    : $entityClass::getById($entityId, $app);
+            } else {
+                $entity = new $entityClass();
+                $entity->fill([
+                    'id' => 0,
+                    'apps_id' => $app->getId(),
+                    'companies_id' => $company->getId(),
+                ]);
+                $entity->setRelation('company', $company);
+            }
+
+            $activity = new $activityClass(
+                index: 0,
+                now: now()->toDateTimeString(),
+                storedWorkflow: new StoredWorkflow(),
+                arguments: []
+            );
+
+            return $activity->execute($entity, $app, $params);
+        }
+
         try {
             /**
              * @todo this look very similar to the system module repository method, so you many need
