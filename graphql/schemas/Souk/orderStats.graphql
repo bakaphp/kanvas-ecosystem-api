@@ -81,6 +81,7 @@ type OrderPaymentByProvider {
 type OrderPaymentStateCount {
     date: String!
     count: Int!
+    totalAmount: Float!
     states: Mixed!
 }
 
@@ -159,6 +160,17 @@ input ProviderInput {
     emailPattern: String!
 }
 
+enum MetadataFilterOperator {
+    EQ
+    LIKE
+}
+
+input OrderMetadataFilter {
+    path: String!                                    # Dot-notation into orders.metadata (e.g. "data.paso_rapido_tag")
+    value: String!
+    operator: MetadataFilterOperator = EQ
+}
+
 input OrderPaymentStatsInput {
     paidStates: [String!]
     variantId: Int # Filter by specific service/variant
@@ -175,6 +187,9 @@ input OrderPaymentStatsInput {
     periodBreakdown: PeriodType # Period type for time-series data in byPeriod (default: MONTH)
     provider_company_id: [ID!]   # DB-level filter: only orders linked to these provider companies via order_providers
     user_email: String # Filter by order user email
+    metadata: OrderMetadataFilter # Filter orders by a value at a specific metadata path (e.g. { path: "data.paso_rapido_tag", value: "01070877" })
+    reference: String # Filter by order reference (supports LIKE patterns)
+    orderNumber: String # Filter by exact order_number
 }
 
 input ExportOrderPaymentsInput {
