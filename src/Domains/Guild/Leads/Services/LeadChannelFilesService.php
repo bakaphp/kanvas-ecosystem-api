@@ -213,7 +213,7 @@ class LeadChannelFilesService
         // Look for messages with status 'submitted'
         // Use JSON_VALID check to avoid errors on non-JSON message columns
         $lastMessage = Message::where('parent_id', $message->getId())
-            ->whereRaw('JSON_VALID(`message`) AND JSON_CONTAINS(`message`, \'"submitted"\', \'$."status"\')')
+            ->whereRaw('IF(JSON_VALID(`message`), JSON_CONTAINS(`message`, \'"submitted"\', \'$."status"\'), 0)')
             ->orderBy('id', 'desc')
             ->first();
 
