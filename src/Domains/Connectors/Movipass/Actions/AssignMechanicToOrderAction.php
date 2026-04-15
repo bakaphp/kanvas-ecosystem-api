@@ -37,7 +37,8 @@ class AssignMechanicToOrderAction
             $mechanic = $this->selectBestMechanic($mechanics, $assistanceCase);
         }
 
-        $mechanicBlock = $this->buildMechanicBlock($mechanic);
+        $existingMechanicData = is_array($assistanceCase['mechanic'] ?? null) ? $assistanceCase['mechanic'] : [];
+        $mechanicBlock = $this->buildMechanicBlock($mechanic, $existingMechanicData);
 
         $assistanceCase['mechanic'] = $mechanicBlock;
 
@@ -87,10 +88,11 @@ class AssignMechanicToOrderAction
             ->first();
     }
 
-    protected function buildMechanicBlock(Users $mechanic): array
+    protected function buildMechanicBlock(Users $mechanic, array $existingData = []): array
     {
         $lat = $mechanic->get(CustomFieldEnum::MECHANIC_LAT->value);
         $lng = $mechanic->get(CustomFieldEnum::MECHANIC_LNG->value);
+        $profileLocation = $lat !== null && $lng !== null ? ['lat' => (float) $lat, 'lng' => (float) $lng] : null;
 
         $rawVehicleInfo = $mechanic->get(CustomFieldEnum::MECHANIC_VEHICLE_INFO->value);
         $vehicleInfo = is_array($rawVehicleInfo) ? $rawVehicleInfo : json_decode((string) ($rawVehicleInfo ?? ''), true);
@@ -103,8 +105,8 @@ class AssignMechanicToOrderAction
             'email' => $mechanic->email,
             'company_id' => $mechanic->default_company,
             'company_name' => $mechanic->getCurrentCompany()?->name ?? null,
-            'location' => $lat !== null && $lng !== null ? ['lat' => (float) $lat, 'lng' => (float) $lng] : null,
-            'vehicle_info' => $vehicleInfo ?: null,
+            'location' => (is_array($existingData['location'] ?? null) ? $existingData['location'] : null) ?? $profileLocation,
+            'vehicle_info' => (is_array($existingData['vehicle_info'] ?? null) ? $existingData['vehicle_info'] : null) ?? ($vehicleInfo ?: null),
         ];
     }
 

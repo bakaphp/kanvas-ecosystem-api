@@ -38,7 +38,8 @@ class AcceptOrderAssignmentAction
                 throw new ValidationException('Mechanic was not notified of this order');
             }
 
-            $mechanicBlock = $this->buildMechanicBlock();
+            $existingMechanicData = is_array($assistanceCase['mechanic'] ?? null) ? $assistanceCase['mechanic'] : [];
+            $mechanicBlock = $this->buildMechanicBlock($existingMechanicData);
             $assistanceCase['mechanic'] = $mechanicBlock;
 
             $order->metadata = [
@@ -60,12 +61,13 @@ class AcceptOrderAssignmentAction
         });
     }
 
-    protected function buildMechanicBlock(): array
+    protected function buildMechanicBlock(array $existingData = []): array
     {
         $mechanic = $this->mechanic;
 
         $lat = $mechanic->get(CustomFieldEnum::MECHANIC_LAT->value);
         $lng = $mechanic->get(CustomFieldEnum::MECHANIC_LNG->value);
+        $profileLocation = $lat !== null && $lng !== null ? ['lat' => (float) $lat, 'lng' => (float) $lng] : null;
 
         $rawVehicleInfo = $mechanic->get(CustomFieldEnum::MECHANIC_VEHICLE_INFO->value);
         $vehicleInfo = is_array($rawVehicleInfo) ? $rawVehicleInfo : json_decode((string) ($rawVehicleInfo ?? ''), true);
@@ -78,8 +80,8 @@ class AcceptOrderAssignmentAction
             'email' => $mechanic->email,
             'company_id' => $mechanic->default_company,
             'company_name' => $mechanic->getCurrentCompany()?->name ?? null,
-            'location' => $lat !== null && $lng !== null ? ['lat' => (float) $lat, 'lng' => (float) $lng] : null,
-            'vehicle_info' => $vehicleInfo ?: null,
+            'location' => (is_array($existingData['location'] ?? null) ? $existingData['location'] : null) ?? $profileLocation,
+            'vehicle_info' => (is_array($existingData['vehicle_info'] ?? null) ? $existingData['vehicle_info'] : null) ?? ($vehicleInfo ?: null),
         ];
     }
 }
