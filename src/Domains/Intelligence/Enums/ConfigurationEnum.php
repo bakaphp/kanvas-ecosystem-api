@@ -19,6 +19,7 @@ enum ConfigurationEnum: string
     case ADK_APP_NAME = 'google_orchestrator_app_name';
     case ADK_AI_ASSIST_APP_NAME = 'google_orchestrator_ai_assist_app_name';
     case ADK_AI_ASSIST_BASE_URL = 'google_orchestrator_ai_assist_base_url';
+    case AI_ASSIST_ENABLED = 'sales_assist_ai_assist_enabled';
     case AGENT_HAND_OFF = 'agent_hand_off';
     case AGENT_HAND_OFF_TYPE = 'agent_hand_off_type';
     case AGENT_CHANNEL_TYPE = 'agent_channel_type';
