@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Notifications\PendingOrderAssignmentNotification;
 use Kanvas\Exceptions\ValidationException;
@@ -15,6 +16,7 @@ class NotifyAvailableMechanicsAction
     public function __construct(
         protected readonly Order $order,
         protected readonly AppInterface $app,
+        protected readonly UserInterface $user,
         protected readonly array $excludeIds = [],
     ) {
     }
@@ -49,7 +51,7 @@ class NotifyAvailableMechanicsAction
         }
 
         $this->order->transitionToStatus(
-            auth()->user(),
+            $this->user,
             MovipassOrderStatusEnum::AWAITING_OPERATOR->slug(),
         );
     }

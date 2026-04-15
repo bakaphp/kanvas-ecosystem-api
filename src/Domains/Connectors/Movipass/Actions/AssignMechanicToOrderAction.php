@@ -45,8 +45,10 @@ class AssignMechanicToOrderAction
         $this->order->saveQuietly();
         $this->order->set(CustomFieldEnum::ORDER_MECHANIC_USERS_ID->value, $mechanic->getId());
 
+        $user = auth()->user() ?? Users::getById($this->order->users_id);
+
         $this->order->transitionToStatus(
-            auth()->user(),
+            $user,
             MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug(),
         );
 
