@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Actions;
 
+use Illuminate\Support\Carbon;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
@@ -34,6 +35,8 @@ class NotifyAvailableMechanicsAction
         }
 
         $assistanceCase['notified_mechanic_ids'] = $mechanics->pluck('id')->toArray();
+        $assistanceCase['status'] = MovipassOrderStatusEnum::AWAITING_OPERATOR->slug();
+        $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
 
         $this->order->metadata = [
             ...$metadata,

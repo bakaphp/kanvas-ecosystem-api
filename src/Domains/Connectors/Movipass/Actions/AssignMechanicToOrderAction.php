@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Actions;
 
+use Illuminate\Support\Carbon;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
@@ -42,6 +43,8 @@ class AssignMechanicToOrderAction
         $mechanicBlock = $this->buildMechanicBlock($mechanic, $existingMechanicData);
 
         $assistanceCase['mechanic'] = $mechanicBlock;
+        $assistanceCase['status'] = MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug();
+        $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
         unset($assistanceCase['assign_mechanic_id']);
 
         $this->order->metadata = [
@@ -59,6 +62,9 @@ class AssignMechanicToOrderAction
             $this->user,
             MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug(),
         );
+
+        $this->order->refresh();
+        new GenerateRoadsideAssistancePinAction($this->order)->execute();
 
         AssistanceAssignedEvent::dispatch($this->order, $mechanic);
 
