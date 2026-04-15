@@ -12,6 +12,7 @@ use Illuminate\Queue\SerializesModels;
 use Kanvas\Connectors\Movipass\Actions\AssignMechanicToOrderAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Models\Users;
 
 class AutoAssignMechanicJob implements ShouldQueue
 {
@@ -31,7 +32,10 @@ class AutoAssignMechanicJob implements ShouldQueue
     public function handle(): void
     {
         try {
-            new AssignMechanicToOrderAction($this->order)->execute();
+            new AssignMechanicToOrderAction(
+                $this->order,
+                Users::getById((int) $this->order->users_id),
+            )->execute();
         } catch (ValidationException) {
             if ($this->attempt < $this->maxAttempts) {
                 self::dispatch(
