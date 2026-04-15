@@ -30,9 +30,7 @@ class RunWorkflowFromEntityTest extends TestCase
                 'entity_namespace' => 'Kanvas\\Inventory\\Products\\Models\\Products',
                 'entity_id' => '0',
                 'action' => 'created',
-                'params' => [
-                    'activity_class' => 'Kanvas\\Connectors\\Internal\\Activities\\UnPublishExpiredProductActivity',
-                ],
+                'activity_class' => 'Kanvas\\Connectors\\Internal\\Activities\\UnPublishExpiredProductActivity',
             ],
         ], [], $this->getAppKeyHeader());
 
