@@ -6,8 +6,8 @@ namespace Kanvas\Connectors\Movipass\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\Connectors\Movipass\Events\AssistanceRequestedEvent;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
+use Kanvas\Connectors\Movipass\Events\AssistanceRequestedEvent;
 use Kanvas\Connectors\Movipass\Notifications\PendingOrderAssignmentNotification;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
