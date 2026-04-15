@@ -260,13 +260,13 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
             return null;
         }
 
+        $digitsOnly = Str::sanitizePhoneNumber($phone);
         $normalizedPhone = Str::normalizePhoneNumber($phone);
-        $phoneWithCountryCode = str_replace('+', '', $phone);
 
         $query = PeoplesRepository::getByPhoneNumber(
             app: $this->receiver->app,
             company: $this->receiver->company,
-            phoneNumbers: [$normalizedPhone, $phoneWithCountryCode],
+            phoneNumbers: array_unique([$digitsOnly, $normalizedPhone]),
         );
 
         $allCustomers = $query->get();
