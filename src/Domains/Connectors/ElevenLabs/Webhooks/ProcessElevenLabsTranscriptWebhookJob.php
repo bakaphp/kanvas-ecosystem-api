@@ -14,9 +14,6 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
-use Kanvas\Social\Channels\Actions\CreateChannelAction;
-use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelData;
-use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -105,8 +102,10 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
 
         $message->addEntity($lead);
 
-        $channel = $this->getOrCreateLeadChannel($lead);
-        $channel->addMessage($message);
+        $notesChannel = $lead->notes;
+        if ($notesChannel) {
+            $notesChannel->addMessage($message);
+        }
 
         if ($conversationId !== '') {
             $lead->set(CustomFieldEnum::CONVERSATION_ID->value, $conversationId);
@@ -319,22 +318,6 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
 
         /** @var ?Lead */
         return Lead::getByCustomField(CustomFieldEnum::CONVERSATION_ID->value, $conversationId);
-    }
-
-    protected function getOrCreateLeadChannel(Lead $lead): Channel
-    {
-        $leadUuid = (string) $lead->uuid;
-
-        return new CreateChannelAction(new ChannelData(
-            apps: $lead->app,
-            companies: $lead->company,
-            users: $lead->user,
-            entity_id: $lead->getId(),
-            entity_namespace: Lead::class,
-            name: $leadUuid,
-            slug: $leadUuid,
-            description: $leadUuid,
-        ))->execute();
     }
 
     protected function formatTranscript(array $transcript): array
