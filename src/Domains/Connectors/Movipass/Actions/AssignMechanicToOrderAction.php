@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Actions;
 
-use Illuminate\Support\Carbon;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Events\AssistanceAssignedEvent;
