@@ -29,12 +29,14 @@ use Tests\TestCase;
 
 class ProcessElevenLabsWebhookJobTest extends TestCase
 {
-    private string $testPhone = '+18095551234';
+    private string $testPhone;
     private ?Lead $testLead = null;
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->testPhone = '+1809' . random_int(1000000, 9999999);
 
         $app = app(Apps::class);
         $user = auth()->user();
