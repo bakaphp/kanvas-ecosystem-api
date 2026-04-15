@@ -890,6 +890,41 @@ public static function search($query = '', $callback = null)
 
 **Placement:** Place the `search()` method at the **end of the class**, not at the top. Properties (`$table`, `$guarded`, `casts()`) and relationships should come first.
 
+## Notifications
+
+Always extend `Kanvas\Notifications\Notification` (not `\Illuminate\Notifications\Notification`) for all notification classes in this codebase.
+
+```php
+use Kanvas\Notifications\Notification;
+
+class MyNotification extends Notification
+{
+    public function __construct(
+        protected SomeModel $entity,
+        // ... other params
+        protected Apps $app,
+        protected Companies $company,
+        protected ?Users $fromUser = null,
+    ) {
+        parent::__construct($entity, [
+            'app' => $app,
+            'company' => $company,
+            'fromUser' => $fromUser,
+        ]);
+
+        // Set channels as slug strings; the base class maps them to channel classes via
+        // NotificationChannelEnum::getNotificationChannelBySlug() in via()
+        $this->channels = ['mail', 'sms', 'push'];
+    }
+}
+```
+
+**Key points:**
+- `Kanvas\Notifications\Notification` implements `ShouldQueue`, includes SMTP config, OneSignal, Expo, SMS, and storage traits
+- Set `$this->channels` with slug strings (`'mail'`, `'sms'`, `'push'`, `'expo'`, `'database'`) — the base `via()` maps them to channel classes automatically via `Kanvas\Notifications\Enums\NotificationChannelEnum::getNotificationChannelBySlug()`
+- Override `toMail()` and/or `toOneSignal()` only when you need notification-specific content that differs from the template-based defaults
+- Never use `\Illuminate\Notifications\Notification` directly
+
 ## Key Conventions
 
 ### No Inline Fully-Qualified Class Names
