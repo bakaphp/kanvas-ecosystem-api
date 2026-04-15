@@ -6,11 +6,11 @@ namespace Tests\Connectors\Integration\Stripe;
 
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
-use Stripe\Exception\RateLimitException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Subscription\Plans\Models\Plan;
 use Laravel\Cashier\Subscription;
+use Stripe\Exception\RateLimitException;
 use Tests\TestCase;
 
 final class CompanySubscriptionTest extends TestCase
