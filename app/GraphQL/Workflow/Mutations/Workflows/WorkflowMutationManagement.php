@@ -57,29 +57,54 @@ class WorkflowMutationManagement
             return ['success' => false, 'message' => $e->getMessage()];
         }
 
-        try {
-            /**
-             * @todo this look very similar to the system module repository method, so you many need
-             * to refactor this to use the repository method
-             */
-            $entity = Str::isUuid($entityId)
-                ? $entityClass::getByUuid($entityId, $app)
-                : $entityClass::getById($entityId, $app);
-        } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
-            if (! $canRunSync) {
-                throw new ExceptionsModelNotFoundException('Record ' . class_basename($entityClass) . " {$entityId} not found");
-            } else {
-                $entity = match ($entityClass) {
-                    Lead::class => new Lead(),
-                    People::class => new People(),
-                    Order::class => new Order(),
-                    default => throw new ModelNotFoundException('Record ' . class_basename($entityClass) . " {$entityId} not found"),
-                };
-                $entity->fill([
-                    'id' => 0,
-                    'apps_id' => $app->getId(),
-                    'companies_id' => $company->getId(),
-                ]);
+        if (empty($entityId)) {
+            $activityClass = $params['activity_class'] ?? null;
+
+            if (empty($activityClass) || ! class_exists($activityClass)) {
+                throw new Exception('activity_class param is required when entity_id is not provided');
+            }
+
+            $entity = new $entityClass();
+            $entity->fill([
+                'id' => 0,
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+            ]);
+            $entity->setRelation('company', $company);
+
+            $activity = new $activityClass(
+                index: 0,
+                now: now()->toDateTimeString(),
+                storedWorkflow: new StoredWorkflow(),
+                arguments: []
+            );
+
+            return $activity->execute($entity, $app, $params);
+        } else {
+            try {
+                /**
+                 * @todo this look very similar to the system module repository method, so you many need
+                 * to refactor this to use the repository method
+                 */
+                $entity = Str::isUuid($entityId)
+                    ? $entityClass::getByUuid($entityId, $app)
+                    : $entityClass::getById($entityId, $app);
+            } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
+                if (! $canRunSync) {
+                    throw new ExceptionsModelNotFoundException('Record ' . class_basename($entityClass) . " {$entityId} not found");
+                } else {
+                    $entity = match ($entityClass) {
+                        Lead::class => new Lead(),
+                        People::class => new People(),
+                        Order::class => new Order(),
+                        default => throw new ModelNotFoundException('Record ' . class_basename($entityClass) . " {$entityId} not found"),
+                    };
+                    $entity->fill([
+                        'id' => 0,
+                        'apps_id' => $app->getId(),
+                        'companies_id' => $company->getId(),
+                    ]);
+                }
             }
         }
 
