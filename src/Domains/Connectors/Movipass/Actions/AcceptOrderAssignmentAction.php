@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Movipass\Actions;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
+use Kanvas\Connectors\Movipass\Events\AssistanceAssignedEvent;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
@@ -56,6 +57,8 @@ class AcceptOrderAssignmentAction
                 $this->mechanic,
                 MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug(),
             );
+
+            AssistanceAssignedEvent::dispatch($order, $this->mechanic);
 
             return $order;
         });

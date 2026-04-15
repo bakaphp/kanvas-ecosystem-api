@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Movipass\Actions;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
+use Kanvas\Connectors\Movipass\Events\AssistanceAssignedEvent;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
@@ -41,6 +42,7 @@ class AssignMechanicToOrderAction
         $mechanicBlock = $this->buildMechanicBlock($mechanic, $existingMechanicData);
 
         $assistanceCase['mechanic'] = $mechanicBlock;
+        unset($assistanceCase['assign_mechanic_id']);
 
         $this->order->metadata = [
             ...$metadata,
@@ -57,6 +59,8 @@ class AssignMechanicToOrderAction
             $this->user,
             MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug(),
         );
+
+        AssistanceAssignedEvent::dispatch($this->order, $mechanic);
 
         return $mechanic;
     }
