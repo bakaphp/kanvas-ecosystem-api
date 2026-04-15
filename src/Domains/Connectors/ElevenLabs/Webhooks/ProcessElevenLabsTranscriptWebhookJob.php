@@ -108,7 +108,7 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
         }
 
         if ($conversationId !== '') {
-            $lead->set(CustomFieldEnum::CONVERSATION_ID->value, $conversationId);
+            $lead->set(CustomFieldEnum::CONVERSATION_ID->value . '_' . $conversationId, $conversationId);
         }
 
         return [
@@ -316,8 +316,10 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
             return null;
         }
 
+        $fieldName = CustomFieldEnum::CONVERSATION_ID->value . '_' . $conversationId;
+
         /** @var ?Lead */
-        return Lead::getByCustomField(CustomFieldEnum::CONVERSATION_ID->value, $conversationId);
+        return Lead::getByCustomField($fieldName, $conversationId);
     }
 
     protected function formatTranscript(array $transcript): array
