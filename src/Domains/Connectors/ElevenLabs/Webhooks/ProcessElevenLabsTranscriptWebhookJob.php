@@ -27,15 +27,19 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
     public function execute(): array
     {
         $payload = (array) $this->webhookRequest->payload;
-        $type = (string) ($payload['type'] ?? '');
-        $data = (array) ($payload['data'] ?? []);
 
-        return match ($type) {
-            'post_call_transcription' => $this->handleTranscription($data),
-            'post_call_audio' => $this->handleAudio($data),
-            'call_initiation_failure' => $this->handleCallFailure($data),
-            default => ['message' => 'Unknown webhook type: ' . $type],
-        };
+        $type = (string) ($payload['type'] ?? '');
+        $data = (array) ($payload['data'] ?? $payload);
+
+        if ($type === 'post_call_audio') {
+            return $this->handleAudio($data);
+        }
+
+        if ($type === 'call_initiation_failure') {
+            return $this->handleCallFailure($data);
+        }
+
+        return $this->handleTranscription($data);
     }
 
     protected function handleTranscription(array $data): array
@@ -44,9 +48,8 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
         $transcript = (array) ($data['transcript'] ?? []);
         $metadata = (array) ($data['metadata'] ?? []);
         $analysis = (array) ($data['analysis'] ?? []);
-        $phoneCall = (array) ($metadata['phone_call'] ?? []);
 
-        $phone = (string) ($phoneCall['from_number'] ?? $phoneCall['to_number'] ?? '');
+        $phone = $this->extractPhoneFromPayload($data);
         $lead = $this->findLeadByPhone($phone);
 
         if (! $lead) {
@@ -55,6 +58,8 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
                 'conversation_id' => $conversationId,
             ];
         }
+
+        $this->updateLeadPeopleFromAnalysis($lead, $analysis);
 
         $app = $this->receiver->app;
 
@@ -67,6 +72,7 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
         )->execute();
 
         $formattedTranscript = $this->formatTranscript($transcript);
+        $dataCollectionResults = (array) ($analysis['data_collection_results'] ?? []);
 
         $message = new CreateMessageAction(
             new MessageInput(
@@ -78,13 +84,14 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
                     'transcript' => $formattedTranscript,
                     'conversation_id' => $conversationId,
                     'agent_id' => $data['agent_id'] ?? null,
+                    'agent_name' => $data['agent_name'] ?? null,
                     'call_duration_secs' => $metadata['call_duration_secs'] ?? null,
                     'call_successful' => $analysis['call_successful'] ?? null,
                     'transcript_summary' => $analysis['transcript_summary'] ?? null,
-                    'phone_from' => $phoneCall['from_number'] ?? null,
-                    'phone_to' => $phoneCall['to_number'] ?? null,
+                    'call_summary_title' => $analysis['call_summary_title'] ?? null,
                     'termination_reason' => $metadata['termination_reason'] ?? null,
-                    'data_collection_results' => $analysis['data_collection_results'] ?? null,
+                    'data_collection_results' => $dataCollectionResults,
+                    'evaluation_criteria_results' => $analysis['evaluation_criteria_results'] ?? null,
                 ],
                 is_public: 1,
                 slug: 'elevenlabs-' . $conversationId,
@@ -99,6 +106,66 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
             'message_id' => $message->getId(),
             'lead_id' => $lead->getId(),
         ];
+    }
+
+    protected function extractPhoneFromPayload(array $data): string
+    {
+        $metadata = (array) ($data['metadata'] ?? []);
+        $phoneCall = $metadata['phone_call'] ?? null;
+
+        if (is_array($phoneCall) && ! empty($phoneCall)) {
+            $phone = (string) ($phoneCall['from_number'] ?? $phoneCall['to_number'] ?? '');
+            if ($phone !== '') {
+                return $phone;
+            }
+        }
+
+        $analysis = (array) ($data['analysis'] ?? []);
+        $dataCollection = (array) ($analysis['data_collection_results'] ?? []);
+
+        if (isset($dataCollection['caller_phone_number']['value'])) {
+            $phone = (string) $dataCollection['caller_phone_number']['value'];
+            if ($phone !== '') {
+                return $phone;
+            }
+        }
+
+        return '';
+    }
+
+    protected function updateLeadPeopleFromAnalysis(Lead $lead, array $analysis): void
+    {
+        $dataCollection = (array) ($analysis['data_collection_results'] ?? []);
+
+        $callerName = isset($dataCollection['caller_name']['value'])
+            ? (string) $dataCollection['caller_name']['value']
+            : null;
+
+        if ($callerName === null || $callerName === '') {
+            return;
+        }
+
+        /** @var \Kanvas\Guild\Customers\Models\People $people */
+        $people = $lead->people;
+        $nameParts = explode(' ', $callerName, 2);
+        $firstname = $nameParts[0];
+        $lastname = $nameParts[1] ?? '';
+
+        $updated = false;
+
+        if ($people->firstname === '' || $people->firstname === $people->contacts()->first()?->value) {
+            $people->firstname = $firstname;
+            $updated = true;
+        }
+
+        if ($lastname !== '' && ($people->lastname === '' || $people->lastname === null)) {
+            $people->lastname = $lastname;
+            $updated = true;
+        }
+
+        if ($updated) {
+            $people->saveOrFail();
+        }
     }
 
     protected function handleAudio(array $data): array
@@ -224,6 +291,7 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
                 'time_in_call_secs' => $turn['time_in_call_secs'] ?? 0,
                 'tool_calls' => $turn['tool_calls'] ?? null,
                 'tool_results' => $turn['tool_results'] ?? null,
+                'source_medium' => $turn['source_medium'] ?? null,
             ];
         }, $transcript);
     }
