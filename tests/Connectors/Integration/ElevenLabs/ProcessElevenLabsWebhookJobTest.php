@@ -76,17 +76,16 @@ class ProcessElevenLabsWebhookJobTest extends TestCase
         $this->markTestSkipped('Requires voiceOutreachAgent and VoiceBridge configuration');
     }
 
-    public function testTranscriptWebhookSavesTranscription(): void
+    public function testTranscriptWebhookWithPhoneCallMetadata(): void
     {
         $this->createTestLeadWithPhone();
 
         $result = $this->dispatchJob(
             ProcessElevenLabsTranscriptWebhookJob::class,
             [
-                'type' => 'post_call_transcription',
-                'event_timestamp' => time(),
                 'data' => [
                     'agent_id' => 'agent_123',
+                    'agent_name' => 'Sally',
                     'conversation_id' => 'conv_' . Str::random(10),
                     'status' => 'done',
                     'transcript' => [
@@ -94,11 +93,13 @@ class ProcessElevenLabsWebhookJobTest extends TestCase
                             'role' => 'agent',
                             'message' => 'Hello, how can I help you?',
                             'time_in_call_secs' => 0,
+                            'source_medium' => null,
                         ],
                         [
                             'role' => 'user',
                             'message' => 'I want to schedule a test drive.',
                             'time_in_call_secs' => 3,
+                            'source_medium' => 'audio',
                         ],
                     ],
                     'metadata' => [
@@ -114,6 +115,7 @@ class ProcessElevenLabsWebhookJobTest extends TestCase
                     'analysis' => [
                         'call_successful' => 'success',
                         'transcript_summary' => 'Customer called to schedule a test drive.',
+                        'call_summary_title' => 'Test Drive Scheduling',
                     ],
                 ],
             ]
@@ -125,6 +127,105 @@ class ProcessElevenLabsWebhookJobTest extends TestCase
         $this->assertEquals($this->testLead->getId(), $result['lead_id']);
     }
 
+    public function testTranscriptWebhookWithDataCollectionPhone(): void
+    {
+        $this->createTestLeadWithPhone();
+        $phoneDigits = preg_replace('/[^0-9]/', '', $this->testPhone);
+
+        $result = $this->dispatchJob(
+            ProcessElevenLabsTranscriptWebhookJob::class,
+            [
+                'data' => [
+                    'agent_id' => 'agent_123',
+                    'agent_name' => 'Sally',
+                    'conversation_id' => 'conv_dc_' . Str::random(10),
+                    'status' => 'done',
+                    'transcript' => [
+                        [
+                            'role' => 'agent',
+                            'message' => 'Thank you for calling, this is Sally.',
+                            'time_in_call_secs' => 0,
+                        ],
+                        [
+                            'role' => 'user',
+                            'message' => 'I want a showroom appointment.',
+                            'time_in_call_secs' => 3,
+                            'source_medium' => 'audio',
+                        ],
+                    ],
+                    'metadata' => [
+                        'call_duration_secs' => 76,
+                        'termination_reason' => 'end_call tool was called.',
+                        'phone_call' => null,
+                    ],
+                    'analysis' => [
+                        'call_successful' => 'failure',
+                        'transcript_summary' => 'Customer booked a showroom appointment.',
+                        'call_summary_title' => 'Showroom Appointment Booking',
+                        'data_collection_results' => [
+                            'caller_phone_number' => [
+                                'value' => $phoneDigits,
+                                'data_collection_id' => 'caller_phone_number',
+                            ],
+                            'caller_name' => [
+                                'value' => 'Geraldie Miguel de la Rosa Hernandez',
+                                'data_collection_id' => 'caller_name',
+                            ],
+                            'call_intent' => [
+                                'value' => 'sales',
+                                'data_collection_id' => 'call_intent',
+                            ],
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        $this->assertIsArray($result);
+        $this->assertEquals('Transcript saved', $result['message']);
+        $this->assertEquals($this->testLead->getId(), $result['lead_id']);
+    }
+
+    public function testTranscriptWebhookUpdatesPeopleNameFromAnalysis(): void
+    {
+        $this->createTestLeadWithPhone();
+        $phoneDigits = preg_replace('/[^0-9]/', '', $this->testPhone);
+
+        $this->dispatchJob(
+            ProcessElevenLabsTranscriptWebhookJob::class,
+            [
+                'data' => [
+                    'agent_id' => 'agent_123',
+                    'conversation_id' => 'conv_name_' . Str::random(10),
+                    'status' => 'done',
+                    'transcript' => [],
+                    'metadata' => [
+                        'call_duration_secs' => 30,
+                        'termination_reason' => 'end_call',
+                        'phone_call' => null,
+                    ],
+                    'analysis' => [
+                        'call_successful' => 'success',
+                        'transcript_summary' => 'Quick call.',
+                        'data_collection_results' => [
+                            'caller_phone_number' => [
+                                'value' => $phoneDigits,
+                            ],
+                            'caller_name' => [
+                                'value' => 'Maria Santos',
+                            ],
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        $this->testLead->refresh();
+        $people = $this->testLead->people;
+        $this->assertEquals('Maria', $people->firstname);
+        $this->assertEquals('Santos', $people->lastname);
+    }
+
     public function testTranscriptWebhookHandlesCallFailure(): void
     {
         $this->createTestLeadWithPhone();
@@ -133,7 +234,6 @@ class ProcessElevenLabsWebhookJobTest extends TestCase
             ProcessElevenLabsTranscriptWebhookJob::class,
             [
                 'type' => 'call_initiation_failure',
-                'event_timestamp' => time(),
                 'data' => [
                     'agent_id' => 'agent_123',
                     'conversation_id' => 'conv_fail_' . Str::random(10),
@@ -155,18 +255,22 @@ class ProcessElevenLabsWebhookJobTest extends TestCase
         $this->assertEquals('busy', $result['failure_reason']);
     }
 
-    public function testTranscriptWebhookHandlesUnknownType(): void
+    public function testTranscriptWebhookNoPhoneReturnsNotFound(): void
     {
         $result = $this->dispatchJob(
             ProcessElevenLabsTranscriptWebhookJob::class,
             [
-                'type' => 'unknown_type',
-                'data' => [],
+                'data' => [
+                    'conversation_id' => 'conv_nophone_' . Str::random(10),
+                    'transcript' => [],
+                    'metadata' => ['phone_call' => null],
+                    'analysis' => ['data_collection_results' => []],
+                ],
             ]
         );
 
         $this->assertIsArray($result);
-        $this->assertStringContainsString('Unknown webhook type', $result['message']);
+        $this->assertStringContainsString('No lead found', $result['message']);
     }
 
     public function testCalendarEventWebhookCreatesEvent(): void
