@@ -335,8 +335,8 @@ class PipelineTest extends TestCase
 
     public function testUpdatePipelineStagesPreservesIdsWithoutStagesId()
     {
-        $stageName1 = 'Stage-' . fake()->word();
-        $stageName2 = 'Stage-' . fake()->word();
+        $stageName1 = 'StageAlpha-' . fake()->uuid();
+        $stageName2 = 'StageBeta-' . fake()->uuid();
         $input = [
             'name' => fake()->name(),
             'weight' => 0,

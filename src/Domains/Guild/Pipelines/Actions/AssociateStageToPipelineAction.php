@@ -77,6 +77,8 @@ class AssociateStageToPipelineAction
 
         if ($stageIdsToRemove->isNotEmpty()) {
             $leadsInRemovedStages = Lead::whereIn('pipeline_stage_id', $stageIdsToRemove)
+                ->where('apps_id', $this->pipeline->apps_id)
+                ->where('companies_id', $this->pipeline->companies_id)
                 ->where('is_deleted', 0)
                 ->exists();
 
