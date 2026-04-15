@@ -9,6 +9,7 @@ use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Notifications\PendingOrderAssignmentNotification;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Models\Users;
 
 class NotifyAvailableMechanicsAction
 {
@@ -48,8 +49,10 @@ class NotifyAvailableMechanicsAction
             $mechanic->notify($notification);
         }
 
+        $user = auth()->user() ?? Users::getById($this->order->users_id);
+
         $this->order->transitionToStatus(
-            auth()->user(),
+            $user,
             MovipassOrderStatusEnum::AWAITING_OPERATOR->slug(),
         );
     }
