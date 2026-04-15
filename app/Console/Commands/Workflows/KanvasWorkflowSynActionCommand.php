@@ -36,6 +36,7 @@ use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsAgentWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsCalendarEventWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsHandOffWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsProductShareWebhookJob;
+use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsSendMessageWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsTranscriptWebhookJob;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderStripePaymentActivity;
@@ -414,6 +415,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessElevenLabsCalendarEventWebhookJob::class,
             ProcessElevenLabsProductShareWebhookJob::class,
             ProcessElevenLabsHandOffWebhookJob::class,
+            ProcessElevenLabsSendMessageWebhookJob::class,
         ];
 
         $createdActions = [];
