@@ -82,6 +82,9 @@ class OrderStatsQuery
         $periodBreakdown = $input['periodBreakdown'] ?? 'MONTH';
         $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
         $userEmail = $input['user_email'] ?? null;
+        $metadataFilter = $input['metadata'] ?? null;
+        $reference = $input['reference'] ?? null;
+        $orderNumber = $input['orderNumber'] ?? null;
 
         $orderStats = new GetOrderPaymentStatsAction(
             $app,
@@ -92,7 +95,10 @@ class OrderStatsQuery
             $providers,
             $productId,
             $providerCompanyIds,
-            $userEmail
+            $userEmail,
+            $reference,
+            $orderNumber,
+            $metadataFilter,
         )->execute(
             $date,
             $startDate,
