@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Workflows;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
-use Kanvas\Intelligence\Enums\NotificationChannelEnum;
 use Kanvas\Intelligence\Notifications\LeadNotification;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -88,9 +87,6 @@ class SendNotificationActivity extends KanvasActivity
             $configuredChannels = json_decode($configuredChannels, true) ?? [];
         }
 
-        return array_filter(
-            $configuredChannels,
-            fn ($channel) => NotificationChannelEnum::isSupported($channel)
-        );
+        return $configuredChannels;
     }
 }

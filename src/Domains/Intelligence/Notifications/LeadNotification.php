@@ -5,48 +5,50 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Notifications;
 
 use Baka\Users\Contracts\UserInterface;
-use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Mail\Mailable;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\NotificationChannelEnum;
-use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
-use Kanvas\Notifications\Channels\TwilioSmsChannel;
-use Kanvas\Notifications\Traits\NotificationSmsTrait;
+use Kanvas\Notifications\KanvasMailable;
+use Kanvas\Notifications\Notification;
 use Kanvas\Users\Models\Users;
 
-class LeadNotification extends \Illuminate\Notifications\Notification
+class LeadNotification extends Notification
 {
-    use NotificationSmsTrait;
-    public array $channels = [];
-
     public function __construct(
         protected Lead $lead,
         protected string $message,
         protected array $enabledChannels,
-        protected Apps $app,
-        protected Companies $company,
-        protected ?Users $fromUser = null
+        Apps $app,
+        Companies $company,
+        ?Users $fromUser = null
     ) {
-        $this->channels = $this->mapChannels($enabledChannels);
+        parent::__construct($lead, [
+            'app' => $app,
+            'company' => $company,
+            'fromUser' => $fromUser,
+        ]);
+
+        $this->channels = $this->filterChannels($enabledChannels);
     }
 
-    public function via(object $notifiable): array
+    public function toMail($notifiable): Mailable
     {
-        return $this->channels;
-    }
+        $smtpConfig = new SmtpRuntimeConfiguration($this->app, $this->company);
+        $mailConfig = $smtpConfig->loadSmtpSettings();
+        $fromMail = $smtpConfig->getFromEmail();
 
-    public function toMail(object $notifiable): MailMessage
-    {
         $toEmail = $notifiable instanceof UserInterface ? $notifiable->email : $notifiable->routes['mail'];
 
-        return (new MailMessage())
-            ->subject('Lead Notification - ' . $this->lead->people->name)
-            ->line($this->message)
-            ->line('Lead: ' . $this->lead->people->name);
+        return (new KanvasMailable($mailConfig, $this->message))
+            ->from($fromMail['address'], $fromMail['name'])
+            ->to($toEmail)
+            ->subject('Lead Notification - ' . $this->lead->people->name);
     }
 
-    public function toOneSignal(object $notifiable): array
+    public function toOneSignal($notifiable): array
     {
         return [
             'user_id' => $notifiable instanceof UserInterface ? $notifiable->getId() : null,
@@ -60,25 +62,13 @@ class LeadNotification extends \Illuminate\Notifications\Notification
         ];
     }
 
-    private function mapChannels(array $enabledChannels): array
+    private function filterChannels(array $enabledChannels): array
     {
-        $channelMap = [
-            NotificationChannelEnum::SMS->value => TwilioSmsChannel::class,
-            NotificationChannelEnum::EMAIL->value => 'mail',
-            NotificationChannelEnum::PUSH->value => OneSignalNotificationChannel::class,
-        ];
-
-        $channels = [];
-        foreach ($enabledChannels as $channel) {
-            if (! NotificationChannelEnum::isSupported($channel)) {
-                continue;
-            }
-
-            if (isset($channelMap[$channel])) {
-                $channels[] = $channelMap[$channel];
-            }
-        }
-
-        return $channels;
+        return array_values(
+            array_filter(
+                $enabledChannels,
+                fn ($channel) => NotificationChannelEnum::isSupported($channel)
+            )
+        );
     }
 }
