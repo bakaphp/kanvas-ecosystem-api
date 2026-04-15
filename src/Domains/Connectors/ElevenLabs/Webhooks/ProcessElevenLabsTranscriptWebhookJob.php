@@ -14,6 +14,9 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Social\Channels\Actions\CreateChannelAction;
+use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelData;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -102,6 +105,9 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
 
         $message->addEntity($lead);
 
+        $channel = $this->getOrCreateLeadChannel($lead);
+        $channel->addMessage($message);
+
         if ($conversationId !== '') {
             $lead->set(CustomFieldEnum::CONVERSATION_ID->value, $conversationId);
         }
@@ -186,13 +192,28 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
             ];
         }
 
-        $lead = $this->findLeadByConversationId($conversationId);
-        $existingMessage = Message::where('slug', 'elevenlabs-' . $conversationId)
-            ->where('companies_id', $this->receiver->company->getId())
-            ->where('apps_id', $this->receiver->app->getId())
-            ->first();
+        /** @var ?Lead $lead */
+        $lead = null;
+        /** @var ?Message $existingMessage */
+        $existingMessage = null;
 
-        if (! $existingMessage && ! $lead) {
+        for ($attempt = 1; $attempt <= 3; $attempt++) {
+            $lead = $this->findLeadByConversationId($conversationId);
+            $existingMessage = Message::where('slug', 'elevenlabs-' . $conversationId)
+                ->where('companies_id', $this->receiver->company->getId())
+                ->where('apps_id', $this->receiver->app->getId())
+                ->first();
+
+            if ($lead !== null || $existingMessage !== null) {
+                break;
+            }
+
+            if ($attempt < 3) {
+                sleep(3);
+            }
+        }
+
+        if ($existingMessage === null && $lead === null) {
             return [
                 'message' => 'No transcript or lead found for conversation, audio skipped',
                 'conversation_id' => $conversationId,
@@ -216,11 +237,11 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
                 $user,
             );
 
-            if ($existingMessage) {
+            if ($existingMessage !== null) {
                 new AttachFilesystemAction($file, $existingMessage)->execute('voice-recording');
             }
 
-            if ($lead) {
+            if ($lead !== null) {
                 new AttachFilesystemAction($file, $lead)->execute('voice-recording');
             }
         } finally {
@@ -232,7 +253,7 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
         return [
             'message' => 'Audio saved',
             'conversation_id' => $conversationId,
-            'message_id' => $existingMessage->getId(),
+            'message_id' => $existingMessage?->getId(),
         ];
     }
 
@@ -298,6 +319,22 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
 
         /** @var ?Lead */
         return Lead::getByCustomField(CustomFieldEnum::CONVERSATION_ID->value, $conversationId);
+    }
+
+    protected function getOrCreateLeadChannel(Lead $lead): Channel
+    {
+        $leadUuid = (string) $lead->uuid;
+
+        return new CreateChannelAction(new ChannelData(
+            apps: $lead->app,
+            companies: $lead->company,
+            users: $lead->user,
+            entity_id: $lead->getId(),
+            entity_namespace: Lead::class,
+            name: $leadUuid,
+            slug: $leadUuid,
+            description: $leadUuid,
+        ))->execute();
     }
 
     protected function formatTranscript(array $transcript): array
