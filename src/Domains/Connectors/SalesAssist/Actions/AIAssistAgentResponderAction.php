@@ -67,7 +67,8 @@ class AIAssistAgentResponderAction extends BaseAgentResponderAction
                 $userId,
                 $sessionId,
                 $messageConversation,
-                $onChunk
+                $onChunk,
+                user: $this->message->user
             );
         } else {
             $question = $currentAgent->chat(new UserMessage($messageConversation));
