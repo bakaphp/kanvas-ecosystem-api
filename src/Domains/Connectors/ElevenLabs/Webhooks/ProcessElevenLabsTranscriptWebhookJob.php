@@ -100,6 +100,10 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
 
         $message->addEntity($lead);
 
+        if ($conversationId !== '') {
+            $lead->set('elevenlabs_conversation_id', $conversationId);
+        }
+
         return [
             'message' => 'Transcript saved',
             'conversation_id' => $conversationId,
