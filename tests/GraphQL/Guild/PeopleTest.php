@@ -1844,7 +1844,10 @@ class PeopleTest extends TestCase
         ', ['input' => $input]);
 
         $peopleId = $response['data']['createPeople']['id'];
-        $contact1Id = $response['data']['createPeople']['contacts'][0]['id'];
+        $createdContacts = $response['data']['createPeople']['contacts'];
+        $this->assertCount(2, $createdContacts, 'Both contacts must be created');
+        $contact1Id = $createdContacts[0]['id'];
+        $contact2Id = $createdContacts[1]['id'];
 
         // Update: keep only first email, remove second
         $updateInput = [
@@ -1869,7 +1872,9 @@ class PeopleTest extends TestCase
 
         $contacts = $updateResponse->json('data.updatePeople.contacts');
         $this->assertCount(1, $contacts, 'Only the kept contact should remain');
-        $this->assertEquals($contact1Id, $contacts[0]['id']);
+        $this->assertEquals($contact1Id, $contacts[0]['id'], 'Kept contact ID must be preserved');
+        $contactIds = array_column($contacts, 'id');
+        $this->assertNotContains($contact2Id, $contactIds, 'Removed contact must be deleted');
     }
 
     public function testUpdatePeopleAddressSyncPreservesIds(): void
@@ -1952,13 +1957,18 @@ class PeopleTest extends TestCase
             mutation($input: PeopleInput!) {
                 createPeople(input: $input) {
                     id
+                    firstname
+                    lastname
                     address { id address }
                 }
             }
         ', ['input' => $input]);
 
-        $peopleId = $response->json('data.createPeople.id');
-        $addr1Id = $response->json('data.createPeople.address.0.id');
+        $peopleId = $response['data']['createPeople']['id'];
+        $createdAddresses = $response['data']['createPeople']['address'];
+        $this->assertCount(2, $createdAddresses, 'Both addresses must be created');
+        $addr1Id = $createdAddresses[0]['id'];
+        $addr2Id = $createdAddresses[1]['id'];
 
         // Update: keep only first address, remove second
         $updateInput = [
@@ -1983,6 +1993,8 @@ class PeopleTest extends TestCase
 
         $addresses = $updateResponse->json('data.updatePeople.address');
         $this->assertCount(1, $addresses, 'Only the kept address should remain');
-        $this->assertEquals($addr1Id, $addresses[0]['id']);
+        $this->assertEquals($addr1Id, $addresses[0]['id'], 'Kept address ID must be preserved');
+        $addressIds = array_column($addresses, 'id');
+        $this->assertNotContains($addr2Id, $addressIds, 'Removed address must be deleted');
     }
 }
