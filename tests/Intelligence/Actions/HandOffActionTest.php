@@ -150,7 +150,7 @@ class HandOffActionTest extends TestCase
 
         $contactData = [
             [
-                'value' => '+1809' . rand(1000000, 9999999),
+                'value' => fake()->phoneNumber(),
                 'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
                 'weight' => 100,
             ],
