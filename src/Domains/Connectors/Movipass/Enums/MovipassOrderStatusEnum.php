@@ -2,6 +2,8 @@
 
 namespace Kanvas\Connectors\Movipass\Enums;
 
+use Baka\Support\Str;
+
 enum MovipassOrderStatusEnum: string
 {
     case REQUEST_SUBMITTED = 'request_submitted';
@@ -28,4 +30,9 @@ enum MovipassOrderStatusEnum: string
     case ACTIVE = 'ACTIVE';
     case COMPLETED = 'completed';
     // case CANCELLED = 'cancelled';
+
+    public function slug(): string
+    {
+        return Str::slug($this->value);
+    }
 }

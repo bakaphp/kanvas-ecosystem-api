@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\SalesAssist\Actions;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 
 class CreateSocialChannelsAfterPullAction
 {
@@ -44,8 +45,8 @@ class CreateSocialChannelsAfterPullAction
             )->execute();
         }
 
-        $aiAssistEnabled = (bool) ($this->lead->company->get('sales_assist_ai_assist_enabled')
-            ?? $this->app->get('sales_assist_ai_assist_enabled')
+        $aiAssistEnabled = (bool) ($this->lead->company->get(ConfigurationEnum::AI_ASSIST_ENABLED->value)
+            ?? $this->app->get(ConfigurationEnum::AI_ASSIST_ENABLED->value)
             ?? false);
 
         if ($aiAssistEnabled) {

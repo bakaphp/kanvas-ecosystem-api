@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -39,7 +40,7 @@ class LeadType extends BaseModel
     protected function casts(): array
     {
         return [
-            'config' => 'array',
+            'config' => Json::class,
         ];
     }
 

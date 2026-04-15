@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Actions;
 
 use Baka\Contracts\AppInterface;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Notifications\PendingOrderAssignmentNotification;
 use Kanvas\Exceptions\ValidationException;
@@ -16,6 +15,7 @@ class NotifyAvailableMechanicsAction
     public function __construct(
         protected readonly Order $order,
         protected readonly AppInterface $app,
+        protected readonly array $excludeIds = [],
     ) {
     }
 
@@ -24,13 +24,7 @@ class NotifyAvailableMechanicsAction
         $metadata = $this->order->metadata ?? [];
         $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
 
-        $providerCompany = null;
-        $providerId = $assistanceCase['provider_id'] ?? null;
-        if ($providerId !== null) {
-            $providerCompany = Companies::getById((int) $providerId);
-        }
-
-        $mechanics = new GetAvailableMechanicsAction($this->app, $providerCompany)->execute();
+        $mechanics = new GetAvailableMechanicsAction($this->excludeIds)->execute();
 
         if ($mechanics->isEmpty()) {
             throw new ValidationException('No available mechanics to notify for this order');
@@ -56,7 +50,7 @@ class NotifyAvailableMechanicsAction
 
         $this->order->transitionToStatus(
             auth()->user(),
-            MovipassOrderStatusEnum::AWAITING_OPERATOR->value,
+            MovipassOrderStatusEnum::AWAITING_OPERATOR->slug(),
         );
     }
 }
