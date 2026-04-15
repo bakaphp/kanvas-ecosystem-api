@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\ElevenLabs\Webhooks;
 use Baka\Support\Str;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Connectors\ElevenLabs\Enums\CustomFieldEnum;
+use Kanvas\Connectors\ElevenLabs\Enums\WebhookTypeEnum;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Customers\Models\People;
@@ -32,11 +33,11 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
         $type = (string) ($payload['type'] ?? '');
         $data = (array) ($payload['data'] ?? $payload);
 
-        if ($type === 'post_call_audio' || isset($data['full_audio'])) {
+        if ($type === WebhookTypeEnum::POST_CALL_AUDIO->value || isset($data['full_audio'])) {
             return $this->handleAudio($data);
         }
 
-        if ($type === 'call_initiation_failure' || isset($data['failure_reason'])) {
+        if ($type === WebhookTypeEnum::CALL_INITIATION_FAILURE->value || isset($data['failure_reason'])) {
             return $this->handleCallFailure($data);
         }
 
