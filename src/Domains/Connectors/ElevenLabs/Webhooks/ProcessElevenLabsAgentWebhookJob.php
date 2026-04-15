@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\ElevenLabs\Webhooks;
 
 use Baka\Support\Str;
+use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VoiceBridge\Actions\BuildLeadVoiceContextAction;
 use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
@@ -78,6 +79,7 @@ class ProcessElevenLabsAgentWebhookJob extends ProcessWebhookJob
                 'title' => $lead->title,
                 'pipeline' => $lead->pipeline?->name,
                 'stage' => $lead->stage?->name,
+                'ai_mode' => $lead->get(ConfigurationEnum::AI_MODE->value),
                 'owner' => $lead->owner ? trim((string) $lead->owner->firstname . ' ' . (string) $lead->owner->lastname) : null,
             ],
             'voice_context' => $voiceContext,
