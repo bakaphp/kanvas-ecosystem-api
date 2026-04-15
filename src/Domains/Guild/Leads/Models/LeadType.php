@@ -25,6 +25,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property string $created_at
  * @property string $updated_at
  * @property int $is_deleted
+ * @property array|null $config
  */
 #[ObservedBy([LeadTypeObserver::class])]
 class LeadType extends BaseModel
@@ -34,6 +35,13 @@ class LeadType extends BaseModel
 
     protected $table = 'leads_types';
     protected $guarded = [];
+
+    protected function casts(): array
+    {
+        return [
+            'config' => 'array',
+        ];
+    }
 
     public function leads(): HasMany
     {
