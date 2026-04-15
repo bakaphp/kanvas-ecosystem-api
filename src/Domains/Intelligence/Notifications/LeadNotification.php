@@ -5,13 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Notifications;
 
 use Baka\Users\Contracts\UserInterface;
-use Illuminate\Mail\Mailable;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\NotificationChannelEnum;
-use Kanvas\Notifications\KanvasMailable;
 use Kanvas\Notifications\Notification;
 use Kanvas\Users\Models\Users;
 
@@ -34,18 +31,14 @@ class LeadNotification extends Notification
         $this->channels = $this->filterChannels($enabledChannels);
     }
 
-    public function toMail($notifiable): Mailable
+    public function getNotificationTitle(): string
     {
-        $smtpConfig = new SmtpRuntimeConfiguration($this->app, $this->company);
-        $mailConfig = $smtpConfig->loadSmtpSettings();
-        $fromMail = $smtpConfig->getFromEmail();
+        return 'Lead Notification - ' . $this->lead->people->name;
+    }
 
-        $toEmail = $notifiable instanceof UserInterface ? $notifiable->email : $notifiable->routes['mail'];
-
-        return (new KanvasMailable($mailConfig, $this->message))
-            ->from($fromMail['address'], $fromMail['name'])
-            ->to($toEmail)
-            ->subject('Lead Notification - ' . $this->lead->people->name);
+    public function getEmailContent(): string
+    {
+        return $this->message;
     }
 
     public function toOneSignal($notifiable): array
