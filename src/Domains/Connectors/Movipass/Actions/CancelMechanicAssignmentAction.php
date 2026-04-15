@@ -68,7 +68,7 @@ class CancelMechanicAssignmentAction
             $order->saveQuietly();
             $order->set(CustomFieldEnum::ORDER_MECHANIC_USERS_ID->value, null);
 
-            new NotifyAvailableMechanicsAction($order, $this->app, $cancelledIds)->execute();
+            new NotifyAvailableMechanicsAction($order, $this->app, $this->mechanic, $cancelledIds)->execute();
 
             return $order->refresh();
         });

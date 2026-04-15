@@ -85,7 +85,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
         $mechanic = $metadata['assistance_case']['mechanic'] ?? null;
         if (empty($mechanic['user_id'])) {
-            new NotifyAvailableMechanicsAction($order, $app)->execute();
+            new NotifyAvailableMechanicsAction($order, $app, Users::getById((int) $order->users_id))->execute();
         }
 
         return [
@@ -112,13 +112,14 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 ];
             }
 
-            $mechanic = auth()->user();
+            $mechanicUserId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
+            $mechanic = $mechanicUserId ? Users::getById($mechanicUserId) : null;
 
             if (! $mechanic instanceof Users) {
                 return [
                     'order' => $order->getId(),
                     'status' => 'error',
-                    'message' => 'No authenticated user to cancel mechanic assignment',
+                    'message' => 'No mechanic assigned to this order',
                 ];
             }
 
@@ -178,7 +179,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         $this->saveAssistanceCaseMetadata($order, $metadata, $assistanceCase);
 
         $order->transitionToStatus(
-            auth()->user(),
+            $order->user,
             MovipassOrderStatusEnum::DISPATCHED->slug(),
         );
 

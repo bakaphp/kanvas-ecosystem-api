@@ -5,17 +5,18 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Notifications\PendingOrderAssignmentNotification;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Users\Models\Users;
 
 class NotifyAvailableMechanicsAction
 {
     public function __construct(
         protected readonly Order $order,
         protected readonly AppInterface $app,
+        protected readonly UserInterface $user,
         protected readonly array $excludeIds = [],
     ) {
     }
@@ -49,10 +50,8 @@ class NotifyAvailableMechanicsAction
             $mechanic->notify($notification);
         }
 
-        $user = auth()->user() ?? Users::getById($this->order->users_id);
-
         $this->order->transitionToStatus(
-            $user,
+            $this->user,
             MovipassOrderStatusEnum::AWAITING_OPERATOR->slug(),
         );
     }
