@@ -144,6 +144,9 @@ class GoogleADKService
                 'new_message' => [
                     'role' => 'user',
                     'parts' => [['text' => $message]],
+                    'stateDelta' => [
+                        'currentUserId' => auth()->user()?->id,
+                    ],
                 ],
             ],
             'stream' => true,
@@ -227,6 +230,9 @@ class GoogleADKService
                 'new_message' => [
                     'role' => 'user',
                     'parts' => [['text' => $message]],
+                    'stateDelta' => [
+                        'currentUserId' => auth()->user()?->id,
+                    ],
                 ],
             ],
         ]);
