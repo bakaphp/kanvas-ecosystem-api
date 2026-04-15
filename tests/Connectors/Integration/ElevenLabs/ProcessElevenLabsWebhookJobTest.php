@@ -189,6 +189,13 @@ class ProcessElevenLabsWebhookJobTest extends TestCase
     public function testTranscriptWebhookUpdatesPeopleNameFromAnalysis(): void
     {
         $this->createTestLeadWithPhone();
+
+        /** @var \Kanvas\Guild\Customers\Models\People $people */
+        $people = $this->testLead->people;
+        $people->firstname = $this->testPhone;
+        $people->lastname = '';
+        $people->saveOrFail();
+
         $phoneDigits = preg_replace('/[^0-9]/', '', $this->testPhone);
 
         $this->dispatchJob(

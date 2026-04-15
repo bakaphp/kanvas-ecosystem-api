@@ -134,12 +134,12 @@ class ProcessElevenLabsProductShareWebhookJob extends ProcessWebhookJob
 
     protected function findLeadByPhone(string $normalizedPhone, string $rawPhone): ?Lead
     {
-        $phoneWithCountryCode = str_replace('+', '', $rawPhone);
+        $digitsOnly = Str::sanitizePhoneNumber($rawPhone);
 
         $query = PeoplesRepository::getByPhoneNumber(
             app: $this->receiver->app,
             company: $this->receiver->company,
-            phoneNumbers: [$normalizedPhone, $phoneWithCountryCode],
+            phoneNumbers: array_unique([$digitsOnly, $normalizedPhone]),
         );
 
         $allCustomers = $query->get();

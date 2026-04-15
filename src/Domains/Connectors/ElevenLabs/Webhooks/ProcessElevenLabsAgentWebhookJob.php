@@ -89,12 +89,13 @@ class ProcessElevenLabsAgentWebhookJob extends ProcessWebhookJob
 
     protected function findPeopleByPhone(string $phone): ?People
     {
-        $phoneWithCountryCode = str_replace('+', '', $phone);
+        $digitsOnly = Str::sanitizePhoneNumber($phone);
+        $normalizedPhone = Str::normalizePhoneNumber($phone);
 
         $query = PeoplesRepository::getByPhoneNumber(
             app: $this->receiver->app,
             company: $this->receiver->company,
-            phoneNumbers: [$phone, $phoneWithCountryCode]
+            phoneNumbers: array_unique([$digitsOnly, $normalizedPhone]),
         );
 
         $allCustomers = $query->get();

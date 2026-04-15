@@ -6,6 +6,8 @@ namespace Kanvas\Connectors\ElevenLabs\Webhooks;
 
 use Baka\Support\Str;
 use Illuminate\Http\UploadedFile;
+use Kanvas\Connectors\ElevenLabs\Enums\CustomFieldEnum;
+use Kanvas\Connectors\ElevenLabs\Enums\WebhookTypeEnum;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Customers\Models\People;
@@ -31,11 +33,11 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
         $type = (string) ($payload['type'] ?? '');
         $data = (array) ($payload['data'] ?? $payload);
 
-        if ($type === 'post_call_audio') {
+        if ($type === WebhookTypeEnum::POST_CALL_AUDIO->value || isset($data['full_audio'])) {
             return $this->handleAudio($data);
         }
 
-        if ($type === 'call_initiation_failure') {
+        if ($type === WebhookTypeEnum::CALL_INITIATION_FAILURE->value || isset($data['failure_reason'])) {
             return $this->handleCallFailure($data);
         }
 
@@ -99,6 +101,10 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
         )->execute();
 
         $message->addEntity($lead);
+
+        if ($conversationId !== '') {
+            $lead->set(CustomFieldEnum::CONVERSATION_ID->value, $conversationId);
+        }
 
         return [
             'message' => 'Transcript saved',
@@ -180,19 +186,18 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
             ];
         }
 
+        $lead = $this->findLeadByConversationId($conversationId);
         $existingMessage = Message::where('slug', 'elevenlabs-' . $conversationId)
             ->where('companies_id', $this->receiver->company->getId())
             ->where('apps_id', $this->receiver->app->getId())
             ->first();
 
-        if (! $existingMessage) {
+        if (! $existingMessage && ! $lead) {
             return [
-                'message' => 'No transcript message found for conversation, audio skipped',
+                'message' => 'No transcript or lead found for conversation, audio skipped',
                 'conversation_id' => $conversationId,
             ];
         }
-
-        $lead = $existingMessage->leads()->first();
 
         $tempFile = (string) tempnam(sys_get_temp_dir(), 'elevenlabs_audio_') . '.mp3';
         file_put_contents($tempFile, base64_decode($audioBase64));
@@ -210,7 +215,10 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
                 ),
                 $user,
             );
-            new AttachFilesystemAction($file, $existingMessage)->execute('voice-recording');
+
+            if ($existingMessage) {
+                new AttachFilesystemAction($file, $existingMessage)->execute('voice-recording');
+            }
 
             if ($lead) {
                 new AttachFilesystemAction($file, $lead)->execute('voice-recording');
@@ -239,7 +247,7 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
         $lead = $this->findLeadByPhone($phone);
 
         if ($lead) {
-            $lead->set('elevenlabs_call_failure', [
+            $lead->set(CustomFieldEnum::CALL_FAILURE->value, [
                 'conversation_id' => $conversationId,
                 'reason' => $failureReason,
                 'error_reason' => $body['error_reason'] ?? null,
@@ -260,13 +268,13 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
             return null;
         }
 
+        $digitsOnly = Str::sanitizePhoneNumber($phone);
         $normalizedPhone = Str::normalizePhoneNumber($phone);
-        $phoneWithCountryCode = str_replace('+', '', $phone);
 
         $query = PeoplesRepository::getByPhoneNumber(
             app: $this->receiver->app,
             company: $this->receiver->company,
-            phoneNumbers: [$normalizedPhone, $phoneWithCountryCode],
+            phoneNumbers: array_unique([$digitsOnly, $normalizedPhone]),
         );
 
         $allCustomers = $query->get();
@@ -280,6 +288,16 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
         }
 
         return LeadsRepository::getPeopleActiveLead($people);
+    }
+
+    protected function findLeadByConversationId(string $conversationId): ?Lead
+    {
+        if ($conversationId === '') {
+            return null;
+        }
+
+        /** @var ?Lead */
+        return Lead::getByCustomField(CustomFieldEnum::CONVERSATION_ID->value, $conversationId);
     }
 
     protected function formatTranscript(array $transcript): array
