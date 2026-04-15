@@ -31,11 +31,11 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
         $type = (string) ($payload['type'] ?? '');
         $data = (array) ($payload['data'] ?? $payload);
 
-        if ($type === 'post_call_audio') {
+        if ($type === 'post_call_audio' || isset($data['full_audio'])) {
             return $this->handleAudio($data);
         }
 
-        if ($type === 'call_initiation_failure') {
+        if ($type === 'call_initiation_failure' || isset($data['failure_reason'])) {
             return $this->handleCallFailure($data);
         }
 
