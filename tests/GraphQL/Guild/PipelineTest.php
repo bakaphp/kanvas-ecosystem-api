@@ -153,6 +153,120 @@ class PipelineTest extends TestCase
             ]);
     }
 
+    public function testUpdatePipelineStagesPreservesExistingStageIds()
+    {
+        $stageName1 = fake()->name();
+        $stageName2 = fake()->name();
+        $input = [
+            'name' => fake()->name(),
+            'weight' => 0,
+            'is_default' => false,
+            'stages' => [
+                ['name' => $stageName1, 'rotting_days' => 1, 'weight' => 1],
+                ['name' => $stageName2, 'rotting_days' => 2, 'weight' => 2],
+            ],
+        ];
+
+        $response = $this->graphQL('
+            mutation($input: PipelineInput!) {
+                createPipeline(input: $input) {
+                    id
+                    stages { id name }
+                }
+            }
+        ', ['input' => $input]);
+
+        $pipelineId = $response->json('data.createPipeline.id');
+        $stage1Id = $response->json('data.createPipeline.stages.0.id');
+        $stage2Id = $response->json('data.createPipeline.stages.1.id');
+
+        // Update: keep both stages with updated names, send stages_id to preserve them
+        $updatedName1 = fake()->name();
+        $updatedName2 = fake()->name();
+        $input['stages'] = [
+            ['stages_id' => $stage1Id, 'name' => $updatedName1, 'rotting_days' => 1, 'weight' => 1],
+            ['stages_id' => $stage2Id, 'name' => $updatedName2, 'rotting_days' => 2, 'weight' => 2],
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: PipelineInput!) {
+                updatePipeline(id: $id, input: $input) {
+                    id
+                    stages { id name }
+                }
+            }
+        ', ['id' => $pipelineId, 'input' => $input])
+        ->assertJson([
+            'data' => [
+                'updatePipeline' => [
+                    'stages' => [
+                        ['id' => $stage1Id, 'name' => $updatedName1],
+                        ['id' => $stage2Id, 'name' => $updatedName2],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    public function testUpdatePipelineRemovesOnlyDeletedStages()
+    {
+        $input = [
+            'name' => fake()->name(),
+            'weight' => 0,
+            'is_default' => false,
+            'stages' => [
+                ['name' => fake()->name(), 'rotting_days' => 1, 'weight' => 1],
+                ['name' => fake()->name(), 'rotting_days' => 2, 'weight' => 2],
+                ['name' => fake()->name(), 'rotting_days' => 3, 'weight' => 3],
+            ],
+        ];
+
+        $response = $this->graphQL('
+            mutation($input: PipelineInput!) {
+                createPipeline(input: $input) {
+                    id
+                    stages { id name }
+                }
+            }
+        ', ['input' => $input]);
+
+        $pipelineId = $response->json('data.createPipeline.id');
+        $stage1Id = $response->json('data.createPipeline.stages.0.id');
+        $stage2Id = $response->json('data.createPipeline.stages.1.id');
+
+        // Update: keep stage 1, remove stages 2 and 3, add a new stage
+        $newStageName = fake()->name();
+        $input['stages'] = [
+            ['stages_id' => $stage1Id, 'name' => $input['stages'][0]['name'], 'rotting_days' => 1, 'weight' => 1],
+            ['name' => $newStageName, 'rotting_days' => 5, 'weight' => 4],
+        ];
+
+        $updateResponse = $this->graphQL('
+            mutation($id: ID!, $input: PipelineInput!) {
+                updatePipeline(id: $id, input: $input) {
+                    id
+                    stages { id name }
+                }
+            }
+        ', ['id' => $pipelineId, 'input' => $input])
+        ->assertSuccessful();
+
+        $stages = $updateResponse->json('data.updatePipeline.stages');
+
+        // Should have exactly 2 stages
+        $this->assertCount(2, $stages);
+
+        // Stage 1 should keep its original ID
+        $this->assertEquals($stage1Id, $stages[0]['id']);
+
+        // Stage 2 (removed) should not exist
+        $stageIds = array_column($stages, 'id');
+        $this->assertNotContains($stage2Id, $stageIds);
+
+        // New stage should exist
+        $this->assertEquals($newStageName, $stages[1]['name']);
+    }
+
     public function testCreatePipeline()
     {
         $pipeline = $this->createPipeline();
