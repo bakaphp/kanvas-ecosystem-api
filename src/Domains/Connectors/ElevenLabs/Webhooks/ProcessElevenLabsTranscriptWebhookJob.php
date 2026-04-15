@@ -164,7 +164,9 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
 
         $updated = false;
 
-        if ($people->firstname === '' || $people->firstname === $people->contacts()->first()?->value) {
+        $currentFirstname = (string) $people->firstname;
+        $isPhoneLikeName = $currentFirstname === '' || preg_match('/^[\d\s\+\-\(\)]+$/', $currentFirstname);
+        if ($isPhoneLikeName) {
             $people->firstname = $firstname;
             $updated = true;
         }
