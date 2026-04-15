@@ -14,6 +14,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
 use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -49,10 +50,9 @@ class CreateMessageFollowUpAction
         protected bool $onlyPrompt = false,
         protected ?FollowUpLog $log = null
     ) {
-        $agentName = 'FollowUpEngagerAgent';
         $this->agent = Agent::fromApp($lead->app)
             ->fromCompany($lead->company)
-            ->where('name', $agentName)
+            ->where('name', AgentEnum::FOLLOW_UP_ENGAGER->value)
             ->firstOrFail();
     }
 

@@ -177,7 +177,7 @@ class ChannelsTest extends TestCase
 
                     ) {
                         users {
-                            id 
+                            id
                         }
                     }
             }
@@ -544,5 +544,122 @@ class ChannelsTest extends TestCase
 
         // Restore original user
         $this->actingAs(static::$cachedUser, 'api');
+    }
+
+    public function testDeleteSocialChannel(): void
+    {
+        $systemModule = SystemModules::fromApp()
+            ->fromApp()
+            ->notDeleted()
+            ->firstOrFail();
+
+        $data = [
+            'name' => fake()->name(),
+            'description' => fake()->text(),
+            'entity_id' => fake()->uuid(),
+            'entity_namespace_uuid' => $systemModule->uuid,
+        ];
+
+        $response = $this->graphQL('
+            mutation createSocialChannel($input: SocialChannelInput!) {
+                createSocialChannel(input: $input) {
+                    id
+                }
+            }
+        ', ['input' => $data]);
+
+        $channelId = $response['data']['createSocialChannel']['id'];
+
+        $this->graphQL('
+            mutation deleteSocialChannel($id: ID!) {
+                deleteSocialChannel(id: $id) {
+                    id
+                }
+            }
+        ', ['id' => $channelId])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'deleteSocialChannel' => [
+                    'id' => $channelId,
+                ],
+            ],
+        ]);
+    }
+
+    public function testListSocialChannels(): void
+    {
+        $this->graphQL('
+            query {
+                socialChannels {
+                    data {
+                        id
+                        name
+                        description
+                    }
+                }
+            }
+        ')
+        ->assertSuccessful()
+        ->assertJsonStructure([
+            'data' => [
+                'socialChannels' => [
+                    'data' => [
+                        ['id', 'name', 'description'],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    public function testDetachUserFromSocialChannel(): void
+    {
+        $systemModule = SystemModules::fromApp()
+            ->fromApp()
+            ->notDeleted()
+            ->firstOrFail();
+
+        $data = [
+            'name' => fake()->name(),
+            'description' => fake()->text(),
+            'entity_id' => fake()->uuid(),
+            'entity_namespace_uuid' => $systemModule->uuid,
+        ];
+
+        $response = $this->graphQL('
+            mutation createSocialChannel($input: SocialChannelInput!) {
+                createSocialChannel(input: $input) {
+                    id
+                }
+            }
+        ', ['input' => $data]);
+
+        $channelId = $response['data']['createSocialChannel']['id'];
+        $userId = auth()->user()->getId();
+
+        $this->graphQL('
+            mutation attachUserToSocialChannel($input: AttachUserInput!) {
+                attachUserToSocialChannel(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => [
+                'channel_id' => $channelId,
+                'user_id' => $userId,
+                'roles_id' => 'Admin',
+            ],
+        ])->assertSuccessful();
+
+        $this->graphQL('
+            mutation detachUserToSocialChannel($channel_id: ID!, $user_id: ID!) {
+                detachUserToSocialChannel(channel_id: $channel_id, user_id: $user_id) {
+                    id
+                }
+            }
+        ', [
+            'channel_id' => $channelId,
+            'user_id' => $userId,
+        ])->assertSuccessful();
     }
 }

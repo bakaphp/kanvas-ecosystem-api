@@ -183,8 +183,10 @@ class LaunchAgentOnMachineAction
             $client->writeFileAsUser($openclawDir . '/workspace/' . $filename, $content, $systemUser);
         }
 
-        // Container runs as node (UID 1000) — volume-mounted files must be writable by that UID
-        $client->exec('sudo chown -R 1000:1000 ' . escapeshellarg($openclawDir));
+        // Container runs as node (UID 1000) — volume-mounted files must be writable by that UID.
+        // Keep the agent's Linux group so the agent user retains access via group permissions.
+        $client->exec('sudo chown -R 1000:' . escapeshellarg($systemUser) . ' ' . escapeshellarg($openclawDir));
+        $client->exec('sudo chmod -R g+rwx ' . escapeshellarg($openclawDir));
     }
 
     /**

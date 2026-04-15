@@ -49,6 +49,7 @@ enum WorkflowEnum: string
     case SUBSCRIPTION_LIFECYCLE = 'subscription-lifecycle';
     case FOLLOW_UP_PROMPT = 'follow-up-prompt';
     case DEBUG = 'debug';
+    case NOTIFICATION = 'notify';
 
     /**
      * Get the enum case by its value.

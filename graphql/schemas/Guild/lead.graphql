@@ -25,7 +25,8 @@ type Lead {
     channels: [SocialChannel]! @hasMany(relation: "socialChannels")
     systemModule: SystemModule @belongsTo(relation: "systemModule")
     events: [Event!]! @morphToMany(relation: "events")
-    ai_session: [AIAgentSession!]! @hasMany(relation: "aiSession", type: PAGINATOR)
+    ai_session: [AIAgentSession!]!
+        @hasMany(relation: "aiSession", type: PAGINATOR)
     tags: [Tag!]
         @paginate(
             defaultCount: 25

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Triggers\Actions;
 
 use Carbon\Carbon;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
@@ -34,7 +35,8 @@ class ApplyLeadAiModeAction
         $aiModeKey = LeadConfigurationService::getAiModeKey($this->lead);
         $followUpKey = LeadConfigurationService::getFollowUpModeKey($this->lead);
 
-        if ($this->lead->get($aiModeKey) == IntelligenceModeEnum::OFF->value
+        $currentMode = IntelligenceModeEnum::tryFrom((string) $this->lead->get($aiModeKey));
+        if ($currentMode?->isOff()
             && ! in_array($this->triggerType, self::MANUAL_TRIGGERS)) {
             return [
                 'changed' => false,
@@ -71,16 +73,20 @@ class ApplyLeadAiModeAction
             TriggersEnum::HUMAN_HANDOFF->value => null,
             TriggersEnum::HUMAN_TAKEOVER->value => null,
             TriggersEnum::HANDOFF->value => null,
-            TriggersEnum::MANUAL_OFF->value => $this->setMode(
-                IntelligenceModeEnum::OFF->value,
-            ),
-            TriggersEnum::MANUAL_SUPPORT->value => $this->setMode(IntelligenceModeEnum::SUPPORT->value),
+            TriggersEnum::MANUAL_OFF->value => $this->applyManualMode(IntelligenceModeEnum::IDLE->value),
+            TriggersEnum::MANUAL_SUPPORT->value => $this->applyManualMode(IntelligenceModeEnum::SUPPORT->value),
             TriggersEnum::MANUAL_FON->value => $this->applyManualFullOn(),
             TriggersEnum::FOLLOW_UP_ON->value => $this->setFollowUp(FollowUpValueEnum::ON()),
             TriggersEnum::FOLLOW_UP_OFF->value => $this->setFollowUp(FollowUpValueEnum::OFF()),
 
             default => null,
         };
+    }
+
+    protected function applyManualMode(string $aiMode): void
+    {
+        $this->lead->set(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value, true);
+        $this->setMode($aiMode);
     }
 
     protected function applyNewLead(): void
@@ -105,6 +111,7 @@ class ApplyLeadAiModeAction
 
     protected function applyManualFullOn(): void
     {
+        $this->lead->set(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value, true);
         $this->setMode(IntelligenceModeEnum::FULL_ON->value);
         $this->setFollowUp(FollowUpValueEnum::ON());
     }
@@ -113,12 +120,14 @@ class ApplyLeadAiModeAction
     {
         $aiModeKey = LeadConfigurationService::getAiModeKey($this->lead);
         $this->lead->set($aiModeKey, $aiMode);
+        $this->lead->set(LeadConfigurationEnum::AI_MODE->value, $aiMode);
     }
 
     protected function setFollowUp(FollowUpValueEnum $followUpValue)
     {
         $followUpKey = LeadConfigurationService::getFollowUpModeKey($this->lead);
         $this->lead->set($followUpKey, $followUpValue->value);
+        $this->lead->set(LeadConfigurationEnum::HAS_FOLLOW_UP->value, $followUpValue->value);
     }
 
     protected function logModeChangeNote(string $newMode): void
