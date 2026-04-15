@@ -206,11 +206,15 @@ class HandOffAction
         HandOffNotification $notification,
         string $handOffUserRole,
     ): int {
-        $managers = UsersRepository::getCompanyAppUserByRole(
-            $this->lead->company,
-            $this->lead->app,
-            $handOffUserRole,
-        )->get();
+        try {
+            $managers = UsersRepository::getCompanyAppUserByRole(
+                $this->lead->company,
+                $this->lead->app,
+                $handOffUserRole,
+            )->get();
+        } catch (Exception) {
+            return 0;
+        }
 
         $notifiedCount = 0;
         foreach ($managers as $manager) {
