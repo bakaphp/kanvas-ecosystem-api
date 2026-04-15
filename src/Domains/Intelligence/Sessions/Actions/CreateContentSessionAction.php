@@ -20,6 +20,7 @@ use Kanvas\Companies\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
@@ -153,7 +154,7 @@ class CreateContentSessionAction
             'lastname' => $people->lastname,
             'middlename' => $people->middlename,
             'inventory_channel' => Channels::getDefault($people->company, $people->app)?->uuid,
-            'leads' => $people->leads->toArray(),
+            'leads' => [LeadsRepository::getPeopleActiveLead($people)->toArray()],
             'address' => $people->address->toArray(),
             'contacts' => $people->contacts->toArray(),
             'checklist' => $checkList,
