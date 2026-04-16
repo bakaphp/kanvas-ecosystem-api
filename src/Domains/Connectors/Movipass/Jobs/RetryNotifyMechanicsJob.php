@@ -36,7 +36,6 @@ class RetryNotifyMechanicsJob implements ShouldQueue
 
     public function handle(): void
     {
-
         $app = Apps::getById($this->order->apps_id);
 
         try {
