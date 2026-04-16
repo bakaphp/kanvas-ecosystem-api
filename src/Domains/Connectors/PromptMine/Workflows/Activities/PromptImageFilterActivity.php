@@ -25,7 +25,6 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
 use Kanvas\Social\Messages\Models\Message;
@@ -211,10 +210,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             }
 
             try {
-                $endViaList = array_map(
-                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                    $params['via'] ?? ['database']
-                );
+                $endViaList = $params['via'] ?? ['database'];
                 $errorProcessingImageNotification = new ImageProcessingPushNotification(
                     user: $message->user,
                     entity: $message,
@@ -398,14 +394,11 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         @unlink($tempFile);
 
         if (! $response->successful()) {
-            $endViaList = array_map(
-                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                $params['via'] ?? ['database']
-            );
+            $endViaList = $params[‘via’] ?? [‘database’];
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $entity->user,
                 entity: $entity,
-                message: "Your recent creation couldn't be completed as it didn't comply with the content provider’s policies.",
+                message: "Your recent creation couldn’t be completed as it didn’t comply with the content provider’s policies.",
                 title: 'Error processing image',
                 via: $endViaList,
                 templates: [
@@ -567,10 +560,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
         $entity->is_public = 1;
         $entity->save();
 
-        $endViaList = array_map(
-            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-            $params['via'] ?? ['database']
-        );
+        $endViaList = $params['via'] ?? ['database'];
 
         try {
             // Send notification to the user
@@ -795,10 +785,7 @@ PROMPT
 
     private function sendFailNotification(Message $entity, string $message, array $params): void
     {
-        $endViaList = array_map(
-            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-            $params['via'] ?? ['database']
-        );
+        $endViaList = $params['via'] ?? ['database'];
         $errorProcessingImageNotification = new ImageProcessingPushNotification(
             user: $entity->user,
             entity: $entity,

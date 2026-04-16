@@ -23,7 +23,6 @@ use Kanvas\Connectors\ESimGo\Enums\IccidStatusEnum;
 use Kanvas\Connectors\ESimGo\Services\ESimService;
 use Kanvas\Connectors\VentaMobile\Services\ESimService as VentaMobileESimService;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
@@ -565,7 +564,7 @@ class SyncEsimWithProviderCommand extends Command
             'data' => $additionalData,
         ];
 
-        $vias = [NotificationChannelEnum::getNotificationChannelBySlug('PUSH')];
+        $vias = ['push'];
 
         $notification = new Blank(
             $templateName,

@@ -32,7 +32,7 @@ enum NotificationChannelEnum: int
         };
     }
 
-    public static function getNotificationChannelBySlug(string $slug): ?string
+    public static function getNotificationChannelBySlug(string $slug): string
     {
         $channelMap = [
             'EMAIL' => 'mail',
@@ -41,20 +41,35 @@ enum NotificationChannelEnum: int
             'EXPO' => ExpoChannel::class,
             'DATABASE' => KanvasDatabase::class,
             'SMS' => TwilioSmsChannel::class,
+            'TWILIO' => TwilioSmsChannel::class,
         ];
 
-        // Check if it's already a class name
+        // Check if it's already a resolved class name
         if (in_array($slug, $channelMap, true)) {
             return $slug;
         }
 
-        $slug = strtoupper($slug);
-        // Check if it's a slug we know about
-        if (isset($channelMap[$slug])) {
-            return $channelMap[$slug];
+        $normalized = strtoupper($slug);
+
+        if (isset($channelMap[$normalized])) {
+            return $channelMap[$normalized];
         }
 
-        throw new ValidationException('Invalid channel ' . $slug);
+        throw new ValidationException('Invalid notification channel: ' . $slug . '. Supported channels: mail, email, push, expo, database, sms, twilio');
+    }
+
+    /**
+     * Validate that a slug is a supported notification channel.
+     */
+    public static function isValidSlug(string $slug): bool
+    {
+        try {
+            self::getNotificationChannelBySlug($slug);
+
+            return true;
+        } catch (ValidationException) {
+            return false;
+        }
     }
 
     public static function getChannelIdByClassReference(string $class): ?int
