@@ -50,7 +50,7 @@ class OrderPaymentRepository
 
             $operator = strtoupper((string) ($metadataFilter['operator'] ?? 'EQ')) === 'LIKE' ? 'LIKE' : '=';
             $query->whereRaw(
-                "JSON_UNQUOTE(JSON_EXTRACT(COALESCE(orders.metadata, '{}'), '$.{$path}')) {$operator} ?",
+                "JSON_UNQUOTE(JSON_EXTRACT(IF(JSON_VALID(orders.metadata), orders.metadata, '{}'), '$.{$path}')) {$operator} ?",
                 [$metadataFilter['value']]
             );
         }
