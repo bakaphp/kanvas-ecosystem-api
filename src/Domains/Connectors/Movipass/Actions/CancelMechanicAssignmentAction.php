@@ -29,8 +29,14 @@ class CancelMechanicAssignmentAction
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($order->orderStatus?->slug !== MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug()) {
-                throw new ValidationException('Order is not in provider_assigned status');
+            $nonCancellableStatuses = [
+                MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
+                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
+                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
+            ];
+
+            if (in_array($order->orderStatus?->slug, $nonCancellableStatuses, true)) {
+                throw new ValidationException('Order cannot be cancelled in its current status');
             }
 
             $metadata = $order->metadata ?? [];
@@ -67,6 +73,8 @@ class CancelMechanicAssignmentAction
             ];
             $order->saveQuietly();
             $order->set(CustomFieldEnum::ORDER_MECHANIC_USERS_ID->value, null);
+            $order->set(CustomFieldEnum::ROADSIDE_ASSISTANCE_PIN->value, null);
+            $order->set(CustomFieldEnum::ROADSIDE_ASSISTANCE_PIN_HASH->value, null);
 
             new NotifyAvailableMechanicsAction($order, $this->app, $this->mechanic, $cancelledIds)->execute();
 

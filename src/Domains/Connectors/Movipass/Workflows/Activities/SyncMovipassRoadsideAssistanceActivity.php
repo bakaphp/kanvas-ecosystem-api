@@ -149,15 +149,16 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         }
 
         if (($assistanceCase['mechanic_cancel'] ?? false) === true) {
-            $cancellableStatuses = [
-                MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug(),
-                MovipassOrderStatusEnum::DISPATCHED->slug(),
+            $nonCancellableStatuses = [
+                MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
+                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
+                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
             ];
-            if (! in_array($currentStatusSlug, $cancellableStatuses, true)) {
+            if (in_array($currentStatusSlug, $nonCancellableStatuses, true)) {
                 return [
                     'order' => $order->getId(),
                     'status' => 'success',
-                    'message' => 'Mechanic cancel ignored: order is not in a cancellable status',
+                    'message' => 'Mechanic cancel ignored: order is already in a terminal status',
                 ];
             }
 
