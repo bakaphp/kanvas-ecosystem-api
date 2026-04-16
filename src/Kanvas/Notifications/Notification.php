@@ -98,7 +98,12 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     }
 
     /**
-     * @return array<array-key, mixed>
+     * Determine which channels the notification should be delivered on.
+     *
+     * Resolves slug-based channels (e.g. 'sms', 'push') to their class implementations,
+     * then filters out any channels the user has disabled in their notification settings.
+     *
+     * @return array<array-key, mixed> Resolved channel class names (e.g. TwilioSmsChannel::class)
      */
     public function via(object $notifiable): array
     {
@@ -133,6 +138,11 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         return $mailMessage;
     }
 
+    /**
+     * Set or create the NotificationType record for this notification.
+     * This controls per-user notification settings (enable/disable per channel)
+     * and is used by filterEnabledChannels() to respect user preferences.
+     */
     public function setType(string $type): void
     {
         $this->type = NotificationTypes::firstOrCreate([
@@ -204,19 +214,24 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         $this->subject = $options['subject'] ?? null;
     }
 
+    /**
+     * Resolve channel slugs ('mail', 'sms', 'push', etc.) to their Laravel channel
+     * class implementations (e.g. TwilioSmsChannel::class). This is the single
+     * resolution point — subclasses and callers should set $channels with slugs,
+     * and this method handles the mapping via NotificationChannelEnum.
+     */
     private function getNotificationChannels(): array
     {
-        //$notificationTypeChannels = $this->type instanceof NotificationTypes ? $this->type->getChannelsInNotificationFormat() : [];
-
-        //disable the notification type channels for now, as we are not using them
-        //return ! empty($notificationTypeChannels) ? $notificationTypeChannels : $this->channels();
-        //return $this->channels();
         return array_map(
-            fn ($via) => NotificationChannelEnum::getNotificationChannelBySlug($via),
+            fn ($via): string => NotificationChannelEnum::getNotificationChannelBySlug($via),
             $this->channels()
         );
     }
 
+    /**
+     * Only filter channels by user preferences when: we have channels to send,
+     * a NotificationType is set (so we can look up settings), and the recipient is a user.
+     */
     private function shouldFilterChannelsByUserSettings(object $notifiable): bool
     {
         return ! empty($this->getNotificationChannels())
@@ -224,6 +239,10 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
             && $notifiable instanceof UserInterface;
     }
 
+    /**
+     * Remove channels the user has explicitly disabled in their per-notification-type settings.
+     * If no settings exist for this notification type, all channels are kept (enabled by default).
+     */
     private function filterEnabledChannels(array $channels, UserInterface $notifiable): array
     {
         $enabledChannels = array_filter($channels, function ($channel) use ($notifiable) {
@@ -259,6 +278,11 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         return $primaryEmail;
     }
 
+    /**
+     * Link this notification to a social interaction (e.g. 'follow', 'new_message').
+     * Used by NotificationStorageTrait to store the interaction reference in the DB.
+     * Silently ignores unknown interaction names.
+     */
     public function setInteraction(string $name): void
     {
         try {
