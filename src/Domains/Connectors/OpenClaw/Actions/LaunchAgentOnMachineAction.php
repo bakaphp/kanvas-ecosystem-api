@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\OpenClaw\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\Enums\DeploymentStatusEnum;
@@ -153,11 +154,7 @@ class LaunchAgentOnMachineAction
         $systemUser = $deployment->system_user;
         $gatewayToken = $this->company->get(ConfigurationEnum::GATEWAY_TOKEN->value) ?? bin2hex(random_bytes(32));
 
-        $client->writeFileAsUser(
-            $openclawDir . '/docker-compose.yml',
-            DockerComposeBuilder::buildDockerCompose($deployment, (string) $gatewayToken, $this->app, $this->agent),
-            $systemUser,
-        );
+        $this->writeDockerComposeFile($client, $deployment);
 
         $client->writeFileAsUser(
             $openclawDir . '/openclaw.json',
@@ -190,6 +187,18 @@ class LaunchAgentOnMachineAction
         $client->exec('sudo chmod -R g+rwx ' . escapeshellarg($openclawDir));
     }
 
+    private function writeDockerComposeFile(SshClient $client, AgentDeployment $deployment): void
+    {
+        $openclawDir = $deployment->home_directory . '/.openclaw';
+        $gatewayToken = $this->company->get(ConfigurationEnum::GATEWAY_TOKEN->value) ?? bin2hex(random_bytes(32));
+
+        $client->writeFileAsUser(
+            $openclawDir . '/docker-compose.yml',
+            DockerComposeBuilder::buildDockerCompose($deployment, (string) $gatewayToken, $this->app, $this->agent),
+            $deployment->system_user,
+        );
+    }
+
     /**
      * Run `docker compose up -d` as the agent's Linux user.
      * Uses the pre-built shared image — no per-agent build needed.
@@ -201,8 +210,12 @@ class LaunchAgentOnMachineAction
         $maxAttempts = 10;
 
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
-            if (! $this->portsAreAvailableOnMachine($client, $deployment)) {
-                $this->reassignDeploymentPorts($client, $deployment);
+            $listeningPorts = $this->getListeningPortsOnMachine($client);
+
+            // Best-effort preflight only. Another deployment may still bind the port before compose up,
+            // so we also keep the retry path for Docker bind failures below.
+            if (! $this->portsAreAvailableOnMachine($deployment, $listeningPorts)) {
+                $this->reassignDeploymentPorts($client, $deployment, $listeningPorts, $attempt, 'preflight conflict');
                 continue;
             }
 
@@ -223,8 +236,17 @@ class LaunchAgentOnMachineAction
             }
 
             if ($this->hasPortBindError($result) && $attempt < $maxAttempts) {
-                $this->stopPartialDeployment($client, $openclawDir);
-                $this->reassignDeploymentPorts($client, $deployment);
+                Log::warning('OpenClaw deployment hit Docker port bind conflict during launch', [
+                    'deployment_id' => $deployment->getId(),
+                    'machine_id' => $this->machine->getId(),
+                    'machine_name' => $this->machine->name,
+                    'attempt' => $attempt,
+                    'gateway_port' => $deployment->gateway_port,
+                    'proxy_port' => $deployment->proxy_port,
+                ]);
+
+                $this->stopPartialDeployment($client, $deployment, $openclawDir);
+                $this->reassignDeploymentPorts($client, $deployment, $this->getListeningPortsOnMachine($client), $attempt, 'docker bind conflict');
 
                 continue;
             }
@@ -237,20 +259,27 @@ class LaunchAgentOnMachineAction
         );
     }
 
-    private function portsAreAvailableOnMachine(SshClient $client, AgentDeployment $deployment): bool
+    /**
+     * @param array<int, int> $listeningPorts
+     */
+    private function portsAreAvailableOnMachine(AgentDeployment $deployment, array $listeningPorts): bool
     {
-        return $this->isPortAvailableOnMachine($client, $deployment->gateway_port)
-            && $this->isPortAvailableOnMachine($client, $deployment->proxy_port);
+        return ! in_array($deployment->gateway_port, $listeningPorts, true)
+            && ! in_array($deployment->proxy_port, $listeningPorts, true);
     }
 
-    private function isPortAvailableOnMachine(SshClient $client, int $port): bool
+    /**
+     * @return array<int, int>
+     */
+    private function getListeningPortsOnMachine(SshClient $client): array
     {
-        $result = $client->exec(
-            'sudo ss -ltnH ' . escapeshellarg('( sport = :' . $port . ' )')
-            . ' | grep -q . && echo "USED" || echo "FREE"',
-        );
+        $result = $client->exec("sudo ss -ltnH | awk '{print \$4}' | grep -oE '[0-9]+$' | sort -un");
 
-        return trim($result) === 'FREE';
+        return collect(preg_split('/\r?\n/', trim($result)) ?: [])
+            ->filter(fn (string $port) => $port !== '')
+            ->map(fn (string $port) => (int) $port)
+            ->values()
+            ->all();
     }
 
     private function hasPortBindError(string $result): bool
@@ -260,29 +289,54 @@ class LaunchAgentOnMachineAction
             || str_contains($result, 'driver failed programming external connectivity');
     }
 
-    private function stopPartialDeployment(SshClient $client, string $openclawDir): void
+    private function stopPartialDeployment(SshClient $client, AgentDeployment $deployment, string $openclawDir): void
     {
         $client->exec(
-            'sudo bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose down 2>&1 || true'),
+            'sudo -u ' . escapeshellarg($deployment->system_user)
+            . ' bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose down 2>&1 || true'),
             120,
         );
     }
 
-    private function reassignDeploymentPorts(SshClient $client, AgentDeployment $deployment): void
-    {
-        $ports = $this->findAvailablePortPair($client, $deployment);
+    /**
+     * @param array<int, int> $listeningPorts
+     */
+    private function reassignDeploymentPorts(
+        SshClient $client,
+        AgentDeployment $deployment,
+        array $listeningPorts,
+        int $attempt,
+        string $reason,
+    ): void {
+        $previousGatewayPort = $deployment->gateway_port;
+        $previousProxyPort = $deployment->proxy_port;
+        $ports = $this->findAvailablePortPair($deployment, $listeningPorts);
 
         $deployment->gateway_port = $ports['gateway_port'];
         $deployment->proxy_port = $ports['proxy_port'];
         $deployment->saveOrFail();
 
-        $this->writeDeploymentFiles($client, $deployment);
+        $this->writeDockerComposeFile($client, $deployment);
+
+        Log::info('Reassigned OpenClaw deployment ports after conflict detection', [
+            'deployment_id' => $deployment->getId(),
+            'machine_id' => $this->machine->getId(),
+            'machine_name' => $this->machine->name,
+            'attempt' => $attempt,
+            'reason' => $reason,
+            'previous_gateway_port' => $previousGatewayPort,
+            'previous_proxy_port' => $previousProxyPort,
+            'gateway_port' => $deployment->gateway_port,
+            'proxy_port' => $deployment->proxy_port,
+        ]);
     }
 
     /**
+     * @param array<int, int> $listeningPorts
+     *
      * @return array{gateway_port: int, proxy_port: int}
      */
-    private function findAvailablePortPair(SshClient $client, AgentDeployment $deployment): array
+    private function findAvailablePortPair(AgentDeployment $deployment, array $listeningPorts): array
     {
         $usedPorts = $this->getReservedPortsForMachine($deployment);
 
@@ -293,7 +347,7 @@ class LaunchAgentOnMachineAction
                 continue;
             }
 
-            if (! $this->isPortAvailableOnMachine($client, $port) || ! $this->isPortAvailableOnMachine($client, $proxyPort)) {
+            if (in_array($port, $listeningPorts, true) || in_array($proxyPort, $listeningPorts, true)) {
                 continue;
             }
 
@@ -313,7 +367,7 @@ class LaunchAgentOnMachineAction
     {
         $deployments = AgentDeployment::where('agent_machine_id', $this->machine->getId())
             ->where('id', '!=', $deployment->getId())
-            ->whereNotIn('status', [DeploymentStatusEnum::TERMINATED->value])
+            ->whereNotIn('status', [DeploymentStatusEnum::FAILED->value, DeploymentStatusEnum::TERMINATED->value])
             ->where('is_deleted', 0)
             ->get(['gateway_port', 'proxy_port']);
 
@@ -330,7 +384,6 @@ class LaunchAgentOnMachineAction
         return $deployments
             ->flatMap(fn (AgentDeployment $deployment) => [$deployment->gateway_port, $deployment->proxy_port])
             ->filter(fn (?int $port) => $port !== null)
-            ->map(fn (int $port) => (int) $port)
             ->values()
             ->all();
     }
