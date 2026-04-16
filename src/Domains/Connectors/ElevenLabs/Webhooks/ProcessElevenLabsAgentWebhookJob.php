@@ -72,6 +72,7 @@ class ProcessElevenLabsAgentWebhookJob extends ProcessWebhookJob
             'lead' => [
                 'id' => $lead->getId(),
                 'uuid' => $lead->uuid,
+                'company' => $lead->company->name,
                 'firstname' => (string) $lead->people->firstname,
                 'lastname' => (string) $lead->people->lastname,
                 'email' => $lead->people->getEmails()->first()?->value,
