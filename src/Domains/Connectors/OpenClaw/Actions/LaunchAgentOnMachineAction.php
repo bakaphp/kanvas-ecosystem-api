@@ -6,8 +6,8 @@ namespace Kanvas\Connectors\OpenClaw\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Exception;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\Enums\DeploymentStatusEnum;
@@ -236,15 +236,14 @@ class LaunchAgentOnMachineAction
             }
 
             if ($this->hasPortBindError($result) && $attempt < $maxAttempts) {
-                report(new Exception(
-                    'OpenClaw deployment hit Docker port bind conflict during launch '
-                    . 'deployment_id=' . $deployment->getId()
-                    . ' machine_id=' . $this->machine->getId()
-                    . ' machine_name=' . $this->machine->name
-                    . ' attempt=' . $attempt
-                    . ' gateway_port=' . $deployment->gateway_port
-                    . ' proxy_port=' . $deployment->proxy_port
-                ));
+                Log::warning('OpenClaw deployment hit Docker port bind conflict during launch', [
+                    'deployment_id' => $deployment->getId(),
+                    'machine_id' => $this->machine->getId(),
+                    'machine_name' => $this->machine->name,
+                    'attempt' => $attempt,
+                    'gateway_port' => $deployment->gateway_port,
+                    'proxy_port' => $deployment->proxy_port,
+                ]);
 
                 $this->stopPartialDeployment($client, $deployment, $openclawDir);
                 $this->reassignDeploymentPorts($client, $deployment, $this->getListeningPortsOnMachine($client), $attempt, 'docker bind conflict');
@@ -316,18 +315,17 @@ class LaunchAgentOnMachineAction
 
         $this->writeDockerComposeFile($client, $deployment);
 
-        report(new Exception(
-            'Reassigned OpenClaw deployment ports after conflict detection '
-            . 'deployment_id=' . $deployment->getId()
-            . ' machine_id=' . $this->machine->getId()
-            . ' machine_name=' . $this->machine->name
-            . ' attempt=' . $attempt
-            . ' reason=' . $reason
-            . ' previous_gateway_port=' . $previousGatewayPort
-            . ' previous_proxy_port=' . $previousProxyPort
-            . ' gateway_port=' . $deployment->gateway_port
-            . ' proxy_port=' . $deployment->proxy_port
-        ));
+        Log::info('Reassigned OpenClaw deployment ports after conflict detection', [
+            'deployment_id' => $deployment->getId(),
+            'machine_id' => $this->machine->getId(),
+            'machine_name' => $this->machine->name,
+            'attempt' => $attempt,
+            'reason' => $reason,
+            'previous_gateway_port' => $previousGatewayPort,
+            'previous_proxy_port' => $previousProxyPort,
+            'gateway_port' => $deployment->gateway_port,
+            'proxy_port' => $deployment->proxy_port,
+        ]);
     }
 
     /**
