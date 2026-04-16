@@ -244,11 +244,22 @@ class OrderPaymentStatsProviderTest extends OrderBase
 
         $response->assertSuccessful();
 
-        $ordersInPeriod = $response->json('data.orderPaymentStats.ordersInPeriod');
+        $body = $response->json() ?? [];
+        $this->assertIsArray($body, 'GraphQL response body was not JSON-parseable');
+
+        if (isset($body['errors'])) {
+            $this->fail('orderPaymentStats returned GraphQL errors: ' . json_encode($body['errors']));
+        }
+
+        $payload = $body['data']['orderPaymentStats'] ?? null;
+        $this->assertNotNull($payload, 'data.orderPaymentStats is null. Full body: ' . json_encode($body));
+
+        $ordersInPeriod = $payload['ordersInPeriod'] ?? null;
+        $this->assertIsArray($ordersInPeriod, 'ordersInPeriod missing. Payload: ' . json_encode($payload));
         $this->assertEquals(1, $ordersInPeriod['count']);
         $this->assertGreaterThan(0, $ordersInPeriod['totalAmount']);
 
-        $dailyTotals = array_sum(array_column($ordersInPeriod['data'], 'totalAmount'));
+        $dailyTotals = array_sum(array_column($ordersInPeriod['data'] ?? [], 'totalAmount'));
         $this->assertEqualsWithDelta($ordersInPeriod['totalAmount'], $dailyTotals, 0.01);
     }
 
@@ -287,6 +298,17 @@ class OrderPaymentStatsProviderTest extends OrderBase
         ]);
 
         $response->assertSuccessful();
-        $this->assertEquals(1, $response->json('data.orderPaymentStats.ordersInPeriod.count'));
+
+        $body = $response->json() ?? [];
+        $this->assertIsArray($body, 'GraphQL response body was not JSON-parseable');
+
+        if (isset($body['errors'])) {
+            $this->fail('orderPaymentStats returned GraphQL errors: ' . json_encode($body['errors']));
+        }
+
+        $payload = $body['data']['orderPaymentStats'] ?? null;
+        $this->assertNotNull($payload, 'data.orderPaymentStats is null. Full body: ' . json_encode($body));
+
+        $this->assertEquals(1, $payload['ordersInPeriod']['count'] ?? null);
     }
 }

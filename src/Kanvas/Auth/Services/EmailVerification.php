@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Auth\Services;
 
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Crypt;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;

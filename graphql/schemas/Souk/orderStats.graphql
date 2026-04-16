@@ -168,7 +168,7 @@ enum MetadataFilterOperator {
 input OrderMetadataFilter {
     path: String!                                    # Dot-notation into orders.metadata (e.g. "data.paso_rapido_tag")
     value: String!
-    operator: MetadataFilterOperator = EQ
+    operator: MetadataFilterOperator                 # Defaults to EQ when omitted
 }
 
 input OrderPaymentStatsInput {
