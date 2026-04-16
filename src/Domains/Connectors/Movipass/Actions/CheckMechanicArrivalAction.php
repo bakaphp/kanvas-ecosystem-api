@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Movipass\Actions;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
+use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
 
@@ -67,6 +68,8 @@ class CheckMechanicArrivalAction
             $this->mechanic,
             MovipassOrderStatusEnum::ON_SITE->slug(),
         );
+
+        RefreshActiveAssistanceEvent::dispatch($this->order, $this->mechanic->getId());
 
         return true;
     }

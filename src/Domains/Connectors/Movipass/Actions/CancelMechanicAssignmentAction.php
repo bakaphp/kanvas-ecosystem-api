@@ -9,6 +9,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
+use Kanvas\Connectors\Movipass\Events\AssistanceRequestedEvent;
+use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
@@ -24,7 +26,7 @@ class CancelMechanicAssignmentAction
 
     public function execute(): Order
     {
-        return DB::connection('commerce')->transaction(function () {
+        $order = DB::connection('commerce')->transaction(function () {
             $order = Order::where('id', $this->order->getId())
                 ->lockForUpdate()
                 ->firstOrFail();
@@ -52,16 +54,21 @@ class CancelMechanicAssignmentAction
             $cancelledIds[] = $this->mechanic->getId();
             $cancelledIds = array_values(array_unique($cancelledIds));
 
+            RefreshActiveAssistanceEvent::dispatch($order, $this->mechanic->getId());
+
             $assistanceCase['cancelled_mechanic_ids'] = $cancelledIds;
             $assistanceCase['mechanic'] = [];
+            $assistanceCase['notified_mechanic_ids'] = [];
+            $assistanceCase['status'] = MovipassOrderStatusEnum::REQUEST_SUBMITTED->slug();
+            $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
             $assistanceCase['provider_assigned_at'] = null;
-            unset($assistanceCase['mechanic_cancel']);
             $assistanceCase['pin'] = null;
             $assistanceCase['pin_hash'] = null;
             $assistanceCase['pin_generated_at'] = null;
             $assistanceCase['pin_attempt'] = null;
             $assistanceCase['pin_validated_at'] = null;
             $assistanceCase['pin_invalidated_at'] = Carbon::now()->toISOString();
+            unset($assistanceCase['mechanic_cancel']);
 
             $order->metadata = [
                 ...$metadata,
@@ -76,9 +83,22 @@ class CancelMechanicAssignmentAction
             $order->set(CustomFieldEnum::ROADSIDE_ASSISTANCE_PIN->value, null);
             $order->set(CustomFieldEnum::ROADSIDE_ASSISTANCE_PIN_HASH->value, null);
 
-            new NotifyAvailableMechanicsAction($order, $this->app, $this->mechanic, $cancelledIds)->execute();
+            $order->transitionToStatus(
+                $this->mechanic,
+                MovipassOrderStatusEnum::REQUEST_SUBMITTED->slug(),
+            );
 
             return $order->refresh();
         });
+
+        try {
+            $cancelledIds = $order->metadata['assistance_case']['cancelled_mechanic_ids'] ?? [];
+            new NotifyAvailableMechanicsAction($order, $this->app, $this->mechanic, $cancelledIds)->execute();
+        } catch (ValidationException) {
+            // No mechanics available right now — notify operators so they can intervene manually.
+            AssistanceRequestedEvent::dispatch($order);
+        }
+
+        return $order->refresh();
     }
 }

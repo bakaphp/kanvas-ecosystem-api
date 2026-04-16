@@ -17,6 +17,7 @@ use Kanvas\Connectors\Movipass\Actions\PrepareRoadsideAssistanceCaseAction;
 use Kanvas\Connectors\Movipass\Actions\ValidateRoadsideAssistancePinAction;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -132,6 +133,9 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
             if ($mechanicUserId > 0) {
                 $mechanic = Users::getById($mechanicUserId);
+
+                RefreshActiveAssistanceEvent::dispatch($order, $mechanicUserId);
+
                 $arrived = new CheckMechanicArrivalAction($order, $mechanic)->execute();
 
                 if ($arrived) {
@@ -224,6 +228,11 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         }
 
         // PIN is valid — clean up metadata and transition to SERVICE_IN_PROGRESS
+        $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
+        if ($mechanicId > 0) {
+            RefreshActiveAssistanceEvent::dispatch($order, $mechanicId);
+        }
+
         $assistanceCase['pin_validated_at'] = Carbon::now()->toISOString();
         $assistanceCase['status'] = MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug();
         $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
@@ -312,6 +321,18 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 MovipassOrderStatusEnum::SERVICE_CANCELLED->slug() => $order->fulfillCancelled(),
                 default => null,
             };
+
+            $refreshStatuses = [
+                MovipassOrderStatusEnum::ON_SITE->slug(),
+                MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
+                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
+                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
+            ];
+
+            $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
+            if ($mechanicId > 0 && in_array($toStatus, $refreshStatuses, true)) {
+                RefreshActiveAssistanceEvent::dispatch($order, $mechanicId);
+            }
         }
 
         return [
