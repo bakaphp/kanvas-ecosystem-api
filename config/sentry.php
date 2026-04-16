@@ -54,4 +54,12 @@ return [
 
     'controllers_base_namespace' => env('SENTRY_CONTROLLERS_BASE_NAMESPACE', 'App\\Http\\Controllers'),
 
+    // Sentry Structured Logs — sends Log:: calls to Sentry's Logs product
+    // (separate from Issues/Alerts, no noise). Viewable at Sentry > Logs.
+    'enable_logs' => env('SENTRY_ENABLE_LOGS', false),
+
+    // Minimum level for Sentry Logs: warning sends warning/error/critical only,
+    // keeping volume low on a 5GB plan. Set to 'info' if you need more detail.
+    'logs_level' => env('SENTRY_LOGS_LEVEL', 'warning'),
+
 ];
