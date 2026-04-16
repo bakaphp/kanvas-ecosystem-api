@@ -86,14 +86,24 @@ class CheckMechanicArrivalAction
 
     private function resolveMechanicLocation(): ?array
     {
+        // Primary: mechanic's real-time custom field GPS
         $lat = $this->mechanic->get(CustomFieldEnum::MECHANIC_LAT->value);
         $lng = $this->mechanic->get(CustomFieldEnum::MECHANIC_LNG->value);
 
-        if ($lat === null || $lng === null) {
-            return null;
+        if ($lat !== null && $lng !== null) {
+            return ['lat' => (float) $lat, 'lng' => (float) $lng];
         }
 
-        return ['lat' => (float) $lat, 'lng' => (float) $lng];
+        // Fallback: location stored in the order's mechanic block (sent by SDK on update)
+        $metadata = $this->order->metadata ?? [];
+        $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
+        $mechanicLocation = $assistanceCase['mechanic']['location'] ?? null;
+
+        if (is_array($mechanicLocation) && isset($mechanicLocation['lat'], $mechanicLocation['lng'])) {
+            return ['lat' => (float) $mechanicLocation['lat'], 'lng' => (float) $mechanicLocation['lng']];
+        }
+
+        return null;
     }
 
     private function haversineDistance(float $lat1, float $lng1, float $lat2, float $lng2): float
