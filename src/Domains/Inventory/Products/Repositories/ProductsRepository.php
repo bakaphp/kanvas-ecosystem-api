@@ -61,6 +61,30 @@ class ProductsRepository
             ->where('p.apps_id', '=', $app->getId());
     }
 
+    public static function existsByAttributeValue(
+        AppInterface $app,
+        CompanyInterface $company,
+        string $attributeSlug,
+        string $value,
+        ?int $userId = null
+    ): bool {
+        $query = Products::from('products as p')
+            ->withoutGlobalScopes()
+            ->join('products_attributes as pa', 'p.id', '=', 'pa.products_id')
+            ->join('attributes as a', 'pa.attributes_id', '=', 'a.id')
+            ->where('a.slug', '=', $attributeSlug)
+            ->whereRaw('JSON_UNQUOTE(JSON_EXTRACT(pa.value, \'$.en\')) = ?', [$value])
+            ->where('p.companies_id', '=', $company->getId())
+            ->where('p.apps_id', '=', $app->getId())
+            ->where('p.is_deleted', '=', 0);
+
+        if ($userId !== null) {
+            $query->where('p.users_id', '=', $userId);
+        }
+
+        return $query->exists();
+    }
+
     public static function getLowStockProducts(
         AppInterface $app,
         CompanyInterface $company,

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Actions;
 
 use Baka\Contracts\AppInterface;
-use Kanvas\Companies\Models\Companies;
+use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
+use Kanvas\Connectors\Movipass\Events\AssistanceRequestedEvent;
 use Kanvas\Connectors\Movipass\Notifications\PendingOrderAssignmentNotification;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
@@ -16,6 +18,7 @@ class NotifyAvailableMechanicsAction
     public function __construct(
         protected readonly Order $order,
         protected readonly AppInterface $app,
+        protected readonly UserInterface $user,
         protected readonly array $excludeIds = [],
     ) {
     }
@@ -25,19 +28,15 @@ class NotifyAvailableMechanicsAction
         $metadata = $this->order->metadata ?? [];
         $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
 
-        $providerCompany = null;
-        $providerId = $assistanceCase['provider_id'] ?? null;
-        if ($providerId !== null) {
-            $providerCompany = Companies::getById((int) $providerId);
-        }
-
-        $mechanics = new GetAvailableMechanicsAction($this->app, $providerCompany, $this->excludeIds)->execute();
+        $mechanics = new GetAvailableMechanicsAction($this->excludeIds)->execute();
 
         if ($mechanics->isEmpty()) {
             throw new ValidationException('No available mechanics to notify for this order');
         }
 
         $assistanceCase['notified_mechanic_ids'] = $mechanics->pluck('id')->toArray();
+        $assistanceCase['status'] = MovipassOrderStatusEnum::AWAITING_OPERATOR->slug();
+        $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
 
         $this->order->metadata = [
             ...$metadata,
@@ -56,8 +55,10 @@ class NotifyAvailableMechanicsAction
         }
 
         $this->order->transitionToStatus(
-            auth()->user(),
+            $this->user,
             MovipassOrderStatusEnum::AWAITING_OPERATOR->slug(),
         );
+
+        AssistanceRequestedEvent::dispatch($this->order);
     }
 }

@@ -7,8 +7,10 @@ namespace Kanvas\Connectors\Movipass\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Kanvas\Connectors\Movipass\Actions\AssignMechanicToOrderAction;
 use Kanvas\Connectors\Movipass\Actions\AttachRoadsideAssistancePhotosAction;
 use Kanvas\Connectors\Movipass\Actions\CancelMechanicAssignmentAction;
+use Kanvas\Connectors\Movipass\Actions\CheckMechanicArrivalAction;
 use Kanvas\Connectors\Movipass\Actions\GenerateRoadsideAssistancePinAction;
 use Kanvas\Connectors\Movipass\Actions\NotifyAvailableMechanicsAction;
 use Kanvas\Connectors\Movipass\Actions\PrepareRoadsideAssistanceCaseAction;
@@ -70,9 +72,11 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
     private function handleCreated($order, $app): array
     {
+        $user = Users::getById((int) $order->users_id);
+
         $metadata = new PrepareRoadsideAssistanceCaseAction()->execute(
             $order->metadata ?? [],
-            $order->user,
+            $user,
         );
 
         $order->metadata = $metadata;
@@ -85,8 +89,10 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
         $mechanic = $metadata['assistance_case']['mechanic'] ?? null;
         if (empty($mechanic['user_id'])) {
-            new NotifyAvailableMechanicsAction($order, $app)->execute();
+            new NotifyAvailableMechanicsAction($order, $app, $user)->execute();
         }
+
+        $order->refresh();
 
         return [
             'order' => $order->getId(),
@@ -103,22 +109,66 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         $metadata = $order->metadata ?? [];
         $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
 
+        $assignMechanicId = (int) ($assistanceCase['assign_mechanic_id'] ?? 0);
+        if ($assignMechanicId > 0 && $currentStatusSlug === MovipassOrderStatusEnum::AWAITING_OPERATOR->slug()) {
+            $mechanic = Users::getById($assignMechanicId);
+            $user = Users::getById((int) $order->users_id);
+
+            new AssignMechanicToOrderAction($order, $user, $mechanic)->execute();
+
+            $order->refresh();
+
+            return [
+                'order' => $order->getId(),
+                'status' => 'success',
+                'message' => 'Mechanic assigned and order transitioned to provider_assigned',
+                'data' => $order->toArray(),
+                'response' => $order->toArray(),
+            ];
+        }
+
+        if ($currentStatusSlug === MovipassOrderStatusEnum::DISPATCHED->slug()) {
+            $mechanicUserId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
+
+            if ($mechanicUserId > 0) {
+                $mechanic = Users::getById($mechanicUserId);
+                $arrived = new CheckMechanicArrivalAction($order, $mechanic)->execute();
+
+                if ($arrived) {
+                    $order->refresh();
+
+                    return [
+                        'order' => $order->getId(),
+                        'status' => 'success',
+                        'message' => 'Mechanic arrived on site, order transitioned to on_site',
+                        'data' => $order->toArray(),
+                        'response' => $order->toArray(),
+                    ];
+                }
+            }
+        }
+
         if (($assistanceCase['mechanic_cancel'] ?? false) === true) {
-            if ($currentStatusSlug !== MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug()) {
+            $cancellableStatuses = [
+                MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug(),
+                MovipassOrderStatusEnum::DISPATCHED->slug(),
+            ];
+            if (! in_array($currentStatusSlug, $cancellableStatuses, true)) {
                 return [
                     'order' => $order->getId(),
                     'status' => 'success',
-                    'message' => 'Mechanic cancel ignored: order is not in provider_assigned status',
+                    'message' => 'Mechanic cancel ignored: order is not in a cancellable status',
                 ];
             }
 
-            $mechanic = auth()->user();
+            $mechanicUserId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
+            $mechanic = $mechanicUserId ? Users::getById($mechanicUserId) : null;
 
             if (! $mechanic instanceof Users) {
                 return [
                     'order' => $order->getId(),
                     'status' => 'error',
-                    'message' => 'No authenticated user to cancel mechanic assignment',
+                    'message' => 'No mechanic assigned to this order',
                 ];
             }
 
@@ -135,11 +185,11 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             ];
         }
 
-        if ($currentStatusSlug !== MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug()) {
+        if ($currentStatusSlug !== MovipassOrderStatusEnum::ON_SITE->slug()) {
             return [
                 'order' => $order->getId(),
                 'status' => 'success',
-                'message' => 'PIN validation only applies in provider_assigned status',
+                'message' => 'PIN validation only applies in on_site status',
             ];
         }
 
@@ -172,20 +222,22 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             ];
         }
 
-        // PIN is valid — clean up metadata and transition to DISPATCHED
+        // PIN is valid — clean up metadata and transition to SERVICE_IN_PROGRESS
         $assistanceCase['pin_validated_at'] = Carbon::now()->toISOString();
+        $assistanceCase['status'] = MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug();
+        $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
         unset($assistanceCase['pin_attempt'], $assistanceCase['pin_validation_error']);
         $this->saveAssistanceCaseMetadata($order, $metadata, $assistanceCase);
 
         $order->transitionToStatus(
-            auth()->user(),
-            MovipassOrderStatusEnum::DISPATCHED->slug(),
+            Users::getById((int) $order->users_id),
+            MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug(),
         );
 
         return [
             'order' => $order->getId(),
             'status' => 'success',
-            'message' => 'PIN validated, order transitioned to dispatched',
+            'message' => 'PIN validated, order transitioned to service_in_progress',
         ];
     }
 

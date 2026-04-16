@@ -38,8 +38,7 @@ class TerminateAgentOnMachineAction
             $systemUser = $this->deployment->system_user;
 
             $result = $client->exec(
-                'sudo -u ' . escapeshellarg($systemUser)
-                . ' bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose down --rmi local 2>&1')
+                'sudo bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose down --rmi local 2>&1')
                 . '; echo "EXIT_CODE:$?"',
                 900,
             );

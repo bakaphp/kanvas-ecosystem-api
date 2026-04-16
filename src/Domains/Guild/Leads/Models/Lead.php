@@ -724,7 +724,9 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         $aiMode = $this->get(EnumsConfigurationEnum::AI_MODE->value);
 
-        return $aiMode === IntelligenceModeEnum::OFF->value;
+        $mode = IntelligenceModeEnum::tryFrom((string) $aiMode);
+
+        return $mode?->isOff() ?? false;
     }
 
     public function canRunAiAgent(): bool

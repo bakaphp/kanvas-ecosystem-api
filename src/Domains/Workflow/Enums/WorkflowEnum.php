@@ -41,6 +41,7 @@ enum WorkflowEnum: string
     case HANDOFF = 'handoff';
     case FAKE_CONTEXT = 'fake-context';
     case UPDATE_USER_PROFILE = 'update-user-profile';
+    case DECODE = 'decode';
 
     case CONTACT_SAVED = 'contact-saved';
     case TRIGGER_AI = 'trigger-ai';
@@ -48,6 +49,7 @@ enum WorkflowEnum: string
     case SUBSCRIPTION_LIFECYCLE = 'subscription-lifecycle';
     case FOLLOW_UP_PROMPT = 'follow-up-prompt';
     case DEBUG = 'debug';
+    case NOTIFICATION = 'notify';
 
     /**
      * Get the enum case by its value.

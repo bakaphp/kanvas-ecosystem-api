@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Follows\Notifications;
 
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Notification;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Follows\Enums\NotificationTemplateEnum;
@@ -25,10 +24,6 @@ class NewFollowerNotification extends Notification
         $this->setPushTemplateName(NotificationTemplateEnum::PUSH_NEW_FOLLOWER->value);
         $this->setInteraction(InteractionEnum::FOLLOW->getValue());
         $this->setData($data);
-        $this->channels = [
-            //NotificationChannelEnum::getNotificationChannelBySlug('mail'),
-            NotificationChannelEnum::getNotificationChannelBySlug('push'),
-            NotificationChannelEnum::getNotificationChannelBySlug('database'),
-        ];
+        $this->channels = ['push', 'database'];
     }
 }
