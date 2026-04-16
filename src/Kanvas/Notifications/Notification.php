@@ -81,6 +81,21 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     }
 
     /**
+     * Set notification channels using slugs (mail, email, push, expo, sms, database, twilio).
+     * Validates each slug against NotificationChannelEnum.
+     */
+    public function setChannels(string ...$channels): self
+    {
+        foreach ($channels as $channel) {
+            NotificationChannelEnum::getNotificationChannelBySlug($channel);
+        }
+
+        $this->channels = $channels;
+
+        return $this;
+    }
+
+    /**
      * @return array<array-key, mixed>
      */
     public function via(object $notifiable): array
@@ -104,7 +119,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
         $toEmail = $this->resolveRecipientEmail($notifiable);
 
-        $mailMessage = (new KanvasMailable($mailConfig, $this->getEmailContent()))
+        $mailMessage = new KanvasMailable($mailConfig, $this->getEmailContent())
             ->from($fromMail['address'], $fromMail['name'])
             ->to($toEmail)
             ->subject($this->subject ?? $this->getNotificationTitle() ?? $this->app->name . ' Notification');

@@ -7,15 +7,12 @@ namespace Kanvas\ActionEngine\Engagements\Notifications;
 use Illuminate\Notifications\Slack\SlackMessage;
 use Kanvas\ActionEngine\Engagements\Enums\NotificationTemplateEnum;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
-use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
 use Kanvas\Notifications\Notification;
 use Kanvas\Templates\Enums\EmailTemplateEnum as EnumsEmailTemplateEnum;
 
 class EngagementStatusChangedNotification extends Notification
 {
-    public array $channels = [
-        OneSignalNotificationChannel::class,
-    ];
+    public array $channels = ['push'];
     public string $slackChannel;
 
     public function __construct(

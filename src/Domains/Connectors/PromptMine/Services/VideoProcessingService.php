@@ -18,7 +18,7 @@ use Kanvas\Connectors\PromptMine\Notifications\VideoProcessingPushNotification;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
+
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
 use Kanvas\Social\Messages\Models\Message;
@@ -94,10 +94,7 @@ class VideoProcessingService
     public function failedNotification(array $result, array $params): void
     {
         //send notification
-        $endViaList = array_map(
-            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-            $params['via'] ?? ['push']
-        );
+        $endViaList = $params['via'] ?? ['push'];
         $errorProcessingVideoNotification = new VideoProcessingPushNotification(
             user: $this->entity->user,
             entity: $this->entity,
@@ -350,10 +347,7 @@ class VideoProcessingService
         $this->entity->is_public = 1;
         $this->entity->save();
 
-        $endViaList = array_map(
-            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-            $params['via'] ?? ['database']
-        );
+        $endViaList = $params['via'] ?? ['database'];
 
         $title = trim($title);
 
@@ -505,10 +499,7 @@ PROMPT
         } catch (Throwable $e) {
             //report($e);
             try {
-                $endViaList = array_map(
-                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                    $params['via'] ?? ['push']
-                );
+                $endViaList = $params['via'] ?? ['push'];
                 $errorProcessingVideoNotification = new VideoProcessingPushNotification(
                     user: $message->user,
                     entity: $message,
