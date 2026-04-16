@@ -148,10 +148,10 @@ class GoogleADKService
                 'new_message' => [
                     'role' => 'user',
                     'parts' => [['text' => $message]],
+                    ],
                     // 'stateDelta' => [
                     //     'current_user_id' => $user ? $user->id : '',
                     // ],
-                ],
             ],
             'stream' => true,
         ]);
