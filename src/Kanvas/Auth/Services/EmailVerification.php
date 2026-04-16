@@ -95,7 +95,7 @@ class EmailVerification
 
     public function generateToken(Users $user): string
     {
-        $ttlHours = (int) ($this->app->get((string) AppSettingsEnums::EMAIL_VERIFICATION_LINK_TTL_HOURS->getValue()) ?: 24);
+        $ttlHours = (int) ($this->app->get((string) AppSettingsEnums::EMAIL_VERIFICATION_LINK_TTL_HOURS->getValue()) ?? 24);
 
         $payload = [
             'user_id' => $user->getId(),

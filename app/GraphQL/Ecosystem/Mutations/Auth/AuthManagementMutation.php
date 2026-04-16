@@ -255,7 +255,7 @@ class AuthManagementMutation
 
     public function verifyEmail(mixed $rootValue, array $request): bool
     {
-        return (new EmailVerificationService())->verify($request['token']);
+        return new EmailVerificationService()->verify($request['token']);
     }
 
     public function resendVerificationEmail(mixed $rootValue, array $request): bool
@@ -273,7 +273,7 @@ class AuthManagementMutation
 
         RateLimiter::hit($rateLimitKey, $decaySeconds);
 
-        return (new EmailVerificationService($app))->send($user);
+        return new EmailVerificationService($app)->send($user);
     }
 
     protected function enforceRegistrationRateLimit(Apps $app): void
