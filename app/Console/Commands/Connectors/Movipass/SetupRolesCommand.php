@@ -93,7 +93,7 @@ class SetupRolesCommand extends Command
             'list-paso-rapido' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
-                MovipassRolesEnum::RDVialConsultant,
+                MovipassRolesEnum::RDVIAL_CONSULTANT,
             ],
         ];
 

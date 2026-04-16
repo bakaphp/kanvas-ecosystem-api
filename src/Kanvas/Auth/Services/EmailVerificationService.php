@@ -17,15 +17,18 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Throwable;
 
-class EmailVerification
+class EmailVerificationService
 {
-    protected Apps $app;
-
-    public function __construct(?Apps $app = null)
+    public function __construct(protected Apps $app)
     {
-        $this->app = $app ?? app(Apps::class);
     }
 
+    /**
+     * Send the verification email.
+     *
+     * Returns `false` both when the profile is already verified (no-op) and when the notification fails.
+     * Callers that need to distinguish the two should check `is_verified` separately before calling.
+     */
     public function send(Users $user): bool
     {
         $profile = UsersAssociatedApps::fromApp($this->app)
@@ -95,7 +98,7 @@ class EmailVerification
 
     public function generateToken(Users $user): string
     {
-        $ttlHours = (int) ($this->app->get((string) AppSettingsEnums::EMAIL_VERIFICATION_LINK_TTL_HOURS->getValue()) ?: 24);
+        $ttlHours = (int) ($this->app->get((string) AppSettingsEnums::EMAIL_VERIFICATION_LINK_TTL_HOURS->getValue()) ?? 24);
 
         $payload = [
             'user_id' => $user->getId(),

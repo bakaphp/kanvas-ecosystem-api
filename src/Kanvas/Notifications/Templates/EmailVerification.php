@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Templates;
 
-use Kanvas\Auth\Services\EmailVerification as EmailVerificationService;
+use Kanvas\Auth\Services\EmailVerificationService;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Notifications\Notification;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
@@ -23,13 +23,13 @@ class EmailVerification extends Notification
 
         /** @var Users $user */
         $user = $this->toUser;
-        $token = (new EmailVerificationService($this->app))->generateToken($user);
+        $token = new EmailVerificationService($this->app)->generateToken($user);
 
         $separator = str_contains($baseUrl, '?') ? '&' : '?';
 
         return [
             ...parent::getData(),
-            'verifyUrl' => $baseUrl . $separator . 'token=' . urlencode($token),
+            'verifyUrl' => $baseUrl . $separator . 'token=' . rawurlencode($token),
         ];
     }
 }

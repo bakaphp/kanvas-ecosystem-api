@@ -6,7 +6,7 @@ namespace Tests\GraphQL\Ecosystem;
 
 use Kanvas\Apps\Actions\SyncEmailTemplateAction;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Auth\Services\EmailVerification as EmailVerificationService;
+use Kanvas\Auth\Services\EmailVerificationService;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Users\Models\Users;
@@ -35,7 +35,7 @@ class EmailVerificationTest extends TestCase
 
         $this->unverifyUser($user, $app);
 
-        $token = (new EmailVerificationService($app))->generateToken($user);
+        $token = new EmailVerificationService($app)->generateToken($user);
 
         $this->graphQL('
             mutation VerifyEmail($token: String!) {
@@ -66,7 +66,7 @@ class EmailVerificationTest extends TestCase
         $profile->is_verified = 1;
         $profile->saveOrFail();
 
-        $token = (new EmailVerificationService($app))->generateToken($user);
+        $token = new EmailVerificationService($app)->generateToken($user);
 
         $this->graphQL('
             mutation VerifyEmail($token: String!) {
@@ -94,7 +94,7 @@ class EmailVerificationTest extends TestCase
 
         $app->set(AppSettingsEnums::EMAIL_VERIFICATION_LINK_TTL_HOURS->getValue(), 0);
 
-        $token = (new EmailVerificationService($app))->generateToken($user);
+        $token = new EmailVerificationService($app)->generateToken($user);
 
         $app->del(AppSettingsEnums::EMAIL_VERIFICATION_LINK_TTL_HOURS->getValue());
 

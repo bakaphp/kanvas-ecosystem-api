@@ -15,7 +15,7 @@ use Kanvas\Auth\Actions\SocialLoginAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\AuthenticationService;
-use Kanvas\Auth\Services\EmailVerification as EmailVerificationService;
+use Kanvas\Auth\Services\EmailVerificationService;
 use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
 use Kanvas\Auth\Socialite\SocialManager;
 use Kanvas\Auth\Traits\AuthTrait;
@@ -254,7 +254,7 @@ class AuthManagementMutation
 
     public function verifyEmail(mixed $rootValue, array $request): bool
     {
-        return (new EmailVerificationService())->verify($request['token']);
+        return new EmailVerificationService(app(Apps::class))->verify($request['token']);
     }
 
     public function resendVerificationEmail(mixed $rootValue, array $request): bool
@@ -272,6 +272,6 @@ class AuthManagementMutation
 
         RateLimiter::hit($rateLimitKey, $decaySeconds);
 
-        return (new EmailVerificationService($app))->send($user);
+        return new EmailVerificationService($app)->send($user);
     }
 }
