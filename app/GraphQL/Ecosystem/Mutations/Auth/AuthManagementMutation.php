@@ -7,6 +7,7 @@ namespace App\GraphQL\Ecosystem\Mutations\Auth;
 use Baka\Support\IPInfo;
 use Baka\Validations\PasswordValidation;
 use GraphQL\Type\Definition\ResolveInfo;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
@@ -33,11 +34,6 @@ use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
-use Sentry\Severity;
-use Sentry\State\Scope;
-
-use function Sentry\captureMessage;
-use function Sentry\withScope;
 
 class AuthManagementMutation
 {
@@ -71,19 +67,15 @@ class AuthManagementMutation
         //$userApp = $user->getAppProfile($app);
         $logLogin = $app->get('log_login_attempts');
         if ($logLogin) {
-            withScope(function (Scope $scope) use ($user, $app, $email, $request, $deviceId): void {
-                $scope->setLevel(Severity::info());
-                $scope->setContext('2fa_login_triggered', [
-                    'user_id' => $user->getId(),
-                    'email' => $email,
-                    'app_id' => $app->getId(),
-                    'app_name' => $app->name,
-                    'ip' => IPInfo::getClientIp($request),
-                    'device_id' => $deviceId,
-                    'user_agent' => $request->userAgent(),
-                ]);
-                captureMessage('2FA triggered on login - user has phone number and requires verification');
-            });
+            Log::info('auth.2fa_login_triggered', [
+                'user_id' => $user->getId(),
+                'email' => $email,
+                'app_id' => $app->getId(),
+                'app_name' => $app->name,
+                'ip' => IPInfo::getClientIp($request),
+                'device_id' => $deviceId,
+                'user_agent' => $request->userAgent(),
+            ]);
         }
 
         return $user->createToken(
@@ -285,17 +277,13 @@ class AuthManagementMutation
         if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
             $seconds = RateLimiter::availableIn($key);
 
-            withScope(function (Scope $scope) use ($app, $ip, $maxAttempts): void {
-                $scope->setLevel(Severity::warning());
-                $scope->setContext('registration_rate_limit', [
-                    'app_id' => $app->getId(),
-                    'app_name' => $app->name,
-                    'ip' => $ip,
-                    'max_attempts' => $maxAttempts,
-                    'user_agent' => request()->userAgent(),
-                ]);
-                captureMessage('Registration rate limit exceeded — possible spam signup attempt');
-            });
+            Log::warning('auth.registration_rate_limit_exceeded', [
+                'app_id' => $app->getId(),
+                'app_name' => $app->name,
+                'ip' => $ip,
+                'max_attempts' => $maxAttempts,
+                'user_agent' => request()->userAgent(),
+            ]);
 
             throw LaravelValidationException::withMessages([
                 'email' => ["Too many registration attempts. Please try again in {$seconds} seconds."],
