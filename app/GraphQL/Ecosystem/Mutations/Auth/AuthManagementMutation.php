@@ -7,6 +7,7 @@ namespace App\GraphQL\Ecosystem\Mutations\Auth;
 use Baka\Support\IPInfo;
 use Baka\Validations\PasswordValidation;
 use GraphQL\Type\Definition\ResolveInfo;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 use Kanvas\Apps\Models\Apps;
@@ -15,12 +16,14 @@ use Kanvas\Auth\Actions\SocialLoginAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\AuthenticationService;
+use Kanvas\Auth\Services\EmailVerificationService;
 use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
 use Kanvas\Auth\Socialite\SocialManager;
 use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Enums\UserConfigEnum;
@@ -247,5 +250,28 @@ class AuthManagementMutation
         $user->reset($request['data']['new_password'], $request['data']['hash_key']);
 
         return true;
+    }
+
+    public function verifyEmail(mixed $rootValue, array $request): bool
+    {
+        return new EmailVerificationService(app(Apps::class))->verify($request['token']);
+    }
+
+    public function resendVerificationEmail(mixed $rootValue, array $request): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $rateLimitKey = 'email-verification-resend:' . $app->getId() . ':' . $user->getId();
+        $maxAttempts = 4;
+        $decaySeconds = 28800;
+
+        if (RateLimiter::tooManyAttempts($rateLimitKey, $maxAttempts)) {
+            throw new ValidationException('Too many verification requests. Please try again later.');
+        }
+
+        RateLimiter::hit($rateLimitKey, $decaySeconds);
+
+        return new EmailVerificationService($app)->send($user);
     }
 }
