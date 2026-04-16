@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "15f62c83836c41fefbe9df4b64a1cff8",
+    "content-hash": "e66cde043faeecef72b339a6aa6dbad4",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -4044,16 +4044,16 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v0.5.1",
+            "version": "v0.6.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "bf16555eebc2d78efcc4fa2367a476a91b2e508b"
+                "reference": "4f9e21562ec1872620084d1d3c793d78ce0d8292"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/bf16555eebc2d78efcc4fa2367a476a91b2e508b",
-                "reference": "bf16555eebc2d78efcc4fa2367a476a91b2e508b",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/4f9e21562ec1872620084d1d3c793d78ce0d8292",
+                "reference": "4f9e21562ec1872620084d1d3c793d78ce0d8292",
                 "shasum": ""
             },
             "require": {
@@ -4108,7 +4108,7 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-04-10T18:49:05+00:00"
+            "time": "2026-04-16T15:17:28+00:00"
         },
         {
             "name": "laravel/cashier",
