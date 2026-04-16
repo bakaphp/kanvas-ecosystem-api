@@ -6,7 +6,6 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Support\Collection;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Movipass\Notifications\ExpiringReservationPushNotification;
-
 use Kanvas\Souk\Orders\Models\Order;
 
 class CheckExpiringOrders

@@ -20,7 +20,6 @@ use Kanvas\Connectors\PromptMine\Services\ImageFilterService;
 use Kanvas\Connectors\PromptMine\Services\VideoCreationService;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
-
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;

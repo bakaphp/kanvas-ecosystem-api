@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Connectors\PromptMine\Enums\NotificationTypesEnum;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
-
 use Kanvas\Social\Messages\Notifications\NewMessageNotification;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
