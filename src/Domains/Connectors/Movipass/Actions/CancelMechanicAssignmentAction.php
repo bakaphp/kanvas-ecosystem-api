@@ -9,8 +9,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
-use Kanvas\Connectors\Movipass\Events\AssistanceRequestedEvent;
 use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
+use Kanvas\Connectors\Movipass\Jobs\RetryNotifyMechanicsJob;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
@@ -95,8 +95,15 @@ class CancelMechanicAssignmentAction
             $cancelledIds = $order->metadata['assistance_case']['cancelled_mechanic_ids'] ?? [];
             new NotifyAvailableMechanicsAction($order, $this->app, $this->mechanic, $cancelledIds)->execute();
         } catch (ValidationException) {
-            // No mechanics available right now — notify operators so they can intervene manually.
-            AssistanceRequestedEvent::dispatch($order);
+            // No mechanics available right now — schedule retries with a delay.
+            RetryNotifyMechanicsJob::dispatch(
+                $order,
+                $this->mechanic,
+                $cancelledIds,
+                attempt: 1,
+                maxAttempts: 3,
+                retryDelayMinutes: 1,
+            )->delay(now()->addMinutes(1));
         }
 
         return $order->refresh();
