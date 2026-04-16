@@ -45,7 +45,7 @@ class LeadNotification extends Notification
             'message' => $this->message,
             'title' => 'Reminder Notification',
             'subtitle' => $this->lead->people->name,
-            'apps_id' => $this->lead->entity->getId(),
+            'apps_id' => $this->lead->app->getId(),
             'data' => [
                 'lead_id' => $this->lead->getId(),
             ],
