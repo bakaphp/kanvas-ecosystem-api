@@ -268,9 +268,6 @@ class LaunchAgentOnMachineAction
             && ! in_array($deployment->proxy_port, $listeningPorts, true);
     }
 
-    /**
-     * @return array<int, int>
-     */
     private function getListeningPortsOnMachine(SshClient $client): array
     {
         $result = $client->exec("sudo ss -ltnH | awk '{print \$4}' | grep -oE '[0-9]+$' | sort -un");
@@ -360,9 +357,6 @@ class LaunchAgentOnMachineAction
         throw new ValidationException('No available ports on machine: ' . $this->machine->name);
     }
 
-    /**
-     * @return array<int, int>
-     */
     private function getReservedPortsForMachine(AgentDeployment $deployment): array
     {
         $deployments = AgentDeployment::where('agent_machine_id', $this->machine->getId())
@@ -374,11 +368,6 @@ class LaunchAgentOnMachineAction
         return $this->flattenDeploymentPorts($deployments);
     }
 
-    /**
-     * @param Collection<int, AgentDeployment> $deployments
-     *
-     * @return array<int, int>
-     */
     private function flattenDeploymentPorts(Collection $deployments): array
     {
         return $deployments
