@@ -53,8 +53,10 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
 
     public array $channels = ['mail'];
 
-    public function __construct(Model|NotificationTypes $entity, array $options = [])
-    {
+    public function __construct(
+        Model|NotificationTypes $entity,
+        array $options = []
+    ) {
         $this->onQueue('notifications');
         $this->entity = $entity;
         $this->app = $this->resolveApp($entity, $options);
@@ -111,7 +113,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         return $channels;
     }
 
-    public function toMail($notifiable): Mailable
+    public function toMail(object $notifiable): Mailable
     {
         $smtpConfig = new SmtpRuntimeConfiguration($this->app, $this->company);
         $mailConfig = $smtpConfig->loadSmtpSettings();
@@ -244,7 +246,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         }
     }
 
-    private function resolveRecipientEmail($notifiable): array|string
+    private function resolveRecipientEmail(object $notifiable): array|string
     {
         $primaryEmail = $notifiable instanceof AnonymousNotifiable
             ? $notifiable->routes['mail']
