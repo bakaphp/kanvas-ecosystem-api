@@ -603,6 +603,7 @@ class Sync{Entity}Activity extends KanvasActivity
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::{CONNECTOR},
+            additionalParams: $params,
             integrationOperation: function () use ($entity) {
                 return new Sync{Entity}Action($entity)->execute();
             },
@@ -611,6 +612,8 @@ class Sync{Entity}Activity extends KanvasActivity
     }
 }
 ```
+
+**Important:** Always pass `additionalParams: $params` to `executeIntegration()`. Without it, the system cannot retry the activity with the correct parameters.
 
 ### 7. GraphQL Setup Mutation
 

@@ -12,6 +12,7 @@ use Kanvas\Payments\Actions\CreatePaymentMethodAction;
 use Kanvas\Payments\Actions\UpdatePaymentMethodAction;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
 use Kanvas\Payments\Models\PaymentMethods;
+use Kanvas\Souk\Payments\Contracts\ActivationProcessorInterface;
 
 class PaymentMethodMutation
 {
@@ -176,6 +177,35 @@ class PaymentMethodMutation
         }
 
         return $paymentMethod->delete();
+    }
+
+    public function activatePaymentMethod(mixed $root, array $request): PaymentMethods
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $paymentMethod = PaymentMethods::fromCompany($company)->fromApp($app)->where([
+            'id' => $request['id'],
+        ])->firstOrFail();
+
+        if (empty($paymentMethod->processor)) {
+            throw new ValidationException('Payment method has no processor configured');
+        }
+
+        $processor = app("payment.{$paymentMethod->processor}");
+
+        if (! $processor instanceof ActivationProcessorInterface) {
+            throw new ValidationException("Processor '{$paymentMethod->processor}' does not support activation");
+        }
+
+        $result = $processor->activatePaymentMethod($paymentMethod, $request['activation_code']);
+
+        if (! $result->success) {
+            throw new ValidationException($result->message);
+        }
+
+        return $paymentMethod->refresh();
     }
 
     public function guessCardBrand(string $number): ?string

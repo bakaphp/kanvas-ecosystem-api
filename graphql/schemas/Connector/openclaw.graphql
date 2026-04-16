@@ -1,3 +1,61 @@
+type AgentDeploymentEvent {
+    "Auto-increment primary key"
+    id: ID!
+    "ID of the AgentDeployment this event belongs to"
+    deployment_id: ID!
+    "One of: gateway_down | gateway_up | health_fail | health_recover | session_started | agent_unreachable"
+    event_type: String!
+    "JSON-encoded map of contextual values that triggered the event (previous/current states, counts, errors)"
+    payload: String
+    "ISO-8601 timestamp when the event occurred"
+    occurred_at: String!
+}
+
+type AgentLogEntry {
+    "ISO-8601 timestamp from the log line, empty string when unavailable"
+    ts: String!
+    "Log level: debug | info | warn | error"
+    level: String!
+    "Human-readable log message"
+    msg: String!
+    "JSON-encoded map of any extra structured fields present in the log line"
+    meta: String
+}
+
+extend type Query @guardByAdmin {
+    agentCurrentTelemetry(deployment_id: ID!): AgentTelemetryData
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Queries\\AgentTelemetryQuery"
+        )
+
+    agentDeploymentLogs(
+        "ID of the AgentDeployment to fetch logs for"
+        deployment_id: ID!
+        "Maximum number of log lines to return (default 100, max 500)"
+        limit: Int
+    ): [AgentLogEntry!]!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Queries\\AgentDeploymentLogsQuery"
+        )
+
+    agentDeploymentEvents(
+        "ID of the AgentDeployment to fetch events for"
+        deployment_id: ID!
+        "Maximum number of events to return, newest first (default 50, max 200)"
+        limit: Int
+    ): [AgentDeploymentEvent!]!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Queries\\AgentDeploymentEventsQuery"
+        )
+}
+
+extend type Subscription {
+    agentTelemetry(deployment_id: ID!): AgentTelemetryData
+        @subscription(
+            class: "App\\GraphQL\\Connector\\OpenClaw\\Subscriptions\\AgentTelemetrySubscription"
+        )
+}
+
 extend type Mutation @guardByAdmin {
     openclawCreateMachine(input: AgentMachineInput!): AgentMachineType!
         @field(

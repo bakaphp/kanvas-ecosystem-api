@@ -10,7 +10,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\PromptMine\Notifications\SpotlightCreatorCreditPushNotification;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 
@@ -121,10 +120,7 @@ class CreditSpotlightCreatorsCommand extends Command
 
     private function sendCreatorCreditNotification(Message $entity, array $params): void
     {
-        $endViaList = array_map(
-            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-            $params['via'] ?? ['database']
-        );
+        $endViaList = $params['via'] ?? ['database'];
         $errorProcessingImageNotification = new SpotlightCreatorCreditPushNotification(
             user: $entity->user,
             entity: $entity,

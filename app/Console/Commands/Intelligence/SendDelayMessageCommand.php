@@ -101,7 +101,8 @@ class SendDelayMessageCommand extends Command
 
         $this->info('Processing lead name ' . $lead->people->name . ' for message ID ' . $message->getId());
 
-        if ($lead->get('ai_mode') == IntelligenceModeEnum::OFF->value) {
+        $aiMode = IntelligenceModeEnum::tryFrom((string) $lead->get('ai_mode'));
+        if ($aiMode?->isOff()) {
             $message->setUnlock();
             $this->error('AI Mode OFF for Lead ID ' . $lead->getId());
 

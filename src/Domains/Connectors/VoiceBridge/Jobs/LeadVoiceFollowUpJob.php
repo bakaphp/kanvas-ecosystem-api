@@ -19,6 +19,7 @@ use Kanvas\Connectors\VoiceBridge\Services\VoiceBridgeService;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\AgentEnum;
 use Throwable;
 
 class LeadVoiceFollowUpJob implements ShouldQueue
@@ -64,7 +65,7 @@ class LeadVoiceFollowUpJob implements ShouldQueue
         try {
             $agent = Agent::fromApp($app)
                 ->fromCompany($this->lead->company)
-                ->where('name', 'voiceOutreachAgent')
+                ->where('name', AgentEnum::VOICE_OUTREACH->value)
                 ->firstOrFail();
 
             InitVoiceSessionAction::fromLead($this->lead, $agent)->execute();

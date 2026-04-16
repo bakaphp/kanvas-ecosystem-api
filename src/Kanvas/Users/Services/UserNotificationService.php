@@ -8,7 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Auth\Services\EmailVerificationService;
+use Kanvas\Auth\Services\EmailVerification as EmailVerificationService;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Notifications\Templates\CreateUserTemplate;
@@ -74,7 +74,7 @@ class UserNotificationService
                 return;
             }
 
-            new EmailVerificationService($app)->send($user);
+            (new EmailVerificationService($app))->send($user);
         } catch (Throwable $e) {
             //no email sent
         }

@@ -41,6 +41,7 @@ enum WorkflowEnum: string
     case HANDOFF = 'handoff';
     case FAKE_CONTEXT = 'fake-context';
     case UPDATE_USER_PROFILE = 'update-user-profile';
+    case DECODE = 'decode';
 
     case CONTACT_SAVED = 'contact-saved';
     case TRIGGER_AI = 'trigger-ai';
