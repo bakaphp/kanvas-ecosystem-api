@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Actions;
 
+use Illuminate\Support\Str;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentResponderAction;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
@@ -41,7 +42,7 @@ class AIAssistAgentResponderAction extends BaseAgentResponderAction
 
         $onChunk = function ($text, $data): void {
             $this->createMessage(
-                $text,
+                Str::markdown($text),
                 'ai-assist',
                 $this->message,
                 $this->channel
