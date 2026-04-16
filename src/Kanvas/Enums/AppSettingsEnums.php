@@ -37,6 +37,10 @@ enum AppSettingsEnums implements EnumsInterface
     case INACTIVE_ACCOUNT_ERROR_MESSAGE;
     case INACTIVE_COMPANY_ACCOUNT_ERROR_MESSAGE;
     case RESET_PASSWORD_EMAIL_SUBJECT;
+    case SEND_EMAIL_VERIFICATION;
+    case EMAIL_VERIFICATION_LINK_URL;
+    case EMAIL_VERIFICATION_LINK_TTL_HOURS;
+    case EMAIL_VERIFICATION_EMAIL_SUBJECT;
     case FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME;
     case FILESYSTEM_MAPPER_HEADER_VALIDATION;
     case NOTIFICATION_FROM_USER_ID;
@@ -80,6 +84,10 @@ enum AppSettingsEnums implements EnumsInterface
             self::INACTIVE_ACCOUNT_ERROR_MESSAGE => 'inactive_account_error_message',
             self::INACTIVE_COMPANY_ACCOUNT_ERROR_MESSAGE => 'inactive_company_account_error_message',
             self::RESET_PASSWORD_EMAIL_SUBJECT => 'reset_password_email_subject',
+            self::SEND_EMAIL_VERIFICATION => 'send_email_verification',
+            self::EMAIL_VERIFICATION_LINK_URL => 'app_email_verification_link_url',
+            self::EMAIL_VERIFICATION_LINK_TTL_HOURS => 'email_verification_link_ttl_hours',
+            self::EMAIL_VERIFICATION_EMAIL_SUBJECT => 'email_verification_email_subject',
             self::FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME => 'filesystem_allow_duplicate_files_by_name',
             self::FILESYSTEM_MAPPER_HEADER_VALIDATION => 'filesystem_mapper_header_validation',
             self::NOTIFICATION_FROM_USER_ID => 'notification_from_user_id',

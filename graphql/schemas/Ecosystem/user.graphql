@@ -234,6 +234,15 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@reset"
         )
+    verifyEmail(token: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@verifyEmail"
+        )
+    resendVerificationEmail: Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@resendVerificationEmail"
+        )
     updateUser(id: ID!, data: UpdateUserInput!): User!
         @guard
         @field(
