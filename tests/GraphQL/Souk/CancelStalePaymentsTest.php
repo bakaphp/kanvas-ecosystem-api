@@ -7,7 +7,6 @@ namespace Tests\GraphQL\Souk;
 use Illuminate\Support\Carbon;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Payments\Actions\CancelStalePaymentsAction;
-use Kanvas\Souk\Payments\Actions\LogPaymentEventAction;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 
 class CancelStalePaymentsTest extends OrderBase
@@ -294,5 +293,48 @@ class CancelStalePaymentsTest extends OrderBase
 
         $payment->refresh();
         $this->assertEquals(PaymentStatusEnum::PROCESSING->value, $payment->status);
+    }
+
+    public function testOrderPaymentLogsExcludeDeletedPayments(): void
+    {
+        $order = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => []],
+        );
+
+        $activePayment = $order->payments()->create([
+            'amount' => $order->getTotalAmount(),
+            'payment_date' => now()->toDateString(),
+            'concept' => 'Active payment',
+            'users_id' => $this->user->getId(),
+            'companies_id' => $order->companies_id,
+            'apps_id' => $this->apps->getId(),
+            'status' => PaymentStatusEnum::PAID->value,
+            'payment_method' => 'card',
+        ]);
+
+        $activePayment->addLog('payment_authorized', ['message' => 'Active']);
+
+        $deletedPayment = $order->payments()->create([
+            'amount' => $order->getTotalAmount(),
+            'payment_date' => now()->toDateString(),
+            'concept' => 'Deleted payment',
+            'users_id' => $this->user->getId(),
+            'companies_id' => $order->companies_id,
+            'apps_id' => $this->apps->getId(),
+            'status' => PaymentStatusEnum::CANCELLED->value,
+            'payment_method' => 'card',
+        ]);
+
+        $deletedPayment->newModelQuery()->where('id', $deletedPayment->id)->update(['is_deleted' => 1]);
+
+        $deletedPayment->addLog('cancelled_stale', ['message' => 'Deleted']);
+
+        $logs = $order->paymentLogs;
+
+        $logPaymentIds = $logs->pluck('payments_id')->unique()->toArray();
+        $this->assertContains($activePayment->id, $logPaymentIds);
+        $this->assertNotContains($deletedPayment->id, $logPaymentIds);
     }
 }
