@@ -138,11 +138,32 @@ class SshClient
         return $this->sftp->put($remotePath, $content);
     }
 
+    /**
+     * Upload a local file to the remote machine via SFTP without loading it into memory.
+     * Use this instead of writeFile() for large files such as workspace archives.
+     */
+    public function uploadFromFile(string $remotePath, string $localPath): bool
+    {
+        $dir = dirname($remotePath);
+        $this->sftp->mkdir($dir, 0755, true);
+
+        return $this->sftp->put($remotePath, $localPath, SFTP::SOURCE_LOCAL_FILE);
+    }
+
     public function readFile(string $remotePath): string
     {
         $result = $this->sftp->get($remotePath);
 
         return is_string($result) ? $result : '';
+    }
+
+    /**
+     * Download a remote file to a local path via SFTP without loading it into memory.
+     * Use this instead of readFile() for large files such as workspace archives.
+     */
+    public function downloadToFile(string $remotePath, string $localPath): bool
+    {
+        return (bool) $this->sftp->get($remotePath, $localPath);
     }
 
     public function getOpenclawHome(): string

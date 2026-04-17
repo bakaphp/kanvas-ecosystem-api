@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Connector\OpenClaw\Mutations;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\OpenClaw\Jobs\UpdateOpenClawOnMachineJob;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentMachineAction;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentMachineAction;
@@ -78,5 +79,18 @@ class AgentMachineMutation
         }
 
         return $machine->softDelete();
+    }
+
+    public function updateContainers(mixed $root, array $request): bool
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var AgentMachine $machine */
+        $machine = AgentMachine::getByIdFromCompanyApp((int) $request['machine_id'], $company, $app);
+
+        UpdateOpenClawOnMachineJob::dispatch($machine);
+
+        return true;
     }
 }
