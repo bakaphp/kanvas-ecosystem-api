@@ -23,7 +23,7 @@ class EmailVerification extends Notification
 
         /** @var Users $user */
         $user = $this->toUser;
-        $token = (new EmailVerificationService($this->app))->generateToken($user);
+        $token = new EmailVerificationService($this->app)->generateToken($user);
 
         $separator = str_contains($baseUrl, '?') ? '&' : '?';
 
