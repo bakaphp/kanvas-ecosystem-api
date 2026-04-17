@@ -6,10 +6,11 @@ namespace Kanvas\Connectors\NetSuite\Actions;
 
 use Baka\Contracts\AppInterface;
 use Exception;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
-use Kanvas\Connectors\NetSuite\Services\NetSuiteProductSearchService;
 use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Variants\Models\Variants;
 use SoapFault;
 use Throwable;
 
@@ -18,8 +19,7 @@ class SyncAllNetSuiteCustomerItemsListAction
     public function __construct(
         protected AppInterface $app,
         protected bool $dryRun = false,
-        protected array $onlyBuyerIds = [],
-        protected string|int $savedSearchId = 576
+        protected array $onlyBuyerIds = []
     ) {
     }
 
@@ -33,12 +33,11 @@ class SyncAllNetSuiteCustomerItemsListAction
 
         $mainCompany = Companies::getById($mainCompanyId);
 
-        $searchService = app(NetSuiteProductSearchService::class, ['app' => $this->app, 'company' => $mainCompany]);
-        $netsuiteProducts = $searchService->searchWithSavedSearch($this->savedSearchId);
-        $totalProducts = count($netsuiteProducts);
+        $totalProducts = $this->buildNetSuiteVariantQuery($mainCompany)->count();
 
         $buyersQuery = Companies::getByCustomFieldBuilder(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value, null)
             ->where('companies.id', '!=', $mainCompany->getId())
+            ->where('companies.is_deleted', 0)
             ->whereIn('companies.id', function ($subquery) {
                 $subquery->select('companies_id')
                     ->from('user_company_apps')
@@ -65,7 +64,7 @@ class SyncAllNetSuiteCustomerItemsListAction
 
                 $channelFound = $channel !== null;
                 $channelCount = $channelFound
-                    ? $channel->productVariantChannels()->count()
+                    ? $this->countNetSuiteVariantsInChannel($mainCompany, $channel)
                     : 0;
 
                 $needsSync = ! $channelFound || $channelCount < $totalProducts;
@@ -137,6 +136,32 @@ class SyncAllNetSuiteCustomerItemsListAction
             'dry_run' => $this->dryRun,
             'results' => $results,
         ];
+    }
+
+    protected function buildNetSuiteVariantQuery(Companies $mainCompany)
+    {
+        return Variants::getByCustomFieldBuilder(
+            CustomFieldEnum::NET_SUITE_PRODUCT_ID->value,
+            null,
+            $mainCompany
+        )
+            ->where('products_variants.apps_id', $this->app->getId())
+            ->where('products_variants.companies_id', $mainCompany->getId())
+            ->where('products_variants.is_deleted', 0)
+            ->where('products_variants.is_published', 1);
+    }
+
+    protected function countNetSuiteVariantsInChannel(Companies $mainCompany, Channels $channel): int
+    {
+        return $this->buildNetSuiteVariantQuery($mainCompany)
+            ->whereExists(function ($query) use ($channel) {
+                $query->select(DB::raw(1))
+                    ->from('products_variants_channels')
+                    ->whereColumn('products_variants_channels.products_variants_id', 'products_variants.id')
+                    ->where('products_variants_channels.channels_id', $channel->getId())
+                    ->where('products_variants_channels.is_deleted', 0);
+            })
+            ->count();
     }
 
     protected function isNetSuiteRateLimitError(SoapFault $e): bool
