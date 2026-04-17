@@ -329,9 +329,10 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
             ];
 
-            $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
-            if ($mechanicId > 0 && in_array($toStatus, $refreshStatuses, true)) {
-                RefreshActiveAssistanceEvent::dispatch($order, $mechanicId);
+            if (in_array($toStatus, $refreshStatuses, true)) {
+                $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
+                $broadcastMechanicId = $mechanicId > 0 ? $mechanicId : (int) $order->users_id;
+                RefreshActiveAssistanceEvent::dispatch($order, $broadcastMechanicId);
             }
         }
 
