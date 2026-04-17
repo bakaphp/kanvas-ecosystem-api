@@ -1,0 +1,65 @@
+type LeadSubSource {
+    id: ID!
+    uuid: ID!
+    name: String!
+    source: LeadSource @belongsTo(relation: "source")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input LeadSubSourceInput {
+    leads_sources_id: ID!
+    name: String!
+}
+
+input UpdateLeadSubSourceInput {
+    leads_sources_id: ID
+    name: String
+}
+
+extend type Mutation @guard {
+    createLeadSubSource(input: LeadSubSourceInput!): LeadSubSource!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadSubSourceManagementMutation@create"
+        )
+
+    updateLeadSubSource(id: ID!, input: UpdateLeadSubSourceInput!): LeadSubSource!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadSubSourceManagementMutation@update"
+        )
+
+    deleteLeadSubSource(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadSubSourceManagementMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    subSources(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "name"
+                    "leads_sources_id"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "name"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+    ): [LeadSubSource!]!
+        @paginate(
+            model: "Kanvas\\Guild\\LeadSubSources\\Models\\LeadSubSource"
+            defaultCount: 25
+            scopes: ["fromCompany", "notDeleted"]
+        )
+}

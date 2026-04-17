@@ -81,6 +81,7 @@ type OrderPaymentByProvider {
 type OrderPaymentStateCount {
     date: String!
     count: Int!
+    totalAmount: Float!
     states: Mixed!
 }
 
@@ -159,6 +160,17 @@ input ProviderInput {
     emailPattern: String!
 }
 
+enum MetadataFilterOperator {
+    EQ
+    LIKE
+}
+
+input OrderMetadataFilter {
+    path: String!                                    # Dot-notation into orders.metadata (e.g. "data.paso_rapido_tag")
+    value: String!
+    operator: MetadataFilterOperator                 # Defaults to EQ when omitted
+}
+
 input OrderPaymentStatsInput {
     paidStates: [String!]
     variantId: Int # Filter by specific service/variant
@@ -175,6 +187,9 @@ input OrderPaymentStatsInput {
     periodBreakdown: PeriodType # Period type for time-series data in byPeriod (default: MONTH)
     provider_company_id: [ID!]   # DB-level filter: only orders linked to these provider companies via order_providers
     user_email: String # Filter by order user email
+    metadata: OrderMetadataFilter # Filter orders by a value at a specific metadata path (e.g. { path: "data.paso_rapido_tag", value: "01070877" })
+    reference: String # Filter by order reference (supports LIKE patterns)
+    orderNumber: String # Filter by exact order_number
 }
 
 input ExportOrderPaymentsInput {
@@ -185,9 +200,29 @@ input ExportOrderPaymentsInput {
     timezone: String
     language: String # "en" (default) or "es"
     fieldMapper: Mixed # keys = column headers, values = dot-notation field paths (e.g. {"Order": "order_number"})
+    user_email: String # Filter by order user email (supports LIKE patterns)
+}
+
+type OrderCommissionStats {
+    total_revenue: Float!
+    total_commission: Money!
+    total_provider_amount: Money!
+    order_count: Int!
+}
+
+input OrderCommissionStatsInput {
+    from: DateTime!
+    to: DateTime!
+    company_id: ID
+    order_type: String
+    provider_company_id: [ID!]
 }
 
 extend type Query @guard {
+    orderCommissionStats(input: OrderCommissionStatsInput!): OrderCommissionStats!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@commissionStats"
+        )
     orderStats(input: OrderStatsInput): OrderStats!
         @field(
             resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@getOrderStats"

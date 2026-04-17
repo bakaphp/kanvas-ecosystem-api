@@ -55,6 +55,7 @@ jobs:
             docker restart queue-social
             docker restart queue-user-interactions
             docker restart batch-logger-queue
+            docker restart openclaw-queue
             docker restart laravel-scheduler
 
             # Restart services with replicas (no specific container names)

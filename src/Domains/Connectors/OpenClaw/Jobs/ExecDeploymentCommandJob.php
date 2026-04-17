@@ -27,6 +27,7 @@ class ExecDeploymentCommandJob implements ShouldQueue
         protected string $command,
         protected string $sessionId,
     ) {
+        $this->onQueue('openclaw');
     }
 
     /**
@@ -58,6 +59,7 @@ class ExecDeploymentCommandJob implements ShouldQueue
                 0,
             );
         } catch (Throwable $e) {
+            report($e);
             DeploymentCommandCompletedEvent::dispatch(
                 $this->deployment->apps_id,
                 $this->deployment->companies_id,

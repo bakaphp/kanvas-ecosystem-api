@@ -10,7 +10,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\PromptMine\Notifications\FollowsRecommendationsPushNotication;
 use Kanvas\Connectors\Recombee\Actions\GenerateWhoToFollowRecommendationsAction;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Repositories\MessagesRepository;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -51,9 +50,7 @@ class PushFollowRecommendationNotificationCommand extends Command
             "You and @username have similar tastes! See their latest creation."
         ];
 
-        $via = [
-            NotificationChannelEnum::getNotificationChannelBySlug('push'),
-        ];
+        $via = ['push'];
         UsersAssociatedApps::fromApp($app)
             ->where('companies_id', 0)
             ->where('is_deleted', 0)

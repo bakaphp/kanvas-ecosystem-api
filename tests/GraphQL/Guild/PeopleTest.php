@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
+use Illuminate\Http\UploadedFile;
 use Kanvas\Guild\Customers\Models\People;
 use Tests\TestCase;
 
@@ -1704,5 +1705,296 @@ class PeopleTest extends TestCase
         $updatedPhone = $updatedContacts->where('contacts_types_id', 2)->first();
         $this->assertEquals($phoneContact->id, $updatedPhone->id, 'Phone ID should be preserved');
         $this->assertEquals(1, $updatedPhone->is_opt_out, 'Opt-out should be preserved when source does not send is_opt_out');
+    }
+
+    public function testUpdatePeoplePhoto(): void
+    {
+        $createResponse = $this->graphQL('
+            mutation($input: PeopleInput!) {
+                createPeople(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+            ],
+        ])->assertSuccessful();
+
+        $peopleId = $createResponse->json('data.createPeople.id');
+
+        $operations = [
+            'query' => '
+                mutation updatePeoplePhoto($id: ID!, $file: Upload!) {
+                    updatePeoplePhoto(id: $id, file: $file) {
+                        id
+                        name
+                        photo {
+                            name
+                            url
+                        }
+                    }
+                }
+            ',
+            'variables' => [
+                'id' => $peopleId,
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('people-photo.png', 100, 'image/png'),
+        ];
+
+        $this->multipartGraphQL($operations, $map, $file)
+            ->assertSuccessful()
+            ->assertJson([
+                'data' => [
+                    'updatePeoplePhoto' => [
+                        'id' => $peopleId,
+                    ],
+                ],
+            ]);
+    }
+
+    public function testUpdatePeopleContactsSyncPreservesIds(): void
+    {
+        $email = fake()->unique()->email();
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                ['value' => $email, 'contacts_types_id' => 1, 'weight' => 0],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->graphQL('
+            mutation($input: PeopleInput!) {
+                createPeople(input: $input) {
+                    id
+                    firstname
+                    lastname
+                    contacts { id value }
+                }
+            }
+        ', ['input' => $input]);
+
+        $peopleId = $response['data']['createPeople']['id'];
+        $contactId = $response['data']['createPeople']['contacts'][0]['id'];
+
+        // Update: keep contact, change email value
+        $newEmail = fake()->unique()->email();
+        $updateInput = [
+            'firstname' => $input['firstname'],
+            'lastname' => $input['lastname'],
+            'contacts' => [
+                ['id' => (int) $contactId, 'value' => $newEmail, 'contacts_types_id' => 1, 'weight' => 0],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $updateResponse = $this->graphQL('
+            mutation($id: ID!, $input: PeopleInput!) {
+                updatePeople(id: $id, input: $input) {
+                    id
+                    contacts { id value }
+                }
+            }
+        ', ['id' => $peopleId, 'input' => $updateInput])
+        ->assertSuccessful();
+
+        $contacts = $updateResponse->json('data.updatePeople.contacts');
+        $this->assertCount(1, $contacts);
+        $this->assertEquals($contactId, $contacts[0]['id'], 'Contact ID must be preserved');
+        $this->assertEquals($newEmail, $contacts[0]['value'], 'Contact value must be updated');
+    }
+
+    public function testUpdatePeopleContactsSyncRemovesDeleted(): void
+    {
+        $email1 = fake()->unique()->email();
+        $email2 = fake()->unique()->email();
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                ['value' => $email1, 'contacts_types_id' => 1, 'weight' => 0],
+                ['value' => $email2, 'contacts_types_id' => 1, 'weight' => 1],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->graphQL('
+            mutation($input: PeopleInput!) {
+                createPeople(input: $input) {
+                    id
+                    firstname
+                    lastname
+                    contacts { id value }
+                }
+            }
+        ', ['input' => $input]);
+
+        $peopleId = $response['data']['createPeople']['id'];
+        $createdContacts = $response['data']['createPeople']['contacts'];
+        $this->assertCount(2, $createdContacts, 'Both contacts must be created');
+        $contact1Id = $createdContacts[0]['id'];
+        $contact2Id = $createdContacts[1]['id'];
+
+        // Update: keep only first email, remove second
+        $updateInput = [
+            'firstname' => $input['firstname'],
+            'lastname' => $input['lastname'],
+            'contacts' => [
+                ['id' => (int) $contact1Id, 'value' => $email1, 'contacts_types_id' => 1, 'weight' => 0],
+            ],
+            'address' => [],
+            'custom_fields' => [],
+        ];
+
+        $updateResponse = $this->graphQL('
+            mutation($id: ID!, $input: PeopleInput!) {
+                updatePeople(id: $id, input: $input) {
+                    id
+                    contacts { id value }
+                }
+            }
+        ', ['id' => $peopleId, 'input' => $updateInput])
+        ->assertSuccessful();
+
+        $contacts = $updateResponse->json('data.updatePeople.contacts');
+        $this->assertCount(1, $contacts, 'Only the kept contact should remain');
+        $this->assertEquals($contact1Id, $contacts[0]['id'], 'Kept contact ID must be preserved');
+        $contactIds = array_column($contacts, 'id');
+        $this->assertNotContains($contact2Id, $contactIds, 'Removed contact must be deleted');
+    }
+
+    public function testUpdatePeopleAddressSyncPreservesIds(): void
+    {
+        $address1 = fake()->unique()->streetAddress();
+        $address2 = fake()->unique()->streetAddress();
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                ['value' => fake()->unique()->email(), 'contacts_types_id' => 1, 'weight' => 0],
+            ],
+            'address' => [
+                ['address' => $address1, 'city' => 'CityA', 'state' => 'StateA', 'zip' => '10001'],
+                ['address' => $address2, 'city' => 'CityB', 'state' => 'StateB', 'zip' => '20002'],
+            ],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->graphQL('
+            mutation($input: PeopleInput!) {
+                createPeople(input: $input) {
+                    id
+                    address { id address city }
+                }
+            }
+        ', ['input' => $input]);
+
+        $peopleId = $response->json('data.createPeople.id');
+        $addr1Id = $response->json('data.createPeople.address.0.id');
+        $addr2Id = $response->json('data.createPeople.address.1.id');
+
+        // Update: keep both addresses, change city on first
+        $updateInput = [
+            'firstname' => $input['firstname'],
+            'lastname' => $input['lastname'],
+            'contacts' => $input['contacts'],
+            'address' => [
+                ['id' => (int) $addr1Id, 'address' => $address1, 'city' => 'NewCityA', 'state' => 'StateA', 'zip' => '10001'],
+                ['id' => (int) $addr2Id, 'address' => $address2, 'city' => 'CityB', 'state' => 'StateB', 'zip' => '20002'],
+            ],
+            'custom_fields' => [],
+        ];
+
+        $updateResponse = $this->graphQL('
+            mutation($id: ID!, $input: PeopleInput!) {
+                updatePeople(id: $id, input: $input) {
+                    id
+                    address { id address city }
+                }
+            }
+        ', ['id' => $peopleId, 'input' => $updateInput])
+        ->assertSuccessful();
+
+        $addresses = $updateResponse->json('data.updatePeople.address');
+        $this->assertCount(2, $addresses);
+        $this->assertEquals($addr1Id, $addresses[0]['id'], 'Address 1 ID must be preserved');
+        $this->assertEquals('NewCityA', $addresses[0]['city']);
+        $this->assertEquals($addr2Id, $addresses[1]['id'], 'Address 2 ID must be preserved');
+    }
+
+    public function testUpdatePeopleAddressSyncRemovesDeleted(): void
+    {
+        $address1 = fake()->unique()->streetAddress();
+        $address2 = fake()->unique()->streetAddress();
+        $input = [
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+            'contacts' => [
+                ['value' => fake()->unique()->email(), 'contacts_types_id' => 1, 'weight' => 0],
+            ],
+            'address' => [
+                ['address' => $address1, 'city' => 'CityA', 'state' => 'StateA', 'zip' => '10001'],
+                ['address' => $address2, 'city' => 'CityB', 'state' => 'StateB', 'zip' => '20002'],
+            ],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->graphQL('
+            mutation($input: PeopleInput!) {
+                createPeople(input: $input) {
+                    id
+                    firstname
+                    lastname
+                    address { id address }
+                }
+            }
+        ', ['input' => $input]);
+
+        $peopleId = $response['data']['createPeople']['id'];
+        $createdAddresses = $response['data']['createPeople']['address'];
+        $this->assertCount(2, $createdAddresses, 'Both addresses must be created');
+        $addr1Id = $createdAddresses[0]['id'];
+        $addr2Id = $createdAddresses[1]['id'];
+
+        // Update: keep only first address, remove second
+        $updateInput = [
+            'firstname' => $input['firstname'],
+            'lastname' => $input['lastname'],
+            'contacts' => $input['contacts'],
+            'address' => [
+                ['id' => (int) $addr1Id, 'address' => $address1, 'city' => 'CityA', 'state' => 'StateA', 'zip' => '10001'],
+            ],
+            'custom_fields' => [],
+        ];
+
+        $updateResponse = $this->graphQL('
+            mutation($id: ID!, $input: PeopleInput!) {
+                updatePeople(id: $id, input: $input) {
+                    id
+                    address { id address }
+                }
+            }
+        ', ['id' => $peopleId, 'input' => $updateInput])
+        ->assertSuccessful();
+
+        $addresses = $updateResponse->json('data.updatePeople.address');
+        $this->assertCount(1, $addresses, 'Only the kept address should remain');
+        $this->assertEquals($addr1Id, $addresses[0]['id'], 'Kept address ID must be preserved');
+        $addressIds = array_column($addresses, 'id');
+        $this->assertNotContains($addr2Id, $addressIds, 'Removed address must be deleted');
     }
 }

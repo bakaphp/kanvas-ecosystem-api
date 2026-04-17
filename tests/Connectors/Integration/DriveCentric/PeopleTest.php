@@ -21,6 +21,14 @@ final class PeopleTest extends TestCase
 {
     use HasDriveCentricConfiguration;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('DriveCentric integration tests are skipped in CI');
+        }
+    }
+
     /**
      * Test that pushing a person without a DriveCentric ID throws an exception.
      * Customers must be created through leads first.

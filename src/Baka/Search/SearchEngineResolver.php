@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Baka\Search;
 
-use Algolia\AlgoliaSearch\SearchClient;
+use Algolia\AlgoliaSearch\Api\SearchClient;
 use Algolia\ScoutExtended\Engines\AlgoliaEngine;
 use BadMethodCallException;
 use Illuminate\Contracts\Foundation\Application;

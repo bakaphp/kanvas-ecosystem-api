@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\SalesAssist\Actions;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 
 class CreateSocialChannelsAfterPullAction
 {
@@ -29,6 +30,8 @@ class CreateSocialChannelsAfterPullAction
             return;
         }
 
+        $contacts = $contacts->sortBy('contacts_types_id');
+
         foreach ($contacts as $contact) {
             /**
              * @todo we have to pass the agent not the id
@@ -39,6 +42,18 @@ class CreateSocialChannelsAfterPullAction
                 array_merge($this->params, ['agent_id' => $this->agentId]),
                 $this->lead,
                 sendPusherNotification: true
+            )->execute();
+        }
+
+        $aiAssistEnabled = (bool) ($this->lead->company->get(ConfigurationEnum::AI_ASSIST_ENABLED->value)
+            ?? $this->app->get(ConfigurationEnum::AI_ASSIST_ENABLED->value)
+            ?? false);
+
+        if ($aiAssistEnabled) {
+            new CreateAIAssistChannelAction(
+                $this->lead,
+                $this->app,
+                $this->agentId,
             )->execute();
         }
     }

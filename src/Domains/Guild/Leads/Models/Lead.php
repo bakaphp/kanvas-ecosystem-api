@@ -24,6 +24,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Factories\LeadFactory;
+use Kanvas\Guild\LeadSubSources\Models\LeadSubSource;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -31,6 +32,7 @@ use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
@@ -204,7 +206,14 @@ class Lead extends BaseModel implements EventResourceInterface
     public function socialChannels(): HasMany
     {
         return $this->hasMany(Channel::class, 'entity_id', 'string_id')
-            ->whereIn('entity_namespace', [self::class, SystemModules::getLegacyNamespace(self::class)]);
+            ->whereIn(
+                'entity_namespace',
+                [
+                    self::class,
+                    SystemModules::getLegacyNamespace(self::class),
+                ]
+            )
+            ->where('is_deleted', 0);
     }
 
     public function aiSession(): HasMany
@@ -217,7 +226,14 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         return $this->hasOne(Channel::class, 'entity_id', 'string_id')
             ->where('entity_namespace', self::class)
-            ->where('name', 'Notes');
+            ->where('name', ChannelNameEnum::NOTES->value);
+    }
+
+    public function systemNotes(): HasOne
+    {
+        return $this->hasOne(Channel::class, 'entity_id', 'string_id')
+            ->where('entity_namespace', self::class)
+            ->where('slug', $this->uuid);
     }
 
     public function receiver(): BelongsTo
@@ -233,6 +249,11 @@ class Lead extends BaseModel implements EventResourceInterface
     public function source(): BelongsTo
     {
         return $this->belongsTo(LeadSource::class, 'leads_sources_id', 'id');
+    }
+
+    public function subSource(): BelongsTo
+    {
+        return $this->belongsTo(LeadSubSource::class, 'leads_sub_sources_id', 'id');
     }
 
     public function type(): BelongsTo
@@ -703,7 +724,9 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         $aiMode = $this->get(EnumsConfigurationEnum::AI_MODE->value);
 
-        return $aiMode === IntelligenceModeEnum::OFF->value;
+        $mode = IntelligenceModeEnum::tryFrom((string) $aiMode);
+
+        return $mode?->isOff() ?? false;
     }
 
     public function canRunAiAgent(): bool

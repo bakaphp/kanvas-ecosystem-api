@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -25,6 +26,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property string $created_at
  * @property string $updated_at
  * @property int $is_deleted
+ * @property array|null $config
  */
 #[ObservedBy([LeadTypeObserver::class])]
 class LeadType extends BaseModel
@@ -34,6 +36,13 @@ class LeadType extends BaseModel
 
     protected $table = 'leads_types';
     protected $guarded = [];
+
+    protected function casts(): array
+    {
+        return [
+            'config' => Json::class,
+        ];
+    }
 
     public function leads(): HasMany
     {

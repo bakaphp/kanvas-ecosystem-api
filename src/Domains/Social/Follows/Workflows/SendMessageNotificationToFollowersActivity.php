@@ -6,7 +6,6 @@ namespace Kanvas\Social\Follows\Workflows;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Jobs\SendMessageNotificationsToAllFollowersJob;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -36,11 +35,7 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($viaList, $emailTemplate, $pushTemplate, $notificationMessage, $notificationTitle, $subject) {
-                // Map notification channels
-                $endViaList = array_map(
-                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                    $viaList
-                );
+                $endViaList = $viaList;
 
                 $metaData = $message->getMessage();
                 unset($metaData['ai_nugget']['nugget']);

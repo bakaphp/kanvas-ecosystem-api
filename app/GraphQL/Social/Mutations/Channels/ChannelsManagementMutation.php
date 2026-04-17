@@ -9,12 +9,16 @@ use Exception;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Exceptions\AuthenticationException;
+use Kanvas\Social\Channels\Actions\ClearChannelMessagesAction;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Repositories\ChannelRepository;
+use Kanvas\Social\Enums\AppEnum;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class ChannelsManagementMutation
 {
@@ -40,7 +44,12 @@ class ChannelsManagementMutation
 
     public function updateChannel(mixed $rootValue, array $request): Channel
     {
-        $channel = ChannelRepository::getById((int)$request['id'], auth()->user());
+        $app = app(Apps::class);
+        $channel = ChannelRepository::getById(
+            (int)$request['id'],
+            auth()->user(),
+            $app
+        );
         $systemModule = SystemModulesRepository::getByUuidOrModelName($request['input']['entity_namespace_uuid']);
 
         $channel->name = $request['input']['name'];
@@ -55,7 +64,9 @@ class ChannelsManagementMutation
 
     public function deleteChannel(mixed $rootValue, array $request): Channel
     {
-        $channel = ChannelRepository::getByIdBuilder(auth()->user())
+        $app = app(Apps::class);
+
+        $channel = ChannelRepository::getByIdBuilder(auth()->user(), $app)
             //->where('channel_users.roles_id', 1)
             ->findOrFail($request['id']);
 
@@ -66,28 +77,71 @@ class ChannelsManagementMutation
 
     public function attachUserToChannel(mixed $rootValue, array $request): Channel
     {
-        $channel = ChannelRepository::getById((int)$request['input']['channel_id'], auth()->user());
-        $user = Users::getByIdFromCompany($request['input']['user_id'], auth()->user()->getCurrentCompany());
         $app = app(Apps::class);
+        $channel = ChannelRepository::getById(
+            (int)$request['input']['channel_id'],
+            auth()->user(),
+            $app
+        );
+        $user = $app->get(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value)
+            ? UsersRepository::getUserOfAppById((int) $request['input']['user_id'], $app)
+            : Users::getByIdFromCompany($request['input']['user_id'], auth()->user()->getCurrentCompany());
 
         try {
-            $roles = RolesRepository::getByMixedParamFromCompany($request['input']['roles_id'], auth()->user()->getCurrentCompany(), $app);
+            $roles = RolesRepository::getByMixedParamFromCompany(
+                $request['input']['roles_id'],
+                auth()->user()->getCurrentCompany(),
+                $app
+            );
         } catch (Exception $e) {
-            $roles = RolesRepository::getByMixedParamFromCompany(RolesEnums::USER->value, auth()->user()->getCurrentCompany(), $app);
+            $roles = RolesRepository::getByMixedParamFromCompany(
+                RolesEnums::USER->value,
+                auth()->user()->getCurrentCompany(),
+                $app
+            );
         }
-        $channel->users()->syncWithoutDetaching([$user->id => ['roles_id' => $roles->id]]);
+        $channel->users()->syncWithoutDetaching([
+            $user->id => [
+                'roles_id' => $roles->id,
+            ],
+        ]);
 
         return $channel;
     }
 
     public function detachUserToChannel(mixed $rootValue, array $request): Channel
     {
-        $channel = ChannelRepository::getById((int)$request['channel_id'], auth()->user());
+        $app = app(Apps::class);
 
+        $channel = ChannelRepository::getById(
+            (int) $request['channel_id'],
+            auth()->user(),
+            $app
+        );
         $user = Users::getById($request['user_id']);
-
         $channel->users()->detach($user->id);
 
         return $channel;
+    }
+
+    public function clearMessages(mixed $rootValue, array $request): bool
+    {
+        $user = auth()->user();
+
+        if (! $user->isAdmin()) {
+            throw new AuthenticationException('Only app admins can clear channel messages');
+        }
+
+        $app = app(Apps::class);
+        $channelQuery = Channel::query()
+            ->where('apps_id', $app->getId());
+
+        if (! $app->get(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value)) {
+            $channelQuery->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        $channel = $channelQuery->findOrFail((int) $request['channel_id']);
+
+        return new ClearChannelMessagesAction($channel)->execute();
     }
 }

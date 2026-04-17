@@ -142,6 +142,10 @@ class VariantService
             $variantsData[] = $variantModel;
         }
 
+        if ($product->shouldBeSearchable()) {
+            $product->searchable();
+        }
+
         $product->fireWorkflow(WorkflowEnum::UPDATED->value, true);
 
         return $variantsData;

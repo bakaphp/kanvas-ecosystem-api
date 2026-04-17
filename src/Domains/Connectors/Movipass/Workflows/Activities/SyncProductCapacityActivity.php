@@ -23,7 +23,7 @@ class SyncProductCapacityActivity extends KanvasActivity implements WorkflowActi
         return $this->executeIntegration(
             entity: $product,
             app: $app,
-            integration: IntegrationsEnum::MOVIPASS,
+            integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function () use ($product, $app) {
                 /** @var Products $product */
                 $totalMax = 0;
@@ -50,6 +50,8 @@ class SyncProductCapacityActivity extends KanvasActivity implements WorkflowActi
                     'availableParkingSpaces' => $totalAvailable,
                     'totalParkingSpaces' => $totalMax,
                 ]);
+
+                $product->save();
 
                 return [
                     'product' => $product->getId(),

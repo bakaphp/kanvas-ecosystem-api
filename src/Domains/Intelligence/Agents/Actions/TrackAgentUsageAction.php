@@ -20,6 +20,7 @@ class TrackAgentUsageAction
         protected string $response,
         protected float $durationMs,
         protected ?string $sessionId = null,
+        protected ?int $userId = null,
     ) {
     }
 
@@ -29,6 +30,7 @@ class TrackAgentUsageAction
             'agent_id' => $this->agent->getId(),
             'companies_id' => $this->company->getId(),
             'apps_id' => $this->app->getId(),
+            'users_id' => $this->userId,
             'entity_namespace' => Agent::class,
             'entity_id' => $this->agent->getId(),
             'context' => $this->sessionId ?? '',

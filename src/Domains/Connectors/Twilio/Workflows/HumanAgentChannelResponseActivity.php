@@ -10,10 +10,10 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
+use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -85,8 +85,6 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 $lead = $messageEntity instanceof Lead ? $messageEntity : $channelEntity;
 
-                UnrespondedLeadAgentMessageCache::clear($lead, $channel);
-
                 $lastMessage = $channel->getLastMessage();
                 if ($lastMessage && $lastMessage->isLocked() && strtolower((string) $lastMessage->messageType?->verb) !== 'note') {
                     $channel->deleteLastMessageLocked();
@@ -123,7 +121,7 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 $message->addTag('engagement');
 
-                return new SendMessageToLeadAction($lead)->execute(
+                $result = new SendMessageToLeadAction($lead)->execute(
                     $channelType,
                     $content,
                     $fromPhone,
@@ -131,6 +129,10 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                     false,
                     $files->isNotEmpty() ? $files : null
                 );
+
+                new MarkLeadMessagesAsRespondedAction($lead, $message)->execute();
+
+                return $result;
             },
             company: $channel->company,
         );

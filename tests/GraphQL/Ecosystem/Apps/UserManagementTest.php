@@ -110,16 +110,19 @@ class UserManagementTest extends TestCase
         $userRegisterInApp = new RegisterUsersAppAction($user);
         $userRegisterInApp->execute($user->password);
 
-        //don't know why password gives us errors
-        $password = str_replace(' ', '', fake()->realText(15));
+        $password = fake()->password(10, 20);
+        $uuid = $userList['data']['appUsers']['data'][0]['uuid'];
         $response = $this->graphQL(/** @lang GraphQL */ '
-            mutation{
+            mutation($uuid: String!, $password: String!) {
                 appUserUpdatePassword(
-                    uuid: "' . $userList['data']['appUsers']['data'][0]['uuid'] . '",
-                    password: "' . $password . '"
-                ) 
+                    uuid: $uuid,
+                    password: $password
+                )
             }',
-            [],
+            [
+                'uuid' => $uuid,
+                'password' => $password,
+            ],
             [],
             [
                 AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $app->keys()->first()->client_secret_id,

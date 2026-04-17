@@ -116,6 +116,9 @@ extend type Mutation @guardByAdmin {
     openclawMigrateAgentWorkspace(input: MigrateAgentWorkspaceInput!): AgentDeploymentType!
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@migrateWorkspace"
+    openclawSetTelegramToken(agent_id: ID!, telegram_bot_token: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@setTelegramToken"
         )
 }
 

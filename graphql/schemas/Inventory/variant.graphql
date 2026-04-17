@@ -32,6 +32,7 @@ type Variant @model(class: "Kanvas\\Inventory\\Variants\\Models\\Variants") {
     user_interactions: Mixed! @method(name: "getUserSocialInteractions") @guard
     product: Product @belongsTo(relation: "product")
     warehouses: [WarehouseVariantRelationship!]!
+        @cacheRedis
         @hasMany(relation: "variantWarehouses")
     attributes: [VariantsAttributes!]!
         @method(name: "visibleAttributes")
@@ -40,6 +41,7 @@ type Variant @model(class: "Kanvas\\Inventory\\Variants\\Models\\Variants") {
     channels(currencyCode: String): [VariantChannelRelationship!]!
         @BelongsToMany(relation: "channels")
     channel(currencyCode: String): VariantPricingInfo
+        @cacheRedis
         @field(
             resolver: "App\\GraphQL\\Inventory\\Types\\ChannelInfoType@price"
         )

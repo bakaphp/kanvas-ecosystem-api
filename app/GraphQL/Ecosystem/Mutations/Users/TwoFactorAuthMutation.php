@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Users;
 
+use Baka\Support\IPInfo;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -151,7 +152,7 @@ class TwoFactorAuthMutation
                 'email' => $user->email,
                 'app_id' => $app->getId(),
                 'app_name' => $app->name,
-                'ip' => request()->ip(),
+                'ip' => IPInfo::getClientIp(),
             ]);
             captureMessage('2FA verification failed - invalid code');
         });
@@ -187,7 +188,7 @@ class TwoFactorAuthMutation
                 'phone' => $phoneNumber,
                 'app_id' => $app->getId(),
                 'app_name' => $app->name,
-                'ip' => request()->ip(),
+                'ip' => IPInfo::getClientIp(),
             ]);
             captureMessage($message);
         });

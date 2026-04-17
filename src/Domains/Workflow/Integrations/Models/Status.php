@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Integrations\Models;
 
+use Baka\Traits\PublicAppScopeTrait;
 use Kanvas\Workflow\Models\BaseModel;
-use Kanvas\Workflow\Traits\PublicAppScopeTrait;
 
 class Status extends BaseModel
 {
@@ -26,7 +26,6 @@ class Status extends BaseModel
     /**
      * Get the defaults status by its name
      * @todo Add this status to seeds to manage its ids
-     *
      */
     public static function getDefaultStatusByName(string $name): self
     {

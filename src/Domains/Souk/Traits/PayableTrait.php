@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Traits;
 
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Models\PaymentLogs;
 use Kanvas\Souk\Payments\Models\Payments;
 
 trait PayableTrait
@@ -13,6 +14,11 @@ trait PayableTrait
     public function payments(): MorphMany
     {
         return $this->morphMany(Payments::class, 'payable')->latest();
+    }
+
+    public function paymentLogs(): MorphMany
+    {
+        return $this->morphMany(PaymentLogs::class, 'payable')->latest();
     }
 
     public function isPaid(): bool

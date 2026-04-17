@@ -49,5 +49,17 @@ class KanvasModulesSeeder extends Seeder
                 'name' => 'Action Engine',
             ]
         );
+        KanvasModule::firstOrCreate(
+            [
+                'id' => KanvasModuleEnum::AI->value,
+                'name' => 'AI',
+            ]
+        );
+        KanvasModule::firstOrCreate(
+            [
+                'id' => KanvasModuleEnum::COMMERCE->value,
+                'name' => 'Commerce',
+            ]
+        );
     }
 }

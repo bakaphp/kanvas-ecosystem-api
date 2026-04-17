@@ -9,10 +9,12 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
 use Kanvas\Connectors\VoiceBridge\Actions\TriggerVoiceCallAction;
 use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum;
+use Kanvas\Connectors\VoiceBridge\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VoiceBridge\Jobs\SaveVoiceTranscriptJob;
 use Kanvas\Connectors\VoiceBridge\Services\VoiceBridgeService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -46,7 +48,7 @@ class SendVoiceMessageActivity extends KanvasActivity
 
                 $agent = Agent::fromApp($app)
                     ->fromCompany($lead->company)
-                    ->where('name', 'voiceOutreachAgent')
+                    ->where('name', AgentEnum::VOICE_OUTREACH->value)
                     ->firstOrFail();
 
                 $phone = Str::normalizePhoneNumber(
@@ -64,6 +66,10 @@ class SendVoiceMessageActivity extends KanvasActivity
                 InitVoiceSessionAction::fromLead($lead, $agent, $messageContent)->execute();
 
                 $result = TriggerVoiceCallAction::fromLead($lead)->execute();
+
+                if (! empty($result['call_sid'])) {
+                    $lead->set(CustomFieldEnum::CALL_SID->value, $result['call_sid']);
+                }
 
                 $transcriptDelayMinutes = (int) ($lead->company->get(ConfigurationEnum::TRANSCRIPT_DELAY_MINUTES->value) ?? 2);
 

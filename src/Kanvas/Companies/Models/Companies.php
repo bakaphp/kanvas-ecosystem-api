@@ -53,7 +53,6 @@ use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Override;
-use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
  * Companies Model.
@@ -89,7 +88,6 @@ class Companies extends BaseModel implements CompanyInterface, Customer
     use AddressTraitRelationship;
     use CanPayFloat;
     use HasWalletsTrait;
-    //use QueryCacheable;
 
     protected $table = 'companies';
 
@@ -422,7 +420,9 @@ class Companies extends BaseModel implements CompanyInterface, Customer
         $array['users'] = CompaniesRepository::getAllCompanyUsers($this)->pluck('id')->toArray();
         $array = $this->transform($array);
         $array['id'] = (string) $this->getKey();
-        $array['created_at'] = $this->isTypesense() ? $this->created_at->timestamp : $this->created_at->toDateTimeString();
+        $array['created_at'] = $this->created_at
+            ? ($this->isTypesense() ? $this->created_at->timestamp : $this->created_at->toDateTimeString())
+            : null;
         $array['is_active'] = (bool) $this->is_active;
         $array['is_deleted'] = (bool) $this->is_deleted;
         $array['zipcode'] = (string) ($this->zipcode ?? '');

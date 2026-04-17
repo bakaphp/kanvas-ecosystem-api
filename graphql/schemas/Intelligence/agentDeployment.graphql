@@ -111,7 +111,7 @@ extend type Query @guardByAdmin {
     ): [AgentUsageSnapshot!]!
         @paginate(
             model: "Kanvas\\Intelligence\\Agents\\Models\\AgentUsageSnapshot"
-            scopes: ["fromApp", "notDeleted"]
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
 
@@ -122,7 +122,7 @@ extend type Query @guardByAdmin {
     ): [AgentMachineType!]!
         @paginate(
             model: "Kanvas\\Intelligence\\Agents\\Models\\AgentMachine"
-            scopes: ["fromApp", "notDeleted"]
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
 
@@ -133,7 +133,7 @@ extend type Query @guardByAdmin {
     ): [AgentDeploymentType!]!
         @paginate(
             model: "Kanvas\\Intelligence\\Agents\\Models\\AgentDeployment"
-            scopes: ["fromApp", "notDeleted"]
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
 }

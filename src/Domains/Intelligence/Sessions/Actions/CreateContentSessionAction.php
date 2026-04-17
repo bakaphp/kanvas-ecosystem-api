@@ -20,9 +20,11 @@ use Kanvas\Companies\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
@@ -39,7 +41,7 @@ use Yasumi\Exception\UnknownLocaleException;
 
 class CreateContentSessionAction
 {
-    protected Lead|People $entity;
+    protected Lead|People|Users $entity;
 
     public function __construct(
         protected Session|DataTransferObjectSession $session
@@ -48,6 +50,7 @@ class CreateContentSessionAction
         $this->entity = match ($this->session->entity_namespace) {
             People::class => People::getByIdFromCompanyApp($this->session->entity_id, $this->session->company, $this->session->app),
             Lead::class => Lead::getByIdFromCompanyApp($this->session->entity_id, $this->session->company, $this->session->app),
+            Users::class => Users::getById($this->session->entity_id),
         };
     }
 
@@ -56,6 +59,7 @@ class CreateContentSessionAction
         $result = match ($this->session->entity_namespace) {
             People::class => $this->mapPeople($this->entity),
             Lead::class => $this->mapLead($this->entity),
+            Users::class => $this->mapUser($this->entity),
             default => [],
         };
 
@@ -66,7 +70,10 @@ class CreateContentSessionAction
 
     protected function generateBackground(array $data): mixed
     {
-        $data = array_merge($data, $this->generateValuesForRole($this->entity instanceof Lead ? $this->entity : null));
+        $roleData = $this->entity instanceof Lead
+            ? $this->generateValuesForRole($this->entity)
+            : [];
+        $data = array_merge($data, $roleData);
 
         try {
             $background = $this->session->agent?->role !== null && is_array($this->session->agent->role)
@@ -104,7 +111,7 @@ class CreateContentSessionAction
                 'company_language' => $lead->company->get('lang', 'en'),
                 'is_service_lead' => $lead->get('is_service_lead') ?? 0,
                 'guild_first_message' => $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? null,
-                'ai_mode' => $lead->get('ai_mode'),
+                'ai_mode' => $lead->get(LeadConfigurationService::getAiModeKey($lead)),
                 'follow_up_mode' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
                 'allow_call_appointments' => $lead->company->get(EnumsConfigurationEnum::ALLOW_CALL_APPOINTMENTS->value) ?? true,
                 'work_hours' => $lead->company->get('work_hours'),
@@ -148,7 +155,7 @@ class CreateContentSessionAction
             'lastname' => $people->lastname,
             'middlename' => $people->middlename,
             'inventory_channel' => Channels::getDefault($people->company, $people->app)?->uuid,
-            'leads' => $people->leads->toArray(),
+            'leads' => [LeadsRepository::getPeopleActiveLead($people)?->toArray()],
             'address' => $people->address->toArray(),
             'contacts' => $people->contacts->toArray(),
             'checklist' => $checkList,
@@ -161,6 +168,25 @@ class CreateContentSessionAction
         ];
 
         return array_merge($data, $result);
+    }
+
+    protected function mapUser(Users $user): array
+    {
+        $company = $user->getCurrentCompany();
+        $branch = $company->branch;
+
+        return [
+            'user_id' => $user->id,
+            'firstname' => $user->firstname,
+            'lastname' => $user->lastname,
+            'email' => $user->email,
+            'company_name' => $company->name,
+            'branch' => $branch,
+            'branch_city' => $branch?->city,
+            'branch_state' => $branch?->state,
+            'branch_address' => $branch ? ($branch->address . ' ' . $branch->address2) : null,
+            'company_timezone' => $company->get('timezone', 'UTC'),
+        ];
     }
 
     /**

@@ -11,9 +11,10 @@ use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\ServerException;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Users\Models\Users;
 
 class GoogleADKService
 {
@@ -25,7 +26,8 @@ class GoogleADKService
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
-        protected ?string $agent = null
+        protected ?string $agent = null,
+        protected ?string $baseUrlOverride = null
     ) {
         $this->baseUrl = $this->app->get(ConfigurationEnum::ADK_BASE_URL->value);
         $this->apiKey = $this->app->get(ConfigurationEnum::ADK_API_KEY->value);
@@ -34,6 +36,10 @@ class GoogleADKService
         $companyBaseUrl = $this->company->get(ConfigurationEnum::ADK_BASE_URL->value) ?? null;
         if ($companyBaseUrl !== null && ! empty($companyBaseUrl)) {
             $this->baseUrl = $companyBaseUrl;
+        }
+
+        if ($this->baseUrlOverride !== null && ! empty($this->baseUrlOverride)) {
+            $this->baseUrl = $this->baseUrlOverride;
         }
 
         if (empty($this->baseUrl)) {
@@ -100,7 +106,8 @@ class GoogleADKService
         string $sessionId,
         string $message,
         ?callable $onChunk = null,
-        int $maxRetries = 3
+        int $maxRetries = 3,
+        ?Users $user = null
     ): string {
         $attempt = 0;
 
@@ -110,7 +117,8 @@ class GoogleADKService
                     $userId,
                     $sessionId,
                     $message,
-                    $onChunk
+                    $onChunk,
+                    $user
                 );
             } catch (Exception $e) {
                 $attempt++;
@@ -126,26 +134,31 @@ class GoogleADKService
         string $userId,
         string $sessionId,
         string $message,
-        ?callable $onChunk = null
+        ?callable $onChunk = null,
+        ?Users $user = null
     ): string {
-        $response = Http::withHeaders([
-            'Accept' => 'text/event-stream',
-            'Content-Type' => 'application/json',
-        ])->withOptions([
-            'stream' => true,
-        ])->post($this->baseUrl . '/run_sse', [
-            'app_name' => $this->appName,
-            'user_id' => $userId,
-            'session_id' => $sessionId,
-            'new_message' => [
-                'role' => 'user',
-                'parts' => [['text' => $message]],
+        $response = $this->client->post('/run_sse', [
+            'headers' => [
+                'Accept' => 'text/event-stream',
             ],
+            'json' => [
+                'app_name' => $this->appName,
+                'user_id' => $userId,
+                'session_id' => $sessionId,
+                'new_message' => [
+                    'role' => 'user',
+                    'parts' => [['text' => $message]],
+                    ],
+                    // 'stateDelta' => [
+                    //     'current_user_id' => $user ? $user->id : '',
+                    // ],
+            ],
+            'stream' => true,
         ]);
 
         $completeResponse = '';
-        $buffer = ''; // Buffer to handle incomplete JSON across chunks
-        $stream = $response->toPsrResponse()->getBody();
+        $buffer = '';
+        $stream = $response->getBody();
 
         while (! $stream->eof()) {
             $chunk = $stream->read(1024);
@@ -211,7 +224,7 @@ class GoogleADKService
      *
      * @throws GuzzleException
      */
-    public function chatSimple(string $userId, string $sessionId, string $message): array
+    public function chatSimple(string $userId, string $sessionId, string $message, ?Users $user): array
     {
         $response = $this->client->post('/run', [
             'json' => [
@@ -221,6 +234,9 @@ class GoogleADKService
                 'new_message' => [
                     'role' => 'user',
                     'parts' => [['text' => $message]],
+                    'stateDelta' => [
+                        'current_user_id' => $user ? $user->id : '',
+                    ],
                 ],
             ],
         ]);
@@ -287,6 +303,39 @@ class GoogleADKService
         $endpoint = "apps/{$this->appName}/users/{$userId}/sessions";
 
         $response = $this->client->get($endpoint);
+
+        return json_decode($response->getBody()->getContents(), true) ?? [];
+    }
+
+    /**
+     * Inject messages into an existing session without triggering an agent reply.
+     * Use this to sync conversations that happened while the AI was disabled
+     * (e.g. direct salesperson↔lead exchanges), so the agent has full context on the next turn.
+     *
+     * @param array<int, array{role: string, text: string}> $messages
+     */
+    public function injectSessionEvents(string $userId, string $sessionId, array $messages): array
+    {
+        $validator = Validator::make(
+            ['messages' => $messages],
+            [
+                'messages' => 'required|array|min:1',
+                'messages.*.role' => 'required|string',
+                'messages.*.text' => 'required|string',
+            ]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator->errors()->first());
+        }
+
+        $response = $this->client->post('/events/session', [
+            'json' => [
+                'session_id' => $sessionId,
+                'user_id' => $userId,
+                'messages' => $messages,
+            ],
+        ]);
 
         return json_decode($response->getBody()->getContents(), true) ?? [];
     }

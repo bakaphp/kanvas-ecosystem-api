@@ -18,7 +18,7 @@ class ZohoService
 {
     protected ZohoCrm $zohoCrm;
     protected string $zohoAgentModule;
-    private const DEFAULT_AGENT_MODULE = 'agents';
+    private const string DEFAULT_AGENT_MODULE = 'agents';
 
     public function __construct(
         protected AppInterface $app,
@@ -74,11 +74,20 @@ class ZohoService
         } else {
             $data['Vendor_Name'] = $agentInfo->name;
             $data['Phone'] = str_replace(['+', '-', '(', ')', ' '], '', $user->phone_number ?? '');
+            $data['Inactive'] = 'Active';
+
             if ($agentInfo->sponsor_user_id !== null) {
-                /*  $data['Sponsor_Name'] = Agent::where('users_id', $agentInfo->sponsor_user_id)
-                     ->where('apps_id', $this->app->getId())
-                     ->where('companies_id', $this->company->getId())
-                     ->first()?->users_linked_source_id ?? ''; */
+                $sponsorAgent = Agent::where('users_id', $agentInfo->sponsor_user_id)
+                    ->where('apps_id', $this->app->getId())
+                    ->where('companies_id', $this->company->getId())
+                    ->where('is_deleted', false)
+                    ->where('status_id', 1)
+                    ->first();
+
+                if ($sponsorAgent && $sponsorAgent->users_linked_source_id) {
+                    $data['Sponsor_Name'] = $sponsorAgent->users_linked_source_id;
+                    $data['Sponsor'] = (string) $sponsorAgent->member_id;
+                }
             }
 
             $zohoAgent = $this->zohoCrm->vendors->create($data);
@@ -109,6 +118,21 @@ class ZohoService
                 $data['Inactive'] = 'Active';
             }
         }
+
+        if ($this->zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
+            return $this->zohoCrm->agents->update($zohoAgentId, $data);
+        }
+
+        return $this->zohoCrm->vendors->update($zohoAgentId, $data);
+    }
+
+    public function updateAgentMemberNumber(Agent $agent): object
+    {
+        $zohoAgentId = $agent->users_linked_source_id;
+
+        $data = [
+            'Member_Number' => $agent->getMemberNumber(),
+        ];
 
         if ($this->zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
             return $this->zohoCrm->agents->update($zohoAgentId, $data);

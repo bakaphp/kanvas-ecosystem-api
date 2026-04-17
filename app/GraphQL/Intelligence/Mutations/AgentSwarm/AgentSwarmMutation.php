@@ -77,7 +77,7 @@ class AgentSwarmMutation
             $app
         );
 
-        return $swarm->softDelete();
+        return (bool) $swarm->delete();
     }
 
     public function addAgent(mixed $rootValue, array $request): AgentSwarm
