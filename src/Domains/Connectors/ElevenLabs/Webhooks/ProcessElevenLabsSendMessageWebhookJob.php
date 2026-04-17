@@ -4,19 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ElevenLabs\Webhooks;
 
-use Baka\Support\Str;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
-use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Repositories\LeadsRepository;
-use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Throwable;
 
-class ProcessElevenLabsSendMessageWebhookJob extends ProcessWebhookJob
+class ProcessElevenLabsSendMessageWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]
     public function execute(): array
@@ -38,15 +33,8 @@ class ProcessElevenLabsSendMessageWebhookJob extends ProcessWebhookJob
         }
 
         $company = $this->receiver->company;
-        $normalizedPhone = Str::normalizePhoneNumber($phone);
 
-        $lead = $this->findLeadByPhone($normalizedPhone, $phone);
-
-        if (! $lead) {
-            $this->failedReturnHttpCode = 404;
-
-            return ['status' => 404, 'message' => 'No lead found for phone: ' . $normalizedPhone];
-        }
+        $lead = $this->resolveLeadByPhone($phone);
 
         $channel = isset($payload['channel']) && (string) $payload['channel'] !== ''
             ? strtolower((string) $payload['channel'])
@@ -92,28 +80,5 @@ class ProcessElevenLabsSendMessageWebhookJob extends ProcessWebhookJob
         }
 
         return 'sms';
-    }
-
-    protected function findLeadByPhone(string $normalizedPhone, string $rawPhone): ?Lead
-    {
-        $digitsOnly = Str::sanitizePhoneNumber($rawPhone);
-
-        $query = PeoplesRepository::getByPhoneNumber(
-            app: $this->receiver->app,
-            company: $this->receiver->company,
-            phoneNumbers: array_unique([$digitsOnly, $normalizedPhone]),
-        );
-
-        $allCustomers = $query->get();
-
-        $people = $allCustomers->first(function (People $customer): bool {
-            return LeadsRepository::getPeopleActiveLead($customer) !== null;
-        }) ?? $allCustomers->first();
-
-        if (! $people) {
-            return null;
-        }
-
-        return LeadsRepository::getPeopleActiveLead($people);
     }
 }
