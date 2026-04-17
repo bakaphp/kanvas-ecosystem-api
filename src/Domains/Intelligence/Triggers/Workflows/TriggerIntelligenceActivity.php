@@ -31,7 +31,7 @@ class TriggerIntelligenceActivity extends KanvasActivity
                     return $this->failWorkflow(['error' => 'Invalid trigger type']);
                 }
 
-                $actionClass = LeadConfigurationService::isV2Enabled()
+                $actionClass = LeadConfigurationService::isV2Enabled($app)
                     ? ApplyLeadAiModeAction::class
                     : ApplyLeadAiModeV1Action::class;
                 $result = new $actionClass($lead, $triggerType)->execute();

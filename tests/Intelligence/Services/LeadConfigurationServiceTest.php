@@ -46,7 +46,7 @@ class LeadConfigurationServiceTest extends TestCase
         $app = app(Apps::class);
         $app->set('intelligence_lead_type_mode_v2', null);
 
-        $this->assertFalse(LeadConfigurationService::isV2Enabled());
+        $this->assertFalse(LeadConfigurationService::isV2Enabled($app));
     }
 
     public function testIsV2EnabledReturnsTrueWhenFlagSet(): void
@@ -54,7 +54,7 @@ class LeadConfigurationServiceTest extends TestCase
         $app = app(Apps::class);
         $app->set('intelligence_lead_type_mode_v2', true);
 
-        $this->assertTrue(LeadConfigurationService::isV2Enabled());
+        $this->assertTrue(LeadConfigurationService::isV2Enabled($app));
 
         $app->set('intelligence_lead_type_mode_v2', null);
     }

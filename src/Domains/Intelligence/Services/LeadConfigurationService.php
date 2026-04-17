@@ -11,9 +11,9 @@ use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 
 class LeadConfigurationService
 {
-    public static function isV2Enabled(): bool
+    public static function isV2Enabled(Apps $app): bool
     {
-        return (bool) app(Apps::class)->get('intelligence_lead_type_mode_v2');
+        return (bool) $app->get('intelligence_lead_type_mode_v2');
     }
 
     private static function getTypePrefix(?LeadType $leadType): string
@@ -48,7 +48,7 @@ class LeadConfigurationService
 
     public static function getAiModeKey(Lead $lead): string
     {
-        if (! self::isV2Enabled()) {
+        if (! self::isV2Enabled($lead->app)) {
             return 'ai_mode';
         }
 
@@ -63,7 +63,7 @@ class LeadConfigurationService
 
     public static function getFollowUpModeKey(Lead $lead): string
     {
-        if (! self::isV2Enabled()) {
+        if (! self::isV2Enabled($lead->app)) {
             return IntelligenceModeEnum::AI_FOLLOW_UP->value;
         }
 

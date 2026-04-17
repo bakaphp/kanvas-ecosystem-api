@@ -57,7 +57,7 @@ class MessageHumanTakeoverTriggerActivity extends KanvasActivity
                     ];
                 }
 
-                if (! LeadConfigurationService::isV2Enabled()) {
+                if (! LeadConfigurationService::isV2Enabled($app)) {
                     $channel = $message->channels()->first();
                     if ($channel && ! $channel->isNoteChannel()) {
                         UnrespondedLeadAgentMessageCache::clear($lead, $channel);
