@@ -95,6 +95,10 @@ class SetupRolesCommand extends Command
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::RDVIAL_CONSULTANT,
             ],
+            'manage-paso-rapido' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+            ],
         ];
 
         Bouncer::scope()->to(RolesEnums::getScope($app));
@@ -103,5 +107,7 @@ class SetupRolesCommand extends Command
                 Bouncer::allow($roleName->value)->to($ability);
             }
         }
+
+        Bouncer::refresh();
     }
 }
