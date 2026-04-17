@@ -86,7 +86,7 @@ input LaunchAgentInput {
     machine_id: ID!
 }
 
-extend type Query @guardByAdmin {
+extend type Query @guard {
     agentUsageSnapshots(
         search: String @search
         where: _ @whereConditions(columns: ["id", "agent_deployment_id", "snapshot_date", "source", "provider", "model"])
@@ -97,7 +97,9 @@ extend type Query @guardByAdmin {
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
+}
 
+extend type Query @guardByAdmin {
     agentMachines(
         search: String @search
         where: _ @whereConditions(columns: ["id", "name", "slug", "region", "is_active"])
