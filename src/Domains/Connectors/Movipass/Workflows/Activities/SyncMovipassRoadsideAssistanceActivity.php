@@ -201,6 +201,61 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             ];
         }
 
+        if (($assistanceCase['complete_order'] ?? false) === true || ($assistanceCase['complete_order_not_resolved'] ?? false) === true) {
+            $terminalStatuses = [
+                MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
+                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
+                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
+            ];
+            if (in_array($currentStatusSlug, $terminalStatuses, true)) {
+                return [
+                    'order' => $order->getId(),
+                    'status' => 'success',
+                    'message' => 'Completion ignored: order is already in a terminal status',
+                ];
+            }
+
+            $isResolved = ($assistanceCase['complete_order'] ?? false) === true;
+            $targetStatus = $isResolved
+                ? MovipassOrderStatusEnum::SERVICE_COMPLETED->slug()
+                : MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug();
+
+            $user = Users::getById((int) $order->users_id);
+            $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
+
+            unset($assistanceCase['complete_order'], $assistanceCase['complete_order_not_resolved']);
+            $assistanceCase['completed_at'] = Carbon::now()->toISOString();
+            $assistanceCase['resolved'] = $isResolved;
+            $assistanceCase['status'] = $targetStatus;
+            $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
+            $assistanceCase['pin_hash'] = null;
+            $assistanceCase['pin_invalidated_at'] = Carbon::now()->toISOString();
+
+            $order->metadata = [
+                ...$metadata,
+                'assistance_case' => $assistanceCase,
+                'data' => [
+                    ...($metadata['data'] ?? []),
+                    'assistance_case' => $assistanceCase,
+                ],
+            ];
+            $order->saveQuietly();
+
+            $order->transitionToStatus($user, $targetStatus);
+            $order->fulfill();
+
+            $broadcastId = $mechanicId > 0 ? $mechanicId : (int) $order->users_id;
+            RefreshActiveAssistanceEvent::dispatch($order, $broadcastId);
+
+            return [
+                'order' => $order->getId(),
+                'status' => 'success',
+                'message' => 'Order transitioned to ' . $targetStatus,
+                'data' => $order->toArray(),
+                'response' => $order->toArray(),
+            ];
+        }
+
         if (($assistanceCase['mechanic_cancel'] ?? false) === true) {
             $nonCancellableStatuses = [
                 MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
