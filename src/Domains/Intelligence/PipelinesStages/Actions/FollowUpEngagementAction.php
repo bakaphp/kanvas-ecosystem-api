@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\PipelinesStages\Actions;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Blade;
+use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
@@ -258,7 +259,7 @@ class FollowUpEngagementAction
                     new SendMessageToLeadAction($this->lead)->execute(
                         $messageTemplateChannel,
                         $messageToSend,
-                        $this->lead->company->get('twilio_phone_number'),
+                        $this->lead->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value),
                         $emailTitle
                     );
 

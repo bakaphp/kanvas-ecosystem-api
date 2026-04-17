@@ -14,6 +14,7 @@ use GuzzleHttp\Exception\ServerException;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Users\Models\Users;
 
 class GoogleADKService
 {
@@ -105,7 +106,8 @@ class GoogleADKService
         string $sessionId,
         string $message,
         ?callable $onChunk = null,
-        int $maxRetries = 3
+        int $maxRetries = 3,
+        ?Users $user = null
     ): string {
         $attempt = 0;
 
@@ -115,7 +117,8 @@ class GoogleADKService
                     $userId,
                     $sessionId,
                     $message,
-                    $onChunk
+                    $onChunk,
+                    $user
                 );
             } catch (Exception $e) {
                 $attempt++;
@@ -131,7 +134,8 @@ class GoogleADKService
         string $userId,
         string $sessionId,
         string $message,
-        ?callable $onChunk = null
+        ?callable $onChunk = null,
+        ?Users $user = null
     ): string {
         $response = $this->client->post('/run_sse', [
             'headers' => [
@@ -144,7 +148,10 @@ class GoogleADKService
                 'new_message' => [
                     'role' => 'user',
                     'parts' => [['text' => $message]],
-                ],
+                    ],
+                    // 'stateDelta' => [
+                    //     'current_user_id' => $user ? $user->id : '',
+                    // ],
             ],
             'stream' => true,
         ]);
@@ -217,7 +224,7 @@ class GoogleADKService
      *
      * @throws GuzzleException
      */
-    public function chatSimple(string $userId, string $sessionId, string $message): array
+    public function chatSimple(string $userId, string $sessionId, string $message, ?Users $user): array
     {
         $response = $this->client->post('/run', [
             'json' => [
@@ -227,6 +234,9 @@ class GoogleADKService
                 'new_message' => [
                     'role' => 'user',
                     'parts' => [['text' => $message]],
+                    'stateDelta' => [
+                        'current_user_id' => $user ? $user->id : '',
+                    ],
                 ],
             ],
         ]);

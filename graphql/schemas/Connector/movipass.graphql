@@ -1,9 +1,12 @@
 extend type Query @guard {
     mechanicOrders(
+        all: Boolean
+        mechanic_id: ID
         where: _
             @whereConditions(
                 columns: [
                     "id"
+                    "users_id"
                     "created_at"
                     "updated_at"
                     "fulfillment_status"

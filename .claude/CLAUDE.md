@@ -603,6 +603,7 @@ class Sync{Entity}Activity extends KanvasActivity
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::{CONNECTOR},
+            additionalParams: $params,
             integrationOperation: function () use ($entity) {
                 return new Sync{Entity}Action($entity)->execute();
             },
@@ -611,6 +612,8 @@ class Sync{Entity}Activity extends KanvasActivity
     }
 }
 ```
+
+**Important:** Always pass `additionalParams: $params` to `executeIntegration()`. Without it, the system cannot retry the activity with the correct parameters.
 
 ### 7. GraphQL Setup Mutation
 
@@ -889,6 +892,41 @@ public static function search($query = '', $callback = null)
 **Typesense schema requirement:** Models using `DynamicSearchableTrait` that may use the Typesense engine **MUST implement `typesenseCollectionSchema()`**. Without it, the Typesense engine throws `Parameter 'fields' is required` when creating the collection. The method should define fields matching `toSearchableArray()`.
 
 **Placement:** Place the `search()` method at the **end of the class**, not at the top. Properties (`$table`, `$guarded`, `casts()`) and relationships should come first.
+
+## Notifications
+
+Always extend `Kanvas\Notifications\Notification` (not `\Illuminate\Notifications\Notification`) for all notification classes in this codebase.
+
+```php
+use Kanvas\Notifications\Notification;
+
+class MyNotification extends Notification
+{
+    public function __construct(
+        protected SomeModel $entity,
+        // ... other params
+        protected Apps $app,
+        protected Companies $company,
+        protected ?Users $fromUser = null,
+    ) {
+        parent::__construct($entity, [
+            'app' => $app,
+            'company' => $company,
+            'fromUser' => $fromUser,
+        ]);
+
+        // Set channels as slug strings; the base class maps them to channel classes via
+        // NotificationChannelEnum::getNotificationChannelBySlug() in via()
+        $this->channels = ['mail', 'sms', 'push'];
+    }
+}
+```
+
+**Key points:**
+- `Kanvas\Notifications\Notification` implements `ShouldQueue`, includes SMTP config, OneSignal, Expo, SMS, and storage traits
+- Set `$this->channels` with slug strings (`'mail'`, `'sms'`, `'push'`, `'expo'`, `'database'`) — the base `via()` maps them to channel classes automatically via `Kanvas\Notifications\Enums\NotificationChannelEnum::getNotificationChannelBySlug()`
+- Override `toMail()` and/or `toOneSignal()` only when you need notification-specific content that differs from the template-based defaults
+- Never use `\Illuminate\Notifications\Notification` directly
 
 ## Key Conventions
 

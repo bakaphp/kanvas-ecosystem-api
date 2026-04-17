@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
@@ -37,9 +38,9 @@ class SetupVoiceWorkflowCommand extends Command
         $agentType = $this->resolveADKAgentType($app);
 
         $this->setupInternalIntegration($app, $company);
-        $mainAgent = $this->setupAgent($app, $company, 'LeadIntentTool', $this->leadIntentToolRole(), $agentType);
-        $this->setupAgent($app, $company, 'firstMessageEngagerAgent', $this->firstMessageEngagerRole(), $agentType);
-        $this->setupAgent($app, $company, 'voiceOutreachAgent', $this->voiceOutreachAgentRole(), $agentType);
+        $mainAgent = $this->setupAgent($app, $company, AgentEnum::LEAD_INTENT_TOOL->value, $this->leadIntentToolRole(), $agentType);
+        $this->setupAgent($app, $company, AgentEnum::FIRST_MESSAGE_ENGAGER->value, $this->firstMessageEngagerRole(), $agentType);
+        $this->setupAgent($app, $company, AgentEnum::VOICE_OUTREACH->value, $this->voiceOutreachAgentRole(), $agentType);
 
         $this->info('Done. Voice workflow is ready.');
         $this->newLine();

@@ -250,6 +250,12 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
             'BDCManager'
         )->get();
 
+        // Include the lead owner in the notification recipients
+        $leadOwner = $lead->owner;
+        if ($leadOwner && ! $managers->contains('id', $leadOwner->getId())) {
+            $managers->push($leadOwner);
+        }
+
         Notification::send($managers, $notification);
 
         // Track notification timestamp if key is provided
