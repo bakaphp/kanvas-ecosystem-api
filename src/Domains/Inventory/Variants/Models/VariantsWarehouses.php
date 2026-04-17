@@ -64,7 +64,7 @@ class VariantsWarehouses extends BaseModel
     protected function casts(): array
     {
         return [
-            'price' => 'decimal:2',
+            'price' => 'decimal:4',
             'quantity' => 'integer',
             'max_capacity' => 'integer',
             'latitude' => 'decimal:6',
