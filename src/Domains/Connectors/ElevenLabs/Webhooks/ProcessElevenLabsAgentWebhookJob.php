@@ -6,8 +6,6 @@ namespace Kanvas\Connectors\ElevenLabs\Webhooks;
 
 use Baka\Support\Str;
 use Kanvas\Companies\Enums\ConfigurationEnum;
-use Kanvas\Connectors\VoiceBridge\Actions\BuildLeadVoiceContextAction;
-use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
@@ -60,13 +58,11 @@ class ProcessElevenLabsAgentWebhookJob extends ProcessWebhookJob
             $lead = $this->createLeadFromPeople($people);
         }
 
-        $agent = Agent::fromApp($app)
+        /* $agent = Agent::fromApp($app)
             ->fromCompany($company)
             ->where('name', AgentEnum::VOICE_OUTREACH->value)
             ->firstOrFail();
-
-        $voiceContext = new BuildLeadVoiceContextAction($lead, $agent)->execute();
-        $sessionResult = InitVoiceSessionAction::fromLead($lead, $agent)->execute();
+ */
 
         return [
             'lead' => [
@@ -83,8 +79,8 @@ class ProcessElevenLabsAgentWebhookJob extends ProcessWebhookJob
                 'ai_mode' => $lead->get(ConfigurationEnum::AI_MODE->value),
                 'owner' => $lead->owner ? trim((string) $lead->owner->firstname . ' ' . (string) $lead->owner->lastname) : null,
             ],
-            'voice_context' => $voiceContext,
-            'session' => $sessionResult,
+            'voice_context' => [],
+            'session' => [],
         ];
     }
 
