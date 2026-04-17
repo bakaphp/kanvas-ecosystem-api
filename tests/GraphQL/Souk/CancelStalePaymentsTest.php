@@ -7,6 +7,7 @@ namespace Tests\GraphQL\Souk;
 use Illuminate\Support\Carbon;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Payments\Actions\CancelStalePaymentsAction;
+use Kanvas\Souk\Payments\Actions\LogPaymentEventAction;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 
 class CancelStalePaymentsTest extends OrderBase
@@ -223,5 +224,75 @@ class CancelStalePaymentsTest extends OrderBase
 
         $order->refresh();
         $this->assertEquals(PaymentStatusEnum::PROCESSING->value, $order->payment_status);
+    }
+
+    public function testDoesNotCancelPaymentWithRecentLogs(): void
+    {
+        $order = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => []],
+        );
+
+        $payment = $order->payments()->create([
+            'amount' => $order->getTotalAmount(),
+            'payment_date' => now()->toDateString(),
+            'concept' => 'Test payment',
+            'users_id' => $this->user->getId(),
+            'companies_id' => $order->companies_id,
+            'apps_id' => $this->apps->getId(),
+            'status' => PaymentStatusEnum::PROCESSING->value,
+            'payment_method' => 'card',
+        ]);
+
+        $payment->update(['updated_at' => Carbon::now()->subMinutes(35)]);
+
+        $payment->addLog('3ds_challenge_initiated', [
+            'message' => 'Waiting for 3DS challenge',
+        ]);
+
+        $action = new CancelStalePaymentsAction($this->apps);
+        $cancelled = $action->execute();
+
+        $this->assertFalse($cancelled->contains('id', $payment->id));
+
+        $payment->refresh();
+        $this->assertEquals(PaymentStatusEnum::PROCESSING->value, $payment->status);
+    }
+
+    public function testDoesNotCancelPaymentWithAuthorizedLog(): void
+    {
+        $order = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => []],
+        );
+
+        $payment = $order->payments()->create([
+            'amount' => $order->getTotalAmount(),
+            'payment_date' => now()->toDateString(),
+            'concept' => 'Test payment',
+            'users_id' => $this->user->getId(),
+            'companies_id' => $order->companies_id,
+            'apps_id' => $this->apps->getId(),
+            'status' => PaymentStatusEnum::PROCESSING->value,
+            'payment_method' => 'card',
+        ]);
+
+        $payment->update(['updated_at' => Carbon::now()->subMinutes(35)]);
+
+        $payment->addLog('authorize_success', [
+            'message' => 'Payment authorized by gateway',
+        ]);
+
+        $payment->paymentLogs()->update(['created_at' => Carbon::now()->subMinutes(35)]);
+
+        $action = new CancelStalePaymentsAction($this->apps);
+        $cancelled = $action->execute();
+
+        $this->assertFalse($cancelled->contains('id', $payment->id));
+
+        $payment->refresh();
+        $this->assertEquals(PaymentStatusEnum::PROCESSING->value, $payment->status);
     }
 }
