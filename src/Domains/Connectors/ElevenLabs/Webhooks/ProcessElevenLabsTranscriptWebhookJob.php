@@ -4,26 +4,21 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ElevenLabs\Webhooks;
 
-use Baka\Support\Str;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Connectors\ElevenLabs\Enums\CustomFieldEnum;
 use Kanvas\Connectors\ElevenLabs\Enums\WebhookTypeEnum;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Services\FilesystemServices;
-use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Users\Models\Users;
-use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
+class ProcessElevenLabsTranscriptWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]
     public function execute(): array
@@ -52,14 +47,15 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
         $analysis = (array) ($data['analysis'] ?? []);
 
         $phone = $this->extractPhoneFromPayload($data);
-        $lead = $this->findLeadByPhone($phone);
 
-        if (! $lead) {
+        if ($phone === '') {
             return [
-                'message' => 'No lead found for phone: ' . $phone,
+                'message' => 'No phone number in transcript payload, skipping',
                 'conversation_id' => $conversationId,
             ];
         }
+
+        $lead = $this->resolveLeadByPhone($phone);
 
         $this->updateLeadPeopleFromAnalysis($lead, $analysis);
 
@@ -266,9 +262,9 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
         $body = (array) ($failureMetadata['body'] ?? []);
 
         $phone = (string) ($body['to_number'] ?? $body['from_number'] ?? '');
-        $lead = $this->findLeadByPhone($phone);
 
-        if ($lead) {
+        if ($phone !== '') {
+            $lead = $this->resolveLeadByPhone($phone);
             $lead->set(CustomFieldEnum::CALL_FAILURE->value, [
                 'conversation_id' => $conversationId,
                 'reason' => $failureReason,
@@ -282,34 +278,6 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessWebhookJob
             'conversation_id' => $conversationId,
             'failure_reason' => $failureReason,
         ];
-    }
-
-    protected function findLeadByPhone(string $phone): ?Lead
-    {
-        if ($phone === '') {
-            return null;
-        }
-
-        $digitsOnly = Str::sanitizePhoneNumber($phone);
-        $normalizedPhone = Str::normalizePhoneNumber($phone);
-
-        $query = PeoplesRepository::getByPhoneNumber(
-            app: $this->receiver->app,
-            company: $this->receiver->company,
-            phoneNumbers: array_unique([$digitsOnly, $normalizedPhone]),
-        );
-
-        $allCustomers = $query->get();
-
-        $people = $allCustomers->first(function (People $customer): bool {
-            return LeadsRepository::getPeopleActiveLead($customer) !== null;
-        }) ?? $allCustomers->first();
-
-        if (! $people) {
-            return null;
-        }
-
-        return LeadsRepository::getPeopleActiveLead($people);
     }
 
     protected function findLeadByConversationId(string $conversationId): ?Lead
