@@ -9,9 +9,13 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Kanvas\Connectors\OpenClaw\Enums\DeploymentStatusEnum;
+use Kanvas\Connectors\OpenClaw\Events\AgentDeploymentStatusChanged;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
+use Throwable;
 
 /**
  * Run the full OpenClaw update sequence for a single agent user on a machine:
@@ -37,17 +41,21 @@ class UpdateOpenClawForUserJob implements ShouldQueue
     public function __construct(
         protected AgentMachine $machine,
         protected string $systemUser,
+        protected ?int $deploymentId = null,
     ) {
     }
 
     public function handle(): void
     {
         $composeFile = '/home/' . $this->systemUser . '/.openclaw/docker-compose.yml';
-
         $client = SshClient::fromMachine($this->machine);
 
         try {
             $this->runUpdate($client, $composeFile);
+            $this->setDeploymentStatus(DeploymentStatusEnum::RUNNING);
+        } catch (Throwable $e) {
+            $this->setDeploymentStatus(DeploymentStatusEnum::FAILED, $e->getMessage());
+            throw $e;
         } finally {
             $client->disconnect();
         }
@@ -72,5 +80,24 @@ class UpdateOpenClawForUserJob implements ShouldQueue
                 'OpenClaw update failed for user ' . $this->systemUser . ': ' . $output
             );
         }
+    }
+
+    private function setDeploymentStatus(DeploymentStatusEnum $status, ?string $errorMessage = null): void
+    {
+        if (! $this->deploymentId) {
+            return;
+        }
+
+        $deployment = AgentDeployment::find($this->deploymentId);
+        if (! $deployment) {
+            return;
+        }
+
+        $previousStatus = $deployment->status;
+        $deployment->status = $status->value;
+        $deployment->error_message = $errorMessage;
+        $deployment->saveOrFail();
+
+        AgentDeploymentStatusChanged::dispatch($deployment, $previousStatus);
     }
 }

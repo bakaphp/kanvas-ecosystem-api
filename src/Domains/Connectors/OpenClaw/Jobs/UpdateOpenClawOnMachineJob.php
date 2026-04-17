@@ -10,6 +10,9 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Connectors\OpenClaw\Actions\UpdateOpenClawOnMachineAction;
+use Kanvas\Connectors\OpenClaw\Enums\DeploymentStatusEnum;
+use Kanvas\Connectors\OpenClaw\Events\AgentDeploymentStatusChanged;
+use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
 /**
@@ -37,7 +40,23 @@ class UpdateOpenClawOnMachineJob implements ShouldQueue
         $users = new UpdateOpenClawOnMachineAction($this->machine)->execute();
 
         foreach ($users as $user) {
-            UpdateOpenClawForUserJob::dispatch($this->machine, $user);
+            $deployment = AgentDeployment::where('agent_machine_id', $this->machine->id)
+                ->where('system_user', $user)
+                ->where('is_deleted', 0)
+                ->whereNotIn('status', [
+                    DeploymentStatusEnum::TERMINATED->value,
+                    DeploymentStatusEnum::FAILED->value,
+                ])
+                ->first();
+
+            if ($deployment) {
+                $previousStatus = $deployment->status;
+                $deployment->status = DeploymentStatusEnum::UPDATING->value;
+                $deployment->saveOrFail();
+                AgentDeploymentStatusChanged::dispatch($deployment, $previousStatus);
+            }
+
+            UpdateOpenClawForUserJob::dispatch($this->machine, $user, $deployment?->id);
         }
     }
 }
