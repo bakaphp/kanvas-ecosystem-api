@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ElevenLabs\Webhooks;
 
+use Baka\Support\DateHelper;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventData;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -24,8 +25,8 @@ class ProcessElevenLabsCalendarEventWebhookJob extends ProcessElevenLabsWebhookJ
             return ['status' => 422, 'message' => 'Phone number is required'];
         }
 
-        $date = isset($payload['date']) ? (string) $payload['date'] : null;
-        if ($date === null || $date === '') {
+        $rawDate = isset($payload['date']) ? (string) $payload['date'] : null;
+        if ($rawDate === null || $rawDate === '') {
             $this->failedReturnHttpCode = 422;
 
             return ['status' => 422, 'message' => 'Date is required'];
@@ -34,13 +35,24 @@ class ProcessElevenLabsCalendarEventWebhookJob extends ProcessElevenLabsWebhookJ
         $app = $this->receiver->app;
         $company = $this->receiver->company;
         $user = $this->receiver->user;
+        $timezone = $company->get('timezone') ?? $company->timezone ?? 'UTC';
+
+        $date = DateHelper::normalizeDate($rawDate, $timezone);
+        if ($date === null) {
+            $this->failedReturnHttpCode = 422;
+
+            return [
+                'status' => 422,
+                'message' => 'Invalid date format. Expected Y-m-d (e.g. 2026-05-15). Received: ' . $rawDate,
+            ];
+        }
 
         $lead = $this->resolveLeadByPhone($phone);
 
         $this->updateLeadPeopleInfo($lead, $payload);
 
-        $startTime = isset($payload['start_time']) ? (string) $payload['start_time'] : null;
-        $endTime = isset($payload['end_time']) ? (string) $payload['end_time'] : null;
+        $startTime = isset($payload['start_time']) ? DateHelper::normalizeTime((string) $payload['start_time']) : null;
+        $endTime = isset($payload['end_time']) ? DateHelper::normalizeTime((string) $payload['end_time']) : null;
 
         $eventName = isset($payload['event_name']) && $payload['event_name'] !== ''
             ? (string) $payload['event_name']
