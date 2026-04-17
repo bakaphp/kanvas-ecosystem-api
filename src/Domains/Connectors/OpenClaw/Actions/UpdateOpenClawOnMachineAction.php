@@ -50,12 +50,14 @@ class UpdateOpenClawOnMachineAction
     private function scanUsers(SshClient $client): array
     {
         $raw = $client->exec(
-            'for dir in /home/*/; do'
+            'sudo bash -c \''
+            . 'for dir in /home/*/; do'
             . ' user=$(basename "$dir");'
             . ' if [ -f "${dir}.openclaw/docker-compose.yml" ]; then'
             . ' echo "__USER__${user}";'
             . ' fi;'
-            . ' done',
+            . ' done'
+            . '\'',
             10
         );
 
