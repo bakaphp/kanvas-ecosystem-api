@@ -152,6 +152,55 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             }
         }
 
+        if (($assistanceCase['cancel_order'] ?? false) === true) {
+            $terminalStatuses = [
+                MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
+                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
+                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
+            ];
+            if (in_array($currentStatusSlug, $terminalStatuses, true)) {
+                return [
+                    'order' => $order->getId(),
+                    'status' => 'success',
+                    'message' => 'Cancel ignored: order is already in a terminal status',
+                ];
+            }
+
+            $user = Users::getById((int) $order->users_id);
+            $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
+
+            unset($assistanceCase['cancel_order']);
+            $assistanceCase['cancelled_at'] = Carbon::now()->toISOString();
+            $assistanceCase['status'] = MovipassOrderStatusEnum::SERVICE_CANCELLED->slug();
+            $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
+            $assistanceCase['pin_hash'] = null;
+            $assistanceCase['pin_invalidated_at'] = Carbon::now()->toISOString();
+
+            $order->metadata = [
+                ...$metadata,
+                'assistance_case' => $assistanceCase,
+                'data' => [
+                    ...($metadata['data'] ?? []),
+                    'assistance_case' => $assistanceCase,
+                ],
+            ];
+            $order->saveQuietly();
+
+            $order->transitionToStatus($user, MovipassOrderStatusEnum::SERVICE_CANCELLED->slug());
+            $order->fulfillCancelled();
+
+            $broadcastId = $mechanicId > 0 ? $mechanicId : (int) $order->users_id;
+            RefreshActiveAssistanceEvent::dispatch($order, $broadcastId);
+
+            return [
+                'order' => $order->getId(),
+                'status' => 'success',
+                'message' => 'Order cancelled and transitioned to service_cancelled',
+                'data' => $order->toArray(),
+                'response' => $order->toArray(),
+            ];
+        }
+
         if (($assistanceCase['mechanic_cancel'] ?? false) === true) {
             $nonCancellableStatuses = [
                 MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
