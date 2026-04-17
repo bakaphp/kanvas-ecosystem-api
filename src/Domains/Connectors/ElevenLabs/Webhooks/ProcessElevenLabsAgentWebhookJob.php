@@ -76,6 +76,7 @@ class ProcessElevenLabsAgentWebhookJob extends ProcessWebhookJob
                 'title' => $lead->title,
                 'pipeline' => $lead->pipeline?->name,
                 'stage' => $lead->stage?->name,
+                'current_date' => now()->toDateTimeString(),
                 'ai_mode' => $lead->get(ConfigurationEnum::AI_MODE->value),
                 'owner' => $lead->owner ? trim((string) $lead->owner->firstname . ' ' . (string) $lead->owner->lastname) : null,
             ],
