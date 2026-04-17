@@ -95,16 +95,16 @@ class SetupRolesCommand extends Command
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::RDVIAL_CONSULTANT,
             ],
+            'manage-paso-rapido' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+            ],
         ];
 
         Bouncer::scope()->to(RolesEnums::getScope($app));
         foreach ($abilities as $ability => $roles) {
             foreach ($roles as $roleName) {
                 Bouncer::allow($roleName->value)->to($ability);
-            }
-
-            if (! in_array(MovipassRolesEnum::RDVIAL_CONSULTANT, $roles, true)) {
-                Bouncer::disallow(MovipassRolesEnum::RDVIAL_CONSULTANT->value)->to($ability);
             }
         }
 
