@@ -1,3 +1,12 @@
+input MigrateAgentWorkspaceInput {
+    source_deployment_id: ID!
+    destination_machine_id: ID!
+    "Full path to the workspace directory on the source server (defaults to ~/.openclaw)"
+    source_path: String
+    "Parent directory to extract into on the destination server (defaults to agent home directory)"
+    destination_path: String
+}
+
 type AgentDeploymentEvent {
     "Auto-increment primary key"
     id: ID!
@@ -69,6 +78,10 @@ extend type Mutation @guardByAdmin {
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentMachineMutation@delete"
         )
+    openclawUpdateMachineContainers(machine_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentMachineMutation@updateContainers"
+        )
 
     openclawLaunchAgent(input: LaunchAgentInput!): AgentDeploymentType!
         @field(
@@ -98,6 +111,11 @@ extend type Mutation @guardByAdmin {
     openclawSetSlackTokens(agent_id: ID!, slack_bot_token: String!, slack_app_token: String!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@setSlackTokens"
+        )
+
+    openclawMigrateAgentWorkspace(input: MigrateAgentWorkspaceInput!): AgentDeploymentType!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@migrateWorkspace"
         )
 }
 

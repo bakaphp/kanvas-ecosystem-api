@@ -13,6 +13,7 @@ use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerStatusAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetDeploymentConfigAction;
 use Kanvas\Connectors\OpenClaw\Actions\UpdateDeploymentConfigAction;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
+use Kanvas\Connectors\OpenClaw\Jobs\MigrateAgentWorkspaceJob;
 use Kanvas\Connectors\OpenClaw\Jobs\RestartAgentContainerJob;
 use Kanvas\Connectors\OpenClaw\Jobs\TerminateAgentJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -156,5 +157,29 @@ class AgentDeploymentMutation
             $deployment,
             (string) $request['config'],
         )->execute();
+    }
+
+    public function migrateWorkspace(mixed $root, array $request): AgentDeployment
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $input = $request['input'];
+
+        /** @var AgentDeployment $sourceDeployment */
+        $sourceDeployment = AgentDeployment::getByIdFromCompanyApp((int) $input['source_deployment_id'], $company, $app);
+
+        /** @var AgentMachine $destinationMachine */
+        $destinationMachine = AgentMachine::getByIdFromCompanyApp((int) $input['destination_machine_id'], $company, $app);
+
+        MigrateAgentWorkspaceJob::dispatch(
+            $sourceDeployment,
+            $destinationMachine,
+            $app,
+            $company,
+            $input['source_path'] ?? null,
+            $input['destination_path'] ?? null,
+        );
+
+        return $sourceDeployment;
     }
 }
