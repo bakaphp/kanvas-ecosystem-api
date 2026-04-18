@@ -9,6 +9,7 @@ use Kanvas\Connectors\LicensePlateExtractor\Contracts\PlateExtractorDriverInterf
 use Kanvas\Connectors\LicensePlateExtractor\DataTransferObject\LicensePlate;
 use Kanvas\Connectors\LicensePlateExtractor\Enums\ConfigurationEnum;
 use Kanvas\Connectors\LicensePlateExtractor\Enums\ProviderEnum;
+use Override;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Facades\Prism;
@@ -16,7 +17,6 @@ use Prism\Prism\Schema\NumberSchema;
 use Prism\Prism\Schema\ObjectSchema;
 use Prism\Prism\Schema\StringSchema;
 use Prism\Prism\ValueObjects\Media\Image;
-use Override;
 use Throwable;
 
 class GeminiDriver implements PlateExtractorDriverInterface
