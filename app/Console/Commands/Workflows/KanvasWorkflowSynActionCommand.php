@@ -51,6 +51,7 @@ use Kanvas\Connectors\InAppPurchase\Jobs\ProcessAppleSubscriptionWebhookJob;
 use Kanvas\Connectors\InAppPurchase\Jobs\ProcessGoogleSubscriptionWebhookJob;
 use Kanvas\Connectors\InAppPurchase\Workflows\LinkMessageToOrderActivity;
 use Kanvas\Connectors\Intellicheck\Activities\IdVerificationReportActivity;
+use Kanvas\Connectors\LicensePlateExtractor\Activities\ExtractLicensePlateActivity;
 use Kanvas\Connectors\Internal\Activities\B2BCompanyPriceConfigurationActivity;
 use Kanvas\Connectors\Internal\Activities\ExtractCompanyNameFromPeopleEmailActivity;
 use Kanvas\Connectors\Internal\Activities\GenerateCompanyDashboardActivity;
@@ -304,6 +305,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PushOrderActivity::class,
             ProcessVehicleImageActivity::class,
             WorkflowsProcessVehicleImageActivity::class,
+            ExtractLicensePlateActivity::class,
             ProcessMessageVehicleImageActivity::class,
             LLMMessageResponseActivity::class,
             ProcessPaymentActivity::class,
