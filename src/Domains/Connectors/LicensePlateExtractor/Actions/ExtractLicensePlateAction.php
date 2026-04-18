@@ -11,12 +11,11 @@ use Kanvas\Connectors\LicensePlateExtractor\Enums\ConfigurationEnum;
 use Kanvas\Connectors\LicensePlateExtractor\Enums\CustomFieldEnum;
 use Kanvas\Connectors\LicensePlateExtractor\Enums\ProviderEnum;
 use Kanvas\Connectors\LicensePlateExtractor\Services\PlateExtractionService;
+use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
 
 class ExtractLicensePlateAction
 {
-    private const array SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'];
-
     public function __construct(
         protected readonly Filesystem $filesystem,
         protected readonly AppInterface $app,
@@ -93,9 +92,7 @@ class ExtractLicensePlateAction
 
     private function isSupportedImage(): bool
     {
-        $ext = strtolower($this->filesystem->file_type);
-
-        return in_array($ext, self::SUPPORTED_EXTENSIONS, true);
+        return MediaTypeEnum::fromExtension($this->filesystem->file_type)->isImage();
     }
 
     private function meetsConfidenceThreshold(LicensePlate $result): bool
