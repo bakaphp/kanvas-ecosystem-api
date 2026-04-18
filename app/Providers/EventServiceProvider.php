@@ -14,8 +14,6 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Observers\PeopleEmploymentHistoryObserver;
 use Kanvas\Guild\Customers\Observers\PeopleObserver;
-use Kanvas\Guild\Deals\Models\Deal;
-use Kanvas\Guild\Deals\Observers\DealObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
 use Kanvas\Inventory\Attributes\Models\Attributes;
@@ -94,7 +92,6 @@ class EventServiceProvider extends ServiceProvider
         UserMessageActivity::observe(UserMessageActivityObserver::class);
         UserList::observe(UsersListsObserver::class);
         Lead::observe(LeadObserver::class);
-        Deal::observe(DealObserver::class);
         #UserMessage::observe(UserMessageObserver::class);
         Warehouses::observe(WarehouseObserver::class);
         Regions::observe(RegionObserver::class);
