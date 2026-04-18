@@ -68,6 +68,12 @@ class Deal extends BaseModel
         return $this->belongsTo(Lead::class, 'leads_id', 'id');
     }
 
+    #[Override]
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'users_id', 'id');
+    }
+
     public function owner(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'owner_id', 'id');

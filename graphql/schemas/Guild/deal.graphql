@@ -1,26 +1,34 @@
 type Deal {
     id: ID!
     uuid: String!
-    apps_id: Int
-    companies_id: Int!
-    companies_branches_id: Int
-    leads_id: Int
-    owner_id: Int
-    status_id: Int
-    pipeline_id: Int
-    pipeline_stage_id: Int
-    people_id: Int
-    organization_id: Int
-    status: Int
+    company: Company! @belongsTo(relation: "company")
+    branch: CompanyBranch @belongsTo(relation: "branch")
     title: String
     description: String
-    company: Company! @belongsTo
-    user: User! @belongsTo(relation: "owner")
-    lead: Lead @belongsTo
-    people: People @belongsTo
-    organization: Organization @belongsTo
-    pipeline: Pipeline @belongsTo
-    pipelineStage: PipelineStage @belongsTo
+    status: Int
+    user: User @belongsTo(relation: "user")
+    owner: User @belongsTo(relation: "owner")
+    lead: Lead @belongsTo(relation: "lead")
+    people: People @belongsTo(relation: "people")
+    organization: Organization @belongsTo(relation: "organization")
+    pipeline: LeadPipeline @belongsTo(relation: "pipeline")
+    stage: LeadPipelineStage @belongsTo(relation: "pipelineStage")
+    leadStatus: LeadStatus @belongsTo(relation: "leadStatus")
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
+    files: [Filesystem!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
     created_at: DateTime!
     updated_at: DateTime
 }
