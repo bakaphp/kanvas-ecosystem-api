@@ -13,6 +13,10 @@ type Deal {
     pipeline: LeadPipeline @belongsTo(relation: "pipeline")
     stage: LeadPipelineStage @belongsTo(relation: "pipelineStage")
     status: LeadStatus @belongsTo(relation: "leadStatus")
+    channels: [SocialChannel]! @hasMany(relation: "socialChannels")
+    notes: SocialChannel @hasOne(relation: "notes")
+    ai_session: [AIAgentSession!]!
+        @hasMany(relation: "aiSession", type: PAGINATOR)
     tags: [Tag!]
         @paginate(
             defaultCount: 25

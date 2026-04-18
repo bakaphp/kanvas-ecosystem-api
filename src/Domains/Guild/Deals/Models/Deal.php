@@ -8,6 +8,8 @@ use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Models\People;
@@ -17,7 +19,11 @@ use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
+use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
@@ -68,12 +74,6 @@ class Deal extends BaseModel
         return $this->belongsTo(Lead::class, 'leads_id', 'id');
     }
 
-    #[Override]
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(Users::class, 'users_id', 'id');
-    }
-
     public function owner(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'owner_id', 'id');
@@ -97,6 +97,37 @@ class Deal extends BaseModel
     public function leadStatus(): BelongsTo
     {
         return $this->belongsTo(LeadStatus::class, 'status_id', 'id');
+    }
+
+    public function getStringIdAttribute(): string
+    {
+        return (string) $this->id;
+    }
+
+    public function socialChannels(): HasMany
+    {
+        return $this->hasMany(Channel::class, 'entity_id', 'string_id')
+            ->whereIn(
+                'entity_namespace',
+                [
+                    self::class,
+                    SystemModules::getLegacyNamespace(self::class),
+                ]
+            )
+            ->where('is_deleted', 0);
+    }
+
+    public function notes(): HasOne
+    {
+        return $this->hasOne(Channel::class, 'entity_id', 'string_id')
+            ->where('entity_namespace', self::class)
+            ->where('name', ChannelNameEnum::NOTES->value);
+    }
+
+    public function aiSession(): HasMany
+    {
+        return $this->hasMany(Session::class, 'entity_id', 'string_id')
+            ->where('entity_namespace', self::class);
     }
 
     public function searchableAs(): string
