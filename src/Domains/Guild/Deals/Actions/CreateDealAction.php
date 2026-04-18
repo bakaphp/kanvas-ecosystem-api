@@ -23,9 +23,7 @@ class CreateDealAction
             $deal = new Deal();
             $deal->apps_id = $this->data->app->getId();
             $deal->companies_id = $this->data->company->getId();
-            $deal->companies_branches_id = $this->data->branch?->getId()
-                ?? $this->data->lead?->companies_branches_id
-                ?? 0;
+            $deal->companies_branches_id = $this->data->branch?->getId() ?? 0;
             $deal->users_id = $this->data->user->getId();
             $deal->owner_id = $this->data->owner?->getId() ?? $this->data->user->getId();
             $deal->leads_id = $this->data->lead?->getId();
