@@ -92,7 +92,6 @@ class Client
 
     protected function resolveBaseUrl(): string
     {
-        /** @var mixed $configured */
         $configured = $this->company->get(ConfigurationEnum::USE_SANDBOX->value);
 
         if ($configured === null) {
