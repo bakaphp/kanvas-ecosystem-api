@@ -64,6 +64,9 @@ use Kanvas\Connectors\Internal\Jobs\OAuthCallbackJob;
 use Kanvas\Connectors\InventorySync\Workflows\Activities\SyncInventoryActivity;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncOrderWithIPlusActivities;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
+use Kanvas\Connectors\Lendflow\Activities\SubmitApplicationActivity as LendflowSubmitApplicationActivity;
+use Kanvas\Connectors\Lendflow\Activities\UploadDealFilesActivity as LendflowUploadDealFilesActivity;
+use Kanvas\Connectors\Zoho\Jobs\ProcessZohoDealWebhookJob;
 use Kanvas\Connectors\LicensePlateExtractor\Activities\ExtractLicensePlateActivity;
 use Kanvas\Connectors\Mailgun\Webhooks\AgentProcessEmailWebhookJob;
 use Kanvas\Connectors\Mailgun\Workflows\AgentChannelResponderActivity as WorkflowsAgentChannelResponderActivity;
@@ -306,6 +309,9 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessVehicleImageActivity::class,
             WorkflowsProcessVehicleImageActivity::class,
             ExtractLicensePlateActivity::class,
+            LendflowSubmitApplicationActivity::class,
+            LendflowUploadDealFilesActivity::class,
+            ProcessZohoDealWebhookJob::class,
             ProcessMessageVehicleImageActivity::class,
             LLMMessageResponseActivity::class,
             ProcessPaymentActivity::class,

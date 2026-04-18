@@ -1,0 +1,78 @@
+type Deal {
+    id: ID!
+    uuid: String!
+    apps_id: Int
+    companies_id: Int!
+    companies_branches_id: Int
+    leads_id: Int
+    owner_id: Int
+    status_id: Int
+    pipeline_id: Int
+    pipeline_stage_id: Int
+    people_id: Int
+    organization_id: Int
+    status: Int
+    title: String
+    description: String
+    company: Company! @belongsTo
+    user: User! @belongsTo(relation: "owner")
+    lead: Lead @belongsTo
+    people: People @belongsTo
+    organization: Organization @belongsTo
+    pipeline: Pipeline @belongsTo
+    pipelineStage: PipelineStage @belongsTo
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+input DealInput {
+    title: String!
+    description: String
+    leads_id: ID
+    people_id: ID
+    organization_id: ID
+    owner_id: ID
+    pipeline_id: ID
+    pipeline_stage_id: ID
+    status_id: Int
+    status: Int
+    companies_branches_id: ID
+}
+
+input UpdateDealInput {
+    title: String
+    description: String
+    leads_id: ID
+    people_id: ID
+    organization_id: ID
+    owner_id: ID
+    pipeline_id: ID
+    pipeline_stage_id: ID
+    status_id: Int
+    status: Int
+    companies_branches_id: ID
+}
+
+extend type Mutation @guard {
+    createDeal(input: DealInput!): Deal!
+        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Deal\\DealMutation@create")
+    updateDeal(id: ID!, input: UpdateDealInput!): Deal!
+        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Deal\\DealMutation@update")
+    deleteDeal(id: ID!): Boolean!
+        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Deal\\DealMutation@delete")
+}
+
+extend type Query @guard {
+    deals(
+        search: String @search
+        where: _ @whereConditions(columns: ["id", "title", "uuid", "leads_id", "people_id", "organization_id", "pipeline_id", "pipeline_stage_id", "status_id"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "title"])
+    ): [Deal!]!
+        @paginate(
+            model: "Kanvas\\Guild\\Deals\\Models\\Deal"
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+    deal(id: ID @eq): Deal
+        @find(model: "Kanvas\\Guild\\Deals\\Models\\Deal" scopes: ["fromCompany", "fromApp", "notDeleted"])
+}

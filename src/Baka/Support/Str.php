@@ -32,9 +32,18 @@ class Str extends IlluminateStr
         return strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $string)));
     }
 
+    /**
+     * Strip all non-digit characters from a string.
+     * Useful for normalizing phone numbers, EINs, SSNs, ZIPs, etc.
+     */
+    public static function digitsOnly(?string $value): string
+    {
+        return $value === null ? '' : ((string) preg_replace('/\D+/', '', $value));
+    }
+
     public static function sanitizePhoneNumber(?string $phone = null): string
     {
-        return (string) ($phone !== null ? preg_replace('/\D+/', '', $phone) : '');
+        return self::digitsOnly($phone);
     }
 
     public static function cleanJsonString(string $json): string

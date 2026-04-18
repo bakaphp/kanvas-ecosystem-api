@@ -52,4 +52,5 @@ enum IntegrationsEnum: string
     case OPENCLAW = 'openclaw';
     case MICROSOFT = 'microsoft';
     case LICENSE_PLATE_EXTRACTOR = 'license_plate_extractor';
+    case LENDFLOW = 'lendflow';
 }
