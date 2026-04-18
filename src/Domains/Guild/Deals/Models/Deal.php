@@ -7,12 +7,14 @@ namespace Kanvas\Guild\Deals\Models;
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Observers\DealObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Models\BaseModel;
@@ -47,6 +49,7 @@ use Override;
  * @property string|null $description
  * @property int $is_deleted
  */
+#[ObservedBy([DealObserver::class])]
 class Deal extends BaseModel
 {
     use UuidTrait;
