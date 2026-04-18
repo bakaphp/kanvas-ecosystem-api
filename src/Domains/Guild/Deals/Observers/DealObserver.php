@@ -91,6 +91,11 @@ class DealObserver
         $this->cleanupRelatedChannelsAndSessions($deal);
     }
 
+    public function updating(Deal $deal): void
+    {
+        $deal->clearLightHouseCache(withKanvasConfiguration: false);
+    }
+
     public function softDeleted(Deal $deal): void
     {
         $this->cleanupRelatedChannelsAndSessions($deal);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Deals\Models;
 
 use Baka\Traits\DatabaseSearchableTrait;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Event\Events\Traits\EventResourceTrait;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Deals\Observers\DealObserver;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -24,6 +26,7 @@ use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
@@ -58,9 +61,22 @@ class Deal extends BaseModel
     use DatabaseSearchableTrait {
         search as public traitSearch;
     }
+    use FollowersTrait;
+    use HasLightHouseCache;
+    use EventResourceTrait;
+    protected $observables = [
+        'softDeleting',
+        'softDeleted',
+    ];
 
     protected $table = 'deals';
     protected $guarded = [];
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'Deal';
+    }
 
     public function people(): BelongsTo
     {
