@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Event;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Support\Setup;
@@ -182,6 +183,119 @@ class EventTest extends TestCase
                     }
                 }
             }')->assertSee('eventVersions');
+    }
+
+    public function testCreateEventDoesNotDuplicateEventOnSameSlug(): void
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $setup = new Setup($app, $user, $company);
+        $setup->run();
+
+        $eventName = 'Reused Event ' . uniqid();
+        $input = [
+            'name' => $eventName,
+            'description' => 'Tests Event-level upsert',
+            'category_id' => EventCategory::fromCompany($company)->fromApp($app)->first()->getId(),
+            'type_id' => EventType::fromCompany($company)->fromApp($app)->first()->getId(),
+            'dates' => [
+                [
+                    'date' => date('Y-m-d'),
+                    'start_time' => '08:00',
+                    'end_time' => '09:00',
+                ],
+            ],
+        ];
+
+        $mutation = '
+            mutation($input: EventInput!) {
+                createEvent(input: $input) {
+                    id
+                    slug
+                }
+            }
+        ';
+
+        $first = $this->graphQL($mutation, ['input' => $input])->assertSuccessful();
+        $second = $this->graphQL($mutation, ['input' => $input])->assertSuccessful();
+        $third = $this->graphQL($mutation, ['input' => $input])->assertSuccessful();
+
+        $eventId = $first->json('data.createEvent.id');
+        $slug = $first->json('data.createEvent.slug');
+
+        $this->assertSame($eventId, $second->json('data.createEvent.id'));
+        $this->assertSame($eventId, $third->json('data.createEvent.id'));
+        $this->assertSame($slug, $second->json('data.createEvent.slug'));
+        $this->assertSame($slug, $third->json('data.createEvent.slug'));
+
+        $this->assertSame(
+            1,
+            Event::where('slug', $slug)
+                ->where('apps_id', $app->getId())
+                ->where('companies_id', $company->getId())
+                ->count(),
+            'Event::updateOrCreate must reuse the existing row, not insert duplicates',
+        );
+    }
+
+    public function testCreateEventCreatesVersionedSlugOnDuplicate(): void
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $setup = new Setup($app, $user, $company);
+        $setup->run();
+
+        $input = [
+            'name' => 'Duplicate Slug Event ' . uniqid(),
+            'description' => 'Tests slug versioning on duplicate booking',
+            'category_id' => EventCategory::fromCompany($company)->fromApp($app)->first()->getId(),
+            'type_id' => EventType::fromCompany($company)->fromApp($app)->first()->getId(),
+            'dates' => [
+                [
+                    'date' => date('Y-m-d'),
+                    'start_time' => '09:00',
+                    'end_time' => '10:00',
+                ],
+            ],
+        ];
+
+        $mutation = '
+            mutation($input: EventInput!) {
+                createEvent(input: $input) {
+                    id
+                    versions {
+                        data {
+                            slug
+                            version
+                        }
+                    }
+                }
+            }
+        ';
+
+        $firstEventId = $this->graphQL($mutation, ['input' => $input])
+            ->assertSuccessful()
+            ->json('data.createEvent.id');
+
+        $secondResponse = $this->graphQL($mutation, ['input' => $input])->assertSuccessful();
+
+        $this->assertSame($firstEventId, $secondResponse->json('data.createEvent.id'));
+
+        $versions = $secondResponse->json('data.createEvent.versions.data');
+        $this->assertGreaterThanOrEqual(2, count($versions));
+
+        $slugs = array_column($versions, 'slug');
+        $versionNumbers = array_map('intval', array_column($versions, 'version'));
+
+        $this->assertContains(1, $versionNumbers);
+        $this->assertContains(2, $versionNumbers);
+
+        sort($slugs);
+        $this->assertSame($slugs[0] . '-2', $slugs[1]);
     }
 
     public function testCreateEventWithConfig(): void

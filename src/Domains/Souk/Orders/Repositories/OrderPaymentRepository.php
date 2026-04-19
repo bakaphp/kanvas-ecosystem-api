@@ -18,6 +18,45 @@ class OrderPaymentRepository
     }
 
     /**
+     * Apply tag / reference / order_number filters shared across all stat queries.
+     *
+     * @param  mixed  $query  Eloquent builder for Order
+     */
+    private function applyOrderIdentifierFilters(
+        $query,
+        ?string $reference,
+        ?string $orderNumber,
+        ?array $metadataFilter
+    ): void {
+        if ($reference !== null && $reference !== '') {
+            $query->where('orders.reference', 'LIKE', $reference);
+        }
+
+        if ($orderNumber !== null && $orderNumber !== '') {
+            $query->where('orders.order_number', $orderNumber);
+        }
+
+        if (
+            $metadataFilter !== null
+            && ! empty($metadataFilter['path'])
+            && isset($metadataFilter['value'])
+            && $metadataFilter['value'] !== ''
+        ) {
+            $path = ltrim((string) $metadataFilter['path'], '.');
+            // JSON path is interpolated, not bound — restrict to safe dot-separated identifiers.
+            if (! preg_match('/^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$/', $path)) {
+                return;
+            }
+
+            $operator = strtoupper((string) ($metadataFilter['operator'] ?? 'EQ')) === 'LIKE' ? 'LIKE' : '=';
+            $query->whereRaw(
+                "JSON_UNQUOTE(JSON_EXTRACT(IF(JSON_VALID(orders.metadata), orders.metadata, '{}'), '$.{$path}')) {$operator} ?",
+                [$metadataFilter['value']]
+            );
+        }
+    }
+
+    /**
      * Get orders in period with payment information grouped by date.
      *
      * Supports two payment resolution strategies (OR logic):
@@ -37,7 +76,10 @@ class OrderPaymentRepository
         array $orderTypeNames = [],
         array $productVariantIds = [],
         array $providerCompanyIds = [],
-        ?string $userEmail = null
+        ?string $userEmail = null,
+        ?string $reference = null,
+        ?string $orderNumber = null,
+        ?array $metadataFilter = null
     ): Collection {
         $firstPaymentSub = DB::connection('commerce')
             ->table('payments')
@@ -81,6 +123,8 @@ class OrderPaymentRepository
             ->when($userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $userEmail))
             ->with(['items'])
             ->where('orders.apps_id', $this->app->id);
+
+        $this->applyOrderIdentifierFilters($query, $reference, $orderNumber, $metadataFilter);
 
         if (! empty($paidStates)) {
             $slugPlaceholders = implode(',', array_fill(0, count($paidStates), '?'));
@@ -143,7 +187,10 @@ class OrderPaymentRepository
         ?int $variantId = null,
         array $productVariantIds = [],
         array $providerCompanyIds = [],
-        ?string $userEmail = null
+        ?string $userEmail = null,
+        ?string $reference = null,
+        ?string $orderNumber = null,
+        ?array $metadataFilter = null
     ): Collection {
         $firstPaymentSub = DB::connection('commerce')
             ->table('payments')
@@ -193,6 +240,8 @@ class OrderPaymentRepository
             })
             ->when($userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $userEmail));
 
+        $this->applyOrderIdentifierFilters($query, $reference, $orderNumber, $metadataFilter);
+
         // Build CASE WHEN for provider matching
         $caseStatements = [];
         $bindings = [];
@@ -227,7 +276,10 @@ class OrderPaymentRepository
         array $orderTypeNames = [],
         array $productVariantIds = [],
         array $providerCompanyIds = [],
-        ?string $userEmail = null
+        ?string $userEmail = null,
+        ?string $reference = null,
+        ?string $orderNumber = null,
+        ?array $metadataFilter = null
     ): Collection {
         $firstPaymentSub = DB::connection('commerce')
             ->table('payments')
@@ -264,6 +316,8 @@ class OrderPaymentRepository
                 );
             })
             ->when($userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $userEmail));
+
+        $this->applyOrderIdentifierFilters($query, $reference, $orderNumber, $metadataFilter);
 
         if (! empty($paidStates)) {
             $slugPlaceholders = implode(',', array_fill(0, count($paidStates), '?'));
@@ -332,7 +386,10 @@ class OrderPaymentRepository
         ?int $variantId = null,
         array $productVariantIds = [],
         array $providerCompanyIds = [],
-        ?string $userEmail = null
+        ?string $userEmail = null,
+        ?string $reference = null,
+        ?string $orderNumber = null,
+        ?array $metadataFilter = null
     ): Collection {
         $format = match (strtoupper($periodType)) {
             'DAY'   => '%Y-%m-%d',
@@ -356,7 +413,7 @@ class OrderPaymentRepository
             ->selectRaw('oth.order_id, MIN(oth.changed_at) AS changed_at')
             ->groupBy('oth.order_id');
 
-        return Order::query()
+        $query = Order::query()
             ->leftJoinSub($firstPaymentSub, 'first_payment', 'first_payment.order_id', '=', 'orders.id')
             ->leftJoinSub($paidTransitionSub, 'paid_transition', 'paid_transition.order_id', '=', 'orders.id')
             ->when(! empty($orderTypeNames), function ($query) use ($orderTypeNames) {
@@ -391,7 +448,11 @@ class OrderPaymentRepository
             ->whereBetween(
                 DB::raw('COALESCE(paid_transition.changed_at, first_payment.payment_date)'),
                 [$start, $end]
-            )
+            );
+
+        $this->applyOrderIdentifierFilters($query, $reference, $orderNumber, $metadataFilter);
+
+        return $query
             ->selectRaw("
                 DATE_FORMAT(CONVERT_TZ(COALESCE(paid_transition.changed_at, first_payment.payment_date), 'UTC', ?), ?) AS label,
                 COUNT(DISTINCT orders.id) AS total_transactions,

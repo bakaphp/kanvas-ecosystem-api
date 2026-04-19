@@ -101,6 +101,7 @@ class UpdatePeopleAction
             })
             ->values();
 
+        $keepIds = [];
         $addresses = [];
 
         foreach ($deduplicatedAddresses as $address) {
@@ -137,11 +138,20 @@ class UpdatePeopleAction
                     'countries_id' => $address->country_id ?? $existingAddress->countries_id,
                     'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->people->app)->getId(),
                 ]);
+                $keepIds[] = $existingAddress->id;
             }
         }
 
         if (count($addresses) > 0) {
-            $this->people->address()->saveMany($addresses);
+            $savedAddresses = $this->people->address()->saveMany($addresses);
+            foreach ($savedAddresses as $saved) {
+                $keepIds[] = $saved->id;
+            }
+        }
+
+        // Remove addresses no longer in the input
+        if (! empty($keepIds)) {
+            $this->people->address()->whereNotIn('id', $keepIds)->delete();
         }
     }
 }

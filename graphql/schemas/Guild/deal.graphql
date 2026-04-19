@@ -1,0 +1,121 @@
+type Deal {
+    id: ID!
+    uuid: String!
+    company: Company! @belongsTo(relation: "company")
+    branch: CompanyBranch @belongsTo(relation: "branch")
+    title: String
+    description: String
+    user: User @belongsTo(relation: "user")
+    owner: User @belongsTo(relation: "owner")
+    lead: Lead @belongsTo(relation: "lead")
+    people: People @belongsTo(relation: "people")
+    organization: Organization @belongsTo(relation: "organization")
+    pipeline: LeadPipeline @belongsTo(relation: "pipeline")
+    stage: LeadPipelineStage @belongsTo(relation: "pipelineStage")
+    status: LeadStatus @belongsTo(relation: "leadStatus")
+    channels: [SocialChannel]! @hasMany(relation: "socialChannels")
+    notes: SocialChannel @hasOne(relation: "notes")
+    ai_session: [AIAgentSession!]!
+        @hasMany(relation: "aiSession", type: PAGINATOR)
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+input DealInput {
+    title: String!
+    description: String
+    leads_id: ID
+    people_id: ID
+    organization_id: ID
+    owner_id: ID
+    pipeline_id: ID
+    pipeline_stage_id: ID
+    status_id: Int
+    status: Int
+    companies_branches_id: ID
+}
+
+input UpdateDealInput {
+    title: String
+    description: String
+    leads_id: ID
+    people_id: ID
+    organization_id: ID
+    owner_id: ID
+    pipeline_id: ID
+    pipeline_stage_id: ID
+    status_id: Int
+    status: Int
+    companies_branches_id: ID
+}
+
+extend type Mutation @guard {
+    createDeal(input: DealInput!): Deal!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Deal\\DealMutation@create"
+        )
+    updateDeal(id: ID!, input: UpdateDealInput!): Deal!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Deal\\DealMutation@update"
+        )
+    deleteDeal(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Deal\\DealMutation@delete"
+        )
+    attachFileToDeal(file: Upload!, id: ID!, params: Mixed): Deal!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Deal\\DealMutation@attachFile"
+        )
+    attachFilesToDeal(file: [Upload!]!, id: ID!, params: Mixed): Deal!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Deal\\DealMutation@attachFile"
+        )
+}
+
+extend type Query @guard {
+    deals(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "title"
+                    "uuid"
+                    "leads_id"
+                    "people_id"
+                    "organization_id"
+                    "pipeline_id"
+                    "pipeline_stage_id"
+                    "status_id"
+                ]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "title"])
+    ): [Deal!]!
+        @paginate(
+            model: "Kanvas\\Guild\\Deals\\Models\\Deal"
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+    deal(id: ID @eq): Deal
+        @find(
+            model: "Kanvas\\Guild\\Deals\\Models\\Deal"
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
+        )
+}

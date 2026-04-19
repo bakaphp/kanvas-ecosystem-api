@@ -12,7 +12,7 @@ use Spatie\Enum\Enum;
  */
 class FollowUpValueEnum extends Enum
 {
-    protected static function labels(): array
+    protected static function values(): array
     {
         return [
             'OFF' => 0,

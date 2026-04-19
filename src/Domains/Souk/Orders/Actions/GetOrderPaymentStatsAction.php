@@ -25,6 +25,9 @@ class GetOrderPaymentStatsAction
         protected ?int $productId = null,
         protected array $providerCompanyIds = [],
         protected ?string $userEmail = null,
+        protected ?string $reference = null,
+        protected ?string $orderNumber = null,
+        protected ?array $metadataFilter = null,
     ) {
         $this->repository = new OrderPaymentRepository($app);
 
@@ -84,7 +87,10 @@ class GetOrderPaymentStatsAction
             $this->orderTypeNames,
             $this->productVariantIds,
             $this->providerCompanyIds,
-            $this->userEmail
+            $this->userEmail,
+            $this->reference,
+            $this->orderNumber,
+            $this->metadataFilter,
         );
 
         $daysInRange = collect(DateHelper::generateDateList($start, $end, $timezone))
@@ -104,6 +110,7 @@ class GetOrderPaymentStatsAction
             return [
                 'date' => $date,
                 'count' => $total,
+                'totalAmount' => (float) $amount,
                 'states' => [
                     'total' => $total,
                     'card' => $card,
@@ -134,7 +141,10 @@ class GetOrderPaymentStatsAction
                 $this->variantId,
                 $this->productVariantIds,
                 $this->providerCompanyIds,
-                $this->userEmail
+                $this->userEmail,
+                $this->reference,
+                $this->orderNumber,
+                $this->metadataFilter,
             );
             $byProvider = $providerResults->map(fn ($row) => [
                 'name' => $row->provider_name,
@@ -171,7 +181,10 @@ class GetOrderPaymentStatsAction
             $this->variantId,
             $this->productVariantIds,
             $this->providerCompanyIds,
-            $this->userEmail
+            $this->userEmail,
+            $this->reference,
+            $this->orderNumber,
+            $this->metadataFilter,
         );
 
         return $rows->map(fn ($row) => [
@@ -219,7 +232,10 @@ class GetOrderPaymentStatsAction
             $this->orderTypeNames,
             $this->productVariantIds,
             $this->providerCompanyIds,
-            $this->userEmail
+            $this->userEmail,
+            $this->reference,
+            $this->orderNumber,
+            $this->metadataFilter,
         );
 
         if ($orderIds->isEmpty()) {

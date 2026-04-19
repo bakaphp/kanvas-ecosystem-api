@@ -141,6 +141,7 @@ type OrderItem {
 type OrderType {
     id: ID!
     name: String!
+    slug: String
     title: String
     total_statuses: Int!
     statuses(

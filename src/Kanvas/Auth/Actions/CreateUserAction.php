@@ -105,12 +105,15 @@ class CreateUserAction
 
     protected function validateEmail(): void
     {
+        $emailRule = $this->app->get(AppSettingsEnums::VALIDATE_EMAIL_DNS->getValue())
+            ? 'required|email:rfc,dns'
+            : 'required|email';
+
         $validator = Validator::make(
             ['email' => $this->data->email],
-            ['email' => 'required|email']
+            ['email' => $emailRule]
         );
 
-        // This is the second time that we need get user data without an exception.
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }

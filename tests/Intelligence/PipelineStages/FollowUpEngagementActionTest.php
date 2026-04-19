@@ -16,6 +16,7 @@ use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\LeadSources\Models\LeadSource;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
+use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpTemplate;
@@ -106,6 +107,9 @@ class FollowUpEngagementActionTest extends TestCase
             ]);
             $lead->leads_sources_id = $leadSource->id;
             $lead->saveOrFail();
+
+            // Enable follow-up for this lead type so FollowUpEngagementAction doesn't throw
+            $lead->set('internet_follow_up_mode', FollowUpValueEnum::ON()->value);
 
             $lead->people->addEmail(fake()->email);
             $lead->people->addPhone(fake()->phoneNumber);

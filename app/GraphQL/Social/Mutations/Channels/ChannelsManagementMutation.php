@@ -9,6 +9,8 @@ use Exception;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Exceptions\AuthenticationException;
+use Kanvas\Social\Channels\Actions\ClearChannelMessagesAction;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
@@ -120,5 +122,26 @@ class ChannelsManagementMutation
         $channel->users()->detach($user->id);
 
         return $channel;
+    }
+
+    public function clearMessages(mixed $rootValue, array $request): bool
+    {
+        $user = auth()->user();
+
+        if (! $user->isAdmin()) {
+            throw new AuthenticationException('Only app admins can clear channel messages');
+        }
+
+        $app = app(Apps::class);
+        $channelQuery = Channel::query()
+            ->where('apps_id', $app->getId());
+
+        if (! $app->get(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value)) {
+            $channelQuery->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        $channel = $channelQuery->findOrFail((int) $request['channel_id']);
+
+        return new ClearChannelMessagesAction($channel)->execute();
     }
 }

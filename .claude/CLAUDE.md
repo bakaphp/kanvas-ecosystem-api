@@ -22,10 +22,17 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
       'photo'
   );
   ```
-- **PHP-CS-Fixer enforced** — always follow these formatting rules:
+- **PHP-CS-Fixer enforced** — config lives at `.php-cs-fixer.php`. **Run it on every save and before every commit/push** so the code matches house style and doesn't bounce back in review:
+  ```bash
+  vendor/bin/php-cs-fixer fix <file-or-dir>
+  ```
+  Apply it to every PHP file you touch (the fixer is idempotent — running it on files you didn't change is a no-op). If the binary isn't installed in the current environment, match the same rules by hand:
   - Anonymous classes: `new class () extends Foo {` (parentheses + space before brace, brace on same line)
   - Multi-line closures passed as method arguments: place the closure on a new line, e.g. `->whereHas('rel', fn ($q) => ...)` becomes `->whereHas(\n    'rel',\n    fn ($q) => ...\n)`
-  - `use` imports: alphabetical order within each namespace group (e.g. `Enums\` before `Models\`)
+  - `use` imports: alphabetical order **across the entire use block** (not just within each namespace group) — e.g. `Connectors\Zoho\...` must come after `Connectors\WooCommerce\...`
+  - No superfluous phpdoc tags (strip `@var mixed $x` style annotations when the var is already typed by assignment; see `no_superfluous_phpdoc_tags` with `allow_mixed: true` — applies only when the variable is named)
+  - No trailing blank line before the closing `}` of a class
+  - `no_empty_comment`, `single_quote`, `array_syntax: short`, `trailing_comma_in_multiline`, and the other rules in `.php-cs-fixer.php`
 - **Email rendering note**: `KanvasMailable` is HTML-first and uses `resources/views/emails/layout.blade.php`. If a feature needs true plain-text body delivery (for example raw ADF/XML in the body with no escaping/wrapping), use a dedicated plain-text view such as `resources/views/emails/plain.blade.php` instead of routing through the HTML layout.
 
 ## Domain CRUD Pattern
@@ -603,6 +610,7 @@ class Sync{Entity}Activity extends KanvasActivity
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::{CONNECTOR},
+            additionalParams: $params,
             integrationOperation: function () use ($entity) {
                 return new Sync{Entity}Action($entity)->execute();
             },
@@ -611,6 +619,8 @@ class Sync{Entity}Activity extends KanvasActivity
     }
 }
 ```
+
+**Important:** Always pass `additionalParams: $params` to `executeIntegration()`. Without it, the system cannot retry the activity with the correct parameters.
 
 ### 7. GraphQL Setup Mutation
 
@@ -889,6 +899,41 @@ public static function search($query = '', $callback = null)
 **Typesense schema requirement:** Models using `DynamicSearchableTrait` that may use the Typesense engine **MUST implement `typesenseCollectionSchema()`**. Without it, the Typesense engine throws `Parameter 'fields' is required` when creating the collection. The method should define fields matching `toSearchableArray()`.
 
 **Placement:** Place the `search()` method at the **end of the class**, not at the top. Properties (`$table`, `$guarded`, `casts()`) and relationships should come first.
+
+## Notifications
+
+Always extend `Kanvas\Notifications\Notification` (not `\Illuminate\Notifications\Notification`) for all notification classes in this codebase.
+
+```php
+use Kanvas\Notifications\Notification;
+
+class MyNotification extends Notification
+{
+    public function __construct(
+        protected SomeModel $entity,
+        // ... other params
+        protected Apps $app,
+        protected Companies $company,
+        protected ?Users $fromUser = null,
+    ) {
+        parent::__construct($entity, [
+            'app' => $app,
+            'company' => $company,
+            'fromUser' => $fromUser,
+        ]);
+
+        // Set channels as slug strings; the base class maps them to channel classes via
+        // NotificationChannelEnum::getNotificationChannelBySlug() in via()
+        $this->channels = ['mail', 'sms', 'push'];
+    }
+}
+```
+
+**Key points:**
+- `Kanvas\Notifications\Notification` implements `ShouldQueue`, includes SMTP config, OneSignal, Expo, SMS, and storage traits
+- Set `$this->channels` with slug strings (`'mail'`, `'sms'`, `'push'`, `'expo'`, `'database'`) — the base `via()` maps them to channel classes automatically via `Kanvas\Notifications\Enums\NotificationChannelEnum::getNotificationChannelBySlug()`
+- Override `toMail()` and/or `toOneSignal()` only when you need notification-specific content that differs from the template-based defaults
+- Never use `\Illuminate\Notifications\Notification` directly
 
 ## Key Conventions
 

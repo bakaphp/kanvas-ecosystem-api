@@ -9,6 +9,7 @@ use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
@@ -36,10 +37,9 @@ class CreateLeadFirstEngagementMessageAction
         protected Lead $lead,
         protected ?string $template = null
     ) {
-        $agentName = 'firstMessageEngagerAgent';
         $this->agent = Agent::fromApp($lead->app)
             ->fromCompany($lead->company)
-            ->where('name', $agentName)
+            ->where('name', AgentEnum::FIRST_MESSAGE_ENGAGER->value)
             ->firstOrFail();
     }
 

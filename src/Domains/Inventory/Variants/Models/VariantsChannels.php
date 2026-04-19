@@ -50,8 +50,8 @@ class VariantsChannels extends BaseModel
     protected function casts(): array
     {
         return [
-            'price' => 'decimal:2',
-            'discounted_price' => 'decimal:2',
+            'price' => 'decimal:4',
+            'discounted_price' => 'decimal:4',
             'config' => Json::class,
         ];
     }
