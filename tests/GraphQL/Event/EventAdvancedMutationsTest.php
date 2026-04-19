@@ -8,7 +8,6 @@ use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventType;
-use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\EventVersionDate;
 use Kanvas\Event\Events\Models\EventVersionParticipant;
 use Kanvas\Event\Facilitators\Models\EventVersionFacilitator;
