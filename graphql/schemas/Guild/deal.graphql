@@ -78,6 +78,14 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Deal\\DealMutation@delete"
         )
+    attachFileToDeal(file: Upload!, id: ID!, params: Mixed): Deal!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Deal\\DealMutation@attachFile"
+        )
+    attachFilesToDeal(file: [Upload!]!, id: ID!, params: Mixed): Deal!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Deal\\DealMutation@attachFile"
+        )
 }
 
 extend type Query @guard {

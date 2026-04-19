@@ -30,6 +30,7 @@ class CreateSystemModule
         $createSystemModule->execute(Pipeline::class);
         $createSystemModule->execute(PipelineStage::class);
         $createSystemModule->execute(Lead::class);
+        $createSystemModule->execute(Deal::class);
         $createSystemModule->execute(People::class);
         $createSystemModule->execute(Agent::class);
         $createSystemModule->execute(Contact::class);
