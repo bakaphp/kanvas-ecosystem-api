@@ -7,7 +7,6 @@ namespace App\GraphQL\Event\Mutations\Participants;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\EventVersionParticipant;
-use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Event\Participants\Models\ParticipantType;
 
 class EventVersionParticipantMutation
