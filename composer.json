@@ -117,6 +117,7 @@
             "Kanvas\\ActionEngine\\": "src/Domains/ActionEngine",
             "Kanvas\\Event\\": "src/Domains/Event",
             "Kanvas\\Intelligence\\": "src/Domains/Intelligence",
+            "Kanvas\\Analytics\\": "src/Domains/Analytics",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
