@@ -53,6 +53,12 @@ class EventManagementMutation
             'resources_id' => $input['resources_id'] ?? null,
             'resources_type' => $input['resources_type'] ?? null,
             'dates' => $input['dates'] ?? null,
+            'theme_id' => $input['theme_id'] ?? null,
+            'theme_area_id' => $input['theme_area_id'] ?? null,
+            'status_id' => $input['status_id'] ?? null,
+            'type_id' => $input['type_id'] ?? null,
+            'class_id' => $input['class_id'] ?? null,
+            'category_id' => $input['category_id'] ?? null,
         ], fn ($value) => $value !== null);
 
         if (! empty($updateData) && $eventVersion !== null) {

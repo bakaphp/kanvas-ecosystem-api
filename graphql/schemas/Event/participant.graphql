@@ -7,6 +7,7 @@ type Participant {
     company: Company! @belongsTo(relation: "company")
     themeArea: EventThemeArea @belongsTo(relation: "themeArea")
     is_prospect: Boolean!
+    photo: Filesystem @method(name: "getPhoto")
     created_at: DateTime
     updated_at: DateTime
     files: [Filesystem!]!
@@ -59,9 +60,10 @@ type ParticipantPassMotive {
 input PeopleEventVersionInput {
     people_id: ID!
     event_version_id: ID!
-    ticket_price: Money!
-    discount: Money!
+    ticket_price: Money
+    discount: Money
     invoice_date: Date
+    payment_status: String
     metadata: Mixed
     participant_type_id: ID
     custom_fields: [CustomFieldEntityInput!]
@@ -69,7 +71,45 @@ input PeopleEventVersionInput {
     files: [FilesystemInputUrl!]
 }
 
+input CopyParticipantsInput {
+    from_event_version_id: ID!
+    to_event_version_id: ID!
+}
+
+input ParticipantInput {
+    people_id: ID!
+    theme_area_id: ID
+    is_prospect: Boolean
+    general_representative: String
+    custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
+    files: [FilesystemInputUrl!]
+}
+
+input ParticipantUpdateInput {
+    people_id: ID
+    theme_area_id: ID
+    is_prospect: Boolean
+    general_representative: String
+    custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
+    files: [FilesystemInputUrl!]
+}
+
 extend type Mutation @guard {
+    createParticipant(input: ParticipantInput!): Participant!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Participants\\ParticipantMutation@create"
+        )
+    updateParticipant(id: ID!, input: ParticipantUpdateInput!): Participant!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Participants\\ParticipantMutation@update"
+        )
+    deleteParticipant(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Participants\\ParticipantMutation@delete"
+        )
+
     addPeopleToEventVersion(input: PeopleEventVersionInput!): Participant!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Participants\\EventParticipantManagementMutation@addPeopleToEventVersion"
@@ -77,6 +117,26 @@ extend type Mutation @guard {
     removePeopleInEventVersion(input: PeopleEventVersionInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Participants\\EventParticipantManagementMutation@removePeopleFromEventVersion"
+        )
+    copyParticipantsToEventVersion(input: CopyParticipantsInput!): Int!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Participants\\EventParticipantManagementMutation@copyParticipantsToEventVersion"
+        )
+
+    createParticipantType(input: EventLookupInput!): ParticipantType!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@createParticipantType"
+        )
+    updateParticipantType(
+        id: ID!
+        input: EventLookupUpdateInput!
+    ): ParticipantType!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@updateParticipantType"
+        )
+    deleteParticipantType(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@deleteParticipantType"
         )
 }
 

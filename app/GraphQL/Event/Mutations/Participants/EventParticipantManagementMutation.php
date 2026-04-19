@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Event\Mutations\Participants;
 
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\EventVersion;
+use Kanvas\Event\Events\Models\EventVersionParticipant;
 use Kanvas\Event\Participants\Actions\SyncPeopleWithParticipantAction;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Event\Participants\Models\ParticipantType;
@@ -43,7 +45,7 @@ class EventParticipantManagementMutation
             $pivotDirty = true;
         }
 
-        foreach (['ticket_price', 'discount', 'invoice_date'] as $key) {
+        foreach (['ticket_price', 'discount', 'invoice_date', 'payment_status'] as $key) {
             if (array_key_exists($key, $input)) {
                 $eventVersionParticipant->{$key} = $input[$key];
                 $pivotDirty = true;
@@ -100,5 +102,65 @@ class EventParticipantManagementMutation
         $participant = $syncParticipant->execute();
 
         return $eventVersion->removeParticipant($participant);
+    }
+
+    /**
+     * Copy all active participants from one EventVersion to another.
+     * Existing participants on the target are left alone; if the target already has
+     * the same (participant_id, participant_type_id), the row is restored instead of duplicated.
+     *
+     * @return int count of rows copied or restored
+     */
+    public function copyParticipantsToEventVersion(mixed $root, array $req): int
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+        $input = $req['input'];
+
+        /** @var EventVersion $from */
+        $from = EventVersion::getByIdFromCompanyApp((int) $input['from_event_version_id'], $company, $app);
+        /** @var EventVersion $to */
+        $to = EventVersion::getByIdFromCompanyApp((int) $input['to_event_version_id'], $company, $app);
+
+        return DB::connection('event')->transaction(function () use ($from, $to) {
+            $sourceRows = EventVersionParticipant::where('event_version_id', $from->getId())
+                ->where('is_deleted', 0)
+                ->get();
+
+            $count = 0;
+            foreach ($sourceRows as $source) {
+                $existing = EventVersionParticipant::withTrashed()
+                    ->where('event_version_id', $to->getId())
+                    ->where('participant_id', $source->participant_id)
+                    ->where('participant_type_id', $source->participant_type_id)
+                    ->first();
+
+                if ($existing) {
+                    if ($existing->is_deleted) {
+                        $existing->restore();
+                        $existing->is_deleted = 0;
+                        $existing->saveOrFail();
+                        $count++;
+                    }
+
+                    continue;
+                }
+
+                $copy = new EventVersionParticipant();
+                $copy->event_version_id = $to->getId();
+                $copy->participant_id = $source->participant_id;
+                $copy->participant_type_id = $source->participant_type_id;
+                $copy->ticket_price = $source->ticket_price;
+                $copy->discount = $source->discount;
+                $copy->invoice_date = $source->invoice_date;
+                $copy->metadata = $source->metadata;
+                $copy->is_deleted = 0;
+                $copy->saveOrFail();
+                $count++;
+            }
+
+            return $count;
+        });
     }
 }

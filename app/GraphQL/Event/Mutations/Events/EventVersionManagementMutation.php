@@ -13,6 +13,7 @@ use Kanvas\Event\Events\Models\EventVersionDate;
 use Kanvas\Social\Follows\Models\UsersFollows;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class EventVersionManagementMutation
 {
@@ -95,6 +96,7 @@ class EventVersionManagementMutation
             'end_at',
             'agenda',
             'version',
+            'event_status_id',
         ];
 
         foreach ($updatable as $key) {
@@ -135,6 +137,14 @@ class EventVersionManagementMutation
         self::syncFiles($eventVersion, $input);
 
         $eventVersion->refresh();
+
+        $eventVersion->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'app' => $app,
+            ],
+        );
 
         return $eventVersion;
     }

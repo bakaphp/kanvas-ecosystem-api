@@ -69,6 +69,8 @@ type EventVersion {
     description: String
     classification: String
     price_per_ticket: Money!
+    currency: Currency @belongsTo(relation: "currency")
+    eventStatus: EventStatus @belongsTo(relation: "eventStatus")
     created_at: DateTime
     updated_at: DateTime
     dates: [EventVersionDate!]! @hasMany(relation: "dates")
@@ -129,6 +131,7 @@ type EventVersionParticipant {
     ticket_price: Money!
     discount: Money!
     invoice_date: Date
+    payment_status: String
     metadata: Mixed
     participant_type: ParticipantType @belongsTo(relation: "participantType")
     created_at: DateTime
@@ -167,6 +170,12 @@ input EventInput {
 input EventUpdateInput {
     name: String
     description: String
+    theme_id: ID
+    theme_area_id: ID
+    status_id: ID
+    type_id: ID
+    class_id: ID
+    category_id: ID
     resources_id: ID
     resources_type: String
     dates: [EventVersionDateInput!]
@@ -200,6 +209,23 @@ input EventVersionDateInput {
         @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
 }
 
+input AddEventVersionDateInput {
+    event_version_id: ID!
+    date: Date!
+    start_time: String
+        @rules(apply: ["nullable", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+    end_time: String
+        @rules(apply: ["nullable", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+}
+
+input UpdateEventVersionDateInput {
+    date: Date
+    start_time: String
+        @rules(apply: ["nullable", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+    end_time: String
+        @rules(apply: ["nullable", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+}
+
 input EventVersionInput {
     event_id: ID!
     name: String
@@ -227,6 +253,7 @@ input EventVersionUpdateInput {
     classification: String
     price_per_ticket: Float
     currency_id: ID
+    event_status_id: ID
     start_at: DateTime
     end_at: DateTime
     max_capacity: Int
@@ -243,6 +270,7 @@ input EventVersionParticipantUpdateInput {
     ticket_price: Float
     discount: Float
     invoice_date: Date
+    payment_status: String
     metadata: Mixed
 }
 
@@ -374,6 +402,22 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventVersionManagementMutation@unFollow"
         )
 
+    addEventVersionDate(input: AddEventVersionDateInput!): EventVersionDate!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventVersionDateMutation@add"
+        )
+    updateEventVersionDate(
+        id: ID!
+        input: UpdateEventVersionDateInput!
+    ): EventVersionDate!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventVersionDateMutation@update"
+        )
+    deleteEventVersionDate(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventVersionDateMutation@delete"
+        )
+
     updateEventVersionParticipant(
         id: ID!
         input: EventVersionParticipantUpdateInput!
@@ -430,6 +474,12 @@ extend type Query @guard {
                     "companies_id"
                     "resources_id"
                     "resources_type"
+                    "event_type_id"
+                    "event_category_id"
+                    "event_class_id"
+                    "event_status_id"
+                    "theme_id"
+                    "theme_area_id"
                 ]
             )
         status: _
@@ -463,6 +513,8 @@ extend type Query @guard {
                     "version_number"
                     "start_at"
                     "end_at"
+                    "event_status_id"
+                    "currency_id"
                 ]
             )
         eventStatus: _

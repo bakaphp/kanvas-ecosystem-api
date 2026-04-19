@@ -8,8 +8,12 @@ use Baka\Support\Str;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Themes\Models\ThemeArea;
+use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 
@@ -48,5 +52,15 @@ class Participant extends BaseModel
     public function participantType(): BelongsTo
     {
         return $this->belongsTo(ParticipantType::class);
+    }
+
+    public function getPhoto(): ?FilesystemEntities
+    {
+        $app = app(Apps::class);
+        $defaultAvatarId = $app->get(AppSettingsEnums::DEFAULT_USER_AVATAR->getValue());
+
+        return $this->getFileByName('photo')
+            ?? ($this->people?->getPhoto())
+            ?? ($defaultAvatarId ? FilesystemEntitiesRepository::getFileFromEntityById($defaultAvatarId) : null);
     }
 }

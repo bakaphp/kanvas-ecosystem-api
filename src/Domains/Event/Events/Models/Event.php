@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Models;
 
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
@@ -35,6 +36,7 @@ class Event extends BaseModel
     use CascadeSoftDeletes;
     use FollowersTrait;
     use HasTagsTrait;
+    use HasLightHouseCache;
 
     protected $cascadeDeletes = ['versions'];
 
@@ -122,5 +124,10 @@ class Event extends BaseModel
     {
         return $this->hasMany(Session::class, 'entity_id', 'string_id')
             ->where('entity_namespace', self::class);
+    }
+
+    public function getGraphTypeName(): string
+    {
+        return 'Event';
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -35,6 +36,7 @@ class EventVersion extends BaseModel
     use CanUseWorkflow;
     use FollowersTrait;
     use HasTagsTrait;
+    use HasLightHouseCache;
 
     protected $table = 'event_versions';
     protected $guarded = [];
@@ -44,6 +46,11 @@ class EventVersion extends BaseModel
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
+    }
+
+    public function eventStatus(): BelongsTo
+    {
+        return $this->belongsTo(EventStatus::class);
     }
 
     public function timeSlot(): BelongsTo
@@ -200,5 +207,10 @@ class EventVersion extends BaseModel
     {
         return $this->hasMany(Session::class, 'entity_id', 'string_id')
             ->where('entity_namespace', self::class);
+    }
+
+    public function getGraphTypeName(): string
+    {
+        return 'EventVersion';
     }
 }

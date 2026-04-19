@@ -33,7 +33,7 @@ class EventVersionParticipantMutation
             $evp->participant_type_id = $participantType->getId();
         }
 
-        foreach (['ticket_price', 'discount', 'invoice_date'] as $key) {
+        foreach (['ticket_price', 'discount', 'invoice_date', 'payment_status'] as $key) {
             if (array_key_exists($key, $input)) {
                 $evp->{$key} = $input[$key];
             }
