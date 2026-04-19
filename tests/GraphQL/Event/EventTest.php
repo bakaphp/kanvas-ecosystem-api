@@ -349,4 +349,109 @@ class EventTest extends TestCase
             ],
         ]);
     }
+
+    public function testCreateEventWithTagsAndCustomFields(): void
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        new Setup($app, $user, $company)->run();
+
+        $input = [
+            'name' => 'Tagged Event ' . uniqid(),
+            'description' => 'Event with tags and custom fields',
+            'category_id' => EventCategory::fromCompany($company)->fromApp($app)->first()->getId(),
+            'type_id' => EventType::fromCompany($company)->fromApp($app)->first()->getId(),
+            'dates' => [
+                [
+                    'date' => date('Y-m-d'),
+                    'start_time' => '10:00',
+                    'end_time' => '12:00',
+                ],
+            ],
+            'tags' => [['name' => 'featured'], ['name' => 'vip']],
+            'custom_fields' => [
+                ['name' => 'internal_code', 'data' => 'EVT-2026'],
+                ['name' => 'sponsor', 'data' => 'AcmeCorp'],
+            ],
+        ];
+
+        $r = $this->graphQL('
+            mutation($input: EventInput!) {
+                createEvent(input: $input) {
+                    id
+                    name
+                    tags { data { name } }
+                    custom_fields { data { name } }
+                }
+            }
+        ', ['input' => $input])->assertSuccessful();
+
+        $tagNames = array_column($r->json('data.createEvent.tags.data'), 'name');
+        $this->assertContains('featured', $tagNames);
+        $this->assertContains('vip', $tagNames);
+
+        $cfNames = array_column($r->json('data.createEvent.custom_fields.data'), 'name');
+        $this->assertContains('internal_code', $cfNames);
+        $this->assertContains('sponsor', $cfNames);
+    }
+
+    public function testFollowAndUnfollowEvent(): void
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        new Setup($app, $user, $company)->run();
+
+        $createResponse = $this->graphQL('
+            mutation($input: EventInput!) {
+                createEvent(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'name' => 'Followable Event ' . uniqid(),
+                'description' => 'Test follow',
+                'category_id' => EventCategory::fromCompany($company)->fromApp($app)->first()->getId(),
+                'type_id' => EventType::fromCompany($company)->fromApp($app)->first()->getId(),
+                'dates' => [
+                    [
+                        'date' => date('Y-m-d'),
+                        'start_time' => '10:00',
+                        'end_time' => '12:00',
+                    ],
+                ],
+            ],
+        ])->assertSuccessful();
+
+        $eventId = $createResponse->json('data.createEvent.id');
+        $event = Event::find($eventId);
+
+        $follow = $this->graphQL('
+            mutation($input: FollowInput!) {
+                followEvent(input: $input)
+            }
+        ', [
+            'input' => [
+                'user_id' => $user->getId(),
+                'entity_id' => $event->uuid,
+            ],
+        ])->assertSuccessful();
+
+        $this->assertTrue($follow->json('data.followEvent'));
+
+        $unfollow = $this->graphQL('
+            mutation($input: FollowInput!) {
+                unFollowEvent(input: $input)
+            }
+        ', [
+            'input' => [
+                'user_id' => $user->getId(),
+                'entity_id' => $event->uuid,
+            ],
+        ])->assertSuccessful();
+
+        $this->assertTrue($unfollow->json('data.unFollowEvent'));
+    }
 }

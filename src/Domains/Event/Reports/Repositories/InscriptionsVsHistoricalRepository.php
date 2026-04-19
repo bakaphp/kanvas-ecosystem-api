@@ -15,19 +15,17 @@ use Spatie\LaravelData\DataCollection;
 
 class InscriptionsVsHistoricalRepository
 {
-    /**
-     * Same week buckets as InscriptionsVsObjectiveRepository.
-     */
     public const array WEEK_BUCKETS = InscriptionsVsObjectiveRepository::WEEK_BUCKETS;
 
     /**
-     * Inscriptions for the current EventVersion alongside the historical average
-     * across past EventVersions of the same Event. The `objective` field in each
-     * week carries the historical average (not the goal curve).
+     * @param  list<string>|null  $includeTypes
+     * @param  list<string>  $excludeTypes
      */
     public static function forEventVersion(
         EventVersion $eventVersion,
         bool $cumulative = false,
+        ?array $includeTypes = null,
+        array $excludeTypes = [],
         ?GoalTrackingService $goalService = null,
     ): InscriptionsReport {
         $goalService ??= new GoalTrackingService();
@@ -35,10 +33,12 @@ class InscriptionsVsHistoricalRepository
         $currentReport = InscriptionsVsObjectiveRepository::forEventVersion(
             $eventVersion,
             $cumulative,
+            $includeTypes,
+            $excludeTypes,
             $goalService,
         );
 
-        $historicalAverages = self::computeHistoricalAverages($eventVersion, $cumulative);
+        $historicalAverages = self::computeHistoricalAverages($eventVersion, $cumulative, $includeTypes, $excludeTypes);
 
         $mergedWeeks = [];
         foreach ($currentReport->weeks as $weekData) {
@@ -59,12 +59,16 @@ class InscriptionsVsHistoricalRepository
     }
 
     /**
-     * Average registration count per week bucket across past EventVersions of the same Event.
-     *
+     * @param  list<string>|null  $includeTypes
+     * @param  list<string>  $excludeTypes
      * @return array<int, int>
      */
-    protected static function computeHistoricalAverages(EventVersion $eventVersion, bool $cumulative): array
-    {
+    protected static function computeHistoricalAverages(
+        EventVersion $eventVersion,
+        bool $cumulative,
+        ?array $includeTypes,
+        array $excludeTypes,
+    ): array {
         $pastVersions = self::getPastVersions($eventVersion);
 
         if ($pastVersions->isEmpty()) {
@@ -74,7 +78,12 @@ class InscriptionsVsHistoricalRepository
         $totals = array_fill_keys(array_keys(self::WEEK_BUCKETS), 0);
 
         foreach ($pastVersions as $pastVersion) {
-            $pastReport = InscriptionsVsObjectiveRepository::forEventVersion($pastVersion, $cumulative);
+            $pastReport = InscriptionsVsObjectiveRepository::forEventVersion(
+                $pastVersion,
+                $cumulative,
+                $includeTypes,
+                $excludeTypes,
+            );
             foreach ($pastReport->weeks as $weekData) {
                 $totals[$weekData->week] += $weekData->total;
             }
@@ -89,8 +98,6 @@ class InscriptionsVsHistoricalRepository
     }
 
     /**
-     * Past EventVersions of the same Event (excluding the current one).
-     *
      * @return \Illuminate\Support\Collection<int, EventVersion>
      */
     protected static function getPastVersions(EventVersion $eventVersion)

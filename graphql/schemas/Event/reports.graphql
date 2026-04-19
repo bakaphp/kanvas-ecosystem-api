@@ -37,7 +37,15 @@ type CompanyConcentration {
 }
 
 extend type Query @guard {
-    eventsTracking(weeks_ahead: Int = 7): [OpenEventTrackingRow!]!
+    eventsTracking(
+        weeks_ahead: Int = 7
+        event_type_id: ID
+        event_class_id: ID
+        event_category_id: ID
+        search: String
+        color: String
+        has_goal: Boolean
+    ): [OpenEventTrackingRow!]!
         @field(
             resolver: "App\\GraphQL\\Event\\Queries\\Reports\\EventsTrackingQuery"
         )
@@ -45,6 +53,8 @@ extend type Query @guard {
     eventInscriptionsVsObjective(
         event_version_id: ID!
         cumulative: Boolean = false
+        include_types: [String!]
+        exclude_types: [String!]
     ): InscriptionsReport!
         @field(
             resolver: "App\\GraphQL\\Event\\Queries\\Reports\\EventInscriptionsVsObjectiveQuery"
@@ -53,17 +63,27 @@ extend type Query @guard {
     eventInscriptionsVsHistorical(
         event_version_id: ID!
         cumulative: Boolean = false
+        include_types: [String!]
+        exclude_types: [String!]
     ): InscriptionsReport!
         @field(
             resolver: "App\\GraphQL\\Event\\Queries\\Reports\\EventInscriptionsVsHistoricalQuery"
         )
 
-    eventInscriptionTrack(event_version_id: ID!): [InscriptionTrack!]!
+    eventInscriptionTrack(
+        event_version_id: ID!
+        exclude_types: [String!]
+    ): [InscriptionTrack!]!
         @field(
             resolver: "App\\GraphQL\\Event\\Queries\\Reports\\EventInscriptionTrackQuery"
         )
 
-    eventParticipantConcentration(event_version_id: ID!): [CompanyConcentration!]!
+    eventParticipantConcentration(
+        event_version_id: ID!
+        top_n: Int
+        include_types: [String!]
+        exclude_types: [String!]
+    ): [CompanyConcentration!]!
         @field(
             resolver: "App\\GraphQL\\Event\\Queries\\Reports\\EventParticipantConcentrationQuery"
         )

@@ -11,11 +11,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 
 class Participant extends BaseModel
 {
     use SlugTrait;
     use UuidTrait;
+    use HasTagsTrait;
 
     protected $table = 'participants';
     protected $guarded = [];

@@ -17,6 +17,8 @@ class InscriptionsVsObjectiveRepository
 {
     /**
      * Week buckets measured in days-before-event.
+     *
+     * @var array<int, array{min_days: int, max_days: int|null}>
      */
     public const array WEEK_BUCKETS = [
         5 => ['min_days' => 29, 'max_days' => null],
@@ -28,10 +30,15 @@ class InscriptionsVsObjectiveRepository
 
     /**
      * Inscriptions vs goal curve, bucketed by weeks before the event.
+     *
+     * @param  list<string>|null  $includeTypes Slugs of ParticipantTypes to include in `total`. Null = all.
+     * @param  list<string>  $excludeTypes Slugs to exclude (typically ["cancelled"]).
      */
     public static function forEventVersion(
         EventVersion $eventVersion,
         bool $cumulative = false,
+        ?array $includeTypes = null,
+        array $excludeTypes = [],
         ?GoalTrackingService $goalService = null,
     ): InscriptionsReport {
         $goalService ??= new GoalTrackingService();
@@ -42,7 +49,16 @@ class InscriptionsVsObjectiveRepository
 
         $weeks = [];
         foreach (self::WEEK_BUCKETS as $week => $bounds) {
-            $weeks[] = self::buildWeekData($week, $bounds, $registrations, $goal, $cumulative, $goalService);
+            $weeks[] = self::buildWeekData(
+                $week,
+                $bounds,
+                $registrations,
+                $goal,
+                $cumulative,
+                $includeTypes,
+                $excludeTypes,
+                $goalService,
+            );
         }
 
         return new InscriptionsReport(
@@ -110,6 +126,8 @@ class InscriptionsVsObjectiveRepository
     /**
      * @param  array{min_days: int, max_days: int|null}  $bounds
      * @param  array<int, array{days_before: int, type_name: string, cnt: int}>  $registrations
+     * @param  list<string>|null  $includeTypes
+     * @param  list<string>  $excludeTypes
      */
     protected static function buildWeekData(
         int $week,
@@ -117,6 +135,8 @@ class InscriptionsVsObjectiveRepository
         array $registrations,
         int $goal,
         bool $cumulative,
+        ?array $includeTypes,
+        array $excludeTypes,
         GoalTrackingService $goalService,
     ): InscriptionWeekData {
         $counts = [];
@@ -128,8 +148,18 @@ class InscriptionsVsObjectiveRepository
             }
 
             $slug = Str::slug($reg['type_name']);
+
+            if (in_array($slug, $excludeTypes, true)) {
+                continue;
+            }
+
+            // Always include in `counts` (for the stacked breakdown), but only add to `total`
+            // if the slug is in includeTypes (or includeTypes is null = include all).
             $counts[$slug] = ($counts[$slug] ?? 0) + $reg['cnt'];
-            $total += $reg['cnt'];
+
+            if ($includeTypes === null || in_array($slug, $includeTypes, true)) {
+                $total += $reg['cnt'];
+            }
         }
 
         $objective = $goalService->getExpectedEnrollment($goal, $week);

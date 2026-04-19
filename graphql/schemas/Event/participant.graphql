@@ -64,6 +64,9 @@ input PeopleEventVersionInput {
     invoice_date: Date
     metadata: Mixed
     participant_type_id: ID
+    custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
+    files: [FilesystemInputUrl!]
 }
 
 extend type Mutation @guard {
@@ -84,6 +87,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "uuid"
                     "name"
                     "slug"
                     "companies_id"

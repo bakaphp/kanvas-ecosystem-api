@@ -359,4 +359,224 @@ class ReportsTest extends TestCase
         $this->assertNotEmpty($errors, 'Expected GraphQL errors for nonexistent event version');
         $this->assertStringContainsString('999999999', $errors[0]['message']);
     }
+
+    public function testEventsTrackingFilterByColor(): void
+    {
+        // Event 1: should be red (0 enrolled, goal 20, ~1 week out)
+        $redEvent = $this->createEventVersionWithParticipants(
+            maxCapacity: 20,
+            eventDate: Carbon::now()->addDays(5),
+            participantCount: 0,
+        );
+
+        $response = $this->graphQL('
+            query {
+                eventsTracking(weeks_ahead: 2, color: "red") {
+                    event_version_id
+                    color
+                }
+            }
+        ')->assertSuccessful();
+
+        $rows = $response->json('data.eventsTracking');
+        foreach ($rows as $row) {
+            $this->assertSame('red', $row['color']);
+        }
+
+        $ids = array_column($rows, 'event_version_id');
+        $this->assertContains((string) $redEvent->getId(), $ids);
+    }
+
+    public function testEventsTrackingFilterBySearch(): void
+    {
+        $uniqueName = 'UniqueSearchTerm' . uniqid();
+
+        $this->runEventSetup();
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+        $input = [
+            'name' => $uniqueName,
+            'description' => 'Test',
+            'category_id' => EventCategory::fromCompany($company)->fromApp($app)->first()->getId(),
+            'type_id' => EventType::fromCompany($company)->fromApp($app)->first()->getId(),
+            'dates' => [
+                [
+                    'date' => Carbon::now()->addWeeks(2)->toDateString(),
+                    'start_time' => '10:00',
+                    'end_time' => '12:00',
+                ],
+            ],
+        ];
+        $r = $this->graphQL('
+            mutation($input: EventInput!) { createEvent(input: $input) { id versions { data { id } } } }
+        ', ['input' => $input])->assertSuccessful();
+        $vid = (int) $r->json('data.createEvent.versions.data.0.id');
+
+        // Also create a version with different name
+        $otherInput = array_merge($input, ['name' => 'OtherUnrelatedEvent' . uniqid()]);
+        $this->graphQL('
+            mutation($input: EventInput!) { createEvent(input: $input) { id } }
+        ', ['input' => $otherInput])->assertSuccessful();
+
+        $response = $this->graphQL('
+            query($term: String!) {
+                eventsTracking(weeks_ahead: 4, search: $term) {
+                    event_version_id
+                    event_name
+                }
+            }
+        ', ['term' => $uniqueName])->assertSuccessful();
+
+        $rows = $response->json('data.eventsTracking');
+        $this->assertNotEmpty($rows);
+        foreach ($rows as $row) {
+            $this->assertStringContainsString($uniqueName, $row['event_name']);
+        }
+    }
+
+    public function testEventsTrackingFilterByHasGoal(): void
+    {
+        // Create one with goal, one without
+        $this->createEventVersionWithParticipants(maxCapacity: 10, eventDate: Carbon::now()->addWeeks(2), participantCount: 0);
+        $noGoal = $this->createEventVersionWithParticipants(maxCapacity: 0, eventDate: Carbon::now()->addWeeks(2), participantCount: 0);
+
+        $response = $this->graphQL('
+            query {
+                eventsTracking(weeks_ahead: 4, has_goal: true) {
+                    event_version_id
+                    goal
+                }
+            }
+        ')->assertSuccessful();
+
+        $rows = $response->json('data.eventsTracking');
+        foreach ($rows as $row) {
+            $this->assertGreaterThan(0, $row['goal']);
+        }
+
+        $ids = array_column($rows, 'event_version_id');
+        $this->assertNotContains((string) $noGoal->getId(), $ids);
+    }
+
+    public function testEventInscriptionsVsObjectiveExcludeTypes(): void
+    {
+        // Create version with participants; excluding the only type should zero out counts
+        $ev = $this->createEventVersionWithParticipants(
+            maxCapacity: 30,
+            eventDate: Carbon::now()->addDays(10),
+            participantCount: 3,
+        );
+
+        // First call: include the type (default) to learn its slug
+        $defaultResponse = $this->graphQL('
+            query($id: ID!) {
+                eventInscriptionsVsObjective(event_version_id: $id, cumulative: true) {
+                    weeks { week counts total }
+                }
+            }
+        ', ['id' => $ev->getId()])->assertSuccessful();
+
+        $weeks = $defaultResponse->json('data.eventInscriptionsVsObjective.weeks');
+        $attendeeWeek = collect($weeks)->firstWhere('total', 3);
+        $this->assertNotNull($attendeeWeek, 'Expected 3 attendees in some week bucket');
+        $slug = array_key_first($attendeeWeek['counts']);
+        $this->assertNotNull($slug);
+
+        // Now exclude that slug — total should drop to 0
+        $excludedResponse = $this->graphQL('
+            query($id: ID!, $slugs: [String!]!) {
+                eventInscriptionsVsObjective(
+                    event_version_id: $id
+                    cumulative: true
+                    exclude_types: $slugs
+                ) {
+                    weeks { week total }
+                }
+            }
+        ', ['id' => $ev->getId(), 'slugs' => [$slug]])->assertSuccessful();
+
+        $weeks = $excludedResponse->json('data.eventInscriptionsVsObjective.weeks');
+        foreach ($weeks as $w) {
+            $this->assertSame(0, $w['total'], 'Week ' . $w['week'] . ' should have 0 total after excluding all types');
+        }
+    }
+
+    public function testEventInscriptionsVsObjectiveIncludeTypes(): void
+    {
+        $ev = $this->createEventVersionWithParticipants(
+            maxCapacity: 30,
+            eventDate: Carbon::now()->addDays(10),
+            participantCount: 4,
+        );
+
+        // Include a slug that doesn't exist — total should be 0 but counts still populated
+        $response = $this->graphQL('
+            query($id: ID!) {
+                eventInscriptionsVsObjective(
+                    event_version_id: $id
+                    cumulative: true
+                    include_types: ["nonexistent-slug"]
+                ) {
+                    weeks { week counts total }
+                }
+            }
+        ', ['id' => $ev->getId()])->assertSuccessful();
+
+        $weeks = $response->json('data.eventInscriptionsVsObjective.weeks');
+        foreach ($weeks as $w) {
+            $this->assertSame(0, $w['total'], 'Total should be 0 when include_types matches nothing');
+        }
+    }
+
+    public function testEventInscriptionTrackExcludeTypes(): void
+    {
+        $ev = $this->createEventVersionWithParticipants(
+            maxCapacity: 50,
+            eventDate: Carbon::now()->addWeeks(2),
+            participantCount: 5,
+        );
+
+        // Get the slug used
+        $defaultResp = $this->graphQL('
+            query($id: ID!) {
+                eventInscriptionTrack(event_version_id: $id) { slug count }
+            }
+        ', ['id' => $ev->getId()])->assertSuccessful();
+
+        $slugs = array_column($defaultResp->json('data.eventInscriptionTrack'), 'slug');
+        $this->assertNotEmpty($slugs);
+
+        // Exclude all slugs — should return empty
+        $filteredResp = $this->graphQL('
+            query($id: ID!, $excluded: [String!]!) {
+                eventInscriptionTrack(event_version_id: $id, exclude_types: $excluded) {
+                    slug count
+                }
+            }
+        ', ['id' => $ev->getId(), 'excluded' => $slugs])->assertSuccessful();
+
+        $this->assertSame([], $filteredResp->json('data.eventInscriptionTrack'));
+    }
+
+    public function testEventParticipantConcentrationTopN(): void
+    {
+        $ev = $this->createEventVersionWithParticipants(
+            maxCapacity: 100,
+            eventDate: Carbon::now()->addWeeks(2),
+            participantCount: 5,
+        );
+
+        // Without top_n all rows returned; with top_n=1 we get at most 2 rows (1 top + Other if needed)
+        $response = $this->graphQL('
+            query($id: ID!) {
+                eventParticipantConcentration(event_version_id: $id, top_n: 1) {
+                    organization_name count percentage
+                }
+            }
+        ', ['id' => $ev->getId()])->assertSuccessful();
+
+        $rows = $response->json('data.eventParticipantConcentration');
+        $this->assertLessThanOrEqual(2, count($rows), 'top_n=1 should return at most 2 rows (top + Other)');
+    }
 }

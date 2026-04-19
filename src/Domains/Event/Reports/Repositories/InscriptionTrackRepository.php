@@ -15,10 +15,13 @@ class InscriptionTrackRepository
     /**
      * Count registrations per ParticipantType for a given EventVersion.
      *
+     * @param  list<string>  $excludeTypes Slugs to hide from the chart.
      * @return Collection<int, InscriptionTrack>
      */
-    public static function forEventVersion(EventVersion $eventVersion): Collection
-    {
+    public static function forEventVersion(
+        EventVersion $eventVersion,
+        array $excludeTypes = [],
+    ): Collection {
         $rows = DB::connection('event')
             ->table('event_version_participants')
             ->leftJoin('participant_types', 'event_version_participants.participant_type_id', '=', 'participant_types.id')
@@ -29,10 +32,13 @@ class InscriptionTrackRepository
             ->orderByDesc('cnt')
             ->get();
 
-        return $rows->map(fn ($row) => new InscriptionTrack(
-            type: (string) $row->type_name,
-            slug: Str::slug((string) $row->type_name),
-            count: (int) $row->cnt,
-        ));
+        return $rows
+            ->map(fn ($row) => new InscriptionTrack(
+                type: (string) $row->type_name,
+                slug: Str::slug((string) $row->type_name),
+                count: (int) $row->cnt,
+            ))
+            ->reject(fn (InscriptionTrack $track) => in_array($track->slug, $excludeTypes, true))
+            ->values();
     }
 }

@@ -69,6 +69,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "uuid"
                     "companies_id"
                     "resources_id"
                     "start_at"

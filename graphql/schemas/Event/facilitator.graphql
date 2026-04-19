@@ -32,7 +32,7 @@ extend type Query @guard {
     facilitators(
         search: String @search
         where: _
-            @whereConditions(columns: ["id", "name", "slug", "companies_id", "people_id"])
+            @whereConditions(columns: ["id", "uuid", "name", "slug", "companies_id", "people_id"])
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
     ): [Participant!]!
         @paginate(
