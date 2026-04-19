@@ -6,7 +6,6 @@ namespace Tests\GraphQL\Event;
 
 use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Events\Models\EventVersion;
