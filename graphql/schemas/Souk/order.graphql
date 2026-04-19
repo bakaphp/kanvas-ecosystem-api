@@ -1004,4 +1004,26 @@ extend type Query @guard {
             builder: "App\\GraphQL\\Souk\\Queries\\Orders\\OrdersByUserCustomFieldQuery@build"
             defaultCount: 25
         )
+
+    orderAnalytics(
+        from: Date
+        to: Date
+        bucket: AnalyticsBucket = DAY
+        timezone: String
+        status: String
+    ): OrderAnalytics!
+        @field(
+            resolver: "App\\GraphQL\\Analytics\\Queries\\OrderAnalyticsQuery"
+        )
+}
+
+type OrderAnalytics {
+    "Count + total revenue per bucket."
+    periods: [AnalyticsPoint!]!
+    total: Int!
+    "Sum of `total_gross_amount` across the date range (ignores currency mix in v1)."
+    total_value: Float!
+    by_status: [AnalyticsCategoryPoint!]!
+    by_payment_status: [AnalyticsCategoryPoint!]!
+    by_fulfillment_status: [AnalyticsCategoryPoint!]!
 }

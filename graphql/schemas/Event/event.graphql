@@ -481,6 +481,7 @@ extend type Query @guard {
                     "event_status_id"
                     "theme_id"
                     "theme_area_id"
+                    "created_at"
                 ]
             )
         status: _
@@ -577,4 +578,24 @@ extend type Query @guard {
             model: "Kanvas\\Event\\Events\\Models\\EventVersionParticipant"
             defaultCount: 25
         )
+
+    eventAnalytics(
+        from: Date
+        to: Date
+        bucket: AnalyticsBucket = WEEK
+        timezone: String
+        event_type_id: ID
+    ): EventAnalytics!
+        @field(
+            resolver: "App\\GraphQL\\Analytics\\Queries\\EventAnalyticsQuery"
+        )
+}
+
+type EventAnalytics {
+    periods: [AnalyticsPoint!]!
+    total: Int!
+    by_status: [AnalyticsCategoryPoint!]!
+    by_type: [AnalyticsCategoryPoint!]!
+    by_category: [AnalyticsCategoryPoint!]!
+    by_class: [AnalyticsCategoryPoint!]!
 }
