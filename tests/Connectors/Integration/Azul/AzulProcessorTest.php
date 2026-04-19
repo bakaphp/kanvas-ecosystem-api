@@ -7,6 +7,7 @@ namespace Tests\Connectors\Integration\Azul;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Azul\Enums\CustomFieldEnum;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\TokenizationProcessorInterface;
@@ -69,6 +70,16 @@ final class AzulProcessorTest extends AzulBase
         $this->assertTrue($result->success);
         $this->assertNotEmpty($result->transactionId);
         $this->assertEquals(PaymentStatusEnum::PAID, $result->paymentStatus);
+    }
+
+    public function testAuthorizeRejectsNonDopCurrency(): void
+    {
+        [$payment, $order] = $this->buildMockedPaymentAndOrder(currency: 'USD');
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Azul only supports DOP currency');
+
+        $this->processor->authorize($payment, $order);
     }
 
     public function testAuthorizeWithDataVaultToken(): void
@@ -194,6 +205,7 @@ final class AzulProcessorTest extends AzulBase
     private function buildMockedPaymentAndOrder(
         ?string $dataVaultToken = null,
         ?string $azulOrderId = null,
+        string $currency = 'DOP',
     ): array {
         $credentials = $this->getCredentials();
         $store = ['azul_order_id' => $azulOrderId];
@@ -226,6 +238,7 @@ final class AzulProcessorTest extends AzulBase
         $order = Mockery::mock(Order::class)->makePartial();
         $order->id = 1;
         $order->order_number = 'TEST-' . time();
+        $order->currency = $currency;
         $order->shouldReceive('getTotalAmount')->andReturn(1.00);
         $order->shouldReceive('getTotalTaxAmount')->andReturn(0.18);
         $order->shouldReceive('set')->andReturnUsing(function ($key, $value) use (&$store) {

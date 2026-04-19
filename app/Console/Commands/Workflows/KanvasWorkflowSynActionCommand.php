@@ -13,6 +13,8 @@ use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
 use Kanvas\Connectors\Azul\Webhook\AzulMethodNotificationWebhookJob;
 use Kanvas\Connectors\Azul\Webhook\AzulTermUrlWebhookJob;
+use Kanvas\Connectors\Azul\Workflows\Activities\SendPaymentReceiptActivity as AzulSendPaymentReceiptActivity;
+use Kanvas\Connectors\Azul\Workflows\Activities\StampTermsAcceptanceActivity as AzulStampTermsAcceptanceActivity;
 use Kanvas\Connectors\Calendly\Jobs\ProcessCalendlyWebhookJob;
 use Kanvas\Connectors\ChromeData\Activities\AddStockImageToProductActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
@@ -400,6 +402,8 @@ class KanvasWorkflowSynActionCommand extends Command
             PullPaymentChallengeWebhookJob::class,
             AzulTermUrlWebhookJob::class,
             AzulMethodNotificationWebhookJob::class,
+            AzulStampTermsAcceptanceActivity::class,
+            AzulSendPaymentReceiptActivity::class,
             ScheduleEleadActivityFromEventAction::class,
             OAuthCallbackJob::class,
             ProcessAppleSubscriptionWebhookJob::class,

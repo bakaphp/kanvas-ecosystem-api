@@ -16,6 +16,7 @@ use Kanvas\Connectors\Azul\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Azul\Enums\TransactionTypeEnum;
 use Kanvas\Connectors\Azul\Exceptions\AzulException;
 use Kanvas\Connectors\Azul\Services\AzulService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
@@ -84,6 +85,8 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
      */
     public function authorize(Payments $payment, Order $order, array $context = []): AuthorizeResult
     {
+        $this->assertSupportedCurrency($order);
+
         $useHold = array_key_exists('use_hold', $context)
             ? (bool) $context['use_hold']
             : (bool) $this->app->get(ConfigurationEnum::AZUL_USE_HOLD->value);
@@ -513,6 +516,8 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
      */
     public function startChallenge(Payments $payment, Order $order, array $context = []): ThreeDSResult
     {
+        $this->assertSupportedCurrency($order);
+
         $useHold = array_key_exists('use_hold', $context)
             ? (bool) $context['use_hold']
             : (bool) $this->app->get(ConfigurationEnum::AZUL_USE_HOLD->value);
@@ -1095,6 +1100,15 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
         }
 
         return $info;
+    }
+
+    private function assertSupportedCurrency(Order $order): void
+    {
+        if (strtoupper((string) $order->currency) !== 'DOP') {
+            throw new ValidationException(
+                'Azul only supports DOP currency; order ' . $order->getId() . ' has currency ' . $order->currency
+            );
+        }
     }
 
     private function buildSaleRequest(Payments $payment, Order $order): AzulPaymentRequest
