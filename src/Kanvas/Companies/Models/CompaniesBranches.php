@@ -118,6 +118,54 @@ class CompaniesBranches extends BaseModel
         return (int) $this->get('total_users');
     }
 
+    public function searchableAs(): string
+    {
+        return config('scout.prefix') . '_companies_branches';
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => (string) $this->getKey(),
+            'companies_id' => (int) $this->companies_id,
+            'users_id' => (int) $this->users_id,
+            'name' => (string) ($this->name ?? ''),
+            'email' => (string) ($this->email ?? ''),
+            'phone' => (string) ($this->phone ?? ''),
+            'address' => (string) ($this->address ?? ''),
+            'city' => (string) ($this->city ?? ''),
+            'state' => (string) ($this->state ?? ''),
+            'zipcode' => (string) ($this->zipcode ?? ''),
+            'is_default' => (bool) $this->is_default,
+            'is_active' => (bool) $this->is_active,
+            'is_deleted' => (bool) $this->is_deleted,
+            'created_at' => $this->created_at ? $this->created_at->timestamp : null,
+        ];
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                ['name' => 'id', 'type' => 'string'],
+                ['name' => 'companies_id', 'type' => 'int64'],
+                ['name' => 'users_id', 'type' => 'int64'],
+                ['name' => 'name', 'type' => 'string', 'sort' => true],
+                ['name' => 'email', 'type' => 'string', 'optional' => true],
+                ['name' => 'phone', 'type' => 'string', 'optional' => true],
+                ['name' => 'address', 'type' => 'string', 'optional' => true],
+                ['name' => 'city', 'type' => 'string', 'optional' => true],
+                ['name' => 'state', 'type' => 'string', 'optional' => true],
+                ['name' => 'zipcode', 'type' => 'string', 'optional' => true],
+                ['name' => 'is_default', 'type' => 'bool'],
+                ['name' => 'is_active', 'type' => 'bool'],
+                ['name' => 'is_deleted', 'type' => 'bool'],
+                ['name' => 'created_at', 'type' => 'int64', 'optional' => true],
+            ],
+        ];
+    }
+
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted();
