@@ -61,6 +61,7 @@ class PullParticipantsFromIntrasAction
             foreach ($rows as $row) {
                 $mapped = ParticipantMapper::fromIntras($row);
 
+                /** @var People $people */
                 $people = People::firstOrCreate([
                     'apps_id' => $this->app->getId(),
                     'companies_id' => $this->company->getId(),
@@ -73,6 +74,11 @@ class PullParticipantsFromIntrasAction
                         ? $keyContactType?->getId()
                         : $participantType?->getId(),
                 ]);
+
+                if ($row->created_at !== null && $people->wasRecentlyCreated) {
+                    $people->created_at = $row->created_at;
+                    $people->saveQuietly();
+                }
 
                 $people->set(CustomFieldEnum::INTRAS_PARTICIPANT_ID->value, $row->id);
 

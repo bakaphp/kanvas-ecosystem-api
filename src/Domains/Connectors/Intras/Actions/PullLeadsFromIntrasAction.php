@@ -93,6 +93,12 @@ class PullLeadsFromIntrasAction
                 $lead->leads_status_id = $defaultStatus?->getId() ?? 0;
                 $lead->description = $row->info_objectives ?? null;
                 $lead->disableWorkflows();
+                if ($row->created_at !== null) {
+                    $lead->created_at = $row->created_at;
+                }
+                if ($row->updated_at !== null) {
+                    $lead->updated_at = $row->updated_at;
+                }
                 $lead->saveOrFail();
 
                 $lead->set(CustomFieldEnum::INTRAS_QUOTE_ID->value, $row->id);

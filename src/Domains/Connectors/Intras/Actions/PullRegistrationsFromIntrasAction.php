@@ -55,6 +55,7 @@ class PullRegistrationsFromIntrasAction
                     continue;
                 }
 
+                /** @var Participant $participant */
                 $participant = Participant::firstOrCreate([
                     'people_id' => $people->getId(),
                     'apps_id' => $this->app->getId(),
@@ -64,10 +65,16 @@ class PullRegistrationsFromIntrasAction
                     'theme_area_id' => $defaultThemeArea?->getId() ?? 0,
                 ]);
 
+                if ($row->created_at !== null && $participant->wasRecentlyCreated) {
+                    $participant->created_at = $row->created_at;
+                    $participant->saveQuietly();
+                }
+
                 $participantType = $this->findParticipantTypeByIntrasId($row->inscriptions_types_id);
                 $mapped = RegistrationMapper::fromIntras($row);
 
-                EventVersionParticipant::firstOrCreate([
+                /** @var EventVersionParticipant $evp */
+                $evp = EventVersionParticipant::firstOrCreate([
                     'event_version_id' => $eventVersion->getId(),
                     'participant_id' => $participant->getId(),
                 ], [
@@ -77,6 +84,14 @@ class PullRegistrationsFromIntrasAction
                     'invoice_date' => $mapped['invoice_date'],
                     'metadata' => $mapped['metadata'],
                 ]);
+
+                if ($row->created_at !== null && $evp->wasRecentlyCreated) {
+                    $evp->created_at = $row->created_at;
+                    if ($row->updated_at !== null) {
+                        $evp->updated_at = $row->updated_at;
+                    }
+                    $evp->saveQuietly();
+                }
 
                 $count++;
             }

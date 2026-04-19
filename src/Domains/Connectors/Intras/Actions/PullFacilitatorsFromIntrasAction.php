@@ -53,6 +53,7 @@ class PullFacilitatorsFromIntrasAction
             foreach ($rows as $row) {
                 $mapped = FacilitatorMapper::fromIntras($row);
 
+                /** @var People $people */
                 $people = People::firstOrCreate([
                     'apps_id' => $this->app->getId(),
                     'companies_id' => $this->company->getId(),
@@ -63,6 +64,11 @@ class PullFacilitatorsFromIntrasAction
                     'name' => $mapped['firstname'] . ' ' . $mapped['lastname'],
                     'people_types_id' => $facilitatorType?->getId(),
                 ]);
+
+                if ($row->created_at !== null && $people->wasRecentlyCreated) {
+                    $people->created_at = $row->created_at;
+                    $people->saveQuietly();
+                }
 
                 $people->set(CustomFieldEnum::INTRAS_FACILITATOR_ID->value, $row->id);
 
