@@ -71,6 +71,7 @@ type EventVersion {
     price_per_ticket: Money!
     currency: Currency @belongsTo(relation: "currency")
     eventStatus: EventStatus @belongsTo(relation: "eventStatus")
+    max_capacity: Int @method(name: "getMaxCapacity")
     created_at: DateTime
     updated_at: DateTime
     dates: [EventVersionDate!]! @hasMany(relation: "dates")

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Event\Mutations\Participants;
 
+use App\GraphQL\Concerns\SyncsEntityRelatedInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Event\Themes\Models\ThemeArea;
@@ -11,6 +12,8 @@ use Kanvas\Guild\Customers\Models\People;
 
 class ParticipantMutation
 {
+    use SyncsEntityRelatedInput;
+
     public function create(mixed $root, array $req): Participant
     {
         $user = auth()->user();
@@ -42,9 +45,7 @@ class ParticipantMutation
         $participant->general_representative = $input['general_representative'] ?? null;
         $participant->saveOrFail();
 
-        self::syncCustomFields($participant, $input);
-        self::syncTags($participant, $input);
-        self::syncFiles($participant, $input);
+        self::syncEntityRelatedInput($participant, $input);
 
         return $participant->fresh();
     }
@@ -80,9 +81,7 @@ class ParticipantMutation
 
         $participant->saveOrFail();
 
-        self::syncCustomFields($participant, $input);
-        self::syncTags($participant, $input);
-        self::syncFiles($participant, $input);
+        self::syncEntityRelatedInput($participant, $input);
 
         return $participant->fresh();
     }
@@ -97,36 +96,5 @@ class ParticipantMutation
         $participant = Participant::getByIdFromCompanyApp((int) $req['id'], $company, $app);
 
         return (bool) $participant->delete();
-    }
-
-    protected static function syncCustomFields(Participant $participant, array $input): void
-    {
-        if (! empty($input['custom_fields']) && is_array($input['custom_fields'])) {
-            $participant->setAllCustomFields($input['custom_fields']);
-        }
-    }
-
-    protected static function syncTags(Participant $participant, array $input): void
-    {
-        if (array_key_exists('tags', $input) && is_array($input['tags'])) {
-            $tagNames = [];
-            foreach ($input['tags'] as $tag) {
-                if (is_array($tag) && isset($tag['name'])) {
-                    $tagNames[] = (string) $tag['name'];
-                } elseif (is_string($tag)) {
-                    $tagNames[] = $tag;
-                }
-            }
-            if (! empty($tagNames)) {
-                $participant->syncTags($tagNames);
-            }
-        }
-    }
-
-    protected static function syncFiles(Participant $participant, array $input): void
-    {
-        if (! empty($input['files']) && is_array($input['files'])) {
-            $participant->addMultipleFilesFromUrl($input['files']);
-        }
     }
 }

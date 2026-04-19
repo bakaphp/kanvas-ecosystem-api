@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Event\Mutations\Events;
 
+use App\GraphQL\Concerns\SyncsEntityRelatedInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\Actions\UpdateEventAction;
@@ -15,6 +16,8 @@ use Kanvas\Users\Repositories\UsersRepository;
 
 class EventManagementMutation
 {
+    use SyncsEntityRelatedInput;
+
     public function create(mixed $root, array $req): Event
     {
         $user = auth()->user();
@@ -30,9 +33,7 @@ class EventManagementMutation
 
         $event = new CreateEventAction($eventDto)->execute();
 
-        self::syncCustomFields($event, $input);
-        self::syncTags($event, $input);
-        self::syncFiles($event, $input);
+        self::syncEntityRelatedInput($event, $input);
 
         return $event->fresh();
     }
@@ -65,9 +66,7 @@ class EventManagementMutation
             new UpdateEventAction($eventVersion, $updateData)->execute();
         }
 
-        self::syncCustomFields($event, $input);
-        self::syncTags($event, $input);
-        self::syncFiles($event, $input);
+        self::syncEntityRelatedInput($event, $input);
 
         return $event->fresh();
     }
@@ -110,36 +109,5 @@ class EventManagementMutation
         );
 
         return $user->unFollow($event);
-    }
-
-    protected static function syncCustomFields(Event $event, array $input): void
-    {
-        if (! empty($input['custom_fields']) && is_array($input['custom_fields'])) {
-            $event->setAllCustomFields($input['custom_fields']);
-        }
-    }
-
-    protected static function syncTags(Event $event, array $input): void
-    {
-        if (array_key_exists('tags', $input) && is_array($input['tags'])) {
-            $tagNames = [];
-            foreach ($input['tags'] as $tag) {
-                if (is_array($tag) && isset($tag['name'])) {
-                    $tagNames[] = (string) $tag['name'];
-                } elseif (is_string($tag)) {
-                    $tagNames[] = $tag;
-                }
-            }
-            if (! empty($tagNames)) {
-                $event->syncTags($tagNames);
-            }
-        }
-    }
-
-    protected static function syncFiles(Event $event, array $input): void
-    {
-        if (! empty($input['files']) && is_array($input['files'])) {
-            $event->addMultipleFilesFromUrl($input['files']);
-        }
     }
 }

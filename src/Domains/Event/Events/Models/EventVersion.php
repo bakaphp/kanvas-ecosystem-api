@@ -214,4 +214,14 @@ class EventVersion extends BaseModel
     {
         return 'EventVersion';
     }
+
+    public function getMaxCapacity(): ?int
+    {
+        $metadata = $this->metadata;
+        if (! is_array($metadata)) {
+            return null;
+        }
+
+        return isset($metadata['max_capacity']) ? (int) $metadata['max_capacity'] : null;
+    }
 }

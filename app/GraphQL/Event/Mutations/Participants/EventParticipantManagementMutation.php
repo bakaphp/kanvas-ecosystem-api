@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Event\Mutations\Participants;
 
+use App\GraphQL\Concerns\SyncsEntityRelatedInput;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\EventVersion;
@@ -15,6 +16,8 @@ use Kanvas\Guild\Customers\Models\People;
 
 class EventParticipantManagementMutation
 {
+    use SyncsEntityRelatedInput;
+
     public function addPeopleToEventVersion(mixed $root, array $req): Participant
     {
         $user = auth()->user();
@@ -62,28 +65,8 @@ class EventParticipantManagementMutation
             $eventVersionParticipant->saveOrFail();
         }
 
-        // Custom fields / files / tags apply to the Participant record
-        if (! empty($input['custom_fields']) && is_array($input['custom_fields'])) {
-            $participant->setAllCustomFields($input['custom_fields']);
-        }
-
-        if (! empty($input['files']) && is_array($input['files'])) {
-            $participant->addMultipleFilesFromUrl($input['files']);
-        }
-
-        if (array_key_exists('tags', $input) && is_array($input['tags'])) {
-            $tagNames = [];
-            foreach ($input['tags'] as $tag) {
-                if (is_array($tag) && isset($tag['name'])) {
-                    $tagNames[] = (string) $tag['name'];
-                } elseif (is_string($tag)) {
-                    $tagNames[] = $tag;
-                }
-            }
-            if (! empty($tagNames)) {
-                $participant->syncTags($tagNames);
-            }
-        }
+        // custom_fields / files / tags apply to the Participant record
+        self::syncEntityRelatedInput($participant, $input);
 
         return $participant;
     }

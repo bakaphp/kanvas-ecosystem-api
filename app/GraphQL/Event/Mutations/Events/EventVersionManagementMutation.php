@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Event\Mutations\Events;
 
+use App\GraphQL\Concerns\SyncsEntityRelatedInput;
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Currencies\Models\Currencies;
@@ -17,6 +18,8 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class EventVersionManagementMutation
 {
+    use SyncsEntityRelatedInput;
+
     public function create(mixed $root, array $req): EventVersion
     {
         $user = auth()->user();
@@ -68,9 +71,7 @@ class EventVersionManagementMutation
             }
         }
 
-        self::syncCustomFields($eventVersion, $input);
-        self::syncTags($eventVersion, $input);
-        self::syncFiles($eventVersion, $input);
+        self::syncEntityRelatedInput($eventVersion, $input);
 
         $eventVersion->refresh();
 
@@ -132,9 +133,7 @@ class EventVersionManagementMutation
             }
         }
 
-        self::syncCustomFields($eventVersion, $input);
-        self::syncTags($eventVersion, $input);
-        self::syncFiles($eventVersion, $input);
+        self::syncEntityRelatedInput($eventVersion, $input);
 
         $eventVersion->refresh();
 
@@ -211,34 +210,4 @@ class EventVersionManagementMutation
         return array_key_exists('max_capacity', $input) || array_key_exists('metadata', $input);
     }
 
-    protected static function syncCustomFields(EventVersion $eventVersion, array $input): void
-    {
-        if (! empty($input['custom_fields']) && is_array($input['custom_fields'])) {
-            $eventVersion->setAllCustomFields($input['custom_fields']);
-        }
-    }
-
-    protected static function syncTags(EventVersion $eventVersion, array $input): void
-    {
-        if (array_key_exists('tags', $input) && is_array($input['tags'])) {
-            $tagNames = [];
-            foreach ($input['tags'] as $tag) {
-                if (is_array($tag) && isset($tag['name'])) {
-                    $tagNames[] = (string) $tag['name'];
-                } elseif (is_string($tag)) {
-                    $tagNames[] = $tag;
-                }
-            }
-            if (! empty($tagNames)) {
-                $eventVersion->syncTags($tagNames);
-            }
-        }
-    }
-
-    protected static function syncFiles(EventVersion $eventVersion, array $input): void
-    {
-        if (! empty($input['files']) && is_array($input['files'])) {
-            $eventVersion->addMultipleFilesFromUrl($input['files']);
-        }
-    }
 }

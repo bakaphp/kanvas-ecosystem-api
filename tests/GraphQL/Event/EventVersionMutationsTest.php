@@ -158,6 +158,7 @@ class EventVersionMutationsTest extends TestCase
                     name
                     description
                     price_per_ticket
+                    max_capacity
                     metadata
                 }
             }
@@ -165,6 +166,7 @@ class EventVersionMutationsTest extends TestCase
 
         $this->assertSame('Updated Name', $r->json('data.updateEventVersion.name'));
         $this->assertSame('Updated description', $r->json('data.updateEventVersion.description'));
+        $this->assertSame(100, $r->json('data.updateEventVersion.max_capacity'));
         $metadata = $r->json('data.updateEventVersion.metadata');
         $this->assertSame(100, $metadata['max_capacity']);
     }

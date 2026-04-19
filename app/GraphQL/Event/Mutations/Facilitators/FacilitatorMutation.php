@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Event\Mutations\Facilitators;
 
+use App\GraphQL\Concerns\SyncsEntityRelatedInput;
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\EventVersion;
@@ -13,6 +14,8 @@ use Kanvas\Guild\Customers\Models\People;
 
 class FacilitatorMutation
 {
+    use SyncsEntityRelatedInput;
+
     public function create(mixed $root, array $req): Facilitator
     {
         $user = auth()->user();
@@ -34,9 +37,7 @@ class FacilitatorMutation
         $facilitator->description = $input['description'] ?? null;
         $facilitator->saveOrFail();
 
-        self::syncCustomFields($facilitator, $input);
-        self::syncTags($facilitator, $input);
-        self::syncFiles($facilitator, $input);
+        self::syncEntityRelatedInput($facilitator, $input);
 
         return $facilitator->fresh();
     }
@@ -67,9 +68,7 @@ class FacilitatorMutation
 
         $facilitator->saveOrFail();
 
-        self::syncCustomFields($facilitator, $input);
-        self::syncTags($facilitator, $input);
-        self::syncFiles($facilitator, $input);
+        self::syncEntityRelatedInput($facilitator, $input);
 
         return $facilitator->fresh();
     }
@@ -139,36 +138,5 @@ class FacilitatorMutation
         }
 
         return (bool) $pivot->delete();
-    }
-
-    protected static function syncCustomFields(Facilitator $facilitator, array $input): void
-    {
-        if (! empty($input['custom_fields']) && is_array($input['custom_fields'])) {
-            $facilitator->setAllCustomFields($input['custom_fields']);
-        }
-    }
-
-    protected static function syncTags(Facilitator $facilitator, array $input): void
-    {
-        if (array_key_exists('tags', $input) && is_array($input['tags'])) {
-            $tagNames = [];
-            foreach ($input['tags'] as $tag) {
-                if (is_array($tag) && isset($tag['name'])) {
-                    $tagNames[] = (string) $tag['name'];
-                } elseif (is_string($tag)) {
-                    $tagNames[] = $tag;
-                }
-            }
-            if (! empty($tagNames) && method_exists($facilitator, 'syncTags')) {
-                $facilitator->syncTags($tagNames);
-            }
-        }
-    }
-
-    protected static function syncFiles(Facilitator $facilitator, array $input): void
-    {
-        if (! empty($input['files']) && is_array($input['files'])) {
-            $facilitator->addMultipleFilesFromUrl($input['files']);
-        }
     }
 }
