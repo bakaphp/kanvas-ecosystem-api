@@ -22,10 +22,17 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
       'photo'
   );
   ```
-- **PHP-CS-Fixer enforced** — always follow these formatting rules:
+- **PHP-CS-Fixer enforced** — config lives at `.php-cs-fixer.php`. **Run it on every save and before every commit/push** so the code matches house style and doesn't bounce back in review:
+  ```bash
+  vendor/bin/php-cs-fixer fix <file-or-dir>
+  ```
+  Apply it to every PHP file you touch (the fixer is idempotent — running it on files you didn't change is a no-op). If the binary isn't installed in the current environment, match the same rules by hand:
   - Anonymous classes: `new class () extends Foo {` (parentheses + space before brace, brace on same line)
   - Multi-line closures passed as method arguments: place the closure on a new line, e.g. `->whereHas('rel', fn ($q) => ...)` becomes `->whereHas(\n    'rel',\n    fn ($q) => ...\n)`
-  - `use` imports: alphabetical order within each namespace group (e.g. `Enums\` before `Models\`)
+  - `use` imports: alphabetical order **across the entire use block** (not just within each namespace group) — e.g. `Connectors\Zoho\...` must come after `Connectors\WooCommerce\...`
+  - No superfluous phpdoc tags (strip `@var mixed $x` style annotations when the var is already typed by assignment; see `no_superfluous_phpdoc_tags` with `allow_mixed: true` — applies only when the variable is named)
+  - No trailing blank line before the closing `}` of a class
+  - `no_empty_comment`, `single_quote`, `array_syntax: short`, `trailing_comma_in_multiline`, and the other rules in `.php-cs-fixer.php`
 - **Email rendering note**: `KanvasMailable` is HTML-first and uses `resources/views/emails/layout.blade.php`. If a feature needs true plain-text body delivery (for example raw ADF/XML in the body with no escaping/wrapping), use a dedicated plain-text view such as `resources/views/emails/plain.blade.php` instead of routing through the HTML layout.
 
 ## Domain CRUD Pattern

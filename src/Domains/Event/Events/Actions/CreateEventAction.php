@@ -6,7 +6,6 @@ namespace Kanvas\Event\Events\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\DataTransferObject\Event;
 use Kanvas\Event\Events\DataTransferObject\EventVersion;
@@ -58,7 +57,6 @@ class CreateEventAction
                 $slug = $slug . '-' . $this->metadata['slug_suffix'];
             }
 
-            // $this->validateSlug($slug);
             $event = ModelsEvent::updateOrCreate([
                 'slug' => $slug,
                 'apps_id' => $this->event->app->getId(),
@@ -168,31 +166,6 @@ class CreateEventAction
         $this->runWorkflow = false;
 
         return $this;
-    }
-
-    protected function validateSlug(string $slug): void
-    {
-        Validator::make(
-            ['slug' => $slug],
-            [
-                'slug' => [
-                    'required',
-                    // Custom rule using DB to specify the connection and validate uniqueness.
-                    function ($attribute, $value, $fail) {
-                        $exists = DB::connection('event') // Replace with your DB connection name.
-                            ->table('events')
-                            ->where('slug', $value)
-                            ->where('apps_id', $this->event->app->getId())
-                            ->where('companies_id', $this->event->company->getId())
-                            ->exists();
-
-                        if ($exists) {
-                            $fail('The ' . $attribute . ' has already been taken.');
-                        }
-                    },
-                ],
-            ]
-        )->validate();
     }
 
     protected function createEventOrder(ModelsEventVersion $eventVersion, array $orderItemsData = []): void
