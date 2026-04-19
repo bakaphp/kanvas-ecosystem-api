@@ -171,6 +171,39 @@ class EventVersionMutationsTest extends TestCase
         $this->assertSame(100, $metadata['max_capacity']);
     }
 
+    public function testUpdateEventVersionTopLevelMaxCapacityBeatsNestedMetadata(): void
+    {
+        ['version_id' => $versionId] = $this->createBaseEvent();
+
+        // Mirror a common frontend mistake: the client echoes back a stale
+        // metadata.max_capacity while the user edits the top-level field. The
+        // top-level `max_capacity: 85` must win over `metadata.max_capacity: 80`.
+        $input = [
+            'max_capacity' => 85,
+            'metadata' => [
+                'max_capacity' => 80,
+                'has_book' => false,
+                'has_forum' => true,
+            ],
+        ];
+
+        $r = $this->graphQL('
+            mutation($id: ID!, $input: EventVersionUpdateInput!) {
+                updateEventVersion(id: $id, input: $input) {
+                    id
+                    max_capacity
+                    metadata
+                }
+            }
+        ', ['id' => $versionId, 'input' => $input])->assertSuccessful();
+
+        $this->assertSame(85, $r->json('data.updateEventVersion.max_capacity'));
+        $metadata = $r->json('data.updateEventVersion.metadata');
+        $this->assertSame(85, $metadata['max_capacity']);
+        $this->assertSame(true, $metadata['has_forum']);      // unrelated metadata keys preserved
+        $this->assertSame(false, $metadata['has_book']);
+    }
+
     public function testDeleteEventVersion(): void
     {
         ['version_id' => $versionId] = $this->createBaseEvent();

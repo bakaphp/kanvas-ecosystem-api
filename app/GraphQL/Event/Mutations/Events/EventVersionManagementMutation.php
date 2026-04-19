@@ -195,11 +195,16 @@ class EventVersionManagementMutation
     protected static function buildMetadata(array $input): array
     {
         $metadata = [];
+
+        // Apply the nested metadata dict first so the top-level `max_capacity`
+        // input wins over any stale value the client may be echoing back inside
+        // metadata.max_capacity.
+        if (array_key_exists('metadata', $input) && is_array($input['metadata'])) {
+            $metadata = $input['metadata'];
+        }
+
         if (array_key_exists('max_capacity', $input)) {
             $metadata['max_capacity'] = (int) $input['max_capacity'];
-        }
-        if (array_key_exists('metadata', $input) && is_array($input['metadata'])) {
-            $metadata = array_merge($metadata, $input['metadata']);
         }
 
         return $metadata;
