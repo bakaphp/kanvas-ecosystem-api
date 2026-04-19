@@ -209,6 +209,7 @@ class EventVersion extends BaseModel
             ->where('entity_namespace', self::class);
     }
 
+    #[Override]
     public function getGraphTypeName(): string
     {
         return 'EventVersion';

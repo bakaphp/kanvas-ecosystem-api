@@ -26,6 +26,7 @@ use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Override;
 
 #[ObservedBy([EventObserver::class])]
 class Event extends BaseModel
@@ -126,6 +127,7 @@ class Event extends BaseModel
             ->where('entity_namespace', self::class);
     }
 
+    #[Override]
     public function getGraphTypeName(): string
     {
         return 'Event';
