@@ -30,6 +30,7 @@ class LeadConfigurationServiceV2Test extends TestCase
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
             ->create();
+        $lead->app->set('intelligence_lead_type_mode_v2', true);
 
         if ($leadTypeName !== '') {
             $leadType = LeadType::firstOrCreate(

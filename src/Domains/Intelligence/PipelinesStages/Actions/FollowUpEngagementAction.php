@@ -238,7 +238,6 @@ class FollowUpEngagementAction
 
                     $this->logSuccess('message_created', 'Follow-up message created', $session, $message);
                 } catch (Exception $e) {
-                    dump($e->getMessage());
                     captureException($e);
                 }
 
