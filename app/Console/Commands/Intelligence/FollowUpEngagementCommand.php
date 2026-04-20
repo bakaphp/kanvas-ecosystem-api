@@ -94,7 +94,8 @@ class FollowUpEngagementCommand extends Command
                 $ignoreFirstMessage = (bool) $this->option('ignore-first-message');
                 $noFirstMessage = ! $ignoreFirstMessage && $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null;
                 $notActive = $lead->isActive() === false;
-                $hasBeenContacted = $lead->hasBeenContacted();
+                $followUpOnIsContacted = (bool) $lead->company->get(CompanyConfigurationEnum::FOLLOW_UP_ON_IS_CONTACTED->value);
+                $hasBeenContacted = ! $followUpOnIsContacted && $lead->hasBeenContacted();
                 $leadTypes = $lead->company->get(ConfigurationEnum::FOLLOW_UP_LEAD_TYPE->value) ?? ['internet'];
                 $notInternet = ! in_array(strtolower($lead->type?->name ?? ''), $leadTypes);
 
