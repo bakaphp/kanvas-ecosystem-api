@@ -21,6 +21,8 @@ use Kanvas\Intelligence\FollowUp\Exceptions\FollowUpException;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
+use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementV1Action;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Services\DailyReportService;
 
@@ -92,7 +94,8 @@ class FollowUpEngagementCommand extends Command
                 $ignoreFirstMessage = (bool) $this->option('ignore-first-message');
                 $noFirstMessage = ! $ignoreFirstMessage && $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null;
                 $notActive = $lead->isActive() === false;
-                $hasBeenContacted = $lead->hasBeenContacted();
+                $followUpOnIsContacted = (bool) $lead->company->get(CompanyConfigurationEnum::FOLLOW_UP_ON_IS_CONTACTED->value);
+                $hasBeenContacted = ! $followUpOnIsContacted && $lead->hasBeenContacted();
                 $leadTypes = $lead->company->get(ConfigurationEnum::FOLLOW_UP_LEAD_TYPE->value) ?? ['internet'];
                 $notInternet = ! in_array(strtolower($lead->type?->name ?? ''), $leadTypes);
 
@@ -208,7 +211,10 @@ class FollowUpEngagementCommand extends Command
                 //how do we avoid sending notifications for leads that haven'b been contacted
                 try {
                     $this->info('Executing FollowUpEngagementAction for lead ID ' . $lead->id . ' - ' . $lead->people->name);
-                    $result = new FollowUpEngagementAction($lead, $log)->execute();
+                    $followUpClass = LeadConfigurationService::isV2Enabled($lead->app)
+                        ? FollowUpEngagementAction::class
+                        : FollowUpEngagementV1Action::class;
+                    $result = new $followUpClass($lead, $log)->execute();
                 } catch (FollowUpException $e) {
                     $this->info('Skipping lead ID ' . $lead->id . ': ' . $e->getMessage());
 
