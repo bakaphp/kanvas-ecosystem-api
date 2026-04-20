@@ -8,12 +8,22 @@ use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Event\Events\DataTransferObject\EventVersion;
 use Kanvas\Event\Events\Models\EventVersion as ModelsEventVersion;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateEventVersionAction
 {
+    protected bool $runWorkflow = true;
+
     public function __construct(
         protected EventVersion $eventVersion,
     ) {
+    }
+
+    public function disableWorkflow(): self
+    {
+        $this->runWorkflow = false;
+
+        return $this;
     }
 
     public function execute(): ModelsEventVersion
@@ -63,6 +73,16 @@ class CreateEventVersionAction
         $eventVersion->saveOrFail();
 
         $eventVersion->addDates($this->eventVersion->dates);
+
+        if ($this->runWorkflow) {
+            $eventVersion->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                [
+                    'app' => $this->eventVersion->event->app,
+                ],
+            );
+        }
 
         return $eventVersion;
     }

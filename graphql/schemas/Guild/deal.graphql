@@ -103,6 +103,7 @@ extend type Query @guard {
                     "pipeline_id"
                     "pipeline_stage_id"
                     "status_id"
+                    "created_at"
                 ]
             )
         orderBy: _
@@ -118,4 +119,24 @@ extend type Query @guard {
             model: "Kanvas\\Guild\\Deals\\Models\\Deal"
             scopes: ["fromCompany", "fromApp", "notDeleted"]
         )
+
+    dealAnalytics(
+        from: Date
+        to: Date
+        bucket: AnalyticsBucket = WEEK
+        timezone: String
+        pipeline_id: ID
+    ): DealAnalytics!
+        @field(
+            resolver: "App\\GraphQL\\Analytics\\Queries\\DealAnalyticsQuery"
+        )
+}
+
+type DealAnalytics {
+    periods: [AnalyticsPoint!]!
+    total: Int!
+    by_stage: [AnalyticsCategoryPoint!]!
+    by_status: [AnalyticsCategoryPoint!]!
+    by_pipeline: [AnalyticsCategoryPoint!]!
+    by_user: [AnalyticsCategoryPoint!]!
 }

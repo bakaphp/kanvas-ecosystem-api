@@ -51,6 +51,7 @@ enum IntegrationsEnum: string
     case CONTACT_CHECKER = 'contact_checker';
     case OPENCLAW = 'openclaw';
     case MICROSOFT = 'microsoft';
+    case INTRAS = 'intras';
     case LICENSE_PLATE_EXTRACTOR = 'license_plate_extractor';
     case LENDFLOW = 'lendflow';
 }

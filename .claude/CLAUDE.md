@@ -935,6 +935,68 @@ class MyNotification extends Notification
 - Override `toMail()` and/or `toOneSignal()` only when you need notification-specific content that differs from the template-based defaults
 - Never use `\Illuminate\Notifications\Notification` directly
 
+## Files on a Model — Lighthouse Cache Pattern
+
+Any model that exposes `files: [Filesystem!]! @cacheRedis` (which is the default for `HasFilesystemTrait` models) **must** participate in the Lighthouse Redis cache invalidation protocol. Without this, uploaded files do not appear in the UI until the cache expires, because `@cacheRedis` returns stale data.
+
+Canonical reference: [`Deal`](../src/Domains/Guild/Deals/Models/Deal.php) + [`DealObserver`](../src/Domains/Guild/Deals/Observers/DealObserver.php). Mirror this shape on every new model that has file uploads.
+
+### Required on the Model
+
+```php
+use Baka\Traits\HasLightHouseCache;
+use Override;
+
+class Foo extends BaseModel
+{
+    use HasLightHouseCache;
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'Foo';                     // MUST match the GraphQL type name exactly
+    }
+}
+```
+
+- `HasLightHouseCache` defines `abstract public function getGraphTypeName(): string` — implement it or PHP fatals. Return the GraphQL type name as it appears in the schema (e.g. `'Event'`, `'EventVersion'`, `'Facilitator'`).
+- **Add `#[Override]`** on `getGraphTypeName()`. It implements an abstract trait method, which PHP treats as a valid override target — this is the opposite of concrete trait methods (see `#[Override] attribute` note under Key Conventions). The canonical `Deal` model does this.
+- `BaseModel` for the domain typically already includes `HasFilesystemTrait`; if not, add it too (required for `getFilesQueryBuilder()` which the cache regeneration uses).
+
+### Required on the Observer
+
+```php
+class FooObserver
+{
+    public function updating(Foo $foo): void
+    {
+        $foo->clearLightHouseCache(withKanvasConfiguration: false);
+    }
+}
+```
+
+- Use `updating()` (fires before the save) so the cache is gone before any listener reads it post-save.
+- `withKanvasConfiguration: false` is the right default — file-relation regeneration is handled automatically by `AttachFilesystemAction` when files are attached. `true` eagerly regenerates custom_fields/files cache inside the observer, which is usually overkill and creates extra Redis writes.
+
+### How file uploads trigger invalidation
+
+[`AttachFilesystemAction`](../src/Kanvas/Filesystem/Actions/AttachFilesystemAction.php) already calls:
+```php
+if (method_exists($this->entity, 'clearLightHouseCache')) {
+    $this->entity->clearLightHouseCacheJob();
+}
+```
+So any `addMultipleFilesFromUrl()` / `addFileFromUrl()` call automatically invalidates the entity's cache — **as long as the model uses `HasLightHouseCache` and implements `getGraphTypeName()`**. Missing the trait silently disables invalidation. No direct resolver changes needed.
+
+### Checklist for a new model with file uploads
+
+- [ ] `HasLightHouseCache` trait on the model
+- [ ] `getGraphTypeName()` returning the GraphQL type name
+- [ ] `HasFilesystemTrait` (usually inherited from `BaseModel`)
+- [ ] Observer `updating()` hook calling `clearLightHouseCache(withKanvasConfiguration: false)`
+- [ ] GraphQL type uses `files: [Filesystem!]! @cacheRedis @paginate(...)` with the shared `FilesystemQuery@getFileByGraphType` builder (so the cache key shape matches what `generateFilesLighthouseCache()` writes)
+- [ ] Smoke test: upload a file via `updateX(files: [...])`, query `x.files` in the same or next request, confirm the new file appears without a manual cache flush
+
 ## Key Conventions
 
 ### No Inline Fully-Qualified Class Names

@@ -4,7 +4,7 @@ type Event {
     name: String!
     slug: String!
     description: String
-    version_count: Int!
+    versions_count: Int!
     start_at: String
     end_at: String
     user: User! @belongsTo(relation: "user")
@@ -47,6 +47,11 @@ type Event {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
+    followers: [User!]! @hasMany(relation: "followers")
+    channels: [SocialChannel]! @hasMany(relation: "socialChannels")
+    notes: SocialChannel @hasOne(relation: "notes")
+    ai_session: [AIAgentSession!]!
+        @hasMany(relation: "aiSession", type: PAGINATOR)
 }
 
 type EventVersion {
@@ -64,6 +69,9 @@ type EventVersion {
     description: String
     classification: String
     price_per_ticket: Money!
+    currency: Currency @belongsTo(relation: "currency")
+    eventStatus: EventStatus @belongsTo(relation: "eventStatus")
+    max_capacity: Int @method(name: "getMaxCapacity")
     created_at: DateTime
     updated_at: DateTime
     dates: [EventVersionDate!]! @hasMany(relation: "dates")
@@ -101,6 +109,11 @@ type EventVersion {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
+    followers: [User!]! @hasMany(relation: "followers")
+    channels: [SocialChannel]! @hasMany(relation: "socialChannels")
+    notes: SocialChannel @hasOne(relation: "notes")
+    ai_session: [AIAgentSession!]!
+        @hasMany(relation: "aiSession", type: PAGINATOR)
 }
 
 type EventVersionDate {
@@ -119,6 +132,7 @@ type EventVersionParticipant {
     ticket_price: Money!
     discount: Money!
     invoice_date: Date
+    payment_status: String
     metadata: Mixed
     participant_type: ParticipantType @belongsTo(relation: "participantType")
     created_at: DateTime
@@ -149,14 +163,26 @@ input EventInput {
     config: Mixed
     participants: [String!]
     dates: [EventVersionDateInput!]!
+    custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
+    files: [FilesystemInputUrl!]
 }
 
 input EventUpdateInput {
     name: String
     description: String
+    theme_id: ID
+    theme_area_id: ID
+    status_id: ID
+    type_id: ID
+    class_id: ID
+    category_id: ID
     resources_id: ID
     resources_type: String
     dates: [EventVersionDateInput!]
+    custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
+    files: [FilesystemInputUrl!]
 }
 
 type EventResource {
@@ -182,6 +208,71 @@ input EventVersionDateInput {
         @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
     end_time: String!
         @rules(apply: ["required", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+}
+
+input AddEventVersionDateInput {
+    event_version_id: ID!
+    date: Date!
+    start_time: String
+        @rules(apply: ["nullable", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+    end_time: String
+        @rules(apply: ["nullable", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+}
+
+input UpdateEventVersionDateInput {
+    date: Date
+    start_time: String
+        @rules(apply: ["nullable", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+    end_time: String
+        @rules(apply: ["nullable", "regex:/^([01]\\d|2[0-3]):([0-5]\\d)$/"])
+}
+
+input EventVersionInput {
+    event_id: ID!
+    name: String
+    version: String
+    description: String
+    classification: String
+    price_per_ticket: Float
+    currency_id: ID
+    currency_code: String
+    start_at: DateTime
+    end_at: DateTime
+    max_capacity: Int
+    agenda: Mixed
+    metadata: Mixed
+    dates: [EventVersionDateInput!]
+    custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
+    files: [FilesystemInputUrl!]
+}
+
+input EventVersionUpdateInput {
+    name: String
+    version: String
+    description: String
+    classification: String
+    price_per_ticket: Float
+    currency_id: ID
+    event_status_id: ID
+    start_at: DateTime
+    end_at: DateTime
+    max_capacity: Int
+    agenda: Mixed
+    metadata: Mixed
+    dates: [EventVersionDateInput!]
+    custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
+    files: [FilesystemInputUrl!]
+}
+
+input EventVersionParticipantUpdateInput {
+    participant_type_id: ID
+    ticket_price: Float
+    discount: Float
+    invoice_date: Date
+    payment_status: String
+    metadata: Mixed
 }
 
 input TimeSlotBookingInput {
@@ -282,6 +373,63 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventManagementMutation@delete"
         )
+    followEvent(input: FollowInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventManagementMutation@follow"
+        )
+    unFollowEvent(input: FollowInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventManagementMutation@unFollow"
+        )
+
+    createEventVersion(input: EventVersionInput!): EventVersion!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventVersionManagementMutation@create"
+        )
+    updateEventVersion(id: ID!, input: EventVersionUpdateInput!): EventVersion!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventVersionManagementMutation@update"
+        )
+    deleteEventVersion(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventVersionManagementMutation@delete"
+        )
+    followEventVersion(input: FollowInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventVersionManagementMutation@follow"
+        )
+    unFollowEventVersion(input: FollowInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventVersionManagementMutation@unFollow"
+        )
+
+    addEventVersionDate(input: AddEventVersionDateInput!): EventVersionDate!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventVersionDateMutation@add"
+        )
+    updateEventVersionDate(
+        id: ID!
+        input: UpdateEventVersionDateInput!
+    ): EventVersionDate!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventVersionDateMutation@update"
+        )
+    deleteEventVersionDate(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Events\\EventVersionDateMutation@delete"
+        )
+
+    updateEventVersionParticipant(
+        id: ID!
+        input: EventVersionParticipantUpdateInput!
+    ): EventVersionParticipant!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Participants\\EventVersionParticipantMutation@update"
+        )
+    deleteEventVersionParticipant(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Participants\\EventVersionParticipantMutation@delete"
+        )
 
     bookTimeSlot(input: TimeSlotBookingInput!): EventVersion!
         @field(
@@ -321,11 +469,19 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "uuid"
                     "name"
                     "slug"
                     "companies_id"
                     "resources_id"
                     "resources_type"
+                    "event_type_id"
+                    "event_category_id"
+                    "event_class_id"
+                    "event_status_id"
+                    "theme_id"
+                    "theme_area_id"
+                    "created_at"
                 ]
             )
         status: _
@@ -351,6 +507,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "uuid"
                     "name"
                     "slug"
                     "event_id"
@@ -358,6 +515,8 @@ extend type Query @guard {
                     "version_number"
                     "start_at"
                     "end_at"
+                    "event_status_id"
+                    "currency_id"
                 ]
             )
         eventStatus: _
@@ -390,6 +549,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "uuid"
                     "event_version_id"
                     "participant_id"
                     "ticket_price"
@@ -418,4 +578,24 @@ extend type Query @guard {
             model: "Kanvas\\Event\\Events\\Models\\EventVersionParticipant"
             defaultCount: 25
         )
+
+    eventAnalytics(
+        from: Date
+        to: Date
+        bucket: AnalyticsBucket = WEEK
+        timezone: String
+        event_type_id: ID
+    ): EventAnalytics!
+        @field(
+            resolver: "App\\GraphQL\\Analytics\\Queries\\EventAnalyticsQuery"
+        )
+}
+
+type EventAnalytics {
+    periods: [AnalyticsPoint!]!
+    total: Int!
+    by_status: [AnalyticsCategoryPoint!]!
+    by_type: [AnalyticsCategoryPoint!]!
+    by_category: [AnalyticsCategoryPoint!]!
+    by_class: [AnalyticsCategoryPoint!]!
 }
