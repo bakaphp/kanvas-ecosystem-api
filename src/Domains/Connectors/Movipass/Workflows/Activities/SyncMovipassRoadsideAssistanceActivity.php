@@ -18,6 +18,7 @@ use Kanvas\Connectors\Movipass\Actions\ValidateRoadsideAssistancePinAction;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
+use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -192,6 +193,13 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             $broadcastId = $mechanicId > 0 ? $mechanicId : (int) $order->users_id;
             RefreshActiveAssistanceEvent::dispatch($order, $broadcastId);
 
+            $user->notify(new RoadsideAssistanceStatusNotification(
+                $order,
+                'Service cancelled',
+                'The roadside assistance service has been cancelled.',
+                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
+            ));
+
             return [
                 'order' => $order->getId(),
                 'status' => 'success',
@@ -246,6 +254,20 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
             $broadcastId = $mechanicId > 0 ? $mechanicId : (int) $order->users_id;
             RefreshActiveAssistanceEvent::dispatch($order, $broadcastId);
+
+            [$notifTitle, $notifMessage] = $isResolved
+                ? ['Service completed', 'The roadside assistance service has been completed successfully.']
+                : ['Service completed', 'The roadside assistance service has ended without resolution.'];
+
+            $notifEvent = $isResolved
+                ? MovipassOrderStatusEnum::SERVICE_COMPLETED->slug()
+                : MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug();
+            $notification = new RoadsideAssistanceStatusNotification($order, $notifTitle, $notifMessage, $notifEvent);
+
+            $user->notify($notification);
+            if ($mechanicId > 0) {
+                Users::getById($mechanicId)->notify($notification);
+            }
 
             return [
                 'order' => $order->getId(),
@@ -343,10 +365,18 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         unset($assistanceCase['pin_attempt'], $assistanceCase['pin_validation_error']);
         $this->saveAssistanceCaseMetadata($order, $metadata, $assistanceCase);
 
+        $orderUser = Users::getById((int) $order->users_id);
         $order->transitionToStatus(
-            Users::getById((int) $order->users_id),
+            $orderUser,
             MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug(),
         );
+
+        $orderUser->notify(new RoadsideAssistanceStatusNotification(
+            $order,
+            'Service started',
+            'The mechanic has started the roadside assistance service.',
+            MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug(),
+        ));
 
         return [
             'order' => $order->getId(),
@@ -437,6 +467,34 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
                 $broadcastMechanicId = $mechanicId > 0 ? $mechanicId : (int) $order->users_id;
                 RefreshActiveAssistanceEvent::dispatch($order, $broadcastMechanicId);
+
+                $orderUser = Users::getById((int) $order->users_id);
+                $mechanic = $mechanicId > 0 ? Users::getById($mechanicId) : null;
+
+                [$title, $message, $event] = match ($toStatus) {
+                    MovipassOrderStatusEnum::SERVICE_COMPLETED->slug() => [
+                        'Service completed',
+                        'The roadside assistance service has been completed successfully.',
+                        MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
+                    ],
+                    MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug() => [
+                        'Service completed',
+                        'The roadside assistance service has ended without resolution.',
+                        MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
+                    ],
+                    MovipassOrderStatusEnum::SERVICE_CANCELLED->slug() => [
+                        'Service cancelled',
+                        'The roadside assistance service has been cancelled.',
+                        MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
+                    ],
+                    default => ['Order updated', 'Your order has been updated.', $toStatus],
+                };
+
+                $notification = new RoadsideAssistanceStatusNotification($order, $title, $message, $event);
+                $orderUser->notify($notification);
+                if ($mechanic instanceof Users) {
+                    $mechanic->notify($notification);
+                }
             }
         }
 
