@@ -17,29 +17,21 @@ class FollowUpCrudTest extends TestCase
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
 
-        $pipeline = Pipeline::fromCompany($company)->fromApp($app)->notDeleted()->first();
+        $pipeline = Pipeline::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => auth()->id(),
+            'system_modules_id' => 0,
+            'name' => 'Test Pipeline ' . fake()->uuid(),
+            'weight' => 0,
+            'is_default' => 0,
+        ]);
 
-        if (! $pipeline) {
-            $pipeline = Pipeline::create([
-                'apps_id' => $app->getId(),
-                'companies_id' => $company->getId(),
-                'users_id' => auth()->id(),
-                'system_modules_id' => 0,
-                'name' => 'Test Pipeline ' . fake()->word(),
-                'weight' => 0,
-                'is_default' => 0,
-            ]);
-        }
-
-        $stage = PipelineStage::where('pipelines_id', $pipeline->getId())->notDeleted()->first();
-
-        if (! $stage) {
-            $stage = PipelineStage::create([
-                'pipelines_id' => $pipeline->getId(),
-                'name' => 'Test Stage',
-                'weight' => 1,
-            ]);
-        }
+        $stage = PipelineStage::create([
+            'pipelines_id' => $pipeline->getId(),
+            'name' => 'Test Stage',
+            'weight' => 1,
+        ]);
 
         return [
             'pipeline_id' => (string) $pipeline->getId(),

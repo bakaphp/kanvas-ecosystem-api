@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\FollowUp\Actions;
 
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUp as FollowUpData;
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 
@@ -16,6 +17,16 @@ class CreateFollowUpAction
 
     public function execute(): FollowUp
     {
+        $exists = FollowUp::where('pipelines_id', $this->data->pipeline->getId())
+            ->where('apps_id', $this->data->app->getId())
+            ->where('companies_id', $this->data->company->getId())
+            ->notDeleted()
+            ->exists();
+
+        if ($exists) {
+            throw new ValidationException('This pipeline already has a follow-up configured.');
+        }
+
         $followUp = new FollowUp();
         $followUp->apps_id = $this->data->app->getId();
         $followUp->companies_id = $this->data->company->getId();
