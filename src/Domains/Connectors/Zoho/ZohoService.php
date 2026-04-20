@@ -67,6 +67,8 @@ class ZohoService
             'Office_Phone' => str_replace(['+', '-', '(', ')', ' '], '', $user->phone_number ?? ''),
         ];
 
+        $data = $this->applySponsorData($agentInfo, $data);
+
         if ($zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
             $data['Lead_Routing'] = $zohoOwnerAgent ? $zohoOwnerAgent->Lead_Routing : (string) $this->company->get('default_lead_routing');
 
@@ -104,26 +106,35 @@ class ZohoService
             'Sponsor' => ! empty($agent->owner_id) ? (string) $agent->owner_id : '1001',
         ];
 
-        if ($agent->sponsor_user_id !== null) {
-            $sponsorAgent = Agent::where('users_id', $agent->sponsor_user_id)
-                ->where('apps_id', $this->app->getId())
-                ->where('companies_id', $this->company->getId())
-                ->where('is_deleted', false)
-                ->where('status_id', 1)
-                ->first();
-
-            if ($sponsorAgent && $sponsorAgent->users_linked_source_id) {
-                $data['Sponsor_Name'] = $sponsorAgent->users_linked_source_id; //it the zoho agent uuid
-                $data['Sponsor'] = (string) $sponsorAgent->member_id;
-                $data['Inactive'] = 'Active';
-            }
-        }
+        $data = $this->applySponsorData($agent, $data);
 
         if ($this->zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
             return $this->zohoCrm->agents->update($zohoAgentId, $data);
         }
 
         return $this->zohoCrm->vendors->update($zohoAgentId, $data);
+    }
+
+    private function applySponsorData(Agent $agent, array $data): array
+    {
+        if ($agent->sponsor_user_id === null) {
+            return $data;
+        }
+
+        $sponsorAgent = Agent::where('users_id', $agent->sponsor_user_id)
+            ->where('apps_id', $this->app->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('is_deleted', false)
+            ->where('status_id', 1)
+            ->first();
+
+        if ($sponsorAgent && $sponsorAgent->users_linked_source_id) {
+            $data['Sponsor_Name'] = $sponsorAgent->users_linked_source_id; //it the zoho agent uuid
+            $data['Sponsor'] = (string) $sponsorAgent->member_id;
+            $data['Inactive'] = 'Active';
+        }
+
+        return $data;
     }
 
     public function updateAgentMemberNumber(Agent $agent): object

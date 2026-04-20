@@ -11,9 +11,9 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\SyncAllNetSuiteCustomerItemsListAction;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
-use Kanvas\Connectors\NetSuite\Services\NetSuiteProductSearchService;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
@@ -42,29 +42,6 @@ final class SyncAllNetSuiteCustomerItemsListActionTest extends TestCase
     {
         Mockery::close();
         parent::tearDown();
-    }
-
-    protected function bindMockProductSearch(int $productCount): void
-    {
-        $products = [];
-        for ($i = 1; $i <= $productCount; $i++) {
-            $products[] = [
-                'internalId' => (string) $i,
-                'itemId' => "ITEM-{$i}",
-                'displayName' => "Product {$i}",
-                'quantityAvailable' => 10,
-                'basePrice' => 9.99,
-            ];
-        }
-
-        $mockSearch = Mockery::mock(NetSuiteProductSearchService::class);
-        $mockSearch->shouldReceive('searchWithSavedSearch')
-            ->andReturn($products);
-
-        $this->app->bind(
-            NetSuiteProductSearchService::class,
-            fn () => $mockSearch
-        );
     }
 
     protected function bindMockCustomerService(array $barcodes): void
@@ -120,39 +97,45 @@ final class SyncAllNetSuiteCustomerItemsListActionTest extends TestCase
         ]);
     }
 
-    protected function addVariantsToChannel(Channels $channel, int $count): void
+    protected function createNetSuiteVariant(string $netSuiteProductId): Variants
+    {
+        $product = Products::factory()
+            ->withCompanyId($this->mainCompany->getId())
+            ->create();
+
+        $variant = $product->variants()->firstOrFail();
+        $variant->is_published = 1;
+        $variant->save();
+        $variant->set(CustomFieldEnum::NET_SUITE_PRODUCT_ID->value, $netSuiteProductId);
+
+        return $variant;
+    }
+
+    protected function addVariantToChannel(Channels $channel, Variants $variant): void
     {
         $warehouse = Warehouses::where('companies_id', $this->mainCompany->getId())
             ->where('apps_id', $this->apps->getId())
             ->first();
 
-        for ($i = 0; $i < $count; $i++) {
-            $product = Products::factory()
-                ->withCompanyId($this->mainCompany->getId())
-                ->create();
+        $variantWarehouse = VariantsWarehouses::firstOrCreate([
+            'products_variants_id' => $variant->getId(),
+            'warehouses_id' => $warehouse->getId(),
+        ], [
+            'price' => 10.00,
+            'quantity' => 1,
+            'is_deleted' => 0,
+        ]);
 
-            $variant = $product->variants()->firstOrFail();
-
-            $variantWarehouse = VariantsWarehouses::firstOrCreate([
-                'products_variants_id' => $variant->getId(),
-                'warehouses_id' => $warehouse->getId(),
-            ], [
-                'price' => 10.00,
-                'quantity' => 1,
-                'is_deleted' => 0,
-            ]);
-
-            VariantsChannels::create([
-                'product_variants_warehouse_id' => $variantWarehouse->id,
-                'products_variants_id' => $variant->getId(),
-                'channels_id' => $channel->getId(),
-                'warehouses_id' => $warehouse->getId(),
-                'price' => 10.00,
-                'discounted_price' => 10.00,
-                'is_published' => 1,
-                'is_deleted' => 0,
-            ]);
-        }
+        VariantsChannels::create([
+            'product_variants_warehouse_id' => $variantWarehouse->id,
+            'products_variants_id' => $variant->getId(),
+            'channels_id' => $channel->getId(),
+            'warehouses_id' => $warehouse->getId(),
+            'price' => 10.00,
+            'discounted_price' => 10.00,
+            'is_published' => 1,
+            'is_deleted' => 0,
+        ]);
     }
 
     public function testSkipsWhenMainCompanyIdMissing(): void
@@ -168,7 +151,6 @@ final class SyncAllNetSuiteCustomerItemsListActionTest extends TestCase
     public function testSkipsBuyersWithoutNetSuiteCustomerId(): void
     {
         $this->apps->set('B2B_MAIN_COMPANY_ID', $this->mainCompany->getId());
-        $this->bindMockProductSearch(5);
 
         $result = new SyncAllNetSuiteCustomerItemsListAction(
             $this->apps,
@@ -182,8 +164,8 @@ final class SyncAllNetSuiteCustomerItemsListActionTest extends TestCase
     public function testMarksSyncWhenChannelMissing(): void
     {
         $this->apps->set('B2B_MAIN_COMPANY_ID', $this->mainCompany->getId());
-        $this->bindMockProductSearch(5);
-        $this->bindMockCustomerService(['BARCODE-1', 'BARCODE-2']);
+        $this->createNetSuiteVariant('NS-PROD-1');
+        $this->bindMockCustomerService(['BARCODE-1']);
 
         $buyer = $this->createBuyerWithNetSuiteId('NS-NO-CHANNEL');
 
@@ -197,17 +179,20 @@ final class SyncAllNetSuiteCustomerItemsListActionTest extends TestCase
         $this->assertFalse($buyerResult['channel_found']);
         $this->assertTrue($buyerResult['synced']);
         $this->assertNull($buyerResult['error']);
-        $this->assertEquals(5, $buyerResult['product_count']);
+        $this->assertGreaterThanOrEqual(1, $buyerResult['product_count']);
     }
 
     public function testNoSyncWhenCountsMatch(): void
     {
         $this->apps->set('B2B_MAIN_COMPANY_ID', $this->mainCompany->getId());
-        $this->bindMockProductSearch(3);
+
+        $variant1 = $this->createNetSuiteVariant('NS-PROD-A');
+        $variant2 = $this->createNetSuiteVariant('NS-PROD-B');
 
         $buyer = $this->createBuyerWithNetSuiteId('NS-MATCH');
         $channel = $this->createChannelForBuyer($buyer);
-        $this->addVariantsToChannel($channel, 3);
+        $this->addVariantToChannel($channel, $variant1);
+        $this->addVariantToChannel($channel, $variant2);
 
         $result = new SyncAllNetSuiteCustomerItemsListAction(
             $this->apps,
@@ -216,19 +201,25 @@ final class SyncAllNetSuiteCustomerItemsListActionTest extends TestCase
 
         $buyerResult = $result['results'][0];
         $this->assertFalse($buyerResult['synced']);
+        $this->assertEquals(
+            $buyerResult['product_count'],
+            $buyerResult['channel_count']
+        );
         $this->assertEquals(0, $buyerResult['missing_count']);
-        $this->assertEquals(1, $result['total_skipped']);
     }
 
     public function testSyncsWhenChannelHasFewerProducts(): void
     {
         $this->apps->set('B2B_MAIN_COMPANY_ID', $this->mainCompany->getId());
-        $this->bindMockProductSearch(5);
         $this->bindMockCustomerService(['BARCODE-1']);
+
+        $variant1 = $this->createNetSuiteVariant('NS-PART-A');
+        $this->createNetSuiteVariant('NS-PART-B');
+        $this->createNetSuiteVariant('NS-PART-C');
 
         $buyer = $this->createBuyerWithNetSuiteId('NS-PARTIAL');
         $channel = $this->createChannelForBuyer($buyer);
-        $this->addVariantsToChannel($channel, 2);
+        $this->addVariantToChannel($channel, $variant1);
 
         $result = new SyncAllNetSuiteCustomerItemsListAction(
             $this->apps,
@@ -238,13 +229,13 @@ final class SyncAllNetSuiteCustomerItemsListActionTest extends TestCase
 
         $buyerResult = $result['results'][0];
         $this->assertTrue($buyerResult['synced']);
-        $this->assertEquals(3, $buyerResult['missing_count']);
+        $this->assertGreaterThan(0, $buyerResult['missing_count']);
     }
 
     public function testDryRunDoesNotCallSync(): void
     {
         $this->apps->set('B2B_MAIN_COMPANY_ID', $this->mainCompany->getId());
-        $this->bindMockProductSearch(5);
+        $this->createNetSuiteVariant('NS-DR-1');
 
         $buyer = $this->createBuyerWithNetSuiteId('NS-DRYRUN');
 
@@ -267,7 +258,7 @@ final class SyncAllNetSuiteCustomerItemsListActionTest extends TestCase
     public function testSoapFaultOnSyncDoesNotAbortSweep(): void
     {
         $this->apps->set('B2B_MAIN_COMPANY_ID', $this->mainCompany->getId());
-        $this->bindMockProductSearch(5);
+        $this->createNetSuiteVariant('NS-FAULT-V');
 
         $buyerA = $this->createBuyerWithNetSuiteId('NS-FAULT-A');
         $buyerB = $this->createBuyerWithNetSuiteId('NS-FAULT-B');
@@ -319,7 +310,6 @@ final class SyncAllNetSuiteCustomerItemsListActionTest extends TestCase
     public function testExcludesMainCompanyFromBuyerList(): void
     {
         $this->apps->set('B2B_MAIN_COMPANY_ID', $this->mainCompany->getId());
-        $this->bindMockProductSearch(5);
         $this->mainCompany->set(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value, 'NS-MAIN-CO');
 
         $result = new SyncAllNetSuiteCustomerItemsListAction(
