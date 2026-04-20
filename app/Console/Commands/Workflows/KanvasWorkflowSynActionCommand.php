@@ -32,6 +32,7 @@ use Kanvas\Connectors\Elead\Workflow\PushLeadNotesActivity as WorkflowPushLeadNo
 use Kanvas\Connectors\Elead\Workflow\PushParticipantActivity;
 use Kanvas\Connectors\Elead\Workflow\PushPeopleActivity as WorkflowPushPeopleActivity;
 use Kanvas\Connectors\Elead\Workflow\ScheduleActivityFromEventActivity;
+use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsAgentDateWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsAgentWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsCalendarEventWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsHandOffWebhookJob;
@@ -419,6 +420,7 @@ class KanvasWorkflowSynActionCommand extends Command
             InjectADKSessionEventsActivity::class,
             ProcessRespondIOWebhookJob::class,
             ProcessElevenLabsAgentWebhookJob::class,
+            ProcessElevenLabsAgentDateWebhookJob::class,
             ProcessElevenLabsTranscriptWebhookJob::class,
             ProcessElevenLabsCalendarEventWebhookJob::class,
             ProcessElevenLabsProductShareWebhookJob::class,
