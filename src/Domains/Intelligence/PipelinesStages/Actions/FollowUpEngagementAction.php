@@ -212,7 +212,6 @@ class FollowUpEngagementAction
                 $contacted = $this->lead->hasBeenContacted();
                 $isActive = $this->lead->isActive();
             }
-
             if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
                 && $timeDiff > $followUpDay->time_value
                 && $contacted === false
@@ -239,6 +238,7 @@ class FollowUpEngagementAction
 
                     $this->logSuccess('message_created', 'Follow-up message created', $session, $message);
                 } catch (Exception $e) {
+                    dump($e->getMessage());
                     captureException($e);
                 }
 

@@ -7,18 +7,17 @@ namespace Tests\Intelligence\Services;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
-use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Tests\TestCase;
 
-class LeadConfigurationServiceTest extends TestCase
+class LeadConfigurationServiceV2Test extends TestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
         $app = app(Apps::class);
         $app->set('search_engine', 'database');
-        $app->set('intelligence_lead_type_mode_v2', 0);
+        $app->set('intelligence_lead_type_mode_v2', true);
     }
 
     private function createLead(string $leadTypeName = ''): Lead
@@ -49,116 +48,51 @@ class LeadConfigurationServiceTest extends TestCase
         return $lead;
     }
 
-    public function testIsV2EnabledReturnsFalseByDefault(): void
-    {
-        $app = app(Apps::class);
-        $app->set('intelligence_lead_type_mode_v2', false);
-
-        $this->assertFalse(LeadConfigurationService::isV2Enabled($app));
-    }
-
     public function testIsV2EnabledReturnsTrueWhenFlagSet(): void
     {
-        $app = app(Apps::class);
-        $app->set('intelligence_lead_type_mode_v2', true);
-
-        $this->assertTrue(LeadConfigurationService::isV2Enabled($app));
-
-        $app->set('intelligence_lead_type_mode_v2', false);
-    }
-
-    public function testGetAiModeKeyReturnsGenericKeyWhenV1(): void
-    {
-        $app = app(Apps::class);
-        $app->set('intelligence_lead_type_mode_v2', false);
-        $lead = $this->createLead('Showroom');
-
-        $this->assertEquals('ai_mode', LeadConfigurationService::getAiModeKey($lead));
+        $this->assertTrue(LeadConfigurationService::isV2Enabled(app(Apps::class)));
     }
 
     public function testGetAiModeKeyReturnsShowroomKeyForShowroomLeadType(): void
     {
-        $app = app(Apps::class);
-        $app->set('intelligence_lead_type_mode_v2', true);
-
         $lead = $this->createLead('Showroom');
 
         $this->assertEquals('showroom_ai_mode', LeadConfigurationService::getAiModeKey($lead));
-
-        $app->set('intelligence_lead_type_mode_v2', false);
     }
 
     public function testGetAiModeKeyReturnsPhoneKeyForPhoneLeadType(): void
     {
-        $app = app(Apps::class);
-        $app->set('intelligence_lead_type_mode_v2', true);
-
         $lead = $this->createLead('Phone');
 
         $this->assertEquals('phone_ai_mode', LeadConfigurationService::getAiModeKey($lead));
-
-        $app->set('intelligence_lead_type_mode_v2', false);
     }
 
     public function testGetAiModeKeyReturnsGenericKeyForInternetLeadType(): void
     {
-        $app = app(Apps::class);
-        $app->set('intelligence_lead_type_mode_v2', true);
-
         $lead = $this->createLead('Internet');
 
         $this->assertEquals('ai_mode', LeadConfigurationService::getAiModeKey($lead));
-
-        $app->set('intelligence_lead_type_mode_v2', false);
-    }
-
-    public function testGetFollowUpModeKeyReturnsAiFollowUpWhenV1(): void
-    {
-        $app = app(Apps::class);
-        $app->set('intelligence_lead_type_mode_v2', false);
-
-        $lead = $this->createLead('Internet');
-
-        $this->assertEquals(
-            IntelligenceModeEnum::AI_FOLLOW_UP->value,
-            LeadConfigurationService::getFollowUpModeKey($lead)
-        );
     }
 
     public function testGetFollowUpModeKeyReturnsInternetFollowUpKeyForInternetType(): void
     {
-        $app = app(Apps::class);
-        $app->set('intelligence_lead_type_mode_v2', true);
-
         $lead = $this->createLead('Internet');
 
         $this->assertEquals('internet_follow_up_mode', LeadConfigurationService::getFollowUpModeKey($lead));
-
-        $app->set('intelligence_lead_type_mode_v2', false);
     }
 
     public function testGetFollowUpModeKeyReturnsShowroomFollowUpKeyForShowroomType(): void
     {
-        $app = app(Apps::class);
-        $app->set('intelligence_lead_type_mode_v2', true);
-
         $lead = $this->createLead('Showroom');
 
         $this->assertEquals('showroom_follow_up_mode', LeadConfigurationService::getFollowUpModeKey($lead));
-
-        $app->set('intelligence_lead_type_mode_v2', false);
     }
 
     public function testGetFollowUpModeKeyReturnsPhoneFollowUpKeyForPhoneType(): void
     {
-        $app = app(Apps::class);
-        $app->set('intelligence_lead_type_mode_v2', true);
-
         $lead = $this->createLead('Phone');
 
         $this->assertEquals('phone_follow_up_mode', LeadConfigurationService::getFollowUpModeKey($lead));
-
-        $app->set('intelligence_lead_type_mode_v2', false);
     }
 
     public function testGetAiModeDefaultKeyReturnsOpenKeyWhenOpen(): void

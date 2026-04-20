@@ -11,6 +11,7 @@ use Kanvas\ActionEngine\Pipelines\Models\Pipeline as ActionEnginePipeline;
 use Kanvas\ActionEngine\Pipelines\Models\PipelineStage as ActionEnginePipelineStage;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\LeadSources\Models\LeadSource;
@@ -38,8 +39,15 @@ use Prism\Prism\ValueObjects\Meta;
 use Prism\Prism\ValueObjects\Usage;
 use Tests\TestCase;
 
-class FollowUpEngagementActionTest extends TestCase
+class FollowUpEngagementActionV2Test extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $app = app(Apps::class);
+        $app->set('intelligence_lead_type_mode_v2', true);
+    }
+
     public function testNotificationEngagementAction(): void
     {
         Carbon::setTestNow(
@@ -59,7 +67,6 @@ class FollowUpEngagementActionTest extends TestCase
             $company = $user->getCurrentCompany();
             $app = app(Apps::class);
 
-            // Ensure inventory infrastructure (channels, warehouses, etc.) exists
             $inventorySetup = new InventorySetup($app, $user, $company);
             $inventorySetup->run();
 
@@ -107,12 +114,12 @@ class FollowUpEngagementActionTest extends TestCase
                 'leads_types_id' => $leadType->id,
             ]);
             $lead->leads_sources_id = $leadSource->id;
+            $lead->leads_status_id = 1;
             $lead->saveOrFail();
 
-            // Enable follow-up for this lead type so FollowUpEngagementAction doesn't throw
+            $lead->setContactStatus(LeadGroupStatusEnum::WAITING);
 
             $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
-
             $lead->set($followUpKey, FollowUpValueEnum::ON()->value);
 
             $lead->people->addEmail(fake()->email);
@@ -123,8 +130,8 @@ class FollowUpEngagementActionTest extends TestCase
                     'minutes_no_response' => 60,
                     'day' => 1,
                     'templates' => [
-                        'sms' => 'Hi [Customer Name], this is [Rep Name] from [Dealership Name]! 👋 Thanks for checking us out online. I’d love to help you find the perfect vehicle for your family and a payment that feels comfortable. When’s a good time to connect?',
-                        'email' => 'Good morning [Customer Name]! We’d love to have you stop by this week 🚗💨. Our team will make the process simple and stress-free. Would [day/time] work for a quick visit?',
+                        'sms' => 'Hi [Customer Name], thanks for checking us out online!',
+                        'email' => 'Good morning [Customer Name]! We would love to have you stop by.',
                     ],
                 ],
             ];
@@ -134,7 +141,6 @@ class FollowUpEngagementActionTest extends TestCase
                 'name' => 'AI Generated Message',
             ]);
 
-            // Pre-create twilio-sms MessageType with languages_id so CreateMessageFollowUpAction doesn't fail
             MessageType::firstOrCreate([
                 'apps_id' => $app->getId(),
                 'name' => 'twilio-sms',
@@ -153,7 +159,6 @@ class FollowUpEngagementActionTest extends TestCase
 
             $pipelineStage = $lead->getCurrentPipelineStage();
 
-            // Ensure the lead's pipeline_id is set so FollowUpRepository can find the FollowUp
             if (! $lead->pipeline_id) {
                 $lead->pipeline_id = $pipelineStage->pipelines_id;
                 $lead->saveOrFail();
@@ -162,7 +167,6 @@ class FollowUpEngagementActionTest extends TestCase
             $pipelineStage->config = $config;
             $pipelineStage->saveOrFail();
 
-            // Create ActionEngine infrastructure for engagement creation
             $actionEnginePipeline = ActionEnginePipeline::firstOrCreate([
                 'slug' => 'view-vehicle',
                 'companies_id' => $company->getId(),
@@ -210,7 +214,6 @@ class FollowUpEngagementActionTest extends TestCase
                 'name' => 'view-vehicle',
             ]);
 
-            // Create FollowUp infrastructure so FollowUpEngagementAction can find it
             $followUp = FollowUp::create([
                 'apps_id' => $app->getId(),
                 'companies_id' => $company->getId(),
@@ -234,14 +237,14 @@ class FollowUpEngagementActionTest extends TestCase
                 'follow_up_days_id' => $followUpDay->id,
                 'communication_channel' => 'sms',
                 'name' => 'SMS Follow Up',
-                'template' => 'Hi {{$lead->firstname}}, thanks for your interest! Would you like to schedule a visit?',
+                'template' => 'Hi, thanks for your interest! Would you like to schedule a visit?',
             ]);
 
             FollowUpTemplate::create([
                 'follow_up_days_id' => $followUpDay->id,
                 'communication_channel' => 'email',
                 'name' => 'Email Follow Up',
-                'template' => 'Hi {{$lead->firstname}}, thanks for your interest! Would you like to schedule a visit?',
+                'template' => 'Hi, thanks for your interest! Would you like to schedule a visit?',
             ]);
 
             $timezone = $lead->company->get('timezone') ?? 'UTC';
@@ -273,16 +276,10 @@ class FollowUpEngagementActionTest extends TestCase
                 'user_id' => $user->getId(),
                 'role' => [
                     'background' => [
-                        'Using the json take the conversation history and the context to create a friendly message to re-engage the customer based on the day and the day template, just give me the message. 
-                    conversation_history {!! json_encode($conversation_history, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
-                    context {!! json_encode($context, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
-                    ',
+                        'Using the json take the conversation history and the context to create a friendly message to re-engage the customer based on the day and the day template, just give me the message.',
                     ],
                     'steps' => [
-                        'Using the json take the conversation history and the context to create a friendly message to re-engage the customer based on the day and the day template, just give me the message. 
-                    conversation_history {!! json_encode($conversation_history, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
-                    context {!! json_encode($context, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!};
-                    ',
+                        'Using the json take the conversation history and the context to create a friendly message to re-engage the customer based on the day and the day template, just give me the message.',
                     ],
                 ],
             ]);
@@ -309,7 +306,6 @@ class FollowUpEngagementActionTest extends TestCase
             $sessionEmail->channel_id = $emailChannel->id;
             $sessionEmail->save();
 
-            // Fake Prism AI response so the test doesn't depend on external AI services
             $fakeStructuredData = [
                 'message' => 'Hi there! Just following up on your interest. Would you like to schedule a visit?',
                 'should_respond' => true,
@@ -324,9 +320,9 @@ class FollowUpEngagementActionTest extends TestCase
 
             Prism::fake([$fakeResponse, $fakeResponse]);
 
-            $message = new FollowUpEngagementAction($lead)->execute();
+            $result = new FollowUpEngagementAction($lead)->execute();
 
-            $this->assertIsArray($message);
+            $this->assertIsArray($result);
         } finally {
             Carbon::setTestNow();
         }
