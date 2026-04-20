@@ -40,6 +40,7 @@ class FollowUpEngagementAction
     ) {
         $this->log = $log;
         $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
+        dump($followUpKey);
         $followUpValue = $lead->get($followUpKey);
 
         if ($followUpValue == FollowUpValueEnum::OFF()->value) {
