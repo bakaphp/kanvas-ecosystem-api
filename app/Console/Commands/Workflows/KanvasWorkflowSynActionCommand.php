@@ -32,6 +32,13 @@ use Kanvas\Connectors\Elead\Workflow\PushLeadNotesActivity as WorkflowPushLeadNo
 use Kanvas\Connectors\Elead\Workflow\PushParticipantActivity;
 use Kanvas\Connectors\Elead\Workflow\PushPeopleActivity as WorkflowPushPeopleActivity;
 use Kanvas\Connectors\Elead\Workflow\ScheduleActivityFromEventActivity;
+use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsAgentDateWebhookJob;
+use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsAgentWebhookJob;
+use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsCalendarEventWebhookJob;
+use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsHandOffWebhookJob;
+use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsProductShareWebhookJob;
+use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsSendMessageWebhookJob;
+use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsTranscriptWebhookJob;
 use Kanvas\Connectors\ESim\WorkflowActivities\CreateOrderInESimActivity;
 use Kanvas\Connectors\ESim\WorkflowActivities\UpdateOrderStripePaymentActivity;
 use Kanvas\Connectors\Facebook\Webhooks\ProcessFacebookLeadWebhookJob;
@@ -58,6 +65,9 @@ use Kanvas\Connectors\Internal\Jobs\OAuthCallbackJob;
 use Kanvas\Connectors\InventorySync\Workflows\Activities\SyncInventoryActivity;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncOrderWithIPlusActivities;
 use Kanvas\Connectors\IPlus\Workflows\Activities\SyncPeopleWithIPlusActivities;
+use Kanvas\Connectors\Lendflow\Activities\SubmitApplicationActivity as LendflowSubmitApplicationActivity;
+use Kanvas\Connectors\Lendflow\Activities\UploadDealFilesActivity as LendflowUploadDealFilesActivity;
+use Kanvas\Connectors\LicensePlateExtractor\Activities\ExtractLicensePlateActivity;
 use Kanvas\Connectors\Mailgun\Webhooks\AgentProcessEmailWebhookJob;
 use Kanvas\Connectors\Mailgun\Workflows\AgentChannelResponderActivity as WorkflowsAgentChannelResponderActivity;
 use Kanvas\Connectors\Microsoft\Workflows\Activities\MicrosoftAgentChannelResponderActivity;
@@ -101,6 +111,7 @@ use Kanvas\Connectors\Recombee\Workflows\PushProductToItemActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionToEventActivity;
 use Kanvas\Connectors\RespondIO\Webhooks\ProcessRespondIOWebhookJob;
 use Kanvas\Connectors\RespondIO\Workflows\AgentChannelResponderActivity as RespondIOAgentChannelResponderActivity;
+use Kanvas\Connectors\SalesAssist\Activities\AIAssistChannelResponderActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AttachFileToChecklistItemActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AttachMessageFilesToLeadActivity;
 use Kanvas\Connectors\SalesAssist\Activities\ConvertMessageImagesToPdfActivity;
@@ -162,6 +173,7 @@ use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Connectors\WaSender\Workflows\AgentChannelResponderActivity;
 use Kanvas\Connectors\WooCommerce\Webhooks\PullWooCommerceOrderWebhookJob;
 use Kanvas\Connectors\WooCommerce\Webhooks\SyncExternalWooCommerceUserWebhookJob;
+use Kanvas\Connectors\Zoho\Jobs\ProcessZohoDealWebhookJob;
 use Kanvas\Connectors\Zoho\Jobs\SwitchZohoLeadOwnerReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\SyncZohoAgentFromReceiverJob;
 use Kanvas\Connectors\Zoho\Jobs\UpdateLeadFromZohoDealWebhookJob;
@@ -281,6 +293,7 @@ class KanvasWorkflowSynActionCommand extends Command
             MessageReportNotificationActivity::class,
             StripePaymentIntentWebhookJob::class,
             UpdateOrderStripePaymentActivity::class,
+            AIAssistChannelResponderActivity::class,
             AttachFileToChecklistItemActivity::class,
             AttachMessageFilesToLeadActivity::class,
             PromptImageFilterActivity::class,
@@ -296,6 +309,10 @@ class KanvasWorkflowSynActionCommand extends Command
             PushOrderActivity::class,
             ProcessVehicleImageActivity::class,
             WorkflowsProcessVehicleImageActivity::class,
+            ExtractLicensePlateActivity::class,
+            LendflowSubmitApplicationActivity::class,
+            LendflowUploadDealFilesActivity::class,
+            ProcessZohoDealWebhookJob::class,
             ProcessMessageVehicleImageActivity::class,
             LLMMessageResponseActivity::class,
             ProcessPaymentActivity::class,
@@ -402,6 +419,13 @@ class KanvasWorkflowSynActionCommand extends Command
             SendLeadAdfByEmailActivity::class,
             InjectADKSessionEventsActivity::class,
             ProcessRespondIOWebhookJob::class,
+            ProcessElevenLabsAgentWebhookJob::class,
+            ProcessElevenLabsAgentDateWebhookJob::class,
+            ProcessElevenLabsTranscriptWebhookJob::class,
+            ProcessElevenLabsCalendarEventWebhookJob::class,
+            ProcessElevenLabsProductShareWebhookJob::class,
+            ProcessElevenLabsHandOffWebhookJob::class,
+            ProcessElevenLabsSendMessageWebhookJob::class,
         ];
 
         $createdActions = [];

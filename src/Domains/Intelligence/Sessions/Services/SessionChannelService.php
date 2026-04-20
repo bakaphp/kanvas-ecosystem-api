@@ -22,6 +22,7 @@ class SessionChannelService
             'sms' => '+' . $normalizedId,
             'email' => $id,
             'respondio' => '+' . $normalizedId,
+            'ai-assist' => 'ai-assist-' . $id,
         };
     }
 
@@ -34,6 +35,7 @@ class SessionChannelService
             'sms' => 'twilio-' . $normalizedId,
             'email' => 'email-' . Str::sanitizeEmail($id),
             'respondio' => 'respondio-' . $normalizedId,
+            'ai-assist' => 'ai-assist-' . $id,
         };
     }
 
@@ -60,7 +62,8 @@ class SessionChannelService
                 ->where(function (Builder $query) {
                     $query->where('name', 'like', '%email%')
                         ->orWhere('name', 'like', '%sms%')
-                        ->orWhere('name', 'like', '%whatsapp%');
+                        ->orWhere('name', 'like', '%whatsapp%')
+                        ->orWhere('name', 'like', '%ai assist%');
                 })
                 ->first()?->slug;
         }

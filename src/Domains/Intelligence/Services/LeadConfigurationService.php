@@ -4,11 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Services;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 
 class LeadConfigurationService
 {
+    public static function isV2Enabled(Apps $app): bool
+    {
+        return (bool) $app->get('intelligence_lead_type_mode_v2');
+    }
+
     private static function getTypePrefix(?LeadType $leadType): string
     {
         $name = strtolower($leadType?->name ?? '');
@@ -41,6 +48,10 @@ class LeadConfigurationService
 
     public static function getAiModeKey(Lead $lead): string
     {
+        if (! self::isV2Enabled($lead->app)) {
+            return 'ai_mode';
+        }
+
         $prefix = self::getTypePrefix($lead->type()->first());
 
         return match ($prefix) {
@@ -52,6 +63,10 @@ class LeadConfigurationService
 
     public static function getFollowUpModeKey(Lead $lead): string
     {
+        if (! self::isV2Enabled($lead->app)) {
+            return IntelligenceModeEnum::AI_FOLLOW_UP->value;
+        }
+
         $prefix = self::getTypePrefix($lead->type()->first());
         $statusSuffix = self::getStatusSuffix($lead);
 
@@ -70,22 +85,15 @@ class LeadConfigurationService
     {
         $prefix = self::getTypePrefix($lead->type()->first());
 
-        return match ($prefix) {
-            'showroom' => 'showroom_first_message_default',
-            'phone' => 'phone_first_message_default',
-            default => 'internet_first_message_default',
-        };
+        return "{$prefix}_first_fu_active_default";
     }
 
-    public static function getAiModeDefaultKey(Lead $lead): string
+    public static function getAiModeDefaultKey(Lead $lead, bool $isOpen = true): string
     {
         $prefix = self::getTypePrefix($lead->type()->first());
+        $state = $isOpen ? 'open' : 'closed';
 
-        return match ($prefix) {
-            'showroom' => 'showroom_ai_mode_default',
-            'phone' => 'phone_ai_mode_default',
-            default => 'internet_ai_mode_default',
-        };
+        return "{$prefix}_ai_mode_{$state}_default";
     }
 
     public static function getFollowUpDefaultKey(Lead $lead): string
@@ -93,14 +101,14 @@ class LeadConfigurationService
         $prefix = self::getTypePrefix($lead->type()->first());
         $statusSuffix = self::getStatusSuffix($lead);
 
-        if ($statusSuffix !== '') {
-            return "{$prefix}_followup_default_{$statusSuffix}";
+        if ($statusSuffix === 'closed-not-sold') {
+            return "{$prefix}_con_fu_cns_default";
         }
 
-        return match ($prefix) {
-            'showroom' => 'showroom_followup_default_mode',
-            'phone' => 'phone_followup_default_mode',
-            default => 'internet_followup_default_mode',
-        };
+        if ($statusSuffix === 'closed-sold') {
+            return "{$prefix}_con_fu_closed-sold_default";
+        }
+
+        return "{$prefix}_con_fu_active_default";
     }
 }

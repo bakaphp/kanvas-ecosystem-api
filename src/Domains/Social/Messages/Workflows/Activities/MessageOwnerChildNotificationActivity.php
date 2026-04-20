@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Connectors\PromptMine\Enums\NotificationTypesEnum;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Notifications\NewMessageNotification;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -54,11 +53,7 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
                 $subject = $params['subject'] ?? 'New AI creation from %s';
                 $viaList = $params['via'] ?? ['database'];
 
-                // Map notification channels
-                $endViaList = array_map(
-                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                    $viaList
-                );
+                $endViaList = $viaList;
 
                 $metaData = $message->getMessage();
                 $keysToUnset = ['ai_nugged', 'nugget'];

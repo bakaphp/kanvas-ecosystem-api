@@ -158,14 +158,15 @@ class ZohoAgentsCreateAndSyncCommand extends Command
                         $company,
                         $email,
                         $agentData,
-                        $zohoSynced
+                        $zohoSynced,
+                        $sponsorMemberNumber
                     );
 
                     $agent = Agent::create($agentData);
                 }
 
                 if ($agent instanceof Agent) {
-                    $this->syncExistingAgentWithZoho($agent, $app, $company, $email, $zohoSynced);
+                    $this->syncExistingAgentWithZoho($agent, $app, $company, $email, $zohoSynced, $sponsorMemberNumber);
                     $user->set('member_number_' . $company->getId(), $agent->member_id);
 
                     if ($isInactive) {
@@ -198,7 +199,8 @@ class ZohoAgentsCreateAndSyncCommand extends Command
         Companies $company,
         string $email,
         array &$agentData,
-        int &$zohoSynced
+        int &$zohoSynced,
+        ?string $excelSponsor = null
     ): void {
         try {
             $zohoService = new ZohoService($app, $company);
@@ -206,7 +208,7 @@ class ZohoAgentsCreateAndSyncCommand extends Command
 
             $agentData['users_linked_source_id'] = $zohoRecord->id;
             $agentData['owner_linked_source_id'] = $zohoRecord->Owner['id'] ?? null;
-            $agentData['owner_id'] = $zohoRecord->Sponsor ?? null;
+            $agentData['owner_id'] = $zohoRecord->Sponsor ?? $excelSponsor;
 
             if ($zohoRecord->Member_Number) {
                 $existingWithMember = Agent::where('member_id', $zohoRecord->Member_Number)
@@ -230,7 +232,8 @@ class ZohoAgentsCreateAndSyncCommand extends Command
         Apps $app,
         Companies $company,
         string $email,
-        int &$zohoSynced
+        int &$zohoSynced,
+        ?string $excelSponsor = null
     ): void {
         try {
             $zohoService = new ZohoService($app, $company);
@@ -248,8 +251,9 @@ class ZohoAgentsCreateAndSyncCommand extends Command
                 $needsSave = true;
             }
 
-            if (! $agent->owner_id && $zohoRecord->Sponsor) {
-                $agent->owner_id = $zohoRecord->Sponsor;
+            $sponsor = $zohoRecord->Sponsor ?? $excelSponsor;
+            if (! $agent->owner_id && $sponsor !== null) {
+                $agent->owner_id = $sponsor;
                 $needsSave = true;
             }
 

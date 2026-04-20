@@ -22,10 +22,17 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
       'photo'
   );
   ```
-- **PHP-CS-Fixer enforced** — always follow these formatting rules:
+- **PHP-CS-Fixer enforced** — config lives at `.php-cs-fixer.php`. **Run it on every save and before every commit/push** so the code matches house style and doesn't bounce back in review:
+  ```bash
+  vendor/bin/php-cs-fixer fix <file-or-dir>
+  ```
+  Apply it to every PHP file you touch (the fixer is idempotent — running it on files you didn't change is a no-op). If the binary isn't installed in the current environment, match the same rules by hand:
   - Anonymous classes: `new class () extends Foo {` (parentheses + space before brace, brace on same line)
   - Multi-line closures passed as method arguments: place the closure on a new line, e.g. `->whereHas('rel', fn ($q) => ...)` becomes `->whereHas(\n    'rel',\n    fn ($q) => ...\n)`
-  - `use` imports: alphabetical order within each namespace group (e.g. `Enums\` before `Models\`)
+  - `use` imports: alphabetical order **across the entire use block** (not just within each namespace group) — e.g. `Connectors\Zoho\...` must come after `Connectors\WooCommerce\...`
+  - No superfluous phpdoc tags (strip `@var mixed $x` style annotations when the var is already typed by assignment; see `no_superfluous_phpdoc_tags` with `allow_mixed: true` — applies only when the variable is named)
+  - No trailing blank line before the closing `}` of a class
+  - `no_empty_comment`, `single_quote`, `array_syntax: short`, `trailing_comma_in_multiline`, and the other rules in `.php-cs-fixer.php`
 - **Email rendering note**: `KanvasMailable` is HTML-first and uses `resources/views/emails/layout.blade.php`. If a feature needs true plain-text body delivery (for example raw ADF/XML in the body with no escaping/wrapping), use a dedicated plain-text view such as `resources/views/emails/plain.blade.php` instead of routing through the HTML layout.
 
 ## Domain CRUD Pattern
@@ -603,6 +610,7 @@ class Sync{Entity}Activity extends KanvasActivity
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::{CONNECTOR},
+            additionalParams: $params,
             integrationOperation: function () use ($entity) {
                 return new Sync{Entity}Action($entity)->execute();
             },
@@ -611,6 +619,8 @@ class Sync{Entity}Activity extends KanvasActivity
     }
 }
 ```
+
+**Important:** Always pass `additionalParams: $params` to `executeIntegration()`. Without it, the system cannot retry the activity with the correct parameters.
 
 ### 7. GraphQL Setup Mutation
 
@@ -890,6 +900,103 @@ public static function search($query = '', $callback = null)
 
 **Placement:** Place the `search()` method at the **end of the class**, not at the top. Properties (`$table`, `$guarded`, `casts()`) and relationships should come first.
 
+## Notifications
+
+Always extend `Kanvas\Notifications\Notification` (not `\Illuminate\Notifications\Notification`) for all notification classes in this codebase.
+
+```php
+use Kanvas\Notifications\Notification;
+
+class MyNotification extends Notification
+{
+    public function __construct(
+        protected SomeModel $entity,
+        // ... other params
+        protected Apps $app,
+        protected Companies $company,
+        protected ?Users $fromUser = null,
+    ) {
+        parent::__construct($entity, [
+            'app' => $app,
+            'company' => $company,
+            'fromUser' => $fromUser,
+        ]);
+
+        // Set channels as slug strings; the base class maps them to channel classes via
+        // NotificationChannelEnum::getNotificationChannelBySlug() in via()
+        $this->channels = ['mail', 'sms', 'push'];
+    }
+}
+```
+
+**Key points:**
+- `Kanvas\Notifications\Notification` implements `ShouldQueue`, includes SMTP config, OneSignal, Expo, SMS, and storage traits
+- Set `$this->channels` with slug strings (`'mail'`, `'sms'`, `'push'`, `'expo'`, `'database'`) — the base `via()` maps them to channel classes automatically via `Kanvas\Notifications\Enums\NotificationChannelEnum::getNotificationChannelBySlug()`
+- Override `toMail()` and/or `toOneSignal()` only when you need notification-specific content that differs from the template-based defaults
+- Never use `\Illuminate\Notifications\Notification` directly
+
+## Files on a Model — Lighthouse Cache Pattern
+
+Any model that exposes `files: [Filesystem!]! @cacheRedis` (which is the default for `HasFilesystemTrait` models) **must** participate in the Lighthouse Redis cache invalidation protocol. Without this, uploaded files do not appear in the UI until the cache expires, because `@cacheRedis` returns stale data.
+
+Canonical reference: [`Deal`](../src/Domains/Guild/Deals/Models/Deal.php) + [`DealObserver`](../src/Domains/Guild/Deals/Observers/DealObserver.php). Mirror this shape on every new model that has file uploads.
+
+### Required on the Model
+
+```php
+use Baka\Traits\HasLightHouseCache;
+use Override;
+
+class Foo extends BaseModel
+{
+    use HasLightHouseCache;
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'Foo';                     // MUST match the GraphQL type name exactly
+    }
+}
+```
+
+- `HasLightHouseCache` defines `abstract public function getGraphTypeName(): string` — implement it or PHP fatals. Return the GraphQL type name as it appears in the schema (e.g. `'Event'`, `'EventVersion'`, `'Facilitator'`).
+- **Add `#[Override]`** on `getGraphTypeName()`. It implements an abstract trait method, which PHP treats as a valid override target — this is the opposite of concrete trait methods (see `#[Override] attribute` note under Key Conventions). The canonical `Deal` model does this.
+- `BaseModel` for the domain typically already includes `HasFilesystemTrait`; if not, add it too (required for `getFilesQueryBuilder()` which the cache regeneration uses).
+
+### Required on the Observer
+
+```php
+class FooObserver
+{
+    public function updating(Foo $foo): void
+    {
+        $foo->clearLightHouseCache(withKanvasConfiguration: false);
+    }
+}
+```
+
+- Use `updating()` (fires before the save) so the cache is gone before any listener reads it post-save.
+- `withKanvasConfiguration: false` is the right default — file-relation regeneration is handled automatically by `AttachFilesystemAction` when files are attached. `true` eagerly regenerates custom_fields/files cache inside the observer, which is usually overkill and creates extra Redis writes.
+
+### How file uploads trigger invalidation
+
+[`AttachFilesystemAction`](../src/Kanvas/Filesystem/Actions/AttachFilesystemAction.php) already calls:
+```php
+if (method_exists($this->entity, 'clearLightHouseCache')) {
+    $this->entity->clearLightHouseCacheJob();
+}
+```
+So any `addMultipleFilesFromUrl()` / `addFileFromUrl()` call automatically invalidates the entity's cache — **as long as the model uses `HasLightHouseCache` and implements `getGraphTypeName()`**. Missing the trait silently disables invalidation. No direct resolver changes needed.
+
+### Checklist for a new model with file uploads
+
+- [ ] `HasLightHouseCache` trait on the model
+- [ ] `getGraphTypeName()` returning the GraphQL type name
+- [ ] `HasFilesystemTrait` (usually inherited from `BaseModel`)
+- [ ] Observer `updating()` hook calling `clearLightHouseCache(withKanvasConfiguration: false)`
+- [ ] GraphQL type uses `files: [Filesystem!]! @cacheRedis @paginate(...)` with the shared `FilesystemQuery@getFileByGraphType` builder (so the cache key shape matches what `generateFilesLighthouseCache()` writes)
+- [ ] Smoke test: upload a file via `updateX(files: [...])`, query `x.files` in the same or next request, confirm the new file appears without a manual cache flush
+
 ## Key Conventions
 
 ### No Inline Fully-Qualified Class Names
@@ -1095,6 +1202,23 @@ protected function casts(): array
 
 ### GraphQL Query Naming
 Check existing query names in `graphql/schemas/` before naming yours to avoid Lighthouse "Duplicate definition" merge errors.
+
+### GraphQL Relation Directives — Always Name the Method
+When exposing an Eloquent relation in GraphQL, **always pass `relation:` (for `@hasMany`/`@hasOne`/`@belongsTo`/`@belongsToMany`) or `method:` (for `@method`) explicitly**, even if the field name already matches the relation method. Do not rely on Lighthouse's implicit field-name → method-name inference — it breaks as soon as the field is renamed or aliased, and makes it harder to grep for relation usage.
+
+```graphql
+# WRONG — relies on implicit field-name → method-name inference
+type Filesystem {
+    settings: [FilesystemSettings!]! @hasMany
+}
+
+# CORRECT — method name is explicit
+type Filesystem {
+    settings: [FilesystemSettings!]! @hasMany(relation: "settings")
+}
+```
+
+Same rule for `@belongsTo(relation: "company")`, `@hasOne(relation: "primaryAddress")`, `@belongsToMany(relation: "roles")`, and `@method(name: "createdAt")`.
 
 ### Code Style
 - **No section separator comments** — do not add `// --- SectionName ---`, `# --- SectionName ---`, or similar decorative dividers in code, tests, or schema files. Test methods and code sections are self-documenting by their names. If a file grows too large, split it into separate files instead.

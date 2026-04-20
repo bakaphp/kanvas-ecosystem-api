@@ -1,0 +1,18 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\Intras\Enums;
+
+enum CustomFieldEnum: string
+{
+    case INTRAS_EVENT_ID = 'INTRAS_EVENT_ID';
+    case INTRAS_EVENT_VERSION_ID = 'INTRAS_EVENT_VERSION_ID';
+    case INTRAS_PARTICIPANT_ID = 'INTRAS_PARTICIPANT_ID';
+    case INTRAS_FACILITATOR_ID = 'INTRAS_FACILITATOR_ID';
+    case INTRAS_COMPANY_ID = 'INTRAS_COMPANY_ID';
+    case INTRAS_AFFILIATE_ID = 'INTRAS_AFFILIATE_ID';
+    case INTRAS_QUOTE_ID = 'INTRAS_QUOTE_ID';
+    case INTRAS_AGENCY_ID = 'INTRAS_AGENCY_ID';
+    case INTRAS_USER_ID = 'INTRAS_USER_ID';
+}

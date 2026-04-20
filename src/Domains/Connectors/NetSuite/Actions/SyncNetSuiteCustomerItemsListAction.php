@@ -9,7 +9,6 @@ use Baka\Contracts\CompanyInterface;
 use Exception;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
-use Kanvas\Connectors\NetSuite\Services\NetSuiteProductService;
 use Kanvas\Inventory\Channels\Actions\CreateChannel;
 use Kanvas\Inventory\Channels\DataTransferObject\Channels;
 use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
@@ -26,9 +25,6 @@ use Kanvas\Inventory\Variants\Models\Variants;
  */
 class SyncNetSuiteCustomerItemsListAction
 {
-    protected ?NetSuiteCustomerService $service = null;
-    protected ?NetSuiteProductService $productService = null;
-
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $mainAppCompany,
@@ -41,7 +37,7 @@ class SyncNetSuiteCustomerItemsListAction
     {
         $listOrProductVariantsBarCodeIds = $this->getItemPricingList();
 
-        $createNewChannel = new CreateChannel(
+        $channel = new CreateChannel(
             new Channels(
                 app: $this->app,
                 company: $this->mainAppCompany,
@@ -51,8 +47,7 @@ class SyncNetSuiteCustomerItemsListAction
                 slug: (string) $this->buyerCompany->uuid
             ),
             $this->mainAppCompany->user
-        );
-        $channel = $createNewChannel->execute();
+        )->execute();
 
         $totalProcessed = 0;
         $missed = [];
@@ -99,6 +94,39 @@ class SyncNetSuiteCustomerItemsListAction
         ];
     }
 
+    public static function fetchRawItemPricingFromNetSuite(
+        AppInterface $app,
+        CompanyInterface $mainCompany,
+        CompanyInterface $buyerCompany
+    ): array {
+        $customerId = $buyerCompany->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
+
+        if (! $customerId) {
+            throw new Exception('Company not linked to NetSuite');
+        }
+
+        $service = app(NetSuiteCustomerService::class, ['app' => $app, 'company' => $mainCompany]);
+        $customerInfo = $service->getCustomerById($customerId);
+
+        return collect($customerInfo->itemPricingList?->itemPricing ?? [])->map(fn ($item) => [
+            'item_display' => $item->item->name ?? '',
+            'price' => (float) ($item->price ?? 0),
+        ])->all();
+    }
+
+    public static function fetchItemPricingFromNetSuite(
+        AppInterface $app,
+        CompanyInterface $mainCompany,
+        CompanyInterface $buyerCompany
+    ): array {
+        $rawItems = self::fetchRawItemPricingFromNetSuite($app, $mainCompany, $buyerCompany);
+
+        return collect($rawItems)->map(fn (array $item) => [
+            'barcode' => $item['item_display'] ?? '',
+            'price' => (float) ($item['price'] ?? 0),
+        ])->all();
+    }
+
     protected function getItemPricingList(): array
     {
         if (! empty($this->itemPricingList)) {
@@ -108,18 +136,6 @@ class SyncNetSuiteCustomerItemsListAction
             ])->all();
         }
 
-        $customerId = $this->buyerCompany->get(CustomFieldEnum::NET_SUITE_CUSTOMER_ID->value);
-
-        if (! $customerId) {
-            throw new Exception('Company not linked to NetSuite');
-        }
-
-        $this->service = new NetSuiteCustomerService($this->app, $this->mainAppCompany);
-        $customerInfo = $this->service->getCustomerById($customerId);
-
-        return collect($customerInfo->itemPricingList?->itemPricing ?? [])->map(fn ($item) => [
-            'barcode' => $item->item->name ?? '',
-            'price' => (float) ($item->price ?? 0),
-        ])->all();
+        return self::fetchItemPricingFromNetSuite($this->app, $this->mainAppCompany, $this->buyerCompany);
     }
 }

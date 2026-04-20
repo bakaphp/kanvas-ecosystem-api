@@ -9,7 +9,6 @@ use Kanvas\Guild\Leads\Enums\LeadNotificationUserModeEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadRotation;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Users\Models\Users;
 
 class SendRotationEmailsAction
@@ -53,7 +52,7 @@ class SendRotationEmailsAction
             }
 
             if (isset($this->leadRotation?->config['notification_channels']) && $this->leadRotation->config['notification_channels'] === 'database') {
-                $this->channels = [...$this->channels,  NotificationChannelEnum::getNotificationChannelBySlug('database'),];
+                $this->channels = [...$this->channels, 'database'];
             }
 
             $this->sendLeadEmails(
