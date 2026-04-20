@@ -1,0 +1,90 @@
+type OpenEventTrackingRow {
+    event_version_id: ID!
+    event_name: String!
+    event_date: String
+    counts: Mixed!
+    total_inscribed: Int!
+    goal: Int!
+    goal_percentage: Float!
+    color: String!
+}
+
+type InscriptionWeekData {
+    week: Int!
+    counts: Mixed!
+    total: Int!
+    objective: Int!
+}
+
+type InscriptionsReport {
+    event_version_id: ID!
+    event_name: String!
+    goal: Int!
+    weeks: [InscriptionWeekData!]!
+}
+
+type InscriptionTrack {
+    type: String!
+    slug: String!
+    count: Int!
+}
+
+type CompanyConcentration {
+    organization_id: ID
+    organization_name: String!
+    count: Int!
+    percentage: Float!
+}
+
+extend type Query @guard {
+    eventsTracking(
+        weeks_ahead: Int = 7
+        event_type_id: ID
+        event_class_id: ID
+        event_category_id: ID
+        search: String
+        color: String
+        has_goal: Boolean
+    ): [OpenEventTrackingRow!]!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Reports\\EventsTrackingQuery"
+        )
+
+    eventInscriptionsVsObjective(
+        event_version_id: ID!
+        cumulative: Boolean = false
+        include_types: [String!]
+        exclude_types: [String!]
+    ): InscriptionsReport!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Reports\\EventInscriptionsVsObjectiveQuery"
+        )
+
+    eventInscriptionsVsHistorical(
+        event_version_id: ID!
+        cumulative: Boolean = false
+        include_types: [String!]
+        exclude_types: [String!]
+    ): InscriptionsReport!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Reports\\EventInscriptionsVsHistoricalQuery"
+        )
+
+    eventInscriptionTrack(
+        event_version_id: ID!
+        exclude_types: [String!]
+    ): [InscriptionTrack!]!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Reports\\EventInscriptionTrackQuery"
+        )
+
+    eventParticipantConcentration(
+        event_version_id: ID!
+        top_n: Int
+        include_types: [String!]
+        exclude_types: [String!]
+    ): [CompanyConcentration!]!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Reports\\EventParticipantConcentrationQuery"
+        )
+}

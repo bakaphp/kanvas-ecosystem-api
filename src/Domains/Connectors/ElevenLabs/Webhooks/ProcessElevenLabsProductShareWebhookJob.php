@@ -9,18 +9,13 @@ use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
-use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
-use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Throwable;
 
-class ProcessElevenLabsProductShareWebhookJob extends ProcessWebhookJob
+class ProcessElevenLabsProductShareWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]
     public function execute(): array
@@ -43,15 +38,8 @@ class ProcessElevenLabsProductShareWebhookJob extends ProcessWebhookJob
 
         $app = $this->receiver->app;
         $company = $this->receiver->company;
-        $normalizedPhone = Str::normalizePhoneNumber($phone);
 
-        $lead = $this->findLeadByPhone($normalizedPhone, $phone);
-
-        if (! $lead) {
-            $this->failedReturnHttpCode = 404;
-
-            return ['status' => 404, 'message' => 'No lead found for phone: ' . $normalizedPhone];
-        }
+        $lead = $this->resolveLeadByPhone($phone);
 
         /** @var Variants $variant */
         $variant = Variants::getByIdFromCompanyApp((int) $variantId, $company, $app);
@@ -130,28 +118,5 @@ class ProcessElevenLabsProductShareWebhookJob extends ProcessWebhookJob
             'sms_sent' => $smsSent,
             'email_sent' => $emailSent,
         ];
-    }
-
-    protected function findLeadByPhone(string $normalizedPhone, string $rawPhone): ?Lead
-    {
-        $digitsOnly = Str::sanitizePhoneNumber($rawPhone);
-
-        $query = PeoplesRepository::getByPhoneNumber(
-            app: $this->receiver->app,
-            company: $this->receiver->company,
-            phoneNumbers: array_unique([$digitsOnly, $normalizedPhone]),
-        );
-
-        $allCustomers = $query->get();
-
-        $people = $allCustomers->first(function (People $customer): bool {
-            return LeadsRepository::getPeopleActiveLead($customer) !== null;
-        }) ?? $allCustomers->first();
-
-        if (! $people) {
-            return null;
-        }
-
-        return LeadsRepository::getPeopleActiveLead($people);
     }
 }

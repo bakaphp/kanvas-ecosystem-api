@@ -4,16 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ElevenLabs\Webhooks;
 
-use Baka\Support\Str;
-use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-class ProcessElevenLabsHandOffWebhookJob extends ProcessWebhookJob
+class ProcessElevenLabsHandOffWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]
     public function execute(): array
@@ -28,15 +23,8 @@ class ProcessElevenLabsHandOffWebhookJob extends ProcessWebhookJob
         }
 
         $app = $this->receiver->app;
-        $normalizedPhone = Str::normalizePhoneNumber($phone);
 
-        $lead = $this->findLeadByPhone($normalizedPhone, $phone);
-
-        if (! $lead) {
-            $this->failedReturnHttpCode = 404;
-
-            return ['status' => 404, 'message' => 'No lead found for phone: ' . $normalizedPhone];
-        }
+        $lead = $this->resolveLeadByPhone($phone);
 
         $this->updateLeadPeopleInfo($lead, $payload);
 
@@ -98,28 +86,5 @@ class ProcessElevenLabsHandOffWebhookJob extends ProcessWebhookJob
         if ($updated) {
             $people->saveOrFail();
         }
-    }
-
-    protected function findLeadByPhone(string $normalizedPhone, string $rawPhone): ?Lead
-    {
-        $digitsOnly = Str::sanitizePhoneNumber($rawPhone);
-
-        $query = PeoplesRepository::getByPhoneNumber(
-            app: $this->receiver->app,
-            company: $this->receiver->company,
-            phoneNumbers: array_unique([$digitsOnly, $normalizedPhone]),
-        );
-
-        $allCustomers = $query->get();
-
-        $people = $allCustomers->first(function (People $customer): bool {
-            return LeadsRepository::getPeopleActiveLead($customer) !== null;
-        }) ?? $allCustomers->first();
-
-        if (! $people) {
-            return null;
-        }
-
-        return LeadsRepository::getPeopleActiveLead($people);
     }
 }

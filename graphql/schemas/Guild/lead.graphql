@@ -262,6 +262,7 @@ extend type Query @guard {
                     "people_id"
                     "lead_types_id"
                     "status"
+                    "created_at"
                 ]
             )
         hasCustomFields: _
@@ -311,4 +312,24 @@ extend type Query @guard {
         @paginate(
             builder: "App\\GraphQL\\Guild\\Builders\\Leads\\DashboardBuilder@getCompanyInfo"
         )
+
+    leadAnalytics(
+        from: Date
+        to: Date
+        bucket: AnalyticsBucket = WEEK
+        timezone: String
+        pipeline_id: ID
+    ): LeadAnalytics!
+        @field(
+            resolver: "App\\GraphQL\\Analytics\\Queries\\LeadAnalyticsQuery"
+        )
+}
+
+type LeadAnalytics {
+    periods: [AnalyticsPoint!]!
+    total: Int!
+    by_status: [AnalyticsCategoryPoint!]!
+    by_source: [AnalyticsCategoryPoint!]!
+    by_pipeline: [AnalyticsCategoryPoint!]!
+    by_user: [AnalyticsCategoryPoint!]!
 }

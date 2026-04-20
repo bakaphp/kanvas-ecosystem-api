@@ -17,21 +17,22 @@ use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentDeploymentEvent;
 use Nuwave\Lighthouse\Subscriptions\Contracts\BroadcastsSubscriptions;
+use Swoole\Timer;
 use Throwable;
 
 class AgentTelemetryService
 {
-    private const CACHE_TTL    = 180;
-    private const INTERVAL_MS  = 60_000;
+    private const int CACHE_TTL = 180;
+    private const int INTERVAL_MS = 60_000;
 
     public function start(): void
     {
         $this->collect();
 
-        \Swoole\Timer::tick(self::INTERVAL_MS, fn () => $this->collect());
+        Timer::tick(self::INTERVAL_MS, fn () => $this->collect());
     }
 
-    protected function collect(): void
+    public function collect(): void
     {
         // Refresh the worker lock so it doesn't expire between ticks (TTL slightly > interval).
         Cache::put('openclaw:telemetry:worker', getmypid(), 65);
@@ -59,24 +60,24 @@ class AgentTelemetryService
 
             // One SSH connection, one exec channel — all commands run in a single shell pipeline.
             // This is far gentler on the server's sshd than opening separate channels per command.
-            $ssh      = SshClient::fromMachine($deployment->machine);
+            $ssh = SshClient::fromMachine($deployment->machine);
             $sections = $ssh->getAllTelemetry();
 
             // Per-agent tools: extract unique tool names from this agent's own session JSONL files.
             // Falls back to the machine-level skills list when no session data exists yet.
             // Uses a separate exec call after getAllTelemetry so it doesn't inflate the pipeline timeout.
-            $agentSlug     = $deployment->agent?->slug;
+            $agentSlug = $deployment->agent?->slug;
             $containerName = $deployment->container_name;
-            $tools         = ($agentSlug && $containerName)
+            $tools = ($agentSlug && $containerName)
                 ? $ssh->getAgentTools($containerName, $agentSlug)
                 : null;
 
             $ssh->disconnect();
 
-            $health        = $this->parseJson($sections['health']);
+            $health = $this->parseJson($sections['health']);
             $gatewayStatus = $this->parseJson($sections['gateway']);
-            $memoryStats   = $this->parseMemoryStatus($sections['memory']);
-            $version       = $this->parseVersion(trim($sections['version']));
+            $memoryStats = $this->parseMemoryStatus($sections['memory']);
+            $version = $this->parseVersion(trim($sections['version']));
 
             if ($health === null) {
                 return;
@@ -140,35 +141,35 @@ class AgentTelemetryService
         }
 
         $prevGateway = (bool) ($prev['gateway_reachable'] ?? false);
-        $newGateway  = (bool) ($newPayload['gateway_reachable'] ?? false);
+        $newGateway = (bool) ($newPayload['gateway_reachable'] ?? false);
 
         // ── Gateway reachability ──────────────────────────────────────────────
         if ($prevGateway && ! $newGateway) {
             AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::GATEWAY_DOWN, [
                 'previous' => $prevGateway,
-                'current'  => $newGateway,
+                'current' => $newGateway,
             ]);
             $this->sendSlackAlert($deployment, AgentDeploymentEvent::GATEWAY_DOWN);
         } elseif (! $prevGateway && $newGateway) {
             AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::GATEWAY_UP, [
                 'previous' => $prevGateway,
-                'current'  => $newGateway,
+                'current' => $newGateway,
             ]);
             $this->sendSlackAlert($deployment, AgentDeploymentEvent::GATEWAY_UP);
         }
 
         // ── Service health (gateway service + node service both running) ──────
         $prevRaw = isset($prev['raw']) ? json_decode((string) $prev['raw'], true) : null;
-        $newRaw  = isset($newPayload['raw']) ? json_decode((string) $newPayload['raw'], true) : null;
+        $newRaw = isset($newPayload['raw']) ? json_decode((string) $newPayload['raw'], true) : null;
 
         $prevHealthy = $this->isDeploymentHealthy($prevRaw, $prevGateway);
-        $newHealthy  = $this->isDeploymentHealthy($newRaw, $newGateway);
+        $newHealthy = $this->isDeploymentHealthy($newRaw, $newGateway);
 
         if ($prevHealthy && ! $newHealthy) {
             AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::HEALTH_FAIL, [
                 'gateway_reachable' => $newGateway,
-                'gateway_service'   => $newRaw['gatewayService']['runtimeShort'] ?? null,
-                'node_service'      => $newRaw['nodeService']['runtimeShort'] ?? null,
+                'gateway_service' => $newRaw['gatewayService']['runtimeShort'] ?? null,
+                'node_service' => $newRaw['nodeService']['runtimeShort'] ?? null,
             ]);
         } elseif (! $prevHealthy && $newHealthy) {
             AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::HEALTH_RECOVER, [
@@ -178,13 +179,13 @@ class AgentTelemetryService
 
         // ── Session count increase ────────────────────────────────────────────
         $prevSessions = (int) ($prev['session_count'] ?? 0);
-        $newSessions  = (int) ($newPayload['session_count'] ?? 0);
+        $newSessions = (int) ($newPayload['session_count'] ?? 0);
 
         if ($newSessions > $prevSessions) {
             AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::SESSION_STARTED, [
                 'previous_count' => $prevSessions,
-                'current_count'  => $newSessions,
-                'new_sessions'   => $newSessions - $prevSessions,
+                'current_count' => $newSessions,
+                'new_sessions' => $newSessions - $prevSessions,
             ]);
         }
     }
@@ -202,7 +203,7 @@ class AgentTelemetryService
         }
 
         $gatewayRunning = str_contains((string) ($raw['gatewayService']['runtimeShort'] ?? ''), 'running');
-        $nodeRunning    = str_contains((string) ($raw['nodeService']['runtimeShort'] ?? ''), 'running');
+        $nodeRunning = str_contains((string) ($raw['nodeService']['runtimeShort'] ?? ''), 'running');
 
         return $gatewayRunning && $nodeRunning;
     }
@@ -221,7 +222,7 @@ class AgentTelemetryService
     protected function sendSlackAlert(AgentDeployment $deployment, string $eventType, string $detail = ''): void
     {
         try {
-            $app  = Apps::find($deployment->apps_id);
+            $app = Apps::find($deployment->apps_id);
 
             if (! $app) {
                 return;
@@ -230,17 +231,17 @@ class AgentTelemetryService
             $agentName = $deployment->agent?->name ?? $deployment->container_name;
 
             $emoji = match ($eventType) {
-                AgentDeploymentEvent::GATEWAY_DOWN      => ':red_circle:',
+                AgentDeploymentEvent::GATEWAY_DOWN => ':red_circle:',
                 AgentDeploymentEvent::AGENT_UNREACHABLE => ':warning:',
-                AgentDeploymentEvent::GATEWAY_UP        => ':large_green_circle:',
-                default                                  => ':information_source:',
+                AgentDeploymentEvent::GATEWAY_UP => ':large_green_circle:',
+                default => ':information_source:',
             };
 
             $title = match ($eventType) {
-                AgentDeploymentEvent::GATEWAY_DOWN      => 'Gateway offline',
+                AgentDeploymentEvent::GATEWAY_DOWN => 'Gateway offline',
                 AgentDeploymentEvent::AGENT_UNREACHABLE => 'Agent unreachable',
-                AgentDeploymentEvent::GATEWAY_UP        => 'Gateway back online',
-                default                                  => $eventType,
+                AgentDeploymentEvent::GATEWAY_UP => 'Gateway back online',
+                default => $eventType,
             };
 
             $text = "{$emoji} *{$title}* — `{$agentName}`";
@@ -280,7 +281,7 @@ class AgentTelemetryService
     protected function parseJson(string $raw): ?array
     {
         $start = strpos($raw, '{');
-        $end   = strrpos($raw, '}');
+        $end = strrpos($raw, '}');
 
         if ($start === false || $end === false || $end <= $start) {
             return null;
@@ -311,17 +312,17 @@ class AgentTelemetryService
     protected function parseMemoryStatus(string $raw): array
     {
         $result = [
-            'files'         => 0,
-            'chunks'        => 0,
+            'files' => 0,
+            'chunks' => 0,
             'vector_enabled' => false,
-            'fts_available'  => false,
-            'cache_enabled'  => false,
-            'cache_entries'  => 0,
+            'fts_available' => false,
+            'cache_enabled' => false,
+            'cache_entries' => 0,
         ];
 
         // Indexed: N/M files · K chunks  — sum N (indexed) and K across all workspaces
         if (preg_match_all('/Indexed:\s*(\d+)\/\d+\s+files\s+[·\x{00B7}]\s*(\d+)\s+chunks/u', $raw, $m)) {
-            $result['files']  = array_sum(array_map('intval', $m[1]));
+            $result['files'] = array_sum(array_map('intval', $m[1]));
             $result['chunks'] = array_sum(array_map('intval', $m[2]));
         }
 
@@ -385,54 +386,54 @@ class AgentTelemetryService
         $agents = is_array($health['agents'] ?? null) ? $health['agents'] : [];
 
         if (! empty($agents)) {
-            $first        = reset($agents);
+            $first = reset($agents);
             $defaultModel = is_array($first) ? ($first['model'] ?? null) : null;
         }
 
         // --- gateway status --deep -------------------------------------------
         /** @var array<string, mixed> $gwRuntime */
-        $gwRuntime        = $gatewayStatus['service']['runtime'] ?? [];
+        $gwRuntime = $gatewayStatus['service']['runtime'] ?? [];
         $gatewayReachable = isset($gatewayStatus['rpc']['ok'])
             ? (bool) $gatewayStatus['rpc']['ok']
             : (bool) ($health['ok'] ?? false);
-        $gatewayLatency   = isset($health['durationMs']) ? (int) $health['durationMs'] : null;
-        $gatewayError     = $gatewayStatus['rpc']['error'] ?? null;
+        $gatewayLatency = isset($health['durationMs']) ? (int) $health['durationMs'] : null;
+        $gatewayError = $gatewayStatus['rpc']['error'] ?? null;
 
         // --- memory ----------------------------------------------------------
-        $memFiles  = (int) ($memoryStats['files'] ?? 0);
+        $memFiles = (int) ($memoryStats['files'] ?? 0);
         $memChunks = (int) ($memoryStats['chunks'] ?? 0);
 
         // --- raw merged object (matches frontend field paths) ----------------
         $raw = [
-            'gateway'        => ['error' => $gatewayError],
+            'gateway' => ['error' => $gatewayError],
             'gatewayService' => ['runtimeShort' => $gwRuntime['status'] ?? null],
-            'sessions'       => ['defaults' => ['contextTokens' => null]],
-            'memory'         => [
-                'cache'  => [
+            'sessions' => ['defaults' => ['contextTokens' => null]],
+            'memory' => [
+                'cache' => [
                     'enabled' => (bool) ($memoryStats['cache_enabled'] ?? false),
                     'entries' => (int) ($memoryStats['cache_entries'] ?? 0),
                 ],
-                'fts'    => ['available' => (bool) ($memoryStats['fts_available'] ?? false)],
-                'vector' => ['enabled'   => (bool) ($memoryStats['vector_enabled'] ?? false)],
+                'fts' => ['available' => (bool) ($memoryStats['fts_available'] ?? false)],
+                'vector' => ['enabled' => (bool) ($memoryStats['vector_enabled'] ?? false)],
             ],
-            'securityAudit'  => null,
+            'securityAudit' => null,
         ];
 
         return [
-            'deployment_id'      => $deployment->id,
-            'collected_at'       => now()->toISOString(),
-            'runtime_version'    => $version,
-            'gateway_reachable'  => $gatewayReachable,
+            'deployment_id' => $deployment->id,
+            'collected_at' => now()->toISOString(),
+            'runtime_version' => $version,
+            'gateway_reachable' => $gatewayReachable,
             'gateway_latency_ms' => $gatewayLatency,
-            'session_count'      => (int) ($sessions['count'] ?? 0),
-            'default_model'      => $defaultModel,
-            'memory_files'       => $memFiles,
-            'memory_chunks'      => $memChunks,
-            'os_label'           => null,
-            'security_critical'  => 0,
-            'security_warn'      => 0,
-            'raw'                => json_encode($raw) ?: null,
-            'tools'              => $tools,
+            'session_count' => (int) ($sessions['count'] ?? 0),
+            'default_model' => $defaultModel,
+            'memory_files' => $memFiles,
+            'memory_chunks' => $memChunks,
+            'os_label' => null,
+            'security_critical' => 0,
+            'security_warn' => 0,
+            'raw' => json_encode($raw) ?: null,
+            'tools' => $tools,
         ];
     }
 }

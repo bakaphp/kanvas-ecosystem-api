@@ -54,6 +54,7 @@ class PeopleManagementMutation
             'peopleEmploymentHistory' => $data['peopleEmploymentHistory'] ?? [],
             'organization' => $data['organization'] ?? null,
             'license_number' => $data['license_number'] ?? null,
+            'people_type_id' => isset($data['people_type_id']) ? (int) $data['people_type_id'] : null,
         ]);
 
         $createPeople = new CreatePeopleAction($people);
@@ -100,6 +101,7 @@ class PeopleManagementMutation
             'custom_fields' => $data['custom_fields'] ?? [],
             'organization' => $data['organization'] ?? null,
             'license_number' => $data['license_number'] ?? null,
+            'people_type_id' => isset($data['people_type_id']) ? (int) $data['people_type_id'] : null,
         ]);
 
         $updatePeople = new UpdatePeopleAction($people, $peopleData);

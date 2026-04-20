@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Events\AssistanceAssignedEvent;
+use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
@@ -70,10 +71,26 @@ class AcceptOrderAssignmentAction
                 MovipassOrderStatusEnum::DISPATCHED->slug(),
             );
 
-            AssistanceAssignedEvent::dispatch($order, $this->mechanic);
-
             return $order;
         });
+
+        AssistanceAssignedEvent::dispatch($order, $this->mechanic);
+
+        $this->mechanic->notify(new RoadsideAssistanceStatusNotification(
+            $order,
+            'Order assigned',
+            'You have been assigned to a roadside assistance order.',
+            MovipassOrderStatusEnum::DISPATCHED->slug(),
+        ));
+
+        $order->user->notify(new RoadsideAssistanceStatusNotification(
+            $order,
+            'Mechanic assigned',
+            'A mechanic has been assigned to your order and is on the way.',
+            MovipassOrderStatusEnum::DISPATCHED->slug(),
+        ));
+
+        return $order;
     }
 
     protected function buildMechanicBlock(array $existingData = []): array

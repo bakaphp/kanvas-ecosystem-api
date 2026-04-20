@@ -4,18 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ElevenLabs\Webhooks;
 
-use Baka\Support\Str;
+use Baka\Support\DateHelper;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventData;
-use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-class ProcessElevenLabsCalendarEventWebhookJob extends ProcessWebhookJob
+class ProcessElevenLabsCalendarEventWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]
     public function execute(): array
@@ -29,8 +25,8 @@ class ProcessElevenLabsCalendarEventWebhookJob extends ProcessWebhookJob
             return ['status' => 422, 'message' => 'Phone number is required'];
         }
 
-        $date = isset($payload['date']) ? (string) $payload['date'] : null;
-        if ($date === null || $date === '') {
+        $rawDate = isset($payload['date']) ? (string) $payload['date'] : null;
+        if ($rawDate === null || $rawDate === '') {
             $this->failedReturnHttpCode = 422;
 
             return ['status' => 422, 'message' => 'Date is required'];
@@ -39,20 +35,24 @@ class ProcessElevenLabsCalendarEventWebhookJob extends ProcessWebhookJob
         $app = $this->receiver->app;
         $company = $this->receiver->company;
         $user = $this->receiver->user;
-        $normalizedPhone = Str::normalizePhoneNumber($phone);
+        $timezone = $company->get('timezone') ?? $company->timezone ?? 'UTC';
 
-        $lead = $this->findLeadByPhone($normalizedPhone, $phone);
+        $date = DateHelper::normalizeDate($rawDate, $timezone);
+        if ($date === null) {
+            $this->failedReturnHttpCode = 422;
 
-        if (! $lead) {
-            $this->failedReturnHttpCode = 404;
-
-            return ['status' => 404, 'message' => 'No lead found for phone: ' . $normalizedPhone];
+            return [
+                'status' => 422,
+                'message' => 'Invalid date format. Expected Y-m-d (e.g. 2026-05-15). Received: ' . $rawDate,
+            ];
         }
+
+        $lead = $this->resolveLeadByPhone($phone);
 
         $this->updateLeadPeopleInfo($lead, $payload);
 
-        $startTime = isset($payload['start_time']) ? (string) $payload['start_time'] : null;
-        $endTime = isset($payload['end_time']) ? (string) $payload['end_time'] : null;
+        $startTime = isset($payload['start_time']) ? DateHelper::normalizeTime((string) $payload['start_time']) : null;
+        $endTime = isset($payload['end_time']) ? DateHelper::normalizeTime((string) $payload['end_time']) : null;
 
         $eventName = isset($payload['event_name']) && $payload['event_name'] !== ''
             ? (string) $payload['event_name']
@@ -134,28 +134,5 @@ class ProcessElevenLabsCalendarEventWebhookJob extends ProcessWebhookJob
         if ($updated) {
             $people->saveOrFail();
         }
-    }
-
-    protected function findLeadByPhone(string $normalizedPhone, string $rawPhone): ?Lead
-    {
-        $digitsOnly = Str::sanitizePhoneNumber($rawPhone);
-
-        $query = PeoplesRepository::getByPhoneNumber(
-            app: $this->receiver->app,
-            company: $this->receiver->company,
-            phoneNumbers: array_unique([$digitsOnly, $normalizedPhone]),
-        );
-
-        $allCustomers = $query->get();
-
-        $people = $allCustomers->first(function (People $customer): bool {
-            return LeadsRepository::getPeopleActiveLead($customer) !== null;
-        }) ?? $allCustomers->first();
-
-        if (! $people) {
-            return null;
-        }
-
-        return LeadsRepository::getPeopleActiveLead($people);
     }
 }

@@ -98,7 +98,7 @@
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^8.1",
         "phpstan/phpstan": "^2.0.1",
-        "phpunit/phpunit": "12.5.8"
+        "phpunit/phpunit": "12.5.22"
     },
     "autoload": {
         "psr-4": {
@@ -117,6 +117,7 @@
             "Kanvas\\ActionEngine\\": "src/Domains/ActionEngine",
             "Kanvas\\Event\\": "src/Domains/Event",
             "Kanvas\\Intelligence\\": "src/Domains/Intelligence",
+            "Kanvas\\Analytics\\": "src/Domains/Analytics",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }

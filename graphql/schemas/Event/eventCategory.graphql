@@ -28,6 +28,40 @@ type EventCategory {
         )
 }
 
+input EventCategoryInput {
+    name: String!
+    event_type_id: ID
+    event_class_id: ID
+    parent_id: ID
+    position: Int
+}
+
+input EventCategoryUpdateInput {
+    name: String
+    event_type_id: ID
+    event_class_id: ID
+    parent_id: ID
+    position: Int
+}
+
+extend type Mutation @guard {
+    createEventCategory(input: EventCategoryInput!): EventCategory!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventCategoryMutation@create"
+        )
+    updateEventCategory(
+        id: ID!
+        input: EventCategoryUpdateInput!
+    ): EventCategory!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventCategoryMutation@update"
+        )
+    deleteEventCategory(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventCategoryMutation@delete"
+        )
+}
+
 extend type Query @guard {
     eventCategories(
         search: String @search

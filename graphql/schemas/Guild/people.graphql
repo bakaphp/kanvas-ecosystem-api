@@ -10,6 +10,7 @@ type People {
     subscriptions: [PeopleSubscription!]! @hasMany
     dob: Date
     license_number: String
+    people_type: PeopleType @belongsTo(relation: "peopleType")
     organizations: [Organization!] @belongsToMany
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
@@ -98,6 +99,7 @@ input PeopleInput {
     files: [FilesystemInputUrl!]
     custom_fields: [CustomFieldEntityInput!]
     tags: [TagInput!]
+    people_type_id: ID
     peopleEmploymentHistory: [EmploymentPeopleHistoryInput!]
     organization: String
     created_at: DateTime
@@ -131,7 +133,13 @@ extend type Query @guard {
                     "name"
                     "firstname"
                     "lastname"
+                    "people_types_id"
                 ]
+            )
+        hasPeopleType: _
+            @whereHasConditions(
+                relation: "peopleType"
+                columns: ["id", "name", "slug"]
             )
         hasEventsVersions: _
             @whereHasConditions(
