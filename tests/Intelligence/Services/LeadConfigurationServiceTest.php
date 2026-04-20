@@ -16,7 +16,9 @@ class LeadConfigurationServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        app(Apps::class)->set('search_engine', 'database');
+        $app = app(Apps::class);
+        $app->set('search_engine', 'database');
+        $app->set('intelligence_lead_type_mode_v2', 0);
     }
 
     private function createLead(string $leadTypeName = ''): Lead
