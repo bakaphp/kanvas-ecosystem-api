@@ -10,6 +10,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\EventVersionParticipant;
 use Kanvas\Event\Events\Models\EventVersionParticipantDate;
+use Kanvas\Event\Facilitators\Models\EventVersionFacilitator;
+use Kanvas\Event\Facilitators\Models\Facilitator;
 use Kanvas\Event\Participants\Models\Participant;
 
 class EventVersionBuilder
@@ -31,8 +33,14 @@ class EventVersionBuilder
 
     public function getFacilitators(mixed $root, array $args): Builder
     {
-        return EventVersionParticipant::where('event_version_id', $root->id)
-                ->where('is_deleted', StateEnums::NO->getValue());
+        $pivotTable = (new EventVersionFacilitator())->getTable();
+
+        return Facilitator::query()
+            ->join($pivotTable, 'facilitators.id', '=', $pivotTable . '.facilitator_id')
+            ->where($pivotTable . '.event_version_id', $root->id)
+            ->where($pivotTable . '.is_deleted', StateEnums::NO->getValue())
+            ->where('facilitators.is_deleted', StateEnums::NO->getValue())
+            ->select('facilitators.*');
     }
 
     public function getParticipantAttendees(mixed $root, array $args): Builder

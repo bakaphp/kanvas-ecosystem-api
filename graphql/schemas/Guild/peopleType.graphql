@@ -1,0 +1,66 @@
+type PeopleType {
+    id: ID!
+    uuid: ID!
+    company: Company! @belongsTo
+    name: String!
+    slug: String!
+    description: String
+    config: Mixed
+    is_active: Boolean!
+    is_default: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+input PeopleTypeInput {
+    name: String!
+    description: String
+    is_active: Boolean
+    is_default: Boolean
+    config: Mixed
+}
+
+extend type Mutation @guard {
+    createPeopleType(input: PeopleTypeInput!): PeopleType!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleTypeManagementMutation@create"
+        )
+    updatePeopleType(id: ID!, input: PeopleTypeInput!): PeopleType!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleTypeManagementMutation@update"
+        )
+    deletePeopleType(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleTypeManagementMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    peopleTypes(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "name"
+                    "slug"
+                    "is_active"
+                    "is_default"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "name"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+    ): [PeopleType!]!
+        @paginate(
+            model: "Kanvas\\Guild\\Customers\\Models\\PeopleType"
+            defaultCount: 25
+            scopes: ["fromCompany", "notDeleted", "fromApp"]
+        )
+}

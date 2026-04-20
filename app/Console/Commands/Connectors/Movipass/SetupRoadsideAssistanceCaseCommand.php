@@ -22,6 +22,7 @@ class SetupRoadsideAssistanceCaseCommand extends Command
         $app = $appId ? Apps::getById((int) $appId) : app(Apps::class);
 
         $cancelled = MovipassOrderStatusEnum::SERVICE_CANCELLED->value;
+        $requestSubmitted = MovipassOrderStatusEnum::REQUEST_SUBMITTED->value;
 
         new CreateOrderStatusesAction($app, OrderTypeEnum::ROADSIDE_ASSISTANCE->value, [
             MovipassOrderStatusEnum::REQUEST_SUBMITTED->value => [
@@ -34,24 +35,28 @@ class SetupRoadsideAssistanceCaseCommand extends Command
             MovipassOrderStatusEnum::AWAITING_OPERATOR->value => [
                 'transitions' => [
                     MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value,
+                    $requestSubmitted,
                     $cancelled,
                 ],
             ],
             MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value => [
                 'transitions' => [
                     MovipassOrderStatusEnum::DISPATCHED->value,
+                    $requestSubmitted,
                     $cancelled,
                 ],
             ],
             MovipassOrderStatusEnum::DISPATCHED->value => [
                 'transitions' => [
                     MovipassOrderStatusEnum::ON_SITE->value,
+                    $requestSubmitted,
                     $cancelled,
                 ],
             ],
             MovipassOrderStatusEnum::ON_SITE->value => [
                 'transitions' => [
                     MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->value,
+                    $requestSubmitted,
                     $cancelled,
                 ],
             ],
@@ -59,6 +64,7 @@ class SetupRoadsideAssistanceCaseCommand extends Command
                 'transitions' => [
                     MovipassOrderStatusEnum::SERVICE_COMPLETED->value,
                     MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->value,
+                    $requestSubmitted,
                     $cancelled,
                 ],
             ],

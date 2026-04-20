@@ -1,0 +1,31 @@
+"""
+Bucket granularity for analytics time-series.
+"""
+enum AnalyticsBucket {
+    DAY
+    WEEK
+    MONTH
+}
+
+"""
+Single point in an analytics time-series. `total` is present only when the
+analytics query aggregates a sum column (e.g. order revenue).
+"""
+type AnalyticsPoint {
+    "Period key: `YYYY-MM-DD` (DAY), `YYYY-Www` (WEEK, ISO), `YYYY-MM` (MONTH)."
+    period: String!
+    count: Int!
+    total: Float
+}
+
+"""
+Single category slice (e.g. "New leads: 42" or "Maria Perez: 17 deals").
+"""
+type AnalyticsCategoryPoint {
+    "Human-readable label (resolved from the related model's display column)."
+    name: String!
+    "Underlying key (FK id or raw status string) for drill-down filtering."
+    key: String
+    count: Int!
+    total: Float
+}

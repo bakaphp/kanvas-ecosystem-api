@@ -39,6 +39,7 @@ class People extends Data
         public array $tags = [],
         public array $peopleEmploymentHistory = [],
         public ?string $organization = null,
+        public ?int $people_type_id = null,
         public ?string $created_at = null,
         public ?bool $flushPreviousAddress = false,
         public ?bool $runWorkflow = true,

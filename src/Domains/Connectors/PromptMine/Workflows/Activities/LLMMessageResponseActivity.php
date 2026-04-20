@@ -20,7 +20,6 @@ use Kanvas\Connectors\PromptMine\Services\ImageFilterService;
 use Kanvas\Connectors\PromptMine\Services\VideoCreationService;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -258,10 +257,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             $errorBody = $e->getResponse()->getBody()->getContents();
             $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
 
-            $endViaList = array_map(
-                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                ['push', 'mail']
-            );
+            $endViaList = ['push', 'mail'];
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $message->user,
                 entity: $message,
@@ -317,10 +313,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             $errorBody = $e->getMessage();
             $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked', 'flagged', 'content checker']);
 
-            $endViaList = array_map(
-                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                ['push', 'mail']
-            );
+            $endViaList = ['push', 'mail'];
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $message->user,
                 entity: $message,
@@ -562,10 +555,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             $errorBody = $e->getResponse()->getBody()->getContents();
             $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
 
-            $endViaList = array_map(
-                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                ['push', 'mail']
-            );
+            $endViaList = ['push', 'mail'];
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $message->user,
                 entity: $message,
@@ -648,10 +638,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             }
 
             try {
-                $endViaList = array_map(
-                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                    ['push', 'mail']
-                );
+                $endViaList = ['push', 'mail'];
                 $errorProcessingImageNotification = new ImageProcessingPushNotification(
                     user: $message->user,
                     entity: $message,

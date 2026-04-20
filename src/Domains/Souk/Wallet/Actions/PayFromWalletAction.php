@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Wallet\Actions;
 
 use Bavix\Wallet\Objects\Cart;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Models\PaymentLogs;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Souk\Wallet\Traits\HasWalletHolderTrait;
 use Kanvas\Souk\Wallet\Wallet;
@@ -74,6 +75,27 @@ class PayFromWalletAction
 
         $this->order->addTag(ConfigurationEnum::WALLET_CREDIT_TAG->value);
 
+        $this->logPaymentEvent();
+
         return $wallet;
+    }
+
+    protected function logPaymentEvent(): void
+    {
+        PaymentLogs::create([
+            'apps_id' => $this->order->apps_id,
+            'companies_id' => $this->order->companies_id,
+            'users_id' => $this->order->users_id,
+            'payments_id' => 0,
+            'payment_methods_id' => 0,
+            'payable_id' => $this->order->getId(),
+            'payable_type' => $this->order::class,
+            'status' => 'wallet_payment',
+            'metadata' => [
+                'amount' => (float) $this->order->total_gross_amount,
+                'tag' => ConfigurationEnum::WALLET_DEFAULT_NAME->value,
+                'order_number' => (string) $this->order->number,
+            ],
+        ]);
     }
 }

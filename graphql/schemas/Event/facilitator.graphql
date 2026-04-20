@@ -7,7 +7,8 @@ type Facilitator {
     company: Company! @belongsTo(relation: "company")
     description: String
     identification: String
-    resume: String 
+    resume: String
+    photo: Filesystem @method(name: "getPhoto")
     created_at: DateTime
     updated_at: DateTime
     files: [Filesystem!]!
@@ -28,13 +29,82 @@ type Facilitator {
         )
 }
 
+type EventVersionFacilitator {
+    id: ID!
+    event_version: EventVersion! @belongsTo(relation: "eventVersion")
+    facilitator: Facilitator! @belongsTo(relation: "facilitator")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input FacilitatorInput {
+    people_id: ID!
+    identification: String
+    resume: String
+    description: String
+    custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
+    files: [FilesystemInputUrl!]
+}
+
+input FacilitatorUpdateInput {
+    people_id: ID
+    identification: String
+    resume: String
+    description: String
+    custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
+    files: [FilesystemInputUrl!]
+}
+
+input FacilitatorEventVersionInput {
+    event_version_id: ID!
+    facilitator_id: ID!
+}
+
+extend type Mutation @guard {
+    createFacilitator(input: FacilitatorInput!): Facilitator!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Facilitators\\FacilitatorMutation@create"
+        )
+    updateFacilitator(id: ID!, input: FacilitatorUpdateInput!): Facilitator!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Facilitators\\FacilitatorMutation@update"
+        )
+    deleteFacilitator(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Facilitators\\FacilitatorMutation@delete"
+        )
+    attachFacilitatorToEventVersion(
+        input: FacilitatorEventVersionInput!
+    ): EventVersionFacilitator!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Facilitators\\FacilitatorMutation@attachToEventVersion"
+        )
+    detachFacilitatorFromEventVersion(
+        input: FacilitatorEventVersionInput!
+    ): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Facilitators\\FacilitatorMutation@detachFromEventVersion"
+        )
+}
+
 extend type Query @guard {
     facilitators(
         search: String @search
         where: _
-            @whereConditions(columns: ["id", "name", "slug", "companies_id", "people_id"])
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "name"
+                    "slug"
+                    "companies_id"
+                    "people_id"
+                ]
+            )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
-    ): [Participant!]!
+    ): [Facilitator!]!
         @paginate(
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             model: "Kanvas\\Event\\Facilitators\\Models\\Facilitator"

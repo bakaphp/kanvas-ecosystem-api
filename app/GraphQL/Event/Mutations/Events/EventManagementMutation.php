@@ -4,29 +4,38 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Event\Mutations\Events;
 
+use App\GraphQL\Concerns\SyncsEntityRelatedInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\Actions\UpdateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as DataTransferObjectEvent;
 use Kanvas\Event\Events\Models\Event;
+use Kanvas\Social\Follows\Models\UsersFollows;
+use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class EventManagementMutation
 {
+    use SyncsEntityRelatedInput;
+
     public function create(mixed $root, array $req): Event
     {
         $user = auth()->user();
         $app = app(Apps::class);
+        $input = $req['input'];
 
-        $event = DataTransferObjectEvent::fromMultiple(
+        $eventDto = DataTransferObjectEvent::fromMultiple(
             $app,
             $user,
             $user->getCurrentCompany(),
-            $req['input']
+            $input,
         );
 
-        $createEvent = new CreateEventAction($event);
+        $event = new CreateEventAction($eventDto)->execute();
 
-        return $createEvent->execute();
+        self::syncEntityRelatedInput($event, $input);
+
+        return $event->fresh();
     }
 
     public function update(mixed $root, array $req): Event
@@ -45,9 +54,19 @@ class EventManagementMutation
             'resources_id' => $input['resources_id'] ?? null,
             'resources_type' => $input['resources_type'] ?? null,
             'dates' => $input['dates'] ?? null,
+            'theme_id' => $input['theme_id'] ?? null,
+            'theme_area_id' => $input['theme_area_id'] ?? null,
+            'status_id' => $input['status_id'] ?? null,
+            'type_id' => $input['type_id'] ?? null,
+            'class_id' => $input['class_id'] ?? null,
+            'category_id' => $input['category_id'] ?? null,
         ], fn ($value) => $value !== null);
 
-        new UpdateEventAction($eventVersion, $updateData)->execute();
+        if (! empty($updateData) && $eventVersion !== null) {
+            new UpdateEventAction($eventVersion, $updateData)->execute();
+        }
+
+        self::syncEntityRelatedInput($event, $input);
 
         return $event->fresh();
     }
@@ -58,5 +77,37 @@ class EventManagementMutation
         $app = app(Apps::class);
 
         return Event::getByIdFromCompanyApp($req['id'], $user->getCurrentCompany(), $app)->delete();
+    }
+
+    public function follow(mixed $root, array $req): bool
+    {
+        $app = app(Apps::class);
+        $user = Users::getById((int) $req['input']['user_id']);
+        UsersRepository::belongsToThisApp($user, $app);
+
+        /** @var Event $event */
+        $event = Event::getByUuidFromCompanyApp(
+            $req['input']['entity_id'],
+            $user->getCurrentCompany(),
+            $app,
+        );
+
+        return $user->follow($event) instanceof UsersFollows;
+    }
+
+    public function unFollow(mixed $root, array $req): bool
+    {
+        $app = app(Apps::class);
+        $user = Users::getById((int) $req['input']['user_id']);
+        UsersRepository::belongsToThisApp($user, $app);
+
+        /** @var Event $event */
+        $event = Event::getByUuidFromCompanyApp(
+            $req['input']['entity_id'],
+            $user->getCurrentCompany(),
+            $app,
+        );
+
+        return $user->unFollow($event);
     }
 }

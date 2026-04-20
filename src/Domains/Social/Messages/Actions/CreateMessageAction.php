@@ -14,6 +14,7 @@ use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Channels\Models\Channel as ModelsChannel;
+use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\ValidParentMessage;
@@ -105,9 +106,11 @@ class CreateMessageAction
             }
 
             if ($this->messageInput->channel_slug !== null) {
+                $allowAppWideChannel = (bool) $this->messageInput->app->get(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value);
+
                 $channel = ModelsChannel::where('slug', $this->messageInput->channel_slug)
                     ->where('apps_id', $this->messageInput->app->getId())
-                    ->where('companies_id', $this->messageInput->company->getId())
+                    ->when(! $allowAppWideChannel, fn (Builder $q): Builder => $q->where('companies_id', $this->messageInput->company->getId()))
                     ->where('is_deleted', 0)
                     ->when($this->entityId !== null && $this->systemModule !== null, function (Builder $query) {
                         $query->where('entity_id', $this->entityId)

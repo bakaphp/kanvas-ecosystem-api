@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Actions;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
+use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
+use Kanvas\Connectors\Movipass\Events\AssistanceAssignedEvent;
+use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
@@ -26,7 +30,7 @@ class AcceptOrderAssignmentAction
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($order->orderStatus?->slug !== MovipassOrderStatusEnum::AWAITING_OPERATOR->value) {
+            if ($order->orderStatus?->slug !== MovipassOrderStatusEnum::AWAITING_OPERATOR->slug()) {
                 throw new ValidationException('Order is no longer available for assignment');
             }
 
@@ -38,8 +42,11 @@ class AcceptOrderAssignmentAction
                 throw new ValidationException('Mechanic was not notified of this order');
             }
 
-            $mechanicBlock = $this->buildMechanicBlock();
+            $existingMechanicData = is_array($assistanceCase['mechanic'] ?? null) ? $assistanceCase['mechanic'] : [];
+            $mechanicBlock = $this->buildMechanicBlock($existingMechanicData);
             $assistanceCase['mechanic'] = $mechanicBlock;
+            $assistanceCase['status'] = MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug();
+            $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
 
             $order->metadata = [
                 ...$metadata,
@@ -53,19 +60,47 @@ class AcceptOrderAssignmentAction
 
             $order->transitionToStatus(
                 $this->mechanic,
-                MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value,
+                MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug(),
+            );
+
+            $order->refresh();
+            new GenerateRoadsideAssistancePinAction($order)->execute();
+
+            $order->refresh();
+            $order->transitionToStatus(
+                $this->mechanic,
+                MovipassOrderStatusEnum::DISPATCHED->slug(),
             );
 
             return $order;
         });
+
+        AssistanceAssignedEvent::dispatch($order, $this->mechanic);
+
+        $this->mechanic->notify(new RoadsideAssistanceStatusNotification(
+            $order,
+            'Order assigned',
+            'You have been assigned to a roadside assistance order.',
+            MovipassOrderStatusEnum::DISPATCHED->slug(),
+        ));
+
+        $order->user->notify(new RoadsideAssistanceStatusNotification(
+            $order,
+            'Mechanic assigned',
+            'A mechanic has been assigned to your order and is on the way.',
+            MovipassOrderStatusEnum::DISPATCHED->slug(),
+        ));
+
+        return $order;
     }
 
-    protected function buildMechanicBlock(): array
+    protected function buildMechanicBlock(array $existingData = []): array
     {
         $mechanic = $this->mechanic;
 
         $lat = $mechanic->get(CustomFieldEnum::MECHANIC_LAT->value);
         $lng = $mechanic->get(CustomFieldEnum::MECHANIC_LNG->value);
+        $profileLocation = $lat !== null && $lng !== null ? ['lat' => (float) $lat, 'lng' => (float) $lng] : null;
 
         $rawVehicleInfo = $mechanic->get(CustomFieldEnum::MECHANIC_VEHICLE_INFO->value);
         $vehicleInfo = is_array($rawVehicleInfo) ? $rawVehicleInfo : json_decode((string) ($rawVehicleInfo ?? ''), true);
@@ -78,8 +113,8 @@ class AcceptOrderAssignmentAction
             'email' => $mechanic->email,
             'company_id' => $mechanic->default_company,
             'company_name' => $mechanic->getCurrentCompany()?->name ?? null,
-            'location' => $lat !== null && $lng !== null ? ['lat' => (float) $lat, 'lng' => (float) $lng] : null,
-            'vehicle_info' => $vehicleInfo ?: null,
+            'location' => (is_array($existingData['location'] ?? null) ? $existingData['location'] : null) ?? $profileLocation,
+            'vehicle_info' => (is_array($existingData['vehicle_info'] ?? null) ? $existingData['vehicle_info'] : null) ?? ($vehicleInfo ?: null),
         ];
     }
 }

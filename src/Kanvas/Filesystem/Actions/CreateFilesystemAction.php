@@ -46,6 +46,8 @@ class CreateFilesystemAction
             );
         }
 
+        $fileSystem->refresh();
+
         return $fileSystem;
     }
 }

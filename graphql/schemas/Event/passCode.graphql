@@ -26,19 +26,27 @@ input CheckInWithPinInput {
 }
 
 extend type Mutation @guard {
-    issueEventCode(
-        input: IssueEventCodeInput!
-    ): IssueCodeResponse! @field(resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassCodeMutation@issueEventCode")
+    issueEventCode(input: IssueEventCodeInput!): IssueCodeResponse!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassCodeMutation@issueEventCode"
+        )
     issueParticipantCode(
         input: IssueParticipantCodeInput!
-    ): IssueParticipantCodeResponse! @field(resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassCodeMutation@issueParticipantCode")
+    ): IssueParticipantCodeResponse!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassCodeMutation@issueParticipantCode"
+        )
     issueAllParticipantCodes(
         input: IssueAllParticipantCodesInput!
-    ): IssueAllCodesResponse! @field(resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassCodeMutation@issueAllParticipantCodes")
+    ): IssueAllCodesResponse!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassCodeMutation@issueAllParticipantCodes"
+        )
 
-    checkInWithPin(
-        input: CheckInWithPinInput!
-    ): CheckInResponse! @field(resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassCodeMutation@checkInWithPin")
+    checkInWithPin(input: CheckInWithPinInput!): CheckInResponse!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Passes\\EventPassCodeMutation@checkInWithPin"
+        )
 }
 
 type IssueCodeResponse {

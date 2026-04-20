@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Triggers\Workflows;
 use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -31,7 +32,7 @@ class TriggerIntelligenceActivity extends KanvasActivity
 
                 $result = new ApplyLeadAiModeAction($lead, $triggerType)->execute();
 
-                $this->sendDataToOrchestration($lead, $lead->get('ai_mode'));
+                $this->sendDataToOrchestration($lead, $lead->get(LeadConfigurationService::getAiModeKey($lead)));
 
                 return array_merge(['Trigger IA executed'], $result);
             }
