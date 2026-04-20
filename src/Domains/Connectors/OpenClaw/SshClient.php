@@ -72,7 +72,7 @@ class SshClient
         $instance = new self();
         // 8-second connect timeout — fail fast if sshd is unreachable/blocked.
         $instance->sftp = new SFTP($machine->host, (int) $machine->ssh_port, 15);
-        $instance->sftp->setTimeout(15);
+        $instance->sftp->setTimeout(60);
 
         /** @var PrivateKey $key */
         $key = PublicKeyLoader::load($machine->ssh_private_key);
