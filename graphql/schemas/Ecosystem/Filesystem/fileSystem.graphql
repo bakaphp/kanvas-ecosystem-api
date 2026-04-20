@@ -9,7 +9,15 @@ type Filesystem {
     field_name: String
     attributes: Mixed
     weight: Float
+    settings: [FilesystemSettings!]! @hasMany(relation: "settings")
     created_at: DateTimeTz @method(name: "createdAt")
+}
+
+type FilesystemSettings {
+    name: String!
+    value: Mixed
+    created_at: DateTime
+    updated_at: DateTime
 }
 
 input FilesystemInputUrl {
