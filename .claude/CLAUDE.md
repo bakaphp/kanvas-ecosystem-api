@@ -1203,6 +1203,23 @@ protected function casts(): array
 ### GraphQL Query Naming
 Check existing query names in `graphql/schemas/` before naming yours to avoid Lighthouse "Duplicate definition" merge errors.
 
+### GraphQL Relation Directives — Always Name the Method
+When exposing an Eloquent relation in GraphQL, **always pass `relation:` (for `@hasMany`/`@hasOne`/`@belongsTo`/`@belongsToMany`) or `method:` (for `@method`) explicitly**, even if the field name already matches the relation method. Do not rely on Lighthouse's implicit field-name → method-name inference — it breaks as soon as the field is renamed or aliased, and makes it harder to grep for relation usage.
+
+```graphql
+# WRONG — relies on implicit field-name → method-name inference
+type Filesystem {
+    settings: [FilesystemSettings!]! @hasMany
+}
+
+# CORRECT — method name is explicit
+type Filesystem {
+    settings: [FilesystemSettings!]! @hasMany(relation: "settings")
+}
+```
+
+Same rule for `@belongsTo(relation: "company")`, `@hasOne(relation: "primaryAddress")`, `@belongsToMany(relation: "roles")`, and `@method(name: "createdAt")`.
+
 ### Code Style
 - **No section separator comments** — do not add `// --- SectionName ---`, `# --- SectionName ---`, or similar decorative dividers in code, tests, or schema files. Test methods and code sections are self-documenting by their names. If a file grows too large, split it into separate files instead.
 
