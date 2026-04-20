@@ -275,6 +275,49 @@ class FilesystemTest extends TestCase
         )->assertSuccessful();
     }
 
+    public function testFilesystemSettingsRelation(): void
+    {
+        $filesystem = $this->uploadFileDirectly('settings-avatar.jpg');
+        $filesystem->set('preview_status', 'generated');
+        $filesystem->set('source', 'unit-test');
+
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation($input: FilesystemAttachInput!) {
+                attachFile(input: $input)
+            }',
+            [
+                'input' => [
+                    'filesystem_uuid' => $filesystem->uuid,
+                    'field_name' => 'avatar',
+                    'system_module_uuid' => get_class(auth()->user()),
+                    'entity_id' => auth()->user()->uuid,
+                ],
+            ]
+        )->assertSuccessful();
+
+        $this->graphQL(/** @lang GraphQL */ '
+            query entityFiles($input: SystemModuleEntityInput!) {
+                entityFiles(entity: $input) {
+                    data {
+                        uuid
+                        settings {
+                            name
+                            value
+                        }
+                    }
+                }
+            }',
+            [
+                'input' => [
+                    'system_module_uuid' => get_class(auth()->user()),
+                    'entity_id' => auth()->user()->uuid,
+                ],
+            ]
+        )->assertSuccessful()
+        ->assertJsonFragment(['name' => 'preview_status', 'value' => 'generated'])
+        ->assertJsonFragment(['name' => 'source', 'value' => 'unit-test']);
+    }
+
     public function testCreateFileSystem(): void
     {
         $this->graphQL(/** @lang GraphQL */ '

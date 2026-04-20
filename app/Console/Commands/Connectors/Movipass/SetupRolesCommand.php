@@ -106,6 +106,10 @@ class SetupRolesCommand extends Command
             foreach ($roles as $roleName) {
                 Bouncer::allow($roleName->value)->to($ability);
             }
+
+            if (! in_array(MovipassRolesEnum::RDVIAL_CONSULTANT, $roles, true)) {
+                Bouncer::disallow(MovipassRolesEnum::RDVIAL_CONSULTANT->value)->to($ability);
+            }
         }
 
         Bouncer::refresh();

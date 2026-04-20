@@ -14,14 +14,24 @@ use Kanvas\Event\Events\Models\EventVersion as ModelsEventVersion;
 use Kanvas\Event\Events\Validators\EventTimeSlotValidator;
 use Kanvas\Event\Participants\Actions\CreateParticipantAction;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
 
 class UpdateEventAction
 {
+    protected bool $runWorkflow = true;
+
     public function __construct(
         protected ModelsEventVersion $eventVersion,
         protected array $updateData
     ) {
+    }
+
+    public function disableWorkflow(): self
+    {
+        $this->runWorkflow = false;
+
+        return $this;
     }
 
     public function execute(): ModelsEventVersion
@@ -55,6 +65,15 @@ class UpdateEventAction
             if (isset($this->updateData['status_id'])) {
                 $eventUpdateData['event_status_id'] = $this->updateData['status_id'];
             }
+            if (isset($this->updateData['type_id'])) {
+                $eventUpdateData['event_type_id'] = $this->updateData['type_id'];
+            }
+            if (isset($this->updateData['class_id'])) {
+                $eventUpdateData['event_class_id'] = $this->updateData['class_id'];
+            }
+            if (isset($this->updateData['category_id'])) {
+                $eventUpdateData['event_category_id'] = $this->updateData['category_id'];
+            }
 
             if (! empty($eventUpdateData)) {
                 if (isset($eventUpdateData['name'])) {
@@ -62,14 +81,21 @@ class UpdateEventAction
                     $eventUpdateData['slug'] = $slug;
                 }
 
-                $event->name = $eventUpdateData['name'] ?? $event->name;
-                $event->description = $eventUpdateData['description'] ?? null;
+                foreach ($eventUpdateData as $key => $value) {
+                    $event->{$key} = $value;
+                }
 
                 $event->saveOrFail();
-                $this->eventVersion->name = $event->name;
-                $this->eventVersion->description = $event->description;
-                $this->eventVersion->name = $event->name;
-                $this->eventVersion->saveOrFail();
+
+                if (isset($eventUpdateData['name'])) {
+                    $this->eventVersion->name = $event->name;
+                }
+                if (isset($eventUpdateData['description'])) {
+                    $this->eventVersion->description = $event->description;
+                }
+                if ($this->eventVersion->isDirty()) {
+                    $this->eventVersion->saveOrFail();
+                }
             }
 
             // Update the EventVersion model fields
@@ -139,6 +165,25 @@ class UpdateEventAction
         )->execute();
 
         new ScheduleEventReminderAction($eventVersion)->execute();
+
+        if ($this->runWorkflow) {
+            $event = $eventVersion->event;
+            $event?->fireWorkflow(
+                WorkflowEnum::UPDATED->value,
+                true,
+                [
+                    'app' => $event->app,
+                    'company' => $event->company,
+                ],
+            );
+            $eventVersion->fireWorkflow(
+                WorkflowEnum::UPDATED->value,
+                true,
+                [
+                    'app' => $eventVersion->app,
+                ],
+            );
+        }
 
         return $eventVersion;
     }
