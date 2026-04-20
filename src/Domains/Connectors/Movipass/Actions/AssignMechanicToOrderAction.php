@@ -8,7 +8,6 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
-use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Events\AssistanceAssignedEvent;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
 use Kanvas\Exceptions\ValidationException;
