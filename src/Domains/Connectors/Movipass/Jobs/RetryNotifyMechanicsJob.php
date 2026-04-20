@@ -12,7 +12,6 @@ use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\NotifyAvailableMechanicsAction;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
-
 use Kanvas\Connectors\Movipass\Events\AssistanceMechanicNotFoundEvent;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
 use Kanvas\Exceptions\ValidationException;
