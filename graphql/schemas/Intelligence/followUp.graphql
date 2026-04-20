@@ -1,6 +1,6 @@
 type FollowUp {
     id: ID!
-    pipeline: Pipeline! @belongsTo(relation: "pipeline")
+    pipeline: LeadPipeline! @belongsTo(relation: "pipeline")
     days: [FollowUpDay!]! @hasMany(relation: "days")
     name: String!
     follow_up_type: Int!
@@ -13,7 +13,7 @@ type FollowUp {
 type FollowUpDay {
     id: ID!
     followUp: FollowUp! @belongsTo(relation: "followUp")
-    pipelineStage: PipelineStage! @belongsTo(relation: "pipelineStage")
+    pipelineStage: LeadPipelineStage! @belongsTo(relation: "pipelineStage")
     templates: [FollowUpTemplate!]! @hasMany(relation: "templates")
     name: String!
     time_value: Int!
@@ -90,30 +90,54 @@ input UpdateFollowUpTemplateInput {
 
 extend type Mutation @guard {
     createFollowUp(input: FollowUpInput!): FollowUp!
-        @field(resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpMutation@create")
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpMutation@create"
+        )
     updateFollowUp(id: ID!, input: UpdateFollowUpInput!): FollowUp!
-        @field(resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpMutation@update")
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpMutation@update"
+        )
     deleteFollowUp(id: ID!): Boolean!
-        @field(resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpMutation@delete")
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpMutation@delete"
+        )
 
     createFollowUpDay(input: FollowUpDayInput!): FollowUpDay!
-        @field(resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpDayMutation@create")
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpDayMutation@create"
+        )
     updateFollowUpDay(id: ID!, input: UpdateFollowUpDayInput!): FollowUpDay!
-        @field(resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpDayMutation@update")
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpDayMutation@update"
+        )
     deleteFollowUpDay(id: ID!): Boolean!
-        @field(resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpDayMutation@delete")
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpDayMutation@delete"
+        )
 
     createFollowUpTemplate(input: FollowUpTemplateInput!): FollowUpTemplate!
-        @field(resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpTemplateMutation@create")
-    updateFollowUpTemplate(id: ID!, input: UpdateFollowUpTemplateInput!): FollowUpTemplate!
-        @field(resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpTemplateMutation@update")
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpTemplateMutation@create"
+        )
+    updateFollowUpTemplate(
+        id: ID!
+        input: UpdateFollowUpTemplateInput!
+    ): FollowUpTemplate!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpTemplateMutation@update"
+        )
     deleteFollowUpTemplate(id: ID!): Boolean!
-        @field(resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpTemplateMutation@delete")
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpTemplateMutation@delete"
+        )
 }
 
 extend type Query @guard {
     followUps(
-        where: _ @whereConditions(columns: ["id", "name", "follow_up_type", "pipelines_id"])
+        where: _
+            @whereConditions(
+                columns: ["id", "name", "follow_up_type", "pipelines_id"]
+            )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [FollowUp!]!
         @paginate(
@@ -123,8 +147,12 @@ extend type Query @guard {
         )
 
     followUpDays(
-        where: _ @whereConditions(columns: ["id", "name", "follow_ups_id", "pipeline_stages_id"])
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "weight"])
+        where: _
+            @whereConditions(
+                columns: ["id", "name", "follow_ups_id", "pipeline_stages_id"]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "weight"])
     ): [FollowUpDay!]!
         @paginate(
             model: "Kanvas\\Intelligence\\FollowUp\\Models\\FollowUpDay"
@@ -133,7 +161,15 @@ extend type Query @guard {
         )
 
     followUpTemplates(
-        where: _ @whereConditions(columns: ["id", "name", "follow_up_days_id", "communication_channel"])
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "follow_up_days_id"
+                    "communication_channel"
+                ]
+            )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
     ): [FollowUpTemplate!]!
         @paginate(
