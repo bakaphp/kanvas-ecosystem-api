@@ -24,6 +24,12 @@ use Tests\TestCase;
 
 class TriggerIntelligenceActivityTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        app(Apps::class)->set('intelligence_lead_type_mode_v2', 0);
+    }
+
     private function createLead(string $leadTypeName = ''): Lead
     {
         $user = auth()->user();
