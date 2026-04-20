@@ -214,5 +214,4 @@ class EventVersionManagementMutation
     {
         return array_key_exists('max_capacity', $input) || array_key_exists('metadata', $input);
     }
-
 }
