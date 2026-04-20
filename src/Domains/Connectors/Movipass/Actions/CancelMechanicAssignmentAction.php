@@ -11,6 +11,7 @@ use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
 use Kanvas\Connectors\Movipass\Jobs\RetryNotifyMechanicsJob;
+use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
@@ -90,6 +91,13 @@ class CancelMechanicAssignmentAction
 
             return $order->refresh();
         });
+
+        $order->user->notify(new RoadsideAssistanceStatusNotification(
+            $order,
+            'Mechanic cancelled',
+            'The mechanic cancelled the assistance. We are looking for a new mechanic.',
+            MovipassOrderStatusEnum::REQUEST_SUBMITTED->slug(),
+        ));
 
         try {
             $cancelledIds = $order->metadata['assistance_case']['cancelled_mechanic_ids'] ?? [];

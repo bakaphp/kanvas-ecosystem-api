@@ -13,6 +13,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\NotifyAvailableMechanicsAction;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Events\AssistanceMechanicNotFoundEvent;
+use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
@@ -66,6 +67,13 @@ class RetryNotifyMechanicsJob implements ShouldQueue
             );
             $this->order->fulfillCancelled();
             AssistanceMechanicNotFoundEvent::dispatch($this->order);
+
+            $this->order->user->notify(new RoadsideAssistanceStatusNotification(
+                $this->order,
+                'No mechanics available',
+                'We could not find an available mechanic. Your order has been cancelled.',
+                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
+            ));
         }
     }
 }

@@ -8,6 +8,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
+use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
 
@@ -70,6 +71,13 @@ class CheckMechanicArrivalAction
         );
 
         RefreshActiveAssistanceEvent::dispatch($this->order, $this->mechanic->getId());
+
+        $this->order->user->notify(new RoadsideAssistanceStatusNotification(
+            $this->order,
+            'Mechanic on site',
+            'The mechanic has arrived at your location.',
+            MovipassOrderStatusEnum::ON_SITE->slug(),
+        ));
 
         return true;
     }
