@@ -37,7 +37,7 @@ class SearchEngineResolver
         });
     }
 
-    public function resolveEngine(?Model $model = null, ?Apps $app = null): Engine
+    public function resolveEngine(?Model $model = null, ?Apps $app = null, string $modelDefaultEngine = ''): Engine
     {
         // As for this stage, the code doesn't know in which app need to set the index.
         try {
@@ -51,14 +51,15 @@ class SearchEngineResolver
         $defaultEngine = $app->get('search_engine') ?? config('scout.driver', 'algolia');
         // If there's a model, try to get model-specific engine setting
         $modelSpecificEngine = $model !== null ? $app->get($model->getTable() . '_search_engine') : null;
-        // Use model-specific engine if available, otherwise use default
-        $engine = $modelSpecificEngine ?? $defaultEngine;
+        // Use model-specific engine if available, then model default, then app default
+        $engine = $modelSpecificEngine ?? ($modelDefaultEngine !== '' ? $modelDefaultEngine : $defaultEngine);
         $searchSettings = $app->get($engine . '_search_settings') ?? [];
 
         return match ($engine) {
             'algolia' => $this->createAlgoliaEngine($searchSettings),
             'typesense' => $this->createTypesenseEngine($searchSettings),
             'meilisearch' => $this->createMeiliSearchEngine($searchSettings),
+            'database' => $this->engineManager->engine('database'),
             default => new NullEngine(),
         };
     }

@@ -13,6 +13,12 @@ use Tests\TestCase;
 
 class LeadConfigurationServiceTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        app(Apps::class)->set('search_engine', 'database');
+    }
+
     private function createLead(string $leadTypeName = ''): Lead
     {
         $user = auth()->user();
@@ -44,7 +50,7 @@ class LeadConfigurationServiceTest extends TestCase
     public function testIsV2EnabledReturnsFalseByDefault(): void
     {
         $app = app(Apps::class);
-        $app->set('intelligence_lead_type_mode_v2', null);
+        $app->set('intelligence_lead_type_mode_v2', false);
 
         $this->assertFalse(LeadConfigurationService::isV2Enabled($app));
     }
@@ -56,14 +62,13 @@ class LeadConfigurationServiceTest extends TestCase
 
         $this->assertTrue(LeadConfigurationService::isV2Enabled($app));
 
-        $app->set('intelligence_lead_type_mode_v2', null);
+        $app->set('intelligence_lead_type_mode_v2', false);
     }
 
     public function testGetAiModeKeyReturnsGenericKeyWhenV1(): void
     {
         $app = app(Apps::class);
-        $app->set('intelligence_lead_type_mode_v2', null);
-
+        $app->set('intelligence_lead_type_mode_v2', false);
         $lead = $this->createLead('Showroom');
 
         $this->assertEquals('ai_mode', LeadConfigurationService::getAiModeKey($lead));
@@ -78,7 +83,7 @@ class LeadConfigurationServiceTest extends TestCase
 
         $this->assertEquals('showroom_ai_mode', LeadConfigurationService::getAiModeKey($lead));
 
-        $app->set('intelligence_lead_type_mode_v2', null);
+        $app->set('intelligence_lead_type_mode_v2', false);
     }
 
     public function testGetAiModeKeyReturnsPhoneKeyForPhoneLeadType(): void
@@ -90,7 +95,7 @@ class LeadConfigurationServiceTest extends TestCase
 
         $this->assertEquals('phone_ai_mode', LeadConfigurationService::getAiModeKey($lead));
 
-        $app->set('intelligence_lead_type_mode_v2', null);
+        $app->set('intelligence_lead_type_mode_v2', false);
     }
 
     public function testGetAiModeKeyReturnsGenericKeyForInternetLeadType(): void
@@ -102,13 +107,13 @@ class LeadConfigurationServiceTest extends TestCase
 
         $this->assertEquals('ai_mode', LeadConfigurationService::getAiModeKey($lead));
 
-        $app->set('intelligence_lead_type_mode_v2', null);
+        $app->set('intelligence_lead_type_mode_v2', false);
     }
 
     public function testGetFollowUpModeKeyReturnsAiFollowUpWhenV1(): void
     {
         $app = app(Apps::class);
-        $app->set('intelligence_lead_type_mode_v2', null);
+        $app->set('intelligence_lead_type_mode_v2', false);
 
         $lead = $this->createLead('Internet');
 
@@ -127,7 +132,7 @@ class LeadConfigurationServiceTest extends TestCase
 
         $this->assertEquals('internet_follow_up_mode', LeadConfigurationService::getFollowUpModeKey($lead));
 
-        $app->set('intelligence_lead_type_mode_v2', null);
+        $app->set('intelligence_lead_type_mode_v2', false);
     }
 
     public function testGetFollowUpModeKeyReturnsShowroomFollowUpKeyForShowroomType(): void
@@ -139,7 +144,7 @@ class LeadConfigurationServiceTest extends TestCase
 
         $this->assertEquals('showroom_follow_up_mode', LeadConfigurationService::getFollowUpModeKey($lead));
 
-        $app->set('intelligence_lead_type_mode_v2', null);
+        $app->set('intelligence_lead_type_mode_v2', false);
     }
 
     public function testGetFollowUpModeKeyReturnsPhoneFollowUpKeyForPhoneType(): void
@@ -151,7 +156,7 @@ class LeadConfigurationServiceTest extends TestCase
 
         $this->assertEquals('phone_follow_up_mode', LeadConfigurationService::getFollowUpModeKey($lead));
 
-        $app->set('intelligence_lead_type_mode_v2', null);
+        $app->set('intelligence_lead_type_mode_v2', false);
     }
 
     public function testGetAiModeDefaultKeyReturnsOpenKeyWhenOpen(): void
@@ -173,7 +178,7 @@ class LeadConfigurationServiceTest extends TestCase
         $cases = [
             'Internet' => 'internet_ai_mode_open_default',
             'Showroom' => 'showroom_ai_mode_open_default',
-            'Phone'    => 'phone_ai_mode_open_default',
+            'Phone' => 'phone_ai_mode_open_default',
         ];
 
         foreach ($cases as $typeName => $expectedKey) {
@@ -199,7 +204,7 @@ class LeadConfigurationServiceTest extends TestCase
         $cases = [
             'Internet' => 'internet_con_fu_active_default',
             'Showroom' => 'showroom_con_fu_active_default',
-            'Phone'    => 'phone_con_fu_active_default',
+            'Phone' => 'phone_con_fu_active_default',
         ];
 
         foreach ($cases as $typeName => $expectedKey) {
@@ -218,7 +223,7 @@ class LeadConfigurationServiceTest extends TestCase
         $cases = [
             'Internet' => 'internet_first_fu_active_default',
             'Showroom' => 'showroom_first_fu_active_default',
-            'Phone'    => 'phone_first_fu_active_default',
+            'Phone' => 'phone_first_fu_active_default',
         ];
 
         foreach ($cases as $typeName => $expectedKey) {

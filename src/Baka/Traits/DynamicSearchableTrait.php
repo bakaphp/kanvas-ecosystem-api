@@ -15,9 +15,14 @@ trait DynamicSearchableTrait
     use Searchable;
     protected bool $isTypesense = false;
 
+    public function getDefaultSearchEngine(): string
+    {
+        return '';
+    }
+
     public function searchableUsing()
     {
-        $engine = app(SearchEngineResolver::class)->resolveEngine($this, $this->app);
+        $engine = app(SearchEngineResolver::class)->resolveEngine($this, $this->app, $this->getDefaultSearchEngine());
 
         if ($engine instanceof TypesenseEngine) {
             $this->setTypesense();
@@ -48,8 +53,9 @@ trait DynamicSearchableTrait
         $defaultEngine = $app->get('search_engine') ?? config('scout.driver', 'algolia');
         // If there's a model, try to get model-specific engine setting
         $modelSpecificEngine = $app->get($this->getTable() . '_search_engine') ?? null;
-        // Use model-specific engine if available, otherwise use default
-        $engine = $modelSpecificEngine ?? $defaultEngine;
+        // Use model-specific engine if available, then model default, then app default
+        $modelDefault = $this->getDefaultSearchEngine();
+        $engine = $modelSpecificEngine ?? ($modelDefault !== '' ? $modelDefault : $defaultEngine);
 
         return $engine === 'typesense';
     }
