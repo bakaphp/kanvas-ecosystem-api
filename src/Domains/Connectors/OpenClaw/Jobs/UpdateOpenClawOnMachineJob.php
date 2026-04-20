@@ -26,7 +26,7 @@ class UpdateOpenClawOnMachineJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public int $timeout = 30;
+    public int $timeout = 120;
 
     public int $tries = 1;
 
