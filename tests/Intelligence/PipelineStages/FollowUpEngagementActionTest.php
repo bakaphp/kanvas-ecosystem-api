@@ -21,6 +21,7 @@ use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpTemplate;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
@@ -109,7 +110,10 @@ class FollowUpEngagementActionTest extends TestCase
             $lead->saveOrFail();
 
             // Enable follow-up for this lead type so FollowUpEngagementAction doesn't throw
-            $lead->set('internet_follow_up_mode', FollowUpValueEnum::ON()->value);
+
+            $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
+
+            $lead->set($followUpKey, FollowUpValueEnum::ON()->value);
 
             $lead->people->addEmail(fake()->email);
             $lead->people->addPhone(fake()->phoneNumber);
