@@ -122,7 +122,7 @@ type EventVersionDate {
     user: User! @belongsTo(relation: "user")
     date: Date! @method(name: "getDate")
     start_time: String!
-    end_time: String!
+    end_time: String
 }
 
 type EventVersionParticipant {
