@@ -16,7 +16,7 @@ class ReconcileCustomerItemsCommand extends Command
     protected $signature = 'netsuite:reconcile-customer-items
         {app_id : The app ID to scope reconciliation to}
         {--dry-run : Diff only, do not re-run sync}
-        {--company=* : Limit to specific buyer company IDs (repeatable)}';
+        {--company=* : Limit to specific buyer company IDs (comma-separated or repeatable)}';
 
     protected $description = 'Reconcile NetSuite customer items list against channel product variants';
 
@@ -26,7 +26,16 @@ class ReconcileCustomerItemsCommand extends Command
 
         $this->overwriteAppService($app);
 
-        $companyIds = array_map('intval', (array) $this->option('company'));
+        $companyIds = [];
+        foreach ((array) $this->option('company') as $value) {
+            foreach (explode(',', (string) $value) as $id) {
+                $id = trim($id);
+                if ($id !== '' && is_numeric($id)) {
+                    $companyIds[] = (int) $id;
+                }
+            }
+        }
+        $companyIds = array_values(array_unique($companyIds));
 
         if ($this->option('dry-run')) {
             $this->warn('DRY RUN — no changes will be made');
