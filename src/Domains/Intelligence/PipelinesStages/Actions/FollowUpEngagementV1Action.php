@@ -81,11 +81,17 @@ class FollowUpEngagementV1Action
 
         $processedChannels = [];
         foreach ($sessions as $session) {
-            $messageTemplateChannel = $session->getChannel();
+            try {
+                $messageTemplateChannel = $session->getChannel();
+            } catch (Exception $e) {
+                //we don't support this channel type
+                continue;
+            }
 
             if (in_array($messageTemplateChannel, $processedChannels)) {
                 continue;
             }
+
             $processedChannels[] = $messageTemplateChannel;
 
             if (! in_array($messageTemplateChannel, $channelsAvailable)) {
