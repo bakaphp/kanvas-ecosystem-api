@@ -16,6 +16,7 @@ use Kanvas\Souk\Payments\DataTransferObject\CaptureResult;
 use Kanvas\Souk\Payments\DataTransferObject\RefundResult;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
+use Kanvas\Souk\Payments\Enums\CurrencyEnum;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Infrastructure\Processors\Azul\AzulProcessor;
 use Kanvas\Souk\Payments\Processors\ProcessorFactory;
@@ -74,7 +75,7 @@ final class AzulProcessorTest extends AzulBase
 
     public function testAuthorizeRejectsNonDopCurrency(): void
     {
-        [$payment, $order] = $this->buildMockedPaymentAndOrder(currency: 'USD');
+        [$payment, $order] = $this->buildMockedPaymentAndOrder(currency: CurrencyEnum::USD->value);
 
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('Azul only supports DOP currency');

@@ -29,6 +29,7 @@ use Kanvas\Souk\Payments\DataTransferObject\ThreeDSResult;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
+use Kanvas\Souk\Payments\Enums\CurrencyEnum;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 
@@ -1104,9 +1105,9 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
     private function assertSupportedCurrency(Order $order): void
     {
-        if (strtoupper((string) $order->currency) !== 'DOP') {
+        if (strtoupper((string) $order->currency) !== CurrencyEnum::DOP->value) {
             throw new ValidationException(
-                'Azul only supports DOP currency; order ' . $order->getId() . ' has currency ' . $order->currency
+                'Azul only supports ' . CurrencyEnum::DOP->value . ' currency; order ' . $order->getId() . ' has currency ' . $order->currency
             );
         }
     }
