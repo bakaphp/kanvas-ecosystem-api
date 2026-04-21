@@ -43,6 +43,7 @@ class ChannelMessageCreatedEvent implements ShouldBroadcast
         return [
             new Channel('new-message-channel-' . $channelSlug . '-' . ($this->channel->entity_id ?? $this->channel->id)),
             new Channel('app-' . $this->channel->apps_id . '-new-message-channel-' . $this->channel->slug . '-' . $this->channel->id),
+            new Channel('app-' . $this->channel->apps_id . $this->channel->slug),
         ];
     }
 
