@@ -32,8 +32,9 @@ class ApplyLeadAiModeAction
 
     public function execute(): array
     {
-        $aiModeKey = LeadConfigurationService::getAiModeKey($this->lead);
-        $followUpKey = LeadConfigurationService::getFollowUpModeKey($this->lead);
+        $configService = new LeadConfigurationService();
+        $aiModeKey = $configService->getAiModeKey($this->lead);
+        $followUpKey = $configService->getFollowUpModeKey($this->lead);
 
         $currentMode = IntelligenceModeEnum::tryFrom((string) $this->lead->get($aiModeKey));
         if ($currentMode?->isOff()
@@ -92,12 +93,13 @@ class ApplyLeadAiModeAction
     protected function applyNewLead(): void
     {
         $leadType = $this->lead->type()->first();
-        $aiModeKey = LeadConfigurationService::getAiModeKey($this->lead);
-        $aiFollowUpKey = LeadConfigurationService::getFollowUpModeKey($this->lead);
+        $configService = new LeadConfigurationService();
+        $aiModeKey = $configService->getAiModeKey($this->lead);
+        $aiFollowUpKey = $configService->getFollowUpModeKey($this->lead);
 
         $leadTypeConfig = $leadType?->config ?? [];
-        $aiModeDefaultKey = LeadConfigurationService::getAiModeDefaultKey($this->lead);
-        $followUpDefaultKey = LeadConfigurationService::getFollowUpDefaultKey($this->lead);
+        $aiModeDefaultKey = $configService->getAiModeDefaultKey($this->lead);
+        $followUpDefaultKey = $configService->getFollowUpDefaultKey($this->lead);
 
         $aiModeValue = $leadTypeConfig[$aiModeDefaultKey] ?? $this->lead->company->get($aiModeKey);
         $followUpRawValue = $leadTypeConfig[$followUpDefaultKey] ?? $this->lead->company->get($aiFollowUpKey);
@@ -118,7 +120,7 @@ class ApplyLeadAiModeAction
 
     protected function setMode(string $aiMode): void
     {
-        $aiModeKey = LeadConfigurationService::getAiModeKey($this->lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($this->lead);
 
         fwrite(STDERR, "\n[DEBUG] Lead ai_mode: " . $this->lead->get($aiModeKey) . "\n");
 
@@ -131,7 +133,7 @@ class ApplyLeadAiModeAction
 
     protected function setFollowUp(FollowUpValueEnum $followUpValue)
     {
-        $followUpKey = LeadConfigurationService::getFollowUpModeKey($this->lead);
+        $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($this->lead);
         $this->lead->set($followUpKey, $followUpValue->value);
         $this->lead->set(LeadConfigurationEnum::HAS_FOLLOW_UP->value, $followUpValue->value);
     }

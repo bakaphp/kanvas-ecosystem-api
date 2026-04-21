@@ -36,10 +36,11 @@ class FollowUpEngagementAction
 
     public function __construct(
         public Lead $lead,
-        ?FollowUpLog $log = null
+        ?FollowUpLog $log = null,
+        bool $isV2 = false,
     ) {
         $this->log = $log;
-        $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
+        $followUpKey = new LeadConfigurationService($isV2)->getFollowUpModeKey($lead);
         $followUpValue = $lead->get($followUpKey);
 
         if ($followUpValue == FollowUpValueEnum::OFF()->value) {

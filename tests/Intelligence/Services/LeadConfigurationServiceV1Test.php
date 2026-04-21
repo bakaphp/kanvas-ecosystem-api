@@ -51,14 +51,13 @@ class LeadConfigurationServiceV1Test extends TestCase
 
     public function testIsV2EnabledReturnsFalseByDefault(): void
     {
-        $this->assertFalse(LeadConfigurationService::isV2Enabled(app(Apps::class)));
+        $this->assertFalse(new LeadConfigurationService(false)->isV2Enabled(app(Apps::class)));
     }
 
     public function testGetAiModeKeyReturnsGenericKeyWhenV1(): void
     {
         $lead = $this->createLead('Showroom');
-
-        $this->assertEquals('ai_mode', LeadConfigurationService::getAiModeKey($lead));
+        $this->assertEquals('ai_mode', new LeadConfigurationService(false)->getAiModeKey($lead));
     }
 
     public function testGetFollowUpModeKeyReturnsAiFollowUpWhenV1(): void
@@ -67,7 +66,7 @@ class LeadConfigurationServiceV1Test extends TestCase
 
         $this->assertEquals(
             IntelligenceModeEnum::AI_FOLLOW_UP->value,
-            LeadConfigurationService::getFollowUpModeKey($lead)
+            new LeadConfigurationService(false)->getFollowUpModeKey($lead)
         );
     }
 }

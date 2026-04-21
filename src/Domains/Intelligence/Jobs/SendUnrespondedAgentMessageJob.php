@@ -61,7 +61,7 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
 
         $lead = $this->message->entity();
 
-        $aiModeKey = $lead instanceof Lead ? LeadConfigurationService::getAiModeKey($lead) : 'ai_mode';
+        $aiModeKey = $lead instanceof Lead ? new LeadConfigurationService()->getAiModeKey($lead) : 'ai_mode';
         $aiMode = $lead->get($aiModeKey);
         if ($aiMode !== IntelligenceModeEnum::SUPPORT->value) {
             return;

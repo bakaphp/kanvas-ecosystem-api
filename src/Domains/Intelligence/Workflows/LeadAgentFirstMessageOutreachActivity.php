@@ -57,7 +57,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
-                $leadAiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(LeadConfigurationService::getAiModeKey($lead)));
+                $leadAiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(new LeadConfigurationService()->getAiModeKey($lead)));
                 if ($leadAiMode?->isOff()) {
                     return [
                         'ai_mode is OFF',
@@ -120,15 +120,15 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     }
 
                     if ($isWithinWorkingHours) {
-                        $lead->set(LeadConfigurationService::getAiModeKey($lead), $workingHoursDefaultMode);
+                        $lead->set(new LeadConfigurationService()->getAiModeKey($lead), $workingHoursDefaultMode);
                     }
                 }
 
-                $currentAiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(LeadConfigurationService::getAiModeKey($lead)));
+                $currentAiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(new LeadConfigurationService()->getAiModeKey($lead)));
                 $disableSending = $currentAiMode?->isOff() ?? false;
 
                 $leadType = $lead->type()->first();
-                $firstMessageDefaultKey = LeadConfigurationService::getFirstMessageDefaultKey($lead);
+                $firstMessageDefaultKey = new LeadConfigurationService()->getFirstMessageDefaultKey($lead);
                 $leadTypeConfig = $leadType?->config ?? [];
 
                 if (isset($leadTypeConfig[$firstMessageDefaultKey]) && ! $leadTypeConfig[$firstMessageDefaultKey]) {
@@ -349,7 +349,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
     private function shouldSendFirstMessageNow(Lead $lead): bool
     {
-        $aiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(LeadConfigurationService::getAiModeKey($lead)));
+        $aiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(new LeadConfigurationService()->getAiModeKey($lead)));
         if ($aiMode?->isOff()) {
             return false;
         }
@@ -362,7 +362,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
         if (! $isWithinWorkingHours) {
             return true;
-        } elseif ($lead->get(LeadConfigurationService::getAiModeKey($lead)) === IntelligenceModeEnum::SUPPORT->value) {
+        } elseif ($lead->get(new LeadConfigurationService()->getAiModeKey($lead)) === IntelligenceModeEnum::SUPPORT->value) {
             return false;
         } else {
             return true;

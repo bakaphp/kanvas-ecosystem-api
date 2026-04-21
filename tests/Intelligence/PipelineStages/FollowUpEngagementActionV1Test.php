@@ -44,7 +44,9 @@ class FollowUpEngagementActionV1Test extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
         $app = app(Apps::class);
+
         $app->set('intelligence_lead_type_mode_v2', false);
     }
 
@@ -119,7 +121,7 @@ class FollowUpEngagementActionV1Test extends TestCase
 
             $lead->setContactStatus(LeadGroupStatusEnum::WAITING);
 
-            $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
+            $followUpKey = new LeadConfigurationService(false)->getFollowUpModeKey($lead);
             $lead->set($followUpKey, FollowUpValueEnum::ON()->value);
 
             $lead->people->addEmail(fake()->email);
@@ -320,7 +322,7 @@ class FollowUpEngagementActionV1Test extends TestCase
 
             Prism::fake([$fakeResponse, $fakeResponse]);
 
-            $result = new FollowUpEngagementAction($lead)->execute();
+            $result = new FollowUpEngagementAction($lead, null, false)->execute();
 
             $this->assertIsArray($result);
         } finally {

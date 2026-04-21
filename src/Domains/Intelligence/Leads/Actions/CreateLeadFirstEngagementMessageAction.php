@@ -60,7 +60,7 @@ class CreateLeadFirstEngagementMessageAction
                 ['lead' => $this->lead->toArray()]
             ),
             'template' => $this->template,
-            'ai_mode' => $this->lead->get(LeadConfigurationService::getAiModeKey($this->lead)),
+            'ai_mode' => $this->lead->get(new LeadConfigurationService()->getAiModeKey($this->lead)),
             'follow_up_mode' => $this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
             'allow_call_appointments' => $this->lead->company->get(CompanyConfigurationEnum::ALLOW_CALL_APPOINTMENTS->value) ?? true,
         ];

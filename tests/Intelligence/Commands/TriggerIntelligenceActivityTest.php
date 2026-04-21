@@ -123,7 +123,7 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testOffModeBlocksAiTakeover(): void
     {
         $lead = $this->createLead('Internet');
-        $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
         $lead->set($aiModeKey, IntelligenceModeEnum::IDLE->value);
 
         $result = new ApplyLeadAiModeAction($lead, TriggersEnum::AI_TAKEOVER->value)->execute();
@@ -135,7 +135,7 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testOffModeBlocksNewLeadTrigger(): void
     {
         $lead = $this->createLead('Internet');
-        $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
         $lead->set($aiModeKey, IntelligenceModeEnum::IDLE->value);
 
         $result = new ApplyLeadAiModeAction($lead, TriggersEnum::NEW_LEAD->value)->execute();
@@ -158,7 +158,7 @@ class TriggerIntelligenceActivityTest extends TestCase
 
         foreach ($nonManualTriggers as $trigger) {
             $lead = $this->createLead('Internet');
-            $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
+            $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
             $lead->set($aiModeKey, IntelligenceModeEnum::IDLE->value);
 
             $result = new ApplyLeadAiModeAction($lead, $trigger->value)->execute();
@@ -175,7 +175,7 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testManualFonCanOverrideOffMode(): void
     {
         $lead = $this->createLead('Internet');
-        $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
         $lead->set($aiModeKey, IntelligenceModeEnum::IDLE->value);
 
         new ApplyLeadAiModeAction($lead, TriggersEnum::MANUAL_FON->value)->execute();
@@ -186,7 +186,7 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testManualSupportCanOverrideOffMode(): void
     {
         $lead = $this->createLead('Internet');
-        $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
         $lead->set($aiModeKey, IntelligenceModeEnum::IDLE->value);
 
         new ApplyLeadAiModeAction($lead, TriggersEnum::MANUAL_SUPPORT->value)->execute();
@@ -197,7 +197,7 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testInternetLeadManualOffSetsAiModeKey(): void
     {
         $lead = $this->createLead('Internet');
-        $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
         $lead->set($aiModeKey, IntelligenceModeEnum::FULL_ON->value);
 
         new ApplyLeadAiModeAction($lead, TriggersEnum::MANUAL_OFF->value)->execute();
@@ -208,7 +208,7 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testInternetLeadFollowUpOnSetsFollowUpKey(): void
     {
         $lead = $this->createLead('Internet');
-        $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
+        $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
 
         new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_ON->value)->execute();
 
@@ -218,7 +218,7 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testInternetLeadFollowUpOffSetsFollowUpKey(): void
     {
         $lead = $this->createLead('Internet');
-        $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
+        $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
         $lead->set($followUpKey, FollowUpValueEnum::ON()->value);
 
         new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
@@ -229,7 +229,7 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testShowroomLeadManualOffSetsAiModeKey(): void
     {
         $lead = $this->createLead('Showroom');
-        $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
         $lead->set($aiModeKey, IntelligenceModeEnum::FULL_ON->value);
 
         new ApplyLeadAiModeAction($lead, TriggersEnum::MANUAL_OFF->value)->execute();
@@ -240,7 +240,7 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testShowroomLeadFollowUpOnSetsFollowUpKey(): void
     {
         $lead = $this->createLead('Showroom');
-        $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
+        $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
 
         new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_ON->value)->execute();
 
@@ -250,7 +250,7 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testShowroomLeadFollowUpOffSetsFollowUpKey(): void
     {
         $lead = $this->createLead('Showroom');
-        $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
+        $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
         $lead->set($followUpKey, FollowUpValueEnum::ON()->value);
 
         new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
@@ -261,7 +261,7 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testPhoneLeadManualOffSetsAiModeKey(): void
     {
         $lead = $this->createLead('Phone');
-        $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
         $lead->set($aiModeKey, IntelligenceModeEnum::FULL_ON->value);
 
         new ApplyLeadAiModeAction($lead, TriggersEnum::MANUAL_OFF->value)->execute();
@@ -272,7 +272,7 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testPhoneLeadFollowUpOnSetsFollowUpKey(): void
     {
         $lead = $this->createLead('Phone');
-        $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
+        $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
 
         new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_ON->value)->execute();
 
@@ -282,7 +282,7 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testPhoneLeadFollowUpOffSetsFollowUpKey(): void
     {
         $lead = $this->createLead('Phone');
-        $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
+        $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
         $lead->set($followUpKey, FollowUpValueEnum::ON()->value);
 
         new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_OFF->value)->execute();
@@ -296,7 +296,7 @@ class TriggerIntelligenceActivityTest extends TestCase
 
         foreach ($leadTypeNames as $typeName) {
             $lead = $this->createLead($typeName);
-            $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
+            $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
 
             new ApplyLeadAiModeAction($lead, TriggersEnum::FOLLOW_UP_ON->value)->execute();
 
@@ -321,7 +321,7 @@ class TriggerIntelligenceActivityTest extends TestCase
         Carbon::setTestNow(Carbon::today()->setHour(12));
 
         $lead = $this->createLead('Internet');
-        $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
         $lead->set($aiModeKey, IntelligenceModeEnum::IDLE->value);
         $this->createLockedFirstMessageForLead($lead);
 
@@ -353,8 +353,8 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testNewLeadInternetUsesLeadTypeAiModeDefault(): void
     {
         $lead = $this->createLead('Internet');
-        $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
-        $aiModeDefaultKey = LeadConfigurationService::getAiModeDefaultKey($lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
+        $aiModeDefaultKey = new LeadConfigurationService()->getAiModeDefaultKey($lead);
 
         $this->setLeadTypeConfig($lead, [$aiModeDefaultKey => IntelligenceModeEnum::FULL_ON->value]);
         $lead->company->set($aiModeKey, IntelligenceModeEnum::SUPPORT->value);
@@ -367,8 +367,8 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testNewLeadShowroomUsesLeadTypeAiModeDefault(): void
     {
         $lead = $this->createLead('Showroom');
-        $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
-        $aiModeDefaultKey = LeadConfigurationService::getAiModeDefaultKey($lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
+        $aiModeDefaultKey = new LeadConfigurationService()->getAiModeDefaultKey($lead);
 
         $this->setLeadTypeConfig($lead, [$aiModeDefaultKey => IntelligenceModeEnum::SUPPORT->value]);
         $lead->company->set($aiModeKey, IntelligenceModeEnum::FULL_ON->value);
@@ -381,8 +381,8 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testNewLeadPhoneUsesLeadTypeAiModeDefault(): void
     {
         $lead = $this->createLead('Phone');
-        $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
-        $aiModeDefaultKey = LeadConfigurationService::getAiModeDefaultKey($lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
+        $aiModeDefaultKey = new LeadConfigurationService()->getAiModeDefaultKey($lead);
 
         $this->setLeadTypeConfig($lead, [$aiModeDefaultKey => IntelligenceModeEnum::FULL_ON->value]);
         $lead->company->set($aiModeKey, IntelligenceModeEnum::SUPPORT->value);
@@ -395,9 +395,9 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testNewLeadInternetUsesLeadTypeFollowUpDefault(): void
     {
         $lead = $this->createLead('Internet');
-        $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
-        $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
-        $followUpDefaultKey = LeadConfigurationService::getFollowUpDefaultKey($lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
+        $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
+        $followUpDefaultKey = new LeadConfigurationService()->getFollowUpDefaultKey($lead);
 
         $this->setLeadTypeConfig($lead, [$followUpDefaultKey => FollowUpValueEnum::ON()->value]);
         $lead->company->set($aiModeKey, IntelligenceModeEnum::FULL_ON->value);
@@ -411,9 +411,9 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testNewLeadShowroomUsesLeadTypeFollowUpDefault(): void
     {
         $lead = $this->createLead('Showroom');
-        $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
-        $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
-        $followUpDefaultKey = LeadConfigurationService::getFollowUpDefaultKey($lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
+        $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
+        $followUpDefaultKey = new LeadConfigurationService()->getFollowUpDefaultKey($lead);
 
         $this->setLeadTypeConfig($lead, [$followUpDefaultKey => FollowUpValueEnum::ON()->value]);
         $lead->company->set($aiModeKey, IntelligenceModeEnum::FULL_ON->value);
@@ -427,9 +427,9 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testNewLeadPhoneUsesLeadTypeFollowUpDefault(): void
     {
         $lead = $this->createLead('Phone');
-        $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
-        $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
-        $followUpDefaultKey = LeadConfigurationService::getFollowUpDefaultKey($lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
+        $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
+        $followUpDefaultKey = new LeadConfigurationService()->getFollowUpDefaultKey($lead);
 
         $this->setLeadTypeConfig($lead, [$followUpDefaultKey => FollowUpValueEnum::ON()->value]);
         $lead->company->set($aiModeKey, IntelligenceModeEnum::FULL_ON->value);
@@ -443,8 +443,8 @@ class TriggerIntelligenceActivityTest extends TestCase
     public function testNewLeadFallsBackToCompanyConfigWhenLeadTypeConfigNotSet(): void
     {
         $lead = $this->createLead('Internet');
-        $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
-        $followUpKey = LeadConfigurationService::getFollowUpModeKey($lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
+        $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
 
         $lead->company->set($aiModeKey, IntelligenceModeEnum::SUPPORT->value);
         $lead->company->set($followUpKey, FollowUpValueEnum::ON()->value);
@@ -461,7 +461,7 @@ class TriggerIntelligenceActivityTest extends TestCase
 
         $app = app(Apps::class);
         $lead = $this->createLead('Internet');
-        $aiModeKey = LeadConfigurationService::getAiModeKey($lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($lead);
         $lead->set($aiModeKey, IntelligenceModeEnum::FULL_ON->value);
         $this->createLockedFirstMessageForLead($lead);
 

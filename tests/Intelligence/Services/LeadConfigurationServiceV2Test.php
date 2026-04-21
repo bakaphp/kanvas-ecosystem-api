@@ -17,7 +17,6 @@ class LeadConfigurationServiceV2Test extends TestCase
         parent::setUp();
         $app = app(Apps::class);
         $app->set('search_engine', 'database');
-        $app->set('intelligence_lead_type_mode_v2', true);
     }
 
     private function createLead(string $leadTypeName = ''): Lead
@@ -30,7 +29,6 @@ class LeadConfigurationServiceV2Test extends TestCase
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
             ->create();
-        $lead->app->set('intelligence_lead_type_mode_v2', true);
 
         if ($leadTypeName !== '') {
             $leadType = LeadType::firstOrCreate(
@@ -51,63 +49,63 @@ class LeadConfigurationServiceV2Test extends TestCase
 
     public function testIsV2EnabledReturnsTrueWhenFlagSet(): void
     {
-        $this->assertTrue(LeadConfigurationService::isV2Enabled(app(Apps::class)));
+        $this->assertTrue(new LeadConfigurationService(true)->isV2Enabled(app(Apps::class)));
     }
 
     public function testGetAiModeKeyReturnsShowroomKeyForShowroomLeadType(): void
     {
         $lead = $this->createLead('Showroom');
 
-        $this->assertEquals('showroom_ai_mode', LeadConfigurationService::getAiModeKey($lead));
+        $this->assertEquals('showroom_ai_mode', new LeadConfigurationService(true)->getAiModeKey($lead));
     }
 
     public function testGetAiModeKeyReturnsPhoneKeyForPhoneLeadType(): void
     {
         $lead = $this->createLead('Phone');
 
-        $this->assertEquals('phone_ai_mode', LeadConfigurationService::getAiModeKey($lead));
+        $this->assertEquals('phone_ai_mode', new LeadConfigurationService(true)->getAiModeKey($lead));
     }
 
     public function testGetAiModeKeyReturnsGenericKeyForInternetLeadType(): void
     {
         $lead = $this->createLead('Internet');
 
-        $this->assertEquals('ai_mode', LeadConfigurationService::getAiModeKey($lead));
+        $this->assertEquals('ai_mode', new LeadConfigurationService(true)->getAiModeKey($lead));
     }
 
     public function testGetFollowUpModeKeyReturnsInternetFollowUpKeyForInternetType(): void
     {
         $lead = $this->createLead('Internet');
 
-        $this->assertEquals('internet_follow_up_mode', LeadConfigurationService::getFollowUpModeKey($lead));
+        $this->assertEquals('internet_follow_up_mode', new LeadConfigurationService(true)->getFollowUpModeKey($lead));
     }
 
     public function testGetFollowUpModeKeyReturnsShowroomFollowUpKeyForShowroomType(): void
     {
         $lead = $this->createLead('Showroom');
 
-        $this->assertEquals('showroom_follow_up_mode', LeadConfigurationService::getFollowUpModeKey($lead));
+        $this->assertEquals('showroom_follow_up_mode', new LeadConfigurationService(true)->getFollowUpModeKey($lead));
     }
 
     public function testGetFollowUpModeKeyReturnsPhoneFollowUpKeyForPhoneType(): void
     {
         $lead = $this->createLead('Phone');
 
-        $this->assertEquals('phone_follow_up_mode', LeadConfigurationService::getFollowUpModeKey($lead));
+        $this->assertEquals('phone_follow_up_mode', new LeadConfigurationService(true)->getFollowUpModeKey($lead));
     }
 
     public function testGetAiModeDefaultKeyReturnsOpenKeyWhenOpen(): void
     {
         $lead = $this->createLead('Internet');
 
-        $this->assertEquals('internet_ai_mode_open_default', LeadConfigurationService::getAiModeDefaultKey($lead, true));
+        $this->assertEquals('internet_ai_mode_open_default', new LeadConfigurationService(true)->getAiModeDefaultKey($lead, true));
     }
 
     public function testGetAiModeDefaultKeyReturnsClosedKeyWhenClosed(): void
     {
         $lead = $this->createLead('Internet');
 
-        $this->assertEquals('internet_ai_mode_closed_default', LeadConfigurationService::getAiModeDefaultKey($lead, false));
+        $this->assertEquals('internet_ai_mode_closed_default', new LeadConfigurationService(true)->getAiModeDefaultKey($lead, false));
     }
 
     public function testGetAiModeDefaultKeyUsesCorrectPrefixPerType(): void
@@ -118,12 +116,14 @@ class LeadConfigurationServiceV2Test extends TestCase
             'Phone' => 'phone_ai_mode_open_default',
         ];
 
+        $service = new LeadConfigurationService(true);
+
         foreach ($cases as $typeName => $expectedKey) {
             $lead = $this->createLead($typeName);
 
             $this->assertEquals(
                 $expectedKey,
-                LeadConfigurationService::getAiModeDefaultKey($lead, true),
+                $service->getAiModeDefaultKey($lead, true),
                 "{$typeName} lead should use key {$expectedKey}"
             );
         }
@@ -133,7 +133,7 @@ class LeadConfigurationServiceV2Test extends TestCase
     {
         $lead = $this->createLead('Internet');
 
-        $this->assertEquals('internet_con_fu_active_default', LeadConfigurationService::getFollowUpDefaultKey($lead));
+        $this->assertEquals('internet_con_fu_active_default', new LeadConfigurationService(true)->getFollowUpDefaultKey($lead));
     }
 
     public function testGetFollowUpDefaultKeyUsesCorrectPrefixPerType(): void
@@ -144,12 +144,14 @@ class LeadConfigurationServiceV2Test extends TestCase
             'Phone' => 'phone_con_fu_active_default',
         ];
 
+        $service = new LeadConfigurationService(true);
+
         foreach ($cases as $typeName => $expectedKey) {
             $lead = $this->createLead($typeName);
 
             $this->assertEquals(
                 $expectedKey,
-                LeadConfigurationService::getFollowUpDefaultKey($lead),
+                $service->getFollowUpDefaultKey($lead),
                 "{$typeName} lead should use key {$expectedKey}"
             );
         }
@@ -163,12 +165,14 @@ class LeadConfigurationServiceV2Test extends TestCase
             'Phone' => 'phone_first_fu_active_default',
         ];
 
+        $service = new LeadConfigurationService(true);
+
         foreach ($cases as $typeName => $expectedKey) {
             $lead = $this->createLead($typeName);
 
             $this->assertEquals(
                 $expectedKey,
-                LeadConfigurationService::getFirstMessageDefaultKey($lead),
+                $service->getFirstMessageDefaultKey($lead),
                 "{$typeName} lead should use key {$expectedKey}"
             );
         }
