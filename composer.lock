@@ -382,6 +382,7 @@
         },
         {
             "name": "aws/aws-sdk-php",
+<<<<<<< HEAD
             "version": "3.379.3",
             "source": {
                 "type": "git",
@@ -392,6 +393,18 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/54a7dbb04489a8b330db64ec07c1f658c9262433",
                 "reference": "54a7dbb04489a8b330db64ec07c1f658c9262433",
+=======
+            "version": "3.379.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/aws/aws-sdk-php.git",
+                "reference": "45c385619d43e54ede8daca211960c345d3ff3b7"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/45c385619d43e54ede8daca211960c345d3ff3b7",
+                "reference": "45c385619d43e54ede8daca211960c345d3ff3b7",
+>>>>>>> 1.x
                 "shasum": ""
             },
             "require": {
@@ -473,9 +486,15 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
+<<<<<<< HEAD
                 "source": "https://github.com/aws/aws-sdk-php/tree/3.379.3"
             },
             "time": "2026-04-20T18:13:51+00:00"
+=======
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.379.2"
+            },
+            "time": "2026-04-17T18:05:27+00:00"
+>>>>>>> 1.x
         },
         {
             "name": "azuyalabs/yasumi",
@@ -16606,6 +16625,7 @@
         },
         {
             "name": "webonyx/graphql-php",
+<<<<<<< HEAD
             "version": "v15.32.0",
             "source": {
                 "type": "git",
@@ -16616,6 +16636,18 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/e7ff849803e471c93edf9396ccde549bf8002373",
                 "reference": "e7ff849803e471c93edf9396ccde549bf8002373",
+=======
+            "version": "v15.31.5",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/webonyx/graphql-php.git",
+                "reference": "089c4ef7e112df85788cfe06596278a8f99f4aa9"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/089c4ef7e112df85788cfe06596278a8f99f4aa9",
+                "reference": "089c4ef7e112df85788cfe06596278a8f99f4aa9",
+>>>>>>> 1.x
                 "shasum": ""
             },
             "require": {
@@ -16670,7 +16702,11 @@
             ],
             "support": {
                 "issues": "https://github.com/webonyx/graphql-php/issues",
+<<<<<<< HEAD
                 "source": "https://github.com/webonyx/graphql-php/tree/v15.32.0"
+=======
+                "source": "https://github.com/webonyx/graphql-php/tree/v15.31.5"
+>>>>>>> 1.x
             },
             "funding": [
                 {
@@ -16682,7 +16718,11 @@
                     "type": "open_collective"
                 }
             ],
+<<<<<<< HEAD
             "time": "2026-04-20T16:19:33+00:00"
+=======
+            "time": "2026-04-11T18:06:15+00:00"
+>>>>>>> 1.x
         },
         {
             "name": "yakovenko/laravel-lighthouse-graphql-multi-schema",
