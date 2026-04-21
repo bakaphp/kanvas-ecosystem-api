@@ -7,13 +7,17 @@ namespace Kanvas\Connectors\Recombee\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
+use Kanvas\Connectors\Recombee\Traits\HasChronologicalFeed;
 use Kanvas\Social\Messages\Models\Message;
 
 class GenerateRecommendCustomFeedAction
 {
+    use HasChronologicalFeed;
+
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company
@@ -26,8 +30,20 @@ class GenerateRecommendCustomFeedAction
         int $pageSize = 25,
         string $scenario = 'for-you-feed'
     ): LengthAwarePaginator {
+        $messageTypeId = $this->app->get('social-user-message-filter-message-type');
+        $totalRecords = $this->app->get('social-user-message-filter-total-records') ?? 500;
+
+        if ((bool) $this->app->get('social-user-message-filter-chronological-order')) {
+            return $this->chronologicalFeed(
+                $this->app,
+                $page,
+                $pageSize,
+                $totalRecords,
+                $messageTypeId
+            );
+        }
+
         $recommendationService = new RecombeeUserRecommendationService($this->app);
-        $recommIdName = $scenario . '-recomm-id';
 
         if ($page > 1) {
             $response = $recommendationService->getUserCustomScenarioRecommendation(
@@ -50,7 +66,6 @@ class GenerateRecommendCustomFeedAction
             ->filter()
             ->toArray();
 
-        $totalRecords = $this->app->get('social-user-message-filter-total-records') ?? 500;
         if (empty($entityIds)) {
             return new LengthAwarePaginator(
                 collect([]),
@@ -60,15 +75,15 @@ class GenerateRecommendCustomFeedAction
             );
         }
 
-        $messageTypeId = $this->app->get('social-user-message-filter-message-type');
+        $placeholders = implode(',', array_fill(0, count($entityIds), '?'));
         $builder = Message::fromApp($this->app)
             ->whereIn('id', $entityIds)
             ->where('is_public', 1)
             ->where('is_deleted', 0)
-            ->when($messageTypeId !== null, function ($query) use ($messageTypeId) {
+            ->when($messageTypeId !== null, function (Builder $query) use ($messageTypeId): Builder {
                 return $query->where('messages.message_types_id', $messageTypeId);
             })
-            ->orderByRaw('FIELD(id, ' . implode(',', $entityIds) . ')');
+            ->orderByRaw("FIELD(id, {$placeholders})", array_map('intval', $entityIds));
 
         return new LengthAwarePaginator(
             $builder->get(),
