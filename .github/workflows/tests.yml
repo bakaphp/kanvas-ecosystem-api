@@ -1,6 +1,6 @@
 name: CI
 
-on: ["push"]
+on: [ "push" ]
 
 jobs:
   run-tests:
@@ -177,16 +177,15 @@ jobs:
           MYSQL_DATABASE: kanvas
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+        options: --health-cmd="mysqladmin ping" --health-interval=10s
+          --health-timeout=5s --health-retries=3
       redis:
         # Docker Hub image
         image: redis
         # Set health checks to wait until redis has started
         options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout
+          5s --health-retries 5
         ports:
           - 6379:6379
       rabbitmq:
@@ -275,7 +274,9 @@ jobs:
         run: php artisan kanvas:setup-ecosystem
 
       - name: Setup Kanvas Integrations
-        run: php artisan kanvas:create-integration shopify --config='{"client_id":{"type":"text","required":true},"client_secret":{"type":"text","required":true},"shop_url":{"type":"text","required":true}}' --handler='Kanvas\Connectors\Shopify\Handlers\ShopifyHandler'
+        run: php artisan kanvas:create-integration shopify
+          --config='{"client_id":{"type":"text","required":true},"client_secret":{"type":"text","required":true},"shop_url":{"type":"text","required":true}}'
+          --handler='Kanvas\Connectors\Shopify\Handlers\ShopifyHandler'
 
       - name: Setup Kanvas Workflow Actions
         run: php artisan kanvas:workflow-sync-actions
@@ -286,6 +287,7 @@ jobs:
       - name: Run Tests
         if: success()
         run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=4
+          --no-test-tokens
 
       - name: Run Filesystem Tests (single process)
         if: success() && matrix.testsuite == 'GraphQL-Ecosystem'

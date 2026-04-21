@@ -16,6 +16,12 @@ use Tests\TestCase;
 
 class ApplyLeadAiModeV1ActionTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        app(Apps::class)->set('search_engine', 'database');
+    }
+
     private function createLead(string $leadTypeName = 'Internet'): Lead
     {
         $user = auth()->user();
@@ -125,7 +131,7 @@ class ApplyLeadAiModeV1ActionTest extends TestCase
     public function testNewLeadFallsBackToFullOnWhenNoCompanyConfig(): void
     {
         $lead = $this->createLead();
-        $lead->company->set(CompanyConfigurationEnum::AI_MODE->value, null);
+        $lead->company->del(CompanyConfigurationEnum::AI_MODE->value);
 
         new ApplyLeadAiModeV1Action($lead, TriggersEnum::NEW_LEAD->value)->execute();
 

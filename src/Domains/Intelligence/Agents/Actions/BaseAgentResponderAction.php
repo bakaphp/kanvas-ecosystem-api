@@ -41,18 +41,19 @@ class BaseAgentResponderAction
             throw new Exception('No lead found for AI agent');
         }
 
+        $configService = new LeadConfigurationService();
         $aiModeKey = $lead instanceof Lead
-            ? LeadConfigurationService::getAiModeKey($lead)
+            ? $configService->getAiModeKey($lead)
             : 'ai_mode';
 
-        if ($lead instanceof Lead && ! $lead->get(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value) && LeadConfigurationService::isV2Enabled($lead->app)) {
+        if ($lead instanceof Lead && ! $lead->get(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value) && $configService->isV2Enabled($lead->app)) {
             try {
                 $isOpen = $lead->company->isWithinWorkingHours(now());
             } catch (InvalidArgumentException) {
                 $isOpen = true;
             }
             $leadType = $lead->type()->first();
-            $defaultKey = LeadConfigurationService::getAiModeDefaultKey($lead, $isOpen);
+            $defaultKey = $configService->getAiModeDefaultKey($lead, $isOpen);
             $defaultMode = IntelligenceModeEnum::tryFrom((string) ($leadType?->config[$defaultKey] ?? ''));
             if ($defaultMode?->isOff()) {
                 throw new Exception('Ai Agent Off for this lead');

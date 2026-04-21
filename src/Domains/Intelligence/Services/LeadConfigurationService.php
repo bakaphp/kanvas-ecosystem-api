@@ -11,12 +11,21 @@ use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 
 class LeadConfigurationService
 {
-    public static function isV2Enabled(Apps $app): bool
-    {
-        return (bool) $app->get('intelligence_lead_type_mode_v2');
+    public function __construct(
+        private readonly bool $isV2 = false
+    ) {
     }
 
-    private static function getTypePrefix(?LeadType $leadType): string
+    public function isV2Enabled(Apps $app): bool
+    {
+        if ((bool) $app->get('intelligence_lead_type_mode_v2')) {
+            return true;
+        }
+
+        return $this->isV2;
+    }
+
+    private function getTypePrefix(?LeadType $leadType): string
     {
         $name = strtolower($leadType?->name ?? '');
 
@@ -31,7 +40,7 @@ class LeadConfigurationService
         return 'internet';
     }
 
-    private static function getStatusSuffix(Lead $lead): string
+    private function getStatusSuffix(Lead $lead): string
     {
         $statusName = strtolower($lead->status()->first()?->name ?? '');
 
@@ -46,13 +55,13 @@ class LeadConfigurationService
         return '';
     }
 
-    public static function getAiModeKey(Lead $lead): string
+    public function getAiModeKey(Lead $lead): string
     {
-        if (! self::isV2Enabled($lead->app)) {
+        if (! $this->isV2Enabled($lead->app)) {
             return 'ai_mode';
         }
 
-        $prefix = self::getTypePrefix($lead->type()->first());
+        $prefix = $this->getTypePrefix($lead->type()->first());
 
         return match ($prefix) {
             'showroom' => 'showroom_ai_mode',
@@ -61,14 +70,14 @@ class LeadConfigurationService
         };
     }
 
-    public static function getFollowUpModeKey(Lead $lead): string
+    public function getFollowUpModeKey(Lead $lead): string
     {
-        if (! self::isV2Enabled($lead->app)) {
+        if (! $this->isV2Enabled($lead->app)) {
             return IntelligenceModeEnum::AI_FOLLOW_UP->value;
         }
 
-        $prefix = self::getTypePrefix($lead->type()->first());
-        $statusSuffix = self::getStatusSuffix($lead);
+        $prefix = $this->getTypePrefix($lead->type()->first());
+        $statusSuffix = $this->getStatusSuffix($lead);
 
         if ($statusSuffix !== '') {
             return "{$prefix}_followup_{$statusSuffix}";
@@ -81,25 +90,25 @@ class LeadConfigurationService
         };
     }
 
-    public static function getFirstMessageDefaultKey(Lead $lead): string
+    public function getFirstMessageDefaultKey(Lead $lead): string
     {
-        $prefix = self::getTypePrefix($lead->type()->first());
+        $prefix = $this->getTypePrefix($lead->type()->first());
 
         return "{$prefix}_first_fu_active_default";
     }
 
-    public static function getAiModeDefaultKey(Lead $lead, bool $isOpen = true): string
+    public function getAiModeDefaultKey(Lead $lead, bool $isOpen = true): string
     {
-        $prefix = self::getTypePrefix($lead->type()->first());
+        $prefix = $this->getTypePrefix($lead->type()->first());
         $state = $isOpen ? 'open' : 'closed';
 
         return "{$prefix}_ai_mode_{$state}_default";
     }
 
-    public static function getFollowUpDefaultKey(Lead $lead): string
+    public function getFollowUpDefaultKey(Lead $lead): string
     {
-        $prefix = self::getTypePrefix($lead->type()->first());
-        $statusSuffix = self::getStatusSuffix($lead);
+        $prefix = $this->getTypePrefix($lead->type()->first());
+        $statusSuffix = $this->getStatusSuffix($lead);
 
         if ($statusSuffix === 'closed-not-sold') {
             return "{$prefix}_con_fu_cns_default";

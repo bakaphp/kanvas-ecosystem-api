@@ -31,12 +31,13 @@ class TriggerIntelligenceActivity extends KanvasActivity
                     return $this->failWorkflow(['error' => 'Invalid trigger type']);
                 }
 
-                $actionClass = LeadConfigurationService::isV2Enabled($app)
+                $configService = new LeadConfigurationService();
+                $actionClass = $configService->isV2Enabled($app)
                     ? ApplyLeadAiModeAction::class
                     : ApplyLeadAiModeV1Action::class;
                 $result = new $actionClass($lead, $triggerType)->execute();
 
-                $this->sendDataToOrchestration($lead, $lead->get(LeadConfigurationService::getAiModeKey($lead)));
+                $this->sendDataToOrchestration($lead, $lead->get($configService->getAiModeKey($lead)));
 
                 return array_merge(['Trigger IA executed'], $result);
             }
