@@ -33,6 +33,9 @@ final class SyncAllNetSuiteCustomerItemsListActionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('NetSuite integration tests are skipped in CI');
+        }
 
         $this->apps = app(Apps::class);
         $this->mainCompany = Companies::first();
