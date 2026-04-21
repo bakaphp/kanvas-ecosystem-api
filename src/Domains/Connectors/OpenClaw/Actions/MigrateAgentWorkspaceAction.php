@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\Enums\DeploymentStatusEnum;
+use Kanvas\Connectors\OpenClaw\Services\DockerComposeBuilder;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
@@ -122,22 +123,24 @@ class MigrateAgentWorkspaceAction
         $dirName = basename($sourceDir);
 
         $result = $client->exec(
-            'tar -czf ' . escapeshellarg($remoteArchive)
+            'sudo tar -czf ' . escapeshellarg($remoteArchive)
             . ' -C ' . escapeshellarg($parentDir)
             . ' ' . escapeshellarg($dirName) . ' 2>&1'
             . '; echo "EXIT_CODE:$?"',
-            60
+            300
         );
 
         if (str_contains($result, 'EXIT_CODE:1')) {
             throw new ValidationException('Failed to create workspace archive on source: ' . $result);
         }
 
-        if (! $client->downloadToFile($remoteArchive, $localTempFile)) {
-            throw new ValidationException('Failed to download workspace archive from source');
+        try {
+            if (! $client->downloadToFile($remoteArchive, $localTempFile)) {
+                throw new ValidationException('Failed to download workspace archive from source');
+            }
+        } finally {
+            $client->exec('rm -f ' . escapeshellarg($remoteArchive));
         }
-
-        $client->exec('rm -f ' . escapeshellarg($remoteArchive));
     }
 
     /**
@@ -188,19 +191,50 @@ class MigrateAgentWorkspaceAction
             . ' ' . escapeshellarg($extractRoot)
         );
         $client->exec(
-            'sudo chown -R 1000:1000 '
-            . escapeshellarg($extractRoot . '/.openclaw')
+            'sudo chown -R 1000:' . escapeshellarg($deployment->system_user)
+            . ' ' . escapeshellarg($extractRoot . '/.openclaw')
+        );
+        $client->exec(
+            'sudo chmod -R g+rwx ' . escapeshellarg($extractRoot . '/.openclaw')
         );
 
         $client->exec('rm -f ' . escapeshellarg($remoteArchive));
     }
 
     /**
-     * Start the Docker containers from the migrated docker-compose.yml without rebuilding.
+     * Ensure the shared image exists, rewrite the compose file with destination ports,
+     * stop any existing containers, then start fresh.
      */
     private function startContainers(SshClient $client, AgentDeployment $deployment): void
     {
         $openclawDir = $deployment->home_directory . '/.openclaw';
+        $agent = $deployment->agent;
+
+        // Build the shared image on the destination if it doesn't exist yet.
+        $imageName = DockerComposeBuilder::getSharedImageName($this->app);
+        $imageDir = DockerComposeBuilder::getSharedImageDir($this->app);
+        $exists = $client->exec('docker image inspect ' . escapeshellarg($imageName) . ' &>/dev/null && echo "EXISTS" || echo "MISSING"');
+        if (str_contains($exists, 'MISSING')) {
+            $buildResult = $client->exec(
+                'sudo docker build --no-cache -t ' . escapeshellarg($imageName) . ' ' . escapeshellarg($imageDir) . ' 2>&1; echo "EXIT_CODE:$?"',
+                900
+            );
+            if (! str_contains($buildResult, 'EXIT_CODE:0')) {
+                throw new ValidationException('Failed to build shared image on destination: ' . $buildResult);
+            }
+        }
+
+        // Rewrite docker-compose.yml with the destination machine's allocated ports.
+        $gatewayToken = $this->company->get(\Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum::GATEWAY_TOKEN->value) ?? bin2hex(random_bytes(32));
+        $composeContent = DockerComposeBuilder::buildDockerCompose($deployment, (string) $gatewayToken, $this->app, $agent);
+        $client->writeFileAsUser($openclawDir . '/docker-compose.yml', $composeContent, $deployment->system_user);
+
+        // Stop existing containers if any, then start fresh.
+        $client->exec(
+            'sudo -u ' . escapeshellarg($deployment->system_user)
+            . ' bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose down 2>&1 || true'),
+            60
+        );
 
         $result = $client->exec(
             'sudo -u ' . escapeshellarg($deployment->system_user)
