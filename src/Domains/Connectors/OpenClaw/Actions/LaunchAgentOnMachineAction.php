@@ -116,7 +116,10 @@ class LaunchAgentOnMachineAction
             return;
         }
 
-        $client->exec('sudo mkdir -p ' . escapeshellarg($imageDir));
+        $mkdirResult = $client->exec('sudo mkdir -p ' . escapeshellarg($imageDir) . ' 2>&1; echo "EXIT_CODE:$?"');
+        if (! str_contains($mkdirResult, 'EXIT_CODE:0')) {
+            throw new ValidationException('Failed to create shared image directory ' . $imageDir . ': ' . $mkdirResult);
+        }
 
         $client->writeFileAsUser(
             $imageDir . '/Dockerfile',
