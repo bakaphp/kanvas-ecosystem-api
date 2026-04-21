@@ -74,7 +74,7 @@ class DockerComposeBuilder
         $imageName = self::getSharedImageName($app);
 
         return str_replace(
-            ['{{CONTAINER_NAME}}', '{{OPENCLAW_DIR}}', '{{GATEWAY_PORT}}', '{{PROXY_PORT}}', '{{ENV_LINES}}', '{{IMAGE_NAME}}'],
+            ['{{CONTAINER_NAME}}', '{{OPENCLAW_DIR}}', '{{GATEWAY_PORT}}', '{{PROXY_PORT}}', '{{ENV_LINES}}', '{{IMAGE_NAME}}', '{{IMAGE_DIR}}'],
             [
                 $deployment->container_name,
                 $deployment->home_directory . '/.openclaw',
@@ -82,6 +82,7 @@ class DockerComposeBuilder
                 (string) $deployment->proxy_port,
                 $envLines,
                 $imageName,
+                self::getSharedImageDir($app),
             ],
             $template,
         );

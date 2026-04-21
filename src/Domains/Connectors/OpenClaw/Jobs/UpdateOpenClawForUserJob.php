@@ -64,7 +64,9 @@ class UpdateOpenClawForUserJob implements ShouldQueue
     private function runUpdate(SshClient $client, string $composeFile): void
     {
         $script = implode(' && ', [
-            'docker compose -f ' . escapeshellarg($composeFile) . ' pull --ignore-buildable 2>&1',
+            'docker pull alpine/socat 2>&1',
+            'docker pull ghcr.io/phioranex/openclaw-docker:latest 2>&1',
+            'sudo docker build --no-cache -t openclaw-kanvas:latest /opt/openclaw-image 2>&1',
             'docker compose -f ' . escapeshellarg($composeFile)
                 . ' build --no-cache 2>&1',
             'docker compose -f ' . escapeshellarg($composeFile)
