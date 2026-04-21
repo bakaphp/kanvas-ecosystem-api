@@ -95,6 +95,8 @@ class FollowUpEngagementActionV2Test extends TestCase
 
             $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
 
+            $lead->app->set('intelligence_lead_type_mode_v2', true);
+
             $leadType = LeadType::firstOrCreate([
                 'name' => 'Internet',
                 'companies_id' => $company->getId(),
