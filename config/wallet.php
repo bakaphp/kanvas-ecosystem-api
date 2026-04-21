@@ -29,7 +29,6 @@ use Bavix\Wallet\Internal\Service\MathService;
 use Bavix\Wallet\Internal\Service\StateService;
 use Bavix\Wallet\Internal\Service\StorageService;
 use Bavix\Wallet\Internal\Service\TranslatorService;
-use Bavix\Wallet\Internal\Service\UuidFactoryService;
 use Bavix\Wallet\Internal\Transform\TransactionDtoTransformer;
 use Bavix\Wallet\Internal\Transform\TransferDtoTransformer;
 use Bavix\Wallet\Models\Transaction;
@@ -58,6 +57,17 @@ use Kanvas\Souk\Wallet\Transfer as WalletTransfer;
 use Kanvas\Souk\Wallet\Wallet as WalletWallet;
 
 return [
+    /**
+     * Database connection the wallet tables live on.
+     *
+     * Read by Bavix\Wallet\Internal\Service\ConnectionService to wrap transactions
+     * on the same connection as the Souk wallet model overrides (Transaction, Transfer,
+     * Wallet, Purchase — all pinned to 'commerce').
+     */
+    'database' => [
+        'connection' => env('WALLET_DB_CONNECTION', 'commerce'),
+    ],
+
     /**
      * Arbitrary Precision Calculator.
      *
@@ -208,16 +218,6 @@ return [
          * @var string
          */
         'translator' => TranslatorService::class,
-
-        /**
-         * The service for generating UUIDs.
-         *
-         * @var string
-         *
-         * @deprecated use identifier.
-         * @see IdentifierFactoryService
-         */
-        'uuid' => UuidFactoryService::class,
 
         /**
          * The service for generating identifiers.
