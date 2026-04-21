@@ -66,7 +66,7 @@ class UpdateOpenClawForUserJob implements ShouldQueue
         $script = implode(' && ', [
             'docker pull alpine/socat 2>&1',
             'docker pull ghcr.io/phioranex/openclaw-docker:latest 2>&1',
-            'sudo docker build --no-cache -t openclaw-kanvas:latest /opt/openclaw-image 2>&1',
+            'docker build --no-cache -t openclaw-kanvas:latest /opt/openclaw-image 2>&1',
             'docker compose -f ' . escapeshellarg($composeFile)
                 . ' up -d --force-recreate 2>&1',
             'docker compose -f ' . escapeshellarg($composeFile)
