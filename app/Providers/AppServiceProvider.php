@@ -6,6 +6,8 @@ namespace App\Providers;
 
 use App\Macros\ScoutMacros;
 use Baka\Support\IPInfo;
+use Bavix\Wallet\Models\Purchase as WalletPurchase;
+use Bavix\Wallet\WalletConfigure;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -28,6 +30,12 @@ class AppServiceProvider extends ServiceProvider
     public function register()
     {
         //Sanctum::ignoreMigrations();
+        WalletConfigure::ignoreMigrations();
+
+        $this->app->extend(
+            WalletPurchase::class,
+            fn (WalletPurchase $purchase): WalletPurchase => $purchase->setConnection(config('wallet.database.connection'))
+        );
     }
 
     /**
