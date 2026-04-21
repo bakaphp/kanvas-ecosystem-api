@@ -188,8 +188,11 @@ class MigrateAgentWorkspaceAction
             . ' ' . escapeshellarg($extractRoot)
         );
         $client->exec(
-            'sudo chown -R 1000:1000 '
-            . escapeshellarg($extractRoot . '/.openclaw')
+            'sudo chown -R 1000:' . escapeshellarg($deployment->system_user)
+            . ' ' . escapeshellarg($extractRoot . '/.openclaw')
+        );
+        $client->exec(
+            'sudo chmod -R g+rwx ' . escapeshellarg($extractRoot . '/.openclaw')
         );
 
         $client->exec('rm -f ' . escapeshellarg($remoteArchive));
