@@ -30,9 +30,9 @@ class ValidateRoadsideAssistancePinAction
 
         $currentStatusSlug = $this->order->orderStatus?->slug;
 
-        if ($currentStatusSlug !== MovipassOrderStatusEnum::PROVIDER_ASSIGNED->value) {
+        if ($currentStatusSlug !== MovipassOrderStatusEnum::ON_SITE->slug()) {
             throw new ValidationException(
-                'PIN can only be validated when the order is in provider_assigned status, current status: ' . ($currentStatusSlug ?? 'unknown')
+                'PIN can only be validated when the order is in on_site status, current status: ' . ($currentStatusSlug ?? 'unknown')
             );
         }
 

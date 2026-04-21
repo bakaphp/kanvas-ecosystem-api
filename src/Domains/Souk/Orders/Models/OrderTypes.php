@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Orders\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\DynamicSearchableTrait;
+use Baka\Traits\SlugTrait;
 use Exception;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -25,6 +26,7 @@ class OrderTypes extends BaseModel
 {
     use DefaultTrait;
     use DynamicSearchableTrait;
+    use SlugTrait;
 
     protected $table = 'order_types';
     protected $guarded = [];

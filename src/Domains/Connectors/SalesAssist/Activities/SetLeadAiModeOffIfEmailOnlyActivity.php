@@ -38,13 +38,13 @@ class SetLeadAiModeOffIfEmailOnlyActivity extends KanvasActivity
                 $hasCellPhone = $people->getCellPhones()->isNotEmpty();
 
                 if ($hasEmail && ! $hasPhone && ! $hasCellPhone) {
-                    $lead->set(ConfigurationEnum::AI_MODE->value, IntelligenceModeEnum::OFF->value);
+                    $lead->set(ConfigurationEnum::AI_MODE->value, IntelligenceModeEnum::IDLE->value);
 
                     return [
                         'success' => true,
-                        'message' => 'Lead AI mode set to OFF (email only contact)',
+                        'message' => 'Lead AI mode set to IDLE (email only contact)',
                         'lead_id' => $lead->getId(),
-                        'ai_mode' => IntelligenceModeEnum::OFF->value,
+                        'ai_mode' => IntelligenceModeEnum::IDLE->value,
                     ];
                 }
 

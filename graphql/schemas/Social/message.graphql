@@ -556,4 +556,21 @@ extend type Query @guard {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@viewMessageHistory"
         )
+
+    messageAnalytics(
+        from: Date
+        to: Date
+        bucket: AnalyticsBucket = DAY
+        timezone: String
+        message_type_id: ID
+    ): MessageAnalytics!
+        @field(
+            resolver: "App\\GraphQL\\Analytics\\Queries\\MessageAnalyticsQuery"
+        )
+}
+
+type MessageAnalytics {
+    periods: [AnalyticsPoint!]!
+    total: Int!
+    by_type: [AnalyticsCategoryPoint!]!
 }

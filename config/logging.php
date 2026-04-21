@@ -49,7 +49,7 @@ return [
     'channels' => [
         'stack' => [
             'driver' => 'stack',
-            'channels' => ['single'],
+            'channels' => ['single', 'sentry_logs'],
             'ignore_exceptions' => false,
         ],
 
@@ -78,6 +78,11 @@ return [
             'driver' => 'sentry',
             'level' => null,
             'bubble' => true,
+        ],
+
+        'sentry_logs' => [
+            'driver' => 'sentry_logs',
+            'level' => env('SENTRY_LOGS_LEVEL', 'warning'),
         ],
 
         'papertrail' => [

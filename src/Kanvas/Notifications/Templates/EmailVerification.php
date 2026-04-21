@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Templates;
 
-use Kanvas\Auth\Services\EmailVerificationService;
+use Kanvas\Auth\Services\EmailVerification as EmailVerificationService;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Notifications\Notification;
 use Kanvas\Templates\Enums\EmailTemplateEnum;

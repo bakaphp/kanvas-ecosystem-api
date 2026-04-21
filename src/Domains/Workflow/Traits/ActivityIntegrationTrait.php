@@ -18,6 +18,7 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\AddEntityIntegrationHistoryAction;
 use Kanvas\Workflow\Integrations\DataTransferObject\EntityIntegrationHistory;
+use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory as ModelsEntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\Rules\Models\Rule;
@@ -26,6 +27,7 @@ use Throwable;
 trait ActivityIntegrationTrait
 {
     protected ?StatusEnum $workflowStatus = null;
+    protected ?ModelsEntityIntegrationHistory $lastIntegrationHistory = null;
 
     public function setWorkflowStatus(StatusEnum $status): void
     {
@@ -67,7 +69,7 @@ trait ActivityIntegrationTrait
         mixed $historyResponse = null,
         ?Throwable $exception = null,
         ?Rule $rule = null
-    ): void {
+    ): ModelsEntityIntegrationHistory {
         $dto = new EntityIntegrationHistory(
             app: $app,
             integrationCompany: $integrationCompany,
@@ -79,11 +81,13 @@ trait ActivityIntegrationTrait
             rule: $rule
         );
 
-        (new AddEntityIntegrationHistoryAction(
+        $this->lastIntegrationHistory = new AddEntityIntegrationHistoryAction(
             dto: $dto,
             app: $app,
             status: $status
-        ))->execute();
+        )->execute();
+
+        return $this->lastIntegrationHistory;
     }
 
     public function executeIntegration(

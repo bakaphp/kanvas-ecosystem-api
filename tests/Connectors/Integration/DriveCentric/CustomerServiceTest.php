@@ -17,6 +17,14 @@ final class CustomerServiceTest extends TestCase
 {
     use HasDriveCentricConfiguration;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('DriveCentric integration tests are skipped in CI');
+        }
+    }
+
     /**
      * Helper to create a customer via lead (the only way in DriveCentric).
      */

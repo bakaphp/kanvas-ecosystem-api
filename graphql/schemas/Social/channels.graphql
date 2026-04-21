@@ -95,7 +95,7 @@ extend type Query {
         )
 }
 
-extend type Mutation {
+extend type Mutation @guard {
     createSocialChannel(input: SocialChannelInput!): SocialChannel
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@createChannel"
@@ -115,5 +115,12 @@ extend type Mutation {
     detachUserToSocialChannel(channel_id: ID!, user_id: ID!): SocialChannel
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@detachUserToChannel"
+        )
+}
+
+extend type Mutation @guardByAdmin {
+    clearSocialChannelMessages(channel_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@clearMessages"
         )
 }

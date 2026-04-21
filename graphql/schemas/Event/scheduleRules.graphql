@@ -52,7 +52,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\ScheduleRules\\ScheduleRulesManagementMutation@create"
         )
-    updateScheduleRules(id: ID!, input: ScheduleRulesUpdateInput!): ScheduleRules!
+    updateScheduleRules(
+        id: ID!
+        input: ScheduleRulesUpdateInput!
+    ): ScheduleRules!
         @field(
             resolver: "App\\GraphQL\\Event\\Mutations\\ScheduleRules\\ScheduleRulesManagementMutation@update"
         )
@@ -69,6 +72,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "uuid"
                     "companies_id"
                     "resources_id"
                     "start_at"
@@ -83,7 +87,8 @@ extend type Query @guard {
                 columns: ["resources_type"]
                 handler: "App\\GraphQL\\Event\\Handlers\\ResourceTypeHandler"
             )
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "start_at"])
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "start_at"])
     ): [ScheduleRules!]!
         @paginate(
             scopes: ["fromApp", "fromCompany", "notDeleted"]

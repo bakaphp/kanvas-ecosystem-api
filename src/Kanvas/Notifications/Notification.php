@@ -11,18 +11,16 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Mail\Mailable;
-use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\Notification as LaravelNotification;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Interfaces\EmailInterfaces;
 use Kanvas\Notifications\Models\NotificationTypes;
+use Kanvas\Notifications\Traits\NotificationChannelResolutionTrait;
 use Kanvas\Notifications\Traits\NotificationExpoTrait;
+use Kanvas\Notifications\Traits\NotificationMailTrait;
 use Kanvas\Notifications\Traits\NotificationOneSignalTrait;
 use Kanvas\Notifications\Traits\NotificationRenderTrait;
 use Kanvas\Notifications\Traits\NotificationSmsTrait;
@@ -35,8 +33,10 @@ use Override;
 class Notification extends LaravelNotification implements EmailInterfaces, ShouldQueue
 {
     use Queueable;
+    use NotificationChannelResolutionTrait;
     use NotificationStorageTrait;
     use NotificationRenderTrait;
+    use NotificationMailTrait;
     use NotificationOneSignalTrait;
     use NotificationExpoTrait;
     use NotificationSmsTrait;
@@ -51,10 +51,10 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     protected ?CompanyInterface $company = null;
     public ?array $pathAttachment = null;
 
-    public array $channels = ['mail'];
-
-    public function __construct(Model|NotificationTypes $entity, array $options = [])
-    {
+    public function __construct(
+        Model|NotificationTypes $entity,
+        array $options = []
+    ) {
         $this->onQueue('notifications');
         $this->entity = $entity;
         $this->app = $this->resolveApp($entity, $options);
@@ -75,13 +75,13 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         return $this;
     }
 
-    public function channels(): array
-    {
-        return $this->channels;
-    }
-
     /**
-     * @return array<array-key, mixed>
+     * Determine which channels the notification should be delivered on.
+     *
+     * Resolves slug-based channels (e.g. 'sms', 'push') to their class implementations,
+     * then filters out any channels the user has disabled in their notification settings.
+     *
+     * @return array<array-key, mixed> Resolved channel class names (e.g. TwilioSmsChannel::class)
      */
     public function via(object $notifiable): array
     {
@@ -96,26 +96,11 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         return $channels;
     }
 
-    public function toMail($notifiable): Mailable
-    {
-        $smtpConfig = new SmtpRuntimeConfiguration($this->app, $this->company);
-        $mailConfig = $smtpConfig->loadSmtpSettings();
-        $fromMail = $smtpConfig->getFromEmail();
-
-        $toEmail = $this->resolveRecipientEmail($notifiable);
-
-        $mailMessage = (new KanvasMailable($mailConfig, $this->getEmailContent()))
-            ->from($fromMail['address'], $fromMail['name'])
-            ->to($toEmail)
-            ->subject($this->subject ?? $this->getNotificationTitle() ?? $this->app->name . ' Notification');
-
-        if ($this->pathAttachment) {
-            $mailMessage->attachMany($this->pathAttachment);
-        }
-
-        return $mailMessage;
-    }
-
+    /**
+     * Set or create the NotificationType record for this notification.
+     * This controls per-user notification settings (enable/disable per channel)
+     * and is used by filterEnabledChannels() to respect user preferences.
+     */
     public function setType(string $type): void
     {
         $this->type = NotificationTypes::firstOrCreate([
@@ -164,6 +149,19 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         return Users::getById($defaultUserId);
     }
 
+    /**
+     * Link this notification to a social interaction (e.g. 'follow', 'new_message').
+     * Used by NotificationStorageTrait to store the interaction reference in the DB.
+     * Silently ignores unknown interaction names.
+     */
+    public function setInteraction(string $name): void
+    {
+        try {
+            $this->interaction = Interactions::getByName($name, $this->app);
+        } catch (ModelNotFoundException $e) {
+        }
+    }
+
     private function resolveApp(Model $entity, array $options): AppInterface
     {
         return $entity->app
@@ -187,66 +185,12 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         $this->subject = $options['subject'] ?? null;
     }
 
-    private function getNotificationChannels(): array
-    {
-        //$notificationTypeChannels = $this->type instanceof NotificationTypes ? $this->type->getChannelsInNotificationFormat() : [];
-
-        //disable the notification type channels for now, as we are not using them
-        //return ! empty($notificationTypeChannels) ? $notificationTypeChannels : $this->channels();
-        //return $this->channels();
-        return array_map(
-            fn ($via) => NotificationChannelEnum::getNotificationChannelBySlug($via),
-            $this->channels()
-        );
-    }
-
-    private function shouldFilterChannelsByUserSettings(object $notifiable): bool
-    {
-        return ! empty($this->getNotificationChannels())
-            && $this->type instanceof NotificationTypes
-            && $notifiable instanceof UserInterface;
-    }
-
-    private function filterEnabledChannels(array $channels, UserInterface $notifiable): array
-    {
-        $enabledChannels = array_filter($channels, function ($channel) use ($notifiable) {
-            return $notifiable->isNotificationSettingEnable(
-                $this->type,
-                $this->app,
-                NotificationChannelEnum::getChannelIdByClassReference($channel)
-            );
-        });
-
-        return array_values($enabledChannels);
-    }
-
     private function setNotifiableData(object $notifiable): void
     {
         $this->data['user'] = $notifiable;
 
         if ($notifiable instanceof UserInterface && $notifiable->getId() > 0) {
             $this->toUser = $notifiable;
-        }
-    }
-
-    private function resolveRecipientEmail($notifiable): array|string
-    {
-        $primaryEmail = $notifiable instanceof AnonymousNotifiable
-            ? $notifiable->routes['mail']
-            : $notifiable->email;
-
-        if (method_exists($notifiable, 'getAlternativeEmail') && $notifiable->getAlternativeEmail()) {
-            return [$primaryEmail, $notifiable->getAlternativeEmail()];
-        }
-
-        return $primaryEmail;
-    }
-
-    public function setInteraction(string $name): void
-    {
-        try {
-            $this->interaction = Interactions::getByName($name, $this->app);
-        } catch (ModelNotFoundException $e) {
         }
     }
 }

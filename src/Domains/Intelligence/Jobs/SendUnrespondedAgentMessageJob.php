@@ -21,13 +21,14 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
-use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 
 class SendUnrespondedAgentMessageJob implements ShouldQueue
 {
@@ -60,18 +61,11 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
 
         $lead = $this->message->entity();
 
-        // if (! UnrespondedLeadAgentMessageCache::exists($lead, $this->channel)) {
-        //     return;
-        // }
-
-        $aiMode = $lead->get('ai_mode');
+        $aiModeKey = $lead instanceof Lead ? new LeadConfigurationService()->getAiModeKey($lead) : 'ai_mode';
+        $aiMode = $lead->get($aiModeKey);
         if ($aiMode !== IntelligenceModeEnum::SUPPORT->value) {
-            UnrespondedLeadAgentMessageCache::clear($lead, $this->channel);
-
             return;
         }
-
-        UnrespondedLeadAgentMessageCache::clear($lead, $this->channel);
 
         try {
             $action = new $this->actionClass(
@@ -81,7 +75,8 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
                 $this->session
             );
 
-            $action->execute($this->params);
+            $actionResult = $action->execute($this->params);
+            $this->updateIntegrationHistoryResult($actionResult);
             $entity = $this->message->entity();
             if ($entity instanceof Lead) {
                 $entity->fireWorkflow(
@@ -125,5 +120,24 @@ class SendUnrespondedAgentMessageJob implements ShouldQueue
         } catch (Exception $e) {
             throw $e;
         }
+    }
+
+    private function updateIntegrationHistoryResult(array $actionResult): void
+    {
+        $history = EntityIntegrationHistory::where('entity_namespace', Channel::class)
+            ->where('entity_id', $this->channel->getId())
+            ->where('apps_id', $this->app->getId())
+            ->latest()
+            ->first();
+
+        if ($history === null) {
+            return;
+        }
+
+        $history->response = array_merge(
+            is_array($history->response) ? $history->response : [],
+            ['delayed_action_result' => $actionResult]
+        );
+        $history->saveOrFail();
     }
 }

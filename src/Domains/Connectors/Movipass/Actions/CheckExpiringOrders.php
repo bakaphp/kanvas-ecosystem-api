@@ -6,7 +6,6 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Support\Collection;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Movipass\Notifications\ExpiringReservationPushNotification;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Souk\Orders\Models\Order;
 
 class CheckExpiringOrders
@@ -46,10 +45,7 @@ class CheckExpiringOrders
 
     public function notify(Collection $orders, array $via = ['database']): void
     {
-        $endViaList = array_map(
-            [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-            $via
-        );
+        $endViaList = $via;
 
         $completeOrders = Order::whereIn('id', $orders->pluck('id'))->get();
 

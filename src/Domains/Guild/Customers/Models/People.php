@@ -9,6 +9,7 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
@@ -116,6 +117,11 @@ class People extends BaseModel
             'peoples_id',
             'id'
         )->orderBy('created_at', 'desc');
+    }
+
+    public function peopleType(): BelongsTo
+    {
+        return $this->belongsTo(PeopleType::class, 'people_types_id');
     }
 
     public function emails(): HasMany
