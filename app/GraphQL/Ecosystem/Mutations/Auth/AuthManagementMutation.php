@@ -40,9 +40,6 @@ class AuthManagementMutation
     use TokenTrait;
     use AuthTrait;
 
-    /**
-     * @throws \Exception
-     */
     public function loginMutation(
         mixed $rootValue,
         array $request,
