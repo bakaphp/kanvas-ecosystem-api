@@ -111,7 +111,7 @@ class CreateContentSessionAction
                 'company_language' => $lead->company->get('lang', 'en'),
                 'is_service_lead' => $lead->get('is_service_lead') ?? 0,
                 'guild_first_message' => $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? null,
-                'ai_mode' => $lead->get(LeadConfigurationService::getAiModeKey($lead)),
+                'ai_mode' => $lead->get(new LeadConfigurationService()->getAiModeKey($lead)),
                 'follow_up_mode' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
                 'allow_call_appointments' => $lead->company->get(EnumsConfigurationEnum::ALLOW_CALL_APPOINTMENTS->value) ?? true,
                 'work_hours' => $lead->company->get('work_hours'),
