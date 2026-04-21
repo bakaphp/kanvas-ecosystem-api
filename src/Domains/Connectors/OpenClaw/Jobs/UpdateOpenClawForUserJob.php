@@ -68,8 +68,6 @@ class UpdateOpenClawForUserJob implements ShouldQueue
             'docker pull ghcr.io/phioranex/openclaw-docker:latest 2>&1',
             'sudo docker build --no-cache -t openclaw-kanvas:latest /opt/openclaw-image 2>&1',
             'docker compose -f ' . escapeshellarg($composeFile)
-                . ' build --no-cache 2>&1',
-            'docker compose -f ' . escapeshellarg($composeFile)
                 . ' up -d --force-recreate 2>&1',
             'docker compose -f ' . escapeshellarg($composeFile)
                 . ' --profile cli run --rm openclaw-cli skills install maximeprades/auto-updater 2>&1',
