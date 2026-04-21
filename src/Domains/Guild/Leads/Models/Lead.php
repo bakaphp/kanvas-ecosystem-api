@@ -515,7 +515,6 @@ class Lead extends BaseModel implements EventResourceInterface
                     'name' => 'organization_id',
                     'type' => 'int64',
                     'facet' => true,
-                    'optional' => true,
                 ],
                 [
                     'name' => 'leads_types_id',

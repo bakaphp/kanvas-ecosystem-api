@@ -287,8 +287,6 @@ jobs:
       - name: Run Tests
         if: success()
         run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=4
-          --no-test-tokens
-
       - name: Run Filesystem Tests (single process)
         if: success() && matrix.testsuite == 'GraphQL-Ecosystem'
         run: vendor/bin/phpunit tests/GraphQL/Ecosystem/FilesystemTest.php
