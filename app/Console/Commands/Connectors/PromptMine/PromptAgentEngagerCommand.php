@@ -155,7 +155,7 @@ class PromptAgentEngagerCommand extends Command
                     $response = agent()->prompt(
                         $prompt,
                         provider: Lab::Gemini,
-                        model: 'gemini-2.0-flash',
+                        model: 'gemini-2.5-flash',
                     );
                 } catch (AiException $e) {
                     $this->error('AI exception for message ID ' . $messageId . ': ' . $e->getMessage());

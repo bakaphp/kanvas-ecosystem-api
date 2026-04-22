@@ -22,7 +22,7 @@ use function Laravel\Ai\agent;
 
 class GeminiDriver implements PlateExtractorDriverInterface
 {
-    private const string DEFAULT_MODEL = 'gemini-2.0-flash';
+    private const string DEFAULT_MODEL = 'gemini-2.5-flash';
 
     public function __construct(
         protected AppInterface $app,
