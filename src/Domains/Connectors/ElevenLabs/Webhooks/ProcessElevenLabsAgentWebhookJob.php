@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\ElevenLabs\Webhooks;
 
 use Baka\Support\Str;
+use Kanvas\ActionEngine\Engagements\Traits\GeneratesChecklistEngagementUrls;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
@@ -14,6 +15,8 @@ use Override;
 
 class ProcessElevenLabsAgentWebhookJob extends ProcessElevenLabsWebhookJob
 {
+    use GeneratesChecklistEngagementUrls;
+
     #[Override]
     public function execute(): array
     {
@@ -70,6 +73,7 @@ class ProcessElevenLabsAgentWebhookJob extends ProcessElevenLabsWebhookJob
 
         $opportunityType = $this->resolveOpportunityType($lead);
         $opportunityDetails = $this->buildOpportunityDetails($lead, $opportunityType);
+        $checkList = $this->generateChecklistEngagementUrls($lead);
 
         return [
             'contact_exists' => true,
@@ -91,6 +95,7 @@ class ProcessElevenLabsAgentWebhookJob extends ProcessElevenLabsWebhookJob
                 'ai_mode' => $lead->get(ConfigurationEnum::AI_MODE->value),
                 'owner' => $lead->owner ? trim((string) $lead->owner->firstname . ' ' . (string) $lead->owner->lastname) : null,
             ],
+            'checklist' => $checkList,
             'voice_context' => [],
             'session' => [],
         ];
