@@ -11,6 +11,7 @@ use Kanvas\Social\Follows\Repositories\UsersFollowsRepository;
 use Kanvas\Social\Tags\Actions\CreateTagAction;
 use Kanvas\Social\Tags\DataTransferObjects\Tag as TagData;
 use Kanvas\Social\Tags\Models\Tag;
+use Kanvas\Social\Tags\Models\TagEntity;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -95,6 +96,32 @@ class TagsManagement
             'users_id' => $user->getId(),
             'taggable_type' => $systemModule->model_name,
         ]);
+
+        return true;
+    }
+
+    public function detachTagFromEntity(mixed $root, array $request): bool
+    {
+        $app = app(Apps::class);
+        $tag = Tag::getById($request['input']['tag_id'], $app);
+        $user = auth()->user();
+
+        $systemModule = SystemModules::getByUuid($request['input']['system_module_uuid'], $app);
+
+        $entity = SystemModulesRepository::getEntityFromInput(
+            new SystemModuleEntityInput(
+                $systemModule->name,
+                $systemModule->uuid,
+                $request['input']['entity_id']
+            ),
+            $user,
+            useCompanyReference: false
+        );
+
+        TagEntity::where('tags_id', $tag->getId())
+            ->where('entity_id', $entity->getId())
+            ->where('taggable_type', $systemModule->model_name)
+            ->delete();
 
         return true;
     }

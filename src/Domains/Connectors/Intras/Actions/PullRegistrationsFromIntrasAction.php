@@ -33,11 +33,20 @@ class PullRegistrationsFromIntrasAction
     {
         $client = new Client($this->app);
 
-        $query = $client->table('events_versions_participants')
-            ->where('is_deleted', 0);
+        // events_versions_participants has no agencies_id — join to events_versions
+        // (which does) so we never pull rows that belong to other agencies. Without
+        // this, a single-agency smoke test scans the full ~135k-row table.
+        $query = $client->table('events_versions_participants as evp')
+            ->where('evp.is_deleted', 0)
+            ->select('evp.*');
+
+        if ($this->agencyId !== null) {
+            $query->join('events_versions as ev', 'ev.id', '=', 'evp.events_versions_id')
+                ->where('ev.agencies_id', $this->agencyId);
+        }
 
         if ($this->lastSyncAt !== null) {
-            $query->where('updated_at', '>=', $this->lastSyncAt);
+            $query->where('evp.updated_at', '>=', $this->lastSyncAt);
         }
 
         $defaultThemeArea = ThemeArea::where('apps_id', $this->app->getId())
@@ -46,7 +55,7 @@ class PullRegistrationsFromIntrasAction
 
         $count = 0;
 
-        $query->orderBy('id')->chunk(500, function ($rows) use (&$count, $defaultThemeArea) {
+        $query->orderBy('evp.id')->chunk(500, function ($rows) use (&$count, $defaultThemeArea) {
             foreach ($rows as $row) {
                 $eventVersion = $this->findEventVersionByIntrasId($row->events_versions_id);
                 $people = $this->findPeopleByIntrasParticipantId($row->participants_id);
