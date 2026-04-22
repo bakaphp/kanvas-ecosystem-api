@@ -382,16 +382,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.379.3",
+            "version": "3.379.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "54a7dbb04489a8b330db64ec07c1f658c9262433"
+                "reference": "606d812d3e9289147e2c801d51b916c45c92de39"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/54a7dbb04489a8b330db64ec07c1f658c9262433",
-                "reference": "54a7dbb04489a8b330db64ec07c1f658c9262433",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/606d812d3e9289147e2c801d51b916c45c92de39",
+                "reference": "606d812d3e9289147e2c801d51b916c45c92de39",
                 "shasum": ""
             },
             "require": {
@@ -473,9 +473,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.379.3"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.379.4"
             },
-            "time": "2026-04-20T18:13:51+00:00"
+            "time": "2026-04-21T20:01:34+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -9748,16 +9748,16 @@
         },
         {
             "name": "quickbooks/v3-php-sdk",
-            "version": "v6.2.2",
+            "version": "v6.2.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/intuit/QuickBooks-V3-PHP-SDK.git",
-                "reference": "a0f4a4bcfc777eaf562f13faa41af02ed0a77f8a"
+                "reference": "98223c9f9b9d2fdce6b42794d781944dab9f6379"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/intuit/QuickBooks-V3-PHP-SDK/zipball/a0f4a4bcfc777eaf562f13faa41af02ed0a77f8a",
-                "reference": "a0f4a4bcfc777eaf562f13faa41af02ed0a77f8a",
+                "url": "https://api.github.com/repos/intuit/QuickBooks-V3-PHP-SDK/zipball/98223c9f9b9d2fdce6b42794d781944dab9f6379",
+                "reference": "98223c9f9b9d2fdce6b42794d781944dab9f6379",
                 "shasum": ""
             },
             "require": {
@@ -9802,9 +9802,9 @@
             ],
             "support": {
                 "issues": "https://github.com/intuit/QuickBooks-V3-PHP-SDK/issues",
-                "source": "https://github.com/intuit/QuickBooks-V3-PHP-SDK/tree/v6.2.2"
+                "source": "https://github.com/intuit/QuickBooks-V3-PHP-SDK/tree/v6.2.3"
             },
-            "time": "2025-11-07T07:02:58+00:00"
+            "time": "2026-04-22T11:18:43+00:00"
         },
         {
             "name": "ralouphie/getallheaders",
@@ -17214,16 +17214,16 @@
         },
         {
             "name": "laravel/boost",
-            "version": "v2.4.4",
+            "version": "v2.4.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/boost.git",
-                "reference": "db101b977897e00c6d2e40e9b610591cb0aa277e"
+                "reference": "60386c7723ff7cb388b62b6c137597244a9cf2f2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/boost/zipball/db101b977897e00c6d2e40e9b610591cb0aa277e",
-                "reference": "db101b977897e00c6d2e40e9b610591cb0aa277e",
+                "url": "https://api.github.com/repos/laravel/boost/zipball/60386c7723ff7cb388b62b6c137597244a9cf2f2",
+                "reference": "60386c7723ff7cb388b62b6c137597244a9cf2f2",
                 "shasum": ""
             },
             "require": {
@@ -17232,7 +17232,7 @@
                 "illuminate/contracts": "^11.45.3|^12.41.1|^13.0",
                 "illuminate/routing": "^11.45.3|^12.41.1|^13.0",
                 "illuminate/support": "^11.45.3|^12.41.1|^13.0",
-                "laravel/mcp": "^0.5.1|^0.6.0",
+                "laravel/mcp": "^0.5.1|^0.6.0|^0.7.0",
                 "laravel/prompts": "^0.3.10",
                 "laravel/roster": "^0.5.0",
                 "php": "^8.2"
@@ -17276,20 +17276,20 @@
                 "issues": "https://github.com/laravel/boost/issues",
                 "source": "https://github.com/laravel/boost"
             },
-            "time": "2026-04-16T16:53:05+00:00"
+            "time": "2026-04-22T13:29:20+00:00"
         },
         {
             "name": "laravel/mcp",
-            "version": "v0.6.7",
+            "version": "v0.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/mcp.git",
-                "reference": "c3775e57b95d7eadb580d543689d9971ec8721f2"
+                "reference": "3513b4feca5f1678be4d2261dcfa8e456436d02a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/mcp/zipball/c3775e57b95d7eadb580d543689d9971ec8721f2",
-                "reference": "c3775e57b95d7eadb580d543689d9971ec8721f2",
+                "url": "https://api.github.com/repos/laravel/mcp/zipball/3513b4feca5f1678be4d2261dcfa8e456436d02a",
+                "reference": "3513b4feca5f1678be4d2261dcfa8e456436d02a",
                 "shasum": ""
             },
             "require": {
@@ -17349,7 +17349,7 @@
                 "issues": "https://github.com/laravel/mcp/issues",
                 "source": "https://github.com/laravel/mcp"
             },
-            "time": "2026-04-15T08:30:42+00:00"
+            "time": "2026-04-21T10:23:03+00:00"
         },
         {
             "name": "laravel/roster",

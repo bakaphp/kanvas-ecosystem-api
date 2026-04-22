@@ -32,11 +32,7 @@ use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Prism\Prism\Enums\FinishReason;
-use Prism\Prism\Facades\Prism;
-use Prism\Prism\Testing\StructuredResponseFake;
-use Prism\Prism\ValueObjects\Meta;
-use Prism\Prism\ValueObjects\Usage;
+use Laravel\Ai\StructuredAnonymousAgent;
 use Tests\TestCase;
 
 class FollowUpEngagementActionV2Test extends TestCase
@@ -309,14 +305,7 @@ class FollowUpEngagementActionV2Test extends TestCase
                 'should_respond' => true,
             ];
 
-            $fakeResponse = StructuredResponseFake::make()
-                ->withText(json_encode($fakeStructuredData, JSON_THROW_ON_ERROR))
-                ->withStructured($fakeStructuredData)
-                ->withFinishReason(FinishReason::Stop)
-                ->withUsage(new Usage(100, 50))
-                ->withMeta(new Meta('fake-response-id', 'gemini-2.5-pro'));
-
-            Prism::fake([$fakeResponse, $fakeResponse]);
+            StructuredAnonymousAgent::fake([$fakeStructuredData, $fakeStructuredData]);
 
             $result = new FollowUpEngagementAction($lead, null, true)->execute();
 

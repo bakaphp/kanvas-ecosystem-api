@@ -15,7 +15,6 @@ use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
-use Prism\Prism\Enums\Provider;
 
 class SocialCreatorAgent extends BaseAgent
 {
