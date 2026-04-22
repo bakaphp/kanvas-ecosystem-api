@@ -4044,16 +4044,16 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v0.6.0",
+            "version": "v0.6.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "4f9e21562ec1872620084d1d3c793d78ce0d8292"
+                "reference": "1ee65ce3d968ea10d83500130f009e431db3f2f9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/4f9e21562ec1872620084d1d3c793d78ce0d8292",
-                "reference": "4f9e21562ec1872620084d1d3c793d78ce0d8292",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/1ee65ce3d968ea10d83500130f009e431db3f2f9",
+                "reference": "1ee65ce3d968ea10d83500130f009e431db3f2f9",
                 "shasum": ""
             },
             "require": {
@@ -4065,8 +4065,7 @@
                 "illuminate/support": "^12.0|^13.0",
                 "laravel/prompts": "^0.3.6",
                 "laravel/serializable-closure": "^2.0",
-                "php": "^8.3",
-                "prism-php/prism": "^0.100.0"
+                "php": "^8.3"
             },
             "require-dev": {
                 "laravel/pint": "^1.26",
@@ -4108,7 +4107,7 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-04-16T15:17:28+00:00"
+            "time": "2026-04-21T19:04:40+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -9145,85 +9144,6 @@
                 "source": "https://github.com/PowerSync/authorizenet-sdk-php/tree/2.0.7"
             },
             "time": "2024-08-01T12:07:30+00:00"
-        },
-        {
-            "name": "prism-php/prism",
-            "version": "v0.100.1",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/prism-php/prism.git",
-                "reference": "5d6cc65b80b19cf3f22744703ac0c727b68cdca8"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/prism-php/prism/zipball/5d6cc65b80b19cf3f22744703ac0c727b68cdca8",
-                "reference": "5d6cc65b80b19cf3f22744703ac0c727b68cdca8",
-                "shasum": ""
-            },
-            "require": {
-                "ext-fileinfo": "*",
-                "laravel/framework": "^11.0|^12.0|^13.0",
-                "php": "^8.2"
-            },
-            "require-dev": {
-                "brianium/paratest": "^7.8.4",
-                "laravel/mcp": "^0.6.0",
-                "laravel/pint": "^1.14",
-                "mockery/mockery": "^1.6",
-                "orchestra/testbench": "^9|^10|^11",
-                "pestphp/pest": "^3.0|^4.0",
-                "pestphp/pest-plugin-arch": "^3.0|^4.0",
-                "pestphp/pest-plugin-laravel": "^3.0|^4.0",
-                "phpstan/extension-installer": "^1.3",
-                "phpstan/phpdoc-parser": "^2.0",
-                "phpstan/phpstan": "2.1.34",
-                "phpstan/phpstan-deprecation-rules": "^2.0",
-                "projektgopher/whisky": "^0.7.0",
-                "rector/rector": "2.3.3",
-                "spatie/laravel-ray": "^1.39",
-                "symplify/rule-doc-generator-contracts": "^11.2"
-            },
-            "type": "library",
-            "extra": {
-                "laravel": {
-                    "aliases": {
-                        "PrismServer": "Prism\\Prism\\Facades\\PrismServer"
-                    },
-                    "providers": [
-                        "Prism\\Prism\\PrismServiceProvider"
-                    ]
-                }
-            },
-            "autoload": {
-                "files": [
-                    "src/helpers.php"
-                ],
-                "psr-4": {
-                    "Prism\\Prism\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "TJ Miller",
-                    "email": "hello@echolabs.dev"
-                }
-            ],
-            "description": "A powerful Laravel package for integrating Large Language Models (LLMs) into your applications.",
-            "support": {
-                "issues": "https://github.com/prism-php/prism/issues",
-                "source": "https://github.com/prism-php/prism/tree/v0.100.1"
-            },
-            "funding": [
-                {
-                    "url": "https://github.com/sixlive",
-                    "type": "github"
-                }
-            ],
-            "time": "2026-03-20T20:37:17+00:00"
         },
         {
             "name": "psr/cache",
