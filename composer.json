@@ -14,7 +14,7 @@
         "algolia/algoliasearch-client-php": "^4.39",
         "algolia/scout-extended": "^4.0",
         "automattic/woocommerce": "^3.1",
-        "awobaz/compoships": "^2.2",
+        "awobaz/compoships": "^3.0",
         "azuyalabs/yasumi": "^2.8",
         "bacon/bacon-qr-code": "^3.0",
         "bavix/laravel-wallet": "^12.0",

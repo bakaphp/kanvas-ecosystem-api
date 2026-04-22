@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "48e0123e84fa8a34fc55ba4f116b7c61",
+    "content-hash": "75d0a5be00231be23ad06e6b339fd8ba",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -266,25 +266,26 @@
         },
         {
             "name": "awobaz/compoships",
-            "version": "2.5.5",
+            "version": "3.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/topclaudy/compoships.git",
-                "reference": "e3759efad4093c132a053bf5ad1c5b1c16955ad0"
+                "reference": "0cc503f9551d39763f11b109ad89aecd14abcaba"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/topclaudy/compoships/zipball/e3759efad4093c132a053bf5ad1c5b1c16955ad0",
-                "reference": "e3759efad4093c132a053bf5ad1c5b1c16955ad0",
+                "url": "https://api.github.com/repos/topclaudy/compoships/zipball/0cc503f9551d39763f11b109ad89aecd14abcaba",
+                "reference": "0cc503f9551d39763f11b109ad89aecd14abcaba",
                 "shasum": ""
             },
             "require": {
-                "illuminate/database": ">=5.6 <14.0"
+                "illuminate/database": "^12.0|^13.0",
+                "php": "^8.2"
             },
             "require-dev": {
                 "ext-sqlite3": "*",
                 "fakerphp/faker": "^1.18",
-                "phpunit/phpunit": "^6.0|^8.0|^9.0|^10.0|^11.0|^12.0"
+                "phpunit/phpunit": "^11.0|^12.0"
             },
             "suggest": {
                 "awobaz/blade-active": "Blade directives for the Laravel 'Active' package",
@@ -316,7 +317,7 @@
             ],
             "support": {
                 "issues": "https://github.com/topclaudy/compoships/issues",
-                "source": "https://github.com/topclaudy/compoships/tree/2.5.5"
+                "source": "https://github.com/topclaudy/compoships/tree/3.0.0"
             },
             "funding": [
                 {
@@ -324,7 +325,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2026-03-11T19:17:29+00:00"
+            "time": "2026-04-22T13:00:49+00:00"
         },
         {
             "name": "aws/aws-crt-php",
