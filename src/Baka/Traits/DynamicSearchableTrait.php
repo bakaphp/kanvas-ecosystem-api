@@ -13,7 +13,7 @@ use Laravel\Scout\Searchable;
 trait DynamicSearchableTrait
 {
     use Searchable;
-    
+
     protected bool $isTypesense = false;
 
     public function searchableUsing()
