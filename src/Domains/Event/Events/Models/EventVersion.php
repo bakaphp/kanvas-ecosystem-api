@@ -41,8 +41,6 @@ class EventVersion extends BaseModel
     protected $table = 'event_versions';
     protected $guarded = [];
 
-    protected $is_deleted;
-
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);

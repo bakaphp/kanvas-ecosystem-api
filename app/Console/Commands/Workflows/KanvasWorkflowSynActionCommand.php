@@ -13,11 +13,14 @@ use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
 use Kanvas\Connectors\Azul\Webhook\AzulMethodNotificationWebhookJob;
 use Kanvas\Connectors\Azul\Webhook\AzulTermUrlWebhookJob;
+use Kanvas\Connectors\Azul\Workflows\Activities\SendPaymentReceiptActivity as AzulSendPaymentReceiptActivity;
+use Kanvas\Connectors\Azul\Workflows\Activities\StampTermsAcceptanceActivity as AzulStampTermsAcceptanceActivity;
 use Kanvas\Connectors\Calendly\Jobs\ProcessCalendlyWebhookJob;
 use Kanvas\Connectors\ChromeData\Activities\AddStockImageToProductActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
 use Kanvas\Connectors\DealerSocket\Activities\AddLeadCommentFromAgentMessageActivity as ActivitiesAddLeadCommentFromAgentMessageActivity;
+use Kanvas\Connectors\DealerSocket\Activities\AddLeadKanvasChatLinkNoteActivity;
 use Kanvas\Connectors\DealerSocket\Activities\PushLeadActivity as ActivitiesPushLeadActivity;
 use Kanvas\Connectors\DealerSocket\Activities\PushPeopleActivity as ActivitiesPushPeopleActivity;
 use Kanvas\Connectors\DriveCentric\Workflow\PushLeadActivity as DriveCentricWorkflowPushLeadActivity;
@@ -386,6 +389,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ActivitiesPushLeadActivity::class,
             ActivitiesPushPeopleActivity::class,
             ActivitiesAddLeadCommentFromAgentMessageActivity::class,
+            AddLeadKanvasChatLinkNoteActivity::class,
             ProcessADFAgentInboundLeadJob::class,
             DealerAppCenterSubSourcesActivity::class,
             SyncLeadWithLegacyCRMActivity::class,
@@ -401,6 +405,8 @@ class KanvasWorkflowSynActionCommand extends Command
             PullPaymentChallengeWebhookJob::class,
             AzulTermUrlWebhookJob::class,
             AzulMethodNotificationWebhookJob::class,
+            AzulStampTermsAcceptanceActivity::class,
+            AzulSendPaymentReceiptActivity::class,
             ScheduleEleadActivityFromEventAction::class,
             OAuthCallbackJob::class,
             ProcessAppleSubscriptionWebhookJob::class,

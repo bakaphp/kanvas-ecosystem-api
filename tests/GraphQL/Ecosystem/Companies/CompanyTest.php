@@ -6,7 +6,12 @@ namespace Tests\GraphQL\Ecosystem\Companies;
 
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Actions\DeleteCompaniesAction;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Products\Actions\AddAttributeAction;
+use Kanvas\Inventory\Products\Models\Products;
 use Tests\TestCase;
 
 class CompanyTest extends TestCase
@@ -283,6 +288,52 @@ class CompanyTest extends TestCase
         )
         ->assertSuccessful()
         ->assertSee('deleteCompany', true);
+    }
+
+    public function testDeleteCompanyWithInventoryProducts(): void
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $company = Companies::factory()->create(['users_id' => $user->getId()]);
+
+        $product = Products::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->create();
+
+        $attribute = new Attributes();
+        $attribute->apps_id = $app->getId();
+        $attribute->companies_id = $company->getId();
+        $attribute->users_id = $user->getId();
+        $attribute->name = 'Test ' . uniqid();
+        $attribute->slug = 'test-' . uniqid();
+        $attribute->save();
+
+        new AddAttributeAction($product, $attribute, 'some-value')->execute();
+
+        $this->assertDatabaseHas(
+            'products_attributes',
+            [
+                'products_id' => $product->getId(),
+                'attributes_id' => $attribute->getId(),
+            ],
+            'inventory',
+        );
+
+        $result = new DeleteCompaniesAction($user)->execute($company->getId());
+
+        $this->assertTrue($result);
+        $this->assertTrue((bool) $company->refresh()->is_deleted);
+        $this->assertDatabaseMissing(
+            'products_attributes',
+            [
+                'products_id' => $product->getId(),
+                'attributes_id' => $attribute->getId(),
+            ],
+            'inventory',
+        );
     }
 
     public function testUploadFileToCompany()

@@ -10,6 +10,4 @@ class ThemeArea extends BaseModel
 {
     protected $table = 'theme_areas';
     protected $guarded = [];
-
-    protected $is_deleted;
 }

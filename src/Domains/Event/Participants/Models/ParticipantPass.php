@@ -14,8 +14,6 @@ class ParticipantPass extends BaseModel
     protected $table = 'participant_passes';
     protected $guarded = [];
 
-    protected $is_deleted;
-
     public function participant(): BelongsTo
     {
         return $this->belongsTo(Participant::class);

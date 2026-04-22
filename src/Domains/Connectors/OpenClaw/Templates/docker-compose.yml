@@ -3,6 +3,8 @@ name: {{CONTAINER_NAME}}
 services:
   openclaw-gateway:
     image: {{IMAGE_NAME}}
+    build:
+      context: {{IMAGE_DIR}}
     container_name: {{CONTAINER_NAME}}
     restart: unless-stopped
     stdin_open: true

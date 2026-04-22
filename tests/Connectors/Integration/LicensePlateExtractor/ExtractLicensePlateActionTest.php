@@ -4,16 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\LicensePlateExtractor;
 
+use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\LicensePlateExtractor\Actions\ExtractLicensePlateAction;
 use Kanvas\Connectors\LicensePlateExtractor\Enums\CustomFieldEnum;
 use Kanvas\Connectors\LicensePlateExtractor\Enums\ProviderEnum;
 use Kanvas\Filesystem\Models\Filesystem;
-use Prism\Prism\Enums\FinishReason;
-use Prism\Prism\Facades\Prism;
-use Prism\Prism\Testing\StructuredResponseFake;
-use Prism\Prism\ValueObjects\Meta;
-use Prism\Prism\ValueObjects\Usage;
+use Laravel\Ai\StructuredAnonymousAgent;
 use Tests\TestCase;
 
 final class ExtractLicensePlateActionTest extends TestCase
@@ -32,20 +29,20 @@ final class ExtractLicensePlateActionTest extends TestCase
             'https://example.com/car.jpg'
         );
 
-        Prism::fake([
-            StructuredResponseFake::make()
-                ->withStructured([
-                    'plate_number' => 'ABC1234',
-                    'confidence' => 0.92,
-                    'region' => 'do',
-                    'make' => 'Toyota',
-                    'model' => 'Corolla',
-                    'color' => 'white',
-                    'type' => 'sedan',
-                ])
-                ->withFinishReason(FinishReason::Stop)
-                ->withUsage(new Usage(50, 20))
-                ->withMeta(new Meta('fake-id', 'gemini-2.0-flash')),
+        Http::fake([
+            'example.com/*' => Http::response('fake-image-bytes', 200, ['Content-Type' => 'image/jpeg']),
+        ]);
+
+        StructuredAnonymousAgent::fake([
+            [
+                'plate_number' => 'ABC1234',
+                'confidence' => 0.92,
+                'region' => 'do',
+                'make' => 'Toyota',
+                'model' => 'Corolla',
+                'color' => 'white',
+                'type' => 'sedan',
+            ],
         ]);
 
         $result = new ExtractLicensePlateAction(
@@ -110,20 +107,20 @@ final class ExtractLicensePlateActionTest extends TestCase
             'https://example.com/empty.png'
         );
 
-        Prism::fake([
-            StructuredResponseFake::make()
-                ->withStructured([
-                    'plate_number' => '',
-                    'confidence' => 0.0,
-                    'region' => '',
-                    'make' => '',
-                    'model' => '',
-                    'color' => '',
-                    'type' => '',
-                ])
-                ->withFinishReason(FinishReason::Stop)
-                ->withUsage(new Usage(50, 20))
-                ->withMeta(new Meta('fake-id', 'gemini-2.0-flash')),
+        Http::fake([
+            'example.com/*' => Http::response('fake-image-bytes', 200, ['Content-Type' => 'image/png']),
+        ]);
+
+        StructuredAnonymousAgent::fake([
+            [
+                'plate_number' => '',
+                'confidence' => 0.0,
+                'region' => '',
+                'make' => '',
+                'model' => '',
+                'color' => '',
+                'type' => '',
+            ],
         ]);
 
         $result = new ExtractLicensePlateAction(

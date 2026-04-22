@@ -44,8 +44,6 @@ class Event extends BaseModel
     protected $table = 'events';
     protected $guarded = [];
 
-    protected $is_deleted;
-
     public function versions(): HasMany
     {
         return $this->hasMany(EventVersion::class);

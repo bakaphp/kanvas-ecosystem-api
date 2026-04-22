@@ -114,8 +114,6 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         'is_deleted' => 'boolean',
     ];
 
-    protected $is_deleted;
-
     public $translatable = ['name', 'description', 'short_description', 'html_description', 'warranty_terms'];
 
     #[Override]
