@@ -23,7 +23,8 @@ class UniqueSkuRule implements ValidationRule
     {
         $query = Variants::where('sku', $value)
             ->fromCompany($this->company)
-            ->fromApp($this->app);
+            ->fromApp($this->app)
+            ->notDeleted();
 
         if ($this->variant) {
             $query->where('id', '!=', $this->variant->getId());
