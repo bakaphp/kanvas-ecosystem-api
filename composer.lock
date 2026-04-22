@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "48e0123e84fa8a34fc55ba4f116b7c61",
+    "content-hash": "75d0a5be00231be23ad06e6b339fd8ba",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
-            "version": "4.41.1",
+            "version": "4.42.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/algolia/algoliasearch-client-php.git",
-                "reference": "958312a73d16fc8a48d5c4f6a00b2019c49146f0"
+                "reference": "61063d8473cf3f934ef807770ff5485acb1ea962"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/algolia/algoliasearch-client-php/zipball/958312a73d16fc8a48d5c4f6a00b2019c49146f0",
-                "reference": "958312a73d16fc8a48d5c4f6a00b2019c49146f0",
+                "url": "https://api.github.com/repos/algolia/algoliasearch-client-php/zipball/61063d8473cf3f934ef807770ff5485acb1ea962",
+                "reference": "61063d8473cf3f934ef807770ff5485acb1ea962",
                 "shasum": ""
             },
             "require": {
@@ -69,9 +69,9 @@
             ],
             "support": {
                 "issues": "https://github.com/algolia/algoliasearch-client-php/issues",
-                "source": "https://github.com/algolia/algoliasearch-client-php/tree/4.41.1"
+                "source": "https://github.com/algolia/algoliasearch-client-php/tree/4.42.0"
             },
-            "time": "2026-04-14T16:32:24+00:00"
+            "time": "2026-04-22T17:45:44+00:00"
         },
         {
             "name": "algolia/scout-extended",
@@ -266,25 +266,26 @@
         },
         {
             "name": "awobaz/compoships",
-            "version": "2.5.5",
+            "version": "3.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/topclaudy/compoships.git",
-                "reference": "e3759efad4093c132a053bf5ad1c5b1c16955ad0"
+                "reference": "0cc503f9551d39763f11b109ad89aecd14abcaba"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/topclaudy/compoships/zipball/e3759efad4093c132a053bf5ad1c5b1c16955ad0",
-                "reference": "e3759efad4093c132a053bf5ad1c5b1c16955ad0",
+                "url": "https://api.github.com/repos/topclaudy/compoships/zipball/0cc503f9551d39763f11b109ad89aecd14abcaba",
+                "reference": "0cc503f9551d39763f11b109ad89aecd14abcaba",
                 "shasum": ""
             },
             "require": {
-                "illuminate/database": ">=5.6 <14.0"
+                "illuminate/database": "^12.0|^13.0",
+                "php": "^8.2"
             },
             "require-dev": {
                 "ext-sqlite3": "*",
                 "fakerphp/faker": "^1.18",
-                "phpunit/phpunit": "^6.0|^8.0|^9.0|^10.0|^11.0|^12.0"
+                "phpunit/phpunit": "^11.0|^12.0"
             },
             "suggest": {
                 "awobaz/blade-active": "Blade directives for the Laravel 'Active' package",
@@ -316,7 +317,7 @@
             ],
             "support": {
                 "issues": "https://github.com/topclaudy/compoships/issues",
-                "source": "https://github.com/topclaudy/compoships/tree/2.5.5"
+                "source": "https://github.com/topclaudy/compoships/tree/3.0.0"
             },
             "funding": [
                 {
@@ -324,7 +325,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2026-03-11T19:17:29+00:00"
+            "time": "2026-04-22T13:00:49+00:00"
         },
         {
             "name": "aws/aws-crt-php",
@@ -382,16 +383,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.379.4",
+            "version": "3.379.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "606d812d3e9289147e2c801d51b916c45c92de39"
+                "reference": "c81342df6e09bbc30d28ea57cc4644bb35c53ce2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/606d812d3e9289147e2c801d51b916c45c92de39",
-                "reference": "606d812d3e9289147e2c801d51b916c45c92de39",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/c81342df6e09bbc30d28ea57cc4644bb35c53ce2",
+                "reference": "c81342df6e09bbc30d28ea57cc4644bb35c53ce2",
                 "shasum": ""
             },
             "require": {
@@ -473,9 +474,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.379.4"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.379.5"
             },
-            "time": "2026-04-21T20:01:34+00:00"
+            "time": "2026-04-22T18:13:16+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -4044,19 +4045,20 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v0.6.2",
+            "version": "v0.6.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "1ee65ce3d968ea10d83500130f009e431db3f2f9"
+                "reference": "42cefc32ae2762b6fd1ec0b3c9272e894623b717"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/1ee65ce3d968ea10d83500130f009e431db3f2f9",
-                "reference": "1ee65ce3d968ea10d83500130f009e431db3f2f9",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/42cefc32ae2762b6fd1ec0b3c9272e894623b717",
+                "reference": "42cefc32ae2762b6fd1ec0b3c9272e894623b717",
                 "shasum": ""
             },
             "require": {
+                "aws/aws-sdk-php": "^3.339",
                 "illuminate/console": "^12.0|^13.0",
                 "illuminate/container": "^12.0|^13.0",
                 "illuminate/contracts": "^12.0|^13.0",
@@ -4107,7 +4109,7 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-04-21T19:04:40+00:00"
+            "time": "2026-04-22T21:16:19+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -6498,16 +6500,16 @@
         },
         {
             "name": "mindee/mindee",
-            "version": "v2.7.1",
+            "version": "v2.8.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mindee/mindee-api-php.git",
-                "reference": "040d4cc945a39b89af1d5dab2646982a2ab35149"
+                "reference": "3904cd0e92c33dd88a7ea7094f00530f345b075f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/040d4cc945a39b89af1d5dab2646982a2ab35149",
-                "reference": "040d4cc945a39b89af1d5dab2646982a2ab35149",
+                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/3904cd0e92c33dd88a7ea7094f00530f345b075f",
+                "reference": "3904cd0e92c33dd88a7ea7094f00530f345b075f",
                 "shasum": ""
             },
             "require": {
@@ -6547,9 +6549,9 @@
             "description": "Mindee Client Library for PHP",
             "support": {
                 "issues": "https://github.com/mindee/mindee-api-php/issues",
-                "source": "https://github.com/mindee/mindee-api-php/tree/v2.7.1"
+                "source": "https://github.com/mindee/mindee-api-php/tree/v2.8.0"
             },
-            "time": "2026-03-31T08:22:26+00:00"
+            "time": "2026-04-22T19:41:19+00:00"
         },
         {
             "name": "mll-lab/graphql-php-scalars",
