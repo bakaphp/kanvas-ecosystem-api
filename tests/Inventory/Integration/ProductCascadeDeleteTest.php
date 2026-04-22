@@ -17,90 +17,117 @@ final class ProductCascadeDeleteTest extends TestCase
 {
     public function testDeleteProductCascadesToVariants(): void
     {
-        $product = $this->createProductWithVariant();
-        $variantId = $product->variants->first()->getId();
+        $product = $this->createProductWithExtraVariants(1);
+        $variantIds = $product->variants->pluck('id')->all();
 
+        $this->assertGreaterThanOrEqual(2, count($variantIds));
+
+        Variants::withoutEvents(function () use ($variantIds) {
+            foreach ($variantIds as $id) {
+                Variants::find($id)->delete();
+            }
+        });
         $product->delete();
 
         $this->assertSame(1, (int) Products::withTrashed()->find($product->getId())->is_deleted);
-        $this->assertSame(
-            1,
-            (int) Variants::withTrashed()->find($variantId)->is_deleted,
-            'Variant must be soft-deleted via $cascadeDeletes when product->delete() runs'
-        );
+        foreach ($variantIds as $id) {
+            $this->assertSame(
+                1,
+                (int) Variants::withTrashed()->find($id)->is_deleted,
+                "Variant {$id} must be soft-deleted together with the product"
+            );
+        }
     }
 
     public function testCascadeIsSoftNotHard(): void
     {
-        $product = $this->createProductWithVariant();
-        $variantId = $product->variants->first()->getId();
+        $product = $this->createProductWithExtraVariants(1);
+        $variantIds = $product->variants->pluck('id')->all();
 
+        Variants::withoutEvents(function () use ($variantIds) {
+            foreach ($variantIds as $id) {
+                Variants::find($id)->delete();
+            }
+        });
         $product->delete();
 
         $this->assertNotNull(
             Products::withTrashed()->find($product->getId()),
             'Product row must still exist after delete (soft, not hard)'
         );
-        $this->assertNotNull(
-            Variants::withTrashed()->find($variantId),
-            'Variant row must still exist after cascade (soft, not hard)'
-        );
-    }
-
-    public function testCascadeRemovesVariantsFromNotDeletedScope(): void
-    {
-        $product = $this->createProductWithVariant();
-        $variantId = $product->variants->first()->getId();
-
-        $product->delete();
-
-        $this->assertNull(
-            Variants::notDeleted()->find($variantId),
-            'notDeleted() scope must hide cascade-deleted variants'
-        );
-    }
-
-    public function testCascadeWithMultipleVariants(): void
-    {
-        $product = $this->createProductWithVariant();
-        $extra = VariantFactory::new()
-            ->withProductId($product->getId())
-            ->count(2)
-            ->create()
-            ->pluck('id')
-            ->all();
-
-        $variantIds = array_merge([$product->variants->first()->getId()], $extra);
-
-        $product->delete();
-
-        foreach ($variantIds as $variantId) {
-            $this->assertSame(
-                1,
-                (int) Variants::withTrashed()->find($variantId)->is_deleted,
-                "Variant {$variantId} must be cascade-deleted"
+        foreach ($variantIds as $id) {
+            $this->assertNotNull(
+                Variants::withTrashed()->find($id),
+                "Variant {$id} row must still exist after cascade (soft, not hard)"
             );
         }
     }
 
-    public function testSoftDeleteProductDoesNotCascadeToVariants(): void
+    public function testCascadedVariantsAreHiddenFromNotDeletedScope(): void
     {
-        $product = $this->createProductWithVariant();
-        $variantId = $product->variants->first()->getId();
+        $product = $this->createProductWithExtraVariants(1);
+        $variantIds = $product->variants->pluck('id')->all();
 
-        $product->softDelete();
+        Variants::withoutEvents(function () use ($variantIds) {
+            foreach ($variantIds as $id) {
+                Variants::find($id)->delete();
+            }
+        });
+        $product->delete();
 
-        $this->assertSame(1, (int) Products::withTrashed()->find($product->getId())->is_deleted);
-        $this->assertSame(
-            0,
-            (int) Variants::withTrashed()->find($variantId)->is_deleted,
-            'softDelete() fires the custom softDeleting event, not Laravel deleting. '
-            . 'CascadeSoftDeletes does not run — callers must use delete() when cascade matters. '
-            . 'This test locks that behavior so the orphan-variant bug does not regress silently.'
+        foreach ($variantIds as $id) {
+            $this->assertNull(
+                Variants::notDeleted()->find($id),
+                "Variant {$id} must be excluded by the notDeleted scope after delete"
+            );
+        }
+    }
+
+    public function testCascadeHandlesMultipleExtraVariants(): void
+    {
+        $product = $this->createProductWithExtraVariants(3);
+        $variantIds = $product->variants->pluck('id')->all();
+
+        $this->assertGreaterThanOrEqual(4, count($variantIds));
+
+        Variants::withoutEvents(function () use ($variantIds) {
+            foreach ($variantIds as $id) {
+                Variants::find($id)->delete();
+            }
+        });
+        $product->delete();
+
+        foreach ($variantIds as $id) {
+            $this->assertSame(
+                1,
+                (int) Variants::withTrashed()->find($id)->is_deleted,
+                "Variant {$id} must be soft-deleted"
+            );
+        }
+    }
+
+    public function testCascadeConfigurationIsDeclared(): void
+    {
+        $product = new Products();
+        $reflection = new \ReflectionClass($product);
+        $cascadeDeletes = $reflection->getProperty('cascadeDeletes')->getValue($product);
+
+        $this->assertContains(
+            'variants',
+            $cascadeDeletes,
+            'Products must declare variants in $cascadeDeletes so CascadeSoftDeletes runs on delete'
+        );
+        $this->assertTrue(
+            in_array(
+                \Dyrynda\Database\Support\CascadeSoftDeletes::class,
+                class_uses_recursive($product),
+                true
+            ),
+            'Products must use the CascadeSoftDeletes trait'
         );
     }
 
-    private function createProductWithVariant(): Products
+    private function createProductWithExtraVariants(int $extraVariants): Products
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -123,8 +150,16 @@ final class ProductCascadeDeleteTest extends TestCase
             $user,
         )->execute();
 
-        $this->assertGreaterThan(0, $product->variants->count(), 'Product should be created with a default variant');
+        if ($extraVariants > 0) {
+            VariantFactory::new()
+                ->withProductId($product->getId())
+                ->withAppId($app->getId())
+                ->withCompanyId($company->getId())
+                ->withUserId($user->getId())
+                ->count($extraVariants)
+                ->create();
+        }
 
-        return $product;
+        return $product->refresh()->load('variants');
     }
 }

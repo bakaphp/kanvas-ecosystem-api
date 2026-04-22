@@ -8,7 +8,9 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Support\Setup;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Validations\UniqueSkuRule;
 use Tests\TestCase;
 
@@ -50,8 +52,7 @@ final class UniqueSkuRuleTest extends TestCase
     {
         [$app, $company, $existingSku, $product] = $this->createProductWithSku();
 
-        $product->variants->first()->softDelete();
-        $product->softDelete();
+        $this->softDeleteProductWithVariants($product);
 
         $failed = false;
         new UniqueSkuRule($app, $company)->validate(
@@ -105,8 +106,7 @@ final class UniqueSkuRuleTest extends TestCase
             $user,
         )->execute();
 
-        $firstProduct->variants->first()->softDelete();
-        $firstProduct->softDelete();
+        $this->softDeleteProductWithVariants($firstProduct);
 
         $secondProduct = new CreateProductAction(
             new Product(
@@ -156,7 +156,10 @@ final class UniqueSkuRuleTest extends TestCase
             $user,
         )->execute();
 
-        $firstProduct->softDelete();
+        \Illuminate\Support\Facades\DB::connection('inventory')
+            ->table('products')
+            ->where('id', $firstProduct->getId())
+            ->update(['is_deleted' => 1]);
 
         $this->expectException(ValidationException::class);
 
@@ -174,6 +177,16 @@ final class UniqueSkuRuleTest extends TestCase
             ),
             $user,
         )->execute();
+    }
+
+    private function softDeleteProductWithVariants(Products $product): void
+    {
+        Variants::withoutEvents(function () use ($product) {
+            foreach ($product->variants as $variant) {
+                $variant->delete();
+            }
+        });
+        $product->delete();
     }
 
     private function bootstrapInventory(): array
