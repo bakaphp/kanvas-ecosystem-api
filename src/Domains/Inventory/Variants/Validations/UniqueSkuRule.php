@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Override;
 
 class UniqueSkuRule implements ValidationRule
 {
@@ -19,6 +20,7 @@ class UniqueSkuRule implements ValidationRule
     ) {
     }
 
+    #[Override]
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         $query = Variants::where('sku', $value)
