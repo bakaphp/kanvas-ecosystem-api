@@ -1309,6 +1309,6 @@ class {Entity}CrudTest extends TestCase // or extends OrderBase, etc.
 - **FK constraint errors in factories**: Check if factory hardcodes IDs (e.g., `agent_type_id => 1`) — use `RelatedModel::factory()` instead
 - **Time-dependent tests**: Use `Carbon::setTestNow()` to freeze time
 - **Silent failures via Sentry**: Actions that catch exceptions with `captureException()` — add temporary `echo` in catch block to debug
-- **AI/Prism calls**: Use `Prism::fake()` with enough responses for all sessions
+- **AI/laravel-ai calls**: Use `StructuredAnonymousAgent::fake([...])` (or `AnonymousAgent::fake([...])` for text) with enough responses for all sessions — array items become structured responses, strings become text responses
 - **Duplicate key violations**: Check if action classes already create related records internally
 - **Mock objects**: Set `$mock->exists = true` when the code checks `$this->model->exists`

@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Google\Services;
 
 use Baka\Support\Str;
-use Prism\Prism\Enums\Provider;
-use Prism\Prism\Facades\Prism;
+use Laravel\Ai\Enums\Lab;
+
+use function Laravel\Ai\agent;
 
 class GeminiTagService
 {
@@ -45,14 +46,13 @@ Rules:
 </text_to_analyze>
 PROMPT;
 
-        $response = Prism::text()
-            ->using(Provider::Gemini, 'gemini-2.0-flash')
-            ->withPrompt($prompt)
-            ->asText();
+        $response = agent()->prompt(
+            $prompt,
+            provider: Lab::Gemini,
+            model: 'gemini-2.0-flash',
+        );
 
-        $generatedText = $response->text ?? '';
-
-        return $this->extractTags($generatedText, $availableTags, $limit);
+        return $this->extractTags($response->text, $availableTags, $limit);
     }
 
     private function extractTags(string $responseText, array $availableTags, int $limit = 3): array
