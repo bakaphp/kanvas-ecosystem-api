@@ -217,7 +217,7 @@ PROMPT;
             $response = agent()->prompt(
                 $promptEngineering,
                 provider: Lab::Gemini,
-                model: 'gemini-2.0-flash',
+                model: 'gemini-2.5-flash',
             );
 
             $responseText = str_replace(['```', 'json'], '', $response->text);
@@ -304,7 +304,7 @@ ADVANCEPROMPT;
             $response = agent()->prompt(
                 $nuggetGenerator,
                 provider: Lab::Gemini,
-                model: 'gemini-2.0-flash',
+                model: 'gemini-2.5-flash',
             );
 
             $responseText = str_replace(['```', 'json'], '', $response->text);

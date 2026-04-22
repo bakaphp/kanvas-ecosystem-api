@@ -59,7 +59,7 @@ class ModelWizardModelChooserAction
             $chosenModelSku = agent()->prompt(
                 $prompt,
                 provider: Lab::Gemini,
-                model: 'gemini-2.0-flash',
+                model: 'gemini-2.5-flash',
             );
         } catch (Exception $e) {
             throw new AiException('Error while identifying the best model for the user: ' . $e->getMessage());

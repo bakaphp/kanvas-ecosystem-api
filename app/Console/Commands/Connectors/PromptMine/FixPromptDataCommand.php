@@ -328,7 +328,7 @@ class FixPromptDataCommand extends Command
                 $response = agent()->prompt(
                     $parentMessageData['prompt'],
                     provider: Lab::Gemini,
-                    model: 'gemini-2.0-flash',
+                    model: 'gemini-2.5-flash',
                 );
 
                 $responseText = str_replace(['```', 'json'], '', $response->text);
@@ -406,7 +406,7 @@ class FixPromptDataCommand extends Command
         $response = agent()->prompt(
             $messageData['prompt'],
             provider: Lab::Gemini,
-            model: 'gemini-2.0-flash',
+            model: 'gemini-2.5-flash',
         );
 
         $responseText = str_replace(['```', 'json'], '', $response->text);
