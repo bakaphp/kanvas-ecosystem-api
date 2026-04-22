@@ -153,10 +153,18 @@ class PullEventsFromIntrasAction
 
     protected function pullEventVersionDates(Client $client, array &$counts): void
     {
-        $query = $client->table('events_versions_dates')
-            ->where('is_deleted', 0);
+        // events_versions_dates has no agencies_id — join to events_versions to
+        // filter by agency at the source instead of pulling the full table.
+        $query = $client->table('events_versions_dates as evd')
+            ->where('evd.is_deleted', 0)
+            ->select('evd.*');
 
-        $query->orderBy('id')->chunk(500, function ($rows) use (&$counts) {
+        if ($this->agencyId !== null) {
+            $query->join('events_versions as ev', 'ev.id', '=', 'evd.events_versions_id')
+                ->where('ev.agencies_id', $this->agencyId);
+        }
+
+        $query->orderBy('evd.id')->chunk(500, function ($rows) use (&$counts) {
             foreach ($rows as $row) {
                 $eventVersion = $this->findEventVersionByIntrasId($row->events_versions_id);
                 if (! $eventVersion) {

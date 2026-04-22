@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Intras\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Intras\Client;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
@@ -27,16 +28,33 @@ class PullOrganizationsFromIntrasAction
     {
         $client = new Client($this->app);
 
-        $query = $client->table('companies')
-            ->where('is_deleted', 0);
+        // companies has no agencies_id. Scope by "companies whose employees attended
+        // at least one event in this agency": companies → participants → evp → ev.
+        // Same chain-subquery pattern used for participants.
+        $query = $client->table('companies as co')
+            ->where('co.is_deleted', 0)
+            ->select('co.*');
+
+        if ($this->agencyId !== null) {
+            $agencyId = $this->agencyId;
+            $query->whereIn('co.id', function (QueryBuilder $sub) use ($agencyId) {
+                $sub->select('p.companies_id')
+                    ->from('participants as p')
+                    ->join('events_versions_participants as evp', 'evp.participants_id', '=', 'p.id')
+                    ->join('events_versions as ev', 'ev.id', '=', 'evp.events_versions_id')
+                    ->where('ev.agencies_id', $agencyId)
+                    ->where('evp.is_deleted', 0)
+                    ->whereNotNull('p.companies_id');
+            });
+        }
 
         if ($this->lastSyncAt !== null) {
-            $query->where('updated_at', '>=', $this->lastSyncAt);
+            $query->where('co.updated_at', '>=', $this->lastSyncAt);
         }
 
         $count = 0;
 
-        $query->orderBy('id')->chunk(500, function ($rows) use (&$count) {
+        $query->orderBy('co.id')->chunk(500, function ($rows) use (&$count) {
             foreach ($rows as $row) {
                 $mapped = OrganizationMapper::fromIntras($row);
 

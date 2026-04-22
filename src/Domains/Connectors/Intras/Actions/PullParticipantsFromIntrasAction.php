@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Intras\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Intras\Client;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
@@ -31,11 +32,26 @@ class PullParticipantsFromIntrasAction
     {
         $client = new Client($this->app);
 
-        $query = $client->table('participants')
-            ->where('is_deleted', 0);
+        // participants has no agencies_id and its parent `companies` doesn't either,
+        // so the only way to scope by agency is "people who have ever registered for
+        // an event in this agency" — via events_versions_participants → events_versions.
+        $query = $client->table('participants as p')
+            ->where('p.is_deleted', 0)
+            ->select('p.*');
+
+        if ($this->agencyId !== null) {
+            $agencyId = $this->agencyId;
+            $query->whereIn('p.id', function (QueryBuilder $sub) use ($agencyId) {
+                $sub->select('evp.participants_id')
+                    ->from('events_versions_participants as evp')
+                    ->join('events_versions as ev', 'ev.id', '=', 'evp.events_versions_id')
+                    ->where('ev.agencies_id', $agencyId)
+                    ->where('evp.is_deleted', 0);
+            });
+        }
 
         if ($this->lastSyncAt !== null) {
-            $query->where('updated_at', '>=', $this->lastSyncAt);
+            $query->where('p.updated_at', '>=', $this->lastSyncAt);
         }
 
         $participantType = PeopleType::firstOrCreate([
@@ -57,7 +73,7 @@ class PullParticipantsFromIntrasAction
 
         $count = 0;
 
-        $query->orderBy('id')->chunk(500, function ($rows) use (&$count, $participantType, $keyContactType) {
+        $query->orderBy('p.id')->chunk(500, function ($rows) use (&$count, $participantType, $keyContactType) {
             foreach ($rows as $row) {
                 $mapped = ParticipantMapper::fromIntras($row);
 

@@ -40,8 +40,9 @@ class PeopleOrganizationMutation
             $people = People::getByIdFromCompany($peopleId, $user->getCurrentCompany());
 
             OrganizationPeople::where('organizations_id', $organization->getId())
-               ->where('peoples_id', $people->getId())
-               ->delete();
+                ->where('peoples_id', $people->getId())
+                ->get()
+                ->each(fn (OrganizationPeople $pivot) => $pivot->delete());
 
             $total++;
         }
