@@ -72,6 +72,7 @@ class SystemModulesRepository
     public static function getBySlug(string $slug, ?AppInterface $app = null): SystemModules
     {
         $app = $app === null ? app(Apps::class) : $app;
+
         return SystemModules::where('slug', $slug)
                                     ->where('apps_id', $app->getKey())
                                     ->firstOrFail();
@@ -80,8 +81,11 @@ class SystemModulesRepository
     /**
      * Get the entity from the input
      */
-    public static function getEntityFromInput(SystemModuleInputInterface $entityInput, Users $user, bool $useCompanyReference = true): Model
-    {
+    public static function getEntityFromInput(
+        SystemModuleInputInterface $entityInput,
+        Users $user,
+        bool $useCompanyReference = true
+    ): Model {
         $systemModule = self::getByUuidOrModelName($entityInput->systemModuleUuid);
 
         /**
