@@ -7,7 +7,7 @@ namespace Kanvas\Connectors\Intras\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Intras\Client;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
@@ -24,6 +24,9 @@ use Kanvas\Event\Themes\Models\ThemeArea;
 
 class PullEventsFromIntrasAction
 {
+    /** @var array<string, array<int|string, int>> [modelClass => [intras_id => kanvas_id]] */
+    protected array $idMaps = [];
+
     public function __construct(
         protected AppInterface $app,
         protected Companies $company,
@@ -37,6 +40,11 @@ class PullEventsFromIntrasAction
     {
         $client = new Client($this->app);
         $counts = ['events' => 0, 'versions' => 0, 'dates' => 0];
+
+        // Preload [intras_id => kanvas_id] for every classification table the loops
+        // need. Replaces ~6 whereHas subqueries per event row + 1 per version + 1
+        // per date with a fixed handful of queries upfront.
+        $this->preloadMaps();
 
         $this->pullEvents($client, $counts);
         $this->pullEventVersions($client, $counts);
@@ -67,12 +75,12 @@ class PullEventsFromIntrasAction
 
         $query->orderBy('id')->chunk(500, function ($rows) use (&$counts, $defaultType, $defaultClass, $defaultCategory, $defaultStatus, $defaultTheme, $defaultThemeArea) {
             foreach ($rows as $row) {
-                $eventType = $this->findByIntrasId(EventType::class, $row->events_types_id) ?? $defaultType;
-                $eventClass = $this->findByIntrasId(EventClass::class, $row->events_classes_id) ?? $defaultClass;
-                $eventCategory = $this->findByIntrasId(EventCategory::class, $row->events_categories_id) ?? $defaultCategory;
-                $eventStatus = $this->findByIntrasId(EventStatus::class, $row->events_statuses_id) ?? $defaultStatus;
-                $theme = $this->findByIntrasId(Theme::class, $row->themes_id) ?? $defaultTheme;
-                $themeArea = $this->findByIntrasId(ThemeArea::class, $row->themes_areas_id) ?? $defaultThemeArea;
+                $eventTypeId = $this->mapId(EventType::class, $row->events_types_id) ?? $defaultType?->getId();
+                $eventClassId = $this->mapId(EventClass::class, $row->events_classes_id) ?? $defaultClass?->getId();
+                $eventCategoryId = $this->mapId(EventCategory::class, $row->events_categories_id) ?? $defaultCategory?->getId();
+                $eventStatusId = $this->mapId(EventStatus::class, $row->events_statuses_id) ?? $defaultStatus?->getId();
+                $themeId = $this->mapId(Theme::class, $row->themes_id) ?? $defaultTheme?->getId();
+                $themeAreaId = $this->mapId(ThemeArea::class, $row->themes_areas_id) ?? $defaultThemeArea?->getId();
 
                 $slug = Str::slug(trim($row->name) . '-' . $row->id);
 
@@ -83,16 +91,21 @@ class PullEventsFromIntrasAction
                 ], [
                     'users_id' => $this->user->getId(),
                     'name' => trim($row->name),
-                    'event_type_id' => $eventType?->getId(),
-                    'event_class_id' => $eventClass?->getId(),
-                    'event_category_id' => $eventCategory?->getId(),
-                    'event_status_id' => $eventStatus?->getId(),
-                    'theme_id' => $theme?->getId(),
-                    'theme_area_id' => $themeArea?->getId(),
+                    'event_type_id' => $eventTypeId,
+                    'event_class_id' => $eventClassId,
+                    'event_category_id' => $eventCategoryId,
+                    'event_status_id' => $eventStatusId,
+                    'theme_id' => $themeId,
+                    'theme_area_id' => $themeAreaId,
                 ]);
 
                 $event->set(CustomFieldEnum::INTRAS_EVENT_ID->value, $row->id);
                 $event->set(CustomFieldEnum::INTRAS_AGENCY_ID->value, $row->agencies_id);
+
+                // Keep the in-memory event map current so subsequent versions/dates
+                // in the same execute() resolve without a re-query.
+                $this->idMaps[Event::class][$row->id] = (int) $event->getId();
+
                 $counts['events']++;
             }
         });
@@ -115,8 +128,8 @@ class PullEventsFromIntrasAction
 
         $query->orderBy('id')->chunk(500, function ($rows) use (&$counts, $defaultCurrency) {
             foreach ($rows as $row) {
-                $event = $this->findEventByIntrasId($row->events_id);
-                if (! $event) {
+                $kanvasEventId = $this->mapId(Event::class, $row->events_id);
+                if ($kanvasEventId === null) {
                     continue;
                 }
 
@@ -127,7 +140,7 @@ class PullEventsFromIntrasAction
                     'apps_id' => $this->app->getId(),
                     'companies_id' => $this->company->getId(),
                 ], [
-                    'event_id' => $event->getId(),
+                    'event_id' => $kanvasEventId,
                     'users_id' => $this->user->getId(),
                     'name' => trim($row->name),
                     'version_number' => $row->version ?? 1,
@@ -146,6 +159,10 @@ class PullEventsFromIntrasAction
                 ]);
 
                 $eventVersion->set(CustomFieldEnum::INTRAS_EVENT_VERSION_ID->value, $row->id);
+
+                // Keep the version map current so pullEventVersionDates sees this row.
+                $this->idMaps[EventVersion::class][$row->id] = (int) $eventVersion->getId();
+
                 $counts['versions']++;
             }
         });
@@ -166,13 +183,13 @@ class PullEventsFromIntrasAction
 
         $query->orderBy('evd.id')->chunk(500, function ($rows) use (&$counts) {
             foreach ($rows as $row) {
-                $eventVersion = $this->findEventVersionByIntrasId($row->events_versions_id);
-                if (! $eventVersion) {
+                $kanvasVersionId = $this->mapId(EventVersion::class, $row->events_versions_id);
+                if ($kanvasVersionId === null) {
                     continue;
                 }
 
                 EventVersionDate::firstOrCreate([
-                    'event_version_id' => $eventVersion->getId(),
+                    'event_version_id' => $kanvasVersionId,
                     'event_date' => $row->event_date,
                     'start_time' => $row->start_time,
                     'end_time' => $row->end_time,
@@ -185,48 +202,51 @@ class PullEventsFromIntrasAction
         });
     }
 
-    protected function findByIntrasId(string $modelClass, ?int $intrasId): mixed
+    /**
+     * Preload [intras_id => kanvas_id] maps for every model the loops resolve.
+     * 8 queries upfront, all index-backed via `idx_company_model_name_value_is_deleted`.
+     */
+    protected function preloadMaps(): void
     {
-        if ($intrasId === null) {
-            return null;
-        }
+        $companyId = $this->company->getId();
 
-        return $modelClass::where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->whereHas(
-                'customFields',
-                fn (Builder $q) => $q->where('name', CustomFieldEnum::INTRAS_EVENT_ID->value)->where('value', $intrasId)
-            )
-            ->first();
+        // Lookup tables — all stored under INTRAS_EVENT_ID per the import convention.
+        $this->idMaps[EventType::class] = $this->loadIntrasMap($companyId, EventType::class, CustomFieldEnum::INTRAS_EVENT_ID->value);
+        $this->idMaps[EventClass::class] = $this->loadIntrasMap($companyId, EventClass::class, CustomFieldEnum::INTRAS_EVENT_ID->value);
+        $this->idMaps[EventCategory::class] = $this->loadIntrasMap($companyId, EventCategory::class, CustomFieldEnum::INTRAS_EVENT_ID->value);
+        $this->idMaps[EventStatus::class] = $this->loadIntrasMap($companyId, EventStatus::class, CustomFieldEnum::INTRAS_EVENT_ID->value);
+        $this->idMaps[Theme::class] = $this->loadIntrasMap($companyId, Theme::class, CustomFieldEnum::INTRAS_EVENT_ID->value);
+        $this->idMaps[ThemeArea::class] = $this->loadIntrasMap($companyId, ThemeArea::class, CustomFieldEnum::INTRAS_EVENT_ID->value);
+
+        // Parents — populated incrementally during the run too, but seed from any
+        // already-imported rows so re-runs / partial pulls work without duplicate
+        // creates.
+        $this->idMaps[Event::class] = $this->loadIntrasMap($companyId, Event::class, CustomFieldEnum::INTRAS_EVENT_ID->value);
+        $this->idMaps[EventVersion::class] = $this->loadIntrasMap($companyId, EventVersion::class, CustomFieldEnum::INTRAS_EVENT_VERSION_ID->value);
     }
 
-    protected function findEventByIntrasId(?int $intrasId): ?Event
+    /**
+     * @return array<int|string, int>
+     */
+    protected function loadIntrasMap(int $companyId, string $modelClass, string $customFieldName): array
     {
-        if ($intrasId === null) {
-            return null;
-        }
-
-        return Event::where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->whereHas(
-                'customFields',
-                fn (Builder $q) => $q->where('name', CustomFieldEnum::INTRAS_EVENT_ID->value)->where('value', $intrasId)
-            )
-            ->first();
+        return DB::connection('ecosystem')
+            ->table('apps_custom_fields')
+            ->where('companies_id', $companyId)
+            ->where('model_name', $modelClass)
+            ->where('name', $customFieldName)
+            ->where('is_deleted', 0)
+            ->pluck('entity_id', 'value')
+            ->map(fn ($id) => (int) $id)
+            ->all();
     }
 
-    protected function findEventVersionByIntrasId(?int $intrasId): ?EventVersion
+    protected function mapId(string $modelClass, ?int $intrasId): ?int
     {
         if ($intrasId === null) {
             return null;
         }
 
-        return EventVersion::where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->whereHas(
-                'customFields',
-                fn (Builder $q) => $q->where('name', CustomFieldEnum::INTRAS_EVENT_VERSION_ID->value)->where('value', $intrasId)
-            )
-            ->first();
+        return $this->idMaps[$modelClass][$intrasId] ?? null;
     }
 }
