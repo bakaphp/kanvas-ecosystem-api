@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\LicensePlateExtractor\Drivers;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\LicensePlateExtractor\Contracts\PlateExtractorDriverInterface;
 use Kanvas\Connectors\LicensePlateExtractor\DataTransferObject\LicensePlate;
 use Kanvas\Connectors\LicensePlateExtractor\Enums\ConfigurationEnum;
@@ -14,6 +15,7 @@ use Laravel\Ai\Exceptions\AiException;
 use Laravel\Ai\Files\Image;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 use Override;
+use RuntimeException;
 use Throwable;
 
 use function Laravel\Ai\agent;
@@ -40,6 +42,8 @@ PROMPT;
         $model = $this->app->get(ConfigurationEnum::MODEL->value) ?: self::DEFAULT_MODEL;
 
         try {
+            $image = $this->downloadImageAsBase64($imageUrl);
+
             /** @var StructuredAgentResponse $response */
             $response = agent(
                 schema: fn ($schema) => [
@@ -53,7 +57,7 @@ PROMPT;
                 ],
             )->prompt(
                 $prompt,
-                attachments: [Image::fromUrl($imageUrl)],
+                attachments: [$image],
                 provider: Lab::Gemini,
                 model: $model,
                 timeout: 120,
@@ -82,5 +86,24 @@ PROMPT;
             type: ! empty($data['type']) ? (string) $data['type'] : null,
             rawResponse: $data,
         );
+    }
+
+    /**
+     * Gemini rejects `fileUri` for non-Google-hosted URLs with "Invalid or unsupported file uri".
+     * Download the bytes ourselves and send as base64 (`inlineData`) so S3 / CDN URLs work.
+     */
+    private function downloadImageAsBase64(string $imageUrl): Image
+    {
+        $response = Http::timeout(30)->get($imageUrl);
+
+        if (! $response->successful()) {
+            throw new RuntimeException(
+                'Failed to download image for plate extraction: ' . $imageUrl . ' (HTTP ' . (int) $response->status() . ')'
+            );
+        }
+
+        $mime = $response->header('Content-Type') ?: 'image/jpeg';
+
+        return Image::fromBase64(base64_encode($response->body()), $mime);
     }
 }
