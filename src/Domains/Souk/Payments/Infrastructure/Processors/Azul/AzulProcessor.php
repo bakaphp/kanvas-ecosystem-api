@@ -1105,7 +1105,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
     private function assertSupportedCurrency(Order $order): void
     {
-        if (strtoupper((string) $order->currency) !== CurrencyEnum::DOP->value) {
+        if (strtoupper(trim((string) $order->currency)) !== CurrencyEnum::DOP->value) {
             throw new ValidationException(
                 'Azul only supports ' . CurrencyEnum::DOP->value . ' currency; order ' . $order->getId() . ' has currency ' . $order->currency
             );
