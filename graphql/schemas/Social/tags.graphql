@@ -67,6 +67,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Tags\\TagsManagement@attachTagToEntity"
         )
+    detachTagFromEntity(input: AttachTagEntityInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Tags\\TagsManagement@detachTagFromEntity"
+        )
 }
 
 extend type Query @guard {
