@@ -69,8 +69,6 @@ class UpdateOpenClawForUserJob implements ShouldQueue
             'docker build --no-cache -t openclaw-kanvas:latest /opt/openclaw-image 2>&1',
             'docker compose -f ' . escapeshellarg($composeFile)
                 . ' up -d --force-recreate 2>&1',
-            'docker compose -f ' . escapeshellarg($composeFile)
-                . ' --profile cli run --rm openclaw-cli skills install maximeprades/auto-updater 2>&1',
         ]);
 
         $output = $client->exec('sudo bash -c ' . escapeshellarg($script) . '; echo "EXIT_CODE:$?"', 1800);
