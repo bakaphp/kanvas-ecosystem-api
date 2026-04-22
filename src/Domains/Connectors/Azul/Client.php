@@ -20,6 +20,7 @@ class Client
     protected string $auth1;
     protected string $auth2;
     protected GuzzleClient $client;
+    protected bool $debugLog;
 
     public function __construct(
         protected AppInterface $app,
@@ -36,6 +37,10 @@ class Client
         $this->auth2 = $this->app->get(ConfigurationEnum::AZUL_AUTH2->value)
             ?? $config['auth2']
             ?? '';
+
+        $this->debugLog = (bool) ($this->app->get(ConfigurationEnum::AZUL_DEBUG_LOG->value)
+            ?? $config['debug_log']
+            ?? false);
 
         if (empty($this->auth1) || empty($this->auth2)) {
             throw new ValidationException('Azul configuration is missing: Auth1 and Auth2 are required');
@@ -96,32 +101,78 @@ class Client
     public function post(array $data, ?string $url = null): array
     {
         $endpoint = $url ?? $this->baseUrl;
-
-        // Log::debug('Azul POST request', [
-        //     'url'   => $endpoint,
-        //     'auth1' => $this->auth1,
-        //     'auth2' => $this->auth2,
-        //     'body'  => $data,
-        // ]);
+        $start = hrtime(true);
+        $context = $this->buildLogContext($data, $endpoint);
 
         try {
             $response = $this->client->post($endpoint, ['json' => $data]);
             $body = $response->getBody()->getContents();
             $decoded = json_decode($body, true);
 
-            // Log::debug('Azul POST response', [
-            //     'url'  => $endpoint,
-            //     'body' => $decoded,
-            // ]);
+            if ($this->debugLog) {
+                Log::channel('daily')->info('Azul API call', [
+                    ...$context,
+                    'response' => $decoded,
+                    'response_time_ms' => (int) round((hrtime(true) - $start) / 1e6),
+                    'http_status' => $response->getStatusCode(),
+                ]);
+            }
 
             return $decoded;
         } catch (ConnectException $e) {
+            if ($this->debugLog) {
+                Log::channel('daily')->error('Azul API connection failed', [
+                    ...$context,
+                    'error' => $e->getMessage(),
+                    'response_time_ms' => (int) round((hrtime(true) - $start) / 1e6),
+                ]);
+            }
+
             throw new AzulException('Connection failed (possible IP whitelist or TLS issue): ' . $e->getMessage(), 0, $e);
         } catch (RequestException $e) {
             $res = $e->getResponse();
             $body = $res ? (string) $res->getBody() : null;
-            throw new AzulException('Request failed: ' . $e->getMessage(), $res?->getStatusCode() ?? 0, $e, $body ? (json_decode($body, true) ?? []) : []);
+            $decoded = $body ? (json_decode($body, true) ?? []) : [];
+
+            if ($this->debugLog) {
+                Log::channel('daily')->error('Azul API request failed', [
+                    ...$context,
+                    'response' => $decoded,
+                    'http_status' => $res?->getStatusCode(),
+                    'error' => $e->getMessage(),
+                    'response_time_ms' => (int) round((hrtime(true) - $start) / 1e6),
+                ]);
+            }
+
+            throw new AzulException('Request failed: ' . $e->getMessage(), $res?->getStatusCode() ?? 0, $e, $decoded);
         }
+    }
+
+    private function buildLogContext(array $data, string $endpoint): array
+    {
+        $cardEnding = isset($data['CardNumber']) ? substr($data['CardNumber'], -4) : ($data['DataVaultToken'] ?? null);
+        $masked = $data;
+
+        if (isset($masked['CardNumber'])) {
+            $masked['CardNumber'] = '****' . substr($masked['CardNumber'], -4);
+        }
+        if (isset($masked['CVC'])) {
+            $masked['CVC'] = '***';
+        }
+        if (isset($masked['Expiration'])) {
+            $masked['Expiration'] = '****' . substr($masked['Expiration'], -2);
+        }
+
+        return [
+            'timestamp' => now()->toIso8601String(),
+            'endpoint' => $endpoint,
+            'order_id' => $data['CustomOrderId'] ?? null,
+            'card_ending' => $cardEnding,
+            'azul_order_id' => $data['AzulOrderId'] ?? null,
+            'store' => $data['Store'] ?? null,
+            'trx_type' => $data['TrxType'] ?? null,
+            'request' => $masked,
+        ];
     }
 
     public function getDataVaultUrl(): string

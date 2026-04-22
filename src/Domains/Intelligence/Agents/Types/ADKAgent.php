@@ -54,7 +54,7 @@ class ADKAgent
         $dateParse = $dateAdkUserId ? Carbon::parse($dateAdkUserId) : null;
         $now = Carbon::now();
 
-        if ($channel->entity_namespace == Lead::class && $this->entity->created_at->greaterThan($dateParse)) {
+        if ($channel->entity_namespace == Lead::class && ($dateParse === null || $this->entity->created_at->greaterThan($dateParse))) {
             $userId = $channel->entity_id;
         }
 

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\FollowUp\Repositories\FollowUpRepository;
@@ -139,7 +140,7 @@ class FollowUpPromptActivity extends KanvasActivity implements WorkflowActivityI
     {
         return Agent::fromApp($lead->app)
             ->fromCompany($lead->company)
-            ->where('name', 'FollowUpEngagerAgent')
+            ->where('name', AgentEnum::FOLLOW_UP_ENGAGER->value)
             ->first();
     }
 

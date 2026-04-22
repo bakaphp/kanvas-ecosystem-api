@@ -74,7 +74,7 @@ class DockerComposeBuilder
         $imageName = self::getSharedImageName($app);
 
         return str_replace(
-            ['{{CONTAINER_NAME}}', '{{OPENCLAW_DIR}}', '{{GATEWAY_PORT}}', '{{PROXY_PORT}}', '{{ENV_LINES}}', '{{IMAGE_NAME}}'],
+            ['{{CONTAINER_NAME}}', '{{OPENCLAW_DIR}}', '{{GATEWAY_PORT}}', '{{PROXY_PORT}}', '{{ENV_LINES}}', '{{IMAGE_NAME}}', '{{IMAGE_DIR}}'],
             [
                 $deployment->container_name,
                 $deployment->home_directory . '/.openclaw',
@@ -82,6 +82,7 @@ class DockerComposeBuilder
                 (string) $deployment->proxy_port,
                 $envLines,
                 $imageName,
+                self::getSharedImageDir($app),
             ],
             $template,
         );
@@ -98,7 +99,25 @@ class DockerComposeBuilder
     ): string {
         $slug = $agent->slug;
         $model = $app->get(ConfigurationEnum::DEFAULT_MODEL->value) ?? 'google/gemini-3.1-pro-preview';
-        $geminiApiKey = $app->get(ConfigurationEnum::GEMINI_API_KEY->value) ?? '';
+
+        // Prefer GEMINI_API_KEY; fall back to GOOGLE_API_KEY — both are Google AI Studio keys
+        $geminiApiKey = (string) ($app->get(ConfigurationEnum::GEMINI_API_KEY->value)
+            ?? $app->get(ConfigurationEnum::GOOGLE_API_KEY->value)
+            ?? '');
+
+        $authProfiles = [
+            'openai-codex:default' => [
+                'provider' => 'openai-codex',
+                'mode' => 'oauth',
+            ],
+        ];
+
+        if ($geminiApiKey !== '') {
+            $authProfiles['google:default'] = [
+                'provider' => 'google',
+                'mode'     => 'api_key',
+            ];
+        }
 
         $config = [
             'meta' => [
@@ -112,12 +131,7 @@ class DockerComposeBuilder
                 'lastRunMode' => 'local',
             ],
             'auth' => [
-                'profiles' => [
-                    'openai-codex:default' => [
-                        'provider' => 'openai-codex',
-                        'mode' => 'oauth',
-                    ],
-                ],
+                'profiles' => $authProfiles,
             ],
             'agents' => [
                 'defaults' => [
@@ -126,16 +140,12 @@ class DockerComposeBuilder
                         'fallbacks' => [
                             'google/gemini-3.1-flash-lite-preview',
                             'google/gemini-3.1-pro-preview',
-                            'google-vertex/gemini-2.5-pro',
-                            'google-vertex/gemini-3-flash-preview',
                         ],
                     ],
                     'models' => [
-                        'google/gemini-2.5-pro' => (object) [],
+                        'google/gemini-2.5-pro'               => (object) [],
                         'google/gemini-3.1-flash-lite-preview' => (object) [],
-                        'google/gemini-3.1-pro-preview' => (object) [],
-                        'google-vertex/gemini-2.5-pro' => (object) [],
-                        'google-vertex/gemini-3-flash-preview' => (object) [],
+                        'google/gemini-3.1-pro-preview'        => (object) [],
                     ],
                     'workspace' => '/home/node/.openclaw/workspace',
                 ],
@@ -261,7 +271,9 @@ class DockerComposeBuilder
         $profiles = [];
         $lastGood = [];
 
-        $googleApiKey = $app->get(ConfigurationEnum::GOOGLE_API_KEY->value);
+        // Accept either GOOGLE_API_KEY or GEMINI_API_KEY — both are Google AI Studio keys
+        $googleApiKey = $app->get(ConfigurationEnum::GOOGLE_API_KEY->value)
+            ?? $app->get(ConfigurationEnum::GEMINI_API_KEY->value);
         if (! empty($googleApiKey)) {
             $profiles['google:default'] = [
                 'type' => 'api_key',

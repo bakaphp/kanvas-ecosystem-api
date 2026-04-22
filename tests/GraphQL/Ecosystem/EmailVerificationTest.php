@@ -6,7 +6,7 @@ namespace Tests\GraphQL\Ecosystem;
 
 use Kanvas\Apps\Actions\SyncEmailTemplateAction;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Auth\Services\EmailVerificationService;
+use Kanvas\Auth\Services\EmailVerification as EmailVerificationService;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Users\Models\Users;

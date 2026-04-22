@@ -147,6 +147,7 @@ extend type Query @guard {
                     "is_active"
                     "agent_type_id"
                     "company_task_list_id"
+                    "created_at"
                 ]
             )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
@@ -168,6 +169,26 @@ extend type Query @guard {
             defaultCount: 25
             scopes: ["fromApp"]
         )
+
+    agentAnalytics(
+        from: Date
+        to: Date
+        bucket: AnalyticsBucket = WEEK
+        timezone: String
+        agent_type_id: ID
+    ): AgentAnalytics!
+        @field(
+            resolver: "App\\GraphQL\\Analytics\\Queries\\AgentAnalyticsQuery"
+        )
+}
+
+type AgentAnalytics {
+    periods: [AnalyticsPoint!]!
+    total: Int!
+    by_type: [AnalyticsCategoryPoint!]!
+    by_model: [AnalyticsCategoryPoint!]!
+    by_deployment_status: [AnalyticsCategoryPoint!]!
+    by_user: [AnalyticsCategoryPoint!]!
 }
 
 extend type Subscription @guard {

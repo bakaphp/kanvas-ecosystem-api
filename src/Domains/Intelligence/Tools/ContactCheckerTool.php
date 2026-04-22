@@ -11,13 +11,11 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Messages\Models\Message;
+use Laravel\Ai\Enums\Lab;
+use Laravel\Ai\Responses\StructuredAgentResponse;
 use Override;
-use Prism\Prism\Enums\Provider;
-use Prism\Prism\Facades\Prism;
-use Prism\Prism\Schema\BooleanSchema;
-use Prism\Prism\Schema\NumberSchema;
-use Prism\Prism\Schema\ObjectSchema;
-use Prism\Prism\Schema\StringSchema;
+
+use function Laravel\Ai\agent;
 
 class ContactCheckerTool implements ContextToolInterface
 {
@@ -48,52 +46,22 @@ class ContactCheckerTool implements ContextToolInterface
             ],
         ];
 
-        $schema = new ObjectSchema(
-            name: 'contact_check',
-            description: 'Contact status analysis result',
-            properties: [
-                new BooleanSchema(
-                    name: 'already_contacted',
-                    description: 'Whether the lead has been contacted by a representative'
-                ),
-                new BooleanSchema(
-                    name: 'should_send_first_message',
-                    description: 'Whether a first message should be sent to the lead'
-                ),
-                new BooleanSchema(
-                    name: 'note_is_relevant',
-                    description: 'Whether the note is relevant to contact status determination'
-                ),
-                new NumberSchema(
-                    name: 'confidence',
-                    description: 'Confidence score between 0.0 and 1.0'
-                ),
-                new StringSchema(
-                    name: 'reason',
-                    description: 'Brief explanation of the contact status determination'
-                ),
-                new StringSchema(
-                    name: '_thought_process',
-                    description: 'Internal reasoning and analysis process'
-                ),
+        /** @var StructuredAgentResponse $response */
+        $response = agent(
+            instructions: Blade::render(implode(' ', $this->agent->role['background']), $data),
+            schema: fn ($schema) => [
+                'already_contacted' => $schema->boolean()->description('Whether the lead has been contacted by a representative')->required(),
+                'should_send_first_message' => $schema->boolean()->description('Whether a first message should be sent to the lead')->required(),
+                'note_is_relevant' => $schema->boolean()->description('Whether the note is relevant to contact status determination')->required(),
+                'confidence' => $schema->number()->description('Confidence score between 0.0 and 1.0')->required(),
+                'reason' => $schema->string()->description('Brief explanation of the contact status determination')->required(),
+                '_thought_process' => $schema->string()->description('Internal reasoning and analysis process')->required(),
             ],
-            requiredFields: [
-                'already_contacted',
-                'should_send_first_message',
-                'note_is_relevant',
-                'confidence',
-                'reason',
-                '_thought_process',
-            ]
+        )->prompt(
+            Blade::render(implode('\n', $this->agent->role['steps']), $data),
+            provider: Lab::Gemini,
+            model: 'gemini-2.5-pro',
         );
-
-        $response = Prism::structured()
-            ->using(Provider::Gemini, 'gemini-2.5-pro')
-            ->withSchema($schema)
-            ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data))
-            ->withPrompt(Blade::render(implode('\n', $this->agent->role['steps']), $data))
-            ->withMaxTokens(7000)
-            ->asStructured();
 
         return $response->structured;
     }

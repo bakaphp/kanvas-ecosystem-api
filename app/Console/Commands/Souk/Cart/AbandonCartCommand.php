@@ -11,7 +11,6 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Models\Settings;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Souk\Cart\Enums\AbandonCartConfigEnum;
 use Kanvas\Souk\Cart\Enums\AbandonCartTemplateEnum;
@@ -322,7 +321,7 @@ class AbandonCartCommand extends Command
             $notification = new Blank(
                 $emailTemplateName,
                 $notificationChannelData,
-                [NotificationChannelEnum::getNotificationChannelBySlug('push')],
+                ['push'],
                 $cart
             );
 

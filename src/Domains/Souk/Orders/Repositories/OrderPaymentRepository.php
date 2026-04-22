@@ -19,10 +19,12 @@ class OrderPaymentRepository
     }
 
     /**
-     * Apply reference / order_number / metadata filters shared across all stat queries.
+     * Apply tag / reference / order_number filters shared across all stat queries.
+     *
+     * @param  mixed  $query  Eloquent builder for Order
      */
     private function applyOrderIdentifierFilters(
-        Builder $query,
+        $query,
         ?string $reference,
         ?string $orderNumber,
         ?array $metadataFilter

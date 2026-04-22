@@ -14,6 +14,7 @@ use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VoiceBridge\Services\VoiceBridgeService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\AgentEnum;
 use Throwable;
 
 class SetupCommand extends Command
@@ -152,7 +153,7 @@ class SetupCommand extends Command
         try {
             $agent = Agent::fromApp($app)
                 ->fromCompany($lead->company)
-                ->where('name', 'voiceOutreachAgent')
+                ->where('name', AgentEnum::VOICE_OUTREACH->value)
                 ->firstOrFail();
             $initialContext = new BuildLeadVoiceContextAction($lead, $agent)->execute();
         } catch (Throwable $e) {

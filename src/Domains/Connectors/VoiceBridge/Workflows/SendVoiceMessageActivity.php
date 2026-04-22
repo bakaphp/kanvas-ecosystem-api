@@ -14,6 +14,7 @@ use Kanvas\Connectors\VoiceBridge\Jobs\SaveVoiceTranscriptJob;
 use Kanvas\Connectors\VoiceBridge\Services\VoiceBridgeService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -47,7 +48,7 @@ class SendVoiceMessageActivity extends KanvasActivity
 
                 $agent = Agent::fromApp($app)
                     ->fromCompany($lead->company)
-                    ->where('name', 'voiceOutreachAgent')
+                    ->where('name', AgentEnum::VOICE_OUTREACH->value)
                     ->firstOrFail();
 
                 $phone = Str::normalizePhoneNumber(

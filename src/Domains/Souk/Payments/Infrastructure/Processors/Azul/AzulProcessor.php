@@ -16,6 +16,7 @@ use Kanvas\Connectors\Azul\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Azul\Enums\TransactionTypeEnum;
 use Kanvas\Connectors\Azul\Exceptions\AzulException;
 use Kanvas\Connectors\Azul\Services\AzulService;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
@@ -28,6 +29,7 @@ use Kanvas\Souk\Payments\DataTransferObject\ThreeDSResult;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
+use Kanvas\Souk\Payments\Enums\CurrencyEnum;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 
@@ -84,6 +86,8 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
      */
     public function authorize(Payments $payment, Order $order, array $context = []): AuthorizeResult
     {
+        $this->assertSupportedCurrency($order);
+
         $useHold = array_key_exists('use_hold', $context)
             ? (bool) $context['use_hold']
             : (bool) $this->app->get(ConfigurationEnum::AZUL_USE_HOLD->value);
@@ -513,6 +517,8 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
      */
     public function startChallenge(Payments $payment, Order $order, array $context = []): ThreeDSResult
     {
+        $this->assertSupportedCurrency($order);
+
         $useHold = array_key_exists('use_hold', $context)
             ? (bool) $context['use_hold']
             : (bool) $this->app->get(ConfigurationEnum::AZUL_USE_HOLD->value);
@@ -1097,6 +1103,15 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
         return $info;
     }
 
+    private function assertSupportedCurrency(Order $order): void
+    {
+        if (strtoupper(trim((string) $order->currency)) !== CurrencyEnum::DOP->value) {
+            throw new ValidationException(
+                'Azul only supports ' . CurrencyEnum::DOP->value . ' currency; order ' . $order->getId() . ' has currency ' . $order->currency
+            );
+        }
+    }
+
     private function buildSaleRequest(Payments $payment, Order $order): AzulPaymentRequest
     {
         $paymentMethod = $payment->paymentMethod;
@@ -1152,6 +1167,19 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
      */
     private function persistVaultToken(Payments $payment, AzulPaymentResponse $response): void
     {
+        $brand = $response->brand ?: null;
+        $lastFour = ! empty($response->maskedCardNumber) ? substr($response->maskedCardNumber, -4) : null;
+
+        if ($brand && empty($payment->payment_method_brand)) {
+            $payment->payment_method_brand = $brand;
+        }
+        if ($lastFour && empty($payment->payment_method_last_four)) {
+            $payment->payment_method_last_four = $lastFour;
+        }
+        if ($payment->isDirty(['payment_method_brand', 'payment_method_last_four'])) {
+            $payment->save();
+        }
+
         if (empty($response->dataVaultToken) || ! $payment->paymentMethod) {
             return;
         }
@@ -1159,10 +1187,10 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
         $paymentMethod = $payment->paymentMethod;
 
         $paymentMethod->stripe_card_id        = $response->dataVaultToken;
-        $paymentMethod->payment_methods_brand = $response->brand ?: $paymentMethod->payment_methods_brand;
+        $paymentMethod->payment_methods_brand = $brand ?: $paymentMethod->payment_methods_brand;
 
-        if (! empty($response->maskedCardNumber)) {
-            $paymentMethod->payment_ending_numbers = substr($response->maskedCardNumber, -4);
+        if ($lastFour) {
+            $paymentMethod->payment_ending_numbers = $lastFour;
         }
 
         if (! empty($response->expiration)) {
@@ -1173,7 +1201,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             $paymentMethod->metadata ?? [],
             [
                 CustomFieldEnum::AZUL_DATA_VAULT_TOKEN->value => $response->dataVaultToken,
-                'brand'              => $response->brand ?: ($paymentMethod->metadata['brand'] ?? null),
+                'brand'              => $brand ?: ($paymentMethod->metadata['brand'] ?? null),
                 'masked_card_number' => $response->maskedCardNumber ?: null,
                 'expiration'         => $response->expiration ?: ($paymentMethod->metadata['expiration'] ?? null),
             ]

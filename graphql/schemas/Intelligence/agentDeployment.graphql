@@ -1,3 +1,20 @@
+type AgentTelemetryData {
+    deployment_id: ID!
+    collected_at: String!
+    runtime_version: String
+    gateway_reachable: Boolean
+    gateway_latency_ms: Int
+    session_count: Int
+    default_model: String
+    memory_files: Int
+    memory_chunks: Int
+    os_label: String
+    security_critical: Int
+    security_warn: Int
+    raw: String
+    tools: String
+}
+
 type AgentUsageSnapshot {
     id: ID!
     uuid: String!
@@ -52,8 +69,8 @@ type AgentDeploymentType {
     error_message: String
     created_at: DateTime!
     updated_at: DateTime!
-    agent: AgentAi! @belongsTo
-    machine: AgentMachineType! @belongsTo
+    agent: AgentAi @belongsTo
+    machine: AgentMachineType @belongsTo
 }
 
 input AgentMachineInput {
@@ -86,7 +103,7 @@ input LaunchAgentInput {
     machine_id: ID!
 }
 
-extend type Query @guardByAdmin {
+extend type Query @guard {
     agentUsageSnapshots(
         search: String @search
         where: _ @whereConditions(columns: ["id", "agent_deployment_id", "snapshot_date", "source", "provider", "model"])
@@ -97,7 +114,9 @@ extend type Query @guardByAdmin {
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
+}
 
+extend type Query @guardByAdmin {
     agentMachines(
         search: String @search
         where: _ @whereConditions(columns: ["id", "name", "slug", "region", "is_active"])

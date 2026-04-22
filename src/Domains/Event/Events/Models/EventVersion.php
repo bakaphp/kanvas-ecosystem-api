@@ -5,17 +5,25 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\Observers\EventVersionObserver;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Event\Participants\Models\ParticipantType;
+use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Follows\Traits\FollowersTrait;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 use Spatie\LaravelData\DataCollection;
@@ -26,15 +34,21 @@ class EventVersion extends BaseModel
     use UuidTrait;
     use SlugTrait;
     use CanUseWorkflow;
+    use FollowersTrait;
+    use HasTagsTrait;
+    use HasLightHouseCache;
 
     protected $table = 'event_versions';
     protected $guarded = [];
 
-    protected $is_deleted;
-
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
+    }
+
+    public function eventStatus(): BelongsTo
+    {
+        return $this->belongsTo(EventStatus::class);
     }
 
     public function timeSlot(): BelongsTo
@@ -160,5 +174,52 @@ class EventVersion extends BaseModel
     {
         $this->total_attendees--;
         $this->saveOrFail();
+    }
+
+    public function getStringIdAttribute(): string
+    {
+        return (string) $this->id;
+    }
+
+    public function socialChannels(): HasMany
+    {
+        return $this->hasMany(Channel::class, 'entity_id', 'string_id')
+            ->whereIn(
+                'entity_namespace',
+                [
+                    self::class,
+                    SystemModules::getLegacyNamespace(self::class),
+                ],
+            )
+            ->where('is_deleted', 0);
+    }
+
+    public function notes(): HasOne
+    {
+        return $this->hasOne(Channel::class, 'entity_id', 'string_id')
+            ->where('entity_namespace', self::class)
+            ->where('name', ChannelNameEnum::NOTES->value);
+    }
+
+    public function aiSession(): HasMany
+    {
+        return $this->hasMany(Session::class, 'entity_id', 'string_id')
+            ->where('entity_namespace', self::class);
+    }
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'EventVersion';
+    }
+
+    public function getMaxCapacity(): ?int
+    {
+        $metadata = $this->metadata;
+        if (! is_array($metadata)) {
+            return null;
+        }
+
+        return isset($metadata['max_capacity']) ? (int) $metadata['max_capacity'] : null;
     }
 }

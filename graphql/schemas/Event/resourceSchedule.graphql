@@ -56,11 +56,18 @@ extend type Mutation @guard {
 }
 
 extend type Query @guard {
-    resourceSchedule(resources_id: ID!, resources_type: String!): ResourceSchedule!
+    resourceSchedule(
+        resources_id: ID!
+        resources_type: String!
+    ): ResourceSchedule!
         @field(
             resolver: "App\\GraphQL\\Event\\Queries\\Schedule\\ResourceScheduleQuery@get"
         )
-    isResourceOpen(resources_id: ID!, resources_type: String!, datetime: DateTime): Boolean!
+    isResourceOpen(
+        resources_id: ID!
+        resources_type: String!
+        datetime: DateTime
+    ): Boolean!
         @field(
             resolver: "App\\GraphQL\\Event\\Queries\\Schedule\\ResourceScheduleQuery@isOpen"
         )

@@ -10,6 +10,7 @@ use GraphQL\Language\AST\FloatValueNode;
 use GraphQL\Language\AST\IntValueNode;
 use GraphQL\Language\AST\Node;
 use GraphQL\Type\Definition\ScalarType;
+use Kanvas\Apps\Models\Apps;
 use Override;
 
 class DecimalScalar extends ScalarType
@@ -79,7 +80,9 @@ class DecimalScalar extends ScalarType
      */
     protected function formatDecimal($value): string
     {
-        return number_format((float) $value, 2, '.', '');
+        $decimals = (int) (app(Apps::class)->get('price_decimal_precision') ?? 2);
+
+        return number_format((float) $value, $decimals, '.', '');
     }
 
     /**

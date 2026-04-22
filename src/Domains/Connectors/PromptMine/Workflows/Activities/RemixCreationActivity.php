@@ -10,7 +10,6 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Notifications\MessageOwnerPushNotification;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
@@ -72,10 +71,7 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                 }
 
                 //Send notification to the original message owner
-                $endViaList = array_map(
-                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                    $params['via'] ?? ['database']
-                );
+                $endViaList = $params['via'] ?? ['database'];
 
                 try {
                     $remixMessage = Message::find($entity->message['remix_parent_id']);
