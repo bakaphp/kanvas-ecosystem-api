@@ -10,7 +10,6 @@ use Kanvas\Connectors\LicensePlateExtractor\Contracts\PlateExtractorDriverInterf
 use Kanvas\Connectors\LicensePlateExtractor\DataTransferObject\LicensePlate;
 use Kanvas\Connectors\LicensePlateExtractor\Enums\ConfigurationEnum;
 use Kanvas\Connectors\LicensePlateExtractor\Enums\ProviderEnum;
-
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Exceptions\AiException;
 use Laravel\Ai\Files\Image;
