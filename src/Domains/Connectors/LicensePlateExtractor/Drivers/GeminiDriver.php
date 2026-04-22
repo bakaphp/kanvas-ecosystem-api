@@ -11,8 +11,6 @@ use Kanvas\Connectors\LicensePlateExtractor\DataTransferObject\LicensePlate;
 use Kanvas\Connectors\LicensePlateExtractor\Enums\ConfigurationEnum;
 use Kanvas\Connectors\LicensePlateExtractor\Enums\ProviderEnum;
 
-use function Laravel\Ai\agent;
-
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Exceptions\AiException;
 use Laravel\Ai\Files\Image;
@@ -20,6 +18,8 @@ use Laravel\Ai\Responses\StructuredAgentResponse;
 use Override;
 use RuntimeException;
 use Throwable;
+
+use function Laravel\Ai\agent;
 
 class GeminiDriver implements PlateExtractorDriverInterface
 {
