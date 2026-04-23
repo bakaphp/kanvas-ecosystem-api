@@ -40,7 +40,7 @@ class ProcessAgentChatAction
             $handler = new OpenClawAgentHandler();
             $handler->setAgent($this->agent);
 
-            $response = $handler->chat($this->message);
+            $response = $handler->chat($this->message, $sessionId !== '' ? $sessionId : null);
             $durationMs = (microtime(true) - $startTime) * 1000.0;
 
             $this->trackUsage($response, $durationMs, $sessionId);

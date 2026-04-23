@@ -6,7 +6,7 @@ namespace Tests\Connectors\Integration\OpenClaw;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\OpenClaw\Actions\ChatWithAgentOnMachineAction;
+use Kanvas\Connectors\OpenClaw\Actions\ChatWithAgentAction;
 use Kanvas\Connectors\OpenClaw\Actions\CollectDeploymentUsageAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerLogsAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerStatusAction;
@@ -147,14 +147,14 @@ class AgentDeploymentTest extends TestCase
         ->assertJson(['data' => ['openclawTerminateAgent' => true]]);
     }
 
-    public function testChatWithAgentOnMachineRequiresDeployment(): void
+    public function testChatWithAgentRequiresDeployment(): void
     {
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('Agent does not have an active deployment');
 
         $agent = $this->createTestAgent();
 
-        new ChatWithAgentOnMachineAction($agent, 'Hello')->execute();
+        new ChatWithAgentAction($agent, 'Hello')->execute();
     }
 
     public function testFullDeploymentLifecycle(): void
@@ -187,7 +187,7 @@ class AgentDeploymentTest extends TestCase
         $restarted = new RestartAgentContainerAction($deployment)->execute();
         $this->assertEquals(DeploymentStatusEnum::RUNNING->value, $restarted->status);
 
-        $chatResponse = new ChatWithAgentOnMachineAction($agent, 'Hello')->execute();
+        $chatResponse = new ChatWithAgentAction($agent, 'Hello')->execute();
         $this->assertNotEmpty($chatResponse);
 
         new TerminateAgentOnMachineAction($deployment)->execute();

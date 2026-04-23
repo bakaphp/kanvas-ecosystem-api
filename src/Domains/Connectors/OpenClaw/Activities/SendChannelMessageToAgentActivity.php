@@ -1,0 +1,91 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\OpenClaw\Activities;
+
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\OpenClaw\Actions\SendChannelMessageToAgentAction;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\KanvasActivity;
+
+class SendChannelMessageToAgentActivity extends KanvasActivity
+{
+    public function execute(Channel $entity, Apps $app, array $params): array
+    {
+        $this->overwriteAppService($app);
+
+        $message = $params['message'] ?? null;
+        $defaultAgentId = $params['agent_id'] ?? null;
+        $allowedChannels = $params['channelId'] ?? [];
+        $channelAgentMapping = $params['channelAgentMapping'] ?? [];
+
+        /** @var Companies $company */
+        $company = $entity->company;
+
+        return $this->executeIntegration(
+            entity: $entity,
+            app: $app,
+            integration: IntegrationsEnum::OPENCLAW,
+            additionalParams: $params,
+            integrationOperation: function () use ($entity, $app, $message, $defaultAgentId, $allowedChannels, $channelAgentMapping, $params) {
+                if (! $message instanceof Message) {
+                    return [
+                        'message' => 'No message provided in params',
+                        'entity' => null,
+                    ];
+                }
+
+                $chatJid = $message->message['chat_jid'] ?? null;
+                $filterByChannel = (bool) ($params['filterByChannel'] ?? false);
+
+                if ($filterByChannel && ! in_array($chatJid, $allowedChannels)) {
+                    return [
+                        'message' => 'Agent is not running on this channel',
+                        'entity' => null,
+                    ];
+                }
+
+                if (($message->message['from_me'] ?? false) === true) {
+                    return [
+                        'message' => 'Message is from the agent side, skipping to avoid loop',
+                        'entity' => null,
+                    ];
+                }
+
+                $agentId = $defaultAgentId;
+                if ($chatJid !== null && isset($channelAgentMapping[$chatJid]['agent_id'])) {
+                    $agentId = $channelAgentMapping[$chatJid]['agent_id'];
+                }
+
+                $agentId ??= $app->get('openclaw_default_agent_id');
+
+                if (empty($agentId)) {
+                    return [
+                        'message' => 'No agent_id resolved for this channel',
+                        'entity' => null,
+                    ];
+                }
+
+                /** @var Agent $agent */
+                $agent = Agent::getById((int) $agentId, $app);
+
+                $reply = new SendChannelMessageToAgentAction(
+                    $agent,
+                    $message,
+                    $entity,
+                )->execute();
+
+                return [
+                    'message' => 'Agent reply created',
+                    'entity' => $reply,
+                ];
+            },
+            company: $company,
+        );
+    }
+}
