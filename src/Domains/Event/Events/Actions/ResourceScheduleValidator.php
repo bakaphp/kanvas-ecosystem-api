@@ -92,7 +92,7 @@ class ResourceScheduleValidator
         return ScheduleRules::where('resources_id', $this->scheduled->getId())
             ->where('resources_type', $this->scheduled->getMorphClass())
             ->where('apps_id', $this->app->getId())
-            ->whereJsonContains('metadata->created_from', 'operation_days')
+            ->whereNotNull('operation_day')
             ->where('is_deleted', false)
             ->exists();
     }
@@ -145,7 +145,7 @@ class ResourceScheduleValidator
         return ScheduleRules::where('resources_id', $resource->getId())
             ->where('resources_type', $resource->getMorphClass())
             ->where('apps_id', $appId)
-            ->whereJsonContains('metadata->created_from', 'operation_days')
+            ->whereNotNull('operation_day')
             ->where('is_deleted', false)
             ->exists();
     }
@@ -164,8 +164,7 @@ class ResourceScheduleValidator
         return ScheduleRules::where('resources_id', $this->scheduled->getId())
             ->where('resources_type', $this->scheduled->getMorphClass())
             ->where('apps_id', $this->app->getId())
-            ->whereJsonContains('metadata->created_from', 'operation_days')
-            ->whereJsonContains('metadata->operation_day', $dayName)
+            ->where('operation_day', $dayName)
             ->where('is_deleted', false)
             ->first();
     }
