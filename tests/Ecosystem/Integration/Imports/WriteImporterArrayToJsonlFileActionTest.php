@@ -8,12 +8,12 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Services\FilesystemServices;
-use Kanvas\Imports\Actions\SpoolImporterPayloadAction;
+use Kanvas\Imports\Actions\WriteImporterArrayToJsonlFileAction;
 use Kanvas\Inventory\Regions\Models\Regions as InventoryRegions;
 use Kanvas\Regions\Models\Regions as BaseRegions;
 use Tests\TestCase;
 
-final class SpoolImporterPayloadActionTest extends TestCase
+final class WriteImporterArrayToJsonlFileActionTest extends TestCase
 {
     public function testExecuteUploadsJsonlAndCreatesFilesystemImportWithoutMapper(): void
     {
@@ -63,7 +63,7 @@ final class SpoolImporterPayloadActionTest extends TestCase
                 return $fakeFilesystem;
             });
 
-        $import = new SpoolImporterPayloadAction(
+        $import = new WriteImporterArrayToJsonlFileAction(
             $importerPayload,
             $app,
             $company,

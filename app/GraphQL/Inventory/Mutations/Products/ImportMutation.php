@@ -9,7 +9,7 @@ use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Imports\Actions\SpoolImporterPayloadAction;
+use Kanvas\Imports\Actions\WriteImporterArrayToJsonlFileAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob as ImporterJob;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -50,7 +50,7 @@ class ImportMutation
         // job runs from a streamed file instead of carrying the whole array
         // through the queue. This is the fix for KANVAS-ECOSYSTEM-4XV — large
         // payloads no longer OOM the worker, peak memory stays flat.
-        $filesystemImport = new SpoolImporterPayloadAction(
+        $filesystemImport = new WriteImporterArrayToJsonlFileAction(
             $req['input'],
             $app,
             $company,

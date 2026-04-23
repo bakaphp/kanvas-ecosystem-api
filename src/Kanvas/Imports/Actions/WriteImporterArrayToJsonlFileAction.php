@@ -20,14 +20,14 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Spools an inline importer array to a JSONL file on the Kanvas filesystem
+ * Writes an inline importer array to a JSONL file on the Kanvas filesystem
  * and creates a `FilesystemImports` record pointing to it.
  *
  * The resulting `FilesystemImports` is dispatched to a downstream importer
  * job (`ProductImporterJob`, `CustomerImporterJob`, …) so the job streams
  * the file row-by-row instead of carrying the whole array through Redis.
  */
-class SpoolImporterPayloadAction
+class WriteImporterArrayToJsonlFileAction
 {
     public function __construct(
         protected array $importer,

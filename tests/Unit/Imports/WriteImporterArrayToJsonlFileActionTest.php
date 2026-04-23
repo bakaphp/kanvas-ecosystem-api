@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Imports;
 
-use Kanvas\Imports\Actions\SpoolImporterPayloadAction;
+use Kanvas\Imports\Actions\WriteImporterArrayToJsonlFileAction;
 use RuntimeException;
 use Tests\TestCaseUnit;
 
-class SpoolImporterPayloadActionTest extends TestCaseUnit
+class WriteImporterArrayToJsonlFileActionTest extends TestCaseUnit
 {
     private array $tempPaths = [];
 
@@ -31,7 +31,7 @@ class SpoolImporterPayloadActionTest extends TestCaseUnit
         ];
         $path = $this->tempPath();
 
-        SpoolImporterPayloadAction::writeJsonl($rows, $path);
+        WriteImporterArrayToJsonlFileAction::writeJsonl($rows, $path);
 
         $lines = $this->readLines($path);
         $this->assertCount(3, $lines);
@@ -58,7 +58,7 @@ class SpoolImporterPayloadActionTest extends TestCaseUnit
         ];
         $path = $this->tempPath();
 
-        SpoolImporterPayloadAction::writeJsonl($rows, $path);
+        WriteImporterArrayToJsonlFileAction::writeJsonl($rows, $path);
 
         $lines = $this->readLines($path);
         $this->assertCount(1, $lines);
@@ -69,7 +69,7 @@ class SpoolImporterPayloadActionTest extends TestCaseUnit
     {
         $path = $this->tempPath();
 
-        SpoolImporterPayloadAction::writeJsonl([], $path);
+        WriteImporterArrayToJsonlFileAction::writeJsonl([], $path);
 
         $this->assertFileExists($path);
         $this->assertSame('', file_get_contents($path));
@@ -88,7 +88,7 @@ class SpoolImporterPayloadActionTest extends TestCaseUnit
         }
         $path = $this->tempPath();
 
-        SpoolImporterPayloadAction::writeJsonl($rows, $path);
+        WriteImporterArrayToJsonlFileAction::writeJsonl($rows, $path);
 
         // Read back row-by-row the way the worker will (streaming) and confirm
         // every original row is recovered intact.
@@ -113,7 +113,7 @@ class SpoolImporterPayloadActionTest extends TestCaseUnit
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Could not open file for JSONL spool');
 
-        SpoolImporterPayloadAction::writeJsonl([['x' => 1]], $unwritablePath);
+        WriteImporterArrayToJsonlFileAction::writeJsonl([['x' => 1]], $unwritablePath);
     }
 
     public function testWriteJsonlNeverMaterializesFullPayloadAsSingleJsonString(): void
@@ -130,7 +130,7 @@ class SpoolImporterPayloadActionTest extends TestCaseUnit
         }
         $path = $this->tempPath();
 
-        SpoolImporterPayloadAction::writeJsonl($rows, $path);
+        WriteImporterArrayToJsonlFileAction::writeJsonl($rows, $path);
 
         $lineCount = 0;
         $handle = fopen($path, 'r');

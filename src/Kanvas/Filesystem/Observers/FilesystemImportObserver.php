@@ -11,7 +11,7 @@ class FilesystemImportObserver implements ShouldQueue
 {
     public function created(FilesystemImports $filesystemImport): void
     {
-        // Direct payload spools (e.g. JSONL written by SpoolImporterPayloadAction)
+        // Direct payload spools (e.g. JSONL written by WriteImporterArrayToJsonlFileAction)
         // have no mapper because the resolver dispatches the job itself. The
         // mapper-driven auto-dispatch only applies to CSV-mapped imports.
         if (! $filesystemImport->filesystemMapper) {
