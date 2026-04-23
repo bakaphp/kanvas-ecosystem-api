@@ -40,6 +40,11 @@ class DockerComposeBuilder
         return rtrim((string) file_get_contents(self::TEMPLATES_DIR . '/Dockerfile'));
     }
 
+    public static function buildEntrypoint(): string
+    {
+        return rtrim((string) file_get_contents(self::TEMPLATES_DIR . '/entrypoint.sh'));
+    }
+
     public static function buildDockerCompose(
         AgentDeployment $deployment,
         string $gatewayToken,
@@ -66,14 +71,18 @@ class DockerComposeBuilder
 
         $template = (string) file_get_contents(self::TEMPLATES_DIR . '/docker-compose.yml');
 
+        $imageName = self::getSharedImageName($app);
+
         return str_replace(
-            ['{{CONTAINER_NAME}}', '{{OPENCLAW_DIR}}', '{{GATEWAY_PORT}}', '{{PROXY_PORT}}', '{{ENV_LINES}}'],
+            ['{{CONTAINER_NAME}}', '{{OPENCLAW_DIR}}', '{{GATEWAY_PORT}}', '{{PROXY_PORT}}', '{{ENV_LINES}}', '{{IMAGE_NAME}}', '{{IMAGE_DIR}}'],
             [
                 $deployment->container_name,
                 $deployment->home_directory . '/.openclaw',
                 (string) $deployment->gateway_port,
                 (string) $deployment->proxy_port,
                 $envLines,
+                $imageName,
+                self::getSharedImageDir($app),
             ],
             $template,
         );
@@ -90,7 +99,25 @@ class DockerComposeBuilder
     ): string {
         $slug = $agent->slug;
         $model = $app->get(ConfigurationEnum::DEFAULT_MODEL->value) ?? 'google/gemini-3.1-pro-preview';
-        $geminiApiKey = $app->get(ConfigurationEnum::GEMINI_API_KEY->value) ?? '';
+
+        // Prefer GEMINI_API_KEY; fall back to GOOGLE_API_KEY — both are Google AI Studio keys
+        $geminiApiKey = (string) ($app->get(ConfigurationEnum::GEMINI_API_KEY->value)
+            ?? $app->get(ConfigurationEnum::GOOGLE_API_KEY->value)
+            ?? '');
+
+        $authProfiles = [
+            'openai-codex:default' => [
+                'provider' => 'openai-codex',
+                'mode' => 'oauth',
+            ],
+        ];
+
+        if ($geminiApiKey !== '') {
+            $authProfiles['google:default'] = [
+                'provider' => 'google',
+                'mode'     => 'api_key',
+            ];
+        }
 
         $config = [
             'meta' => [
@@ -104,12 +131,7 @@ class DockerComposeBuilder
                 'lastRunMode' => 'local',
             ],
             'auth' => [
-                'profiles' => [
-                    'openai-codex:default' => [
-                        'provider' => 'openai-codex',
-                        'mode' => 'oauth',
-                    ],
-                ],
+                'profiles' => $authProfiles,
             ],
             'agents' => [
                 'defaults' => [
@@ -118,16 +140,12 @@ class DockerComposeBuilder
                         'fallbacks' => [
                             'google/gemini-3.1-flash-lite-preview',
                             'google/gemini-3.1-pro-preview',
-                            'google-vertex/gemini-2.5-pro',
-                            'google-vertex/gemini-3-flash-preview',
                         ],
                     ],
                     'models' => [
-                        'google/gemini-2.5-pro' => (object) [],
+                        'google/gemini-2.5-pro'               => (object) [],
                         'google/gemini-3.1-flash-lite-preview' => (object) [],
-                        'google/gemini-3.1-pro-preview' => (object) [],
-                        'google-vertex/gemini-2.5-pro' => (object) [],
-                        'google-vertex/gemini-3-flash-preview' => (object) [],
+                        'google/gemini-3.1-pro-preview'        => (object) [],
                     ],
                     'workspace' => '/home/node/.openclaw/workspace',
                 ],
@@ -142,7 +160,7 @@ class DockerComposeBuilder
                 ],
             ],
             'tools' => [
-                'profile' => 'coding',
+                'profile' => 'full',
                 'exec' => [
                     'security' => 'full',
                 ],
@@ -207,17 +225,22 @@ class DockerComposeBuilder
                 'entries' => (object) [],
             ],
             'plugins' => [
-                'entries' => (object) [],
+                'entries' => [],
             ],
         ];
 
+        $pluginEntries = [];
+
         if (! empty($geminiApiKey)) {
-            $config['tools']['web'] = [
-                'search' => [
-                    'enabled' => true,
-                    'provider' => 'gemini',
-                    'gemini' => [
-                        'apiKey' => $geminiApiKey,
+            $pluginEntries['web-search'] = [
+                'enabled' => true,
+                'config' => [
+                    'webSearch' => [
+                        'enabled' => true,
+                        'provider' => 'gemini',
+                        'gemini' => [
+                            'apiKey' => $geminiApiKey,
+                        ],
                     ],
                 ],
             ];
@@ -230,17 +253,15 @@ class DockerComposeBuilder
 
         if (! empty($channelConfig)) {
             $config['channels'] = $channelConfig;
-            $entries = [];
             if (isset($channelConfig['slack'])) {
-                $entries['slack'] = ['enabled' => true];
+                $pluginEntries['slack'] = ['enabled' => true];
             }
             if (isset($channelConfig['telegram'])) {
-                $entries['telegram'] = ['enabled' => true];
-            }
-            if (! empty($entries)) {
-                $config['plugins']['entries'] = $entries;
+                $pluginEntries['telegram'] = ['enabled' => true];
             }
         }
+
+        $config['plugins']['entries'] = ! empty($pluginEntries) ? $pluginEntries : (object) [];
 
         return (string) json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     }
@@ -250,7 +271,9 @@ class DockerComposeBuilder
         $profiles = [];
         $lastGood = [];
 
-        $googleApiKey = $app->get(ConfigurationEnum::GOOGLE_API_KEY->value);
+        // Accept either GOOGLE_API_KEY or GEMINI_API_KEY — both are Google AI Studio keys
+        $googleApiKey = $app->get(ConfigurationEnum::GOOGLE_API_KEY->value)
+            ?? $app->get(ConfigurationEnum::GEMINI_API_KEY->value);
         if (! empty($googleApiKey)) {
             $profiles['google:default'] = [
                 'type' => 'api_key',
@@ -322,6 +345,16 @@ class DockerComposeBuilder
         }
 
         return $channels;
+    }
+
+    public static function getSharedImageName(AppInterface $app): string
+    {
+        return (string) ($app->get(ConfigurationEnum::SHARED_IMAGE_NAME->value) ?? 'openclaw-kanvas:latest');
+    }
+
+    public static function getSharedImageDir(AppInterface $app): string
+    {
+        return (string) ($app->get(ConfigurationEnum::SHARED_IMAGE_DIR->value) ?? '/opt/openclaw-image');
     }
 
     /**

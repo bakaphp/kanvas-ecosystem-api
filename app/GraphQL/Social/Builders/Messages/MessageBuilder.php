@@ -61,11 +61,6 @@ class MessageBuilder
                     $q->where('slug', $slug);
                 });
             }
-
-            $messageCacheTime = (int) $app->get('message_tags_cache_time');
-            if ($messageCacheTime > 0) {
-                $query->cacheFor($messageCacheTime);
-            }
         }
 
         if (isset($args['random']) && $args['random'] === true) {
@@ -217,9 +212,13 @@ class MessageBuilder
             throw new InvalidArgumentException('Provide only one of channel_uuid or channel_slug, not both.');
         }
 
+        $app = app(Apps::class);
+        $allowAppWide = (bool) $app->get(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value);
+        $user = auth()->user();
+
         return Message::fromApp()
             ->where('is_deleted', 0)
-            ->whereHas('channels', function ($query) use ($args) {
+            ->whereHas('channels', function (Builder $query) use ($args): void {
                 $query->where('channels.is_deleted', 0);
                 if (isset($args['channel_uuid'])) {
                     $query->where('channels.uuid', $args['channel_uuid']);
@@ -227,8 +226,8 @@ class MessageBuilder
                     $query->where('channels.slug', $args['channel_slug']);
                 }
             })
-            ->when(! auth()->user()->isAdmin(), function ($query) {
-                $query->where('companies_id', auth()->user()->currentCompanyId());
+            ->when(! $allowAppWide && ! $user->isAdmin(), function (Builder $query) use ($user): void {
+                $query->where('companies_id', $user->currentCompanyId());
             });
     }
 

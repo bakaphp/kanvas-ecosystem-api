@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Social\Tags\Models\TagEntity;
 use Kanvas\SystemModules\Models\SystemModules;
 use Tests\TestCase;
 
@@ -387,6 +388,88 @@ class TagsTest extends TestCase
                     ],
                 ],
             ]);
+    }
+
+    public function testDetachTagFromMessage()
+    {
+        $messageType = MessageType::factory()->create();
+        $messageText = fake()->text();
+        $app = app(Apps::class);
+
+        $messageResponse = $this->graphQL('
+            mutation createMessage($input: MessageInput!) {
+                createMessage(input: $input) {
+                    id
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'message' => $messageText,
+                'message_verb' => $messageType->verb,
+                'system_modules_id' => 1,
+                'entity_id' => '1',
+            ],
+        ]);
+
+        $systemModule = SystemModules::fromApp($app)
+            ->where('model_name', Message::class)
+            ->first();
+        $message = $messageResponse->json('data.createMessage');
+
+        $tagResponse = $this->graphQL('
+            mutation createTag($input: TagInput!) {
+                createTag(input: $input) {
+                    id
+                    name
+                    weight
+                }
+            }
+        ', [
+            'input' => [
+                'name' => fake()->name(),
+                'weight' => random_int(1, 100),
+            ],
+        ]);
+        $tag = $tagResponse->json('data.createTag');
+
+        $payload = [
+            'tag_id' => $tag['id'],
+            'system_module_uuid' => $systemModule->uuid,
+            'entity_id' => $message['id'],
+        ];
+
+        $this->graphQL('
+            mutation attachTagToEntity($input: AttachTagEntityInput!) {
+                attachTagToEntity(input: $input)
+            }
+        ', ['input' => $payload])->assertJson([
+            'data' => ['attachTagToEntity' => true],
+        ]);
+
+        $this->assertTrue(
+            TagEntity::where('tags_id', $tag['id'])
+                ->where('entity_id', $message['id'])
+                ->where('taggable_type', Message::class)
+                ->exists(),
+            'Tag should be attached to the message after attachTagToEntity',
+        );
+
+        $this->graphQL('
+            mutation detachTagFromEntity($input: AttachTagEntityInput!) {
+                detachTagFromEntity(input: $input)
+            }
+        ', ['input' => $payload])->assertJson([
+            'data' => ['detachTagFromEntity' => true],
+        ]);
+
+        $this->assertFalse(
+            TagEntity::where('tags_id', $tag['id'])
+                ->where('entity_id', $message['id'])
+                ->where('taggable_type', Message::class)
+                ->exists(),
+            'Tag should be detached from the message after detachTagFromEntity',
+        );
     }
 
     public function testTagParentChildRelationship(): void

@@ -22,16 +22,14 @@ class ConfigValidation
         foreach ($this->config as $field => $attributes) {
             $rules = [];
 
-            // Check for required
             if (isset($attributes['required']) && $attributes['required']) {
                 $rules[] = 'required';
+            } else {
+                $rules[] = 'nullable';
             }
 
-            // Check for type
-            if (isset($attributes['type'])) {
-                if ($attributes['type'] === 'text') {
-                    $rules[] = 'string';
-                }
+            if (isset($attributes['type']) && $attributes['type'] === 'text') {
+                $rules[] = 'string';
             }
             $validationRules[$field] = implode('|', $rules);
         }

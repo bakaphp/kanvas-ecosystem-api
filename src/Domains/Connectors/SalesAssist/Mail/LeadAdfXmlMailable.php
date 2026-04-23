@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\SalesAssist\Mail;
 
 use Illuminate\Mail\Mailables\Content;
 use Kanvas\Notifications\KanvasMailable;
+use Override;
 
 class LeadAdfXmlMailable extends KanvasMailable
 {
@@ -19,6 +20,7 @@ class LeadAdfXmlMailable extends KanvasMailable
         parent::__construct($mailerConfig, $emailContent);
     }
 
+    #[Override]
     public function content(): Content
     {
         return new Content(
@@ -29,6 +31,7 @@ class LeadAdfXmlMailable extends KanvasMailable
         );
     }
 
+    #[Override]
     public function build(): self
     {
         parent::build();

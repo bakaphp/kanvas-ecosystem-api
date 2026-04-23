@@ -82,6 +82,9 @@ class OrderStatsQuery
         $periodBreakdown = $input['periodBreakdown'] ?? 'MONTH';
         $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
         $userEmail = $input['user_email'] ?? null;
+        $metadataFilter = $input['metadata'] ?? null;
+        $reference = $input['reference'] ?? null;
+        $orderNumber = $input['orderNumber'] ?? null;
 
         $orderStats = new GetOrderPaymentStatsAction(
             $app,
@@ -92,7 +95,10 @@ class OrderStatsQuery
             $providers,
             $productId,
             $providerCompanyIds,
-            $userEmail
+            $userEmail,
+            $reference,
+            $orderNumber,
+            $metadataFilter,
         )->execute(
             $date,
             $startDate,
@@ -111,9 +117,11 @@ class OrderStatsQuery
         $app = app(Apps::class);
         $input = $request['input'];
 
+        $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
+
         $company = isset($input['company_id'])
             ? Companies::getByIdFromCompanyApp((int) $input['company_id'], $user->getCurrentCompany(), $app)
-            : ($user->isAppOwner() ? null : $user->getCurrentCompany());
+            : (! empty($providerCompanyIds) || $user->isAppOwner() ? null : $user->getCurrentCompany());
 
         return new GetOrderCommissionStatsAction(
             app: $app,
@@ -121,6 +129,7 @@ class OrderStatsQuery
             from: Carbon::parse($input['from']),
             to: Carbon::parse($input['to']),
             orderType: $input['order_type'] ?? null,
+            providerCompanyIds: $providerCompanyIds,
         )->execute();
     }
 

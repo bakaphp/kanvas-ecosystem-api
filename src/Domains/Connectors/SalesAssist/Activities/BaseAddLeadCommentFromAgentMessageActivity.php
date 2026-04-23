@@ -113,6 +113,12 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
     public function execute(Message $message, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
+
+        // Optional delay for testing purposes
+        if (isset($params['delay_seconds'])) {
+            sleep((int) $params['delay_seconds']);
+        }
+
         $company = $message->company;
 
         // Validate company integration
@@ -180,17 +186,17 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 $message->set('sent_to_crm', true);
 
                 // Notify managers
-                $sentManagerNotification = false;
+                $notificationInfo = [];
                 if (! $fromAgent && $lead->company->get('ai_manager_notifications')) {
-                    $this->notifyManagers($message, $lead);
-                    $sentManagerNotification = true;
+                    $notificationInfo = $this->notifyManagers($message, $lead);
                 }
 
                 return [
                     'note' => $externalResult,
                     'from_agent' => $fromAgent,
                     'lead' => $lead->getId(),
-                    'sent_manager_notification' => $sentManagerNotification,
+                    'sent_manager_notification' => ! empty($notificationInfo),
+                    'notification_info' => $notificationInfo,
                 ];
             },
             company: $company,
@@ -200,11 +206,11 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
     /**
      * Notify managers about customer engagement.
      */
-    protected function notifyManagers(Message $message, Lead $lead): void
+    protected function notifyManagers(Message $message, Lead $lead): array
     {
         $hoursTool = new CompanyWorkHoursTool($message)->execute();
         if ($hoursTool['status'] !== 'work_hours') {
-            return;
+            return ['skipped' => 'outside_work_hours'];
         }
 
         // Check if we should only notify once
@@ -212,7 +218,7 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
         if ($notifiedAtKey !== null
             && $lead->company->get(IntelligenceConfigurationEnum::AI_ENGAGEMENT_MESSAGE_ONLY_ONE_NOTIFICATION->value)
             && $lead->get($notifiedAtKey)) {
-            return;
+            return ['skipped' => 'already_notified'];
         }
 
         $notification = new Blank(
@@ -231,7 +237,11 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
         $notification->setPushTemplateName('agent_manager_push_notification');
         $notification->setSmsTemplateName('agent_manager_sms_notification');
 
-        $this->configureManagerNotificationChannels($notification, $lead);
+        $this->configureManagerNotificationChannels(
+            $notification,
+            $lead,
+            $message
+        );
 
         // Get managers
         $managers = UsersRepository::getCompanyAppUserByRole(
@@ -240,16 +250,43 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
             'BDCManager'
         )->get();
 
+        // Include the lead owner in the notification recipients
+        $leadOwner = $lead->owner;
+        if ($leadOwner && ! $managers->contains('id', $leadOwner->getId())) {
+            $managers->push($leadOwner);
+        }
+
         Notification::send($managers, $notification);
 
         // Track notification timestamp if key is provided
         if ($notifiedAtKey !== null) {
             $lead->set($notifiedAtKey, date('Y-m-d H:i:s'));
         }
+
+        $channel = $message->channels()->first();
+
+        return [
+            'channels' => $notification->channels,
+            'is_first_engagement' => $this->isFirstEngagement($lead, $message),
+            'channel_id' => $channel?->getId(),
+            'channel_name' => $channel?->name,
+            'channel_slug' => $channel?->slug,
+            'manager_count' => $managers->count(),
+            'manager_ids' => $managers->pluck('id')->toArray(),
+            'first_engagement_config' => $lead->company->get(IntelligenceConfigurationEnum::FIRST_ENGAGEMENT_NOTIFICATION_CHANNELS->value),
+            'engagement_config' => $lead->company->get(IntelligenceConfigurationEnum::ENGAGEMENT_NOTIFICATION_CHANNELS->value),
+        ];
     }
 
-    protected function configureManagerNotificationChannels(Blank $notification, Lead $lead): void
+    protected function configureManagerNotificationChannels(Blank $notification, Lead $lead, Message $message): void
     {
+        $engagementChannels = $this->getEngagementNotificationChannels($lead, $message);
+        if ($engagementChannels !== null) {
+            $notification->channels = $engagementChannels;
+
+            return;
+        }
+
         $onlySms = (bool) $lead->company->get('ai_manager_notification_only_sms');
         $onlyMail = (bool) $lead->company->get('ai_manager_notification_only_mail');
         $onlyPush = (bool) $lead->company->get('ai_manager_notification_only_push');
@@ -264,5 +301,63 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
                 ExpoChannel::class,
             ];
         }
+    }
+
+    protected function getEngagementNotificationChannels(Lead $lead, Message $message): ?array
+    {
+        $firstEngagementChannels = (array) ($lead->company->get(IntelligenceConfigurationEnum::FIRST_ENGAGEMENT_NOTIFICATION_CHANNELS->value) ?? []);
+        $subsequentEngagementChannels = (array) ($lead->company->get(IntelligenceConfigurationEnum::ENGAGEMENT_NOTIFICATION_CHANNELS->value) ?? []);
+
+        if (empty($firstEngagementChannels) && empty($subsequentEngagementChannels)) {
+            return null;
+        }
+
+        $isFirst = $this->isFirstEngagement($lead, $message);
+        $selectedChannels = $isFirst
+            ? $firstEngagementChannels
+            : $subsequentEngagementChannels;
+
+        if (empty($selectedChannels)) {
+            return null;
+        }
+
+        return $this->mapNotificationChannelSlugs($selectedChannels);
+    }
+
+    protected function isFirstEngagement(Lead $lead, Message $message): bool
+    {
+        $channel = $message->channels()->first();
+
+        if ($channel === null) {
+            return true;
+        }
+
+        $previousInboundCount = $channel->messages()
+            ->whereRaw("JSON_EXTRACT(messages.message, '$.from_me') = false")
+            ->where('messages.is_deleted', 0)
+            ->where('messages.id', '!=', $message->getId())
+            ->count();
+
+        return $previousInboundCount === 0;
+    }
+
+    protected function mapNotificationChannelSlugs(array $slugs): array
+    {
+        $channelMap = [
+            'sms' => TwilioSmsChannel::class,
+            'push' => OneSignalNotificationChannel::class,
+            'expo' => ExpoChannel::class,
+            'mail' => 'mail',
+            'email' => 'mail',
+        ];
+
+        $mapped = [];
+        foreach ($slugs as $slug) {
+            if (isset($channelMap[$slug])) {
+                $mapped[] = $channelMap[$slug];
+            }
+        }
+
+        return $mapped;
     }
 }

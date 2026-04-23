@@ -17,6 +17,9 @@ enum ConfigurationEnum: string
     case ADK_BASE_URL = 'google_orchestrator_base_url';
     case ADK_API_KEY = 'google_orchestrator_api_key';
     case ADK_APP_NAME = 'google_orchestrator_app_name';
+    case ADK_AI_ASSIST_APP_NAME = 'google_orchestrator_ai_assist_app_name';
+    case ADK_AI_ASSIST_BASE_URL = 'google_orchestrator_ai_assist_base_url';
+    case AI_ASSIST_ENABLED = 'sales_assist_ai_assist_enabled';
     case AGENT_HAND_OFF = 'agent_hand_off';
     case AGENT_HAND_OFF_TYPE = 'agent_hand_off_type';
     case AGENT_CHANNEL_TYPE = 'agent_channel_type';
@@ -29,4 +32,6 @@ enum ConfigurationEnum: string
     case AI_ENGAGEMENT_MESSAGE_ONLY_ONE_NOTIFICATION = 'ai_engagement_message_only_one_notification';
     case AI_MODE = 'ai_mode';
     case NOTIFICATION_CHANNELS = 'notification_enabled_channels';
+    case FIRST_ENGAGEMENT_NOTIFICATION_CHANNELS = 'first_engagement_notification_channels';
+    case ENGAGEMENT_NOTIFICATION_CHANNELS = 'engagement_notification_channels';
 }

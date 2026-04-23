@@ -6,6 +6,7 @@ namespace Kanvas\Notifications\Channels;
 
 use Illuminate\Notifications\Notification;
 use Kanvas\Connectors\Twilio\Client;
+use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 
 class TwilioSmsChannel
 {
@@ -19,7 +20,7 @@ class TwilioSmsChannel
         $company = $message['company'];
         $cellphone = $message['phone'];
         $content = $message['content'];
-        $fromPhone = $company->get('twilio_from_phone_number');
+        $fromPhone = $company->get(ConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value);
 
         if (empty($fromPhone) || empty($content) || empty($cellphone)) {
             return;

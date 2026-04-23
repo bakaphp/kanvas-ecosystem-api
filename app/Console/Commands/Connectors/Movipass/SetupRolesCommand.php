@@ -86,6 +86,19 @@ class SetupRolesCommand extends Command
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
             ],
+            'configure-company' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+            ],
+            'list-paso-rapido' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::RDVIAL_CONSULTANT,
+            ],
+            'manage-paso-rapido' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+            ],
         ];
 
         Bouncer::scope()->to(RolesEnums::getScope($app));
@@ -93,6 +106,12 @@ class SetupRolesCommand extends Command
             foreach ($roles as $roleName) {
                 Bouncer::allow($roleName->value)->to($ability);
             }
+
+            if (! in_array(MovipassRolesEnum::RDVIAL_CONSULTANT, $roles, true)) {
+                Bouncer::disallow(MovipassRolesEnum::RDVIAL_CONSULTANT->value)->to($ability);
+            }
         }
+
+        Bouncer::refresh();
     }
 }

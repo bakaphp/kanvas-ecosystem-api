@@ -59,6 +59,7 @@ jobs:
             docker restart queue-sync-shopify-queue
             docker restart queue-sync-shopify-queue-worker-1
             docker restart batch-logger-queue
+            docker restart openclaw-queue
             docker restart queue-user-interactions
             docker restart queue-scout-worker-1
             docker restart queue-workflow-1

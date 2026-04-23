@@ -33,12 +33,6 @@ class Filesystem extends BaseModel
     use UuidTrait;
     use HashTableTrait;
     use CanUseWorkflow;
-    public $cacheTags = ['filesystem'];
-    public $cachePrefix = 'filesystem_';
-    public $cacheDriver = 'redis';
-    // protected static $flushCacheOnUpdate = true;
-    public ?string $macroKey = null;
-    public mixed $withoutAllGlobalScopes;
 
     protected $table = 'filesystem';
     protected $fillable = [
@@ -54,7 +48,7 @@ class Filesystem extends BaseModel
 
     public function settings(): HasMany
     {
-        return $this->hasMany(FilesystemSettings::class, 'apps_id');
+        return $this->hasMany(FilesystemSettings::class, 'filesystem_id');
     }
 
     protected function createSettingsModel(): void

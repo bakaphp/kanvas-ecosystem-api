@@ -1,0 +1,37 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class () extends Migration {
+    public function up(): void
+    {
+        Schema::connection('crm')->table('leads', function (Blueprint $table) {
+            $table->index(
+                ['apps_id', 'companies_id', 'is_deleted', 'created_at'],
+                'ix_leads_analytics',
+            );
+        });
+
+        Schema::connection('crm')->table('deals', function (Blueprint $table) {
+            $table->index(
+                ['apps_id', 'companies_id', 'is_deleted', 'created_at'],
+                'ix_deals_analytics',
+            );
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::connection('crm')->table('leads', function (Blueprint $table) {
+            $table->dropIndex('ix_leads_analytics');
+        });
+
+        Schema::connection('crm')->table('deals', function (Blueprint $table) {
+            $table->dropIndex('ix_deals_analytics');
+        });
+    }
+};

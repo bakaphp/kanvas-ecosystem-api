@@ -9,15 +9,16 @@ use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
-use Prism\Prism\Enums\Provider;
-use Prism\Prism\Exceptions\PrismException;
-use Prism\Prism\Facades\Prism;
-use Prism\Prism\Schema\ObjectSchema;
-use Prism\Prism\Schema\StringSchema;
-use Prism\Prism\Structured\Response;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
+use Laravel\Ai\Enums\Lab;
+use Laravel\Ai\Exceptions\AiException;
+use Laravel\Ai\Responses\StructuredAgentResponse;
 use RuntimeException;
+
+use function Laravel\Ai\agent;
 
 /**
  * Creates a structured first engagement message for a lead using AI.
@@ -35,10 +36,9 @@ class CreateLeadFirstEngagementMessageAction
         protected Lead $lead,
         protected ?string $template = null
     ) {
-        $agentName = 'firstMessageEngagerAgent';
         $this->agent = Agent::fromApp($lead->app)
             ->fromCompany($lead->company)
-            ->where('name', $agentName)
+            ->where('name', AgentEnum::FIRST_MESSAGE_ENGAGER->value)
             ->firstOrFail();
     }
 
@@ -59,7 +59,7 @@ class CreateLeadFirstEngagementMessageAction
                 ['lead' => $this->lead->toArray()]
             ),
             'template' => $this->template,
-            'ai_mode' => $this->lead->get('ai_mode'),
+            'ai_mode' => $this->lead->get(new LeadConfigurationService()->getAiModeKey($this->lead)),
             'follow_up_mode' => $this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
             'allow_call_appointments' => $this->lead->company->get(CompanyConfigurationEnum::ALLOW_CALL_APPOINTMENTS->value) ?? true,
         ];
@@ -71,27 +71,15 @@ class CreateLeadFirstEngagementMessageAction
         $data['voice_enabled'] = ! empty($this->lead->app->get(VoiceBridgeConfigurationEnum::API_KEY->value));
         $data['available_channels'] = $this->resolveAvailableChannels();
 
-        // Define the schema for the structured response
-        $schema = new ObjectSchema(
-            name: 'lead_engagement_message',
-            description: 'First engagement message structure for a lead',
-            properties: [
-                new StringSchema('title', 'The subject or title of the engagement message'),
-                new StringSchema('message', 'The main body of the engagement message'),
-            ],
-            requiredFields: ['title', 'message']
-        );
-
         $prompt = Blade::render(implode(' ', $this->agent->role['steps']), $data['additional_context_information']);
 
         try {
-            $response = $this->callPrism($schema, $prompt);
-        } catch (PrismException $e) {
-            $response = $this->callPrism($schema, $prompt);
+            $response = $this->callAi($prompt);
+        } catch (AiException $e) {
+            $response = $this->callAi($prompt);
         }
 
-        // Return the structured data containing title and message
-        return [...$response->structured ?? [], ['background' => $prompt]];
+        return [...$response->structured, ['background' => $prompt]];
     }
 
     protected function resolveAvailableChannels(): array
@@ -116,19 +104,20 @@ class CreateLeadFirstEngagementMessageAction
         return $channels;
     }
 
-    public function callPrism(ObjectSchema $schema, string $prompt): Response
+    public function callAi(string $prompt): StructuredAgentResponse
     {
-        $response = Prism::structured()
-           ->using(Provider::Gemini, 'gemini-2.5-pro')
-           ->withMaxTokens(7000) // Increase from default
-           ->withSchema($schema)
-           ->withPrompt($prompt)
-           ->withClientOptions([
-               'timeout' => 220,
-                'connect_timeout' => 220,
-                'read_timeout' => 220,
-            ])
-           ->asStructured();
+        /** @var StructuredAgentResponse $response */
+        $response = agent(
+            schema: fn ($schema) => [
+                'title' => $schema->string()->description('The subject or title of the engagement message')->required(),
+                'message' => $schema->string()->description('The main body of the engagement message')->required(),
+            ],
+        )->prompt(
+            $prompt,
+            provider: Lab::Gemini,
+            model: 'gemini-2.5-pro',
+            timeout: 220,
+        );
 
         return $response;
     }

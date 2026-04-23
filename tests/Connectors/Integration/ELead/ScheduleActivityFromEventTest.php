@@ -26,6 +26,14 @@ final class ScheduleActivityFromEventTest extends TestCase
 {
     use HasELeadConfiguration;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('ELead integration tests are skipped in CI');
+        }
+    }
+
     private function createEventWithLead(): array
     {
         $app = app(Apps::class);

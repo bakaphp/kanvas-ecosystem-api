@@ -31,7 +31,7 @@ class AgentChannelResponderActivity extends KanvasActivity
         $allowedChannels = $params['channelId'] ?? [];
         $channelAgentMapping = $params['channelAgentMapping'] ?? [];
 
-        return $this->executeIntegration(
+        $result = $this->executeIntegration(
             entity: $channel,
             app: $app,
             integration: IntegrationsEnum::TWILIO,
@@ -132,5 +132,7 @@ class AgentChannelResponderActivity extends KanvasActivity
             },
             company: $channel->company,
         );
+
+        return $result;
     }
 }

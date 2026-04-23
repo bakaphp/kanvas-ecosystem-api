@@ -229,7 +229,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             VariantsWarehouses::class,
             'products_variants_id',
             'warehouses_id'
-        );
+        )->where('products_variants_warehouses.is_deleted', 0);
     }
 
     /**

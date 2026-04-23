@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Actions;
 
+use Exception;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
 use Kanvas\Users\Models\Users;
-use Prism\Prism\Enums\Provider;
-use Prism\Prism\Exceptions\PrismException;
-use Prism\Prism\Facades\Prism;
+use Laravel\Ai\Enums\Lab;
+use Laravel\Ai\Exceptions\AiException;
+
+use function Laravel\Ai\agent;
 
 class ModelWizardModelChooserAction
 {
@@ -54,12 +56,13 @@ class ModelWizardModelChooserAction
             If the user data does not indicate a preference, choose the best overall model based on the user data. ASNWER WITH THE SKU OF THE CHOSEN MODEL ONLY.";
 
         try {
-            $chosenModelSku = Prism::text()
-                ->using(Provider::Gemini, 'gemini-2.0-flash')
-                ->withPrompt($prompt)
-                ->asText();
-        } catch (\Exception $e) {
-            throw new PrismException('Error while identifying the best model for the user: ' . $e->getMessage());
+            $chosenModelSku = agent()->prompt(
+                $prompt,
+                provider: Lab::Gemini,
+                model: 'gemini-2.0-flash',
+            );
+        } catch (Exception $e) {
+            throw new AiException('Error while identifying the best model for the user: ' . $e->getMessage());
         }
 
         return [

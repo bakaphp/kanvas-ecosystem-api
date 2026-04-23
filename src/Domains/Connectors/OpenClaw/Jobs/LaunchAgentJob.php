@@ -32,6 +32,7 @@ class LaunchAgentJob implements ShouldQueue
         protected CompanyInterface $company,
         protected AgentDeployment $deployment,
     ) {
+        $this->onQueue('openclaw');
     }
 
     public function handle(): void
@@ -50,6 +51,7 @@ class LaunchAgentJob implements ShouldQueue
 
             AgentDeploymentStatusChanged::dispatch($deployment, 'provisioning');
         } catch (Throwable $e) {
+            report($e);
             AgentDeploymentStatusChanged::dispatch($deployment, 'provisioning');
 
             throw $e;

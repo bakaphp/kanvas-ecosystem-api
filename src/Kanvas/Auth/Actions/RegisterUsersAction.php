@@ -60,6 +60,7 @@ class RegisterUsersAction extends CreateUserAction
         }
 
         UserNotificationService::sendWelcomeEmail($this->app, $user, $company);
+        UserNotificationService::sendEmailVerification($this->app, $user);
 
         if ($newUser) {
             (new SetupService())->onBoarding(

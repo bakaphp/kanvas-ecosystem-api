@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Actions;
 
-use Baka\Helpers\DateHelper;
+use Baka\Support\DateHelper;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;

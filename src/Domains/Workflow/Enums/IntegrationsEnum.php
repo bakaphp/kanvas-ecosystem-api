@@ -47,7 +47,11 @@ enum IntegrationsEnum: string
     case TRIGGER_AI = 'trigger-ai';
     case RESPOND_IO = 'respond_io';
     case CALENDLY = 'calendly';
+    case CARDNET = 'cardnet';
     case CONTACT_CHECKER = 'contact_checker';
     case OPENCLAW = 'openclaw';
     case MICROSOFT = 'microsoft';
+    case INTRAS = 'intras';
+    case LICENSE_PLATE_EXTRACTOR = 'license_plate_extractor';
+    case LENDFLOW = 'lendflow';
 }

@@ -16,7 +16,7 @@ class OrderPaymentStatsProviderTest extends OrderBase
                     count
                     totalAmount
                     byProvider { name count totalAmount }
-                    data { date count }
+                    data { date count totalAmount }
                 }
                 byPeriod { label total_transactions total_amount }
                 periods { period_type count avg_count total amount_avg periods_in_range }
@@ -194,5 +194,121 @@ class OrderPaymentStatsProviderTest extends OrderBase
         $response->assertSuccessful();
         $this->assertGreaterThanOrEqual(1, $response->json('data.orderPaymentStats.ordersInPeriod.count'));
         $this->assertGreaterThan(0, $response->json('data.orderPaymentStats.ordersInPeriod.totalAmount'));
+    }
+
+    public function testOrderPaymentStatsFiltersByMetadataPath(): void
+    {
+        $tagValue = 'tag-' . uniqid();
+
+        $tagged = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => ['paso_rapido_tag' => $tagValue]],
+        );
+
+        $untagged = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => []],
+        );
+
+        foreach ([$tagged, $untagged] as $order) {
+            $this->graphQL('
+                mutation addPaymentToOrder($orderID: ID!, $input: PaymentInput!) {
+                    addPaymentToOrder(orderID: $orderID, input: $input) {
+                        status
+                        payment { id }
+                    }
+                }
+            ', [
+                'orderID' => $order->id,
+                'input' => ['payment_method' => 'CASH'],
+            ], [], [
+                'X-Kanvas-Location' => $this->company->branch->uuid,
+            ]);
+        }
+
+        $response = $this->graphQL($this->orderPaymentStatsQuery, [
+            'input' => [
+                'paidStates' => ['paid'],
+                'startDate' => now()->subDay()->format('Y-m-d'),
+                'endDate' => now()->addDay()->format('Y-m-d'),
+                'timezone' => 'UTC',
+                'metadata' => [
+                    'path' => 'data.paso_rapido_tag',
+                    'value' => $tagValue,
+                    'operator' => 'EQ',
+                ],
+            ],
+        ]);
+
+        $response->assertSuccessful();
+
+        $body = $response->json() ?? [];
+        $this->assertIsArray($body, 'GraphQL response body was not JSON-parseable');
+
+        if (isset($body['errors'])) {
+            $this->fail('orderPaymentStats returned GraphQL errors: ' . json_encode($body['errors']));
+        }
+
+        $payload = $body['data']['orderPaymentStats'] ?? null;
+        $this->assertNotNull($payload, 'data.orderPaymentStats is null. Full body: ' . json_encode($body));
+
+        $ordersInPeriod = $payload['ordersInPeriod'] ?? null;
+        $this->assertIsArray($ordersInPeriod, 'ordersInPeriod missing. Payload: ' . json_encode($payload));
+        $this->assertEquals(1, $ordersInPeriod['count']);
+        $this->assertGreaterThan(0, $ordersInPeriod['totalAmount']);
+
+        $dailyTotals = array_sum(array_column($ordersInPeriod['data'] ?? [], 'totalAmount'));
+        $this->assertEqualsWithDelta($ordersInPeriod['totalAmount'], $dailyTotals, 0.01);
+    }
+
+    public function testOrderPaymentStatsFiltersByOrderNumber(): void
+    {
+        $order = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => []],
+        );
+
+        $this->graphQL('
+            mutation addPaymentToOrder($orderID: ID!, $input: PaymentInput!) {
+                addPaymentToOrder(orderID: $orderID, input: $input) {
+                    status
+                    payment { id }
+                }
+            }
+        ', [
+            'orderID' => $order->id,
+            'input' => ['payment_method' => 'CASH'],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+        ]);
+
+        $order->refresh();
+
+        $response = $this->graphQL($this->orderPaymentStatsQuery, [
+            'input' => [
+                'paidStates' => ['paid'],
+                'startDate' => now()->subDay()->format('Y-m-d'),
+                'endDate' => now()->addDay()->format('Y-m-d'),
+                'timezone' => 'UTC',
+                'orderNumber' => (string) $order->order_number,
+            ],
+        ]);
+
+        $response->assertSuccessful();
+
+        $body = $response->json() ?? [];
+        $this->assertIsArray($body, 'GraphQL response body was not JSON-parseable');
+
+        if (isset($body['errors'])) {
+            $this->fail('orderPaymentStats returned GraphQL errors: ' . json_encode($body['errors']));
+        }
+
+        $payload = $body['data']['orderPaymentStats'] ?? null;
+        $this->assertNotNull($payload, 'data.orderPaymentStats is null. Full body: ' . json_encode($body));
+
+        $this->assertEquals(1, $payload['ordersInPeriod']['count'] ?? null);
     }
 }

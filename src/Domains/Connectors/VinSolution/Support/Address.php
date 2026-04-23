@@ -64,11 +64,12 @@ class Address
      */
     public function getCity(): ?string
     {
-        if ($this->address->city === null) {
-            return ! empty(trim((string) $this->address->city)) ? $this->address->city : null;
+        $cityFromRelation = $this->address->city()->first();
+        if ($cityFromRelation) {
+            return $cityFromRelation->name;
         }
 
-        return $this->address->city()->first()?->name;
+        return $this->getValue($this->address->city);
     }
 
     /**
@@ -76,23 +77,27 @@ class Address
      */
     public function getState(): ?string
     {
-        $defaultState = $this->address->people && $this->address->people->company ? $this->address->people->company->get(ConfigurationEnum::DEFAULT_STATE_KEY->value) : CustomFieldEnum::DEFAULT_STATE->value;
+        $defaultState = $this->address->people && $this->address->people->company
+            ? $this->address->people->company->get(ConfigurationEnum::DEFAULT_STATE_KEY->value)
+            : CustomFieldEnum::DEFAULT_STATE->value;
 
-        if ($this->address->state === null) {
-            if (! empty($this->address->state) && strlen($this->address->state) > 3) {
+        $stateFromRelation = $this->address->state()->first();
+        if ($stateFromRelation) {
+            return $stateFromRelation->code;
+        }
+
+        if (! empty($this->address->state)) {
+            if (strlen($this->address->state) > 3) {
                 $state = States::where('name', $this->address->state)->first();
 
                 if ($state) {
                     return $state->code;
                 }
-            } elseif (! empty($this->address->state) && strlen($this->address->state) < 3) {
-                return strtoupper($this->address->state);
             }
 
-            return $defaultState;
-            //return ! empty($this->address->state) && strlen($this->address->state) < 3 ? strtoupper($this->address->state) : $defaultState;
+            return strtoupper($this->address->state);
         }
 
-        return $this->address->state()->first()?->code ?? $defaultState;
+        return $defaultState;
     }
 }

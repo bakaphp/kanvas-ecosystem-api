@@ -92,7 +92,16 @@ class VariantsWarehouseObserver
             $variantWarehouse->getTotalProducts()
         );
 
-        if ($variantWarehouse->getTotalProducts() === 0) {
+        $hasOtherVariantsInWarehouse = VariantsWarehouses::where('warehouses_id', $variantWarehouse->warehouses_id)
+            ->where('is_deleted', 0)
+            ->whereHas(
+                'variant',
+                fn ($query) => $query->where('products_id', $variantWarehouse->variant->products_id)
+            )
+            ->where('id', '!=', $variantWarehouse->id)
+            ->exists();
+
+        if (! $hasOtherVariantsInWarehouse) {
             $productWarehouse = ProductsWarehouses::where('products_id', $variantWarehouse->variant->products_id)
                 ->where('warehouses_id', $variantWarehouse->warehouses_id)
                 ->withTrashed()

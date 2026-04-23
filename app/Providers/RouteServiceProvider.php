@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Http\Controllers\IndexController;
+use Baka\Support\IPInfo;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
 use Illuminate\Http\Request;
@@ -49,7 +50,7 @@ class RouteServiceProvider extends ServiceProvider
             return Limit::perMinutes(
                 config('kanvas.ratelimit.decay_minutes'),
                 config('kanvas.ratelimit.max_attempts')
-            )->by($userId !== null ? $userId : $request->ip());
+            )->by($userId !== null ? $userId : IPInfo::getClientIp($request));
         });
     }
 

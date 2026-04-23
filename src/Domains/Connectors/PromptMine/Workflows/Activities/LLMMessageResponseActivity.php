@@ -20,7 +20,6 @@ use Kanvas\Connectors\PromptMine\Services\ImageFilterService;
 use Kanvas\Connectors\PromptMine\Services\VideoCreationService;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -32,9 +31,10 @@ use Kanvas\Users\Events\UpdateUserProfileEvent;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
-use Prism\Prism\Enums\Provider;
-use Prism\Prism\Facades\Prism;
+use Laravel\Ai\Enums\Lab;
 use Throwable;
+
+use function Laravel\Ai\agent;
 
 class LLMMessageResponseActivity extends KanvasActivity
 {
@@ -258,10 +258,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             $errorBody = $e->getResponse()->getBody()->getContents();
             $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
 
-            $endViaList = array_map(
-                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                ['push', 'mail']
-            );
+            $endViaList = ['push', 'mail'];
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $message->user,
                 entity: $message,
@@ -317,10 +314,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             $errorBody = $e->getMessage();
             $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked', 'flagged', 'content checker']);
 
-            $endViaList = array_map(
-                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                ['push', 'mail']
-            );
+            $endViaList = ['push', 'mail'];
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $message->user,
                 entity: $message,
@@ -562,10 +556,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             $errorBody = $e->getResponse()->getBody()->getContents();
             $isNotSafeForWork = Str::contains($errorBody, ['NSFW', 'blocked']);
 
-            $endViaList = array_map(
-                [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                ['push', 'mail']
-            );
+            $endViaList = ['push', 'mail'];
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $message->user,
                 entity: $message,
@@ -648,10 +639,7 @@ class LLMMessageResponseActivity extends KanvasActivity
             }
 
             try {
-                $endViaList = array_map(
-                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                    ['push', 'mail']
-                );
+                $endViaList = ['push', 'mail'];
                 $errorProcessingImageNotification = new ImageProcessingPushNotification(
                     user: $message->user,
                     entity: $message,
@@ -707,11 +695,11 @@ Rules:
 - Do not provide suggestions, just the single title.
 PROMPT;
 
-            $response = Prism::text()
-                ->using(Provider::Gemini, 'gemini-2.0-flash')
-                ->withSystemPrompt($systemInstruction)
-                ->withPrompt($userPrompt)
-                ->asText();
+            $response = agent(instructions: $systemInstruction)->prompt(
+                $userPrompt,
+                provider: Lab::Gemini,
+                model: 'gemini-2.0-flash',
+            );
 
             return trim(str_replace(['```', 'json'], '', $response->text));
         } catch (Throwable $e) {

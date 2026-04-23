@@ -54,4 +54,10 @@ return [
 
     'controllers_base_namespace' => env('SENTRY_CONTROLLERS_BASE_NAMESPACE', 'App\\Http\\Controllers'),
 
+    // Sentry Structured Logs — sends Log:: calls to Sentry's Logs product
+    // (separate from Issues/Alerts, no noise). Viewable at Sentry > Logs.
+    // Level filtering (warning/info/etc) is configured in config/logging.php
+    // on the sentry_logs channel, not here.
+    'enable_logs' => env('SENTRY_ENABLE_LOGS', false),
+
 ];

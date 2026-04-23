@@ -55,7 +55,7 @@ final class UpdateAppsActionTest extends TestCase
 
         $this->assertInstanceOf(
             Apps::class,
-            $updateApp->execute($app->key->toString())
+            $updateApp->execute($app->key)
         );
     }
 }

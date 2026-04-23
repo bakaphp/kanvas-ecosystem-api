@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Triggers\Workflows;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Messages\Models\Message;
@@ -56,9 +57,11 @@ class MessageHumanTakeoverTriggerActivity extends KanvasActivity
                     ];
                 }
 
-                $channel = $message->channels()->first();
-                if ($channel && $channel->name != 'Notes') {
-                    UnrespondedLeadAgentMessageCache::clear($lead, $channel);
+                if (! (new LeadConfigurationService())->isV2Enabled($app)) {
+                    $channel = $message->channels()->first();
+                    if ($channel && ! $channel->isNoteChannel()) {
+                        UnrespondedLeadAgentMessageCache::clear($lead, $channel);
+                    }
                 }
 
                 $lead->fireWorkflow(
