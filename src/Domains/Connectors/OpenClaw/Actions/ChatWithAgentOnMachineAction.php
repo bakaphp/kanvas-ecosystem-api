@@ -24,6 +24,7 @@ class ChatWithAgentOnMachineAction
     public function __construct(
         protected Agent $agent,
         protected string $message,
+        protected ?string $sessionKey = null,
     ) {
     }
 
@@ -38,14 +39,16 @@ class ChatWithAgentOnMachineAction
         $client = SshClient::fromMachine($deployment->machine);
 
         try {
-            $response = $client->exec(
-                'docker exec ' . escapeshellarg($deployment->container_name)
+            $command = 'docker exec ' . escapeshellarg($deployment->container_name)
                 . ' node /app/dist/index.js agent'
                 . ' --agent ' . escapeshellarg($this->agent->slug)
-                . ' --message ' . escapeshellarg($this->message)
-                . ' 2>&1',
-                120,
-            );
+                . ' --message ' . escapeshellarg($this->message);
+
+            if ($this->sessionKey !== null && $this->sessionKey !== '') {
+                $command .= ' --session-id ' . escapeshellarg($this->sessionKey);
+            }
+
+            $response = $client->exec($command . ' 2>&1', 120);
         } finally {
             $client->disconnect();
         }

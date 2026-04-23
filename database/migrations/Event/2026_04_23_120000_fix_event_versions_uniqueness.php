@@ -21,7 +21,7 @@ return new class () extends Migration {
         Schema::connection('event')->table('event_versions', function (Blueprint $table) {
             $table->dropUnique('event_version_slug_unique');
             $table->unique(
-                ['apps_id', 'companies_id', 'event_id', 'version'],
+                ['apps_id', 'companies_id', 'slug', 'event_id', 'version'],
                 'event_version_event_version_unique'
             );
         });
