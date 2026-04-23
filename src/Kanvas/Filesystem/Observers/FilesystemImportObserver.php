@@ -11,6 +11,13 @@ class FilesystemImportObserver implements ShouldQueue
 {
     public function created(FilesystemImports $filesystemImport): void
     {
+        // Direct payload spools (e.g. JSONL written by SpoolImporterPayloadAction)
+        // have no mapper because the resolver dispatches the job itself. The
+        // mapper-driven auto-dispatch only applies to CSV-mapped imports.
+        if (! $filesystemImport->filesystemMapper) {
+            return;
+        }
+
         $className = $filesystemImport->filesystemMapper->systemModule->model_name;
         $handler = $className::getImportHandler($filesystemImport);
 
@@ -18,6 +25,6 @@ class FilesystemImportObserver implements ShouldQueue
 
         if ($filesystemImport->extra['deleteAfterUse']) {
             $filesystemImport->filesystemMapper->softdelete();
-        };
+        }
     }
 }

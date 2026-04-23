@@ -9,10 +9,12 @@ use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Imports\Actions\SpoolImporterPayloadAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob as ImporterJob;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
+use Kanvas\Regions\Models\Regions as BaseRegions;
 
 class ImportMutation
 {
@@ -30,6 +32,7 @@ class ImportMutation
             auth()->user()
         );
 
+        /** @var BaseRegions $region */
         $region = ! isset($req['regionId']) ? Regions::getDefault($company) : RegionRepository::getById($req['regionId'], $company);
 
         if (empty($req['input']) || ! is_array($req['input'])) {
@@ -39,15 +42,33 @@ class ImportMutation
         //verify it has the correct format
         ProductImporter::from($req['input'][0]);
 
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $branch = $company->branch;
+
+        // Spool the inline payload to a JSONL file on the filesystem so the
+        // job runs from a streamed file instead of carrying the whole array
+        // through the queue. This is the fix for KANVAS-ECOSYSTEM-4XV — large
+        // payloads no longer OOM the worker, peak memory stays flat.
+        $filesystemImport = new SpoolImporterPayloadAction(
+            $req['input'],
+            $app,
+            $company,
+            $user,
+            $branch,
+            $region,
+        )->execute();
+
         //so we can tie the job to pusher
         $jobUuid = Str::uuid()->toString();
         ImporterJob::dispatch(
             $jobUuid,
-            $req['input'],
-            $company->branch,
-            auth()->user(),
+            [],
+            $branch,
+            $user,
             $region,
-            app(Apps::class)
+            $app,
+            $filesystemImport,
         );
 
         return $jobUuid;
