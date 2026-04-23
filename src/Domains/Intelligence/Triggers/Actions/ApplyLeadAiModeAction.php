@@ -46,22 +46,28 @@ class ApplyLeadAiModeAction
         }
 
         $previousMode = $this->lead->get($aiModeKey);
+        $previousFollowUp = $this->lead->get($followUpKey);
         $this->applyTrigger();
         $currentMode = $this->lead->get($aiModeKey);
+        $currentFollowUp = $this->lead->get($followUpKey);
 
         if ($currentMode !== $previousMode) {
             $this->logModeChangeNote($currentMode);
+        }
+
+        if ($currentFollowUp !== $previousFollowUp) {
+            $this->logFollowUpChangeNote($currentFollowUp);
         }
 
         return [
             'changed' => $currentMode !== $previousMode,
             'mods_previous' => [
                 'ai_mode' => $previousMode,
-                'ai_follow_up' => $this->lead->get($followUpKey),
+                'ai_follow_up' => $previousFollowUp,
             ],
             'mods_current' => [
                 'ai_mode' => $currentMode,
-                'ai_follow_up' => $this->lead->get($followUpKey),
+                'ai_follow_up' => $currentFollowUp,
             ],
         ];
     }
@@ -142,6 +148,45 @@ class ApplyLeadAiModeAction
 
         $carbon = Carbon::now($this->lead->company->timezone);
         $noteContent = $carbon->format('Y-m-d H:i:s') . ' Sally Mode set to ' . $newMode;
+
+        $messageType = new CreateMessageTypeAction(
+            new MessageTypeInput(
+                apps_id: $this->lead->app->getId(),
+                languages_id: 1,
+                name: 'ai-control',
+                verb: 'ai-control',
+                template: '{{message}}',
+                templates_plura: '{{message}}',
+            )
+        )->execute();
+
+        $createMessageAction = new CreateMessageAction(
+            new MessageInput(
+                app: $this->lead->app,
+                company: $this->lead->company,
+                user: $this->lead->user,
+                type: $messageType,
+                message: [
+                    'content' => $noteContent,
+                    'from_me' => true,
+                ],
+            )
+        );
+        $createMessageAction->runWorkflow = true;
+        $message = $createMessageAction->execute();
+        $notesChannel->addMessage($message, $this->lead->user);
+    }
+
+    protected function logFollowUpChangeNote(mixed $currentFollowUp): void
+    {
+        $notesChannel = $this->lead->systemNotes;
+        if (! $notesChannel) {
+            return;
+        }
+
+        $carbon = Carbon::now($this->lead->company->timezone);
+        $label = $currentFollowUp ? 'Follow-up enabled' : 'Follow-up disabled';
+        $noteContent = $carbon->format('Y-m-d H:i:s') . ' · ' . $label;
 
         $messageType = new CreateMessageTypeAction(
             new MessageTypeInput(
