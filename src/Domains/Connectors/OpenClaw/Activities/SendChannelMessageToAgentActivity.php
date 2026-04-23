@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\OpenClaw\Activities;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\OpenClaw\Actions\SendChannelMessageToAgentAction;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
@@ -16,25 +15,14 @@ use Kanvas\Workflow\KanvasActivity;
 
 class SendChannelMessageToAgentActivity extends KanvasActivity
 {
-    public function execute(Message $entity, Apps $app, array $params): array
+    public function execute(Channel $entity, Apps $app, array $params): array
     {
-        $channelId = (int) ($params['channel_id'] ?? 0);
+        $this->overwriteAppService($app);
 
-        if ($channelId === 0) {
-            throw new ValidationException('channel_id is required to route a message to an OpenClaw agent');
-        }
-
-        /** @var Channel $channel */
-        $channel = Channel::getByIdFromCompanyApp($channelId, $entity->company, $app);
-
-        $agentId = (int) ($params['agent_id'] ?? $app->get('openclaw_default_agent_id') ?? 0);
-
-        if ($agentId === 0) {
-            throw new ValidationException('agent_id is required (pass in params or set openclaw_default_agent_id on the app)');
-        }
-
-        /** @var Agent $agent */
-        $agent = Agent::getByIdFromCompanyApp($agentId, $entity->company, $app);
+        $message = $params['message'] ?? null;
+        $defaultAgentId = $params['agent_id'] ?? null;
+        $allowedChannels = $params['channelId'] ?? [];
+        $channelAgentMapping = $params['channelAgentMapping'] ?? [];
 
         /** @var Companies $company */
         $company = $entity->company;
@@ -44,11 +32,59 @@ class SendChannelMessageToAgentActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::OPENCLAW,
             additionalParams: $params,
-            integrationOperation: fn (): Message => new SendChannelMessageToAgentAction(
-                $agent,
-                $entity,
-                $channel,
-            )->execute(),
+            integrationOperation: function () use ($entity, $app, $message, $defaultAgentId, $allowedChannels, $channelAgentMapping, $params) {
+                if (! $message instanceof Message) {
+                    return [
+                        'message' => 'No message provided in params',
+                        'entity' => null,
+                    ];
+                }
+
+                $chatJid = $message->message['chat_jid'] ?? null;
+                $filterByChannel = (bool) ($params['filterByChannel'] ?? false);
+
+                if ($filterByChannel && ! in_array($chatJid, $allowedChannels)) {
+                    return [
+                        'message' => 'Agent is not running on this channel',
+                        'entity' => null,
+                    ];
+                }
+
+                if (($message->message['from_me'] ?? false) === true) {
+                    return [
+                        'message' => 'Message is from the agent side, skipping to avoid loop',
+                        'entity' => null,
+                    ];
+                }
+
+                $agentId = $defaultAgentId;
+                if ($chatJid !== null && isset($channelAgentMapping[$chatJid]['agent_id'])) {
+                    $agentId = $channelAgentMapping[$chatJid]['agent_id'];
+                }
+
+                $agentId ??= $app->get('openclaw_default_agent_id');
+
+                if (empty($agentId)) {
+                    return [
+                        'message' => 'No agent_id resolved for this channel',
+                        'entity' => null,
+                    ];
+                }
+
+                /** @var Agent $agent */
+                $agent = Agent::getById((int) $agentId, $app);
+
+                $reply = new SendChannelMessageToAgentAction(
+                    $agent,
+                    $message,
+                    $entity,
+                )->execute();
+
+                return [
+                    'message' => 'Agent reply created',
+                    'entity' => $reply,
+                ];
+            },
             company: $company,
         );
     }

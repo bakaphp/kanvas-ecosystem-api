@@ -79,7 +79,7 @@ class SendChannelMessageToAgentAction
                 'raw_data' => $reply,
                 'message_id' => '--',
                 'chat_jid' => $originalPayload['chat_jid'] ?? null,
-                'from_me' => false,
+                'from_me' => true,
                 'from_ia' => true,
             ],
             is_public: 1,

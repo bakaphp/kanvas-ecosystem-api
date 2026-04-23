@@ -10,16 +10,13 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
 /**
- * Chat with an agent deployed on a remote machine via SSH + docker exec.
+ * Chat with a deployed agent via SSH + docker exec into its container.
  *
- * SSHs into the deployment's machine and runs the OpenClaw CLI inside the
- * agent's container: `docker exec {container} node /app/dist/index.js agent --agent {slug} --message {msg}`
- *
- * The CLI entrypoint is `node /app/dist/index.js` (not `openclaw` which is not in PATH).
- * The `--agent {slug}` flag routes to the correct agent config.
- * Timeout is 120s because LLM API calls (especially Gemini) can take 30-60s.
+ * Runs `node /app/dist/index.js agent --agent {slug} --message {msg}` inside the
+ * agent's container (the `openclaw` binary is not on PATH, so the node entrypoint
+ * is invoked directly). Timeout is 120s — Gemini/OpenAI calls regularly take 30–60s.
  */
-class ChatWithAgentOnMachineAction
+class ChatWithAgentAction
 {
     public function __construct(
         protected Agent $agent,
