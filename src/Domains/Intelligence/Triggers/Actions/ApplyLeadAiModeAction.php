@@ -141,52 +141,23 @@ class ApplyLeadAiModeAction
 
     protected function logModeChangeNote(string $newMode): void
     {
-        $notesChannel = $this->lead->systemNotes;
-        if (! $notesChannel) {
-            return;
-        }
-
         $carbon = Carbon::now($this->lead->company->timezone);
-        $noteContent = $carbon->format('Y-m-d H:i:s') . ' Sally Mode set to ' . $newMode;
-
-        $messageType = new CreateMessageTypeAction(
-            new MessageTypeInput(
-                apps_id: $this->lead->app->getId(),
-                languages_id: 1,
-                name: 'ai-control',
-                verb: 'ai-control',
-                template: '{{message}}',
-                templates_plura: '{{message}}',
-            )
-        )->execute();
-
-        $createMessageAction = new CreateMessageAction(
-            new MessageInput(
-                app: $this->lead->app,
-                company: $this->lead->company,
-                user: $this->lead->user,
-                type: $messageType,
-                message: [
-                    'content' => $noteContent,
-                    'from_me' => true,
-                ],
-            )
-        );
-        $createMessageAction->runWorkflow = true;
-        $message = $createMessageAction->execute();
-        $notesChannel->addMessage($message, $this->lead->user);
+        $this->logSystemNote($carbon->format('Y-m-d H:i:s') . ' Sally Mode set to ' . $newMode);
     }
 
     protected function logFollowUpChangeNote(mixed $currentFollowUp): void
+    {
+        $carbon = Carbon::now($this->lead->company->timezone);
+        $label = $currentFollowUp ? 'Follow-up enabled' : 'Follow-up disabled';
+        $this->logSystemNote($carbon->format('Y-m-d H:i:s') . ' · ' . $label);
+    }
+
+    protected function logSystemNote(string $noteContent): void
     {
         $notesChannel = $this->lead->systemNotes;
         if (! $notesChannel) {
             return;
         }
-
-        $carbon = Carbon::now($this->lead->company->timezone);
-        $label = $currentFollowUp ? 'Follow-up enabled' : 'Follow-up disabled';
-        $noteContent = $carbon->format('Y-m-d H:i:s') . ' · ' . $label;
 
         $messageType = new CreateMessageTypeAction(
             new MessageTypeInput(
