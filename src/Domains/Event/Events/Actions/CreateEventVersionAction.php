@@ -43,7 +43,8 @@ class CreateEventVersionAction
             $endAt = Carbon::parse($lastDate->date->format('Y-m-d') . ' ' . $lastDate->end_time);
         }
 
-        $highestVersion = (int) ModelsEventVersion::where('apps_id', $appId)
+        $highestVersion = (int) ModelsEventVersion::withTrashed()
+            ->where('apps_id', $appId)
             ->where('companies_id', $companyId)
             ->where(function ($query) use ($baseSlug) {
                 $query->where('slug', $baseSlug)
