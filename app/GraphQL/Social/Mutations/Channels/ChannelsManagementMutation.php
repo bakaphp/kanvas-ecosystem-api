@@ -24,16 +24,20 @@ class ChannelsManagementMutation
 {
     public function createChannel(mixed $rootValue, array $request): Channel
     {
-        $systemModule = SystemModulesRepository::getByUuidOrModelName($request['input']['entity_namespace_uuid']);
+        /** @var array $input */
+        $input = $request['input'];
+        $systemModule = SystemModulesRepository::getByUuidOrModelName($input['entity_namespace_uuid']);
         $channelDto = new ChannelDto(
             apps: app(Apps::class),
             companies: auth()->user()->getCurrentCompany(),
             users: auth()->user(),
-            name: $request['input']['name'],
-            description: $request['input']['description'],
-            entity_id: $request['input']['entity_id'],
+            name: $input['name'],
+            description: $input['description'],
+            entity_id: $input['entity_id'],
             entity_namespace: $systemModule->model_name,
-            slug: $request['input']['slug'] ?? Str::slug($request['input']['name']),
+            slug: $input['slug'] ?? Str::slug($input['name']),
+            metadata: $input['metadata'] ?? null,
+            tags: $input['tags'] ?? [],
         );
 
         $createChannel = new CreateChannelAction($channelDto);
@@ -50,14 +54,25 @@ class ChannelsManagementMutation
             auth()->user(),
             $app
         );
-        $systemModule = SystemModulesRepository::getByUuidOrModelName($request['input']['entity_namespace_uuid']);
+        /** @var array $input */
+        $input = $request['input'];
+        $systemModule = SystemModulesRepository::getByUuidOrModelName($input['entity_namespace_uuid']);
 
-        $channel->name = $request['input']['name'];
-        $channel->description = $request['input']['description'];
-        $channel->entity_id = $request['input']['entity_id'];
-        $channel->title = $request['input']['title'] ?? $channel->title;
+        $channel->name = $input['name'];
+        $channel->description = $input['description'];
+        $channel->entity_id = $input['entity_id'];
+        $channel->title = $input['title'] ?? $channel->title;
         $channel->entity_namespace = $systemModule->uuid;
+
+        if (array_key_exists('metadata', $input)) {
+            $channel->metadata = $input['metadata'];
+        }
+
         $channel->updateOrFail();
+
+        if (! empty($input['tags'])) {
+            $channel->syncTags($input['tags']);
+        }
 
         return $channel;
     }
