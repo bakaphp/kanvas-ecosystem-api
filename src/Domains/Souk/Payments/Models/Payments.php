@@ -129,7 +129,13 @@ class Payments extends BaseModel
 
         $this->save();
 
-        if ($this->payable && method_exists($this->payable, 'checkPayments')) {
+        if (! $this->payable) {
+            return;
+        }
+
+        if (method_exists($this->payable, 'markAsPaid')) {
+            $this->payable->markAsPaid($this->user);
+        } elseif (method_exists($this->payable, 'checkPayments')) {
             $this->payable->checkPayments();
         }
     }

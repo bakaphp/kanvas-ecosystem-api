@@ -308,7 +308,20 @@ class Order extends BaseModel
 
         // to keep the legacy support
         $this->payment_status = PaymentStatusEnum::PAID->value;
+        $this->firePaidSideEffects();
+    }
+
+    protected function firePaidSideEffects(): void
+    {
         $this->completed();
+
+        $this->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'app' => $this->app,
+            ]
+        );
     }
 
     public function scopeWhereNotCompleted(Builder $query): Builder
@@ -701,18 +714,8 @@ class Order extends BaseModel
 
     public function checkPayments(): void
     {
-        if ($this && ($this->payments)) {
-            if ($this->isPaid()) {
-                $this->completed();
-
-                $this->fireWorkflow(
-                    WorkflowEnum::UPDATED->value,
-                    true,
-                    [
-                        'app' => $this->app,
-                    ]
-                );
-            }
+        if ($this->isPaid()) {
+            $this->firePaidSideEffects();
         }
     }
 
