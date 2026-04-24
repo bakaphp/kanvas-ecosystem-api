@@ -172,7 +172,7 @@ class Agent extends BaseModel
     {
         return $this->belongsTo(
             Users::class,
-            'users_id',
+            'user_id',
             'id'
         );
     }
