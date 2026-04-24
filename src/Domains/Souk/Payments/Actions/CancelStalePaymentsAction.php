@@ -55,7 +55,7 @@ class CancelStalePaymentsAction
             $payment->status = PaymentStatusEnum::CANCELLED->value;
             $payment->save();
 
-            $payment->addLog('expired', [
+            $payment->addLog('cancelled_stale', [
                 'reason' => "Payment stuck in transitional state for {$ageMinutes} minutes (TTL: {$ttlMinutes}m)",
                 'previous_status' => $payment->getOriginal('status'),
                 'age_minutes' => $ageMinutes,
