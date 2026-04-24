@@ -14,6 +14,8 @@ final class RuleExpressionTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected $connectionsToTransact = ['workflow'];
+
     public function testBooleanFalseStringRendersUnquotedAndEvaluatesAgainstBooleanData(): void
     {
         $rule = Rule::factory()->create(['pattern' => '1 and 2']);
