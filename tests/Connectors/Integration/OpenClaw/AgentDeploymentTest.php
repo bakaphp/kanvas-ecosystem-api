@@ -149,8 +149,12 @@ class AgentDeploymentTest extends TestCase
 
     public function testChatWithAgentRequiresDeployment(): void
     {
+        if (! $this->hasOpenClawCredentials()) {
+            $this->markTestSkipped('OpenClaw SSH credentials not configured');
+        }
+
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('Agent does not have an active deployment');
+        $this->expectExceptionMessage('Agent does not have an active Docker deployment');
 
         $agent = $this->createTestAgent();
 
