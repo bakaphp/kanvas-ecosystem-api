@@ -161,6 +161,7 @@ final class SyncWorkflowStubTest extends TestCase
         ]);
 
         $this->assertInstanceOf(SyncWorkflowStub::class, $result);
+        print_r($result->output());
         $this->assertEmpty($result->output());
     }
 
