@@ -22,7 +22,11 @@ class SyncPayablePaymentStatusAction
             return;
         }
 
-        $payments = $this->payable->payments()->get();
+        $payments = $this->payable->payments()
+            ->with([
+                'refunds' => fn ($q) => $q->where('status', RefundStatusEnum::COMPLETED->value),
+            ])
+            ->get();
 
         if ($payments->isEmpty()) {
             return;
@@ -42,9 +46,7 @@ class SyncPayablePaymentStatusAction
         $paidAmount = (float) $paidPayments->sum('amount');
 
         $refundedAmount = (float) $paidPayments->sum(
-            fn ($payment) => $payment->refunds()
-                ->where('status', RefundStatusEnum::COMPLETED->value)
-                ->sum('amount')
+            fn ($payment) => $payment->refunds->sum('amount')
         );
 
         $netPaid = $paidAmount - $refundedAmount;
