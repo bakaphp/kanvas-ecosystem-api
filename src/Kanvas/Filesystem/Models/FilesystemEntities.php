@@ -29,10 +29,6 @@ class FilesystemEntities extends BaseModel
 {
     use UuidTrait;
     use CanUseWorkflow;
-    public $cacheTags = ['filesystemEntity'];
-    public $cachePrefix = 'filesystemEntity_';
-    public $cacheDriver = 'redis';
-    //    protected static $flushCacheOnUpdate = true;
 
     protected $table = 'filesystem_entities';
     // protected $touches = ['filesystem'];

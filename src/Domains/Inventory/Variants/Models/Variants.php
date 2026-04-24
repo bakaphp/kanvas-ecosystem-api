@@ -97,7 +97,6 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     use HasWallet;
     use LogsActivity;
 
-    protected $is_deleted;
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
     public $translatable = ['name','description','short_description','html_description'];
 

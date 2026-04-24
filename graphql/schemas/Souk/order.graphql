@@ -78,6 +78,7 @@ type Order {
     order_status: OrderStatus @belongsTo(relation: "orderStatus")
     payment_status: String
     payments: [Payment!] @hasMany(relation: "payments")
+    payment_logs: [PaymentLog!] @hasMany(relation: "paymentLogs")
     orderTransitionHistory: [OrderTransitionHistory!]
         @hasMany(relation: "orderTransitionHistory")
     discount_codes: [OrderDiscountRelation]
@@ -140,11 +141,17 @@ type OrderItem {
 type OrderType {
     id: ID!
     name: String!
+    slug: String
     title: String
     total_statuses: Int!
     statuses(
         orderBy: _ @orderBy(columns: ["id", "sequence", "name", "created_at"])
-    ): [OrderStatus!]! @hasMany(relation: "statuses", type: PAGINATOR)
+    ): [OrderStatus!]
+        @paginate(
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
+            relation: "statuses"
+            defaultCount: 25
+        )
     created_at: String
     updated_at: String
 }
@@ -997,4 +1004,26 @@ extend type Query @guard {
             builder: "App\\GraphQL\\Souk\\Queries\\Orders\\OrdersByUserCustomFieldQuery@build"
             defaultCount: 25
         )
+
+    orderAnalytics(
+        from: Date
+        to: Date
+        bucket: AnalyticsBucket = DAY
+        timezone: String
+        status: String
+    ): OrderAnalytics!
+        @field(
+            resolver: "App\\GraphQL\\Analytics\\Queries\\OrderAnalyticsQuery"
+        )
+}
+
+type OrderAnalytics {
+    "Count + total revenue per bucket."
+    periods: [AnalyticsPoint!]!
+    total: Int!
+    "Sum of `total_gross_amount` across the date range (ignores currency mix in v1)."
+    total_value: Float!
+    by_status: [AnalyticsCategoryPoint!]!
+    by_payment_status: [AnalyticsCategoryPoint!]!
+    by_fulfillment_status: [AnalyticsCategoryPoint!]!
 }

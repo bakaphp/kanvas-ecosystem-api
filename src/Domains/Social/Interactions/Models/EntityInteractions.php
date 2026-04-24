@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Social\Interactions\Models;
 
 use Baka\Traits\MorphEntityDataTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Social\Interactions\DataTransferObject\LikeEntityInput;
+use Kanvas\Social\Interactions\Observers\EntityInteractionObserver;
 use Kanvas\Social\Interactions\Repositories\EntityInteractionsRepository;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * Class Interactions.
@@ -22,8 +25,10 @@ use Kanvas\Social\Models\BaseModel;
  * @property string $interacted_entity_namespace
  * @property string $notes
  */
+#[ObservedBy([EntityInteractionObserver::class])]
 class EntityInteractions extends BaseModel
 {
+    use CanUseWorkflow;
     use MorphEntityDataTrait;
 
     protected $table = 'entity_interactions';

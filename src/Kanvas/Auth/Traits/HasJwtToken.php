@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Traits;
 
+use Baka\Support\IPInfo;
 use DateTimeInterface;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
@@ -24,7 +25,7 @@ trait HasJwtToken
         ?DateTimeInterface $expiresAt = null,
         ?string $deviceId = null
     ): NewAccessToken {
-        $userIp = request()->ip();
+        $userIp = IPInfo::getClientIp();
         $pageId = 1;
 
         $sessionId = (string)Str::uuid();

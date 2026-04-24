@@ -18,6 +18,14 @@ final class PeopleScreeningTest extends TestCase
 {
     use HasIntegrationCompany;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Apollo integration tests are skipped in CI');
+        }
+    }
+
     public function testPeopleScreening(): void
     {
         $app = app(Apps::class);

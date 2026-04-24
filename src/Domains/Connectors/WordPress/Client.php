@@ -33,8 +33,8 @@ class Client
             throw new ValidationException('WordPress API path is required');
         }
 
-        // Strip www. to avoid 301 redirects that may cause issues
-        $this->baseUrl = (string) preg_replace('#^(https?://)www\.#i', '$1', $this->baseUrl);
+        // Use the base URL as configured — some sites require www. to resolve correctly
+        $this->baseUrl = rtrim($this->baseUrl, '/');
     }
 
     public function getVehicles(int $page = 1, ?string $filterMake = null): array

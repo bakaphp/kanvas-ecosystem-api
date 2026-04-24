@@ -10,19 +10,17 @@ use Carbon\Exceptions\InvalidFormatException;
 use Carbon\Exceptions\InvalidTimeZoneException;
 use Exception;
 use Illuminate\Support\Facades\Blade;
-use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
-use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
-use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
-use Kanvas\ActionEngine\Engagements\Models\Engagement as ModelsEngagement;
+use Kanvas\ActionEngine\Engagements\Traits\GeneratesChecklistEngagementUrls;
 use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
 use Kanvas\Companies\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
@@ -39,6 +37,8 @@ use Yasumi\Exception\UnknownLocaleException;
 
 class CreateContentSessionAction
 {
+    use GeneratesChecklistEngagementUrls;
+
     protected Lead|People|Users $entity;
 
     public function __construct(
@@ -109,7 +109,7 @@ class CreateContentSessionAction
                 'company_language' => $lead->company->get('lang', 'en'),
                 'is_service_lead' => $lead->get('is_service_lead') ?? 0,
                 'guild_first_message' => $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? null,
-                'ai_mode' => $lead->get('ai_mode'),
+                'ai_mode' => $lead->get(new LeadConfigurationService()->getAiModeKey($lead)),
                 'follow_up_mode' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
                 'allow_call_appointments' => $lead->company->get(EnumsConfigurationEnum::ALLOW_CALL_APPOINTMENTS->value) ?? true,
                 'work_hours' => $lead->company->get('work_hours'),
@@ -123,7 +123,7 @@ class CreateContentSessionAction
 
     protected function mapPeople(People $people, ?Lead $lead = null): array
     {
-        $checkList = $this->generateCheckListUrls();
+        $checkList = $lead !== null ? $this->generateChecklistEngagementUrls($lead) : [];
         $data = array_merge([
             'customerName' => null,
             'leadEmail' => null,
@@ -153,7 +153,7 @@ class CreateContentSessionAction
             'lastname' => $people->lastname,
             'middlename' => $people->middlename,
             'inventory_channel' => Channels::getDefault($people->company, $people->app)?->uuid,
-            'leads' => $people->leads->toArray(),
+            'leads' => [LeadsRepository::getPeopleActiveLead($people)?->toArray()],
             'address' => $people->address->toArray(),
             'contacts' => $people->contacts->toArray(),
             'checklist' => $checkList,
@@ -185,77 +185,6 @@ class CreateContentSessionAction
             'branch_address' => $branch ? ($branch->address . ' ' . $branch->address2) : null,
             'company_timezone' => $company->get('timezone', 'UTC'),
         ];
-    }
-
-    /**
-     * @todo this has to be based on the checklist this agent is tied to
-     */
-    protected function generateCheckListUrls(): array
-    {
-        if ($this->entity instanceof People) {
-            return [];
-        }
-
-        $actions = [
-            'creditApp' => 'credit-app',
-            'tradeIn' => 'add-trade',
-        ];
-
-        $results = [];
-        $aiAgentUserId = (int) $this->entity->company->get('ai-agent-user-id');
-        $user = $aiAgentUserId ? Users::getById($aiAgentUserId) : $this->entity->user;
-
-        foreach ($actions as $key => $action) {
-            try {
-                // Try to get or create engagement with retry logic
-                $engagement = $this->getOrCreateEngagementWithLock($action, $user);
-                if ($engagement === null) {
-                    //$results[$key] = null;
-                    continue;
-                }
-
-                //hide the msg
-                $engagement->message->is_public = 0;
-                $engagement->message->saveQuietly();
-
-                $results[$key] = $engagement->message->message['action_link'] ?? null;
-            } catch (Exception $e) {
-                //report($e);
-                $results[$key] = null;
-            }
-        }
-
-        return $results;
-    }
-
-    private function getOrCreateEngagementWithLock(string $action, Users $user): ?ModelsEngagement
-    {
-        $lockKey = "engagement_creation:{$this->entity->id}:{$action}";
-
-        // Use Laravel's cache lock - block() waits for lock to become available
-        return Cache::lock($lockKey, 10)->block(10, function () use ($action, $user): ModelsEngagement {
-            // CreateEngagementAction with allowDuplicate=false will check for existing
-            // engagements and return them instead of creating duplicates
-            $engagementAction = new CreateEngagementAction(
-                Engagement::from(
-                    $this->session->app,
-                    $this->session->company,
-                    $user,
-                    $this->entity,
-                    [
-                        'action' => $action,
-                        'request_id' => Str::uuid()->toString(),
-                        'source' => 'ai',
-                        'status' => 'sent',
-                        'data' => [],
-                    ],
-                    $this->entity->people
-                ),
-                false // allowDuplicate = false
-            );
-
-            return $engagementAction->execute();
-        });
     }
 
     /**

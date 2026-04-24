@@ -12,8 +12,9 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
-use Prism\Prism\Enums\Provider;
-use Prism\Prism\Facades\Prism;
+use Laravel\Ai\Enums\Lab;
+
+use function Laravel\Ai\agent;
 
 class PromptCreatorAgentCommand extends Command
 {
@@ -213,15 +214,16 @@ class PromptCreatorAgentCommand extends Command
 PROMPT;
 
         try {
-            $response = Prism::text()
-            ->using(Provider::Gemini, 'gemini-2.0-flash')
-            ->withPrompt($promptEngineering)
-                ->asText();
+            $response = agent()->prompt(
+                $promptEngineering,
+                provider: Lab::Gemini,
+                model: 'gemini-2.5-flash',
+            );
 
             $responseText = str_replace(['```', 'json'], '', $response->text);
 
             if (! Str::isJson($responseText)) {
-                $this->error('Invalid response from Prism: ' . $responseText);
+                $this->error('Invalid response from AI: ' . $responseText);
 
                 return null;
             }
@@ -299,15 +301,16 @@ PROMPT;
 ADVANCEPROMPT;
 
         try {
-            $response = Prism::text()
-            ->using(Provider::Gemini, 'gemini-2.0-flash')
-            ->withPrompt($nuggetGenerator)
-                ->asText();
+            $response = agent()->prompt(
+                $nuggetGenerator,
+                provider: Lab::Gemini,
+                model: 'gemini-2.5-flash',
+            );
 
             $responseText = str_replace(['```', 'json'], '', $response->text);
 
             if (! Str::isJson($responseText)) {
-                $this->error('Invalid response from Prism: ' . $responseText);
+                $this->error('Invalid response from AI: ' . $responseText);
 
                 return null;
             }

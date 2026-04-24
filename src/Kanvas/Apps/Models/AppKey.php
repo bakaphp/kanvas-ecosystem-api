@@ -58,7 +58,7 @@ class AppKey extends BaseModel
     public static function bootUuidTrait()
     {
         static::creating(function ($model) {
-            $model->client_id = $model->client_id ?? Str::uuid();
+            $model->client_id = $model->client_id ?? (string) Str::uuid();
         });
     }
 

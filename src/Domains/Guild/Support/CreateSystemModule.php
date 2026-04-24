@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -29,8 +30,10 @@ class CreateSystemModule
         $createSystemModule->execute(Pipeline::class);
         $createSystemModule->execute(PipelineStage::class);
         $createSystemModule->execute(Lead::class);
+        $createSystemModule->execute(Deal::class);
         $createSystemModule->execute(People::class);
         $createSystemModule->execute(Agent::class);
         $createSystemModule->execute(Contact::class);
+        $createSystemModule->execute(Deal::class);
     }
 }

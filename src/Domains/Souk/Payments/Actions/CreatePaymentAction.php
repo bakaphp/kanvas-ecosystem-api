@@ -74,13 +74,6 @@ class CreatePaymentAction
             $this->order->payments()->pending()->forceDelete();
         }
 
-        $paymentMethodSnapshot = $paymentMethod ? [
-            'brand' => $paymentMethod->payment_methods_brand,
-            'last4' => $paymentMethod->payment_ending_numbers,
-            'processor' => $paymentMethod->processor,
-            'expiration_date' => $paymentMethod->expiration_date,
-        ] : null;
-
         $paymentFormData = [
             "amount" => $formData['amount'] ?? $this->order->getTotalAmount(),
             "payment_date" => $formData['payment_date'] ?? date("Y-m-d"),
@@ -93,7 +86,8 @@ class CreatePaymentAction
             'currency' => $paymentCurrency,
             'status' => $formData['status'] ?? PaymentStatusEnum::PENDING->value,
             'payment_method' => $paymentMethodType ?? 'card',
-            'payment_method_snapshot' => $paymentMethodSnapshot,
+            'payment_method_brand' => $paymentMethod?->payment_methods_brand,
+            'payment_method_last_four' => $paymentMethod?->payment_ending_numbers,
             'processor' => $paymentMethod?->processor,
             'metadata' => array_filter([
                 'payment_method_type' => $paymentMethodType ?: null,

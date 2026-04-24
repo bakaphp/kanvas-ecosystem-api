@@ -6,7 +6,7 @@ type ActionPipeline {
     stages: [ActionPipelineStage!]! @hasMany
     name: String!
     slug: String!
-    weight: Int!
+    weight: Int
     is_default: Boolean!
     created_at: DateTime!
     updated_at: DateTime!
@@ -17,9 +17,9 @@ type ActionPipelineStage {
     pipeline: ActionPipeline! @belongsTo
     name: String!
     slug: String!
-    has_rotting_days: Int!
-    rotting_days: Int!
-    weight: Int!
+    has_rotting_days: Int
+    rotting_days: Int
+    weight: Int
 }
 
 input CreatePipelineInput {

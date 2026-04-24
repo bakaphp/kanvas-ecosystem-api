@@ -24,6 +24,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Factories\LeadFactory;
+use Kanvas\Guild\LeadSubSources\Models\LeadSubSource;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -250,6 +251,11 @@ class Lead extends BaseModel implements EventResourceInterface
         return $this->belongsTo(LeadSource::class, 'leads_sources_id', 'id');
     }
 
+    public function subSource(): BelongsTo
+    {
+        return $this->belongsTo(LeadSubSource::class, 'leads_sub_sources_id', 'id');
+    }
+
     public function type(): BelongsTo
     {
         return $this->belongsTo(LeadType::class, 'leads_types_id', 'id');
@@ -418,7 +424,7 @@ class Lead extends BaseModel implements EventResourceInterface
             'pipeline_id' => $this->pipeline_id,
             'pipeline_stage_id' => $this->pipeline_stage_id,
             'people_id' => $this->people_id,
-            'organization_id' => $this->organization_id,
+            'organization_id' => (int) $this->organization_id,
             'leads_types_id' => $this->leads_types_id,
             'status' => $this->status,
             'created_at' => $this->created_at ? $this->created_at->timestamp : null,
@@ -509,6 +515,7 @@ class Lead extends BaseModel implements EventResourceInterface
                     'name' => 'organization_id',
                     'type' => 'int64',
                     'facet' => true,
+                    'optional' => true,
                 ],
                 [
                     'name' => 'leads_types_id',
@@ -718,7 +725,9 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         $aiMode = $this->get(EnumsConfigurationEnum::AI_MODE->value);
 
-        return $aiMode === IntelligenceModeEnum::OFF->value;
+        $mode = IntelligenceModeEnum::tryFrom((string) $aiMode);
+
+        return $mode?->isOff() ?? false;
     }
 
     public function canRunAiAgent(): bool

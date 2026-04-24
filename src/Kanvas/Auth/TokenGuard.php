@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth;
 
+use Baka\Support\IPInfo;
 use Illuminate\Auth\TokenGuard as AuthTokenGuard;
 use Illuminate\Http\Request;
 use Kanvas\Apps\Models\Apps;
@@ -87,7 +88,7 @@ class TokenGuard extends AuthTokenGuard
             $sessionUser = $session->check(
                 $user,
                 $token->claims()->get('sessionId'),
-                (string)  $request->ip(),
+                IPInfo::getClientIp($request),
                 app(Apps::class),
                 1
             );

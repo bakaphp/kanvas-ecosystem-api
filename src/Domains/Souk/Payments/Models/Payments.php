@@ -30,6 +30,8 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  * @property string|null $payment_intent_id
  * @property string|null $authorization_code
  * @property string|null $number
+ * @property string|null $payment_method_brand
+ * @property string|null $payment_method_last_four
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
@@ -43,7 +45,6 @@ class Payments extends BaseModel
 
     protected $casts = [
         'metadata' => Json::class,
-        'payment_method_snapshot' => Json::class,
     ];
 
     public function paymentMethod(): BelongsTo
