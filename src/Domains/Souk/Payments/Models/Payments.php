@@ -4,6 +4,7 @@ namespace Kanvas\Souk\Payments\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,6 +13,7 @@ use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Payments\Actions\LogPaymentEventAction;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
+use Kanvas\Souk\Payments\Observers\PaymentObserver;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
@@ -35,6 +37,7 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
+#[ObservedBy([PaymentObserver::class])]
 class Payments extends BaseModel
 {
     use CanUseWorkflow;
