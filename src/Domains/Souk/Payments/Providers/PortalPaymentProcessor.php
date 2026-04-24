@@ -186,7 +186,7 @@ class PortalPaymentProcessor
             $consumerData = ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']);
 
             if ($this->isValidEci($consumerData, $enrollmentData)) {
-                $payment->updateQuietly([
+                $payment->update([
                     'status' => PaymentStatusEnum::WAITING_DEVICE_DATA->value,
                 ]);
 
@@ -275,7 +275,7 @@ class PortalPaymentProcessor
             $consumerData = ConsumerAuthentication::from($validatedData['consumerAuthenticationInformation']);
 
             if ($this->isValidEci($consumerData, $validatedData)) {
-                $payment->updateQuietly([
+                $payment->update([
                     'status' => PaymentStatusEnum::WAITING_DEVICE_DATA->value,
                 ]);
 
