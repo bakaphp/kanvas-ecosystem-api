@@ -57,11 +57,20 @@ class SendChannelMessageToAgentActivity extends KanvasActivity
                     ];
                 }
 
-                $agentId = $defaultAgentId;
-                if ($chatJid !== null && isset($channelAgentMapping[$chatJid]['agent_id'])) {
+                $agentId = null;
+
+                if (preg_match('/^channel-\d+-(\d+)-session$/', $entity->slug, $matches)) {
+                    $agentId = (int) $matches[1];
+                }
+
+                $metadata = is_array($entity->metadata) ? $entity->metadata : [];
+                $agentId ??= $metadata['agent_id'] ?? null;
+
+                if ($agentId === null && $chatJid !== null && isset($channelAgentMapping[$chatJid]['agent_id'])) {
                     $agentId = $channelAgentMapping[$chatJid]['agent_id'];
                 }
 
+                $agentId ??= $defaultAgentId;
                 $agentId ??= $app->get('openclaw_default_agent_id');
 
                 if (empty($agentId)) {
