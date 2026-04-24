@@ -8,10 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Payments\Models\PaymentMethods;
-use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Payments\Actions\LogPaymentEventAction;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
@@ -61,7 +61,6 @@ class Payments extends BaseModel
     {
         return $this->hasMany(PaymentRefund::class, 'payments_id', 'id');
     }
-
 
     public function getRefundedAmount(): float
     {
