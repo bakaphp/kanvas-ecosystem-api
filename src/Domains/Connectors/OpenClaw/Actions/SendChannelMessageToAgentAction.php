@@ -41,7 +41,7 @@ class SendChannelMessageToAgentAction
             throw new ValidationException('Message has no content to send to the agent');
         }
 
-        $sessionKey = 'oc-ch-' . $this->channel->slug;
+        $sessionKey = 'kanvas-channel-' . (string) $this->channel->getId();
 
         $handler = new OpenClawAgentHandler();
         $handler->setAgent($this->agent);
