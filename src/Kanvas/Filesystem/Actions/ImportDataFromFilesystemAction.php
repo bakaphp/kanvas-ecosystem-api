@@ -125,6 +125,7 @@ class ImportDataFromFilesystemAction
                         ],
                     ],
                     'attributes' => $attributes,
+                    'tags' => $variants[0]['tags'] ?? [],
                     'customFields' => [],
                     'variants' => $variants,
                 ];
@@ -162,6 +163,10 @@ class ImportDataFromFilesystemAction
 
             if ($key == 'files' && ! empty($result[$key]) && is_string($result[$key])) {
                 $result[$key] = $this->explodeFileStringBasedOnDelimiter($result[$key]);
+            }
+
+            if ($key == 'tags' && ! empty($result[$key]) && is_string($result[$key])) {
+                $result[$key] = array_values(array_filter(array_map('trim', explode(',', $result[$key]))));
             }
 
             if (is_string($result[$key]) && $this->isValidDate($result[$key])) {
