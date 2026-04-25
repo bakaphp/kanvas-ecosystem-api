@@ -191,6 +191,37 @@ class AbstractImporterJobTest extends TestCaseUnit
         $this->assertTrue($job->exposedHasStreamableFile());
     }
 
+    public function testHasStreamableFileFallsBackToPrimaryWhenExtraStreamableIdIsMissingFile(): void
+    {
+        // CSV upload with mapper that ALSO has extra.streamable_filesystem_id set,
+        // but the referenced Filesystem row no longer exists. Should gracefully
+        // fall back to the primary filesystem (which is CSV → returns false here).
+        $filesystem = new Filesystem(['name' => 'products.csv']);
+        $import = $this->makeImport($filesystem);
+        $import->extra = ['streamable_filesystem_id' => 999999999];
+
+        $job = $this->makeJob([], $import);
+
+        $this->assertFalse(
+            $job->exposedHasStreamableFile(),
+            'A missing transformed file should fall back to primary, not crash',
+        );
+    }
+
+    public function testHasStreamableFileIgnoresExtraWithoutStreamableIdKey(): void
+    {
+        $filesystem = new Filesystem(['name' => 'products.jsonl']);
+        $import = $this->makeImport($filesystem);
+        $import->extra = ['unrelated' => 'foo']; // extra is set but doesn't have our key
+
+        $job = $this->makeJob([], $import);
+
+        $this->assertTrue(
+            $job->exposedHasStreamableFile(),
+            'Unrelated extra keys must not interfere with primary file resolution',
+        );
+    }
+
     public function testHasStreamableFileIsCaseInsensitiveForJsonlExtension(): void
     {
         $filesystem = new Filesystem(['name' => 'Importer-Foo.JSONL']);
