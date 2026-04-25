@@ -100,7 +100,7 @@ class ImportProductFromFilesystemAction
             }
         }
 
-        ProductImporterJob::class::dispatch(
+        ProductImporterJob::dispatch(
             $this->filesystemImports->uuid,
             $listOfProducts,
             $this->filesystemImports->companiesBranches,
