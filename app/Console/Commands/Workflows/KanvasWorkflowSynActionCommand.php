@@ -6,6 +6,7 @@ namespace App\Console\Commands\Workflows;
 
 use Illuminate\Console\Command;
 use Kanvas\ActionEngine\Tasks\WorkflowActivity\ChecklistUpdateStatusFromLeadActivity;
+use Kanvas\ActionEngine\Tasks\WorkflowActivity\ChecklistUpdateStatusFromMessageActivity;
 use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaB2BSubscriptionActivity;
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaSubscriptionActivity;
@@ -351,6 +352,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PullNetSuiteQuoteWebhookJob::class,
             PremiumPromptApprovalWebhookJob::class,
             ChecklistUpdateStatusFromLeadActivity::class,
+            ChecklistUpdateStatusFromMessageActivity::class,
             PullPeopleLeadFromSearchActivity::class,
             PullWooCommerceOrderWebhookJob::class,
             GenerateLeadLinkedFieldActivity::class,
