@@ -7,7 +7,6 @@ namespace Kanvas\Filesystem\Repositories;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
@@ -46,42 +45,38 @@ class FilesystemEntitiesRepository
     public static function getFilesByEntity(Model $entity): Collection
     {
         $app = $entity->app ?? app(Apps::class);
+        $systemModule = SystemModulesRepository::getByModelName($entity::class, $app);
+        $legacySystemModule = SystemModulesRepository::getByModelName(
+            SystemModules::getLegacyNamespace($entity::class),
+            $app
+        );
 
-        return DB::transaction(function () use ($entity, $app) {
-            $systemModule = SystemModulesRepository::getByModelName($entity::class, $app);
-            $legacySystemModule = SystemModulesRepository::getByModelName(
-                SystemModules::getLegacyNamespace($entity::class),
+        $systemModuleIds = [$systemModule->getKey(), $legacySystemModule->getKey()];
+
+        if ($entity instanceof Message) {
+            $messageSystemModule = SystemModulesRepository::getByModelName(
+                'Kanvas\Social\Models\Messages',
                 $app
             );
+            $systemModuleIds[] = $messageSystemModule->getKey();
+        }
 
-            $systemModuleIds = [$systemModule->getKey(), $legacySystemModule->getKey()];
-
-            if ($entity instanceof Message) {
-                $messageSystemModule = SystemModulesRepository::getByModelName(
-                    'Kanvas\Social\Models\Messages',
-                    $app
-                );
-                $systemModuleIds[] = $messageSystemModule->getKey();
-            }
-
-            return FilesystemEntities::join('filesystem', 'filesystem.id', '=', 'filesystem_entities.filesystem_id')
-                ->where('filesystem_entities.entity_id', '=', $entity->getKey())
-                ->whereIn('filesystem_entities.system_modules_id', $systemModuleIds)
-                ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
-                ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
-                ->sharedLock()
-                ->select(
-                    'filesystem_entities.*',
-                    'filesystem.url',
-                    'filesystem.path',
-                    'filesystem.name',
-                    'filesystem.apps_id',
-                    'filesystem.users_id',
-                    'filesystem.size',
-                    'filesystem.file_type'
-                )
-                ->get();
-        });
+        return FilesystemEntities::join('filesystem', 'filesystem.id', '=', 'filesystem_entities.filesystem_id')
+            ->where('filesystem_entities.entity_id', '=', $entity->getKey())
+            ->whereIn('filesystem_entities.system_modules_id', $systemModuleIds)
+            ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
+            ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
+            ->select(
+                'filesystem_entities.*',
+                'filesystem.url',
+                'filesystem.path',
+                'filesystem.name',
+                'filesystem.apps_id',
+                'filesystem.users_id',
+                'filesystem.size',
+                'filesystem.file_type'
+            )
+            ->get();
     }
 
     /**
