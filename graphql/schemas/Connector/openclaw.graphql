@@ -65,7 +65,7 @@ extend type Subscription {
         )
 }
 
-extend type Mutation @guardByAdmin {
+extend type Mutation @guard {
     openclawCreateMachine(input: AgentMachineInput!): AgentMachineType!
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentMachineMutation@create"
@@ -81,6 +81,10 @@ extend type Mutation @guardByAdmin {
     openclawUpdateMachineContainers(machine_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentMachineMutation@updateContainers"
+        )
+    openclawPingMachine(machine_id: ID!): AgentMachineType!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentMachineMutation@ping"
         )
 
     openclawLaunchAgent(input: LaunchAgentInput!): AgentDeploymentType!
