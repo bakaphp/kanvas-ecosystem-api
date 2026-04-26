@@ -85,8 +85,11 @@ class ImportProductFromFilesystemAction
      * inside this method, but unit tests can pass a stub instance to bypass
      * the DB lookup that the resolver would do.
      */
-    public function streamCsvFileToJsonlFile(string $csvPath, string $jsonlPath, ?ProductsTypes $productType = null): void
-    {
+    public function streamCsvFileToJsonlFile(
+        string $csvPath,
+        string $jsonlPath,
+        ?ProductsTypes $productType = null
+    ): void {
         $reader = Reader::from($csvPath);
         $reader->setHeaderOffset(0);
         $headers = array_map('trim', $reader->getHeader());
@@ -134,7 +137,9 @@ class ImportProductFromFilesystemAction
 
                     if (isset($emittedHandlers[$handler])) {
                         throw new RuntimeException(sprintf(
-                            "CSV rows must be grouped by handler for streaming import. Found out-of-order handler '%s' after it was already emitted. Please sort the CSV by the handler column before uploading.",
+                            "CSV rows must be grouped by handler for streaming import. Found out-of-order 
+                            handler '%s' after it was already emitted. 
+                            Please sort the CSV by the handler column before uploading.",
                             $handler,
                         ));
                     }
