@@ -30,6 +30,7 @@ use Override;
  * @property string|null $exception
  * @property string $status
  * @property int $is_deleted
+ * @property array<string, mixed>|null $extra
  * @property string $created_at
  * @property string|null $updated_at
  * @property string|null $finished_at

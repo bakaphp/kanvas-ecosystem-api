@@ -18,6 +18,7 @@ use Kanvas\Filesystem\Actions\CreateFilesystemAction;
 use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Users\Models\Users;
 use League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility;
+use RuntimeException;
 use Symfony\Component\Mime\MimeTypes;
 
 class FilesystemServices
@@ -182,14 +183,33 @@ class FilesystemServices
         $path = $filesystem->path;
         $diskS3 = $this->buildS3Storage();
 
-        $fileContent = $diskS3->get($path);
-        $filename = basename($path);
-
         $directory = storage_path('app/csv');
         File::ensureDirectoryExists($directory);
 
-        $localPath = $directory . '/' . $filename;
-        File::put($localPath, $fileContent);
+        $localPath = $directory . '/' . basename($path);
+
+        // Stream-pipe the remote file to disk in ~8KB chunks instead of
+        // buffering the whole thing into a PHP string with $diskS3->get().
+        // Memory cost stays at one chunk regardless of file size, so a
+        // multi-hundred-MB CSV no longer OOMs the worker on download.
+        $remoteStream = $diskS3->readStream($path);
+        if ($remoteStream === null) {
+            throw new RuntimeException('Could not open remote stream for ' . $path);
+        }
+
+        $localStream = @fopen($localPath, 'w');
+        if ($localStream === false) {
+            fclose($remoteStream);
+
+            throw new RuntimeException('Could not open local file for writing at ' . $localPath);
+        }
+
+        try {
+            stream_copy_to_stream($remoteStream, $localStream);
+        } finally {
+            fclose($localStream);
+            fclose($remoteStream);
+        }
 
         return $localPath;
     }
