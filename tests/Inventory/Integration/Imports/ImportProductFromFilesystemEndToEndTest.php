@@ -15,8 +15,11 @@ use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Products\Actions\ImportProductFromFilesystemAction;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
+use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes as ProductsTypesDto;
 use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
 use Kanvas\Inventory\Regions\DataTransferObject\Region;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
@@ -98,6 +101,21 @@ final class ImportProductFromFilesystemEndToEndTest extends TestCase
             $user,
         )->execute();
 
+        // Product type owns the attribute schema for everything imported under
+        // it. configuration.product_type_id must be set on the mapper or the
+        // action throws — so we create a real one and reference its id below.
+        $productType = new CreateProductTypeAction(
+            new ProductsTypesDto(
+                $company,
+                $user,
+                'E2E Test Type ' . uniqid(),
+                'Type used by the e2e import test',
+                1,
+                true,
+            ),
+            $user,
+        )->execute();
+
         $mapping = [
             'name' => 'Product Name',
             'description' => 'Description',
@@ -147,13 +165,14 @@ final class ImportProductFromFilesystemEndToEndTest extends TestCase
         $mapperName = 'E2E Test Mapper ' . uniqid();
         $filesystemMapper = new CreateFilesystemMapperAction(
             new FilesystemMapper(
-                $app,
-                $user->getCurrentBranch(),
-                $user,
-                SystemModulesRepository::getByModelName(Products::class),
-                $mapperName,
-                [],
-                $mapping,
+                app: $app,
+                branch: $user->getCurrentBranch(),
+                user: $user,
+                systemModule: SystemModulesRepository::getByModelName(Products::class),
+                name: $mapperName,
+                header: [],
+                mapping: $mapping,
+                configuration: ['product_type_id' => $productType->getId()],
             ),
         )->execute();
 
@@ -313,6 +332,95 @@ final class ImportProductFromFilesystemEndToEndTest extends TestCase
         }
         $this->assertSame('red', $colorByVariantSku[$skuA1] ?? null, 'Variant A-1 should have Color=red from its CSV row');
         $this->assertSame('blue', $colorByVariantSku[$skuA2] ?? null, 'Variant A-2 should have Color=blue from its CSV row');
+
+        // Product type association — the whole reason product_type_id is
+        // mandatory. Without this link, attributes are orphan key/value pairs
+        // not tied to any type's schema.
+        $this->assertSame(
+            $productType->getId(),
+            $productA->products_types_id,
+            'Imported product must be linked to the configured product type',
+        );
+        $this->assertSame($productType->getId(), $productB->products_types_id);
+    }
+
+    public function testActionFailsFastWhenProductTypeIdIsMissingFromMapperConfiguration(): void
+    {
+        Queue::fake();
+
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $region = new CreateRegionAction(
+            new Region(
+                $company,
+                $app,
+                $user,
+                Currencies::getById(1),
+                'Region ' . uniqid(),
+                'r-' . uniqid(),
+                null,
+                1,
+            ),
+            $user,
+        )->execute();
+
+        $filesystemMapper = new CreateFilesystemMapperAction(
+            new FilesystemMapper(
+                app: $app,
+                branch: $user->getCurrentBranch(),
+                user: $user,
+                systemModule: SystemModulesRepository::getByModelName(Products::class),
+                name: 'No Type Mapper ' . uniqid(),
+                header: [],
+                mapping: [
+                    'product_name' => 'Product Name',
+                    'sku' => 'SKU',
+                    'handler' => 'Slug',
+                    'product_slug' => 'Slug',
+                ],
+                // intentionally no product_type_id in configuration
+                configuration: [],
+            ),
+        )->execute();
+
+        $csvPath = $this->writeCsv([
+            ['Slug', 'Product Name', 'SKU'],
+            ['slug-' . uniqid(), 'A Product', 'SKU-' . uniqid()],
+        ]);
+
+        $sourceFilesystem = new Filesystem([
+            'users_id' => $user->getId(),
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'name' => basename($csvPath),
+            'path' => '/test/no-type/' . basename($csvPath),
+            'url' => 'https://example.test/no-type.csv',
+            'size' => (string) filesize($csvPath),
+            'file_type' => 'csv',
+        ]);
+        $sourceFilesystem->save();
+
+        $filesystemImport = new FilesystemImports();
+        $filesystemImport->apps_id = $app->getId();
+        $filesystemImport->users_id = $user->getId();
+        $filesystemImport->companies_id = $company->getId();
+        $filesystemImport->companies_branches_id = $user->getCurrentBranch()->getId();
+        $filesystemImport->regions_id = $region->getId();
+        $filesystemImport->filesystem_id = $sourceFilesystem->getId();
+        $filesystemImport->filesystem_mapper_id = $filesystemMapper->getId();
+        $filesystemImport->status = 'pending';
+        $filesystemImport->is_deleted = 0;
+        $filesystemImport->saveOrFail();
+
+        $stubService = $this->createStub(FilesystemServices::class);
+        $stubService->method('getFileLocalPath')->willReturn($csvPath);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessageMatches('/product_type_id/');
+
+        new ImportProductFromFilesystemAction($filesystemImport, $stubService)->execute();
     }
 
     /**

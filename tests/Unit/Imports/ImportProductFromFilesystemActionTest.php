@@ -8,6 +8,7 @@ use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Models\FilesystemMapper;
 use Kanvas\Inventory\Products\Actions\ImportProductFromFilesystemAction;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\SystemModules\Models\SystemModules;
 use RuntimeException;
 use Tests\TestCaseUnit;
@@ -38,7 +39,7 @@ class ImportProductFromFilesystemActionTest extends TestCaseUnit
         ]);
         $jsonlPath = $this->makeJsonlPath();
 
-        $this->makeAction()->streamCsvFileToJsonlFile($csvPath, $jsonlPath);
+        $this->makeAction()->streamCsvFileToJsonlFile($csvPath, $jsonlPath, $this->stubProductType());
 
         $products = $this->readProducts($jsonlPath);
         $this->assertCount(2, $products);
@@ -62,7 +63,7 @@ class ImportProductFromFilesystemActionTest extends TestCaseUnit
         ]);
         $jsonlPath = $this->makeJsonlPath();
 
-        $this->makeAction()->streamCsvFileToJsonlFile($csvPath, $jsonlPath);
+        $this->makeAction()->streamCsvFileToJsonlFile($csvPath, $jsonlPath, $this->stubProductType());
 
         $products = $this->readProducts($jsonlPath);
         $this->assertCount(3, $products);
@@ -82,7 +83,7 @@ class ImportProductFromFilesystemActionTest extends TestCaseUnit
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessageMatches('/grouped by handler/i');
 
-        $this->makeAction()->streamCsvFileToJsonlFile($csvPath, $jsonlPath);
+        $this->makeAction()->streamCsvFileToJsonlFile($csvPath, $jsonlPath, $this->stubProductType());
     }
 
     public function testStreamCsvCleansUpJsonlOnError(): void
@@ -96,7 +97,7 @@ class ImportProductFromFilesystemActionTest extends TestCaseUnit
         $jsonlPath = $this->makeJsonlPath();
 
         try {
-            $this->makeAction()->streamCsvFileToJsonlFile($csvPath, $jsonlPath);
+            $this->makeAction()->streamCsvFileToJsonlFile($csvPath, $jsonlPath, $this->stubProductType());
             $this->fail('Expected RuntimeException');
         } catch (RuntimeException) {
             $this->assertFileDoesNotExist($jsonlPath, 'Failed transform must not leave a partial JSONL file behind');
@@ -110,7 +111,7 @@ class ImportProductFromFilesystemActionTest extends TestCaseUnit
         ]);
         $jsonlPath = $this->makeJsonlPath();
 
-        $this->makeAction()->streamCsvFileToJsonlFile($csvPath, $jsonlPath);
+        $this->makeAction()->streamCsvFileToJsonlFile($csvPath, $jsonlPath, $this->stubProductType());
 
         $this->assertFileExists($jsonlPath);
         $this->assertSame('', file_get_contents($jsonlPath));
@@ -140,7 +141,7 @@ class ImportProductFromFilesystemActionTest extends TestCaseUnit
             ],
         ]);
 
-        $action->streamCsvFileToJsonlFile($csvPath, $jsonlPath);
+        $action->streamCsvFileToJsonlFile($csvPath, $jsonlPath, $this->stubProductType());
 
         $products = $this->readProducts($jsonlPath);
         $this->assertCount(1, $products);
@@ -177,6 +178,19 @@ class ImportProductFromFilesystemActionTest extends TestCaseUnit
         $import->setRelation('filesystemMapper', $mapper);
 
         return new ImportProductFromFilesystemAction($import);
+    }
+
+    private function stubProductType(): ProductsTypes
+    {
+        // In-memory stub — bypasses the resolveProductType DB lookup that
+        // execute() does in production. Lets us test the streaming logic
+        // without setting up a real ProductsTypes record.
+        $type = new ProductsTypes();
+        $type->id = 999;
+        $type->name = 'Stub Type';
+        $type->weight = 1;
+
+        return $type;
     }
 
     /**
