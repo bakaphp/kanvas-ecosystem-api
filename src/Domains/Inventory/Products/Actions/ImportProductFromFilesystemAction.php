@@ -21,7 +21,8 @@ use Throwable;
 class ImportProductFromFilesystemAction
 {
     public function __construct(
-        public FilesystemImports $filesystemImports
+        public FilesystemImports $filesystemImports,
+        protected ?FilesystemServices $filesystemService = null,
     ) {
     }
 
@@ -203,7 +204,7 @@ class ImportProductFromFilesystemAction
                 'id' => $productType->id,
                 'name' => $productType->name,
                 'weight' => $productType->weight,
-            ] : null,
+            ] : [],
         ];
     }
 
@@ -242,7 +243,7 @@ class ImportProductFromFilesystemAction
 
     private function uploadJsonl(string $localPath): Filesystem
     {
-        $service = new FilesystemServices(
+        $service = $this->filesystemService ?? new FilesystemServices(
             $this->filesystemImports->app,
             $this->filesystemImports->company,
         );
@@ -298,8 +299,9 @@ class ImportProductFromFilesystemAction
 
     private function getFilePath(Filesystem $filesystem): string
     {
-        return new FilesystemServices($this->filesystemImports->app)
-                ->getFileLocalPath($filesystem);
+        $service = $this->filesystemService ?? new FilesystemServices($this->filesystemImports->app);
+
+        return $service->getFileLocalPath($filesystem);
     }
 
     private function mapAttributes(array $attributeTemplate, array $data): array
