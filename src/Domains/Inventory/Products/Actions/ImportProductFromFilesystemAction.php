@@ -137,9 +137,9 @@ class ImportProductFromFilesystemAction
 
                     if (isset($emittedHandlers[$handler])) {
                         throw new RuntimeException(sprintf(
-                            "CSV rows must be grouped by handler for streaming import. Found out-of-order 
-                            handler '%s' after it was already emitted. 
-                            Please sort the CSV by the handler column before uploading.",
+                            'CSV rows must be grouped by handler for streaming import. '
+                            . "Found out-of-order handler '%s' after it was already emitted. "
+                            . 'Please sort the CSV by the handler column before uploading.',
                             $handler,
                         ));
                     }
