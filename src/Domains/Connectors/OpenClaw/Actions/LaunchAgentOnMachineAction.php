@@ -56,18 +56,20 @@ class LaunchAgentOnMachineAction
         }
 
         $deployment = $this->deployment;
+        $gatewayToken = $this->resolveGatewayToken();
 
         $client = SshClient::fromMachine($this->machine);
 
         try {
             $this->ensureSharedImage($client);
             $this->provisionLinuxUser($client, $deployment);
-            $this->writeDeploymentFiles($client, $deployment);
-            $this->buildAndStart($client, $deployment);
+            $this->writeDeploymentFiles($client, $deployment, $gatewayToken);
+            $this->buildAndStart($client, $deployment, $gatewayToken);
 
             $deployment->status = DeploymentStatusEnum::RUNNING->value;
             $deployment->launched_at = now();
             $deployment->saveOrFail();
+            $deployment->set(CustomFieldEnum::OPENCLAW_GATEWAY_TOKEN->value, $gatewayToken);
 
             $this->agent->update(['deployment_status' => 'deployed']);
             $this->agent->set(CustomFieldEnum::OPENCLAW_DEPLOYMENT_ID->value, $deployment->getId());
@@ -151,19 +153,18 @@ class LaunchAgentOnMachineAction
      *  - auth-profiles.json (API keys for LLM providers: Google, Anthropic)
      *  - workspace files (soul.md, instructions.md, output-format.md, identity.json)
      */
-    private function writeDeploymentFiles(SshClient $client, AgentDeployment $deployment): void
+    private function writeDeploymentFiles(SshClient $client, AgentDeployment $deployment, string $gatewayToken): void
     {
         $openclawDir = $deployment->home_directory . '/.openclaw';
         $systemUser = $deployment->system_user;
-        $gatewayToken = $this->company->get(ConfigurationEnum::GATEWAY_TOKEN->value) ?? bin2hex(random_bytes(32));
 
-        $this->writeDockerComposeFile($client, $deployment);
+        $this->writeDockerComposeFile($client, $deployment, $gatewayToken);
 
         $client->writeFileAsUser(
             $openclawDir . '/openclaw.json',
             DockerComposeBuilder::buildOpenClawConfig(
                 $this->agent,
-                (string) $gatewayToken,
+                $gatewayToken,
                 $this->app,
                 DockerComposeBuilder::buildChannelConfig($this->agent),
             ),
@@ -190,16 +191,32 @@ class LaunchAgentOnMachineAction
         $client->exec('sudo chmod -R g+rwx ' . escapeshellarg($openclawDir));
     }
 
-    private function writeDockerComposeFile(SshClient $client, AgentDeployment $deployment): void
+    private function writeDockerComposeFile(SshClient $client, AgentDeployment $deployment, string $gatewayToken): void
     {
         $openclawDir = $deployment->home_directory . '/.openclaw';
-        $gatewayToken = $this->company->get(ConfigurationEnum::GATEWAY_TOKEN->value) ?? bin2hex(random_bytes(32));
 
         $client->writeFileAsUser(
             $openclawDir . '/docker-compose.yml',
-            DockerComposeBuilder::buildDockerCompose($deployment, (string) $gatewayToken, $this->app, $this->agent),
+            DockerComposeBuilder::buildDockerCompose($deployment, $gatewayToken, $this->app, $this->agent),
             $deployment->system_user,
         );
+    }
+
+    /**
+     * Resolve the gateway token once per deploy — prefer the company-configured
+     * token, fall back to a freshly generated one. Used consistently across
+     * openclaw.json and docker-compose.yml so the gateway config and container
+     * env stay in lockstep.
+     */
+    private function resolveGatewayToken(): string
+    {
+        $configured = $this->company->get(ConfigurationEnum::GATEWAY_TOKEN->value);
+
+        if (is_string($configured) && $configured !== '') {
+            return $configured;
+        }
+
+        return bin2hex(random_bytes(32));
     }
 
     /**
@@ -207,7 +224,7 @@ class LaunchAgentOnMachineAction
      * Uses the pre-built shared image — no per-agent build needed.
      * Appends EXIT_CODE to detect failures even when Docker writes to stderr.
      */
-    private function buildAndStart(SshClient $client, AgentDeployment $deployment): void
+    private function buildAndStart(SshClient $client, AgentDeployment $deployment, string $gatewayToken): void
     {
         $openclawDir = $deployment->home_directory . '/.openclaw';
         $maxAttempts = 10;
@@ -218,7 +235,8 @@ class LaunchAgentOnMachineAction
             // Best-effort preflight only. Another deployment may still bind the port before compose up,
             // so we also keep the retry path for Docker bind failures below.
             if (! $this->portsAreAvailableOnMachine($deployment, $listeningPorts)) {
-                $this->reassignDeploymentPorts($client, $deployment, $listeningPorts, $attempt, 'preflight conflict');
+                $this->reassignDeploymentPorts($client, $deployment, $listeningPorts, $attempt, 'preflight conflict', $gatewayToken);
+
                 continue;
             }
 
@@ -249,7 +267,7 @@ class LaunchAgentOnMachineAction
                 ]);
 
                 $this->stopPartialDeployment($client, $deployment, $openclawDir);
-                $this->reassignDeploymentPorts($client, $deployment, $this->getListeningPortsOnMachine($client), $attempt, 'docker bind conflict');
+                $this->reassignDeploymentPorts($client, $deployment, $this->getListeningPortsOnMachine($client), $attempt, 'docker bind conflict', $gatewayToken);
 
                 continue;
             }
@@ -307,6 +325,7 @@ class LaunchAgentOnMachineAction
         array $listeningPorts,
         int $attempt,
         string $reason,
+        string $gatewayToken,
     ): void {
         $previousGatewayPort = $deployment->gateway_port;
         $previousProxyPort = $deployment->proxy_port;
@@ -316,7 +335,7 @@ class LaunchAgentOnMachineAction
         $deployment->proxy_port = $ports['proxy_port'];
         $deployment->saveOrFail();
 
-        $this->writeDockerComposeFile($client, $deployment);
+        $this->writeDockerComposeFile($client, $deployment, $gatewayToken);
 
         Log::info('Reassigned OpenClaw deployment ports after conflict detection', [
             'deployment_id' => $deployment->getId(),

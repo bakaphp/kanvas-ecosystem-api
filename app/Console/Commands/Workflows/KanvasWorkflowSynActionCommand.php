@@ -6,6 +6,7 @@ namespace App\Console\Commands\Workflows;
 
 use Illuminate\Console\Command;
 use Kanvas\ActionEngine\Tasks\WorkflowActivity\ChecklistUpdateStatusFromLeadActivity;
+use Kanvas\ActionEngine\Tasks\WorkflowActivity\ChecklistUpdateStatusFromMessageActivity;
 use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaB2BSubscriptionActivity;
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaSubscriptionActivity;
@@ -92,6 +93,7 @@ use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\Ofac\Activities\OfacScreeningActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
+use Kanvas\Connectors\OpenClaw\Activities\SendChannelMessageToAgentActivity;
 use Kanvas\Connectors\OpenClaw\Activities\SyncAgentSwarmContextActivity;
 use Kanvas\Connectors\OpenClaw\Activities\SyncOpenClawAgentWorkspaceActivity;
 use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
@@ -350,6 +352,7 @@ class KanvasWorkflowSynActionCommand extends Command
             PullNetSuiteQuoteWebhookJob::class,
             PremiumPromptApprovalWebhookJob::class,
             ChecklistUpdateStatusFromLeadActivity::class,
+            ChecklistUpdateStatusFromMessageActivity::class,
             PullPeopleLeadFromSearchActivity::class,
             PullWooCommerceOrderWebhookJob::class,
             GenerateLeadLinkedFieldActivity::class,
@@ -420,6 +423,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ContactCheckerActivity::class,
             SyncOpenClawAgentWorkspaceActivity::class,
             SyncAgentSwarmContextActivity::class,
+            SendChannelMessageToAgentActivity::class,
             MicrosoftAgentChannelResponderActivity::class,
             SyncMicrosoftEmailActivity::class,
             SendLeadAdfByEmailActivity::class,

@@ -383,16 +383,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.379.5",
+            "version": "3.379.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "c81342df6e09bbc30d28ea57cc4644bb35c53ce2"
+                "reference": "2c338cb3f2bcb9e8616ffbac7a36d66034f2ceef"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/c81342df6e09bbc30d28ea57cc4644bb35c53ce2",
-                "reference": "c81342df6e09bbc30d28ea57cc4644bb35c53ce2",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/2c338cb3f2bcb9e8616ffbac7a36d66034f2ceef",
+                "reference": "2c338cb3f2bcb9e8616ffbac7a36d66034f2ceef",
                 "shasum": ""
             },
             "require": {
@@ -474,9 +474,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.379.5"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.379.7"
             },
-            "time": "2026-04-22T18:13:16+00:00"
+            "time": "2026-04-24T18:17:06+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -1631,16 +1631,16 @@
         },
         {
             "name": "durable-workflow/workflow",
-            "version": "1.0.75",
+            "version": "1.0.76",
             "source": {
                 "type": "git",
                 "url": "https://github.com/durable-workflow/workflow.git",
-                "reference": "5340b8ad2bb2fef1945b5161ea45401b15e2dbb0"
+                "reference": "2fa4d3f1fffc8d870e6caef574f99579ab9ce401"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/5340b8ad2bb2fef1945b5161ea45401b15e2dbb0",
-                "reference": "5340b8ad2bb2fef1945b5161ea45401b15e2dbb0",
+                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/2fa4d3f1fffc8d870e6caef574f99579ab9ce401",
+                "reference": "2fa4d3f1fffc8d870e6caef574f99579ab9ce401",
                 "shasum": ""
             },
             "require": {
@@ -1685,9 +1685,9 @@
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/durable-workflow/workflow/issues",
-                "source": "https://github.com/durable-workflow/workflow/tree/1.0.75"
+                "source": "https://github.com/durable-workflow/workflow/tree/1.0.76"
             },
-            "time": "2026-04-13T23:30:27+00:00"
+            "time": "2026-04-24T15:24:01+00:00"
         },
         {
             "name": "dyrynda/laravel-cascade-soft-deletes",
@@ -3311,16 +3311,16 @@
         },
         {
             "name": "imdhemy/google-play-billing",
-            "version": "1.12.2",
+            "version": "1.12.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/imdhemy/google-play-billing.git",
-                "reference": "24fff998cfeaac7ffd13878bd4f1b84f40b8ee66"
+                "reference": "90bc75db9cb47562c5cecba824c2cfbfb7c32f3c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/imdhemy/google-play-billing/zipball/24fff998cfeaac7ffd13878bd4f1b84f40b8ee66",
-                "reference": "24fff998cfeaac7ffd13878bd4f1b84f40b8ee66",
+                "url": "https://api.github.com/repos/imdhemy/google-play-billing/zipball/90bc75db9cb47562c5cecba824c2cfbfb7c32f3c",
+                "reference": "90bc75db9cb47562c5cecba824c2cfbfb7c32f3c",
                 "shasum": ""
             },
             "require": {
@@ -3360,9 +3360,9 @@
             "description": "Google Play Billing",
             "support": {
                 "issues": "https://github.com/imdhemy/google-play-billing/issues",
-                "source": "https://github.com/imdhemy/google-play-billing/tree/1.12.2"
+                "source": "https://github.com/imdhemy/google-play-billing/tree/1.12.3"
             },
-            "time": "2026-03-14T19:29:32+00:00"
+            "time": "2026-04-24T12:55:45+00:00"
         },
         {
             "name": "imdhemy/laravel-purchases",
@@ -3574,16 +3574,16 @@
         },
         {
             "name": "intervention/image",
-            "version": "4.0.1",
+            "version": "4.0.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Intervention/image.git",
-                "reference": "f2fa8c7fc3e634c871d945fc83885548f75ef394"
+                "reference": "3c449518c7782ea7454d18c4a7a54e6c2250e889"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Intervention/image/zipball/f2fa8c7fc3e634c871d945fc83885548f75ef394",
-                "reference": "f2fa8c7fc3e634c871d945fc83885548f75ef394",
+                "url": "https://api.github.com/repos/Intervention/image/zipball/3c449518c7782ea7454d18c4a7a54e6c2250e889",
+                "reference": "3c449518c7782ea7454d18c4a7a54e6c2250e889",
                 "shasum": ""
             },
             "require": {
@@ -3630,7 +3630,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Intervention/image/issues",
-                "source": "https://github.com/Intervention/image/tree/4.0.1"
+                "source": "https://github.com/Intervention/image/tree/4.0.2"
             },
             "funding": [
                 {
@@ -3646,7 +3646,7 @@
                     "type": "ko_fi"
                 }
             ],
-            "time": "2026-04-07T08:43:15+00:00"
+            "time": "2026-04-24T13:57:17+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",
@@ -10351,16 +10351,16 @@
         },
         {
             "name": "sentry/sentry",
-            "version": "4.24.0",
+            "version": "4.25.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/getsentry/sentry-php.git",
-                "reference": "5055cc792f630a427fdf9dcccd88faa94b50fd30"
+                "reference": "bfee3381e1f6dea8a5f3a18adba6419fe81c5f54"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/5055cc792f630a427fdf9dcccd88faa94b50fd30",
-                "reference": "5055cc792f630a427fdf9dcccd88faa94b50fd30",
+                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/bfee3381e1f6dea8a5f3a18adba6419fe81c5f54",
+                "reference": "bfee3381e1f6dea8a5f3a18adba6419fe81c5f54",
                 "shasum": ""
             },
             "require": {
@@ -10392,6 +10392,7 @@
                 "spiral/roadrunner-worker": "^3.6"
             },
             "suggest": {
+                "ext-excimer": "Enable Sentry profiling with the Excimer PHP extension.",
                 "monolog/monolog": "Allow sending log messages to Sentry by using the included Monolog handler."
             },
             "type": "library",
@@ -10428,7 +10429,7 @@
             ],
             "support": {
                 "issues": "https://github.com/getsentry/sentry-php/issues",
-                "source": "https://github.com/getsentry/sentry-php/tree/4.24.0"
+                "source": "https://github.com/getsentry/sentry-php/tree/4.25.0"
             },
             "funding": [
                 {
@@ -10440,7 +10441,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2026-04-01T14:34:34+00:00"
+            "time": "2026-04-23T12:50:03+00:00"
         },
         {
             "name": "sentry/sentry-laravel",
@@ -16529,16 +16530,16 @@
         },
         {
             "name": "webonyx/graphql-php",
-            "version": "v15.32.1",
+            "version": "v15.32.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/webonyx/graphql-php.git",
-                "reference": "e8f77f81dbe5de75551137955dd0fd3f779235cf"
+                "reference": "993bf0bea17f870412ad8a90f60c41cb8d5f1145"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/e8f77f81dbe5de75551137955dd0fd3f779235cf",
-                "reference": "e8f77f81dbe5de75551137955dd0fd3f779235cf",
+                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/993bf0bea17f870412ad8a90f60c41cb8d5f1145",
+                "reference": "993bf0bea17f870412ad8a90f60c41cb8d5f1145",
                 "shasum": ""
             },
             "require": {
@@ -16556,7 +16557,7 @@
                 "nyholm/psr7": "^1.5",
                 "phpbench/phpbench": "^1.2",
                 "phpstan/extension-installer": "^1.1",
-                "phpstan/phpstan": "2.1.46",
+                "phpstan/phpstan": "2.1.51",
                 "phpstan/phpstan-phpunit": "2.0.16",
                 "phpstan/phpstan-strict-rules": "2.0.10",
                 "phpunit/phpunit": "^9.5 || ^10.5.21 || ^11",
@@ -16593,7 +16594,7 @@
             ],
             "support": {
                 "issues": "https://github.com/webonyx/graphql-php/issues",
-                "source": "https://github.com/webonyx/graphql-php/tree/v15.32.1"
+                "source": "https://github.com/webonyx/graphql-php/tree/v15.32.3"
             },
             "funding": [
                 {
@@ -16605,7 +16606,7 @@
                     "type": "open_collective"
                 }
             ],
-            "time": "2026-04-21T09:42:39+00:00"
+            "time": "2026-04-24T13:49:35+00:00"
         },
         {
             "name": "yakovenko/laravel-lighthouse-graphql-multi-schema",

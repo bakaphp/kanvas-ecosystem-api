@@ -37,6 +37,7 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  *  @property int $companies_id
  *  @property int|null $entity_id
  *  @property string|null $entity_namespace
+ *  @property array|null $metadata
  */
 class Channel extends BaseModel
 {

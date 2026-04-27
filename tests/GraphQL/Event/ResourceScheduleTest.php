@@ -269,7 +269,7 @@ class ResourceScheduleTest extends TestCase
         $remainingRules = ScheduleRules::where('resources_id', $this->product->getId())
             ->where('resources_type', $this->product->getMorphClass())
             ->where('apps_id', $this->apps->getId())
-            ->whereJsonContains('metadata->created_from', 'operation_days')
+            ->whereNotNull('operation_day')
             ->where('is_deleted', false)
             ->count();
 

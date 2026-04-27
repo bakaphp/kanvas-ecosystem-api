@@ -21,6 +21,8 @@ class Channel extends Data
         public string $description = '',
         public ?string $slug = null,
         public ?array $categories = null,
+        public ?array $metadata = null,
+        public array $tags = [],
     ) {
     }
 }
