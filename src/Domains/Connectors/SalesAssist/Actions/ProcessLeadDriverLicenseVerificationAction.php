@@ -19,7 +19,6 @@ use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Models\LeadAttempt;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
@@ -163,10 +162,7 @@ class ProcessLeadDriverLicenseVerificationAction
             return $fromCustomField;
         }
 
-        $request = $this->getLatestAttemptWith('intellicheckResponse')?->request;
-        $response = is_array($request) ? ($request['intellicheckResponse'] ?? null) : null;
-
-        return is_array($response) ? $response : null;
+        return $this->extractFromLatestAttempt('intellicheckResponse');
     }
 
     protected function resolveParticipants(): array
@@ -176,18 +172,40 @@ class ProcessLeadDriverLicenseVerificationAction
             return $fromCustomField;
         }
 
-        $request = $this->getLatestAttemptWith('participants')?->request;
-        $participants = is_array($request) ? ($request['participants'] ?? []) : [];
+        $extracted = $this->extractFromLatestAttempt('participants');
 
-        return is_array($participants) ? $participants : [];
+        return is_array($extracted) ? $extracted : [];
     }
 
-    protected function getLatestAttemptWith(string $jsonKey): ?LeadAttempt
+    /**
+     * Walk the lead's attempts newest-first and pull the named field out of
+     * the request payload. Two shapes are accepted:
+     *  - Legacy flat:   $request[$name]
+     *  - GraphQL input: $request['input']['custom_fields'][N] === ['name' => $name, 'value' => ...]
+     */
+    protected function extractFromLatestAttempt(string $name): ?array
     {
-        return $this->lead->attempts()
-            ->whereNotNull('request->' . $jsonKey)
-            ->latest('id')
-            ->first();
+        foreach ($this->lead->attempts()->latest('id')->get() as $attempt) {
+            $request = $attempt->request;
+            if (! is_array($request)) {
+                continue;
+            }
+
+            if (isset($request[$name]) && is_array($request[$name])) {
+                return $request[$name];
+            }
+
+            $customFields = $request['input']['custom_fields'] ?? null;
+            if (is_array($customFields)) {
+                foreach ($customFields as $field) {
+                    if (is_array($field) && ($field['name'] ?? null) === $name && is_array($field['value'] ?? null)) {
+                        return $field['value'];
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     protected function processLeadDriverLicense(
