@@ -20,8 +20,18 @@ type ParkingGateResponse {
     amount_charged: Float
 }
 
+enum MechanicFilterEnum {
+    NOTIFIED
+    ASSIGNED
+}
+
+enum MechanicAvailabilityEnum {
+    ACTIVO
+    NO_DISPONIBLE
+}
+
 extend type Mutation @guardByAppKey {
-    movipassValidateParkingFinePayment(
+    validateParkingFinePayment(
         token: String!
         lot_id: String
     ): ParkingGateResponse!
@@ -29,7 +39,7 @@ extend type Mutation @guardByAppKey {
             resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\ParkingMutation@validateFinePayment"
         )
 
-    movipassNotifyParkingEntry(
+    notifyParkingEntry(
         qr_code: String!
         lot_id: String
     ): ParkingGateResponse!
@@ -37,7 +47,7 @@ extend type Mutation @guardByAppKey {
             resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\ParkingMutation@notifyEntry"
         )
 
-    movipassValidateParkingExit(
+    validateParkingExit(
         qr_code: String!
         amount: Float!
         lot_id: String
@@ -48,9 +58,25 @@ extend type Mutation @guardByAppKey {
 }
 
 extend type Query @guard {
+    mechanics(
+        company_id: ID
+        availability: MechanicAvailabilityEnum
+        where: _
+            @whereConditions(
+                columns: ["id", "firstname", "lastname", "email", "created_at"]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "firstname", "lastname", "created_at"])
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Connector\\Movipass\\Builders\\MechanicsBuilder@build"
+            defaultCount: 25
+        )
+
     mechanicOrders(
         all: Boolean
         mechanic_id: ID
+        mechanic_filter: MechanicFilterEnum
         provider_id: ID
         where: _
             @whereConditions(
