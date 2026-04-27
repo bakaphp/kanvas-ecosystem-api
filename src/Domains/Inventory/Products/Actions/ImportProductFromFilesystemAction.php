@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Products\Actions;
 use Baka\Validations\Date;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Services\FilesystemServices;
@@ -21,7 +22,8 @@ use Throwable;
 class ImportProductFromFilesystemAction
 {
     public function __construct(
-        public FilesystemImports $filesystemImports
+        public FilesystemImports $filesystemImports,
+        protected ?FilesystemServices $filesystemService = null,
     ) {
     }
 
@@ -78,9 +80,16 @@ class ImportProductFromFilesystemAction
      * variant-grouping and sorted-assumption logic without needing S3 / DB
      * round-trips. The action's execute() wraps this with the I/O
      * orchestration (S3 download/upload, FilesystemImports update, dispatch).
+     *
+     * `$productType` is normally resolved from `configuration.product_type_id`
+     * inside this method, but unit tests can pass a stub instance to bypass
+     * the DB lookup that the resolver would do.
      */
-    public function streamCsvFileToJsonlFile(string $csvPath, string $jsonlPath): void
-    {
+    public function streamCsvFileToJsonlFile(
+        string $csvPath,
+        string $jsonlPath,
+        ?ProductsTypes $productType = null
+    ): void {
         $reader = Reader::from($csvPath);
         $reader->setHeaderOffset(0);
         $headers = array_map('trim', $reader->getHeader());
@@ -97,7 +106,7 @@ class ImportProductFromFilesystemAction
             ? $this->filesystemImports->filesystemMapper->configuration
             : [];
         $channelsId = $configuration['channels_id'] ?? null;
-        $productType = $this->resolveProductType($configuration);
+        $productType ??= $this->resolveProductType($configuration);
 
         try {
             $emittedHandlers = [];
@@ -128,7 +137,9 @@ class ImportProductFromFilesystemAction
 
                     if (isset($emittedHandlers[$handler])) {
                         throw new RuntimeException(sprintf(
-                            "CSV rows must be grouped by handler for streaming import. Found out-of-order handler '%s' after it was already emitted. Please sort the CSV by the handler column before uploading.",
+                            'CSV rows must be grouped by handler for streaming import. '
+                            . "Found out-of-order handler '%s' after it was already emitted. "
+                            . 'Please sort the CSV by the handler column before uploading.',
                             $handler,
                         ));
                     }
@@ -159,7 +170,7 @@ class ImportProductFromFilesystemAction
      * @param resource $out
      * @param array<int, array<array-key, mixed>> $variants
      */
-    private function emitProductIfNeeded($out, string $modelName, array $variants, ?ProductsTypes $productType): void
+    private function emitProductIfNeeded($out, string $modelName, array $variants, ProductsTypes $productType): void
     {
         if ($modelName !== Products::class || $variants === []) {
             return;
@@ -173,7 +184,7 @@ class ImportProductFromFilesystemAction
      * @param array<int, array<array-key, mixed>> $variants
      * @return array<string, mixed>
      */
-    private function buildProductFromVariants(array $variants, ?ProductsTypes $productType): array
+    private function buildProductFromVariants(array $variants, ProductsTypes $productType): array
     {
         $productAttributes = [];
         foreach ($variants as $variant) {
@@ -199,22 +210,30 @@ class ImportProductFromFilesystemAction
             'variants' => $variants,
             'attributes' => $productAttributes,
             'price' => 0.0,
-            'productType' => $productType ? [
+            'productType' => [
                 'id' => $productType->id,
                 'name' => $productType->name,
                 'weight' => $productType->weight,
-            ] : null,
+            ],
         ];
     }
 
     /**
      * @param array<string, mixed> $configuration
      */
-    private function resolveProductType(array $configuration): ?ProductsTypes
+    private function resolveProductType(array $configuration): ProductsTypes
     {
         $productTypeId = $configuration['product_type_id'] ?? null;
         if ($productTypeId === null || $productTypeId === '' || $productTypeId === 0) {
-            return null;
+            // Product types own the attribute schema for products imported under
+            // them. Without one, attributes have no type to attach to and the
+            // imported products would be data-orphans. Fail fast — before any
+            // CSV processing — with a message that points at the fix.
+            throw new ValidationException(
+                'Product imports require configuration.product_type_id on the FilesystemMapper. '
+                . 'Without it, imported products cannot be associated with their product type, '
+                . 'breaking attribute associations. Set product_type_id on the mapper before importing.'
+            );
         }
 
         /** @var ProductsTypes $productType */
@@ -242,7 +261,7 @@ class ImportProductFromFilesystemAction
 
     private function uploadJsonl(string $localPath): Filesystem
     {
-        $service = new FilesystemServices(
+        $service = $this->filesystemService ?? new FilesystemServices(
             $this->filesystemImports->app,
             $this->filesystemImports->company,
         );
@@ -298,8 +317,9 @@ class ImportProductFromFilesystemAction
 
     private function getFilePath(Filesystem $filesystem): string
     {
-        return new FilesystemServices($this->filesystemImports->app)
-                ->getFileLocalPath($filesystem);
+        $service = $this->filesystemService ?? new FilesystemServices($this->filesystemImports->app);
+
+        return $service->getFileLocalPath($filesystem);
     }
 
     private function mapAttributes(array $attributeTemplate, array $data): array
