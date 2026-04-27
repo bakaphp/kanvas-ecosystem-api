@@ -64,22 +64,17 @@ class ChangeTaskEngagementItemStatusAction
 
     protected function getOrCreateTaskEngagementItem(): TaskEngagementItem
     {
-        $taskEngagementItem = TaskEngagementItem::fromCompany($this->company)
-            ->fromApp($this->app)
-            ->where('task_list_item_id', $this->taskListItem->getId())
-            ->where('lead_id', $this->lead->getId())
-            ->first();
-
-        if (! $taskEngagementItem) {
-            $taskEngagementItem = new TaskEngagementItem();
-            $taskEngagementItem->task_list_item_id = $this->taskListItem->getId();
-            $taskEngagementItem->lead_id = $this->lead->getId();
-            $taskEngagementItem->companies_id = $this->company->getId();
-            $taskEngagementItem->apps_id = $this->app->getId();
-            $taskEngagementItem->users_id = $this->user->getId();
-        }
-
-        return $taskEngagementItem;
+        return TaskEngagementItem::firstOrCreate(
+            [
+                'task_list_item_id' => $this->taskListItem->getId(),
+                'lead_id' => $this->lead->getId(),
+            ],
+            [
+                'companies_id' => $this->company->getId(),
+                'apps_id' => $this->app->getId(),
+                'users_id' => $this->user->getId(),
+            ],
+        );
     }
 
     protected function updateTaskEngagementItemStatus(TaskEngagementItem $taskEngagementItem): void
