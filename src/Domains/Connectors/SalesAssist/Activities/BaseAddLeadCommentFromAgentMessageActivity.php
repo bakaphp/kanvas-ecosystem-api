@@ -4,22 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Activities;
 
-use Baka\Support\Url;
-use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
-use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
-use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
-use Kanvas\Notifications\Channels\TwilioSmsChannel;
-use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
-use NotificationChannels\Expo\ExpoChannel;
 
 abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
 {
@@ -50,15 +41,6 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
     ): mixed;
 
     /**
-     * Get the enum key for tracking manager notification timestamp.
-     * Return null if not tracking notification timestamps.
-     */
-    protected function getManagerNotifiedAtKey(): ?string
-    {
-        return null;
-    }
-
-    /**
      * Whether to append AI chat link before adding the prefix.
      * Override to true for connectors that need link before prefix (e.g., Elead).
      */
@@ -83,7 +65,6 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
             default => 'Customer',
         };
 
-        //return ($fromAgent ? $agentChannel . 'Sally: ' : 'Customer: ') . $note;
         return $fromWho . ': ' . $note;
     }
 
@@ -96,13 +77,6 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
         if ($aiChatLink === null) {
             return $note;
         }
-
-        //$shortUrl = Url::getShortUrl($aiChatLink, $app) . '?openInSa=true';
-        //$linkText = "\nView Full Conversation here: {$shortUrl}";
-
-        //if (strlen($note) + strlen($linkText) > 200) {
-        //    return substr($note, 0, 200 - strlen($linkText) - 5) . '...' . $linkText;
-        //}
 
         return $note;
     }
@@ -185,179 +159,13 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
 
                 $message->set('sent_to_crm', true);
 
-                // Notify managers
-                $notificationInfo = [];
-                if (! $fromAgent && $lead->company->get('ai_manager_notifications')) {
-                    $notificationInfo = $this->notifyManagers($message, $lead);
-                }
-
                 return [
                     'note' => $externalResult,
                     'from_agent' => $fromAgent,
                     'lead' => $lead->getId(),
-                    'sent_manager_notification' => ! empty($notificationInfo),
-                    'notification_info' => $notificationInfo,
                 ];
             },
             company: $company,
         );
-    }
-
-    /**
-     * Notify managers about customer engagement.
-     */
-    protected function notifyManagers(Message $message, Lead $lead): array
-    {
-        $hoursTool = new CompanyWorkHoursTool($message)->execute();
-        if ($hoursTool['status'] !== 'work_hours') {
-            return ['skipped' => 'outside_work_hours'];
-        }
-
-        // Check if we should only notify once
-        $notifiedAtKey = $this->getManagerNotifiedAtKey();
-        if ($notifiedAtKey !== null
-            && $lead->company->get(IntelligenceConfigurationEnum::AI_ENGAGEMENT_MESSAGE_ONLY_ONE_NOTIFICATION->value)
-            && $lead->get($notifiedAtKey)) {
-            return ['skipped' => 'already_notified'];
-        }
-
-        $notification = new Blank(
-            templateName: 'agent-manager-notification',
-            data: [
-                'message' => $message,
-                'company' => $message->company,
-                'app' => $message->app,
-                'user' => $message->user,
-            ],
-            via: ['sms', 'push', 'expo', 'mail'],
-            entity: $message
-        );
-
-        $notification->setSubject($lead->people->name . ' Engaged with Sally');
-        $notification->setPushTemplateName('agent_manager_push_notification');
-        $notification->setSmsTemplateName('agent_manager_sms_notification');
-
-        $this->configureManagerNotificationChannels(
-            $notification,
-            $lead,
-            $message
-        );
-
-        // Get managers
-        $managers = UsersRepository::getCompanyAppUserByRole(
-            $message->company,
-            $message->app,
-            'BDCManager'
-        )->get();
-
-        // Include the lead owner in the notification recipients
-        $leadOwner = $lead->owner;
-        if ($leadOwner && ! $managers->contains('id', $leadOwner->getId())) {
-            $managers->push($leadOwner);
-        }
-
-        Notification::send($managers, $notification);
-
-        // Track notification timestamp if key is provided
-        if ($notifiedAtKey !== null) {
-            $lead->set($notifiedAtKey, date('Y-m-d H:i:s'));
-        }
-
-        $channel = $message->channels()->first();
-
-        return [
-            'channels' => $notification->channels,
-            'is_first_engagement' => $this->isFirstEngagement($lead, $message),
-            'channel_id' => $channel?->getId(),
-            'channel_name' => $channel?->name,
-            'channel_slug' => $channel?->slug,
-            'manager_count' => $managers->count(),
-            'manager_ids' => $managers->pluck('id')->toArray(),
-            'first_engagement_config' => $lead->company->get(IntelligenceConfigurationEnum::FIRST_ENGAGEMENT_NOTIFICATION_CHANNELS->value),
-            'engagement_config' => $lead->company->get(IntelligenceConfigurationEnum::ENGAGEMENT_NOTIFICATION_CHANNELS->value),
-        ];
-    }
-
-    protected function configureManagerNotificationChannels(Blank $notification, Lead $lead, Message $message): void
-    {
-        $engagementChannels = $this->getEngagementNotificationChannels($lead, $message);
-        if ($engagementChannels !== null) {
-            $notification->channels = $engagementChannels;
-
-            return;
-        }
-
-        $onlySms = (bool) $lead->company->get('ai_manager_notification_only_sms');
-        $onlyMail = (bool) $lead->company->get('ai_manager_notification_only_mail');
-        $onlyPush = (bool) $lead->company->get('ai_manager_notification_only_push');
-
-        if ($onlySms) {
-            $notification->channels = [TwilioSmsChannel::class];
-        } elseif ($onlyMail) {
-            $notification->channels = ['mail'];
-        } elseif ($onlyPush) {
-            $notification->channels = [
-                OneSignalNotificationChannel::class,
-                ExpoChannel::class,
-            ];
-        }
-    }
-
-    protected function getEngagementNotificationChannels(Lead $lead, Message $message): ?array
-    {
-        $firstEngagementChannels = (array) ($lead->company->get(IntelligenceConfigurationEnum::FIRST_ENGAGEMENT_NOTIFICATION_CHANNELS->value) ?? []);
-        $subsequentEngagementChannels = (array) ($lead->company->get(IntelligenceConfigurationEnum::ENGAGEMENT_NOTIFICATION_CHANNELS->value) ?? []);
-
-        if (empty($firstEngagementChannels) && empty($subsequentEngagementChannels)) {
-            return null;
-        }
-
-        $isFirst = $this->isFirstEngagement($lead, $message);
-        $selectedChannels = $isFirst
-            ? $firstEngagementChannels
-            : $subsequentEngagementChannels;
-
-        if (empty($selectedChannels)) {
-            return null;
-        }
-
-        return $this->mapNotificationChannelSlugs($selectedChannels);
-    }
-
-    protected function isFirstEngagement(Lead $lead, Message $message): bool
-    {
-        $channel = $message->channels()->first();
-
-        if ($channel === null) {
-            return true;
-        }
-
-        $previousInboundCount = $channel->messages()
-            ->whereRaw("JSON_EXTRACT(messages.message, '$.from_me') = false")
-            ->where('messages.is_deleted', 0)
-            ->where('messages.id', '!=', $message->getId())
-            ->count();
-
-        return $previousInboundCount === 0;
-    }
-
-    protected function mapNotificationChannelSlugs(array $slugs): array
-    {
-        $channelMap = [
-            'sms' => TwilioSmsChannel::class,
-            'push' => OneSignalNotificationChannel::class,
-            'expo' => ExpoChannel::class,
-            'mail' => 'mail',
-            'email' => 'mail',
-        ];
-
-        $mapped = [];
-        foreach ($slugs as $slug) {
-            if (isset($channelMap[$slug])) {
-                $mapped[] = $channelMap[$slug];
-            }
-        }
-
-        return $mapped;
     }
 }
