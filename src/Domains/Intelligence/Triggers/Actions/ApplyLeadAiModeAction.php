@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Triggers\Actions;
 
-use Carbon\Carbon;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
@@ -140,8 +139,7 @@ class ApplyLeadAiModeAction
             return;
         }
 
-        $carbon = Carbon::now($this->lead->company->timezone);
-        $noteContent = $carbon->format('Y-m-d H:i:s') . ' Sally Mode set to ' . $newMode;
+        $noteContent = 'Sally Mode set to ' . $newMode;
 
         $messageType = new CreateMessageTypeAction(
             new MessageTypeInput(
