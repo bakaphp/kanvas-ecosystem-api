@@ -13,6 +13,11 @@ enum ConfigurationEnum: string
     case GRACE_PERIOD_DAYS = 'movipass_order_grace_period_days';
     case QR_CODE_HOST = 'movipass_qr_code_host';
 
+    case PARKING_FINE_GATE_GRACE_HOURS = 'movipass_parking_fine_gate_grace_hours';
+    case PARKING_INSUFFICIENT_FUNDS_POLICY = 'movipass_parking_insufficient_funds_policy';
+    case PARKING_NEGATIVE_BALANCE_LIMIT = 'movipass_parking_negative_balance_limit';
+    case PARKING_DEFAULT_LOT_ID = 'movipass_parking_default_lot_id';
+
     case EXPIRING_RESERVATION_MIN = '5';
     case EXPIRING_RESERVATION_MAX = '15';
     case NOTIFICATION_PUSH_TEMPLATE = 'expiring_reservation_push';

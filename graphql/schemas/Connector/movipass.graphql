@@ -1,3 +1,25 @@
+enum ParkingGateCode {
+    PAID
+    ENTRY_OK
+    EXIT_OK
+    NOT_FOUND
+    ALREADY_USED
+    ALREADY_INSIDE
+    INSUFFICIENT_FUNDS
+    NOT_PAID
+    EXPIRED
+    FAILED
+}
+
+type ParkingGateResponse {
+    success: Boolean!
+    message: String!
+    code: ParkingGateCode!
+    order_id: ID
+    transaction_id: String
+    amount_charged: Float
+}
+
 enum MechanicFilterEnum {
     NOTIFIED
     ASSIGNED
@@ -6,6 +28,33 @@ enum MechanicFilterEnum {
 enum MechanicAvailabilityEnum {
     ACTIVO
     NO_DISPONIBLE
+}
+
+extend type Mutation @guardByAppKey {
+    validateParkingFinePayment(
+        token: String!
+        lot_id: String
+    ): ParkingGateResponse!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\ParkingMutation@validateFinePayment"
+        )
+
+    notifyParkingEntry(
+        qr_code: String!
+        lot_id: String
+    ): ParkingGateResponse!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\ParkingMutation@notifyEntry"
+        )
+
+    validateParkingExit(
+        qr_code: String!
+        amount: Float!
+        lot_id: String
+    ): ParkingGateResponse!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\ParkingMutation@validateExit"
+        )
 }
 
 extend type Query @guard {
