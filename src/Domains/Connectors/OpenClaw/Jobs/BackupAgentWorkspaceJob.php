@@ -20,9 +20,9 @@ class BackupAgentWorkspaceJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public int $timeout = 600;
+    public int $timeout = 3600;
 
-    public int $tries = 2;
+    public int $tries = 1;
 
     public function __construct(
         protected AgentDeployment $deployment,

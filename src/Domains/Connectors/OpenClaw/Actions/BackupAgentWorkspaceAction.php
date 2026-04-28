@@ -77,7 +77,7 @@ class BackupAgentWorkspaceAction
             'sudo docker exec ' . escapeshellarg($containerName)
             . ' sh -c ' . escapeshellarg('openclaw backup create --output /tmp' . $backupFlags . ' 2>&1')
             . '; echo "EXIT_CODE:$?"',
-            300
+            1800
         );
 
         if (str_contains($result, 'EXIT_CODE:1') || ! str_contains($result, 'EXIT_CODE:0')) {
