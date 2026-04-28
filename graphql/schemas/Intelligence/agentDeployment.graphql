@@ -1,3 +1,19 @@
+type AgentBackupType {
+    id: ID!
+    uuid: String!
+    agent_deployment_id: ID!
+    status: String!
+    file_path: String
+    file_size_bytes: Int
+    notes: String
+    error_message: String
+    completed_at: DateTime
+    created_at: DateTime!
+    updated_at: DateTime!
+    deployment: AgentDeploymentType @belongsTo
+    download_url: String
+}
+
 type AgentTelemetryData {
     deployment_id: ID!
     collected_at: String!
@@ -135,6 +151,16 @@ extend type Query @guardByAdmin {
     ): [AgentDeploymentType!]!
         @paginate(
             model: "Kanvas\\Intelligence\\Agents\\Models\\AgentDeployment"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+
+    agentBackups(
+        where: _ @whereConditions(columns: ["id", "agent_deployment_id", "status"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "completed_at"])
+    ): [AgentBackupType!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentBackup"
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
