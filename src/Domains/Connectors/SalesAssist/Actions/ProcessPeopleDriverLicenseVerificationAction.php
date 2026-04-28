@@ -86,7 +86,7 @@ class ProcessPeopleDriverLicenseVerificationAction
                 $results['lead'] = $result;
             }
 
-            if ($driverLicenseData && $hasMainDriverLicense) {
+            if (is_array($driverLicenseData) && $hasMainDriverLicense) {
                 $this->validateExpirationDate($this->people, $driverLicenseData, $idVerificationData);
             }
 

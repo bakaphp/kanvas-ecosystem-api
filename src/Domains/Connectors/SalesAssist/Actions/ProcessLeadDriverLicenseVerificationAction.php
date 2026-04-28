@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\SalesAssist\Actions;
 
 use Carbon\Carbon;
 use Exception;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
@@ -92,16 +91,6 @@ class ProcessLeadDriverLicenseVerificationAction
                 }
             }
 
-            if (! $hasMainDriverLicense && ! $hasParticipantDriverLicense) {
-                DB::commit();
-
-                return [
-                    'success' => true,
-                    'message' => 'No Driver License Image found to process',
-                    'results' => [],
-                ];
-            }
-
             if ($hasMainDriverLicense) {
                 $result = $this->processLeadDriverLicense(
                     $this->lead,
@@ -117,16 +106,28 @@ class ProcessLeadDriverLicenseVerificationAction
                 $results['participants'] = $participantResults;
             }
 
-            if ($driverLicenseData && $hasMainDriverLicense) {
+            if (is_array($driverLicenseData) && $hasMainDriverLicense) {
                 $this->validateExpirationDate($this->lead, $this->lead->people, $driverLicenseData, $idVerificationData);
             }
 
+            // Notification + PDF only need the intellicheck report — they're
+            // independent of having driver-license images on the lead.
             if ($this->intellicheckResponse !== null && $this->idVerificationReport !== null) {
                 $this->sendVerificationNotification($this->lead, $this->lead->people);
                 $this->generatePdfReport($this->lead);
             }
 
             $this->cleanupTemporaryData($this->lead);
+
+            if (! $hasMainDriverLicense && ! $hasParticipantDriverLicense) {
+                return [
+                    'success' => true,
+                    'message' => 'No Driver License Image found to process',
+                    'results' => [],
+                    'intellicheckResponse' => $this->intellicheckResponse ?? null,
+                    'idVerificationReport' => $this->idVerificationReport ?? null,
+                ];
+            }
 
             return [
                 'success' => true,

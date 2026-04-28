@@ -23,6 +23,27 @@ class ProcessLeadDriverLicenseVerificationActionTest extends TestCase
         $this->assertSame([], $result['results']);
     }
 
+    /**
+     * Regression: notification + cleanup must fire even without driver license
+     * images when an intellicheck report is available. Previously a premature
+     * early return skipped both.
+     */
+    public function testNoImagesButIntellicheckResponsePresentStillReportsAndCleansUp(): void
+    {
+        $lead = $this->makeLead();
+        $lead->set('intellicheckResponse', $this->successfulIntellicheckResponse());
+
+        $result = $this->makeAction($lead)->execute();
+
+        $this->assertTrue($result['success']);
+        $this->assertNotNull($result['intellicheckResponse']);
+        $this->assertNotNull($result['idVerificationReport']);
+
+        $fresh = $lead->fresh();
+        $this->assertNull($fresh->get('intellicheckResponse'), 'cleanupTemporaryData should have removed it');
+        $this->assertIsArray($fresh->get('id_verification'), 'id_verification should still be set');
+    }
+
     public function testIntellicheckResponseFromCustomFieldPopulatesIdVerification(): void
     {
         $lead = $this->makeLead();
@@ -189,10 +210,17 @@ class ProcessLeadDriverLicenseVerificationActionTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        return Lead::factory()
+        $lead = Lead::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
             ->create();
+
+        // sendVerificationNotification reads company_manager as an array of user ids;
+        // every test that sets intellicheckResponse triggers it now that the early
+        // return runs notification/PDF first.
+        $lead->company->set('company_manager', []);
+
+        return $lead;
     }
 
     private function makeAction(Lead $lead): ProcessLeadDriverLicenseVerificationAction
