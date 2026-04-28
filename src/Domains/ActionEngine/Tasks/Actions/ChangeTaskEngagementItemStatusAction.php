@@ -151,36 +151,35 @@ class ChangeTaskEngagementItemStatusAction
 
     protected function completeTaskEngagementItem(int $taskItemId): void
     {
-        $taskListItem = TaskListItem::findOrFail($taskItemId);
+        TaskListItem::findOrFail($taskItemId);
 
-        $existingTaskEngagementItem = TaskEngagementItem::fromCompany($this->company)
-            ->fromApp($this->app)
-            ->where('task_list_item_id', $taskItemId)
-            ->where('lead_id', $this->lead->getId())
-            ->first();
+        $engagement = $this->message
+            ? $this->getEngagementFromMessage(ActionStatusEnum::SUBMITTED->value)
+            : null;
 
-        if ($existingTaskEngagementItem && $existingTaskEngagementItem->status === 'completed') {
-            return; // Already completed
+        $existingTaskEngagementItem = TaskEngagementItem::firstOrCreate(
+            [
+                'task_list_item_id' => $taskItemId,
+                'lead_id' => $this->lead->getId(),
+            ],
+            [
+                'companies_id' => $this->company->getId(),
+                'apps_id' => $this->app->getId(),
+                'users_id' => $this->user->getId(),
+                'status' => TaskStatusEnum::COMPLETED->value,
+                'engagement_end_id' => $engagement?->getId(),
+            ],
+        );
+
+        if ($existingTaskEngagementItem->status === TaskStatusEnum::COMPLETED->value) {
+            return;
         }
 
-        if (! $existingTaskEngagementItem) {
-            $existingTaskEngagementItem = new TaskEngagementItem();
-            $existingTaskEngagementItem->task_list_item_id = $taskItemId;
-            $existingTaskEngagementItem->lead_id = $this->lead->getId();
-            $existingTaskEngagementItem->companies_id = $this->company->getId();
-            $existingTaskEngagementItem->apps_id = $this->app->getId();
-            $existingTaskEngagementItem->users_id = $this->user->getId();
+        if ($engagement) {
+            $existingTaskEngagementItem->engagement_end_id = $engagement->getId();
         }
 
-        // Set engagement_end_id if we have a message with engagement
-        if ($this->message) {
-            $engagement = $this->getEngagementFromMessage(ActionStatusEnum::SUBMITTED->value);
-            if ($engagement) {
-                $existingTaskEngagementItem->engagement_end_id = $engagement->getId();
-            }
-        }
-
-        $existingTaskEngagementItem->status = 'completed';
+        $existingTaskEngagementItem->status = TaskStatusEnum::COMPLETED->value;
         $existingTaskEngagementItem->saveOrFail();
     }
 
@@ -204,23 +203,21 @@ class ChangeTaskEngagementItemStatusAction
 
         foreach ($matchingItems as $matchingItem) {
             try {
-                $existing = TaskEngagementItem::fromCompany($this->company)
-                    ->fromApp($this->app)
-                    ->where('task_list_item_id', $matchingItem->getId())
-                    ->where('lead_id', $this->lead->getId())
-                    ->first();
+                $existing = TaskEngagementItem::firstOrCreate(
+                    [
+                        'task_list_item_id' => $matchingItem->getId(),
+                        'lead_id' => $this->lead->getId(),
+                    ],
+                    [
+                        'companies_id' => $this->company->getId(),
+                        'apps_id' => $this->app->getId(),
+                        'users_id' => $this->user->getId(),
+                        'status' => TaskStatusEnum::COMPLETED->value,
+                    ],
+                );
 
-                if ($existing && $existing->status === TaskStatusEnum::COMPLETED->value) {
+                if ($existing->status === TaskStatusEnum::COMPLETED->value) {
                     continue;
-                }
-
-                if (! $existing) {
-                    $existing = new TaskEngagementItem();
-                    $existing->task_list_item_id = $matchingItem->getId();
-                    $existing->lead_id = $this->lead->getId();
-                    $existing->companies_id = $this->company->getId();
-                    $existing->apps_id = $this->app->getId();
-                    $existing->users_id = $this->user->getId();
                 }
 
                 $existing->status = TaskStatusEnum::COMPLETED->value;
