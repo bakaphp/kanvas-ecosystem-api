@@ -224,4 +224,117 @@ class CancelStalePaymentsTest extends OrderBase
         $order->refresh();
         $this->assertEquals(PaymentStatusEnum::PROCESSING->value, $order->payment_status);
     }
+
+    public function testDoesNotCancelPaymentWithRecentLogs(): void
+    {
+        $order = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => []],
+        );
+
+        $payment = $order->payments()->create([
+            'amount' => $order->getTotalAmount(),
+            'payment_date' => now()->toDateString(),
+            'concept' => 'Test payment',
+            'users_id' => $this->user->getId(),
+            'companies_id' => $order->companies_id,
+            'apps_id' => $this->apps->getId(),
+            'status' => PaymentStatusEnum::PROCESSING->value,
+            'payment_method' => 'card',
+        ]);
+
+        $payment->update(['updated_at' => Carbon::now()->subMinutes(35)]);
+
+        $payment->addLog('3ds_challenge_initiated', [
+            'message' => 'Waiting for 3DS challenge',
+        ]);
+
+        $action = new CancelStalePaymentsAction($this->apps);
+        $cancelled = $action->execute();
+
+        $this->assertFalse($cancelled->contains('id', $payment->id));
+
+        $payment->refresh();
+        $this->assertEquals(PaymentStatusEnum::PROCESSING->value, $payment->status);
+    }
+
+    public function testDoesNotCancelPaymentWithAuthorizedLog(): void
+    {
+        $order = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => []],
+        );
+
+        $payment = $order->payments()->create([
+            'amount' => $order->getTotalAmount(),
+            'payment_date' => now()->toDateString(),
+            'concept' => 'Test payment',
+            'users_id' => $this->user->getId(),
+            'companies_id' => $order->companies_id,
+            'apps_id' => $this->apps->getId(),
+            'status' => PaymentStatusEnum::PROCESSING->value,
+            'payment_method' => 'card',
+        ]);
+
+        $payment->update(['updated_at' => Carbon::now()->subMinutes(35)]);
+
+        $payment->addLog('authorize_success', [
+            'message' => 'Payment authorized by gateway',
+        ]);
+
+        $payment->paymentLogs()->update(['created_at' => Carbon::now()->subMinutes(35)]);
+
+        $action = new CancelStalePaymentsAction($this->apps);
+        $cancelled = $action->execute();
+
+        $this->assertFalse($cancelled->contains('id', $payment->id));
+
+        $payment->refresh();
+        $this->assertEquals(PaymentStatusEnum::PROCESSING->value, $payment->status);
+    }
+
+    public function testOrderPaymentLogsExcludeDeletedPayments(): void
+    {
+        $order = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => []],
+        );
+
+        $activePayment = $order->payments()->create([
+            'amount' => $order->getTotalAmount(),
+            'payment_date' => now()->toDateString(),
+            'concept' => 'Active payment',
+            'users_id' => $this->user->getId(),
+            'companies_id' => $order->companies_id,
+            'apps_id' => $this->apps->getId(),
+            'status' => PaymentStatusEnum::PAID->value,
+            'payment_method' => 'card',
+        ]);
+
+        $activePayment->addLog('payment_authorized', ['message' => 'Active']);
+
+        $deletedPayment = $order->payments()->create([
+            'amount' => $order->getTotalAmount(),
+            'payment_date' => now()->toDateString(),
+            'concept' => 'Deleted payment',
+            'users_id' => $this->user->getId(),
+            'companies_id' => $order->companies_id,
+            'apps_id' => $this->apps->getId(),
+            'status' => PaymentStatusEnum::CANCELLED->value,
+            'payment_method' => 'card',
+        ]);
+
+        $deletedPayment->newModelQuery()->where('id', $deletedPayment->id)->update(['is_deleted' => 1]);
+
+        $deletedPayment->addLog('cancelled_stale', ['message' => 'Deleted']);
+
+        $logs = $order->paymentLogs;
+
+        $logPaymentIds = $logs->pluck('payments_id')->unique()->toArray();
+        $this->assertContains($activePayment->id, $logPaymentIds);
+        $this->assertNotContains($deletedPayment->id, $logPaymentIds);
+    }
 }

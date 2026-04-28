@@ -18,7 +18,12 @@ trait PayableTrait
 
     public function paymentLogs(): MorphMany
     {
-        return $this->morphMany(PaymentLogs::class, 'payable')->latest();
+        return $this->morphMany(PaymentLogs::class, 'payable')
+            ->where(function ($q) {
+                $q->whereHas('payment', fn ($p) => $p->where('is_deleted', 0))
+                  ->orWhere('payments_id', 0);
+            })
+            ->latest();
     }
 
     public function isPaid(): bool

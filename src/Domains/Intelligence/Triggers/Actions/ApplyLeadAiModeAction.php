@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Triggers\Actions;
 
-use Carbon\Carbon;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
@@ -141,15 +140,13 @@ class ApplyLeadAiModeAction
 
     protected function logModeChangeNote(string $newMode): void
     {
-        $carbon = Carbon::now($this->lead->company->timezone);
-        $this->logSystemNote($carbon->format('Y-m-d H:i:s') . ' Sally Mode set to ' . $newMode);
+        $this->logSystemNote('Sally Mode set to ' . $newMode);
     }
 
     protected function logFollowUpChangeNote(mixed $currentFollowUp): void
     {
-        $carbon = Carbon::now($this->lead->company->timezone);
         $label = $currentFollowUp ? 'Follow-up enabled' : 'Follow-up disabled';
-        $this->logSystemNote($carbon->format('Y-m-d H:i:s') . ' · ' . $label);
+        $this->logSystemNote($label);
     }
 
     protected function logSystemNote(string $noteContent): void

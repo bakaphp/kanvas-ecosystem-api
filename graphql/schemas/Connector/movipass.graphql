@@ -1,7 +1,34 @@
+enum MechanicFilterEnum {
+    NOTIFIED
+    ASSIGNED
+}
+
+enum MechanicAvailabilityEnum {
+    ACTIVO
+    NO_DISPONIBLE
+}
+
 extend type Query @guard {
+    mechanics(
+        company_id: ID
+        availability: MechanicAvailabilityEnum
+        where: _
+            @whereConditions(
+                columns: ["id", "firstname", "lastname", "email", "created_at"]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "firstname", "lastname", "created_at"])
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Connector\\Movipass\\Builders\\MechanicsBuilder@build"
+            defaultCount: 25
+        )
+
     mechanicOrders(
         all: Boolean
         mechanic_id: ID
+        mechanic_filter: MechanicFilterEnum
+        provider_id: ID
         where: _
             @whereConditions(
                 columns: [

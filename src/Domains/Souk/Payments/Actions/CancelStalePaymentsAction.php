@@ -22,6 +22,12 @@ class CancelStalePaymentsAction
         PaymentStatusEnum::PROCESSING,
     ];
 
+    private const AUTHORIZED_LOG_EVENTS = [
+        'payment_authorized',
+        'authorize_success',
+        'hold_success',
+    ];
+
     public function __construct(
         protected AppInterface $app,
     ) {
@@ -35,6 +41,12 @@ class CancelStalePaymentsAction
         $stalePayments = Payments::where('apps_id', $this->app->getId())
             ->whereIn('status', array_map(fn ($s) => $s->value, self::STALE_STATUSES))
             ->where('updated_at', '<', $cutoff)
+            ->whereDoesntHave('paymentLogs', function ($q) use ($cutoff) {
+                $q->where('created_at', '>=', $cutoff);
+            })
+            ->whereDoesntHave('paymentLogs', function ($q) {
+                $q->whereIn('status', self::AUTHORIZED_LOG_EVENTS);
+            })
             ->get();
 
         foreach ($stalePayments as $payment) {

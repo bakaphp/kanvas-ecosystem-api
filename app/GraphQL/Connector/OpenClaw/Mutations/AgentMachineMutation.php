@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Connector\OpenClaw\Mutations;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\OpenClaw\Actions\PingAgentMachineAction;
 use Kanvas\Connectors\OpenClaw\Jobs\UpdateOpenClawOnMachineJob;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentMachineAction;
@@ -92,5 +93,18 @@ class AgentMachineMutation
         UpdateOpenClawOnMachineJob::dispatch($machine);
 
         return true;
+    }
+
+    public function ping(mixed $root, array $request): AgentMachine
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var AgentMachine $machine */
+        $machine = AgentMachine::getByIdFromCompanyApp((int) $request['machine_id'], $company, $app);
+
+        new PingAgentMachineAction($machine)->execute();
+
+        return $machine->fresh();
     }
 }
