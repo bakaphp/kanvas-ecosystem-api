@@ -72,7 +72,7 @@ class MechanicOrdersBuilder
                     [$mechanicId]
                 );
             }),
-            default => $query->where(function ($q) use ($mechanicId, $mechanicIdStr) {
+            default => $query->where(function ($q) use ($mechanicId) {
                 $q->whereRaw(
                     "CAST(JSON_EXTRACT(metadata, '$.assistance_case.mechanic.user_id') AS UNSIGNED) = ?",
                     [$mechanicId]
@@ -80,22 +80,6 @@ class MechanicOrdersBuilder
                 ->orWhereRaw(
                     "CAST(JSON_EXTRACT(metadata, '$.data.assistance_case.mechanic.user_id') AS UNSIGNED) = ?",
                     [$mechanicId]
-                )
-                ->orWhereRaw(
-                    "JSON_CONTAINS(metadata, CAST(? AS JSON), '$.assistance_case.notified_mechanic_ids')",
-                    [$mechanicId]
-                )
-                ->orWhereRaw(
-                    "JSON_CONTAINS(metadata, CAST(? AS JSON), '$.data.assistance_case.notified_mechanic_ids')",
-                    [$mechanicId]
-                )
-                ->orWhereRaw(
-                    "JSON_SEARCH(metadata, 'one', ?, NULL, '$.assistance_case.notified_mechanic_ids') IS NOT NULL",
-                    [$mechanicIdStr]
-                )
-                ->orWhereRaw(
-                    "JSON_SEARCH(metadata, 'one', ?, NULL, '$.data.assistance_case.notified_mechanic_ids') IS NOT NULL",
-                    [$mechanicIdStr]
                 );
             }),
         };
