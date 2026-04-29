@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "75d0a5be00231be23ad06e6b339fd8ba",
+    "content-hash": "7a9fa0e4f1fa8958b4218ab6957a31d4",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -75,16 +75,16 @@
         },
         {
             "name": "algolia/scout-extended",
-            "version": "v4.0.0",
+            "version": "v5.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/algolia/scout-extended.git",
-                "reference": "efd3dcbcfd06860a4997db1cec0c66170f8c2733"
+                "reference": "f07806eb8963b814b0f8e6b28a4bca72eee025ac"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/algolia/scout-extended/zipball/efd3dcbcfd06860a4997db1cec0c66170f8c2733",
-                "reference": "efd3dcbcfd06860a4997db1cec0c66170f8c2733",
+                "url": "https://api.github.com/repos/algolia/scout-extended/zipball/f07806eb8963b814b0f8e6b28a4bca72eee025ac",
+                "reference": "f07806eb8963b814b0f8e6b28a4bca72eee025ac",
                 "shasum": ""
             },
             "require": {
@@ -95,7 +95,7 @@
                 "illuminate/database": "^10.0|^11.0|^12.0|^13.0",
                 "illuminate/filesystem": "^10.0|^11.0|^12.0|^13.0",
                 "illuminate/support": "^10.0|^11.0|^12.0|^13.0",
-                "laravel/scout": "^10.11.6",
+                "laravel/scout": "^11.0.0",
                 "php": "^8.1",
                 "riimu/kit-phpencoder": "^2.4"
             },
@@ -150,9 +150,9 @@
             ],
             "support": {
                 "issues": "https://github.com/algolia/scout-extended/issues",
-                "source": "https://github.com/algolia/scout-extended/tree/v4.0.0"
+                "source": "https://github.com/algolia/scout-extended/tree/v5.0.0"
             },
-            "time": "2026-03-30T11:43:47+00:00"
+            "time": "2026-04-28T12:56:21+00:00"
         },
         {
             "name": "asad/oauth2-zoho",
@@ -4637,16 +4637,16 @@
         },
         {
             "name": "laravel/scout",
-            "version": "v10.25.0",
+            "version": "v11.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/scout.git",
-                "reference": "f28630dca44a63d80c15e596bedc5af42c8985d5"
+                "reference": "9865fca4129d79c271da6a89afb44359e9ee9020"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/scout/zipball/f28630dca44a63d80c15e596bedc5af42c8985d5",
-                "reference": "f28630dca44a63d80c15e596bedc5af42c8985d5",
+                "url": "https://api.github.com/repos/laravel/scout/zipball/9865fca4129d79c271da6a89afb44359e9ee9020",
+                "reference": "9865fca4129d79c271da6a89afb44359e9ee9020",
                 "shasum": ""
             },
             "require": {
@@ -4685,7 +4685,7 @@
                     ]
                 },
                 "branch-alias": {
-                    "dev-master": "10.x-dev"
+                    "dev-master": "11.x-dev"
                 }
             },
             "autoload": {
@@ -4713,7 +4713,7 @@
                 "issues": "https://github.com/laravel/scout/issues",
                 "source": "https://github.com/laravel/scout"
             },
-            "time": "2026-03-10T16:16:46+00:00"
+            "time": "2026-03-18T14:50:59+00:00"
         },
         {
             "name": "laravel/serializable-closure",
