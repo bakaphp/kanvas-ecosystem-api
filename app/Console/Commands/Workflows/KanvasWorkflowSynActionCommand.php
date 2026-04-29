@@ -80,6 +80,7 @@ use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsP
 use Kanvas\Connectors\Movipass\Workflows\Activities\AutoApproveCorporateLeadActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\CreateVehicleFromOrderActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\PropagateCorporateFieldsToUserActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassRoadsideAssistanceActivity;
@@ -341,6 +342,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncMovipassImpoundActivity::class,
             SyncMovipassRoadsideAssistanceActivity::class,
             AutoApproveCorporateLeadActivity::class,
+            PropagateCorporateFieldsToUserActivity::class,
             PushLeadNotesActivity::class,
             PushLeadActivity::class,
             WorkflowPushLeadActivity::class,

@@ -107,14 +107,26 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
         $company = Companies::find($result['company_id']);
         $this->assertNotNull($company);
         $this->assertTrue((bool) $company->get('is_corporate'));
+        // Company-level corporate fields (legal entity identity)
         $this->assertEquals($lead->get('legal_name'), $company->get('legal_name'));
+        $this->assertEquals($lead->get('commercial_name'), $company->get('commercial_name'));
         $this->assertEquals($lead->get('rnc'), $company->get('rnc'));
-        $this->assertEquals($lead->get('contact_email'), $company->get('contact_email'));
+        // User-level fields (contact_*) are NOT on the Company; they live on
+        // the UsersInvite and propagate to the User via
+        // PropagateCorporateFieldsToUserActivity on invite acceptance.
+        $this->assertNull($company->get('contact_email'));
+        $this->assertNull($company->get('contact_phone'));
 
         $invite = UsersInvite::where('invite_hash', $result['invite_hash'])->first();
         $this->assertNotNull($invite);
         $this->assertEquals($company->getId(), $invite->companies_id);
         $this->assertEquals($lead->get('contact_email'), $invite->email);
+        // User-level corporate fields are stamped on the invite
+        $this->assertTrue((bool) $invite->get('is_corporate'));
+        $this->assertEquals($lead->get('contact_name'), $invite->get('contact_name'));
+        $this->assertEquals($lead->get('contact_role'), $invite->get('contact_role'));
+        $this->assertEquals($lead->get('contact_email'), $invite->get('contact_email'));
+        $this->assertEquals($lead->get('contact_phone'), $invite->get('contact_phone'));
 
         $fresh = $lead->fresh();
         $this->assertEquals('approved', $fresh->get('movipass_corporate_status'));
