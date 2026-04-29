@@ -44,7 +44,7 @@ class ExecDeploymentCommandJob implements ShouldQueue
         try {
             $output = $client->exec(
                 'docker exec ' . escapeshellarg($this->deployment->container_name)
-                . ' node /app/dist/index.js ' . $this->command
+                . ' node /app/openclaw.mjs ' . $this->command
                 . ' 2>&1',
                 120,
             );
