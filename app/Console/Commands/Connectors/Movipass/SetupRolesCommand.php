@@ -99,6 +99,14 @@ class SetupRolesCommand extends Command
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
             ],
+            'recharge-bulk' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+            ],
+            'view-corporate-history' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+            ],
         ];
 
         Bouncer::scope()->to(RolesEnums::getScope($app));

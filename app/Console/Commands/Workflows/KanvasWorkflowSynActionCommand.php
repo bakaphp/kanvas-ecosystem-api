@@ -77,6 +77,7 @@ use Kanvas\Connectors\Mailgun\Workflows\AgentChannelResponderActivity as Workflo
 use Kanvas\Connectors\Microsoft\Workflows\Activities\MicrosoftAgentChannelResponderActivity;
 use Kanvas\Connectors\Microsoft\Workflows\Activities\SyncMicrosoftEmailActivity;
 use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsProcessVehicleImageActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\AutoApproveCorporateLeadActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\CreateVehicleFromOrderActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassActivity;
@@ -339,6 +340,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncProductCapacityActivity::class,
             SyncMovipassImpoundActivity::class,
             SyncMovipassRoadsideAssistanceActivity::class,
+            AutoApproveCorporateLeadActivity::class,
             PushLeadNotesActivity::class,
             PushLeadActivity::class,
             WorkflowPushLeadActivity::class,
