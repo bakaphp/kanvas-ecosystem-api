@@ -13,6 +13,7 @@ use Kanvas\Connectors\RespondIO\Traits\HasChannelProcessing;
 use Kanvas\Connectors\RespondIO\Traits\HasLeadProcessing;
 use Kanvas\Connectors\RespondIO\Traits\HasMessageProcessing;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
+use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -134,6 +135,8 @@ class ProcessIncomingMessageAction extends BaseRespondIOAction
         $message->addTag('engagement');
 
         $channel->addMessage($message);
+
+        new NotifyLeadStakeholdersService($lead)->onCustomerEngagement($message);
 
         $channel->addTags(
             ['respondio', 'ai-agent'],
