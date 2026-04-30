@@ -305,7 +305,6 @@ class PullLeadAction
 
         $hasFirst = $eLeadFirstname !== null && $eLeadFirstname !== '';
         $hasLast = $eLeadLastname !== null && $eLeadLastname !== '';
-        
         $searchPhones = array_filter(array_map('trim', $searchPhones));
         $searchEmails = array_filter(array_map('trim', $searchEmails));
 

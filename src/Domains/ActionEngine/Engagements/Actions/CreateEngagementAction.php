@@ -234,31 +234,35 @@ class CreateEngagementAction
 
     protected function generateNewEngagementUrl(Engagement $engagement): ?string
     {
-        $checkoutActions = $this->app->get('new-action-checkout-link') ?? [];
-        $newActionPageV4 = $this->app->get('new-action-page-v4') ?? [];
+        $checkoutActions = $this->company->get('new-action-checkout-link') ?? $this->app->get('new-action-checkout-link') ?? [];
+        $newActionPageV4 = $this->company->get('new-action-page-v4') ?? $this->app->get('new-action-page-v4') ?? [];
         $isCheckoutAction = is_array($checkoutActions) && in_array($this->actionSlug, $checkoutActions);
         $isNewActionPage = is_array($newActionPageV4) && in_array($this->actionSlug, $newActionPageV4);
 
         if ($isCheckoutAction) {
-            return (string) $this->app->get('NEW_CHECKOUT_PAGE') . '/' . $engagement->uuid;
+            $checkoutPageUrl = $this->company->get('NEW_CHECKOUT_PAGE') ?? $this->app->get('NEW_CHECKOUT_PAGE');
+            return (string) $checkoutPageUrl . '/' . $engagement->uuid;
         }
 
         if ($isNewActionPage) {
-            return (string) $this->app->get('NEW_ACTION_PAGE_V4') . '/' . $engagement->uuid;
+            $actionPageUrl = $this->company->get('NEW_ACTION_PAGE_V4') ?? $this->app->get('NEW_ACTION_PAGE_V4');
+            return (string) $actionPageUrl . '/' . $engagement->uuid;
         }
 
-        $landingPageActions = $this->app->get('new-action-slug-v3') ?? [];
+        $landingPageActions = $this->company->get('new-action-slug-v3') ?? $this->app->get('new-action-slug-v3') ?? [];
         $isLandingPageAction = is_array($landingPageActions) && in_array($this->actionSlug, $landingPageActions);
 
         if ($isLandingPageAction) {
-            return (string) $this->app->get('NEW_LANDING_PAGE_V3') . '/' . $engagement->uuid;
+            $landingPageUrl = $this->company->get('NEW_LANDING_PAGE_V3') ?? $this->app->get('NEW_LANDING_PAGE_V3');
+            return (string) $landingPageUrl . '/' . $engagement->uuid;
         }
 
-        $messageVideoAction = $this->app->get('message-video-link') ?? [];
+        $messageVideoAction = $this->company->get('message-video-link') ?? $this->app->get('message-video-link') ?? [];
         $isMessageVideoAction = is_array($messageVideoAction) && in_array($this->actionSlug, $messageVideoAction);
 
         if ($isMessageVideoAction) {
-            return (string) $this->app->get('MESSAGE_VIDEO_PAGE') . '/' . $engagement->uuid;
+            $messageVideoPageUrl = $this->company->get('MESSAGE_VIDEO_PAGE') ?? $this->app->get('MESSAGE_VIDEO_PAGE');
+            return (string) $messageVideoPageUrl . '/' . $engagement->uuid;
         }
 
         return null;
