@@ -1,0 +1,34 @@
+type LedgerEvent {
+    id: ID!
+    uuid: String!
+    apps_id: Int!
+    companies_id: Int!
+    source_domain: String!
+    source_entity_type: String
+    source_entity_id: Int
+    event_type: String!
+    actor_type: String
+    actor_id: Int
+    status: String!
+    payload: Mixed
+    result: Mixed
+    error: Mixed
+    duration_ms: Int
+    correlation_id: String
+    occurred_at: DateTime!
+    indexed_at: DateTime!
+    is_archived: Boolean!
+}
+
+extend type Query @guardByAdmin {
+    ledgerEvents(
+        where: _ @whereConditions(
+            columns: ["source_domain", "event_type", "source_entity_type", "source_entity_id", "status", "correlation_id", "actor_type", "actor_id"]
+        )
+        orderBy: _ @orderBy(columns: ["id", "occurred_at", "indexed_at"])
+    ): [LedgerEvent!]!
+        @paginate(
+            defaultCount: 50
+            builder: "App\\GraphQL\\Intelligence\\Queries\\NervousSystem\\LedgerEventQuery@getEvents"
+        )
+}

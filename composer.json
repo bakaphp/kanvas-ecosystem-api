@@ -118,6 +118,7 @@
             "Kanvas\\Event\\": "src/Domains/Event",
             "Kanvas\\Intelligence\\": "src/Domains/Intelligence",
             "Kanvas\\Analytics\\": "src/Domains/Analytics",
+            "Kanvas\\NervousSystem\\": "src/Domains/NervousSystem",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }

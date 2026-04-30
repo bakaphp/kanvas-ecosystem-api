@@ -7,6 +7,7 @@ use App\Console\Commands\Connectors\Movipass\CheckExpiringOrdersCommand;
 use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
+use App\Console\Commands\NervousSystem\ArchiveOldLedgerEventsCommand;
 use App\Console\Commands\OpenClaw\CollectAgentTelemetryCommand;
 use App\Console\Commands\Social\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
@@ -38,6 +39,9 @@ class Kernel extends ConsoleKernel
         $schedule->command(CheckExpiringOrdersCommand::class)->everyMinute();
         $schedule->command(ChargeLateOrdersCommand::class)->hourly();
         $schedule->command(CancelStalePaymentsCommand::class)->everyFiveMinutes();
+        $schedule->command(ArchiveOldLedgerEventsCommand::class)
+            ->weeklyOn(0, '02:00')
+            ->withoutOverlapping();
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()
                     ->withoutOverlapping(5)
