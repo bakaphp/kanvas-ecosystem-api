@@ -34,7 +34,7 @@ class AgentDeploymentLogsQuery
         }
 
         $ssh  = SshClient::fromMachine($deployment->machine);
-        $logs = $ssh->getDeploymentLogs($deployment->system_user, $deployment->agent->slug, $limit);
+        $logs = $ssh->getDeploymentLogs($deployment->container_name, $deployment->agent->slug, $limit);
         $ssh->disconnect();
 
         return $logs;

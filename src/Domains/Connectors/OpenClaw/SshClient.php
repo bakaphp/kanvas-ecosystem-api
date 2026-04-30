@@ -292,12 +292,64 @@ class SshClient
      * Run all telemetry commands in a SINGLE exec channel to minimise SSH daemon load.
      *
      * Each section is wrapped by unique sentinel lines so the caller can split them.
-     * Returns an associative array keyed by section name (health, status, gateway,
-     * node, memory, os), each containing that command's raw stdout.
+     * Returns an associative array keyed by section name (health, version, gateway, memory),
+     * each containing that command's raw stdout.
      *
-     * One exec channel = one sshd fork on the server side, regardless of how many
-     * commands are piped together.
+     * Commands run via `docker exec` against the agent's container because the openclaw
+     * CLI lives inside the container, not on the host filesystem.
      *
+     * One exec channel = one sshd fork on the server side.
+     *
+     * @return array<string, string>
+     */
+    public function getAllTelemetryForContainer(string $containerName): array
+    {
+        $c   = escapeshellarg($containerName);
+        $cli = 'node /app/openclaw.mjs';
+
+        // Each command is wrapped with `timeout N` inside the container so a single
+        // hanging command cannot consume the entire exec budget.
+        // Individual budgets: health 10s, version 3s, gateway 15s (--deep adds service check), memory 15s.
+        // Worst-case total: ~43s. The outer exec timeout (70s) is the final safety net.
+        // Job timeout is 120s, giving ample headroom above the 70s outer cap.
+        //
+        // `node /app/openclaw.mjs` is used instead of the `openclaw` alias because
+        // the latter is not available in PATH inside the container.
+        $script = implode('; ', [
+            "echo '__SECTION__health'",
+            "docker exec {$c} timeout 10 {$cli} health --json 2>&1",
+            "echo '__SECTION__version'",
+            "docker exec {$c} timeout 3 {$cli} --version 2>/dev/null || echo unknown",
+            "echo '__SECTION__gateway'",
+            "docker exec {$c} timeout 15 {$cli} gateway status --json --deep 2>/dev/null",
+            "echo '__SECTION__memory'",
+            "docker exec {$c} timeout 15 {$cli} memory status 2>&1",
+        ]);
+
+        // Outer safety net: kill the channel if the whole script exceeds 70 s.
+        $raw = $this->exec($script, 70);
+
+        $sections = ['health' => '', 'version' => '', 'gateway' => '', 'memory' => ''];
+        $current  = null;
+
+        foreach (explode("\n", $raw) as $line) {
+            if (str_starts_with($line, '__SECTION__')) {
+                $current = substr($line, strlen('__SECTION__'));
+                $current = trim($current);
+
+                continue;
+            }
+
+            if ($current !== null && array_key_exists($current, $sections)) {
+                $sections[$current] .= $line . "\n";
+            }
+        }
+
+        return $sections;
+    }
+
+    /**
+     * @deprecated Use getAllTelemetryForContainer() for Docker-deployed agents.
      * @return array<string, string>
      */
     public function getAllTelemetry(): array
@@ -360,12 +412,12 @@ class SshClient
         // actual JSONL conversation logs are written inside the container under
         // /home/node/.openclaw/agents/<slug>/sessions/.
         $sessionsDir = '/home/node/.openclaw/agents/' . $agentSlug . '/sessions';
-        $container   = $containerName;
 
-        $raw = $this->exec(
-            'docker exec ' . escapeshellarg($container)
-            . ' find ' . escapeshellarg($sessionsDir) . ' -name "*.jsonl" 2>/dev/null'
-            . ' | xargs -r cat 2>/dev/null',
+        // Run the entire find + cat pipeline inside the container so the host does not
+        // try to read container-internal paths (which would fail silently).
+        $inner = 'find ' . escapeshellarg($sessionsDir) . ' -name "*.jsonl" 2>/dev/null | xargs -r cat 2>/dev/null';
+        $raw   = $this->exec(
+            'docker exec ' . escapeshellarg($containerName) . ' bash -c ' . escapeshellarg($inner),
             15
         );
 
@@ -402,9 +454,13 @@ class SshClient
             }
         }
 
-        // ── Fallback: skills installed on this machine (eligible = installed + usable) ──
+        // ── Fallback: skills installed inside the container (eligible = installed + usable) ──
         // Used when the agent has no recorded session activity yet (e.g. heartbeat-only).
-        $skillsRaw = $this->exec('timeout 5 openclaw skills list --json 2>/dev/null', 10);
+        // `node /app/openclaw.mjs` is used because `openclaw` is not in PATH inside the container.
+        $skillsRaw = $this->exec(
+            'docker exec ' . escapeshellarg($containerName) . ' timeout 5 node /app/openclaw.mjs skills list --json 2>/dev/null',
+            10
+        );
 
         $start = strpos($skillsRaw, '{');
         $end   = strrpos($skillsRaw, '}');
@@ -435,12 +491,12 @@ class SshClient
      * Fetch the last N activity entries from a deployment's session JSONL files.
      *
      * Each deployment writes conversation events (messages, tool calls, model
-     * changes) to JSONL files at:
-     *   /home/<systemUser>/.openclaw/agents/<agentSlug>/sessions/*.jsonl
+     * changes) to JSONL files inside the Docker container at:
+     *   /home/node/.openclaw/agents/<agentSlug>/sessions/*.jsonl
      *
-     * We find the most recently modified session files, read the last $limit
-     * lines combined, and convert each event into a typed log entry. This
-     * requires no RPC auth and survives gateway restarts.
+     * We run the find + tail pipeline inside the container via `docker exec` so
+     * we read the actual files the agent writes. This requires no RPC auth and
+     * survives gateway restarts.
      *
      * Entry types mapped:
      *   session        → info  "Session started"
@@ -450,22 +506,25 @@ class SshClient
      *   model_change   → debug "Model changed to <modelId>"
      *   (other)        → debug "<type>"
      *
-     * @param  string  $systemUser  Linux user for the deployment (e.g. "agent-whitco")
-     * @param  string  $agentSlug   Openclaw agent slug matching the agents/ sub-dir
-     * @param  int     $limit       Max entries to return (default 100)
+     * @param  string  $containerName  Docker container name for the deployment
+     * @param  string  $agentSlug      Openclaw agent slug matching the agents/ sub-dir
+     * @param  int     $limit          Max entries to return (default 100)
      * @return array<int, array{ts:string,level:string,msg:string,meta:string|null}>
      */
-    public function getDeploymentLogs(string $systemUser, string $agentSlug, int $limit = 100): array
+    public function getDeploymentLogs(string $containerName, string $agentSlug, int $limit = 100): array
     {
-        $sessionsDir = '/home/' . $systemUser . '/.openclaw/agents/' . $agentSlug . '/sessions';
+        $sessionsDir = '/home/node/.openclaw/agents/' . $agentSlug . '/sessions';
 
-        // Find the 3 most recently modified session files, tail $limit lines total.
-        // -printf "%T@ %p\n" emits mtime as a unix timestamp so we can sort numerically.
+        // Run the entire find + tail pipeline inside the container so we read the
+        // actual session JSONL files the agent writes (not the host filesystem).
+        // find -printf "%T@ %p\n" emits mtime as a unix timestamp for sorting.
         // tail -q suppresses the "==> file <==" separators between files.
-        $raw = $this->exec(
-            'sudo find ' . escapeshellarg($sessionsDir) . ' -name "*.jsonl" -printf "%T@ %p\n" 2>/dev/null'
+        $inner = 'find ' . escapeshellarg($sessionsDir) . ' -name "*.jsonl" -printf "%T@ %p\n" 2>/dev/null'
             . ' | sort -rn | head -3 | awk \'{print $2}\''
-            . ' | xargs sudo tail -q -n ' . $limit . ' 2>/dev/null',
+            . ' | xargs tail -q -n ' . $limit . ' 2>/dev/null';
+
+        $raw = $this->exec(
+            'docker exec ' . escapeshellarg($containerName) . ' bash -c ' . escapeshellarg($inner),
             10
         );
 
