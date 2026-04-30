@@ -1189,16 +1189,128 @@ class BaseModel extends EloquentModel
 - Lookups: `Model::getById($id, $app)` for global, `Model::getByIdFromCompanyApp($id, $company, $app)` for company-scoped
 
 ### JSON/Array Fields
-If a model has JSON columns, add casts:
+If a model has JSON columns, cast them with `Baka\Casts\Json::class` — **never** `'array'`. The Baka cast handles edge cases like double-encoded JSON, MariaDB's longtext-without-validity, and round-trip equality, which Laravel's built-in `'array'` cast does not.
+
 ```php
+use Baka\Casts\Json;
+
 protected function casts(): array
 {
     return [
-        'form_fields' => 'array',
-        'form_config' => 'array',
+        'form_fields' => Json::class,
+        'form_config' => Json::class,
     ];
 }
 ```
+
+### UUID Auto-generation
+**Never call `Str::uuid()` manually** when assigning a `uuid` column. Use `Baka\Traits\UuidTrait`. The trait registers a `creating` Eloquent hook that auto-populates `$model->uuid` if not already set.
+
+```php
+use Baka\Traits\UuidTrait;
+
+class Foo extends BaseModel
+{
+    use UuidTrait;
+    // ...
+}
+```
+
+In actions / factories: just `new Foo()->save()` — the UUID lands automatically. If you find `$x->uuid = (string) Str::uuid();` in a fresh action, delete it.
+
+### Eloquent Lifecycle Listeners via Traits
+Two foot-guns when wiring lifecycle events (created/updated/deleted) from a trait `boot{TraitName}` method:
+
+**1. Don't call `static::observe(SomeObserver::class)` from `bootXxxTrait`.** Laravel's `Model::observe()` does `new static` internally to introspect the model — but the trait's boot is *running inside* `bootIfNotBooted()`, so `new static` triggers re-entrant boot. Laravel rejects with: "The `bootIfNotBooted` method may not be called on model [X] while it is being booted."
+
+Use static event closures instead, delegating to a stateless service:
+
+```php
+public static function bootEmitsXxxEvents(): void
+{
+    static::created(fn (Model $m) => XxxDispatcher::recordCreated($m));
+    static::updated(fn (Model $m) => XxxDispatcher::recordUpdated($m));
+    static::deleted(fn (Model $m) => XxxDispatcher::recordDeleted($m));
+}
+```
+
+The closures don't instantiate the model; they just append listeners. The dispatcher class holds the diff/payload/scrub logic — same testability, no recursion.
+
+**2. Use `property_exists()` to read trait-defined override properties.** Eloquent's `__get` intercepts unknown property reads as relation lookups. If a trait method does `return $this->myList ?? []` and the model didn't declare `protected array $myList`, Eloquent thinks `myList` is a relation, calls the same method to resolve it, sees a non-`Relation` return type, and throws "must return a relationship instance."
+
+```php
+// WRONG — fails when the model doesn't declare $hiddenFields
+public function hiddenFields(): array
+{
+    return $this->hiddenFields ?? [];
+}
+
+// CORRECT — property_exists checks the class definition without triggering __get
+public function hiddenFields(): array
+{
+    if (property_exists($this, 'hiddenFields')) {
+        return $this->hiddenFields;
+    }
+    return [];
+}
+```
+
+### Custom Domain BaseModel for Append-Only Tables
+For domains with append-only / immutable rows (event ledgers, audit logs, archives) that **don't** need soft-delete / custom-fields / files, create a lean per-domain BaseModel rather than extending the heavyweight Intelligence/Guild/Inventory BaseModels. Use `KanvasModelTrait` to get the company/user/app relations + scopes for free:
+
+```php
+namespace Kanvas\YourDomain\Models;
+
+use Baka\Traits\KanvasModelTrait;
+use Illuminate\Database\Eloquent\Model;
+
+class BaseModel extends Model
+{
+    use KanvasModelTrait; // company(), user(), app() relations + KanvasScopesTrait
+
+    protected $connection = 'intelligence'; // or whichever
+    public $timestamps = false;             // tables track their own timestamps
+}
+```
+
+Concrete models then `extend BaseModel` and inherit `fromApp()`, `fromCompany()`, `notDeleted()` scopes plus `company()`, `user()`, `app()` BelongsTo relations. **Caveat:** `KanvasModelTrait`'s static lookup helpers (`getById`, `getByIdFromCompanyApp`, etc.) call `notDeleted()` which expects an `is_deleted` column — they'll error on append-only tables. Use `Model::query()->fromApp($app)->where(...)` for direct lookups instead.
+
+### GraphQL `@paginate` — Prefer Scopes over Custom Builder
+When a list query's filtering can be expressed as named scopes on the model, use `@paginate(model: ..., scopes: [...])` instead of a custom `builder:` resolver class. Saves a class file and keeps the schema self-describing.
+
+```graphql
+# PREFERRED — no resolver class needed
+extend type Query @guardByAdmin {
+    ledgerEvents(...): [LedgerEvent!]!
+        @paginate(
+            model: "Kanvas\\NervousSystem\\Ledger\\Models\\Event"
+            scopes: ["fromApp", "fromCompany", "notArchived", "recent"]
+            defaultCount: 50
+        )
+}
+```
+
+`fromApp` / `fromCompany` from `KanvasModelTrait` already handle the AppKey-vs-user-context conditional internally — no need to re-implement that logic in a resolver. Reach for a custom `builder:` resolver only when the constraints genuinely can't be expressed as scopes (e.g. dynamic field selection, runtime config lookups).
+
+### Don't Expose Tenant FK Ids in GraphQL Response Types
+`apps_id` is **always** the current app in any tenant-scoped query — exposing it on the response type is dead bytes. For `companies_id`, expose the `company` relation instead via `@belongsTo(relation: "company")`. Same for `users_id` → `user` relation.
+
+```graphql
+# WRONG — apps_id and companies_id are redundant/raw
+type LedgerEvent {
+    apps_id: Int!
+    companies_id: Int!
+    ...
+}
+
+# CORRECT — drop apps_id, expose company as a relation
+type LedgerEvent {
+    company: Company! @belongsTo(relation: "company")
+    ...
+}
+```
+
+If a query truly needs cross-tenant visibility (super-admin dashboards), use a separate `@guardByAppKey` query — never expose `apps_id` as a `@whereConditions` column on a normal query.
 
 ### GraphQL Query Naming
 Check existing query names in `graphql/schemas/` before naming yours to avoid Lighthouse "Duplicate definition" merge errors.
@@ -1222,6 +1334,38 @@ Same rule for `@belongsTo(relation: "company")`, `@hasOne(relation: "primaryAddr
 
 ### Code Style
 - **No section separator comments** — do not add `// --- SectionName ---`, `# --- SectionName ---`, or similar decorative dividers in code, tests, or schema files. Test methods and code sections are self-documenting by their names. If a file grows too large, split it into separate files instead.
+
+## Queue Workers
+
+When a queued job sets `$this->onQueue('xxx')` (or is dispatched to a non-default queue), **a worker process must be configured to consume that queue**. Otherwise jobs pile up in Redis untouched.
+
+**Single source of truth: `docker-compose.yml`** — Kanvas runs Docker in both dev and prod (kubernetes/helm is currently dormant). Update only the plain `docker-compose.yml`, not the `.development` / `.local` variants.
+
+Add a dedicated worker service alongside the existing `batch-logger-queue` / `openclaw-queue` / `ledger-queue` examples:
+
+```yaml
+xxx-queue:
+    <<: *common-queue-settings
+    container_name: xxx-queue
+    command:
+        - "sh"
+        - "-c"
+        - "php artisan config:cache && php artisan queue:work --queue=xxx --tries=3 --timeout=3750"
+```
+
+**Default to a dedicated service**, not appending to an existing worker's queue list. Any queue handling its own volume class (events, audits, large payloads) will starve or be starved by mixed workloads. Isolating each queue type to its own service gives it its own retry/timeout/replica budget. Reserve the "append to default" shortcut for genuinely low-volume queues (a few jobs/hour) where a dedicated service would be wasteful.
+
+### Adding a New Domain Namespace
+When creating a new top-level domain folder (`src/Domains/YourDomain/`):
+
+1. Register PSR-4 in `composer.json`:
+   ```json
+   "Kanvas\\YourDomain\\": "src/Domains/YourDomain"
+   ```
+2. Run `composer dump-autoload --no-scripts` (the `--no-scripts` flag avoids the `package:discover` step which can fail if any new class has unresolved deps mid-creation)
+3. If Octane is running, also delete `bootstrap/cache/services.php` and `bootstrap/cache/packages.php` and restart the `phpkanvas-ecosystem` container so it re-discovers classes
+
+Forgetting step 1 → "Trait/Class not found" at runtime even though the file exists. Forgetting step 3 under Octane → stale class cache breaks the container's boot loop.
 
 ## Testing
 
