@@ -1,8 +1,7 @@
 type LedgerEvent {
     id: ID!
     uuid: String!
-    apps_id: Int!
-    companies_id: Int!
+    company: Company! @belongsTo(relation: "company")
     source_domain: String!
     source_entity_type: String
     source_entity_id: Int
@@ -22,13 +21,24 @@ type LedgerEvent {
 
 extend type Query @guardByAdmin {
     ledgerEvents(
-        where: _ @whereConditions(
-            columns: ["source_domain", "event_type", "source_entity_type", "source_entity_id", "status", "correlation_id", "actor_type", "actor_id"]
-        )
+        where: _
+            @whereConditions(
+                columns: [
+                    "source_domain"
+                    "event_type"
+                    "source_entity_type"
+                    "source_entity_id"
+                    "status"
+                    "correlation_id"
+                    "actor_type"
+                    "actor_id"
+                ]
+            )
         orderBy: _ @orderBy(columns: ["id", "occurred_at", "indexed_at"])
     ): [LedgerEvent!]!
         @paginate(
+            model: "Kanvas\\NervousSystem\\Ledger\\Models\\Event"
+            scopes: ["fromApp", "fromCompany", "notArchived", "recent"]
             defaultCount: 50
-            builder: "App\\GraphQL\\Intelligence\\Queries\\NervousSystem\\LedgerEventQuery@getEvents"
         )
 }

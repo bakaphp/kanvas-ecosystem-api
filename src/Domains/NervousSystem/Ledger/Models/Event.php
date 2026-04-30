@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Ledger\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
+use Kanvas\NervousSystem\Models\BaseModel;
 use Override;
 
 /**
- * Append-only ledger event. Intentionally does not extend the Intelligence
- * BaseModel — this table has no soft delete, no is_deleted, no
- * created_at/updated_at; rows are immutable once written and pruned via
- * archival rather than deletion.
+ * Append-only ledger event. Inherits from NervousSystem BaseModel
+ * which sets the intelligence connection and provides fromApp /
+ * fromCompany scopes. Rows are immutable once written and pruned
+ * via archival rather than deletion.
  *
  * @property int $id
  * @property string $uuid
@@ -35,15 +36,11 @@ use Override;
  * @property \Illuminate\Support\Carbon $indexed_at
  * @property bool $is_archived
  */
-class Event extends Model
+class Event extends BaseModel
 {
     use UuidTrait;
 
-    protected $connection = 'intelligence';
-
     protected $table = 'nervous_system_events';
-
-    public $timestamps = false;
 
     protected $guarded = [];
 
@@ -56,27 +53,22 @@ class Event extends Model
             'source_entity_id' => 'integer',
             'actor_id' => 'integer',
             'duration_ms' => 'integer',
-            'payload' => 'array',
-            'result' => 'array',
-            'error' => 'array',
+            'payload' => Json::class,
+            'result' => Json::class,
+            'error' => Json::class,
             'occurred_at' => 'datetime',
             'indexed_at' => 'datetime',
             'is_archived' => 'boolean',
         ];
     }
 
-    public function scopeFromApp(Builder $query, int $appsId): Builder
-    {
-        return $query->where('apps_id', $appsId);
-    }
-
-    public function scopeFromCompany(Builder $query, int $companiesId): Builder
-    {
-        return $query->where('companies_id', $companiesId);
-    }
-
     public function scopeNotArchived(Builder $query): Builder
     {
         return $query->where('is_archived', 0);
+    }
+
+    public function scopeRecent(Builder $query): Builder
+    {
+        return $query->orderByDesc('occurred_at');
     }
 }

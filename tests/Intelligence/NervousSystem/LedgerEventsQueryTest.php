@@ -98,7 +98,7 @@ class LedgerEventsQueryTest extends TestCase
             '
             query LedgerEvents($where: QueryLedgerEventsWhereWhereConditions) {
                 ledgerEvents(first: 50, where: $where) {
-                    data { event_type apps_id }
+                    data { event_type }
                 }
             }
             ',
@@ -122,9 +122,5 @@ class LedgerEventsQueryTest extends TestCase
             $eventTypes,
             'GraphQL query must not leak events from a different apps_id',
         );
-
-        foreach ($events as $event) {
-            $this->assertSame($app->getId(), $event['apps_id']);
-        }
     }
 }

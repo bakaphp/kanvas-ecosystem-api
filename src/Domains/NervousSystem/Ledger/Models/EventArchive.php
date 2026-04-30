@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Ledger\Models;
 
 use Baka\Traits\UuidTrait;
-use Illuminate\Database\Eloquent\Model;
+use Kanvas\NervousSystem\Models\BaseModel;
 use Override;
 
 /**
@@ -21,15 +21,11 @@ use Override;
  * @property int|null $size_bytes
  * @property \Illuminate\Support\Carbon $archived_at
  */
-class EventArchive extends Model
+class EventArchive extends BaseModel
 {
     use UuidTrait;
 
-    protected $connection = 'intelligence';
-
     protected $table = 'nervous_system_event_archives';
-
-    public $timestamps = false;
 
     protected $guarded = [];
 

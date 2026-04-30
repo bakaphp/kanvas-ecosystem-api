@@ -8,10 +8,6 @@ use Illuminate\Support\Carbon;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 
-/**
- * Writes a single event row into the ledger. The synchronous path —
- * AppendToLedgerJob is the queued wrapper around this action.
- */
 class AppendEventAction
 {
     public function __construct(
