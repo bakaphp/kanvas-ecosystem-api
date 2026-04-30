@@ -11,11 +11,6 @@ use Kanvas\NervousSystem\Models\BaseModel;
 use Override;
 
 /**
- * Append-only ledger event. Inherits from NervousSystem BaseModel
- * which sets the intelligence connection and provides fromApp /
- * fromCompany scopes. Rows are immutable once written and pruned
- * via archival rather than deletion.
- *
  * @property int $id
  * @property string $uuid
  * @property int $apps_id
