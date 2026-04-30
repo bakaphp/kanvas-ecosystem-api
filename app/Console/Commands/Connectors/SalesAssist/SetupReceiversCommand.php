@@ -19,9 +19,9 @@ class SetupReceiversCommand extends Command
 {
     protected $signature = 'kanvas:sa-setup-receivers
         {--app= : App ID (required)}
-        {--company= : Company ID (required)}
         {--user= : User ID (required)}
-        {--rotation= : Rotation ID — must belong to the given app and company}
+        {--rotation= : Rotation ID — must belong to the given app; company is derived from it}
+        {--company= : Company ID (required when --rotation is not provided)}
         {--receivers= : Comma-separated list of receiver names (optional)}';
 
     /**
@@ -30,17 +30,15 @@ class SetupReceiversCommand extends Command
     public function handle(): int
     {
         $appId = (int) $this->option('app');
-        $companyId = (int) $this->option('company');
         $userId = (int) $this->option('user');
 
-        if (! $appId || ! $companyId || ! $userId) {
-            $this->error('--app, --company and --user are required');
+        if (! $appId || ! $userId) {
+            $this->error('--app and --user are required');
 
             return self::FAILURE;
         }
 
         $app = Apps::getById($appId);
-        $company = Companies::getById($companyId);
         $user = Users::getById($userId);
 
         $rotationId = $this->option('rotation') ? (int) $this->option('rotation') : null;
@@ -53,15 +51,25 @@ class SetupReceiversCommand extends Command
 
         if ($rotationId) {
             $leadRotation = LeadRotation::findOrFail($rotationId);
-            if ((int) $leadRotation->apps_id !== $app->getId() || (int) $leadRotation->companies_id !== $company->getId()) {
-                $this->error("Rotation {$rotationId} does not belong to app {$app->getId()} / company {$company->getId()}");
+            if ((int) $leadRotation->apps_id !== $app->getId()) {
+                $this->error("Rotation {$rotationId} does not belong to app {$app->getId()}");
 
                 return self::FAILURE;
             }
 
+            $company = Companies::getById((int) $leadRotation->companies_id);
+
             $leadRotation->config = array_merge((array) $leadRotation->config, $defaultConfig);
             $leadRotation->saveOrFail();
         } else {
+            $companyId = (int) $this->option('company');
+            if (! $companyId) {
+                $this->error('--company is required when --rotation is not provided');
+
+                return self::FAILURE;
+            }
+            $company = Companies::getById($companyId);
+
             $leadRotation = LeadRotation::create([
                 'apps_id' => $app->getId(),
                 'companies_id' => $company->getId(),
