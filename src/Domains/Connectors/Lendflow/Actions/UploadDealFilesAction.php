@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Lendflow\Actions;
 use GuzzleHttp\Psr7\Utils;
 use Kanvas\Connectors\Lendflow\Client;
 use Kanvas\Connectors\Lendflow\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum as ZohoCustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Deals\Models\Deal;
 
@@ -19,7 +20,7 @@ class UploadDealFilesAction
 
     public function execute(): array
     {
-        $applicationId = (string) ($this->deal->get(CustomFieldEnum::LENDFLOW_APPLICATION_ID->value) ?? '');
+        $applicationId = $this->resolveApplicationId();
         if ($applicationId === '') {
             throw new ValidationException('Deal has no Lendflow application id. Submit the application first.');
         }
@@ -77,5 +78,37 @@ class UploadDealFilesAction
             'application_id' => $applicationId,
             'response' => $response,
         ];
+    }
+
+    protected function resolveApplicationId(): string
+    {
+        $applicationId = (string) ($this->deal->get(CustomFieldEnum::LENDFLOW_APPLICATION_ID->value) ?? '');
+        if ($applicationId !== '') {
+            return $applicationId;
+        }
+
+        $zohoRaw = $this->deal->get(ZohoCustomFieldEnum::ZOHO_DEAL_RAW->value);
+        if (! is_array($zohoRaw)) {
+            return '';
+        }
+
+        $lendflowResponse = $zohoRaw['Lendflow_Response'] ?? null;
+        if (! is_string($lendflowResponse) || $lendflowResponse === '') {
+            return '';
+        }
+
+        $decoded = json_decode($lendflowResponse, true);
+        if (! is_array($decoded)) {
+            return '';
+        }
+
+        $found = $decoded['data']['application_id'] ?? $decoded['application_id'] ?? null;
+        if (! is_string($found) || $found === '') {
+            return '';
+        }
+
+        $this->deal->set(CustomFieldEnum::LENDFLOW_APPLICATION_ID->value, $found);
+
+        return $found;
     }
 }
