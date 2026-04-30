@@ -7,7 +7,6 @@ namespace Kanvas\Filesystem\Services;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Http\File;
-use Illuminate\Support\Facades\Log;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
