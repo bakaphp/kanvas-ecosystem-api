@@ -168,7 +168,6 @@ class ImageOptimizerService
                 );
 
                 $optimizerChain
-                    ->useLogger(Log::channel())
                     ->setTimeout(60)
                     ->optimize($imagePath);
             }
@@ -245,7 +244,6 @@ class ImageOptimizerService
                 $optimizerChain->addOptimizer(new Optipng(['-i0', '-o2', '-quiet']));
                 $optimizerChain->addOptimizer(new Jpegoptim(['-m85', '--strip-all', '--all-progressive']));
                 $optimizerChain
-                    ->useLogger(Log::channel())
                     ->setTimeout(60)
                     ->optimize($filePath);
             } catch (Exception $e) {
