@@ -60,8 +60,9 @@ class AgentTelemetryService
 
             // One SSH connection, one exec channel — all commands run in a single shell pipeline.
             // This is far gentler on the server's sshd than opening separate channels per command.
-            $ssh = SshClient::fromMachine($deployment->machine);
-            $sections = $ssh->getAllTelemetry();
+            // Commands run via `docker exec` because the openclaw CLI lives inside the container.
+            $ssh      = SshClient::fromMachine($deployment->machine);
+            $sections = $ssh->getAllTelemetryForContainer($deployment->container_name);
 
             // Per-agent tools: extract unique tool names from this agent's own session JSONL files.
             // Falls back to the machine-level skills list when no session data exists yet.
