@@ -266,16 +266,16 @@
         },
         {
             "name": "awobaz/compoships",
-            "version": "3.0.0",
+            "version": "3.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/topclaudy/compoships.git",
-                "reference": "0cc503f9551d39763f11b109ad89aecd14abcaba"
+                "reference": "617d2a7fb308dbec7738a570d9afad4dabae4236"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/topclaudy/compoships/zipball/0cc503f9551d39763f11b109ad89aecd14abcaba",
-                "reference": "0cc503f9551d39763f11b109ad89aecd14abcaba",
+                "url": "https://api.github.com/repos/topclaudy/compoships/zipball/617d2a7fb308dbec7738a570d9afad4dabae4236",
+                "reference": "617d2a7fb308dbec7738a570d9afad4dabae4236",
                 "shasum": ""
             },
             "require": {
@@ -317,7 +317,7 @@
             ],
             "support": {
                 "issues": "https://github.com/topclaudy/compoships/issues",
-                "source": "https://github.com/topclaudy/compoships/tree/3.0.0"
+                "source": "https://github.com/topclaudy/compoships/tree/3.0.1"
             },
             "funding": [
                 {
@@ -325,7 +325,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2026-04-22T13:00:49+00:00"
+            "time": "2026-04-29T16:47:31+00:00"
         },
         {
             "name": "aws/aws-crt-php",
@@ -383,16 +383,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.379.8",
+            "version": "3.379.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "856ddf3d241c29132fe1eb946e112351ab043542"
+                "reference": "aaa9aab5d077018dbc9af63338b2c5aa44a5add3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/856ddf3d241c29132fe1eb946e112351ab043542",
-                "reference": "856ddf3d241c29132fe1eb946e112351ab043542",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/aaa9aab5d077018dbc9af63338b2c5aa44a5add3",
+                "reference": "aaa9aab5d077018dbc9af63338b2c5aa44a5add3",
                 "shasum": ""
             },
             "require": {
@@ -474,9 +474,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.379.8"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.379.9"
             },
-            "time": "2026-04-27T19:13:21+00:00"
+            "time": "2026-04-29T18:07:13+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -4045,16 +4045,16 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v0.6.4",
+            "version": "v0.6.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "32296ee5fc7a6a1dd007a66f32abb15d877b434b"
+                "reference": "548f4b247c1c5f9e6a94252628eeb8a5f8fc5e6e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/32296ee5fc7a6a1dd007a66f32abb15d877b434b",
-                "reference": "32296ee5fc7a6a1dd007a66f32abb15d877b434b",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/548f4b247c1c5f9e6a94252628eeb8a5f8fc5e6e",
+                "reference": "548f4b247c1c5f9e6a94252628eeb8a5f8fc5e6e",
                 "shasum": ""
             },
             "require": {
@@ -4109,7 +4109,7 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-04-28T05:42:50+00:00"
+            "time": "2026-04-29T13:08:02+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -7197,16 +7197,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.3.10",
+            "version": "3.3.11",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "789f5d0380ae384902bd0cca2012e31d4cf08382"
+                "reference": "eab04b08cd08428fb18d44bda26e712e298c9c19"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/789f5d0380ae384902bd0cca2012e31d4cf08382",
-                "reference": "789f5d0380ae384902bd0cca2012e31d4cf08382",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/eab04b08cd08428fb18d44bda26e712e298c9c19",
+                "reference": "eab04b08cd08428fb18d44bda26e712e298c9c19",
                 "shasum": ""
             },
             "require": {
@@ -7257,7 +7257,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.3.10"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.3.11"
             },
             "funding": [
                 {
@@ -7265,7 +7265,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-04-20T17:12:27+00:00"
+            "time": "2026-04-29T18:29:53+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
