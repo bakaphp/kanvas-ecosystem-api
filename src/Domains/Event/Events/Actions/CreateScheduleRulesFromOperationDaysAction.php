@@ -6,6 +6,7 @@ namespace Kanvas\Event\Events\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Kanvas\Event\Events\Jobs\GenerateTimeSlots;
@@ -39,75 +40,74 @@ class CreateScheduleRulesFromOperationDaysAction
 
     public function execute(): array
     {
-        $this->clearExistingRules();
+        $upsertedRules = [];
 
-        $createdRules = [];
+        foreach (self::DAY_MAP as $dayName => $dayCode) {
+            $dayConfig = $this->operationDays[$dayName] ?? null;
+            $active = (bool) ($dayConfig['active'] ?? false);
 
-        foreach ($this->operationDays as $dayName => $dayConfig) {
-            if (! ($dayConfig['active'] ?? false)) {
+            if (! $active) {
+                $this->deleteRuleForDay($dayName);
                 continue;
             }
 
-            $dayCode = self::DAY_MAP[strtolower($dayName)] ?? null;
-            if (! $dayCode) {
+            $periods = $this->resolvePeriods($dayConfig);
+
+            if (empty($periods)) {
+                $this->deleteRuleForDay($dayName);
                 continue;
             }
 
-            // Check if using new periods format (multiple time windows per day)
-            if (isset($dayConfig['periods']) && is_array($dayConfig['periods'])) {
-                $periods = $this->parsePeriods($dayConfig['periods']);
-                if (empty($periods)) {
-                    continue;
-                }
+            $rule = $this->upsertRuleForDay($dayName, $dayCode, $periods);
 
-                $scheduleRule = $this->createScheduleRuleForDayWithPeriods($dayName, $dayCode, $periods);
-
-                if ($scheduleRule) {
-                    $createdRules[] = $scheduleRule;
-                    $this->dispatchTimeSlotGeneration($scheduleRule);
-                }
-            } else {
-                // Backward compatibility: single open/close format
-                $openTime = $this->parseTime($dayConfig['open'] ?? null);
-                $closeTime = $this->parseTime($dayConfig['close'] ?? null);
-
-                if (! $openTime || ! $closeTime) {
-                    continue;
-                }
-
-                $scheduleRule = $this->createScheduleRuleForDay($dayName, $dayCode, $openTime, $closeTime);
-
-                if ($scheduleRule) {
-                    $createdRules[] = $scheduleRule;
-                    $this->dispatchTimeSlotGeneration($scheduleRule);
-                }
+            if ($rule) {
+                $upsertedRules[] = $rule;
+                $this->dispatchTimeSlotGeneration($rule);
             }
         }
 
-        return $createdRules;
+        return $upsertedRules;
     }
 
-    protected function createScheduleRuleForDay(
-        string $dayName,
-        string $dayCode,
-        string $openTime,
-        string $closeTime
-    ): ?ScheduleRules {
-        $startAt = Carbon::parse('today ' . $openTime);
+    protected function resolvePeriods(array $dayConfig): array
+    {
+        if (isset($dayConfig['periods']) && is_array($dayConfig['periods'])) {
+            return $this->parsePeriods($dayConfig['periods']);
+        }
+
+        $open = $this->parseTime($dayConfig['open'] ?? null);
+        $close = $this->parseTime($dayConfig['close'] ?? null);
+
+        if (! $open || ! $close) {
+            return [];
+        }
+
+        return [['open' => $open, 'close' => $close]];
+    }
+
+    protected function upsertRuleForDay(string $dayName, string $dayCode, array $periods): ?ScheduleRules
+    {
+        $firstPeriod = $periods[0];
+        $startAt = Carbon::parse('today ' . $firstPeriod['open']);
         $dtstart = $startAt->format('Ymd\THis');
         $rrule = "DTSTART:{$dtstart}\nRRULE:FREQ={$this->frequency};BYDAY={$dayCode}";
 
-        $openCarbon = Carbon::parse('today ' . $openTime);
-        $closeCarbon = Carbon::parse('today ' . $closeTime);
+        $allHours = [];
+        foreach ($periods as $period) {
+            $openCarbon = Carbon::parse('today ' . $period['open']);
+            $closeCarbon = Carbon::parse('today ' . $period['close']);
 
-        $startHour = (int) $openCarbon->format('H');
-        $endHour = (int) $closeCarbon->format('H');
-        $closeMinute = (int) $closeCarbon->format('i');
-        $lastHour = $closeMinute > 0 ? $endHour : $endHour - 1;
-        $hours = range($startHour, $lastHour);
-        $hoursString = implode(',', $hours);
+            $startHour = (int) $openCarbon->format('H');
+            $endHour = (int) $closeCarbon->format('H');
+            $closeMinute = (int) $closeCarbon->format('i');
+            $lastHour = $closeMinute > 0 ? $endHour : $endHour - 1;
+            $allHours = array_merge($allHours, range($startHour, $lastHour));
+        }
+        $allHours = array_unique($allHours);
+        sort($allHours);
+        $hoursString = implode(',', $allHours);
 
-        $startMinute = (int) $openCarbon->format('i');
+        $startMinute = (int) $startAt->format('i');
         $minuteOffset = $startMinute % $this->slotDurationMinutes;
         $minutes = [];
         for ($m = $minuteOffset; $m < 60; $m += $this->slotDurationMinutes) {
@@ -115,34 +115,63 @@ class CreateScheduleRulesFromOperationDaysAction
         }
         $minutesString = implode(',', $minutes);
 
-        $dayDtstart = $openCarbon->format('Ymd\THis');
+        $dayDtstart = $startAt->format('Ymd\THis');
         $dayRrule = "DTSTART:{$dayDtstart}\nRRULE:FREQ=MINUTELY;INTERVAL={$this->slotDurationMinutes};BYHOUR={$hoursString};BYMINUTE={$minutesString}";
 
         $metadata = [
             'operation_day' => $dayName,
             'created_from' => 'operation_days',
-            'periods' => [['open' => $openTime, 'close' => $closeTime]],
+            'periods' => $periods,
         ];
 
         if ($this->scheduleType) {
             $metadata['schedule_type'] = $this->scheduleType;
         }
 
-        return ScheduleRules::create([
+        $rule = ScheduleRules::withoutGlobalScopes()->updateOrCreate(
+            $this->naturalKey($dayName),
+            [
+                'start_at' => $startAt,
+                'end_at' => null,
+                'rrule' => $rrule,
+                'day_rrule' => $dayRrule,
+                'slot_duration_min' => $this->slotDurationMinutes,
+                'lead_time_min' => $this->leadTimeMin,
+                'cutoff_time_min' => $this->cutoffTimeMin,
+                'capacity_override' => $this->capacityOverride,
+                'metadata' => $metadata,
+                'is_deleted' => false,
+            ]
+        );
+
+        if ($rule->wasChanged(['rrule', 'day_rrule', 'slot_duration_min', 'capacity_override'])) {
+            $rule->deleteUpcomingTimeSlots();
+        }
+
+        return $rule;
+    }
+
+    protected function deleteRuleForDay(string $dayName): void
+    {
+        $rule = ScheduleRules::withoutGlobalScopes()->where($this->naturalKey($dayName))->first();
+
+        if (! $rule) {
+            return;
+        }
+
+        $rule->deleteUpcomingTimeSlots();
+        $rule->forceDelete();
+    }
+
+    protected function naturalKey(string $dayName): array
+    {
+        return [
             'apps_id' => $this->app->getId(),
             'companies_id' => $this->company->getId(),
-            'resources_id' => $this->resource->getId(),
             'resources_type' => $this->resource->getMorphClass(),
-            'start_at' => $startAt,
-            'end_at' => null,
-            'rrule' => $rrule,
-            'day_rrule' => $dayRrule,
-            'slot_duration_min' => $this->slotDurationMinutes,
-            'lead_time_min' => $this->leadTimeMin,
-            'cutoff_time_min' => $this->cutoffTimeMin,
-            'capacity_override' => $this->capacityOverride,
-            'metadata' => $metadata,
-        ]);
+            'resources_id' => $this->resource->getId(),
+            'operation_day' => $dayName,
+        ];
     }
 
     protected function dispatchTimeSlotGeneration(ScheduleRules $scheduleRule): void
@@ -163,7 +192,7 @@ class CreateScheduleRulesFromOperationDaysAction
 
         try {
             return Carbon::parse($time)->format('H:i');
-        } catch (\Exception $e) {
+        } catch (Exception) {
             return null;
         }
     }
@@ -182,86 +211,5 @@ class CreateScheduleRulesFromOperationDaysAction
         }
 
         return $periods;
-    }
-
-    protected function createScheduleRuleForDayWithPeriods(
-        string $dayName,
-        string $dayCode,
-        array $periods
-    ): ?ScheduleRules {
-        // Use the first period's open time as the rule start time
-        $firstPeriod = $periods[0];
-        $startAt = Carbon::parse('today ' . $firstPeriod['open']);
-        $dtstart = $startAt->format('Ymd\THis');
-        $rrule = "DTSTART:{$dtstart}\nRRULE:FREQ={$this->frequency};BYDAY={$dayCode}";
-
-        // Build BYHOUR string covering ALL periods
-        $allHours = [];
-        foreach ($periods as $period) {
-            $openCarbon = Carbon::parse('today ' . $period['open']);
-            $closeCarbon = Carbon::parse('today ' . $period['close']);
-
-            $startHour = (int) $openCarbon->format('H');
-            $endHour = (int) $closeCarbon->format('H');
-            $closeMinute = (int) $closeCarbon->format('i');
-            $lastHour = $closeMinute > 0 ? $endHour : $endHour - 1;
-            $hours = range($startHour, $lastHour);
-            $allHours = array_merge($allHours, $hours);
-        }
-        $allHours = array_unique($allHours);
-        sort($allHours);
-        $hoursString = implode(',', $allHours);
-
-        $startMinute = (int) $startAt->format('i');
-        $minuteOffset = $startMinute % $this->slotDurationMinutes;
-        $minutes = [];
-        for ($m = $minuteOffset; $m < 60; $m += $this->slotDurationMinutes) {
-            $minutes[] = $m;
-        }
-        $minutesString = implode(',', $minutes);
-
-        $dayDtstart = $startAt->format('Ymd\THis');
-        $dayRrule = "DTSTART:{$dayDtstart}\nRRULE:FREQ=MINUTELY;INTERVAL={$this->slotDurationMinutes};BYHOUR={$hoursString};BYMINUTE={$minutesString}";
-
-        $metadata = [
-            'operation_day' => $dayName,
-            'created_from' => 'operation_days',
-            'periods' => $periods, // Store all periods for validation
-        ];
-
-        if ($this->scheduleType) {
-            $metadata['schedule_type'] = $this->scheduleType;
-        }
-
-        return ScheduleRules::create([
-            'apps_id' => $this->app->getId(),
-            'companies_id' => $this->company->getId(),
-            'resources_id' => $this->resource->getId(),
-            'resources_type' => $this->resource->getMorphClass(),
-            'start_at' => $startAt,
-            'end_at' => null,
-            'rrule' => $rrule,
-            'day_rrule' => $dayRrule,
-            'slot_duration_min' => $this->slotDurationMinutes,
-            'lead_time_min' => $this->leadTimeMin,
-            'cutoff_time_min' => $this->cutoffTimeMin,
-            'capacity_override' => $this->capacityOverride,
-            'metadata' => $metadata,
-        ]);
-    }
-
-    public function clearExistingRules(): void
-    {
-        $existingRules = ScheduleRules::where('resources_id', $this->resource->getId())
-            ->where('resources_type', $this->resource->getMorphClass())
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->whereJsonContains('metadata->created_from', 'operation_days')
-            ->get();
-
-        foreach ($existingRules as $rule) {
-            $rule->deleteUpcomingTimeSlots();
-            $rule->forceDelete(); // Permanently delete instead of soft delete
-        }
     }
 }

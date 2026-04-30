@@ -5,6 +5,7 @@ namespace Baka\Traits;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope as EloquentSoftDeletingScope;
+use Override;
 
 class SoftDeletingScope extends EloquentSoftDeletingScope
 {
@@ -14,6 +15,7 @@ class SoftDeletingScope extends EloquentSoftDeletingScope
      * @param  \Illuminate\Database\Eloquent\Builder  $builder
      * @return void
      */
+    #[Override]
     public function apply(Builder $builder, Model $model)
     {
         $builder->where($model->getQualifiedDeletedAtColumn(), '=', 0);
@@ -25,6 +27,7 @@ class SoftDeletingScope extends EloquentSoftDeletingScope
      * @param  \Illuminate\Database\Eloquent\Builder  $builder
      * @return void
      */
+    #[Override]
     public function extend(Builder $builder)
     {
         foreach ($this->extensions as $extension) {

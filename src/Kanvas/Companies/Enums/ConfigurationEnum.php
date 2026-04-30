@@ -23,4 +23,5 @@ enum ConfigurationEnum: string
     case DATE_ADK_AGENT_RESPONSES = 'date_adk_agent_responses';
     case CHANNEL_ORDER = 'guild_channel_order';
     case FOLLOW_UP_ON_IS_CONTACTED = 'follow_up_on_is_contacted';
+    case DEFAULT_SELECTED_CHANNEL = 'guild_default_selected_channel';
 }

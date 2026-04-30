@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Models\BaseModel;
 
 /**
@@ -15,8 +14,8 @@ use Kanvas\Guild\Models\BaseModel;
  * @property int $companies_id
  * @property int|null $apps_id
  * @property int|null $leads_id
- * @property string $header
- * @property string $request
+ * @property array  $header
+ * @property array  $request
  * @property string $ip
  * @property string $source
  * @property string $public_key
@@ -37,11 +36,6 @@ class LeadAttempt extends BaseModel
     public function lead(): BelongsTo
     {
         return $this->belongsTo(Lead::class, 'leads_id', 'id');
-    }
-
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id', 'id');
     }
 
     public function hasLead(): bool
