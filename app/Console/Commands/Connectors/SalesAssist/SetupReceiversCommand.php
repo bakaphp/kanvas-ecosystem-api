@@ -17,44 +17,73 @@ use Kanvas\Users\Models\Users;
 
 class SetupReceiversCommand extends Command
 {
-    protected $signature = 'kanvas:sa-setup-receivers {app_id} {company_id} {userId} {rotationId?} {--receivers= : Comma-separated list of receiver names (optional)}';
+    protected $signature = 'kanvas:sa-setup-receivers
+        {--app= : App ID (required)}
+        {--company= : Company ID (required)}
+        {--user= : User ID (required)}
+        {--rotation= : Rotation ID — must belong to the given app and company}
+        {--receivers= : Comma-separated list of receiver names (optional)}';
 
     /**
      * Execute the console command.
      */
-    public function handle(): void
+    public function handle(): int
     {
-        $app = Apps::getById((int) $this->argument('app_id'));
-        $company = Companies::getById((int) $this->argument('company_id'));
-        $user = Users::getById((int) $this->argument('userId'));
-        $rotationId = (int) $this->argument('rotationId');
+        $appId = (int) $this->option('app');
+        $companyId = (int) $this->option('company');
+        $userId = (int) $this->option('user');
 
-        // Get receivers from option or use defaults
-        $receiversOption = $this->option('receivers');
-        $receivers = $receiversOption
-            ? array_map('trim', explode(',', $receiversOption))
-            : null;
+        if (! $appId || ! $companyId || ! $userId) {
+            $this->error('--app, --company and --user are required');
 
-        if (! $rotationId) {
+            return self::FAILURE;
+        }
+
+        $app = Apps::getById($appId);
+        $company = Companies::getById($companyId);
+        $user = Users::getById($userId);
+
+        $rotationId = $this->option('rotation') ? (int) $this->option('rotation') : null;
+
+        $defaultConfig = [
+            'email_template' => EmailTemplatesEnum::LEAD_COMPANY_EMAIL->value,
+            'notification_mode' => LeadNotificationModeEnum::NOTIFY_AGENTS->value,
+            'notification_user_mode' => LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS->value,
+        ];
+
+        if ($rotationId) {
+            $leadRotation = LeadRotation::findOrFail($rotationId);
+            if ((int) $leadRotation->apps_id !== $app->getId() || (int) $leadRotation->companies_id !== $company->getId()) {
+                $this->error("Rotation {$rotationId} does not belong to app {$app->getId()} / company {$company->getId()}");
+
+                return self::FAILURE;
+            }
+
+            $leadRotation->config = array_merge((array) $leadRotation->config, $defaultConfig);
+            $leadRotation->saveOrFail();
+        } else {
             $leadRotation = LeadRotation::create([
                 'apps_id' => $app->getId(),
                 'companies_id' => $company->getId(),
                 'name' => 'Lead Rotation',
                 'hits' => 1,
                 'leads_rotations_email' => '',
-                'config' => [
-                    'email_template' => EmailTemplatesEnum::LEAD_COMPANY_EMAIL->value,
-                    'notification_mode' => LeadNotificationModeEnum::NOTIFY_AGENTS->value,
-                    'notification_user_mode' => LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS->value,
-                ]
+                'config' => $defaultConfig,
             ]);
 
             $rotationId = $leadRotation->getId();
         }
 
+        $receiversOption = $this->option('receivers');
+        $receivers = $receiversOption
+            ? array_map('trim', explode(',', $receiversOption))
+            : null;
+
         $this->setDefaultReceivers($app, $company, $user, $rotationId, $receivers);
 
         $this->info('Lead receivers processed successfully.');
+
+        return self::SUCCESS;
     }
 
     public function setDefaultReceivers(Apps $app, Companies $company, UserInterface $user, int $rotationId, ?array $customReceivers = null): void
