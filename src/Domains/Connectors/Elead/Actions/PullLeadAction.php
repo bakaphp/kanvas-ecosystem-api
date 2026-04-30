@@ -35,9 +35,13 @@ class PullLeadAction
 
     public function execute(array $request, ?ModelsLead $lead = null): array
     {
-        $phone = $request['phone']['cell'] ?? $request['phone']['home'] ?? $request['phone']['work'] ?? null;
-        //$emails = $request['emails'] ?? [];
+        $cellPhone = $request['phone']['cell'] ?? null;
+        $homePhone = $request['phone']['home'] ?? null;
+        $workPhone = $request['phone']['work'] ?? null;
+        $phone = $cellPhone ?? $homePhone ?? $workPhone;
+
         $email = $request['email'] ?? null;
+        $secondEmail = $request['emails'][1]['value'] ?? $request['emails'][1]['address'] ?? null;
         $dob = $request['birthday'] ?? null;
         $firstname = $request['firstname'] ?? null;
         $lastname = $request['lastname'] ?? null;
@@ -222,7 +226,20 @@ class PullLeadAction
 
                         /** @var People $matchedPerson */
                         foreach ($allMatchedPeople as $matchedPerson) {
-                            $nameRank = $this->calculateNameRank($firstname, $lastname, $matchedPerson, $phone, $email);
+                            $nameRank = $this->calculateNameRank(
+                                $firstname,
+                                $lastname,
+                                $matchedPerson,
+                                [
+                                    $cellPhone ?? null,
+                                    $homePhone ?? null,
+                                    $workPhone ?? null,
+                                ],
+                                [
+                                    $email ?? null,
+                                    $secondEmail ?? null,
+                                ]
+                            );
                             $closedLeads = LeadsRepository::getPeopleClosedLeads($matchedPerson)->get();
 
                             if ($closedLeads->isEmpty()) {
@@ -280,16 +297,16 @@ class PullLeadAction
         ?string $eLeadFirstname,
         ?string $eLeadLastname,
         People $person,
-        ?string $searchPhone = null,
-        ?string $searchEmail = null
+        array $searchPhones = [],
+        array $searchEmails = []
     ): float {
         $totalFields = 0;
         $matchedFields = 0;
 
         $hasFirst = $eLeadFirstname !== null && $eLeadFirstname !== '';
         $hasLast = $eLeadLastname !== null && $eLeadLastname !== '';
-        $hasPhone = $searchPhone !== null && $searchPhone !== '';
-        $hasEmail = $searchEmail !== null && $searchEmail !== '';
+        $searchPhones = array_filter(array_map('trim', $searchPhones));
+        $searchEmails = array_filter(array_map('trim', $searchEmails));
 
         if ($hasFirst) {
             $totalFields++;
@@ -319,23 +336,22 @@ class PullLeadAction
             }
         }
 
-        if ($hasPhone) {
+        foreach ($searchPhones as $searchPhone) {
             $totalFields++;
             $personPhones = $person->getAllPhones()->pluck('value')->map(fn ($v) => preg_replace('/\D/', '', (string) $v))->toArray();
             $normalizedSearch = preg_replace('/\D/', '', $searchPhone);
             foreach ($personPhones as $personPhone) {
                 if ($personPhone === $normalizedSearch) {
                     $matchedFields++;
-
                     break;
                 }
             }
         }
 
-        if ($hasEmail) {
+        foreach ($searchEmails as $searchEmail) {
             $totalFields++;
             $personEmails = $person->getEmails()->pluck('value')->map(fn ($v) => strtolower(trim((string) $v)))->toArray();
-            if (in_array(strtolower(trim($searchEmail)), $personEmails, true)) {
+            if (in_array(strtolower($searchEmail), $personEmails, true)) {
                 $matchedFields++;
             }
         }
