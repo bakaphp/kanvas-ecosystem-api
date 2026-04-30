@@ -831,6 +831,7 @@ extend type Query @guard {
         field_mapper: Mixed # JSON object with label => field_path mapping
         metadata: ExportMetadataInput
         timezone: String # e.g., "America/New_York"
+        whereHasProvider: ID # Filter export to orders attributed to this provider company via order_providers pivot
         where: _
             @whereConditions(
                 columns: [
