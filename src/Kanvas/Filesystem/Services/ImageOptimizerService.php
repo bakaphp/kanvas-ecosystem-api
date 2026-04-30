@@ -7,7 +7,6 @@ namespace Kanvas\Filesystem\Services;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Http\File;
-use Illuminate\Support\Facades\Log;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
@@ -168,7 +167,6 @@ class ImageOptimizerService
                 );
 
                 $optimizerChain
-                    ->useLogger(Log::channel())
                     ->setTimeout(60)
                     ->optimize($imagePath);
             }
@@ -245,7 +243,6 @@ class ImageOptimizerService
                 $optimizerChain->addOptimizer(new Optipng(['-i0', '-o2', '-quiet']));
                 $optimizerChain->addOptimizer(new Jpegoptim(['-m85', '--strip-all', '--all-progressive']));
                 $optimizerChain
-                    ->useLogger(Log::channel())
                     ->setTimeout(60)
                     ->optimize($filePath);
             } catch (Exception $e) {
