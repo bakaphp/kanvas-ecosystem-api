@@ -28,6 +28,8 @@ use Kanvas\Intelligence\Models\BaseModel;
  * @property int $port_range_end
  * @property int $max_agents
  * @property bool $is_active
+ * @property bool $is_connected
+ * @property string|null $last_ping_at
  * @property bool $is_deleted
  */
 class AgentMachine extends BaseModel
@@ -53,6 +55,8 @@ class AgentMachine extends BaseModel
         'port_range_end',
         'max_agents',
         'is_active',
+        'is_connected',
+        'last_ping_at',
     ];
 
     protected $hidden = [

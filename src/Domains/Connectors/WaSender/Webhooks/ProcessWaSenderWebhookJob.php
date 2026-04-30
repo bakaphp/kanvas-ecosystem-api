@@ -28,6 +28,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver as LeadReceiverModel;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -283,6 +284,10 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
             // Associate message with channel
             $channel->addMessage($message);
             $lastMessageParent = $lastMessage->parent ?? null;
+
+            if ($isFromMe === false && isset($lead)) {
+                new NotifyLeadStakeholdersService($lead)->onCustomerEngagement($message);
+            }
 
             //get the previous msg before this that was of type document and is not process by me , to check
 

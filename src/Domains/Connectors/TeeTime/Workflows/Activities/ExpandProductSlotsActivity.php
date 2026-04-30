@@ -128,7 +128,7 @@ class ExpandProductSlotsActivity extends KanvasActivity implements WorkflowActiv
         $scheduleRules = ScheduleRules::where('resources_id', $variant->getId())
             ->where('resources_type', $variant->getMorphClass())
             ->where('apps_id', $app->getId())
-            ->whereJsonContains('metadata->created_from', 'operation_days')
+            ->whereNotNull('operation_day')
             ->get();
 
         foreach ($scheduleRules as $rule) {

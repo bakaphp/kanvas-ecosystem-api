@@ -51,7 +51,7 @@ class BuildScheduleResponseAction
         return ScheduleRules::where('resources_id', $this->resource->getId())
             ->where('resources_type', $this->resource->getMorphClass())
             ->where('apps_id', $this->app->getId())
-            ->whereJsonContains('metadata->created_from', 'operation_days')
+            ->whereNotNull('operation_day')
             ->where('is_deleted', false)
             ->get()
             ->all();

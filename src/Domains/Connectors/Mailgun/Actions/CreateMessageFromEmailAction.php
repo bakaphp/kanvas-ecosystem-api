@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Mailgun\Actions;
 use Baka\Support\Str;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
@@ -104,6 +105,10 @@ class CreateMessageFromEmailAction
                 $this->webhookRequest->user,
                 $this->webhookRequest->company
             );
+
+            if ($this->lead instanceof Lead) {
+                new NotifyLeadStakeholdersService($this->lead)->onCustomerEngagement($newMessage);
+            }
 
             $channel->fireWorkflow(
                 WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,

@@ -6,8 +6,10 @@ namespace Kanvas\Guild\Customers\Models;
 
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
+use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -69,13 +71,25 @@ class People extends BaseModel
     use Notifiable;
     use HasLightHouseCache;
     use LikableTrait;
+    use SoftDeletesTrait;
+    use CascadeSoftDeletes;
+
+    public const DELETED_AT = 'is_deleted';
 
     protected $table = 'peoples';
     protected $guarded = [];
 
+    protected $cascadeDeletes = ['contacts', 'address'];
+
     protected $casts = [
         'dob' => 'datetime:Y-m-d',
+        'is_deleted' => 'boolean',
     ];
+
+    public function trashed()
+    {
+        return (bool) $this->{$this->getDeletedAtColumn()};
+    }
 
     #[Override]
     public function getGraphTypeName(): string

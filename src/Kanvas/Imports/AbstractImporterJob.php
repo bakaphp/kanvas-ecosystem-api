@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\App;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Regions\Models\Regions;
@@ -118,16 +119,48 @@ abstract class AbstractImporterJob implements ShouldQueue, ShouldBeUnique
 
     protected function hasStreamableFile(): bool
     {
-        if (! $this->filesystemImport || ! $this->filesystemImport->filesystem_id) {
-            return false;
+        return $this->getStreamableFilesystem() !== null;
+    }
+
+    /**
+     * Resolve the file the job should stream from.
+     *
+     * Two paths can populate this:
+     *  - PR 2 direct spool: the resolver wrote a `.jsonl` straight to the
+     *    primary `filesystem` reference (no mapper, no transformation).
+     *  - PR 3 transform path: a CSV-with-mapper upload was streamed through
+     *    `ImportProductFromFilesystemAction` which produced a JSONL and
+     *    attached its filesystem id under `extra.streamable_filesystem_id`,
+     *    keeping the original CSV as the primary file for audit.
+     *
+     * The transform-path lookup wins when present so the worker streams
+     * the already-mapped JSONL instead of re-parsing the source CSV.
+     */
+    protected function getStreamableFilesystem(): ?Filesystem
+    {
+        if (! $this->filesystemImport) {
+            return null;
+        }
+
+        $extra = $this->filesystemImport->extra;
+        if (is_array($extra) && isset($extra['streamable_filesystem_id'])) {
+            $streamable = Filesystem::find((int) $extra['streamable_filesystem_id']);
+            if ($streamable && $this->isJsonlFilesystem($streamable)) {
+                return $streamable;
+            }
         }
 
         $filesystem = $this->filesystemImport->filesystem;
-        if (! $filesystem) {
-            return false;
+        if ($filesystem && $this->isJsonlFilesystem($filesystem)) {
+            return $filesystem;
         }
 
-        $name = strtolower((string) ($filesystem->name ?? $filesystem->path ?? ''));
+        return null;
+    }
+
+    private function isJsonlFilesystem(Filesystem $filesystem): bool
+    {
+        $name = strtolower($filesystem->name !== '' ? $filesystem->name : $filesystem->path);
 
         return str_ends_with($name, '.jsonl');
     }
@@ -137,15 +170,15 @@ abstract class AbstractImporterJob implements ShouldQueue, ShouldBeUnique
      */
     protected function streamJsonlRows(): Generator
     {
-        $filesystemImport = $this->filesystemImport;
-        if (! $filesystemImport || ! $filesystemImport->filesystem) {
+        $filesystem = $this->getStreamableFilesystem();
+        if (! $filesystem) {
             return;
         }
 
         /** @var Apps $app */
         $app = $this->app;
         $service = new FilesystemServices($app);
-        $localPath = $service->getFileLocalPath($filesystemImport->filesystem);
+        $localPath = $service->getFileLocalPath($filesystem);
 
         $handle = fopen($localPath, 'r');
         if ($handle === false) {

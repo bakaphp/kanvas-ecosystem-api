@@ -50,9 +50,11 @@ class PeoplesRepository
          * @psalm-suppress MixedReturnStatement
          */
         $query = People::from('peoples as p')
+            ->withoutGlobalScopes()
             ->join('peoples_contacts as c', 'p.id', '=', 'c.peoples_id')
             ->where('c.value', $email)
             ->where('c.contacts_types_id', ContactTypeEnum::EMAIL->value) // Assuming EMAIL is a constant in ContactsTypes model
+            ->where('c.is_deleted', 0)
             ->where('p.companies_id', $company->getId())
             ->where('p.is_deleted', 0);
 
@@ -66,8 +68,10 @@ class PeoplesRepository
     public static function getByValue(string $value, CompanyInterface $company, AppInterface $app): ?People
     {
         return People::from('peoples as p')
+            ->withoutGlobalScopes()
             ->join('peoples_contacts as c', 'p.id', '=', 'c.peoples_id')
             ->where('c.value', $value)
+            ->where('c.is_deleted', 0)
             ->where('p.companies_id', $company->getId())
             ->where('p.apps_id', $app->getId())
             ->where('p.is_deleted', 0)
@@ -85,6 +89,7 @@ class PeoplesRepository
             throw new Exception('Email or Phone is required');
         }
         $q = People::from('peoples as p')
+            ->withoutGlobalScopes()
             ->where('p.companies_id', $company->getId())
             ->where('p.apps_id', $app->getId())
             ->where('p.is_deleted', 0)
@@ -95,6 +100,7 @@ class PeoplesRepository
                 $sub->from('peoples_contacts as ce')
                     ->whereColumn('ce.peoples_id', 'p.id')
                     ->where('ce.contacts_types_id', ContactTypeEnum::EMAIL->value)
+                    ->where('ce.is_deleted', 0)
                     ->whereRaw('LOWER(ce.value) = ?', [$email]);
             });
         }
@@ -104,6 +110,7 @@ class PeoplesRepository
                 $sub->from('peoples_contacts as cp')
                     ->whereColumn('cp.peoples_id', 'p.id')
                     ->whereIn('cp.contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value])
+                    ->where('cp.is_deleted', 0)
                     ->whereRaw('REGEXP_REPLACE(cp.value, "[^0-9]", "") = ?', [$phone]);
             });
         }
@@ -115,6 +122,7 @@ class PeoplesRepository
     {
         return People::whereRaw('DATEDIFF(NOW(), created_at) = ?', [$days])
         ->where('apps_id', $app->getId())
+        ->notDeleted()
         ->get();
     }
 
@@ -147,18 +155,22 @@ class PeoplesRepository
      */
     public static function getByPhoneNumber(AppInterface $app, CompanyInterface $company, array $phoneNumbers): Builder
     {
-        return People::whereHas('contacts', function (Builder $query) use ($phoneNumbers) {
-            $query->where(function (Builder $q) use ($phoneNumbers) {
-                foreach ($phoneNumbers as $phone) {
-                    $q->orWhereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = ?", [$phone]);
-                }
-            })
-            ->whereIn('contacts_types_id', [
-                ContactTypeEnum::CELLPHONE->value,
-                ContactTypeEnum::PHONE->value,
-            ]);
-        })
+        return People::whereHas(
+            'contacts',
+            function (Builder $query) use ($phoneNumbers) {
+                $query->where(function (Builder $q) use ($phoneNumbers) {
+                    foreach ($phoneNumbers as $phone) {
+                        $q->orWhereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = ?", [$phone]);
+                    }
+                })
+                ->whereIn('contacts_types_id', [
+                    ContactTypeEnum::CELLPHONE->value,
+                    ContactTypeEnum::PHONE->value,
+                ]);
+            }
+        )
         ->fromCompany($company)
-        ->fromApp($app);
+        ->fromApp($app)
+        ->notDeleted();
     }
 }
