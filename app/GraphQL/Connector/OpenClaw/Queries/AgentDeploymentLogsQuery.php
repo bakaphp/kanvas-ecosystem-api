@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Connector\OpenClaw\Queries;
 
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
@@ -33,10 +34,14 @@ class AgentDeploymentLogsQuery
             return [];
         }
 
-        $ssh  = SshClient::fromMachine($deployment->machine);
-        $logs = $ssh->getDeploymentLogs($deployment->container_name, $deployment->agent->slug, $limit);
-        $ssh->disconnect();
+        $cacheKey = 'openclaw:deployment-logs:' . $deployment->id . ':' . $limit;
 
-        return $logs;
+        return Cache::remember($cacheKey, 30, function () use ($deployment, $limit) {
+            $ssh  = SshClient::fromMachine($deployment->machine);
+            $logs = $ssh->getDeploymentLogs($deployment->container_name, $deployment->agent->slug, $limit);
+            $ssh->disconnect();
+
+            return $logs;
+        });
     }
 }
