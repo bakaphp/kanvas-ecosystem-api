@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Connector\OpenClaw\Mutations;
 
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenClaw\Actions\CollectDeploymentUsageAction;
 use Kanvas\Connectors\OpenClaw\Actions\DispatchAgentDeploymentAction;
@@ -79,7 +80,9 @@ class AgentDeploymentMutation
         /** @var AgentDeployment $deployment */
         $deployment = AgentDeployment::getByIdFromCompanyApp((int) $request['deployment_id'], $company, $app);
 
-        return new GetAgentContainerLogsAction($deployment, $lines)->execute();
+        $cacheKey = 'openclaw:container-logs:' . $deployment->id . ':' . $lines;
+
+        return Cache::remember($cacheKey, 30, fn () => new GetAgentContainerLogsAction($deployment, $lines)->execute());
     }
 
     public function status(mixed $root, array $request): AgentDeployment
@@ -90,7 +93,12 @@ class AgentDeploymentMutation
         /** @var AgentDeployment $deployment */
         $deployment = AgentDeployment::getByIdFromCompanyApp((int) $request['deployment_id'], $company, $app);
 
-        return new GetAgentContainerStatusAction($deployment)->execute();
+        $cacheKey = 'openclaw:container-status:' . $deployment->id;
+
+        // Return cached status if fresh (30s). The background telemetry job also updates
+        // the deployment record, so the UI gets a live-enough view without an SSH call
+        // on every poll.
+        return Cache::remember($cacheKey, 30, fn () => new GetAgentContainerStatusAction($deployment)->execute());
     }
 
     public function collectUsage(mixed $root, array $request): AgentUsageSnapshot

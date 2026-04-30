@@ -39,7 +39,7 @@ class Kernel extends ConsoleKernel
         $schedule->command(ChargeLateOrdersCommand::class)->hourly();
         $schedule->command(CancelStalePaymentsCommand::class)->everyFiveMinutes();
         $schedule->command(CollectAgentTelemetryCommand::class)
-            ->everyMinute()
+            ->everyTwoMinutes()
             ->withoutOverlapping(5)
             ->runInBackground();
         //$schedule->command(SendBookingRemindersCommand::class)->everyFiveMinutes();
