@@ -1337,10 +1337,11 @@ Same rule for `@belongsTo(relation: "company")`, `@hasOne(relation: "primaryAddr
 
 ## Queue Workers
 
-When a queued job sets `$this->onQueue('xxx')` (or is dispatched to a non-default queue), **a worker process must be configured to consume that queue**. Otherwise jobs pile up in Redis untouched. Two places to update — both required:
+When a queued job sets `$this->onQueue('xxx')` (or is dispatched to a non-default queue), **a worker process must be configured to consume that queue**. Otherwise jobs pile up in Redis untouched.
 
-### 1. `docker-compose.yml`
-Add a dedicated worker service alongside the existing `batch-logger-queue` / `openclaw-queue` examples:
+**Single source of truth: `docker-compose.yml`** — Kanvas runs Docker in both dev and prod (kubernetes/helm is currently dormant). Update only the plain `docker-compose.yml`, not the `.development` / `.local` variants.
+
+Add a dedicated worker service alongside the existing `batch-logger-queue` / `openclaw-queue` / `ledger-queue` examples:
 
 ```yaml
 xxx-queue:
@@ -1352,14 +1353,7 @@ xxx-queue:
         - "php artisan config:cache && php artisan queue:work --queue=xxx --tries=3 --timeout=3750"
 ```
 
-Per the docker-compose convention rule, only edit `docker-compose.yml` (plain) — not `.development` / `.local` variants.
-
-### 2. `helm/templates/pod-queue.yaml` (production)
-The general production queue pod has no `--queue=` flag (defaults to `default`). Either:
-- **Append to its queue list** (low-volume): `--queue=default,xxx`
-- **Add a dedicated pod** (high-volume): copy `pod-notifications-queue.yaml` and replace the queue name
-
-For a new queue with unproven volume, the append-to-default approach is fine; promote to a dedicated pod only when contention shows up.
+**Default to a dedicated service**, not appending to an existing worker's queue list. Any queue handling its own volume class (events, audits, large payloads) will starve or be starved by mixed workloads. Isolating each queue type to its own service gives it its own retry/timeout/replica budget. Reserve the "append to default" shortcut for genuinely low-volume queues (a few jobs/hour) where a dedicated service would be wasteful.
 
 ### Adding a New Domain Namespace
 When creating a new top-level domain folder (`src/Domains/YourDomain/`):
