@@ -24,7 +24,7 @@ input WalletRefundInput {
 
 input WalletMetaFilter {
     path: String!
-    value: String!
+    value: String!        # When operator is LIKE, the caller must supply SQL wildcards (e.g., "paso%")
     operator: MetadataFilterOperator
 }
 

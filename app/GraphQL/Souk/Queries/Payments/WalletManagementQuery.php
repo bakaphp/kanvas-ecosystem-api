@@ -113,6 +113,7 @@ class WalletManagementQuery
         $app = app(Apps::class);
         $company = Companies::getById((int) $args['company_id']);
 
+        CompaniesRepository::hasAccessToThisApp($company, $app);
         CompaniesRepository::userAssociatedToCompany($company, auth()->user());
 
         if (! $company->hasWallet($tag) && $tag !== 'default') {
@@ -135,6 +136,7 @@ class WalletManagementQuery
         $app = app(Apps::class);
         $company = Companies::getById((int) $args['company_id']);
 
+        CompaniesRepository::hasAccessToThisApp($company, $app);
         CompaniesRepository::userAssociatedToCompany($company, auth()->user());
 
         if (! $company->hasWallet($tag) && $tag !== 'default') {
@@ -156,7 +158,10 @@ class WalletManagementQuery
             return $query;
         }
 
-        $operator = ($hasMeta['operator'] ?? 'EQ') === 'LIKE' ? 'LIKE' : '=';
+        $operator = match ($hasMeta['operator'] ?? 'EQ') {
+            'LIKE' => 'LIKE',
+            default => '=',
+        };
         $query->whereRaw(
             "JSON_UNQUOTE(JSON_EXTRACT(meta, ?)) {$operator} ?",
             ['$.' . $hasMeta['path'], $hasMeta['value']],
