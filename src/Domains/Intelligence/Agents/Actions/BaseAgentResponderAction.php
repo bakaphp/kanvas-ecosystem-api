@@ -12,6 +12,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -79,7 +80,7 @@ class BaseAgentResponderAction
         ?string $from = null
     ): Message {
         $user = $message->user;
-        $agentUser = $this->channel->company->get('ai-agent-user-id');
+        $agentUser = $this->channel->company->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
         if ($agentUser !== null) {
             $user = Users::getById((int) $agentUser);
         }
