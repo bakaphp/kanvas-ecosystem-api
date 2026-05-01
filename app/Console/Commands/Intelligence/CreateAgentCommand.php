@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\Intelligence;
 
 use Baka\Support\Str;
 use Illuminate\Console\Command;
