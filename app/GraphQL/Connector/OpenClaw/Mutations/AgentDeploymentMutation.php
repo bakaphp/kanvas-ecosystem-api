@@ -14,10 +14,12 @@ use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerStatusAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetDeploymentConfigAction;
 use Kanvas\Connectors\OpenClaw\Actions\UpdateDeploymentConfigAction;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
+use Kanvas\Connectors\OpenClaw\Jobs\BackupAgentWorkspaceJob;
 use Kanvas\Connectors\OpenClaw\Jobs\MigrateAgentWorkspaceJob;
 use Kanvas\Connectors\OpenClaw\Jobs\RestartAgentContainerJob;
 use Kanvas\Connectors\OpenClaw\Jobs\TerminateAgentJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentBackup;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Kanvas\Intelligence\Agents\Models\AgentUsageSnapshot;
@@ -178,6 +180,29 @@ class AgentDeploymentMutation
             $deployment,
             (string) $request['config'],
         )->execute();
+    }
+
+    public function backup(mixed $root, array $request): AgentBackup
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var AgentDeployment $deployment */
+        $deployment = AgentDeployment::getByIdFromCompanyApp((int) $request['deployment_id'], $company, $app);
+
+        $includeWorkspace = $request['include_workspace'] ?? true;
+
+        // Create the record immediately so the caller gets an ID to poll
+        $backup = new AgentBackup();
+        $backup->apps_id = $app->getId();
+        $backup->companies_id = $company->getId();
+        $backup->agent_deployment_id = $deployment->getId();
+        $backup->status = 'pending';
+        $backup->saveOrFail();
+
+        BackupAgentWorkspaceJob::dispatch($deployment, $backup, $includeWorkspace);
+
+        return $backup;
     }
 
     public function migrateWorkspace(mixed $root, array $request): AgentDeployment
