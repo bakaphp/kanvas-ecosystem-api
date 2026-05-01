@@ -19,7 +19,7 @@ class VariantSearchTool implements Tool
 
     public function handle(Request $request): Stringable|string
     {
-        $keyword = $request->string('keyword');
+        $keyword = (string) $request->string('keyword');
 
         if ($keyword === '') {
             return 'Please provide a keyword (name or SKU) to search for variants.';
