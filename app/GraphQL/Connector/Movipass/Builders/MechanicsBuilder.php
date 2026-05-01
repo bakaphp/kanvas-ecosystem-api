@@ -18,10 +18,16 @@ class MechanicsBuilder
     {
         $app = app(Apps::class);
 
+        $mechanicRoles = [
+            MovipassRolesEnum::ROADSIDE_ASSISTANCE_OPERATOR->value,
+            MovipassRolesEnum::OPERATOR->value,
+            MovipassRolesEnum::TRUCK_DRIVER->value,
+        ];
+
         $query = UserAppRepository::getAllAppUsers($app)
             ->whereHas(
                 'roles',
-                fn ($q) => $q->where('name', MovipassRolesEnum::ROADSIDE_ASSISTANCE_OPERATOR->value)
+                fn ($q) => $q->whereIn('name', $mechanicRoles)
             );
 
         if (isset($args['company_id'])) {

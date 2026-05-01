@@ -10,7 +10,9 @@ use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -27,7 +29,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 class BaseAgentResponderAction
 {
     protected string $messageTypeVerb = 'text';
-    protected string $communicationChannel;
+    protected string $communicationChannel = '';
 
     public function __construct(
         protected Channel $channel,
@@ -78,7 +80,7 @@ class BaseAgentResponderAction
         ?string $from = null
     ): Message {
         $user = $message->user;
-        $agentUser = $this->channel->company->get('ai-agent-user-id');
+        $agentUser = $this->channel->company->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
         if ($agentUser !== null) {
             $user = Users::getById((int) $agentUser);
         }
@@ -134,6 +136,7 @@ class BaseAgentResponderAction
         $lead = $message->entity();
         if ($lead instanceof Lead) {
             new MarkLeadMessagesAsRespondedAction($lead, $newMessage)->execute();
+            new NotifyLeadStakeholdersService($lead)->onAgentReply($newMessage, isHuman: false);
         }
 
         return $newMessage;

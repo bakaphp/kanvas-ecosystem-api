@@ -14,6 +14,7 @@ use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Traits\AppsIdTrait;
 use Kanvas\Inventory\Traits\CompaniesIdTrait;
 use Kanvas\Inventory\Traits\SourceTrait;
+use Kanvas\NervousSystem\Ledger\Traits\EmitsNervousSystemEvents;
 use Kanvas\Traits\SoftDeletes;
 
 class BaseModel extends EloquentModel
@@ -26,6 +27,7 @@ class BaseModel extends EloquentModel
     //use KanvasScopesTrait;
     use HasCustomFields;
     use HasFilesystemTrait;
+    use EmitsNervousSystemEvents;
     //use Cachable; -> until we implement workflows
     //use SoftDeletes;
 

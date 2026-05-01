@@ -10,6 +10,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
@@ -131,6 +132,7 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                 );
 
                 new MarkLeadMessagesAsRespondedAction($lead, $message)->execute();
+                new NotifyLeadStakeholdersService($lead)->onAgentReply($message, isHuman: true);
 
                 return $result;
             },

@@ -34,7 +34,7 @@ class ProcessElevenLabsCalendarEventWebhookJob extends ProcessElevenLabsWebhookJ
 
         $app = $this->receiver->app;
         $company = $this->receiver->company;
-        $user = $this->receiver->user;
+        $user = $this->resolveUser();
         $timezone = $company->get('timezone') ?? $company->timezone ?? 'UTC';
 
         $date = DateHelper::normalizeDate($rawDate, $timezone);

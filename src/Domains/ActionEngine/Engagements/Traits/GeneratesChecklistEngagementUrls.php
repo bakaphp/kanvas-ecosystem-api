@@ -11,6 +11,7 @@ use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
 use Kanvas\ActionEngine\Engagements\Models\Engagement as EngagementModel;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Users\Models\Users;
 
 trait GeneratesChecklistEngagementUrls
@@ -23,7 +24,7 @@ trait GeneratesChecklistEngagementUrls
         ];
 
         $results = [];
-        $aiAgentUserId = (int) $lead->company->get('ai-agent-user-id');
+        $aiAgentUserId = (int) $lead->company->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
         $user = $aiAgentUserId ? Users::getById($aiAgentUserId) : $lead->user;
 
         foreach ($actions as $key => $action) {
