@@ -57,5 +57,7 @@ extend type Query @guardByAdmin {
         )
 
     nervousSystemHealth: NervousSystemHealth!
-        @field(resolver: "App\\GraphQL\\Intelligence\\Queries\\NervousSystem\\NervousSystemHealthQuery@get")
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\NervousSystem\\NervousSystemHealthQuery@get"
+        )
 }

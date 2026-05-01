@@ -93,7 +93,7 @@ class NervousSystemHealthService
 
     private function deadLetterCount(): int
     {
-        return (int) DB::table('failed_jobs')
+        return DB::table('failed_jobs')
             ->where('queue', self::QUEUE_NAME)
             ->count();
     }
