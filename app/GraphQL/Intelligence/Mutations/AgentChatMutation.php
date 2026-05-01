@@ -26,8 +26,8 @@ class AgentChatMutation
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         /** @var Agent $agent */
-        $agent = Agent::getByIdFromCompanyApp(
-            id: $input['agent_id'],
+        $agent = Agent::getByIdWithGlobalFallback(
+            id: (int) $input['agent_id'],
             app: $app,
             company: $company
         );
@@ -106,8 +106,8 @@ class AgentChatMutation
         $company = $user->getCurrentCompany();
         $input = $req['input'] ?? [];
 
-        $agent = Agent::getByIdFromCompanyApp(
-            id: $input['agent_id'],
+        $agent = Agent::getByIdWithGlobalFallback(
+            id: (int) $input['agent_id'],
             app: $app,
             company: $company
         );
