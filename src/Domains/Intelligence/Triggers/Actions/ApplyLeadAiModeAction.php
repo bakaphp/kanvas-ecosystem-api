@@ -45,22 +45,28 @@ class ApplyLeadAiModeAction
         }
 
         $previousMode = $this->lead->get($aiModeKey);
+        $previousFollowUp = $this->lead->get($followUpKey);
         $this->applyTrigger();
         $currentMode = $this->lead->get($aiModeKey);
+        $currentFollowUp = $this->lead->get($followUpKey);
 
         if ($currentMode !== $previousMode) {
             $this->logModeChangeNote($currentMode);
+        }
+
+        if ($currentFollowUp !== $previousFollowUp) {
+            $this->logFollowUpChangeNote($currentFollowUp);
         }
 
         return [
             'changed' => $currentMode !== $previousMode,
             'mods_previous' => [
                 'ai_mode' => $previousMode,
-                'ai_follow_up' => $this->lead->get($followUpKey),
+                'ai_follow_up' => $previousFollowUp,
             ],
             'mods_current' => [
                 'ai_mode' => $currentMode,
-                'ai_follow_up' => $this->lead->get($followUpKey),
+                'ai_follow_up' => $currentFollowUp,
             ],
         ];
     }
@@ -134,12 +140,21 @@ class ApplyLeadAiModeAction
 
     protected function logModeChangeNote(string $newMode): void
     {
+        $this->logSystemNote('Sally Mode set to ' . $newMode);
+    }
+
+    protected function logFollowUpChangeNote(mixed $currentFollowUp): void
+    {
+        $label = $currentFollowUp ? 'Follow-up enabled' : 'Follow-up disabled';
+        $this->logSystemNote($label);
+    }
+
+    protected function logSystemNote(string $noteContent): void
+    {
         $notesChannel = $this->lead->systemNotes;
         if (! $notesChannel) {
             return;
         }
-
-        $noteContent = 'Sally Mode set to ' . $newMode;
 
         $messageType = new CreateMessageTypeAction(
             new MessageTypeInput(
