@@ -12,8 +12,10 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
+use Laravel\Ai\Contracts\ConversationStore;
 use Laravel\Cashier\Cashier;
 use Laravel\Sanctum\Sanctum;
 use Override;
@@ -31,6 +33,8 @@ class AppServiceProvider extends ServiceProvider
     {
         //Sanctum::ignoreMigrations();
         WalletConfigure::ignoreMigrations();
+
+        $this->app->singleton(ConversationStore::class, KanvasConversationStore::class);
 
         $this->app->extend(
             WalletPurchase::class,
