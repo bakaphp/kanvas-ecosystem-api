@@ -29,4 +29,41 @@ class Task extends Data
         public readonly ?string $blockedReason = null,
     ) {
     }
+
+    /**
+     * Build a Task DTO from a GraphQL/HTTP input array. The plan reference
+     * is optional here because tasks attached to a *new* plan via
+     * CreatePlanAction don't have a parent yet — the action wires it after
+     * creating the parent plan.
+     */
+    public static function fromMultiple(?Plan $plan, array $data, int $defaultSequence = 0): self
+    {
+        return new self(
+            plan: $plan,
+            title: (string) $data['title'],
+            sequence: isset($data['sequence']) ? (int) $data['sequence'] : $defaultSequence,
+            description: $data['description'] ?? null,
+            status: isset($data['status'])
+                ? TaskStatusEnum::from((string) $data['status'])
+                : TaskStatusEnum::PENDING,
+            result: $data['result'] ?? null,
+            blockedReason: $data['blocked_reason'] ?? null,
+        );
+    }
+
+    /**
+     * Map an array of task-input rows into TaskData instances.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, self>
+     */
+    public static function fromMultipleArray(?Plan $plan, array $rows): array
+    {
+        $tasks = [];
+        foreach ($rows as $sequence => $row) {
+            $tasks[] = self::fromMultiple($plan, $row, defaultSequence: $sequence);
+        }
+
+        return $tasks;
+    }
 }

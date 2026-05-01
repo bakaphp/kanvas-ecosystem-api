@@ -1039,8 +1039,94 @@ new CreateActionAction(...)->execute();
 ### DTO Conventions
 - **Always include context objects** (app, company, user) in DTOs that create entities — never pass them as separate action constructor params
 - **Use model objects instead of raw IDs** for foreign key relationships (e.g., `TaskList $taskList` not `int $task_list_id`, `CompanyAction $companyAction` not `int $companies_action_id`)
-- **Mutation resolvers look up models** from IDs and construct DTOs manually with named args — do NOT use `::from($request['input'])` when the DTO has object properties
+- **Mutation resolvers look up models** from IDs and pass them to the DTO — do NOT use `::from($request['input'])` when the DTO has object properties
 - **Actions receive only the DTO** (and optionally the existing model for updates) — they pull IDs via `$this->data->taskList->getId()`
+
+#### Use `fromMultiple` for non-trivial DTOs (more than ~3 model lookups or enum casts)
+
+When a DTO has multiple model-lookups, enum casts, date parsing, or conditional defaults, **put that assembly logic in a static `fromMultiple` factory on the DTO** rather than repeating it in every mutation resolver. This is the codebase convention — see [`Event::fromMultiple`](../src/Domains/Event/Events/DataTransferObject/Event.php), [`Deal::fromMultiple`](../src/Domains/Guild/Deals/DataTransferObject/Deal.php), [`Engagement::fromMultiple`](../src/Domains/ActionEngine/Engagements/DataTransferObject/Engagement.php), [`DraftOrder::fromMultiple`](../src/Domains/Souk/Orders/DataTransferObject/DraftOrder.php).
+
+For updates, pair it with a `forUpdate(Model $existing, ..., array $data)` factory that overlays the input array onto the existing model's values so partial updates work without losing fields. See [`Plan::forUpdate`](../src/Domains/NervousSystem/Plan/DataTransferObject/Plan.php).
+
+**Pattern shape:**
+
+```php
+class Plan extends Data
+{
+    public function __construct(
+        public readonly AppInterface $app,
+        public readonly CompanyInterface $company,
+        public readonly string $title,
+        public readonly ?Agent $agent = null,
+        // ...
+    ) {}
+
+    public static function fromMultiple(
+        AppInterface $app,
+        Users $requestingUser,
+        CompanyInterface $company,
+        array $data,
+    ): self {
+        /** @var Agent|null $agent */
+        $agent = isset($data['agent_id'])
+            ? Agent::getByIdFromCompanyApp((int) $data['agent_id'], $company, $app)
+            : null;
+
+        return new self(
+            app: $app,
+            company: $company,
+            title: (string) $data['title'],
+            agent: $agent,
+            status: isset($data['status']) ? PlanStatusEnum::from((string) $data['status']) : PlanStatusEnum::DRAFT,
+            // ...
+        );
+    }
+
+    public static function forUpdate(PlanModel $plan, AppInterface $app, CompanyInterface $company, array $data): self
+    {
+        return new self(
+            app: $app,
+            company: $company,
+            title: (string) ($data['title'] ?? $plan->title),
+            // ... overlay input on existing
+        );
+    }
+}
+```
+
+**Mutation resolver becomes a 3-liner:**
+
+```php
+public function create(mixed $rootValue, array $request): Plan
+{
+    $app = app(Apps::class);
+    $user = auth()->user();
+    $company = $user->getCurrentCompany();
+
+    return new CreatePlanAction(
+        PlanData::fromMultiple($app, $user, $company, $request['input']),
+    )->execute();
+}
+
+public function update(mixed $rootValue, array $request): Plan
+{
+    $app = app(Apps::class);
+    $user = auth()->user();
+    $company = $user->getCurrentCompany();
+
+    /** @var Plan $plan */
+    $plan = Plan::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+
+    return new UpdatePlanAction(
+        $plan,
+        PlanData::forUpdate($plan, $app, $company, $request['input']),
+    )->execute();
+}
+```
+
+For DTOs that are simple value objects (3 or fewer fields, no model lookups), inline construction in the resolver is still fine — don't add `fromMultiple` for the sake of it.
+
+#### Trivial DTO example (still inline-construction, fine as-is)
 
 ```php
 // DTO with context and model objects

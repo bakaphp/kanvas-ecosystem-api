@@ -35,4 +35,88 @@ class Plan extends Data
         public readonly bool $requiresHumanApproval = false,
     ) {
     }
+
+    /**
+     * Build a Plan DTO from a GraphQL/HTTP input array. Resolves model
+     * references (agent, user, parent_plan) with tenant scope. Defaults
+     * `user` to the requesting user when no `users_id` is in the input.
+     */
+    public static function fromMultiple(
+        AppInterface $app,
+        Users $requestingUser,
+        CompanyInterface $company,
+        array $data,
+    ): self {
+        /** @var Agent|null $agent */
+        $agent = isset($data['agent_id'])
+            ? Agent::getByIdFromCompanyApp((int) $data['agent_id'], $company, $app)
+            : null;
+
+        /** @var PlanModel|null $parentPlan */
+        $parentPlan = isset($data['parent_plan_id'])
+            ? PlanModel::getByIdFromCompanyApp((int) $data['parent_plan_id'], $company, $app)
+            : null;
+
+        return new self(
+            app: $app,
+            company: $company,
+            title: (string) $data['title'],
+            planType: (string) $data['plan_type'],
+            agent: $agent,
+            user: isset($data['users_id']) ? Users::getById((int) $data['users_id']) : $requestingUser,
+            parentPlan: $parentPlan,
+            entityNamespace: $data['entity_namespace'] ?? null,
+            entityId: isset($data['entity_id']) ? (int) $data['entity_id'] : null,
+            description: $data['description'] ?? null,
+            status: isset($data['status'])
+                ? PlanStatusEnum::from((string) $data['status'])
+                : PlanStatusEnum::DRAFT,
+            priority: isset($data['priority']) ? (int) $data['priority'] : 0,
+            deadlineAt: isset($data['deadline_at']) ? Carbon::parse((string) $data['deadline_at']) : null,
+            input: $data['input'] ?? null,
+            output: $data['output'] ?? null,
+            confidenceScore: isset($data['confidence_score']) ? (float) $data['confidence_score'] : null,
+            requiresHumanApproval: (bool) ($data['requires_human_approval'] ?? false),
+        );
+    }
+
+    /**
+     * Build a Plan DTO for an update mutation — overlays the input array
+     * onto the existing model's values, so partial updates work without
+     * losing fields. Identity columns (`plan_type`, `agent`, `user`,
+     * `parent_plan`, `entity_*`, `requires_human_approval`) are preserved
+     * from the existing plan and not editable here.
+     */
+    public static function forUpdate(
+        PlanModel $plan,
+        AppInterface $app,
+        CompanyInterface $company,
+        array $data,
+    ): self {
+        return new self(
+            app: $app,
+            company: $company,
+            title: (string) ($data['title'] ?? $plan->title),
+            planType: $plan->plan_type,
+            agent: null,
+            user: null,
+            parentPlan: null,
+            entityNamespace: $plan->entity_namespace,
+            entityId: $plan->entity_id,
+            description: $data['description'] ?? $plan->description,
+            status: isset($data['status'])
+                ? PlanStatusEnum::from((string) $data['status'])
+                : PlanStatusEnum::from($plan->status),
+            priority: isset($data['priority']) ? (int) $data['priority'] : $plan->priority,
+            deadlineAt: array_key_exists('deadline_at', $data)
+                ? ($data['deadline_at'] !== null ? Carbon::parse((string) $data['deadline_at']) : null)
+                : $plan->deadline_at,
+            input: array_key_exists('input', $data) ? $data['input'] : $plan->input,
+            output: array_key_exists('output', $data) ? $data['output'] : $plan->output,
+            confidenceScore: array_key_exists('confidence_score', $data)
+                ? ($data['confidence_score'] !== null ? (float) $data['confidence_score'] : null)
+                : ($plan->confidence_score !== null ? (float) $plan->confidence_score : null),
+            requiresHumanApproval: $plan->requires_human_approval,
+        );
+    }
 }
