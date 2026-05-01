@@ -70,6 +70,25 @@ class Str extends IlluminateStr
         return $phone;
     }
 
+    /**
+     * Convert a phone number to strict E.164 (digits-only with leading '+').
+     * Assumes 10-digit numbers belong to the given default country code (US/DR by default).
+     */
+    public static function toE164(?string $phone, string $defaultCountryCode = '1'): string
+    {
+        $digits = self::digitsOnly($phone);
+
+        if ($digits === '') {
+            return '';
+        }
+
+        if (strlen($digits) === 10) {
+            return '+' . $defaultCountryCode . $digits;
+        }
+
+        return '+' . $digits;
+    }
+
     public static function sanitizeEmail(string $email): string
     {
         return str_replace(['@', '.'], ['-at-', '-dot-'], $email);

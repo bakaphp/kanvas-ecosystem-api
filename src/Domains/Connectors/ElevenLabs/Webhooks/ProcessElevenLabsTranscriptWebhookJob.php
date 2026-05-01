@@ -15,7 +15,6 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
-use Kanvas\Users\Models\Users;
 use Override;
 
 class ProcessElevenLabsTranscriptWebhookJob extends ProcessElevenLabsWebhookJob
@@ -76,7 +75,7 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessElevenLabsWebhookJob
             new MessageInput(
                 app: $app,
                 company: $this->receiver->company,
-                user: $this->receiver->user,
+                user: $this->resolveUser(),
                 type: $messageType,
                 message: [
                     'transcript' => $formattedTranscript,
@@ -221,7 +220,7 @@ class ProcessElevenLabsTranscriptWebhookJob extends ProcessElevenLabsWebhookJob
         file_put_contents($tempFile, base64_decode($audioBase64));
 
         try {
-            $user = Users::getById($this->receiver->users_id);
+            $user = $this->resolveUser();
             $filesystem = new FilesystemServices($this->receiver->app);
             $file = $filesystem->upload(
                 new UploadedFile(
