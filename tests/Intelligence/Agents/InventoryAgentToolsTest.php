@@ -153,6 +153,7 @@ class InventoryAgentToolsTest extends TestCase
         $attribute = Attributes::create([
             'apps_id' => $this->kanvasApp->getId(),
             'companies_id' => $company->getId(),
+            'users_id' => $this->user->getId(),
             'name' => $uniqueKey,
             'slug' => strtolower($uniqueKey),
         ]);
@@ -174,6 +175,7 @@ class InventoryAgentToolsTest extends TestCase
         Attributes::create([
             'apps_id' => $this->kanvasApp->getId(),
             'companies_id' => $company->getId(),
+            'users_id' => $this->user->getId(),
             'name' => $uniqueKey,
             'slug' => strtolower($uniqueKey),
         ]);
@@ -205,6 +207,7 @@ class InventoryAgentToolsTest extends TestCase
         $category = Categories::create([
             'apps_id' => $this->kanvasApp->getId(),
             'companies_id' => $company->getId(),
+            'users_id' => $this->user->getId(),
             'name' => $uniqueName,
             'slug' => strtolower($uniqueName),
         ]);
@@ -226,6 +229,7 @@ class InventoryAgentToolsTest extends TestCase
         Categories::create([
             'apps_id' => $this->kanvasApp->getId(),
             'companies_id' => $company->getId(),
+            'users_id' => $this->user->getId(),
             'name' => $uniqueName,
             'slug' => strtolower($uniqueName),
         ]);
