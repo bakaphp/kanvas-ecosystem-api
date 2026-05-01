@@ -264,6 +264,7 @@ class SendMessageToLeadAction
         }
 
         $cellphone = $this->hijackPhoneNumber($cellphone, 'twilio-');
+        $cellphone = Str::toE164($cellphone);
 
         $engagementUrls = array_filter(array_column($this->videoEngagements, 'url'));
         $fullMessage = $message;

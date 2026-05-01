@@ -12,7 +12,7 @@
     "require": {
         "php": "^8.5",
         "algolia/algoliasearch-client-php": "^4.39",
-        "algolia/scout-extended": "^4.0",
+        "algolia/scout-extended": "^5.0",
         "automattic/woocommerce": "^3.1",
         "awobaz/compoships": "^3.0",
         "azuyalabs/yasumi": "^2.8",
@@ -118,6 +118,7 @@
             "Kanvas\\Event\\": "src/Domains/Event",
             "Kanvas\\Intelligence\\": "src/Domains/Intelligence",
             "Kanvas\\Analytics\\": "src/Domains/Analytics",
+            "Kanvas\\NervousSystem\\": "src/Domains/NervousSystem",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }

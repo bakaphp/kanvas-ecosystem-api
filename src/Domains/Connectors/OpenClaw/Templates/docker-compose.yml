@@ -36,6 +36,6 @@ services:
       - {{OPENCLAW_DIR}}/workspace:/home/node/.openclaw/workspace
     environment:
       - NODE_ENV=production
-    entrypoint: ["node", "/app/dist/index.js"]
+    entrypoint: ["node", "/app/openclaw.mjs"]
     profiles:
       - cli

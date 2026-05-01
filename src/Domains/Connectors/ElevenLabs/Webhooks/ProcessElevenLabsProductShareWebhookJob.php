@@ -49,7 +49,7 @@ class ProcessElevenLabsProductShareWebhookJob extends ProcessElevenLabsWebhookJo
         $engagementDto = EngagementData::from(
             app: $app,
             company: $company,
-            user: $company->user,
+            user: $this->resolveUser(),
             lead: $lead,
             request: [
                 'action' => 'view-vehicle',

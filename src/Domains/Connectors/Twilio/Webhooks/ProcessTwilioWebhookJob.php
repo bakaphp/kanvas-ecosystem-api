@@ -27,6 +27,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
@@ -173,6 +174,10 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             }
         }
         $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
+
+        if (! $isFromMe) {
+            new NotifyLeadStakeholdersService($lead)->onCustomerEngagement($message);
+        }
 
         $workflowJobKey = "workflow_job:{$batchKey}";
 

@@ -119,7 +119,7 @@ class PeopleManagementMutation
 
         $people = $this->getPeopleById((int) $req['id'], $user, $app, $user->getCurrentCompany());
 
-        return $people->softDelete();
+        return (bool) $people->delete();
     }
 
     public function attachFile(mixed $root, array $req): ModelsPeople
@@ -145,7 +145,7 @@ class PeopleManagementMutation
         $user = auth()->user();
         $app = app(Apps::class);
 
-        $peopleQuery = ModelsPeople::query()->where('id', (int) $req['id']);
+        $peopleQuery = ModelsPeople::withTrashed()->where('id', (int) $req['id']);
 
         if (! $user->isAppOwner()) {
             $peopleQuery->where('companies_id', $user->getCurrentCompany()->getId());

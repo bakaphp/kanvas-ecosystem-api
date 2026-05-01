@@ -48,16 +48,42 @@ class GetAgentContainerStatusAction
             return;
         }
 
-        $decoded = json_decode($output, true);
+        // Docker Compose v2 outputs NDJSON — one JSON object per line.
+        // The compose stack has multiple services (gateway + socat-proxy), so we must
+        // find the line whose Name matches the deployment's container name rather than
+        // blindly taking the first line.
+        foreach (explode("\n", trim($output)) as $line) {
+            $line = trim($line);
 
-        if (is_array($decoded)) {
+            if ($line === '') {
+                continue;
+            }
+
+            $decoded = json_decode($line, true);
+
+            if (! is_array($decoded)) {
+                continue;
+            }
+
+            // Skip lines that belong to other containers in the stack.
+            $name = $decoded['Name'] ?? $decoded['name'] ?? '';
+
+            if ($name !== '' && $name !== $this->deployment->container_name) {
+                continue;
+            }
+
             $state = $decoded['State'] ?? $decoded['state'] ?? '';
 
             $this->deployment->status = match (true) {
                 $state === 'running' => DeploymentStatusEnum::RUNNING->value,
-                $state === 'exited' => DeploymentStatusEnum::STOPPED->value,
-                default => $this->deployment->status,
+                $state === 'exited'  => DeploymentStatusEnum::STOPPED->value,
+                default              => $this->deployment->status,
             };
+
+            return;
         }
+
+        // No line matched the deployment's container — mark as stopped.
+        $this->deployment->status = DeploymentStatusEnum::STOPPED->value;
     }
 }
