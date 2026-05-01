@@ -171,4 +171,16 @@ class ADKAgent
         //     $data
         // );
     }
+
+    public function updateSessionState(
+        Apps $app,
+        Companies $company,
+        string $sessionId,
+        string $userId,
+        array $stateDelta = [],
+        bool $reloadContext = true
+    ): void {
+        $googleADKService = new GoogleADKService($app, $company);
+        $googleADKService->updateSessionState($sessionId, $userId, $stateDelta, $reloadContext);
+    }
 }
