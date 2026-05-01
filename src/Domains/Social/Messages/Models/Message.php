@@ -15,6 +15,7 @@ use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -650,6 +651,22 @@ class Message extends BaseModel
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,
         ];
+    }
+
+    protected function lastReplyDate(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->total_children > 0
+                ? $this->children()->orderByDesc('created_at')->value('created_at')
+                : null,
+        );
+    }
+
+    protected function hasReplies(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->total_children > 0,
+        );
     }
 
     /**

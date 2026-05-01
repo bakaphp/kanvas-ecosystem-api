@@ -20,6 +20,8 @@ type Message {
     total_view: Int
     total_children: Int
     total_purchase: Int
+    has_replies: Boolean
+    last_reply_date: DateTime
     parent: Message @cacheRedis
     user: User!
     children: [Message!] @hasMany(type: PAGINATOR)
