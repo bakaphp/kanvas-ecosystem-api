@@ -15,6 +15,7 @@ use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\AgentEnum;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
 use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -104,7 +105,7 @@ class CreateMessageFollowUpAction
             $this->getMessageTypeVerb()
         );
 
-        $agentUser = $this->lead->company->get('ai-agent-user-id');
+        $agentUser = $this->lead->company->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
         if ($agentUser !== null) {
             $user = Users::getById($agentUser);
         } else {
