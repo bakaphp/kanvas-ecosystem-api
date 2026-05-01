@@ -60,11 +60,10 @@ class ProcessElevenLabsSendMessageWebhookJob extends ProcessElevenLabsWebhookJob
         foreach ($channels as $channel) {
             try {
                 $sendMessage->execute(
-                    channel: $channel,
-                    message: $message,
-                    from: (string) ($fromPhone ?? ''),
-                    title: $title,
-                    to: $phone,
+                    $channel,
+                    $message,
+                    (string) ($fromPhone ?? ''),
+                    $title,
                 );
                 $sent[] = ['channel' => $channel, 'success' => true];
             } catch (Throwable $e) {

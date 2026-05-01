@@ -17,6 +17,7 @@ use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Traits\AppsIdTrait;
 use Kanvas\Inventory\Traits\CompaniesIdTrait;
 use Kanvas\Inventory\Traits\SourceTrait;
+use Kanvas\NervousSystem\Ledger\Traits\EmitsNervousSystemEvents;
 
 class BaseModel extends EloquentModel
 {
@@ -28,6 +29,7 @@ class BaseModel extends EloquentModel
     use KanvasScopesTrait;
     use HasCustomFields;
     use HasFilesystemTrait;
+    use EmitsNervousSystemEvents;
     // use Cachable;
     use SoftDeletesTrait;
 

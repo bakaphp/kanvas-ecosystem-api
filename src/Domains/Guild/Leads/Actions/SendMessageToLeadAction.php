@@ -268,7 +268,7 @@ class SendMessageToLeadAction
             throw new InvalidArgumentException('Lead does not have a cellphone number');
         }
 
-        $cellphone = $this->hijackPhoneNumber((string) $cellphone, 'twilio-');
+        $cellphone = $this->hijackPhoneNumber($cellphone, 'twilio-');
         $cellphone = Str::toE164($cellphone);
 
         $engagementUrls = array_filter(array_column($this->videoEngagements, 'url'));

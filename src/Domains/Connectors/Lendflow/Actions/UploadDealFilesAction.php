@@ -34,8 +34,18 @@ class UploadDealFilesAction
             ];
         }
 
+        // Per-application dedup map: { application_id => [filesystem_id, ...] }
+        $uploadedMap = $this->deal->get(CustomFieldEnum::LENDFLOW_UPLOADED_FILE_IDS->value);
+        $uploadedMap = is_array($uploadedMap) ? $uploadedMap : [];
+        $alreadyUploaded = is_array($uploadedMap[$applicationId] ?? null) ? $uploadedMap[$applicationId] : [];
+
         $multipartFiles = [];
+        $newlyUploadedIds = [];
         foreach ($files as $entity) {
+            $fileId = (int) ($entity->id ?? 0);
+            if ($fileId <= 0 || in_array($fileId, $alreadyUploaded, true)) {
+                continue;
+            }
             $url = (string) ($entity->url ?? '');
             if ($url === '') {
                 continue;
@@ -43,14 +53,15 @@ class UploadDealFilesAction
 
             $stream = Utils::tryFopen($url, 'r');
             $multipartFiles[] = [
-                'name' => (string) ($entity->name ?? ('file-' . (string) $entity->id)),
+                'name' => (string) ($entity->name ?? ('file-' . (string) $fileId)),
                 'contents' => $stream,
             ];
+            $newlyUploadedIds[] = $fileId;
         }
 
         if ($multipartFiles === []) {
             return [
-                'message' => 'No resolvable files to upload',
+                'message' => 'No new files to upload — all already sent for application ' . $applicationId,
                 'uploaded' => 0,
                 'application_id' => $applicationId,
             ];
@@ -62,12 +73,20 @@ class UploadDealFilesAction
             $multipartFiles,
         );
 
+        $uploadedMap[$applicationId] = array_values(
+            array_unique(
+                array_merge($alreadyUploaded, $newlyUploadedIds)
+            )
+        );
+        $this->deal->set(CustomFieldEnum::LENDFLOW_UPLOADED_FILE_IDS->value, $uploadedMap);
+
         $uploadedHistory = $this->deal->get(CustomFieldEnum::LENDFLOW_UPLOADED_FILES->value);
         $uploadedHistory = is_array($uploadedHistory) ? $uploadedHistory : [];
         $uploadedHistory[] = [
             'date' => date('Y-m-d H:i:s'),
             'application_id' => $applicationId,
             'file_count' => count($multipartFiles),
+            'file_ids' => $newlyUploadedIds,
             'response' => $response,
         ];
         $this->deal->set(CustomFieldEnum::LENDFLOW_UPLOADED_FILES->value, $uploadedHistory);
