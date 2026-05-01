@@ -4,7 +4,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Ai\Migrations\AiMigration;
 
-return new class() extends AiMigration {
+return new class () extends AiMigration {
     public function getConnection(): ?string
     {
         return 'intelligence';
