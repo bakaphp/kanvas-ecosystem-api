@@ -12,12 +12,14 @@ use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\ListAvailableProductsTool
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\VariantSearchTool;
 use Laravel\Ai\Concerns\RemembersConversations;
 use Laravel\Ai\Contracts\Tool;
+use Override;
 use Stringable;
 
 class AgentInventoryAsistance extends KanvasLaravelAgent
 {
     use RemembersConversations;
 
+    #[Override]
     public function instructions(): Stringable|string
     {
         return <<<'INSTRUCTIONS'
@@ -43,6 +45,7 @@ class AgentInventoryAsistance extends KanvasLaravelAgent
     /**
      * @return Tool[]
      */
+    #[Override]
     public function tools(): iterable
     {
         return [

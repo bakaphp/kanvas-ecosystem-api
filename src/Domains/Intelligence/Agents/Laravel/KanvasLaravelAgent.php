@@ -16,6 +16,7 @@ use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Messages\Message;
 use Laravel\Ai\Promptable;
 use Laravel\Ai\Responses\AgentResponse;
+use Override;
 use Stringable;
 
 abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
@@ -61,6 +62,7 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
         return $this->agentRecord?->model?->config['model'] ?? null;
     }
 
+    #[Override]
     public function messages(): iterable
     {
         if (! $this->entity || ! $this->agentRecord) {
@@ -107,7 +109,9 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
         );
     }
 
+    #[Override]
     abstract public function instructions(): Stringable|string;
 
+    #[Override]
     abstract public function tools(): iterable;
 }

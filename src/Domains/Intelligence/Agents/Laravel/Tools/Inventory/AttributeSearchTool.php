@@ -9,15 +9,18 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
+use Override;
 use Stringable;
 
 class AttributeSearchTool implements Tool
 {
+    #[Override]
     public function description(): Stringable|string
     {
         return 'List and search product attributes. Returns attribute name, type, whether it is filterable/searchable, and its default allowed values. Use this to discover which attributes exist and what values are valid for each one.';
     }
 
+    #[Override]
     public function handle(Request $request): Stringable|string
     {
         $keyword = $request->string('keyword');
@@ -59,6 +62,7 @@ class AttributeSearchTool implements Tool
         return $results->toJson(JSON_PRETTY_PRINT);
     }
 
+    #[Override]
     public function schema(JsonSchema $schema): array
     {
         return [

@@ -8,15 +8,18 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
+use Override;
 use Stringable;
 
 class CategorySearchTool implements Tool
 {
+    #[Override]
     public function description(): Stringable|string
     {
         return 'List and search product categories. Returns category name, slug, and whether it has child categories. Use this to discover the category tree or find a specific category.';
     }
 
+    #[Override]
     public function handle(Request $request): Stringable|string
     {
         $keyword = $request->string('keyword');
@@ -49,6 +52,7 @@ class CategorySearchTool implements Tool
         return $results->toJson(JSON_PRETTY_PRINT);
     }
 
+    #[Override]
     public function schema(JsonSchema $schema): array
     {
         return [
