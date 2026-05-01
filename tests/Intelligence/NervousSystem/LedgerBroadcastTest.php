@@ -169,4 +169,62 @@ class LedgerBroadcastTest extends TestCase
         $this->assertContains('app-' . $app->getId() . '-ledger', $names);
         $this->assertSame('ledger.event.appended', $broadcast->broadcastAs());
     }
+
+    public function testAgentChannelAddedWhenActorIsAgent(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $agentId = 4242;
+
+        $event = new AppendEventAction(
+            new EventData(
+                app: $app,
+                company: $company,
+                sourceDomain: 'TestDomain',
+                eventType: 'broadcast.test.agent',
+                status: EventStatusEnum::INFO,
+                actorType: 'Agent',
+                actorId: $agentId,
+            ),
+        )->execute();
+
+        $names = array_map(
+            fn ($c) => $c->name,
+            new LedgerEventBroadcast($event)->broadcastOn(),
+        );
+
+        $this->assertContains(
+            'company-' . $company->getId() . '-app-' . $app->getId() . '-agent-' . $agentId . '-ledger',
+            $names,
+        );
+    }
+
+    public function testAgentChannelOmittedWhenActorIsNotAgent(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $event = new AppendEventAction(
+            new EventData(
+                app: $app,
+                company: $company,
+                sourceDomain: 'TestDomain',
+                eventType: 'broadcast.test.user-actor',
+                status: EventStatusEnum::INFO,
+                actorType: 'User',
+                actorId: $user->getId(),
+            ),
+        )->execute();
+
+        $names = array_map(
+            fn ($c) => $c->name,
+            new LedgerEventBroadcast($event)->broadcastOn(),
+        );
+
+        foreach ($names as $name) {
+            $this->assertStringNotContainsString('-agent-', $name);
+        }
+    }
 }

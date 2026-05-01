@@ -24,12 +24,21 @@ class LedgerEventBroadcast implements ShouldBroadcastNow
     }
 
     /**
+     * Channels:
+     *   - company-{companiesId}-app-{appsId}-ledger                  per-tenant view
+     *   - app-{appsId}-ledger                                        cross-company / admin view
+     *   - company-{companiesId}-app-{appsId}-agent-{agentId}-ledger  only when actor_type='Agent'
+     *
+     * The agent channel lets a frontend subscribe "as agent #42" without
+     * paying the cost of the company-wide firehose. Plans/Tasks/Skills/Tools
+     * resolved by EmitsLedgerEventsForEntity to an Agent actor land here.
+     *
      * @return array<int, Channel>
      */
     #[Override]
     public function broadcastOn(): array
     {
-        return [
+        $channels = [
             new Channel(
                 'company-' . $this->event->companies_id
                 . '-app-' . $this->event->apps_id
@@ -37,6 +46,17 @@ class LedgerEventBroadcast implements ShouldBroadcastNow
             ),
             new Channel('app-' . $this->event->apps_id . '-ledger'),
         ];
+
+        if ($this->event->actor_type === 'Agent' && $this->event->actor_id !== null) {
+            $channels[] = new Channel(
+                'company-' . $this->event->companies_id
+                . '-app-' . $this->event->apps_id
+                . '-agent-' . $this->event->actor_id
+                . '-ledger'
+            );
+        }
+
+        return $channels;
     }
 
     public function broadcastAs(): string
