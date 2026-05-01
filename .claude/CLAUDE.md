@@ -1312,6 +1312,82 @@ type LedgerEvent {
 
 If a query truly needs cross-tenant visibility (super-admin dashboards), use a separate `@guardByAppKey` query — never expose `apps_id` as a `@whereConditions` column on a normal query.
 
+### Don't Expose Any FK ID When the Relation Is Already There
+Same principle generalizes beyond tenant fields. If a GraphQL type exposes a `@belongsTo` relation, **don't also expose the underlying `*_id` column** — it's redundant and clients should use the relation. Pick one (the relation, always).
+
+```graphql
+# WRONG — duplicating
+type NervousSystemTask {
+    plan_id: Int!
+    plan: NervousSystemPlan! @belongsTo(relation: "plan")
+    ...
+}
+type NervousSystemPlan {
+    agent_id: Int
+    users_id: Int
+    approved_by_user_id: Int
+    parent_plan_id: Int
+    agent: Agent @belongsTo(relation: "agent")
+    user: User @belongsTo(relation: "user")
+    approver: User @belongsTo(relation: "approver")
+    parent: NervousSystemPlan @belongsTo(relation: "parent")
+    ...
+}
+
+# CORRECT — relations only
+type NervousSystemTask {
+    plan: NervousSystemPlan! @belongsTo(relation: "plan")
+    ...
+}
+type NervousSystemPlan {
+    agent: Agent @belongsTo(relation: "agent")
+    user: User @belongsTo(relation: "user")
+    approver: User @belongsTo(relation: "approver")
+    parent: NervousSystemPlan @belongsTo(relation: "parent")
+    ...
+}
+```
+
+The only time it's OK to expose a raw `*_id`: **input types** for create/update mutations, where the client passes an ID before the relation exists. Even there, prefer letting the resolver look up the model and pass it explicitly to the action's DTO (per the DTO conventions section).
+
+### Reduce Duplicate Ledger Emission with `EmitsLedgerEventsForEntity`
+When a domain entity emits multiple lifecycle events from various actions (e.g. `plan.created`, `plan.updated`, `plan.approved`, `plan.task.completed`), don't construct `new AppendEventAction(new EventData(...))` in every action — that's 15 lines repeated per call site. Use the `EmitsLedgerEventsForEntity` trait on the model:
+
+```php
+class Plan extends BaseModel
+{
+    use EmitsLedgerEventsForEntity;
+    // ...
+}
+```
+
+Actions then emit with one line:
+
+```php
+// Before — ~15 lines per emission
+new AppendEventAction(
+    new EventData(
+        app: $plan->app,
+        company: $plan->company,
+        sourceDomain: 'NervousSystem',
+        eventType: 'plan.created',
+        status: EventStatusEnum::INFO,
+        sourceEntityType: Plan::class,
+        sourceEntityId: $plan->id,
+        actorType: $plan->users_id !== null ? 'User' : 'Agent',
+        actorId: $plan->users_id ?? $plan->agent_id,
+        payload: [...],
+    ),
+)->execute();
+
+// After — one line
+$plan->emitLedgerEvent('plan.created', payload: [...]);
+```
+
+The trait pulls `app`/`company` from the model's KanvasModelTrait relations, sets `source_entity_type`/`source_entity_id` from the model itself, and resolves a default actor from `users_id`/`agent_id` columns. Override `resolveDefaultActorType()` / `resolveDefaultActorId()` per model when defaults aren't right (Tasks delegate to their parent plan; Grant pivots use `granted_by_users_id`).
+
+Use the explicit `AppendEventAction` form **only** when there's no entity to attach to (e.g. system events with `actorType='System'`, no `source_entity_*`).
+
 ### GraphQL Query Naming
 Check existing query names in `graphql/schemas/` before naming yours to avoid Lighthouse "Duplicate definition" merge errors.
 

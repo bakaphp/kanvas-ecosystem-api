@@ -30,8 +30,8 @@ class LedgerArchiveTest extends TestCase
         for ($i = 0; $i < 3; $i++) {
             new AppendEventAction(
                 new EventData(
-                    appsId: $app->getId(),
-                    companiesId: $company->getId(),
+                    app: $app,
+                    company: $company,
                     sourceDomain: 'TestDomain',
                     eventType: $tag,
                     status: EventStatusEnum::INFO,
@@ -77,8 +77,8 @@ class LedgerArchiveTest extends TestCase
 
         new AppendEventAction(
             new EventData(
-                appsId: $app->getId(),
-                companiesId: $company->getId(),
+                app: $app,
+                company: $company,
                 sourceDomain: 'TestDomain',
                 eventType: $tag,
                 status: EventStatusEnum::INFO,
@@ -120,8 +120,8 @@ class LedgerArchiveTest extends TestCase
 
         new AppendEventAction(
             new EventData(
-                appsId: $app->getId(),
-                companiesId: $company->getId(),
+                app: $app,
+                company: $company,
                 sourceDomain: 'TestDomain',
                 eventType: $tag,
                 status: EventStatusEnum::INFO,

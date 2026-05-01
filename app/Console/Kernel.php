@@ -8,6 +8,8 @@ use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
 use App\Console\Commands\NervousSystem\ArchiveOldLedgerEventsCommand;
+use App\Console\Commands\NervousSystem\DetectStalledPlanTasksCommand;
+use App\Console\Commands\NervousSystem\ExpireCapabilitiesCommand;
 use App\Console\Commands\OpenClaw\CollectAgentTelemetryCommand;
 use App\Console\Commands\Social\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
@@ -41,6 +43,12 @@ class Kernel extends ConsoleKernel
         $schedule->command(CancelStalePaymentsCommand::class)->everyFiveMinutes();
         $schedule->command(ArchiveOldLedgerEventsCommand::class)
             ->weeklyOn(0, '02:00')
+            ->withoutOverlapping();
+        $schedule->command(DetectStalledPlanTasksCommand::class)
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
+        $schedule->command(ExpireCapabilitiesCommand::class)
+            ->hourly()
             ->withoutOverlapping();
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()

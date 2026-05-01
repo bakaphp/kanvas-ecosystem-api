@@ -62,17 +62,21 @@ class LedgerEventDispatcher
             return;
         }
 
-        $appsId = (int) ($model->apps_id ?? 0);
-        $companiesId = (int) ($model->companies_id ?? 0);
+        if ((int) ($model->apps_id ?? 0) === 0) {
+            return;
+        }
 
-        if ($appsId === 0) {
+        $app = $model->app ?? null;
+        $company = $model->company ?? null;
+
+        if ($app === null || $company === null) {
             return;
         }
 
         AppendToLedgerJob::dispatch(
             new EventData(
-                appsId: $appsId,
-                companiesId: $companiesId,
+                app: $app,
+                company: $company,
                 sourceDomain: $model->nervousSystemSourceDomain(),
                 eventType: $eventType,
                 status: EventStatusEnum::INFO,

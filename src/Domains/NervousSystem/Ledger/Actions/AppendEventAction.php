@@ -18,8 +18,8 @@ class AppendEventAction
     public function execute(): Event
     {
         $event = new Event();
-        $event->apps_id = $this->data->appsId;
-        $event->companies_id = $this->data->companiesId;
+        $event->apps_id = $this->data->app->getId();
+        $event->companies_id = $this->data->company?->getId() ?? 0;
         $event->source_domain = $this->data->sourceDomain;
         $event->source_entity_type = $this->data->sourceEntityType;
         $event->source_entity_id = $this->data->sourceEntityId;

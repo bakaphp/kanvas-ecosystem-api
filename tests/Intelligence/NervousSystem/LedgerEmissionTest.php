@@ -33,8 +33,8 @@ class LedgerEmissionTest extends TestCase
 
         $event = new AppendEventAction(
             new EventData(
-                appsId: $app->getId(),
-                companiesId: $company->getId(),
+                app: $app,
+                company: $company,
                 sourceDomain: 'TestDomain',
                 eventType: 'test.smoke',
                 status: EventStatusEnum::INFO,
@@ -68,8 +68,8 @@ class LedgerEmissionTest extends TestCase
 
         $event = new AppendEventAction(
             new EventData(
-                appsId: $app->getId(),
-                companiesId: $company->getId(),
+                app: $app,
+                company: $company,
                 sourceDomain: 'TestDomain',
                 eventType: 'tool.executed',
                 status: EventStatusEnum::SUCCESS,
@@ -98,8 +98,8 @@ class LedgerEmissionTest extends TestCase
             fn (AppendToLedgerJob $job): bool => $job->data->eventType === 'created'
                 && $job->data->sourceEntityType === Lead::class
                 && $job->data->sourceEntityId === (int) $lead->getId()
-                && $job->data->appsId === (int) $lead->apps_id
-                && $job->data->companiesId === (int) $lead->companies_id
+                && (int) $job->data->app->getId() === (int) $lead->apps_id
+                && (int) $job->data->company?->getId() === (int) $lead->companies_id
                 && $job->data->sourceDomain === 'Guild',
         );
     }
@@ -152,21 +152,25 @@ class LedgerEmissionTest extends TestCase
 
         new AppendEventAction(
             new EventData(
-                appsId: $app->getId(),
-                companiesId: $company->getId(),
+                app: $app,
+                company: $company,
                 sourceDomain: 'TestDomain',
                 eventType: 'test.scope.mine',
             ),
         )->execute();
 
-        new AppendEventAction(
-            new EventData(
-                appsId: 999999,
-                companiesId: 999999,
-                sourceDomain: 'TestDomain',
-                eventType: 'test.scope.other',
-            ),
-        )->execute();
+        // Foreign-tenant event inserted directly to bypass DTO model lookups.
+        Event::query()->insert([
+            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'apps_id' => 999999,
+            'companies_id' => 999999,
+            'source_domain' => 'TestDomain',
+            'event_type' => 'test.scope.other',
+            'status' => 'info',
+            'occurred_at' => now(),
+            'indexed_at' => now(),
+            'is_archived' => 0,
+        ]);
 
         $myEvents = Event::query()
             ->where('apps_id', $app->getId())
