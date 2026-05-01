@@ -65,16 +65,7 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
             );
         }
 
-        $to = Str::replace('twilio-', '', $this->channel->slug);
-        $to = Str::replace('+', '', $to); // Strip any existing +
-
-        // Add country code if needed (assuming +1 for 10-digit numbers)
-        if (strlen($to) === 10) {
-            $to = "+1{$to}";
-        } else {
-            $to = "+{$to}";
-        }
-        //if its missing a +1 add it
+        $to = Str::toE164(Str::replace('twilio-', '', $this->channel->slug));
         $to = $this->hijackMessagePhone($to);
 
         $client = Client::getInstanceByCompany($this->message->company);

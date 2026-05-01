@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\ElevenLabs\Webhooks;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Override;
 use Throwable;
@@ -36,9 +37,15 @@ class ProcessElevenLabsSendMessageWebhookJob extends ProcessElevenLabsWebhookJob
 
         $lead = $this->resolveLeadByPhone($phone);
 
-        $channel = isset($payload['channel']) && (string) $payload['channel'] !== ''
+        $requestedChannel = isset($payload['channel']) && (string) $payload['channel'] !== ''
             ? strtolower((string) $payload['channel'])
             : $this->resolveLeadChannel($lead);
+
+        // Phone is always present, so SMS is always attempted; add the requested channel if different.
+        $channels = [LeadCommunicationChannelEnum::SMS->value];
+        if ($requestedChannel !== LeadCommunicationChannelEnum::SMS->value) {
+            $channels[] = $requestedChannel;
+        }
 
         $title = isset($payload['title']) && (string) $payload['title'] !== ''
             ? (string) $payload['title']
@@ -50,23 +57,25 @@ class ProcessElevenLabsSendMessageWebhookJob extends ProcessElevenLabsWebhookJob
         $sendMessage = new SendMessageToLeadAction($lead);
         $sent = [];
 
-        try {
-            $sendMessage->execute(
-                $channel,
-                $message,
-                (string) ($fromPhone ?? ''),
-                $title,
-            );
-            $sent[] = ['channel' => $channel, 'success' => true];
-        } catch (Throwable $e) {
-            $sent[] = ['channel' => $channel, 'success' => false, 'error' => $e->getMessage()];
+        foreach ($channels as $channel) {
+            try {
+                $sendMessage->execute(
+                    $channel,
+                    $message,
+                    (string) ($fromPhone ?? ''),
+                    $title,
+                );
+                $sent[] = ['channel' => $channel, 'success' => true];
+            } catch (Throwable $e) {
+                $sent[] = ['channel' => $channel, 'success' => false, 'error' => $e->getMessage()];
+            }
         }
 
         return [
             'message' => 'Message processed',
             'lead_id' => $lead->getId(),
             'lead_uuid' => $lead->uuid,
-            'channel_used' => $channel,
+            'channels_used' => $channels,
             'sent' => $sent,
         ];
     }
