@@ -428,7 +428,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         bool $runWorkflow = true,
     ): Message {
         $user = $lead->user;
-        $agentUser = $lead->company->get('ai-agent-user-id');
+        $agentUser = $lead->company->get(EnumsConfigurationEnum::AI_AGENT_USER_ID->value);
         if ($agentUser !== null) {
             $user = Users::getById((int) $agentUser);
         }
