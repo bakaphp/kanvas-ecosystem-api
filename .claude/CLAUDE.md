@@ -1284,7 +1284,7 @@ extend type Query @guardByAdmin {
     ledgerEvents(...): [LedgerEvent!]!
         @paginate(
             model: "Kanvas\\NervousSystem\\Ledger\\Models\\Event"
-            scopes: ["fromApp", "fromCompany", "notArchived", "recent"]
+            scopes: ["fromApp", "fromCompany", "recent"]
             defaultCount: 50
         )
 }

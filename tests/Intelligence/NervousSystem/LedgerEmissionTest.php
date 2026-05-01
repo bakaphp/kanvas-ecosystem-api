@@ -169,7 +169,6 @@ class LedgerEmissionTest extends TestCase
             'status' => 'info',
             'occurred_at' => now(),
             'indexed_at' => now(),
-            'is_archived' => 0,
         ]);
 
         $myEvents = Event::query()

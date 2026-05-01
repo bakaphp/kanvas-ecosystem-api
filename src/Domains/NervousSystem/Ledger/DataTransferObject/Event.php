@@ -40,10 +40,12 @@ class Event extends Data
         public readonly ?string $actorType = null,
         public readonly ?int $actorId = null,
         public readonly ?array $payload = null,
+        public readonly int $payloadSchemaVersion = 1,
         public readonly ?array $result = null,
         public readonly ?array $error = null,
         public readonly ?int $durationMs = null,
         public readonly ?string $correlationId = null,
+        public readonly ?string $causationId = null,
         public readonly ?Carbon $occurredAt = null,
     ) {
     }

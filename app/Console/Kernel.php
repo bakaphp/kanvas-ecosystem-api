@@ -42,7 +42,7 @@ class Kernel extends ConsoleKernel
         $schedule->command(ChargeLateOrdersCommand::class)->hourly();
         $schedule->command(CancelStalePaymentsCommand::class)->everyFiveMinutes();
         $schedule->command(ArchiveOldLedgerEventsCommand::class)
-            ->weeklyOn(0, '02:00')
+            ->dailyAt('02:00')
             ->withoutOverlapping();
         $schedule->command(DetectStalledPlanTasksCommand::class)
             ->everyFiveMinutes()
