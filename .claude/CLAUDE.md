@@ -1339,21 +1339,29 @@ Same rule for `@belongsTo(relation: "company")`, `@hasOne(relation: "primaryAddr
 
 When a queued job sets `$this->onQueue('xxx')` (or is dispatched to a non-default queue), **a worker process must be configured to consume that queue**. Otherwise jobs pile up in Redis untouched.
 
-**Single source of truth: `docker-compose.yml`** — Kanvas runs Docker in both dev and prod (kubernetes/helm is currently dormant). Update only the plain `docker-compose.yml`, not the `.development` / `.local` variants.
+**Three docker-compose files to update — all of them**:
 
-Add a dedicated worker service alongside the existing `batch-logger-queue` / `openclaw-queue` / `ledger-queue` examples:
+| File | Used by |
+|---|---|
+| `docker-compose.yml` | Local dev (the canonical plain compose) |
+| `docker-compose.development.yml` | Shared development/staging environment (replicas, no `container_name`) |
+| `docker-compose.1.x.yml` | 1.x deployment target |
+
+Each file has the same queue-service shape (with minor differences — `.development.yml` omits `container_name` because of replicas; the others include it). Add the new worker to all three:
 
 ```yaml
 xxx-queue:
     <<: *common-queue-settings
-    container_name: xxx-queue
+    container_name: xxx-queue   # omit in docker-compose.development.yml
     command:
         - "sh"
         - "-c"
         - "php artisan config:cache && php artisan queue:work --queue=xxx --tries=3 --timeout=3750"
 ```
 
-**Default to a dedicated service**, not appending to an existing worker's queue list. Any queue handling its own volume class (events, audits, large payloads) will starve or be starved by mixed workloads. Isolating each queue type to its own service gives it its own retry/timeout/replica budget. Reserve the "append to default" shortcut for genuinely low-volume queues (a few jobs/hour) where a dedicated service would be wasteful.
+Helm (`helm/templates/`) is currently dormant — don't update it.
+
+**Default to a dedicated service per queue**, not appending to an existing worker's queue list. Any queue handling its own volume class (events, audits, large payloads) will starve or be starved by mixed workloads. Isolating each queue type to its own service gives it its own retry/timeout/replica budget. Reserve the "append to default" shortcut for genuinely low-volume queues (a few jobs/hour) where a dedicated service would be wasteful.
 
 ### Adding a New Domain Namespace
 When creating a new top-level domain folder (`src/Domains/YourDomain/`):
