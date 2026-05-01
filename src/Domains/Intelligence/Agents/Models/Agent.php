@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
@@ -159,6 +160,43 @@ class Agent extends BaseModel
     public static function getModel(): Model
     {
         return new Agent();
+    }
+
+    /**
+     * Find an agent by ID scoped to the given company/app.
+     * Falls back to a global agent (companies_id = 0) or app-global (apps_id = 0) if not found.
+     */
+    public static function getByIdWithGlobalFallback(int $id, Apps $app, mixed $company): self
+    {
+        $companyId = is_int($company) ? $company : $company->getId();
+
+        $agent = self::where('id', $id)
+            ->notDeleted()
+            ->where(function ($q) use ($app, $companyId) {
+                $q->where(function ($q) use ($app, $companyId) {
+                    $q->where('apps_id', $app->getId())
+                        ->where('companies_id', $companyId);
+                })->orWhere(function ($q) use ($app) {
+                    $q->where('apps_id', $app->getId())
+                        ->where('companies_id', 0);
+                })->orWhere(function ($q) use ($companyId) {
+                    $q->where('apps_id', 0)
+                        ->where('companies_id', $companyId);
+                })->orWhere(function ($q) {
+                    $q->where('apps_id', 0)
+                        ->where('companies_id', 0);
+                });
+            })
+            ->orderByRaw('(apps_id = 0) ASC, (companies_id = 0) ASC')
+            ->first();
+
+        if (! $agent) {
+            throw new ModelNotFoundException(
+                sprintf('No Agent record found with ID %s for this app/company or globally', $id)
+            );
+        }
+
+        return $agent;
     }
 
     #[Override]
