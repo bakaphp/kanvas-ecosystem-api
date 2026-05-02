@@ -19,7 +19,6 @@ use Kanvas\Inventory\Products\Factories\ProductTypeFactory;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Traits\ScopesTrait;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
-use Override;
 
 /**
  * Class ProductsTypes.
@@ -138,7 +137,6 @@ class ProductsTypes extends BaseModel
                             });
     }
 
-    #[Override]
     public static function newFactory()
     {
         return new ProductTypeFactory();

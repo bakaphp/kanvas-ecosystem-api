@@ -7,7 +7,6 @@ namespace Kanvas\Workflow\Rules\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Rules\Factories\RuleConditionFactory;
-use Override;
 
 class RuleCondition extends BaseModel
 {
@@ -20,7 +19,6 @@ class RuleCondition extends BaseModel
         return $this->belongsTo(Rule::class, 'rules_id', 'id');
     }
 
-    #[Override]
     protected static function newFactory()
     {
         return RuleConditionFactory::new();

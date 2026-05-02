@@ -9,7 +9,6 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Intelligence\Agents\Factories\AgentModelFactory;
 use Kanvas\Intelligence\Models\BaseModel;
-use Override;
 
 /**
  * @property int $id
@@ -45,7 +44,6 @@ class AgentModel extends BaseModel
         return $this->hasMany(Agent::class);
     }
 
-    #[Override]
     public static function newFactory()
     {
         return AgentModelFactory::new();

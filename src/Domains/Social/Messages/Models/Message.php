@@ -305,7 +305,6 @@ class Message extends BaseModel
         $this->saveOrFail();
     }
 
-    #[Override]
     protected static function newFactory(): Factory
     {
         return MessageFactory::new();

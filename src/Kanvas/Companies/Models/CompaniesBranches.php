@@ -20,7 +20,6 @@ use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
-use Override;
 
 /**
  * Companies Model.
@@ -76,7 +75,6 @@ class CompaniesBranches extends BaseModel
      *
      * @return \Illuminate\Database\Eloquent\Factories\Factory
      */
-    #[Override]
     protected static function newFactory()
     {
         return CompaniesBranchesFactory::new();
