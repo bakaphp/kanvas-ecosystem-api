@@ -6,6 +6,7 @@ namespace Kanvas\Workflow\Rules\Models;
 
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Rules\Factories\RuleTypeFactory;
+use Override;
 
 class RuleType extends BaseModel
 {
@@ -13,6 +14,7 @@ class RuleType extends BaseModel
 
     protected $guarded = [];
 
+    #[Override]
     protected static function newFactory()
     {
         return RuleTypeFactory::new();

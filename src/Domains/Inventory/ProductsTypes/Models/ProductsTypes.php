@@ -19,6 +19,7 @@ use Kanvas\Inventory\Products\Factories\ProductTypeFactory;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Traits\ScopesTrait;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
+use Override;
 
 /**
  * Class ProductsTypes.
@@ -114,8 +115,10 @@ class ProductsTypes extends BaseModel
                             ->get()
                             ->map(function ($attribute) {
                                 $attribute->is_required = $attribute->pivot->is_required ?? false;
+
                                 return $attribute;
                             });
+
         return $attribute;
     }
 
@@ -130,10 +133,12 @@ class ProductsTypes extends BaseModel
                             ->get()
                             ->map(function ($attribute) {
                                 $attribute->is_required = $attribute->pivot->is_required ?? false;
+
                                 return $attribute;
                             });
     }
 
+    #[Override]
     public static function newFactory()
     {
         return new ProductTypeFactory();

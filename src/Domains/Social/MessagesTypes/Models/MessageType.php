@@ -61,6 +61,7 @@ class MessageType extends BaseModel
         return $this->messages()->exists();
     }
 
+    #[Override]
     protected static function newFactory(): MessageTypeFactory
     {
         return MessageTypeFactory::new();

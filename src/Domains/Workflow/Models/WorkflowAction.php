@@ -7,6 +7,7 @@ namespace Kanvas\Workflow\Models;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Kanvas\Workflow\Factories\ActionFactory;
+use Override;
 
 class WorkflowAction extends BaseModel
 {
@@ -16,6 +17,7 @@ class WorkflowAction extends BaseModel
 
     protected $guarded = [];
 
+    #[Override]
     protected static function newFactory(): Factory
     {
         return ActionFactory::new();
