@@ -87,6 +87,11 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentMachineMutation@ping"
         )
 
+    openclawBackupAgent(deployment_id: ID!, include_workspace: Boolean): AgentBackupType!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@backup"
+        )
+
     openclawLaunchAgent(input: LaunchAgentInput!): AgentDeploymentType!
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@launch"
