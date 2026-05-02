@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Intelligence\Agents\Laravel\Inventory\AgentInventoryAsistance;
+use Kanvas\Intelligence\Agents\Laravel\Inventory\AgentInventoryAssistance;
 use Kanvas\Users\Models\Users;
 
 class AgentInventoryChatCommand extends Command
@@ -35,7 +35,7 @@ class AgentInventoryChatCommand extends Command
             App::scoped(CompaniesBranches::class, fn () => $branch);
         }
 
-        $agent = AgentInventoryAsistance::make()->forUser($user);
+        $agent = AgentInventoryAssistance::make()->forUser($user);
 
         $this->info('Inventory Assistant ready. Type "exit" to quit.');
         $this->newLine();
@@ -45,6 +45,7 @@ class AgentInventoryChatCommand extends Command
 
             if (in_array(strtolower(trim($input)), ['exit', 'quit', 'q'])) {
                 $this->info('Goodbye!');
+
                 break;
             }
 

@@ -17,7 +17,8 @@ class AttributeSearchTool implements Tool
     #[Override]
     public function description(): Stringable|string
     {
-        return 'List and search product attributes. Returns attribute name, type, whether it is filterable/searchable, and its default allowed values. Use this to discover which attributes exist and what values are valid for each one.';
+        return 'List and search product attributes. Returns attribute name, type, whether it is filterable/searchable, 
+                and its default allowed values. Use this to discover which attributes exist and what values are valid for each one.';
     }
 
     #[Override]
