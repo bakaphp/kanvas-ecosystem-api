@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\NervousSystem\Ledger\Models\EventArchive;
+use RuntimeException;
 
 /**
  * Sweeps events older than the configured retention window into a
@@ -40,7 +41,7 @@ class ArchiveOldEventsAction
     public function execute(): array
     {
         $retentionDays = $this->retentionDaysOverride
-            ?? (int) config('nervous-system.ledger.retention_days', 7);
+            ?? (int) config('nervous-system.ledger.retention_days', 30);
         $disk = $this->diskOverride
             ?? (string) config('nervous-system.ledger.archive_disk', 's3');
         $pathPrefix = (string) config('nervous-system.ledger.archive_path_prefix', 'nervous-system');
@@ -50,7 +51,6 @@ class ArchiveOldEventsAction
 
         $eligibleCount = Event::query()
             ->where('occurred_at', '<', $cutoff)
-            ->where('is_archived', 0)
             ->count();
 
         if ($eligibleCount === 0) {
@@ -59,21 +59,19 @@ class ArchiveOldEventsAction
 
         $windowStart = Event::query()
             ->where('occurred_at', '<', $cutoff)
-            ->where('is_archived', 0)
             ->min('occurred_at');
         $windowEnd = Event::query()
             ->where('occurred_at', '<', $cutoff)
-            ->where('is_archived', 0)
             ->max('occurred_at');
 
         $startCarbon = Carbon::parse($windowStart);
         $endCarbon = Carbon::parse($windowEnd);
 
         $relativePath = sprintf(
-            '%s/%s/week-%s/events-%s-to-%s-%s.jsonl.gz',
+            '%s/%s/%s/events-%s-to-%s-%s.jsonl.gz',
             $pathPrefix,
             $startCarbon->format('Y'),
-            $startCarbon->format('W'),
+            $startCarbon->format('m-d'),
             $startCarbon->format('Ymd-His'),
             $endCarbon->format('Ymd-His'),
             substr((string) Str::uuid(), 0, 8),
@@ -83,14 +81,13 @@ class ArchiveOldEventsAction
         $gz = gzopen($tempFile, 'wb9');
 
         if ($gz === false) {
-            throw new \RuntimeException('Could not open temp file for gzip writing');
+            throw new RuntimeException('Could not open temp file for gzip writing');
         }
 
         $written = 0;
 
         Event::query()
             ->where('occurred_at', '<', $cutoff)
-            ->where('is_archived', 0)
             ->orderBy('id')
             ->chunkById($chunkSize, function ($events) use ($gz, &$written): void {
                 foreach ($events as $event) {
@@ -121,7 +118,6 @@ class ArchiveOldEventsAction
         DB::connection('intelligence')
             ->table('nervous_system_events')
             ->where('occurred_at', '<', $cutoff)
-            ->where('is_archived', 0)
             ->delete();
 
         return [

@@ -7,6 +7,7 @@ namespace Kanvas\NervousSystem\Ledger\Models;
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Kanvas\NervousSystem\Models\BaseModel;
 use Override;
 
@@ -23,13 +24,14 @@ use Override;
  * @property int|null $actor_id
  * @property string $status
  * @property array|null $payload
+ * @property int $payload_schema_version
  * @property array|null $result
  * @property array|null $error
  * @property int|null $duration_ms
  * @property string|null $correlation_id
- * @property \Illuminate\Support\Carbon $occurred_at
- * @property \Illuminate\Support\Carbon $indexed_at
- * @property bool $is_archived
+ * @property string|null $causation_id
+ * @property Carbon $occurred_at
+ * @property Carbon $indexed_at
  */
 class Event extends BaseModel
 {
@@ -49,21 +51,26 @@ class Event extends BaseModel
             'actor_id' => 'integer',
             'duration_ms' => 'integer',
             'payload' => Json::class,
+            'payload_schema_version' => 'integer',
             'result' => Json::class,
             'error' => Json::class,
             'occurred_at' => 'datetime',
             'indexed_at' => 'datetime',
-            'is_archived' => 'boolean',
         ];
-    }
-
-    public function scopeNotArchived(Builder $query): Builder
-    {
-        return $query->where('is_archived', 0);
     }
 
     public function scopeRecent(Builder $query): Builder
     {
         return $query->orderByDesc('occurred_at');
+    }
+
+    public function scopeWithCorrelation(Builder $query, string $correlationId): Builder
+    {
+        return $query->where('correlation_id', $correlationId);
+    }
+
+    public function scopeCausedBy(Builder $query, string $causationId): Builder
+    {
+        return $query->where('causation_id', $causationId);
     }
 }

@@ -22,8 +22,8 @@ class LedgerEventsQueryTest extends TestCase
 
         new AppendEventAction(
             new EventData(
-                appsId: $app->getId(),
-                companiesId: $company->getId(),
+                app: $app,
+                company: $company,
                 sourceDomain: 'TestDomain',
                 eventType: $tag,
                 status: EventStatusEnum::INFO,
@@ -78,21 +78,24 @@ class LedgerEventsQueryTest extends TestCase
 
         new AppendEventAction(
             new EventData(
-                appsId: $app->getId(),
-                companiesId: $company->getId(),
+                app: $app,
+                company: $company,
                 sourceDomain: 'TestDomain',
                 eventType: $myTag,
             ),
         )->execute();
 
-        new AppendEventAction(
-            new EventData(
-                appsId: 999998,
-                companiesId: 999998,
-                sourceDomain: 'TestDomain',
-                eventType: $otherTag,
-            ),
-        )->execute();
+        // Foreign-tenant event inserted directly to bypass DTO model lookups.
+        \Kanvas\NervousSystem\Ledger\Models\Event::query()->insert([
+            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'apps_id' => 999998,
+            'companies_id' => 999998,
+            'source_domain' => 'TestDomain',
+            'event_type' => $otherTag,
+            'status' => 'info',
+            'occurred_at' => now(),
+            'indexed_at' => now(),
+        ]);
 
         $response = $this->graphQL(
             '
