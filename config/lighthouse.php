@@ -49,6 +49,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Request Size Limits
+    |--------------------------------------------------------------------------
+    |
+    | Maximum request payload sizes accepted by the GraphQL endpoint.
+    |
+    */
+    'request_size_limits' => [
+        'multipart_bytes' => env('GRAPHQL_MAX_MULTIPART_BYTES', 25 * 1024 * 1024),
+        'json_body_bytes' => env('GRAPHQL_MAX_JSON_BODY_BYTES', 512 * 1024),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Authentication Guard
     |--------------------------------------------------------------------------
     |

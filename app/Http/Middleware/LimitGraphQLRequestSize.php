@@ -22,7 +22,7 @@ class LimitGraphQLRequestSize
         $contentType = strtolower((string) $request->header('Content-Type', ''));
 
         if (str_contains($contentType, 'multipart/form-data')) {
-            $maxMultipartBytes = (int) env('GRAPHQL_MAX_MULTIPART_BYTES', 25 * 1024 * 1024);
+            $maxMultipartBytes = (int) config('lighthouse.request_size_limits.multipart_bytes', 25 * 1024 * 1024);
             if ($contentLength > $maxMultipartBytes) {
                 return $this->payloadTooLarge('GraphQL multipart payload too large.');
             }
@@ -30,7 +30,7 @@ class LimitGraphQLRequestSize
             return $next($request);
         }
 
-        $maxJsonBytes = (int) env('GRAPHQL_MAX_JSON_BODY_BYTES', 512 * 1024);
+        $maxJsonBytes = (int) config('lighthouse.request_size_limits.json_body_bytes', 512 * 1024);
         if ($contentLength > $maxJsonBytes) {
             return $this->payloadTooLarge('GraphQL request payload too large.');
         }
