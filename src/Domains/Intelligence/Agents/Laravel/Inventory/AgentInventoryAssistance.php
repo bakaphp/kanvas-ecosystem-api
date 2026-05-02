@@ -15,7 +15,7 @@ use Laravel\Ai\Contracts\Tool;
 use Override;
 use Stringable;
 
-class AgentInventoryAsistance extends KanvasLaravelAgent
+class AgentInventoryAssistance extends KanvasLaravelAgent
 {
     use RemembersConversations;
 

@@ -6,7 +6,7 @@ namespace Tests\Intelligence\Agents;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Intelligence\Agents\Laravel\Inventory\AgentInventoryAsistance;
+use Kanvas\Intelligence\Agents\Laravel\Inventory\AgentInventoryAssistance;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\AttributeSearchTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\CategorySearchTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\InventorySearchTool;
@@ -46,7 +46,7 @@ class InventoryAgentToolsTest extends TestCase
 
         $agentType = AgentType::factory()
             ->withAppId($this->kanvasApp->id)
-            ->create(['handler' => AgentInventoryAsistance::class]);
+            ->create(['handler' => AgentInventoryAssistance::class]);
 
         $this->agent = Agent::factory()
             ->withAppId($this->kanvasApp->id)
@@ -282,9 +282,9 @@ class InventoryAgentToolsTest extends TestCase
 
     public function testAgentChatReturnsResponse(): void
     {
-        AgentInventoryAsistance::fake(['Found 3 products in stock.']);
+        AgentInventoryAssistance::fake(['Found 3 products in stock.']);
 
-        $agent = AgentInventoryAsistance::make()->forUser($this->user);
+        $agent = AgentInventoryAssistance::make()->forUser($this->user);
         $response = $agent->prompt('What products are available?');
 
         $this->assertNotEmpty($response->text);
