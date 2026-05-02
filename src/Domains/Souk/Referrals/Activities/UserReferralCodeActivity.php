@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Referrals\Models\ReferralCode;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -49,13 +48,19 @@ class UserReferralCodeActivity extends KanvasActivity implements WorkflowActivit
                 if (! $referralCode) {
                     $user->del('user_referral_code');
 
-                    throw new ValidationException('Referral code doesn\'t exist');
+                    return $this->failWorkflow([
+                        'message' => 'Referral code does not exist',
+                        'code' => null,
+                    ]);
                 }
 
                 if ($referralCode->isExpired()) {
                     $user->del('user_referral_code');
 
-                    throw new ValidationException('Referral code has expired ');
+                    return $this->failWorkflow([
+                        'message' => 'Referral code has expired',
+                        'code' => null,
+                    ]);
                 }
 
                 return [
@@ -64,7 +69,7 @@ class UserReferralCodeActivity extends KanvasActivity implements WorkflowActivit
                 ];
             },
             company: $company,
-            throwException: true,
+            throwException: false,
         );
     }
 }

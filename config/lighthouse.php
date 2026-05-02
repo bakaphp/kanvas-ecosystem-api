@@ -28,6 +28,7 @@ return [
          * make sure to return spec-compliant responses in case an error is thrown.
          */
         'middleware' => [
+            \App\Http\Middleware\LimitGraphQLRequestSize::class,
             // Logs in a user if they are authenticated. In contrast to Laravel's 'auth'
             // middleware, this delegates auth and permission checks to the field level.
             \Nuwave\Lighthouse\Http\Middleware\AttemptAuthentication::class,
@@ -44,6 +45,19 @@ return [
          */
         // 'prefix' => '',
         // 'domain' => '',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Request Size Limits
+    |--------------------------------------------------------------------------
+    |
+    | Maximum request payload sizes accepted by the GraphQL endpoint.
+    |
+    */
+    'request_size_limits' => [
+        'multipart_bytes' => env('GRAPHQL_MAX_MULTIPART_BYTES', 25 * 1024 * 1024),
+        'json_body_bytes' => env('GRAPHQL_MAX_JSON_BODY_BYTES', 512 * 1024),
     ],
 
     /*
