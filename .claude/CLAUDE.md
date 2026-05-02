@@ -694,6 +694,37 @@ Seed a record in the `integrations` table mapping the name to the handler class.
 - Integration status tracked per company via `IntegrationsCompany` model (ACTIVE, INACTIVE, FAILED, OFFLINE)
 - Every integration operation logged in `EntityIntegrationHistory` for auditing
 
+### Never Cache SDK Instances in Static Properties (Octane footgun)
+
+Do **not** cache external-SDK clients (Twilio, Shopify, VoiceBridge, etc.) in `private static array $instances = []` keyed by `app_X` / `company_X`. Under Swoole/Octane the worker process is long-lived, so any static state survives across requests on that worker. When a tenant rotates credentials in DB + Redis, workers that already cached the old client keep serving requests with stale keys — manifests as intermittent 4xx/auth errors that hit *some* requests but not others (the ones that landed on a worker that hadn't cached yet).
+
+```php
+// WRONG — stale credentials per worker after key rotation
+final class Client
+{
+    private static array $instances = [];
+
+    public static function getInstance(AppInterface $app): SomeSDK
+    {
+        $key = sprintf('app_%s', $app->getId());
+        return self::$instances[$key] ??= new SomeSDK($app->get('api_key'));
+    }
+}
+
+// CORRECT — thin factory, always reads fresh creds
+final class Client
+{
+    public static function getInstance(AppInterface $app): SomeSDK
+    {
+        return new SomeSDK($app->get('api_key'));
+    }
+}
+```
+
+Building an SDK client is almost always cheap (string assignments, no network handshake) — there's no real perf win to caching it, and the correctness cost is intermittent stale-creds bugs that are painful to reproduce. Same rule applies to any singleton-style `protected static ?SDK $instance = null` pattern. If you genuinely need to cache something heavy, key it on a credential fingerprint (`hash($sid.$token)`), not the app/company id, so rotation invalidates the cache automatically — but prefer just rebuilding.
+
+The same Octane risk applies to **any mutable static state on connector classes** (e.g. `protected static string $environment` mutated via `setEnvironment()`). Those mutations persist across requests on the same worker and cause cross-tenant state bleed. Keep environment/region per-instance, or pass at call time.
+
 ## Adding @search to GraphQL Queries
 
 All list queries should support the `@search` directive for text search. This requires two things:
