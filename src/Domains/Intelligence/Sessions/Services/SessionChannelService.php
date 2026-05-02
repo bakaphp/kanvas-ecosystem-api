@@ -28,7 +28,7 @@ class SessionChannelService
 
     public static function createChannelSlug(string $channel, string $id): string
     {
-        $normalizedId = Str::normalizePhoneNumber($id);
+        $normalizedId = Str::digitsOnly(Str::normalizePhoneNumber($id));
 
         return match ($channel) {
             'whatsapp' => 'wa-chat-' . $normalizedId . '-at-swhatsappnet',
