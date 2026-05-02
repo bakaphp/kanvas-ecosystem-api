@@ -6,6 +6,7 @@ namespace Kanvas\Filesystem\Services;
 
 use Baka\Contracts\CompanyInterface;
 use Exception;
+use finfo;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
@@ -234,7 +235,7 @@ class FilesystemServices
             new UploadedFile(
                 $tempFilePath,               // Path to the file
                 $originalName,               // Original file name
-                mime_content_type($tempFilePath), // MIME type
+                self::detectMimeType($tempFilePath), // MIME type
                 null,                        // Error (null means no error)
                 true                         // Mark it as a test file (will not delete original file)
             ),
@@ -297,7 +298,7 @@ class FilesystemServices
         $originalName = basename($path);
 
         // If no filename found in URL, generate one
-        $mimeType = mime_content_type($tempFilePath);
+        $mimeType = self::detectMimeType($tempFilePath);
         if (empty($originalName) || strpos($originalName, '.') === false) {
             $extension = self::getExtensionFromMimeType($mimeType);
             $originalName = uniqid('file_') . '.' . $extension;
@@ -364,5 +365,39 @@ class FilesystemServices
     public static function getExtensionFromMimeType(string $mimeType): string
     {
         return MimeTypes::getDefault()->getExtensions($mimeType)[0] ?? 'bin';
+    }
+
+    public static function detectMimeType(string $filePath): string
+    {
+        if (is_readable($filePath)) {
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $detected = @$finfo->file($filePath);
+            if (is_string($detected) && $detected !== '') {
+                return $detected;
+            }
+        }
+
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        return match ($extension) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'heic' => 'image/heic',
+            'heif' => 'image/heif',
+            'gif' => 'image/gif',
+            'pdf' => 'application/pdf',
+            'csv' => 'text/csv',
+            'txt' => 'text/plain',
+            'json' => 'application/json',
+            default => 'application/octet-stream',
+        };
+    }
+
+    public static function resolveExtensionFromFile(string $filePath): string
+    {
+        return self::getExtensionFromMimeType(
+            self::detectMimeType($filePath)
+        );
     }
 }
