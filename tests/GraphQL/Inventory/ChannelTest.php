@@ -208,7 +208,9 @@ class ChannelTest extends TestCase
         $channel = Channels::fromApp($app)->fromCompany($company)->first();
 
         $productResponse = $this->createProduct();
+        $productResponse->assertJsonMissingPath('errors.0');
         $productId = $productResponse->json('data.createProduct.id');
+        $this->assertNotNull($productId);
 
         $variantResponse = $this->createVariant(
             (string) $productId,
@@ -268,30 +270,21 @@ class ChannelTest extends TestCase
                 'position' => 1,
             ]
         );
+        $variantResponse->assertJsonMissingPath('errors.0');
         $variantId = $variantResponse->json('data.createVariant.id');
+        $this->assertNotNull($variantId);
 
-        $this->addVariantToChannel(
+        $addToChannelResponse = $this->addVariantToChannel(
             (string) $variantId,
             (string) $channel->getId(),
             ['id' => $warehouse->getId()]
         );
+        $addToChannelResponse->assertJsonMissingPath('errors.0');
 
-        $response = $this->graphQL('
-            query($id: Mixed!) {
-                channels(where: {column: ID, operator: EQ, value: $id}) {
-                    data {
-                        id
-                        regions {
-                            id
-                        }
-                    }
-                }
-            }', ['id' => $channel->getId()]);
+        $regions = $channel->fresh()->getRegions();
 
-        $regions = $response->json('data.channels.data.0.regions');
-
-        $this->assertIsArray($regions);
-        $this->assertNotEmpty($regions);
-        $this->assertArrayHasKey('id', $regions[0]);
+        $this->assertNotNull($regions);
+        $this->assertTrue($regions->isNotEmpty());
+        $this->assertNotNull($regions->first()?->id);
     }
 }

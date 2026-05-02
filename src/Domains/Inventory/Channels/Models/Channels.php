@@ -113,18 +113,21 @@ class Channels extends BaseModel
 
     public function getRegions(): Collection
     {
+        $warehousesTable = Warehouses::getTableName();
+        $variantChannelsTable = VariantsChannels::getTableName();
+
         $regionIds = $this->productVariantChannels()
-            ->select(Warehouses::getQualifiedTableName() . '.regions_id')
+            ->select($warehousesTable . '.regions_id')
             ->join(
-                Warehouses::getTableName(),
-                Warehouses::getQualifiedTableName() . '.id',
+                $warehousesTable,
+                $warehousesTable . '.id',
                 '=',
-                VariantsChannels::getQualifiedTableName() . '.warehouses_id'
+                $variantChannelsTable . '.warehouses_id'
             )
-            ->whereNotNull(Warehouses::getQualifiedTableName() . '.regions_id')
-            ->where(Warehouses::getQualifiedTableName() . '.is_deleted', 0)
+            ->whereNotNull($warehousesTable . '.regions_id')
+            ->where($warehousesTable . '.is_deleted', 0)
             ->distinct()
-            ->pluck(Warehouses::getQualifiedTableName() . '.regions_id');
+            ->pluck($warehousesTable . '.regions_id');
 
         if ($regionIds->isEmpty()) {
             return collect();
