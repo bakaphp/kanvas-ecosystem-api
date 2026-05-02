@@ -8,15 +8,18 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
+use Override;
 use Stringable;
 
 class VariantSearchTool implements Tool
 {
+    #[Override]
     public function description(): Stringable|string
     {
         return 'Search product variants by name or SKU. Returns variant details including SKU, price, stock, and its parent product name. Use this when the user asks about a specific SKU or variant name.';
     }
 
+    #[Override]
     public function handle(Request $request): Stringable|string
     {
         $keyword = (string) $request->string('keyword');
@@ -52,6 +55,7 @@ class VariantSearchTool implements Tool
         return $results->toJson(JSON_PRETTY_PRINT);
     }
 
+    #[Override]
     public function schema(JsonSchema $schema): array
     {
         return [

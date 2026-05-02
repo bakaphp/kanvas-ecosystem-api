@@ -8,15 +8,18 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Kanvas\Inventory\Products\Models\Products;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
+use Override;
 use Stringable;
 
 class InventorySearchTool implements Tool
 {
+    #[Override]
     public function description(): Stringable|string
     {
         return 'Search for products in the inventory by name and check their availability and stock levels.';
     }
 
+    #[Override]
     public function handle(Request $request): Stringable|string
     {
         $query = $request->string('product_name');
@@ -56,6 +59,7 @@ class InventorySearchTool implements Tool
         return $results->toJson(JSON_PRETTY_PRINT);
     }
 
+    #[Override]
     public function schema(JsonSchema $schema): array
     {
         return [

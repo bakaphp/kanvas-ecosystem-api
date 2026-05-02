@@ -8,10 +8,12 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Kanvas\Inventory\Products\Models\Products;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
+use Override;
 use Stringable;
 
 class ListAvailableProductsTool implements Tool
 {
+    #[Override]
     public function description(): Stringable|string
     {
         return 'List products from the inventory filtered by published status and stock availability. '
@@ -19,6 +21,7 @@ class ListAvailableProductsTool implements Tool
             . 'Use only_in_stock=true to filter only products with stock available.';
     }
 
+    #[Override]
     public function handle(Request $request): Stringable|string
     {
         $limit = min($request->integer('limit', 20), 50);
@@ -68,6 +71,7 @@ class ListAvailableProductsTool implements Tool
         return $results->values()->toJson(JSON_PRETTY_PRINT);
     }
 
+    #[Override]
     public function schema(JsonSchema $schema): array
     {
         return [
