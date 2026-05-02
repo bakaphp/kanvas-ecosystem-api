@@ -17,7 +17,7 @@ class CancelStalePaymentsCommand extends Command
 
     protected $signature = 'kanvas-souk:cancel-stale-payments {app_id?}';
 
-    protected $description = 'Cancel payments stuck in transitional states beyond the configured TTL';
+    protected $description = 'Cancel payments stuck in processing beyond the configured TTL';
 
     public function handle(): void
     {

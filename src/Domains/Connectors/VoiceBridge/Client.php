@@ -13,14 +13,11 @@ use Kanvas\Exceptions\ValidationException;
 
 class Client
 {
-    private const MAX_INSTANCES = 100;
-    private static array $instances = [];
-
     protected string $baseUrl;
     protected string $apiKey;
     protected GuzzleClient $client;
 
-    private function __construct(protected AppInterface $app)
+    public function __construct(protected AppInterface $app)
     {
         $this->apiKey = $app->get(ConfigurationEnum::API_KEY->value);
         $this->baseUrl = $app->get(ConfigurationEnum::BASE_URL->value);
@@ -40,14 +37,7 @@ class Client
 
     public static function getInstance(AppInterface $app): self
     {
-        $key = sprintf('app_%s', $app->getId());
-
-        if (! isset(self::$instances[$key])) {
-            self::$instances[$key] = new self($app);
-            self::cleanupOldInstances();
-        }
-
-        return self::$instances[$key];
+        return new self($app);
     }
 
     /**
@@ -226,13 +216,6 @@ class Client
                 $error['detail'] ?? $error['message'] ?? $e->getMessage(),
                 (int) ($error['code'] ?? $e->getCode())
             );
-        }
-    }
-
-    private static function cleanupOldInstances(): void
-    {
-        if (count(self::$instances) > self::MAX_INSTANCES) {
-            array_shift(self::$instances);
         }
     }
 }

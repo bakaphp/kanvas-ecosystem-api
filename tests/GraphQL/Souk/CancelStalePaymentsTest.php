@@ -65,7 +65,7 @@ class CancelStalePaymentsTest extends OrderBase
             'users_id' => $this->user->getId(),
             'companies_id' => $order->companies_id,
             'apps_id' => $this->apps->getId(),
-            'status' => PaymentStatusEnum::PENDING->value,
+            'status' => PaymentStatusEnum::PROCESSING->value,
             'payment_method' => 'card',
         ]);
 
@@ -95,7 +95,7 @@ class CancelStalePaymentsTest extends OrderBase
             'users_id' => $this->user->getId(),
             'companies_id' => $order->companies_id,
             'apps_id' => $this->apps->getId(),
-            'status' => PaymentStatusEnum::PENDING->value,
+            'status' => PaymentStatusEnum::PROCESSING->value,
             'payment_method' => 'card',
         ]);
 
@@ -105,7 +105,7 @@ class CancelStalePaymentsTest extends OrderBase
         $this->assertFalse($cancelled->contains('id', $payment->id));
 
         $payment->refresh();
-        $this->assertEquals(PaymentStatusEnum::PENDING->value, $payment->status);
+        $this->assertEquals(PaymentStatusEnum::PROCESSING->value, $payment->status);
     }
 
     public function testCancelStalePaymentsWithCustomTtl(): void
@@ -125,7 +125,7 @@ class CancelStalePaymentsTest extends OrderBase
             'users_id' => $this->user->getId(),
             'companies_id' => $order->companies_id,
             'apps_id' => $this->apps->getId(),
-            'status' => PaymentStatusEnum::WAITING_DEVICE_DATA->value,
+            'status' => PaymentStatusEnum::PROCESSING->value,
             'payment_method' => 'card',
         ]);
 

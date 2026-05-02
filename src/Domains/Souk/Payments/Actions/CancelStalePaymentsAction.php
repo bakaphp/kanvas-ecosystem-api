@@ -16,9 +16,6 @@ class CancelStalePaymentsAction
     private const DEFAULT_TTL_MINUTES = 5;
 
     private const STALE_STATUSES = [
-        PaymentStatusEnum::PENDING,
-        PaymentStatusEnum::WAITING_DEVICE_DATA,
-        PaymentStatusEnum::PENDING_AUTHORIZATION,
         PaymentStatusEnum::PROCESSING,
     ];
 
@@ -56,7 +53,7 @@ class CancelStalePaymentsAction
             $payment->save();
 
             $payment->addLog('cancelled_stale', [
-                'reason' => "Payment stuck in transitional state for {$ageMinutes} minutes (TTL: {$ttlMinutes}m)",
+                'reason' => "Payment stuck in processing for {$ageMinutes} minutes (TTL: {$ttlMinutes}m)",
                 'previous_status' => $payment->getOriginal('status'),
                 'age_minutes' => $ageMinutes,
             ]);
