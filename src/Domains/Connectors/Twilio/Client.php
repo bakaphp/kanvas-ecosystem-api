@@ -11,46 +11,24 @@ use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Twilio\Rest\Client as TwilioClient;
 
-/**
- * Manages Twilio SDK instances for different app-company combinations.
- */
 final class Client
 {
-    private const MAX_INSTANCES = 100;
-    private static array $instances = [];
-
     private function __construct()
     {
     }
 
-    /**
-     * Get or create a Twilio client instance for the given app.
-     */
     public static function getInstance(AppInterface $app): TwilioClient
     {
-        $key = self::getConnectionKey($app);
+        [$sid, $token] = self::getKeysFromApp($app);
 
-        if (! isset(self::$instances[$key])) {
-            self::$instances[$key] = self::createInstanceFromApp($app);
-            self::cleanupOldInstances();
-        }
-
-        return self::$instances[$key];
+        return new TwilioClient($sid, $token);
     }
 
-    /**
-     * Get or create a Twilio client instance for the given company.
-     */
     public static function getInstanceByCompany(Companies $company): TwilioClient
     {
-        $key = self::getConnectionKeyByCompany($company);
+        [$sid, $token] = self::getKeysFromCompany($company);
 
-        if (! isset(self::$instances[$key])) {
-            self::$instances[$key] = self::createInstanceFromCompany($company);
-            self::cleanupOldInstances();
-        }
-
-        return self::$instances[$key];
+        return new TwilioClient($sid, $token);
     }
 
     /**
@@ -116,36 +94,5 @@ final class Client
         }
 
         return [(string) $sid, (string) $token];
-    }
-
-    private static function getConnectionKey(AppInterface $app): string
-    {
-        return sprintf('app_%s', $app->getId());
-    }
-
-    private static function getConnectionKeyByCompany(Companies $company): string
-    {
-        return sprintf('company_%d', $company->id);
-    }
-
-    private static function createInstanceFromApp(AppInterface $app): TwilioClient
-    {
-        [$sid, $token] = self::getKeysFromApp($app);
-
-        return new TwilioClient($sid, $token);
-    }
-
-    private static function createInstanceFromCompany(Companies $company): TwilioClient
-    {
-        [$sid, $token] = self::getKeysFromCompany($company);
-
-        return new TwilioClient($sid, $token);
-    }
-
-    private static function cleanupOldInstances(): void
-    {
-        if (count(self::$instances) > self::MAX_INSTANCES) {
-            array_shift(self::$instances);
-        }
     }
 }
