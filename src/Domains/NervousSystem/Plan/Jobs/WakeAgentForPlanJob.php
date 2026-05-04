@@ -124,6 +124,8 @@ class WakeAgentForPlanJob implements ShouldQueue
 
     protected function resolveSession(): Session
     {
+        $owner = $this->plan->user ?? $this->plan->agent?->user;
+
         /** @var Session $session */
         $session = Session::firstOrCreate(
             [
@@ -135,6 +137,13 @@ class WakeAgentForPlanJob implements ShouldQueue
             [
                 'uuid' => Str::uuid()->toString(),
                 'agents_id' => $this->plan->agent_id,
+                'channel_id' => null,
+                'content' => '',
+                'user' => $owner !== null ? [
+                    'id' => $owner->getId(),
+                    'name' => trim(($owner->firstname ?? '') . ' ' . ($owner->lastname ?? '')),
+                    'email' => $owner->email ?? null,
+                ] : [],
             ],
         );
 
