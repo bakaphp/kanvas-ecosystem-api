@@ -8,6 +8,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Redis;
+use Kanvas\NervousSystem\Ledger\Enums\LedgerQueueEnum;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\NervousSystem\Ledger\Models\EventArchive;
 use Throwable;
@@ -18,8 +19,6 @@ use Throwable;
  */
 class NervousSystemHealthService
 {
-    private const string QUEUE_NAME = 'ledger-queue';
-
     /**
      * @return array{
      *     writes_per_second: float,
@@ -80,7 +79,7 @@ class NervousSystemHealthService
     private function queueDepth(): int
     {
         try {
-            return Queue::size(self::QUEUE_NAME);
+            return Queue::size(LedgerQueueEnum::LEDGER->value);
         } catch (Throwable) {
             return 0;
         }
@@ -89,7 +88,7 @@ class NervousSystemHealthService
     private function deadLetterCount(): int
     {
         return DB::table('failed_jobs')
-            ->where('queue', self::QUEUE_NAME)
+            ->where('queue', LedgerQueueEnum::LEDGER->value)
             ->count();
     }
 
