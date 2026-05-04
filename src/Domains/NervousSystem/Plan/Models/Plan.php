@@ -5,17 +5,27 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Plan\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\NervousSystem\Ledger\Enums\LedgerConfigurationEnum;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
+use Kanvas\NervousSystem\Plan\Observers\PlanObserver;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Override;
+use Throwable;
 
 /**
  * Persistent record of an agent's plan — what it's pursuing, broken into tasks,
@@ -54,10 +64,20 @@ use Override;
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
+#[ObservedBy([PlanObserver::class])]
 class Plan extends BaseModel
 {
     use EmitsLedgerEventsForEntity;
+    use HasFilesystemTrait;
+    use HasLightHouseCache;
+    use HasTagsTrait;
     use UuidTrait;
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'NervousSystemPlan';
+    }
 
     protected $table = 'nervous_system_plans';
 
@@ -91,7 +111,7 @@ class Plan extends BaseModel
 
     public function tasks(): HasMany
     {
-        return $this->hasMany(Task::class, 'plan_id', 'id');
+        return $this->hasMany(Task::class, 'plan_id', 'id')->where('is_deleted', 0);
     }
 
     public function parent(): BelongsTo
@@ -101,7 +121,7 @@ class Plan extends BaseModel
 
     public function children(): HasMany
     {
-        return $this->hasMany(self::class, 'parent_plan_id', 'id');
+        return $this->hasMany(self::class, 'parent_plan_id', 'id')->where('is_deleted', 0);
     }
 
     public function agent(): BelongsTo
@@ -112,6 +132,28 @@ class Plan extends BaseModel
     public function approver(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'approved_by_user_id', 'id');
+    }
+
+    /**
+     * Required because Social\Channels\Models\Channel stores `entity_id` as
+     * varchar — Eloquent won't cast int → string for the FK pairing.
+     */
+    public function getStringIdAttribute(): string
+    {
+        return (string) $this->id;
+    }
+
+    public function socialChannels(): HasMany
+    {
+        return $this->hasMany(Channel::class, 'entity_id', 'string_id')
+            ->whereIn(
+                'entity_namespace',
+                [
+                    self::class,
+                    SystemModules::getLegacyNamespace(self::class),
+                ],
+            )
+            ->where('is_deleted', 0);
     }
 
     public function scopeOpen(Builder $query): Builder
@@ -132,6 +174,26 @@ class Plan extends BaseModel
         return $query
             ->where('entity_namespace', $entityClass)
             ->where('entity_id', $entityId);
+    }
+
+    public function broadcastChange(
+        string $changeType,
+        ?Task $task = null,
+        ?string $previousStatus = null,
+    ): void {
+        try {
+            $value = $this->app->get(LedgerConfigurationEnum::BROADCAST_PLAN_EVENTS->value);
+
+            // Default is ON. Only suppress when the app explicitly stores a falsy value
+            // (false / 0 / "0" / ""). null / missing → broadcast.
+            if ($value !== null && ! (bool) $value) {
+                return;
+            }
+
+            PlanBroadcast::dispatch($this, $changeType, $task, $previousStatus);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**

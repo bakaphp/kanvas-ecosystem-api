@@ -8,6 +8,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\NervousSystem\Plan\Actions\AddTaskAction;
 use Kanvas\NervousSystem\Plan\Actions\ApprovePlanAction;
 use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
+use Kanvas\NervousSystem\Plan\Actions\DeletePlanAction;
+use Kanvas\NervousSystem\Plan\Actions\DeleteTaskAction;
 use Kanvas\NervousSystem\Plan\Actions\UpdatePlanAction;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
@@ -101,9 +103,40 @@ class PlanMutation
 
         return new UpdateTaskStatusAction(
             task: $task,
-            newStatus: TaskStatusEnum::from((string) $input['status']),
+            newStatus: TaskStatusEnum::fromAlias((string) $input['status']),
             result: $input['result'] ?? null,
             blockedReason: $input['blocked_reason'] ?? null,
         )->execute();
+    }
+
+    public function delete(mixed $rootValue, array $request): bool
+    {
+        $app = app(Apps::class);
+        /** @var Users $user */
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        /** @var Plan $plan */
+        $plan = Plan::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+
+        return new DeletePlanAction($plan)->execute();
+    }
+
+    public function deleteTask(mixed $rootValue, array $request): bool
+    {
+        $app = app(Apps::class);
+        /** @var Users $user */
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        /** @var Task $task */
+        $task = Task::query()
+            ->where('id', (int) $request['id'])
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->firstOrFail();
+
+        return new DeleteTaskAction($task)->execute();
     }
 }

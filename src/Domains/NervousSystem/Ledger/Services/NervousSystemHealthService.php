@@ -13,13 +13,8 @@ use Kanvas\NervousSystem\Ledger\Models\EventArchive;
 use Throwable;
 
 /**
- * Computes operational health metrics for the Nervous System ledger.
- * Powers the `nervousSystemHealth` GraphQL query.
- *
- * All metrics are best-effort and are computed on-demand. This is intended
- * for ops dashboards and admin pages — not as a hot path. If a Redis call
- * fails, the corresponding metric returns 0 rather than throwing, since a
- * partial answer is more useful than a 500 here.
+ * Best-effort: a Redis failure returns 0 for the affected metric instead
+ * of throwing — ops dashboards prefer a partial answer over a 500.
  */
 class NervousSystemHealthService
 {

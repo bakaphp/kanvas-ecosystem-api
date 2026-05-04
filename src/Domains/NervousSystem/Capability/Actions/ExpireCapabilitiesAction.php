@@ -8,10 +8,6 @@ use Illuminate\Database\Eloquent\Collection;
 use Kanvas\NervousSystem\Capability\Models\AgentSkill;
 use Kanvas\NervousSystem\Capability\Models\AgentTool;
 
-/**
- * Sweeps active grants whose `expires_at` has passed, marks them inactive,
- * and emits one `skill.expired` / `tool.expired` ledger event per grant.
- */
 class ExpireCapabilitiesAction
 {
     /**

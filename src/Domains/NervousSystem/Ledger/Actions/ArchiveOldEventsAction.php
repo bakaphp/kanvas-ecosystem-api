@@ -13,19 +13,8 @@ use Kanvas\NervousSystem\Ledger\Models\EventArchive;
 use RuntimeException;
 
 /**
- * Sweeps events older than the configured retention window into a
- * gzipped JSONL blob on the configured filesystem disk, records the
- * archive in nervous_system_event_archives, and deletes the rows
- * from MySQL.
- *
- * Idempotent across runs (archives only the events present at sweep
- * start). Runs in chunks so memory stays bounded.
- *
- * Configuration:
- *   config('nervous-system.ledger.retention_days')
- *   config('nervous-system.ledger.archive_disk')
- *   config('nervous-system.ledger.archive_path_prefix')
- *   config('nervous-system.ledger.archive_chunk_size')
+ * Config keys (all under `config('nervous-system.ledger.*')`):
+ *   retention_days, archive_disk, archive_path_prefix, archive_chunk_size
  */
 class ArchiveOldEventsAction
 {

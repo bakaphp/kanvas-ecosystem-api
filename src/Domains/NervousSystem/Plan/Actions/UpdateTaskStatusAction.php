@@ -8,19 +8,9 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Models\Task;
 
-/**
- * Transitions a task to a new status, stamps lifecycle timestamps,
- * recomputes the parent plan's completion_pct, and emits the appropriate
- * ledger event.
- *
- * Status transitions:
- *   pending     → in_progress  : sets started_at
- *   in_progress → done|skipped : sets completed_at, captures result
- *   in_progress → blocked      : captures blocked_reason
- *   anything    → pending      : clears started_at + completed_at
- */
 class UpdateTaskStatusAction
 {
     public function __construct(
@@ -96,6 +86,12 @@ class UpdateTaskStatusAction
                 error: $this->blockedReason !== null
                     ? ['reason' => $this->blockedReason]
                     : null,
+            );
+
+            $plan?->broadcastChange(
+                changeType: PlanBroadcast::CHANGE_TASK_STATUS_CHANGED,
+                task: $this->task,
+                previousStatus: $oldStatus,
             );
 
             return $this->task->fresh() ?? $this->task;

@@ -24,14 +24,10 @@ class LedgerEventBroadcast implements ShouldBroadcastNow
     }
 
     /**
-     * Channels:
-     *   - company-{companiesId}-app-{appsId}-ledger                  per-tenant view
-     *   - app-{appsId}-ledger                                        cross-company / admin view
-     *   - company-{companiesId}-app-{appsId}-agent-{agentId}-ledger  only when actor_type='Agent'
-     *
-     * The agent channel lets a frontend subscribe "as agent #42" without
-     * paying the cost of the company-wide firehose. Plans/Tasks/Skills/Tools
-     * resolved by EmitsLedgerEventsForEntity to an Agent actor land here.
+     * Channels (frontend pairs must match exactly):
+     *   - company-{cid}-app-{aid}-ledger
+     *   - app-{aid}-ledger
+     *   - company-{cid}-app-{aid}-agent-{actor_id}-ledger  (only when actor_type='Agent')
      *
      * @return array<int, Channel>
      */

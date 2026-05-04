@@ -29,4 +29,22 @@ enum TaskStatusEnum: string
     {
         return [self::IN_PROGRESS];
     }
+
+    /**
+     * Like ::from() but tolerates common synonyms ("completed" → "done",
+     * "started" → "in_progress", etc.) and case/whitespace variations.
+     * Agents and humans will naturally reach for these — accept them
+     * rather than throw.
+     */
+    public static function fromAlias(string $value): self
+    {
+        $canonical = match (strtolower(trim($value))) {
+            'completed', 'complete', 'finished', 'finish' => 'done',
+            'in-progress', 'inprogress', 'started', 'start', 'running' => 'in_progress',
+            'skip' => 'skipped',
+            default => strtolower(trim($value)),
+        };
+
+        return self::from($canonical);
+    }
 }

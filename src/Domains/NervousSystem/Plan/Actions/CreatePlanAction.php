@@ -9,13 +9,15 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
+use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
 
 class CreatePlanAction
 {
     /**
-     * @param  array<int, TaskData>  $tasks  optional initial tasks to create with the plan
+     * @param array<int, TaskData> $tasks
      */
     public function __construct(
         protected readonly PlanData $data,
@@ -28,6 +30,10 @@ class CreatePlanAction
         if ($this->data->agent === null && $this->data->user === null) {
             throw new ValidationException('A plan must have at least one of agent or user set.');
         }
+
+        // Idempotent: ensures Plan is registered as a SystemModule so the
+        // existing attachTagToEntity / detachTagFromEntity mutations work.
+        new CreateInCurrentAppAction($this->data->app)->execute(Plan::class);
 
         return DB::connection('intelligence')->transaction(function (): Plan {
             $effectiveStatus = $this->data->requiresHumanApproval
@@ -77,12 +83,19 @@ class CreatePlanAction
                 $plan->recomputeCompletionPct();
             }
 
+            if ($this->data->files !== []) {
+                $plan->addMultipleFilesFromUrl($this->data->files);
+            }
+
             $plan->emitLedgerEvent('plan.created', payload: [
                 'plan_type' => $plan->plan_type,
                 'title' => $plan->title,
                 'status' => $plan->status,
                 'task_count' => count($this->tasks),
+                'file_count' => count($this->data->files),
             ]);
+
+            $plan->broadcastChange(PlanBroadcast::CHANGE_CREATED);
 
             return $plan;
         });

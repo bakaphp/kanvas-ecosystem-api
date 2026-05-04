@@ -9,9 +9,6 @@ use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool as ToolModel;
 use Spatie\LaravelData\Data;
 
-/**
- * Tool catalog payload. Pass an app to scope the tool.
- */
 class Tool extends Data
 {
     /**

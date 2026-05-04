@@ -8,22 +8,16 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\NervousSystem\Ledger\Services\LedgerEventDispatcher;
 
 /**
- * Opt-in trait that wires Eloquent lifecycle (created/updated/deleted)
- * into the Nervous System ledger. Models that use this trait emit one
- * AppendToLedgerJob per applicable event.
- *
  * Customization (override on the model):
  *   protected array $nervousSystemEventTypes = ['created', 'updated', 'deleted'];
  *   protected array $nervousSystemHiddenFields = ['credit_card_token'];
  *   protected string $nervousSystemSourceDomain = 'Guild';
- *   protected float $nervousSystemSamplingRate = 0.1;        // 10% sampling for high-volume models
- *   protected int   $nervousSystemDedupeWindowSeconds = 60;  // suppress identical events within window
+ *   protected float $nervousSystemSamplingRate = 0.1;        // 10% emission for noisy models
+ *   protected int   $nervousSystemDedupeWindowSeconds = 60;  // suppress identical events
  *
- * Implementation note: we register static event closures in the
- * trait boot method rather than calling static::observe(). The latter
+ * DO NOT switch from static event closures to `static::observe()`. That
  * triggers `new static` during Model::boot(), which Laravel rejects with
- * "may not be called on model [...] while it is being booted". Closure
- * registration avoids the re-entrant boot.
+ * "may not be called on model [...] while it is being booted".
  */
 trait EmitsNervousSystemEvents
 {
