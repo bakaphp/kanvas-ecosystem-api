@@ -133,6 +133,7 @@ class OrderFinishExpiredCommand extends Command
             [
                 'app' => $order->app,
                 'company' => $order->company,
+                'order' => $order,
                 'title' => 'Your reservation has ended',
                 'message' => 'Your reservation time has ended.',
                 'metadata' => $order->toArray(),
@@ -176,6 +177,7 @@ class OrderFinishExpiredCommand extends Command
             [
                 'app' => $order->app,
                 'company' => $order->company,
+                'order' => $order,
                 'title' => 'Your reservation is ending soon',
                 'message' => "Your reservation will end in {$notifyMinutes} minutes.",
                 'metadata' => $order->toArray(),
