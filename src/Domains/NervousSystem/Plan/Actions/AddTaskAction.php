@@ -6,7 +6,7 @@ namespace Kanvas\NervousSystem\Plan\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
-use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
+use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 
@@ -46,7 +46,7 @@ class AddTaskAction
             ]);
 
             $this->plan->broadcastChange(
-                changeType: PlanBroadcast::CHANGE_TASK_ADDED,
+                changeType: PlanChangeTypeEnum::TASK_ADDED,
                 task: $task,
             );
 

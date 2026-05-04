@@ -16,6 +16,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Ledger\Enums\LedgerConfigurationEnum;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
+use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
@@ -177,7 +178,7 @@ class Plan extends BaseModel
     }
 
     public function broadcastChange(
-        string $changeType,
+        PlanChangeTypeEnum $changeType,
         ?Task $task = null,
         ?string $previousStatus = null,
     ): void {
@@ -190,7 +191,12 @@ class Plan extends BaseModel
                 return;
             }
 
-            PlanBroadcast::dispatch($this, $changeType, $task, $previousStatus);
+            PlanBroadcast::dispatch(
+                $this,
+                $changeType,
+                $task,
+                $previousStatus
+            );
         } catch (Throwable $e) {
             report($e);
         }

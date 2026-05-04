@@ -8,8 +8,8 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
+use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
-use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
@@ -95,7 +95,7 @@ class CreatePlanAction
                 'file_count' => count($this->data->files),
             ]);
 
-            $plan->broadcastChange(PlanBroadcast::CHANGE_CREATED);
+            $plan->broadcastChange(PlanChangeTypeEnum::CREATED);
 
             return $plan;
         });

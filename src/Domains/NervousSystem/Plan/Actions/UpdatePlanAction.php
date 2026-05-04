@@ -7,7 +7,7 @@ namespace Kanvas\NervousSystem\Plan\Actions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
-use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
+use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 
 class UpdatePlanAction
@@ -60,7 +60,7 @@ class UpdatePlanAction
             ]);
 
             $this->plan->broadcastChange(
-                changeType: PlanBroadcast::CHANGE_UPDATED,
+                changeType: PlanChangeTypeEnum::UPDATED,
                 previousStatus: $oldStatus,
             );
 

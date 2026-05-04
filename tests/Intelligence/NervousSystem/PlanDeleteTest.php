@@ -11,6 +11,7 @@ use Kanvas\NervousSystem\Plan\Actions\DeletePlanAction;
 use Kanvas\NervousSystem\Plan\Actions\DeleteTaskAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
+use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Models\Plan;
@@ -78,7 +79,7 @@ class PlanDeleteTest extends TestCase
             PlanBroadcast::class,
             fn (PlanBroadcast $b) =>
                 $b->plan->id === $plan->id
-                && $b->changeType === PlanBroadcast::CHANGE_DELETED
+                && $b->changeType === PlanChangeTypeEnum::DELETED
         );
     }
 
@@ -147,7 +148,7 @@ class PlanDeleteTest extends TestCase
             PlanBroadcast::class,
             fn (PlanBroadcast $b) =>
                 $b->plan->id === $plan->id
-                && $b->changeType === PlanBroadcast::CHANGE_TASK_STATUS_CHANGED
+                && $b->changeType === PlanChangeTypeEnum::TASK_STATUS_CHANGED
         );
     }
 
