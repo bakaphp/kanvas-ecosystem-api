@@ -12,11 +12,6 @@ use Throwable;
 
 class AgentSwarmObserver
 {
-    /**
-     * The Activities channel scoped to the swarm itself is the org-level
-     * feed — humans see all messages across the swarm in one stream, and
-     * agents query it for context that crosses individual plans.
-     */
     public function created(AgentSwarm $swarm): void
     {
         $owner = $swarm->user;
@@ -38,9 +33,8 @@ class AgentSwarmObserver
                     slug: $swarm->uuid,
                 ),
             )->execute();
-        } catch (Throwable) {
-            // Channel creation must not block swarm creation. A swarm
-            // without a channel still works; the FE can create one later.
+        } catch (Throwable $e) {
+           report($e);
         }
     }
 
