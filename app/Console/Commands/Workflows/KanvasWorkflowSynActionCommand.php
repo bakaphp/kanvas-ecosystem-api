@@ -193,6 +193,7 @@ use Kanvas\Intelligence\Workflows\Activities\ContactCheckerActivity;
 use Kanvas\Intelligence\Workflows\LeadAgentFirstMessageOutreachActivity;
 use Kanvas\Intelligence\Workflows\SaveLeadPreferredChannelActivity;
 use Kanvas\Intelligence\Workflows\SendNotificationActivity;
+use Kanvas\NervousSystem\Plan\Activities\ReplyToPlanCommentActivity;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
 use Kanvas\Social\Messages\Workflows\Activities\CheckMessageContentActivity;
@@ -425,6 +426,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncOpenClawAgentWorkspaceActivity::class,
             SyncAgentSwarmContextActivity::class,
             SendChannelMessageToAgentActivity::class,
+            ReplyToPlanCommentActivity::class,
             MicrosoftAgentChannelResponderActivity::class,
             SyncMicrosoftEmailActivity::class,
             SendLeadAdfByEmailActivity::class,
