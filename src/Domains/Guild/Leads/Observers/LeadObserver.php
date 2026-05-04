@@ -13,6 +13,7 @@ use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Intelligence\Sessions\Actions\DeleteSessionAction;
+use Kanvas\Intelligence\Sessions\Actions\UpdateLeadSessionsAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
@@ -123,6 +124,7 @@ class LeadObserver
         //Subscription::broadcast('leadUpdate', $lead, true);
         LeadUpdateEvent::dispatch($lead);
         LeadCompanyUpdateEvent::dispatch($lead);
+        new UpdateLeadSessionsAction($lead)->execute();
 
         if ($lead->wasChanged('leads_status_id')) {
             $leadStatus = $lead->status()->first();
