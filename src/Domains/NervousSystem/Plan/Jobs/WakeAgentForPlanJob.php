@@ -12,24 +12,29 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Actions\ProcessAgentChatAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Throwable;
 
 /**
  * Single entry point for waking the agent assigned to a Plan. Used by:
- *   - WakeAgentForPlanListener (plan created / approved)
+ *   - WakeAgentOnPlanChange listener (plan created / approved)
  *   - ReplyToPlanCommentActivity (human comment on the Activities channel)
  *
  * Both paths land on the same per-plan Session so the agent's LLM context
  * is continuous across all wake-ups for the same plan.
  *
- * The agent's reply is posted back on the plan's Activities channel by the
- * agent's user — which has the `is_agent=true` custom field set, so the
- * comment-reply activity will skip it on save and the loop is broken.
+ * Emits three ledger events on success:
+ *   plan.agent.invoked      — after the LLM call returns (carries duration_ms)
+ *   plan.agent.replied      — after the reply is posted on the channel
+ *
+ * And one on failure:
+ *   plan.agent.invocation_failed — when ProcessAgentChatAction throws
  */
 class WakeAgentForPlanJob implements ShouldQueue
 {
@@ -60,16 +65,61 @@ class WakeAgentForPlanJob implements ShouldQueue
         $session = $this->resolveSession();
         $message = $this->buildMessage();
 
-        $response = new ProcessAgentChatAction(
-            agent: $agent,
-            session: $session,
-            message: $message,
-            app: $this->plan->app,
-            company: $this->plan->company,
-            user: $owner,
-        )->execute();
+        $startedAt = microtime(true);
 
-        $this->postReplyOnActivitiesChannel($response);
+        try {
+            $response = new ProcessAgentChatAction(
+                agent: $agent,
+                session: $session,
+                message: $message,
+                app: $this->plan->app,
+                company: $this->plan->company,
+                user: $owner,
+            )->execute();
+        } catch (Throwable $e) {
+            $this->plan->emitLedgerEvent(
+                eventType: 'plan.agent.invocation_failed',
+                status: EventStatusEnum::ERROR,
+                payload: [
+                    'agent_id' => $this->plan->agent_id,
+                    'session_id' => $session->getId(),
+                    'reason' => $this->reason,
+                ],
+                error: [
+                    'message' => $e->getMessage(),
+                    'class' => $e::class,
+                ],
+                durationMs: (int) ((microtime(true) - $startedAt) * 1000),
+            );
+
+            throw $e;
+        }
+
+        $durationMs = (int) ((microtime(true) - $startedAt) * 1000);
+
+        $this->plan->emitLedgerEvent(
+            'plan.agent.invoked',
+            payload: [
+                'agent_id' => $this->plan->agent_id,
+                'session_id' => $session->getId(),
+                'reason' => $this->reason,
+                'response_length' => strlen($response),
+            ],
+            durationMs: $durationMs,
+        );
+
+        $reply = $this->postReplyOnActivitiesChannel($response);
+
+        if ($reply !== null) {
+            $this->plan->emitLedgerEvent(
+                'plan.agent.replied',
+                payload: [
+                    'agent_id' => $this->plan->agent_id,
+                    'message_id' => $reply->id,
+                    'message_uuid' => $reply->uuid,
+                ],
+            );
+        }
     }
 
     protected function resolveSession(): Session
@@ -120,21 +170,23 @@ class WakeAgentForPlanJob implements ShouldQueue
 
     /**
      * Persist the agent's response as a Message on the Plan's Activities
-     * channel. The poster is the agent's user (which has is_agent=true),
-     * so the comment-reply activity will skip this message on save.
+     * channel. The poster is the agent's user, which matches the loop
+     * guard in ReplyToPlanCommentActivity so this message doesn't refire.
+     *
+     * Returns the saved Message (or null if any precondition failed).
      */
-    protected function postReplyOnActivitiesChannel(string $response): void
+    protected function postReplyOnActivitiesChannel(string $response): ?Message
     {
         try {
             $channel = $this->plan->socialChannels->first();
 
             if ($channel === null || $response === '') {
-                return;
+                return null;
             }
 
             $agentUser = $this->plan->agent?->user;
             if ($agentUser === null) {
-                return;
+                return null;
             }
 
             $messageType = new CreateMessageTypeAction(
@@ -163,8 +215,12 @@ class WakeAgentForPlanJob implements ShouldQueue
             )->execute();
 
             $channel->addMessage($message, $agentUser);
+
+            return $message;
         } catch (Throwable $e) {
             report($e);
+
+            return null;
         }
     }
 }

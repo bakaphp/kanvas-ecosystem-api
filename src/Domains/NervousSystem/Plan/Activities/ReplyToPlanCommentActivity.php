@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Plan\Activities;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\NervousSystem\Plan\Enums\PlanConfigurationEnum;
 use Kanvas\NervousSystem\Plan\Jobs\WakeAgentForPlanJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\Social\Messages\Models\Message;
@@ -36,12 +35,13 @@ class ReplyToPlanCommentActivity extends KanvasActivity
                     return ['message' => 'Message not linked to a Plan', 'entity' => null];
                 }
 
-                if ((bool) $app->get(PlanConfigurationEnum::AUTO_WAKE_AGENTS->value) === false) {
-                    return ['message' => 'auto_wake_agents disabled on app', 'entity' => null];
-                }
-
                 if ($plan->agent_id === null) {
                     return ['message' => 'Plan has no assigned agent', 'entity' => null];
+                }
+
+                // Per-agent kill switch.
+                if (! (bool) ($plan->agent?->is_active ?? false)) {
+                    return ['message' => 'Plan\'s assigned agent is inactive', 'entity' => null];
                 }
 
                 // Loop guard — only skip messages from the plan's OWN assigned
@@ -56,6 +56,16 @@ class ReplyToPlanCommentActivity extends KanvasActivity
                 if ($content === '') {
                     return ['message' => 'Empty message body', 'entity' => null];
                 }
+
+                $plan->emitLedgerEvent(
+                    'plan.agent.wake_dispatched',
+                    payload: [
+                        'agent_id' => $plan->agent_id,
+                        'reason' => WakeAgentForPlanJob::REASON_COMMENT,
+                        'source' => 'activity',
+                        'message_id' => $message->id,
+                    ],
+                );
 
                 WakeAgentForPlanJob::dispatch(
                     $plan,
