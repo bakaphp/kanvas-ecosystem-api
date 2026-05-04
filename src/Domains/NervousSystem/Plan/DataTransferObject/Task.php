@@ -33,7 +33,7 @@ class Task extends Data
             sequence: isset($data['sequence']) ? (int) $data['sequence'] : $defaultSequence,
             description: $data['description'] ?? null,
             status: isset($data['status'])
-                ? TaskStatusEnum::from((string) $data['status'])
+                ? TaskStatusEnum::fromAlias((string) $data['status'])
                 : TaskStatusEnum::PENDING,
             result: $data['result'] ?? null,
             blockedReason: $data['blocked_reason'] ?? null,

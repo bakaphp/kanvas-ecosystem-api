@@ -70,7 +70,7 @@ class Plan extends Data
             entityId: isset($data['entity_id']) ? (int) $data['entity_id'] : null,
             description: $data['description'] ?? null,
             status: isset($data['status'])
-                ? PlanStatusEnum::from((string) $data['status'])
+                ? PlanStatusEnum::fromAlias((string) $data['status'])
                 : PlanStatusEnum::DRAFT,
             priority: isset($data['priority']) ? (int) $data['priority'] : 0,
             deadlineAt: isset($data['deadline_at']) ? Carbon::parse((string) $data['deadline_at']) : null,
@@ -105,7 +105,7 @@ class Plan extends Data
             entityId: $plan->entity_id,
             description: $data['description'] ?? $plan->description,
             status: isset($data['status'])
-                ? PlanStatusEnum::from((string) $data['status'])
+                ? PlanStatusEnum::fromAlias((string) $data['status'])
                 : PlanStatusEnum::from($plan->status),
             priority: isset($data['priority']) ? (int) $data['priority'] : $plan->priority,
             deadlineAt: array_key_exists('deadline_at', $data)

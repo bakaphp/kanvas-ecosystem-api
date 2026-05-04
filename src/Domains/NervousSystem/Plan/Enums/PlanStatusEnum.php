@@ -31,4 +31,25 @@ enum PlanStatusEnum: string
     {
         return [self::DONE, self::FAILED, self::CANCELLED];
     }
+
+    /**
+     * Like ::from() but tolerates common synonyms ("completed" → "done",
+     * "canceled" → "cancelled", "started" → "active", etc.) and case
+     * variations. Agents and humans naturally reach for these — accept
+     * them rather than throw.
+     */
+    public static function fromAlias(string $value): self
+    {
+        $canonical = match (strtolower(trim($value))) {
+            'completed', 'complete', 'finished', 'finish' => 'done',
+            'canceled', 'cancel' => 'cancelled',
+            'fail' => 'failed',
+            'started', 'start', 'running', 'in_progress', 'in-progress' => 'active',
+            'pending' => 'draft',
+            'awaiting-approval', 'needs_approval', 'needs-approval', 'pending_approval' => 'awaiting_approval',
+            default => strtolower(trim($value)),
+        };
+
+        return self::from($canonical);
+    }
 }

@@ -103,7 +103,7 @@ class PlanMutation
 
         return new UpdateTaskStatusAction(
             task: $task,
-            newStatus: TaskStatusEnum::from((string) $input['status']),
+            newStatus: TaskStatusEnum::fromAlias((string) $input['status']),
             result: $input['result'] ?? null,
             blockedReason: $input['blocked_reason'] ?? null,
         )->execute();
