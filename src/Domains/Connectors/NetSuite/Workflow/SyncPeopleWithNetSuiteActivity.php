@@ -21,7 +21,8 @@ class SyncPeopleWithNetSuiteActivity extends KanvasActivity
             entity: $people,
             app: $app,
             integration: IntegrationsEnum::NETSUITE,
-            integrationOperation: function ($people, $app, $integrationCompany, $additionalParams) use ($params) {
+            additionalParams: $params,
+            integrationOperation: function ($people, $app, $integrationCompany, $additionalParams) {
                 $syncPeopleWithNetSuite = new SyncPeopleWithNetSuiteAction($app, $people->company);
                 $company = $syncPeopleWithNetSuite->execute();
 
