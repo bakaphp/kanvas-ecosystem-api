@@ -8,12 +8,6 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Models\Task;
 
-/**
- * Broadcasts as CHANGE_TASK_STATUS_CHANGED (not a dedicated `task_deleted`
- * change type) so the kanban refreshes the card via its existing handler;
- * `recomputeCompletionPct()` already filters notDeleted, so the FE sees
- * the task disappear on refetch.
- */
 class DeleteTaskAction
 {
     public function __construct(

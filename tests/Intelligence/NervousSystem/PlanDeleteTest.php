@@ -151,6 +151,39 @@ class PlanDeleteTest extends TestCase
         );
     }
 
+    public function testDeletedTasksDoNotLeakThroughTasksRelation(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $plan = new CreatePlanAction(
+            new PlanData(
+                app: $app,
+                company: $company,
+                title: 'Task relation leak check',
+                planType: 'workspace_issue',
+                user: $user,
+                status: PlanStatusEnum::ACTIVE,
+            ),
+            tasks: [
+                new TaskData(plan: null, title: 'kept', sequence: 0),
+                new TaskData(plan: null, title: 'deleted', sequence: 1),
+            ],
+        )->execute();
+
+        $deletedTask = $plan->tasks()->where('title', 'deleted')->first();
+        $this->assertNotNull($deletedTask);
+
+        new DeleteTaskAction($deletedTask)->execute();
+
+        $plan->refresh();
+        $titles = $plan->tasks->pluck('title')->all();
+
+        $this->assertContains('kept', $titles);
+        $this->assertNotContains('deleted', $titles);
+    }
+
     public function testListQueryHidesSoftDeletedPlans(): void
     {
         $user = auth()->user();

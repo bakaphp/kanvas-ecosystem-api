@@ -8,10 +8,6 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 
-/**
- * Cascades the soft-delete to the plan's tasks. Idempotent — re-deleting
- * an already-deleted plan returns true with no event/broadcast.
- */
 class DeletePlanAction
 {
     public function __construct(
@@ -29,6 +25,10 @@ class DeletePlanAction
             $this->plan->tasks()->update(['is_deleted' => 1]);
             $this->plan->softDelete();
         });
+
+        foreach ($this->plan->socialChannels as $channel) {
+            $channel->delete();
+        }
 
         $this->plan->emitLedgerEvent('plan.deleted', payload: [
             'title' => $this->plan->title,
