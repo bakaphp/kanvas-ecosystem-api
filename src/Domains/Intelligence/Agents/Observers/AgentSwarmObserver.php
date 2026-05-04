@@ -34,7 +34,7 @@ class AgentSwarmObserver
                 ),
             )->execute();
         } catch (Throwable $e) {
-           report($e);
+            report($e);
         }
     }
 
