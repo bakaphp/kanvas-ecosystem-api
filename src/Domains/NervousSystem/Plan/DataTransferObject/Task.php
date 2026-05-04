@@ -9,13 +9,8 @@ use Kanvas\NervousSystem\Plan\Models\Plan;
 use Spatie\LaravelData\Data;
 
 /**
- * Task creation/update payload. Always tied to a parent Plan, which carries
- * the tenant scope.
- *
- * NOTE: when used as a member of an "initial tasks" array passed to
- * CreatePlanAction (where the parent Plan doesn't exist yet), pass null
- * for $plan — CreatePlanAction wires the relationship after creating
- * the parent.
+ * `$plan` is nullable so initial tasks can be staged for a not-yet-created
+ * Plan inside CreatePlanAction (which wires the relationship post-save).
  */
 class Task extends Data
 {
@@ -30,12 +25,6 @@ class Task extends Data
     ) {
     }
 
-    /**
-     * Build a Task DTO from a GraphQL/HTTP input array. The plan reference
-     * is optional here because tasks attached to a *new* plan via
-     * CreatePlanAction don't have a parent yet — the action wires it after
-     * creating the parent plan.
-     */
     public static function fromMultiple(?Plan $plan, array $data, int $defaultSequence = 0): self
     {
         return new self(
@@ -52,8 +41,6 @@ class Task extends Data
     }
 
     /**
-     * Map an array of task-input rows into TaskData instances.
-     *
      * @param array<int, array<string, mixed>> $rows
      * @return array<int, self>
      */

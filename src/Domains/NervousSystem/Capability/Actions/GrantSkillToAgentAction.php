@@ -12,9 +12,8 @@ use Kanvas\NervousSystem\Capability\Models\AgentSkill;
 use Kanvas\NervousSystem\Capability\Models\Skill;
 
 /**
- * Grant a Skill to an Agent. Enforces the framework-compatibility invariant:
- * the skill's `frameworks` array must include the agent's
- * `agent_type.provider` value, otherwise the grant is rejected at boundary.
+ * Invariant: the skill's `frameworks` array must include the agent's
+ * `agent_type.provider`, otherwise the grant is rejected.
  */
 class GrantSkillToAgentAction
 {

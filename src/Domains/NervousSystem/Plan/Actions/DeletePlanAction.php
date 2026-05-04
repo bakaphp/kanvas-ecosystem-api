@@ -1,0 +1,42 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\NervousSystem\Plan\Actions;
+
+use Illuminate\Support\Facades\DB;
+use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
+use Kanvas\NervousSystem\Plan\Models\Plan;
+
+/**
+ * Cascades the soft-delete to the plan's tasks. Idempotent — re-deleting
+ * an already-deleted plan returns true with no event/broadcast.
+ */
+class DeletePlanAction
+{
+    public function __construct(
+        protected readonly Plan $plan,
+    ) {
+    }
+
+    public function execute(): bool
+    {
+        if ((bool) $this->plan->is_deleted) {
+            return true;
+        }
+
+        DB::connection('intelligence')->transaction(function (): void {
+            $this->plan->tasks()->update(['is_deleted' => 1]);
+            $this->plan->softDelete();
+        });
+
+        $this->plan->emitLedgerEvent('plan.deleted', payload: [
+            'title' => $this->plan->title,
+            'status' => $this->plan->status,
+        ]);
+
+        $this->plan->broadcastChange(PlanBroadcast::CHANGE_DELETED);
+
+        return true;
+    }
+}

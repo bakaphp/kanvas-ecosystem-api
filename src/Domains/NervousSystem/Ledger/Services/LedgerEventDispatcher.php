@@ -14,11 +14,10 @@ use Kanvas\NervousSystem\Ledger\Jobs\AppendToLedgerJob;
 use Throwable;
 
 /**
- * Stateless dispatcher invoked by the EmitsNervousSystemEvents trait's
- * static event closures. Was previously an Eloquent Observer class, but
- * registering observers from a trait boot method caused re-entrant
- * Model boot (static::observe → new static → bootIfNotBooted). Static
- * event closures + this service avoid that.
+ * DO NOT convert this back to an Observer registered from the trait's
+ * boot method — that path triggers re-entrant Model boot (static::observe
+ * → new static → bootIfNotBooted). Static event closures + this stateless
+ * service is the working escape.
  */
 class LedgerEventDispatcher
 {

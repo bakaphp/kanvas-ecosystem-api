@@ -11,21 +11,11 @@ use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Spatie\LaravelData\Data;
 
 /**
- * Tenant-scoped ledger event payload, shared between AppendEventAction
- * (synchronous writer) and AppendToLedgerJob (queued wrapper).
+ * `result` / `error` are mutually exclusive by status:
+ *   success → result set, error → error set, info → both null.
  *
- * Tenant scope (app, company) is required — the caller must supply both
- * explicitly so the ledger can be written from non-HTTP contexts (jobs,
- * console, observers) safely.
- *
- * `payload` is the input/context that triggered the event;
- * `result` and `error` are mutually exclusive outcome data:
- * - status=success → result set
- * - status=error   → error set
- * - status=info    → both null (pure observation events)
- *
- * `actor_*` and `source_entity_*` stay as type+id pairs (polymorphic —
- * no single typed model to pass for an actor or arbitrary source entity).
+ * `actor_*` and `source_entity_*` are type+id pairs (polymorphic — no
+ * typed-model arg). `company` is nullable for catalog rows (Skill / Tool).
  */
 class Event extends Data
 {

@@ -10,10 +10,8 @@ use Kanvas\NervousSystem\Capability\Models\Skill as SkillModel;
 use Spatie\LaravelData\Data;
 
 /**
- * Skill catalog payload. Pass an app to scope the skill to that app
- * (the catalog row stores `apps_id`); the special "global skill"
- * (apps_id=0) case is created via CreateGlobalSkillAction (TODO),
- * not this DTO.
+ * Skills are app-scoped here. The "global skill" case (`apps_id=0`) goes
+ * through CreateGlobalSkillAction (TODO), not this DTO.
  */
 class Skill extends Data
 {

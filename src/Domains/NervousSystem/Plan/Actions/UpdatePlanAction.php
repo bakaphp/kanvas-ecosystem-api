@@ -7,13 +7,9 @@ namespace Kanvas\NervousSystem\Plan\Actions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
+use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 
-/**
- * Updates mutable plan fields. Status transitions to terminal states
- * (done/failed/cancelled) set completed_at; transition to active sets
- * started_at if not already set. Every change emits a `plan.updated` event.
- */
 class UpdatePlanAction
 {
     public function __construct(
@@ -36,6 +32,7 @@ class UpdatePlanAction
             $this->plan->confidence_score = $this->data->confidenceScore !== null
                 ? (string) $this->data->confidenceScore
                 : null;
+            $this->plan->requires_human_approval = $this->data->requiresHumanApproval;
 
             $newStatus = $this->data->status->value;
 
@@ -52,11 +49,20 @@ class UpdatePlanAction
             $this->plan->status = $newStatus;
             $this->plan->saveOrFail();
 
+            if ($this->data->files !== []) {
+                $this->plan->addMultipleFilesFromUrl($this->data->files);
+            }
+
             $this->plan->emitLedgerEvent('plan.updated', payload: [
                 'status_from' => $oldStatus,
                 'status_to' => $newStatus,
                 'completion_pct' => $this->plan->completion_pct,
             ]);
+
+            $this->plan->broadcastChange(
+                changeType: PlanBroadcast::CHANGE_UPDATED,
+                previousStatus: $oldStatus,
+            );
 
             return $this->plan->fresh() ?? $this->plan;
         });

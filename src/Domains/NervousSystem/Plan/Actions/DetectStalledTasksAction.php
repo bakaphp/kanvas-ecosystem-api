@@ -8,18 +8,8 @@ use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Task;
 
 /**
- * Sweeps tasks that have been in `in_progress` longer than the configured
- * threshold and emits one `plan.task.stalled` ledger event per stalled task.
- *
- * The action does NOT mutate task state — agents/humans decide what to do
- * with the stuckness signal (PR 5's Pub/Sub fans these out to interested
- * subscribers). This is the cheapest possible heuristic; LLM-judged
- * progress detection is a v2 enhancement.
- *
- * To avoid re-emitting on every cron tick, we tag the task as
- * "stuckness-emitted" by stamping a custom JSON marker into result. A
- * task whose `result.stuckness_emitted_at` was set within the same
- * stalled window is skipped.
+ * Idempotent across cron ticks: each emission stamps `result.stuckness_emitted_at`
+ * on the task, and tasks already stamped are skipped on subsequent runs.
  */
 class DetectStalledTasksAction
 {

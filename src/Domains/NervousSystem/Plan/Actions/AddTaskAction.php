@@ -6,6 +6,7 @@ namespace Kanvas\NervousSystem\Plan\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
+use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 
@@ -43,6 +44,11 @@ class AddTaskAction
                 'title' => $task->title,
                 'status' => $task->status,
             ]);
+
+            $this->plan->broadcastChange(
+                changeType: PlanBroadcast::CHANGE_TASK_ADDED,
+                task: $task,
+            );
 
             return $task;
         });

@@ -26,6 +26,17 @@ type NervousSystemPlan {
     completed_at: DateTime
     error_message: String
     tasks: [NervousSystemTask!]! @hasMany(relation: "tasks")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
     created_at: DateTime!
     updated_at: DateTime
 }
@@ -72,6 +83,7 @@ input CreateNervousSystemPlanInput {
     confidence_score: Float
     requires_human_approval: Boolean
     tasks: [NervousSystemTaskInput!]
+    files: [FilesystemInputUrl!]
 }
 
 input UpdateNervousSystemPlanInput {
@@ -83,6 +95,8 @@ input UpdateNervousSystemPlanInput {
     input: Mixed
     output: Mixed
     confidence_score: Float
+    requires_human_approval: Boolean
+    files: [FilesystemInputUrl!]
 }
 
 input ApproveNervousSystemPlanInput {
@@ -127,14 +141,14 @@ extend type Query @guard {
     ): [NervousSystemPlan!]!
         @paginate(
             model: "Kanvas\\NervousSystem\\Plan\\Models\\Plan"
-            scopes: ["fromApp", "fromCompany"]
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
 
     nervousSystemPlan(id: ID! @eq): NervousSystemPlan
         @find(
             model: "Kanvas\\NervousSystem\\Plan\\Models\\Plan"
-            scopes: ["fromApp", "fromCompany"]
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
         )
 }
 
@@ -176,5 +190,15 @@ extend type Mutation @guard {
     ): NervousSystemTask!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\PlanMutation@updateTaskStatus"
+        )
+
+    deleteNervousSystemPlan(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\PlanMutation@delete"
+        )
+
+    deleteNervousSystemTask(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\PlanMutation@deleteTask"
         )
 }

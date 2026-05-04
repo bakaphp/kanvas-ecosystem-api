@@ -11,29 +11,12 @@ use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 
 /**
- * Provides `emitLedgerEvent()` on a model. Used by domain actions to log
- * lifecycle events with one line instead of 15.
+ * For deliberate, action-driven emission (e.g. `plan.approved`). Coexists
+ * with `EmitsNervousSystemEvents`, which auto-emits on Eloquent lifecycle —
+ * both can be on the same model.
  *
- * Differences from `EmitsNervousSystemEvents`:
- * - This trait is for **deliberate, action-driven** emission ("the agent
- *   approved this plan", "this task transitioned to done"). Actions call it
- *   explicitly with a chosen event_type and payload.
- * - `EmitsNervousSystemEvents` is for **automatic Eloquent-lifecycle**
- *   emission (created/updated/deleted observed by Eloquent events).
- *
- * The two coexist on the same model — the lifecycle trait fires `created`
- * via observer; actions fire domain events like `plan.approved` via this trait.
- *
- * Per-model overrides:
- *   - resolveDefaultActorType() — string actor type (User/Agent/System)
- *   - resolveDefaultActorId()   — int|null actor id
- *   - sourceDomainForLedger()   — overrides the source_domain (defaults
- *                                  to "NervousSystem")
- *
- * Models that use this trait must have `app()` and `company()` relations
- * (provided by KanvasModelTrait). For models without a company (e.g. Skill,
- * Tool catalog rows), `$this->company` returns null and the event is
- * stored with `companies_id=0`.
+ * For catalog rows without a company (Skill, Tool), `$this->company` is
+ * null and the event lands with `companies_id=0`.
  */
 trait EmitsLedgerEventsForEntity
 {

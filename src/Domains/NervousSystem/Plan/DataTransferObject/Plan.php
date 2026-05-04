@@ -33,13 +33,14 @@ class Plan extends Data
         public readonly ?array $output = null,
         public readonly ?float $confidenceScore = null,
         public readonly bool $requiresHumanApproval = false,
+        /** @var array<int, array<string, mixed>> */
+        public readonly array $files = [],
     ) {
     }
 
     /**
-     * Build a Plan DTO from a GraphQL/HTTP input array. Resolves model
-     * references (agent, user, parent_plan) with tenant scope. Defaults
-     * `user` to the requesting user when no `users_id` is in the input.
+     * Defaults `user` to the requesting user when no `users_id` is in the
+     * input — matches "plan owned by whoever created it" semantics.
      */
     public static function fromMultiple(
         AppInterface $app,
@@ -77,15 +78,14 @@ class Plan extends Data
             output: $data['output'] ?? null,
             confidenceScore: isset($data['confidence_score']) ? (float) $data['confidence_score'] : null,
             requiresHumanApproval: (bool) ($data['requires_human_approval'] ?? false),
+            files: (array) ($data['files'] ?? []),
         );
     }
 
     /**
-     * Build a Plan DTO for an update mutation — overlays the input array
-     * onto the existing model's values, so partial updates work without
-     * losing fields. Identity columns (`plan_type`, `agent`, `user`,
-     * `parent_plan`, `entity_*`, `requires_human_approval`) are preserved
-     * from the existing plan and not editable here.
+     * Identity columns (`plan_type`, `agent`, `user`, `parent_plan`,
+     * `entity_*`) are intentionally preserved from the existing plan and
+     * not editable through update.
      */
     public static function forUpdate(
         PlanModel $plan,
@@ -116,7 +116,10 @@ class Plan extends Data
             confidenceScore: array_key_exists('confidence_score', $data)
                 ? ($data['confidence_score'] !== null ? (float) $data['confidence_score'] : null)
                 : ($plan->confidence_score !== null ? (float) $plan->confidence_score : null),
-            requiresHumanApproval: $plan->requires_human_approval,
+            requiresHumanApproval: array_key_exists('requires_human_approval', $data)
+                ? (bool) $data['requires_human_approval']
+                : (bool) $plan->requires_human_approval,
+            files: (array) ($data['files'] ?? []),
         );
     }
 }

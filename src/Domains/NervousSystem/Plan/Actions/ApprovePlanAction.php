@@ -8,13 +8,10 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\Users\Models\Users;
 
-/**
- * Approve a plan that's awaiting human approval. Flips to active and
- * stamps started_at. Reviewer comment recorded in review_outcome.
- */
 class ApprovePlanAction
 {
     public function __construct(
@@ -58,6 +55,12 @@ class ApprovePlanAction
                 ],
                 actorType: 'User',
                 actorId: $reviewerId,
+            );
+
+            $this->plan->broadcastChange(
+                changeType: $this->approved
+                    ? PlanBroadcast::CHANGE_APPROVED
+                    : PlanBroadcast::CHANGE_REJECTED,
             );
 
             return $this->plan->fresh() ?? $this->plan;

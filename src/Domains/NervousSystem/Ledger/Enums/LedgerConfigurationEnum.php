@@ -22,4 +22,14 @@ enum LedgerConfigurationEnum: string
      * (assuming BROADCAST_LEDGER_EVENTS is true).
      */
     case BROADCAST_LEDGER_EVENT_TYPES = 'broadcast_ledger_event_types';
+
+    /**
+     * Bool. When true (default), every Plan/Task lifecycle change broadcasts
+     * a dedicated `PlanBroadcast` Pusher event with the full Plan payload —
+     * separate from the generic LedgerEventBroadcast. Frontends rendering
+     * the pipeline kanban subscribe to this; ops dashboards subscribe to the
+     * ledger broadcast. Set to false to disable plan-specific broadcasts on
+     * an app where the kanban UI isn't needed.
+     */
+    case BROADCAST_PLAN_EVENTS = 'broadcast_plan_events';
 }
