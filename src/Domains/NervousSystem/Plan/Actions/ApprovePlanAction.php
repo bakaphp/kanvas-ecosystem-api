@@ -7,8 +7,8 @@ namespace Kanvas\NervousSystem\Plan\Actions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
-use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\Users\Models\Users;
 
@@ -59,8 +59,8 @@ class ApprovePlanAction
 
             $this->plan->broadcastChange(
                 changeType: $this->approved
-                    ? PlanBroadcast::CHANGE_APPROVED
-                    : PlanBroadcast::CHANGE_REJECTED,
+                    ? PlanChangeTypeEnum::APPROVED
+                    : PlanChangeTypeEnum::REJECTED,
             );
 
             return $this->plan->fresh() ?? $this->plan;

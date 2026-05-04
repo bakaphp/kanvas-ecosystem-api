@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Plan\Actions;
 
 use Illuminate\Support\Facades\DB;
-use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
+use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Models\Task;
 
 class DeleteTaskAction
@@ -36,7 +36,7 @@ class DeleteTaskAction
         ]);
 
         $plan?->broadcastChange(
-            changeType: PlanBroadcast::CHANGE_TASK_STATUS_CHANGED,
+            changeType: PlanChangeTypeEnum::TASK_STATUS_CHANGED,
             task: $this->task,
         );
 

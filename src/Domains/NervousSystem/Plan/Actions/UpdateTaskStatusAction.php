@@ -7,8 +7,8 @@ namespace Kanvas\NervousSystem\Plan\Actions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
-use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Models\Task;
 
 class UpdateTaskStatusAction
@@ -89,7 +89,7 @@ class UpdateTaskStatusAction
             );
 
             $plan?->broadcastChange(
-                changeType: PlanBroadcast::CHANGE_TASK_STATUS_CHANGED,
+                changeType: PlanChangeTypeEnum::TASK_STATUS_CHANGED,
                 task: $this->task,
                 previousStatus: $oldStatus,
             );

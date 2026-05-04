@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Plan\Actions;
 
 use Illuminate\Support\Facades\DB;
-use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
+use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 
 class DeletePlanAction
@@ -35,7 +35,7 @@ class DeletePlanAction
             'status' => $this->plan->status,
         ]);
 
-        $this->plan->broadcastChange(PlanBroadcast::CHANGE_DELETED);
+        $this->plan->broadcastChange(PlanChangeTypeEnum::DELETED);
 
         return true;
     }

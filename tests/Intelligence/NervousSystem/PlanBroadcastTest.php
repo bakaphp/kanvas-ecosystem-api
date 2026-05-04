@@ -12,6 +12,7 @@ use Kanvas\NervousSystem\Plan\Actions\UpdatePlanAction;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
+use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
@@ -43,7 +44,7 @@ class PlanBroadcastTest extends TestCase
             PlanBroadcast::class,
             fn (PlanBroadcast $b) =>
                 $b->plan->id === $plan->id
-                && $b->changeType === PlanBroadcast::CHANGE_CREATED
+                && $b->changeType === PlanChangeTypeEnum::CREATED
         );
     }
 
@@ -82,7 +83,7 @@ class PlanBroadcastTest extends TestCase
             PlanBroadcast::class,
             fn (PlanBroadcast $b) =>
                 $b->plan->id === $plan->id
-                && $b->changeType === PlanBroadcast::CHANGE_UPDATED
+                && $b->changeType === PlanChangeTypeEnum::UPDATED
                 && $b->previousStatus === 'draft'
         );
     }
@@ -121,7 +122,7 @@ class PlanBroadcastTest extends TestCase
             PlanBroadcast::class,
             fn (PlanBroadcast $b) =>
                 $b->plan->id === $plan->id
-                && $b->changeType === PlanBroadcast::CHANGE_TASK_STATUS_CHANGED
+                && $b->changeType === PlanChangeTypeEnum::TASK_STATUS_CHANGED
                 && $b->task !== null
                 && $b->task->id === $task->id
         );
@@ -171,7 +172,7 @@ class PlanBroadcastTest extends TestCase
             ),
         )->execute();
 
-        $broadcast = new PlanBroadcast($plan, PlanBroadcast::CHANGE_CREATED);
+        $broadcast = new PlanBroadcast($plan, PlanChangeTypeEnum::CREATED);
         $names = array_map(fn ($c) => $c->name, $broadcast->broadcastOn());
 
         $cid = $company->getId();
@@ -202,7 +203,7 @@ class PlanBroadcastTest extends TestCase
             ),
         )->execute();
 
-        $payload = new PlanBroadcast($plan, PlanBroadcast::CHANGE_CREATED)->broadcastWith();
+        $payload = new PlanBroadcast($plan, PlanChangeTypeEnum::CREATED)->broadcastWith();
 
         // Plan payload should only carry the fields the kanban needs.
         $this->assertSame(
