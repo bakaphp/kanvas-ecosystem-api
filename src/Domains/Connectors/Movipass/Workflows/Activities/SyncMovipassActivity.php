@@ -53,7 +53,9 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
 
                 if ($eventName === WorkflowEnum::CREATED->value) {
                     if ($order->reference && ! str_contains($order->reference, '#' . $order->order_number)) {
-                        $order->reference = $order->reference . ' ' . $order->metadata['data']['vehiclePlate'] ?? '' . ' - #' . $order->order_number;
+                        $vehiclePlate = $order->metadata['data']['vehiclePlate'] ?? '';
+                        $referenceParts = array_filter([$vehiclePlate, '#' . $order->order_number]);
+                        $order->reference = $order->reference . ' ' . implode(' - ', $referenceParts);
                     }
 
                     $qrHost = $app->get(ConfigurationEnum::QR_CODE_HOST->value) ?? 'https://go-parking-web.vercel.app';

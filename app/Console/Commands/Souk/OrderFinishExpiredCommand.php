@@ -201,7 +201,7 @@ class OrderFinishExpiredCommand extends Command
         $config = ConfigurationEnum::SEND_EXPIRED_ORDER_FINISHED_NOTIFICATION->value;
 
         return $this->enabled($order->app?->get($config))
-            && $this->enabled($order->company?->get($config));
+            || $this->enabled($order->company?->get($config));
     }
 
     protected function shouldSendExpiringOrderNotification(Order $order): bool
@@ -209,7 +209,7 @@ class OrderFinishExpiredCommand extends Command
         $config = ConfigurationEnum::SEND_EXPIRING_ORDER_NOTIFICATION->value;
 
         return $this->enabled($order->app?->get($config))
-            && $this->enabled($order->company?->get($config));
+            || $this->enabled($order->company?->get($config));
     }
 
     protected function getExpiringOrderNotificationMinutes(Order $order): int
