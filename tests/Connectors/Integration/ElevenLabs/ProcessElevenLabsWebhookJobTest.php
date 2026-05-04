@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsAgentWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsCalendarEventWebhookJob;
+use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsConversationInitiationWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsHandOffWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsTranscriptWebhookJob;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
@@ -76,6 +77,46 @@ class ProcessElevenLabsWebhookJobTest extends TestCase
     public function testAgentWebhookCreatesLeadWhenNotFound(): void
     {
         $this->markTestSkipped('Requires voiceOutreachAgent and VoiceBridge configuration');
+    }
+
+    public function testConversationInitiationWebhookReturnsClientDataForLead(): void
+    {
+        $this->createTestLeadWithPhone();
+
+        $result = $this->dispatchJob(
+            ProcessElevenLabsConversationInitiationWebhookJob::class,
+            [
+                'caller_id' => $this->testPhone,
+                'agent_id' => 'agent_123',
+                'called_number' => '+18001234567',
+                'call_sid' => 'CA123',
+            ]
+        );
+
+        $this->assertEquals('conversation_initiation_client_data', $result['type']);
+        $this->assertArrayHasKey('dynamic_variables', $result);
+        $this->assertTrue($result['dynamic_variables']['contact_exists']);
+        $this->assertTrue($result['dynamic_variables']['has_open_opportunity']);
+        $this->assertEquals($this->testLead->uuid, $result['dynamic_variables']['lead_uuid']);
+        $this->assertEquals('Test Person', $result['dynamic_variables']['customer_name']);
+        $this->assertEquals('agent_123', $result['dynamic_variables']['elevenlabs_agent_id']);
+        $this->assertEquals('CA123', $result['dynamic_variables']['call_sid']);
+    }
+
+    public function testConversationInitiationWebhookReturnsDefaultsWhenCallerIsUnknown(): void
+    {
+        $result = $this->dispatchJob(
+            ProcessElevenLabsConversationInitiationWebhookJob::class,
+            [
+                'caller_id' => '+1809' . random_int(1000000, 9999999),
+                'agent_id' => 'agent_123',
+            ]
+        );
+
+        $this->assertEquals('conversation_initiation_client_data', $result['type']);
+        $this->assertFalse($result['dynamic_variables']['contact_exists']);
+        $this->assertFalse($result['dynamic_variables']['has_open_opportunity']);
+        $this->assertEquals('', $result['dynamic_variables']['lead_uuid']);
     }
 
     public function testTranscriptWebhookWithPhoneCallMetadata(): void
