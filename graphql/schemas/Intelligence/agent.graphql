@@ -97,7 +97,7 @@ input UserChatInput {
 }
 
 type UserChatResponse {
-    response: String!
+    response: Mixed!
     session_id: String!
 }
 
