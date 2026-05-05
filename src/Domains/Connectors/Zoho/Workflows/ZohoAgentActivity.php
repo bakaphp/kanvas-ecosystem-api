@@ -64,8 +64,8 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
                 if (empty($record->Member_Number) && $newAgent == null) {
                     return [
                         'error' => 'Error Member Number not found',
-                        'record' => $record,
-                        'newAgent' => $newAgent,
+                        'record' => $record->getData(),
+                        'newAgent' => $newAgent?->toArray(),
                     ];
                 }
 
@@ -112,7 +112,12 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
                     'zohoId' => $zohoId,
                     'users_id' => $user->getId(),
                     'companies_id' => $company->getId(),
-                    'newAgentRecord' => $newAgentRecord ?? [],
+                    'newAgentRecord' => $newAgentRecord ? [
+                        'agent' => $newAgentRecord['agent']?->toArray(),
+                        'member_id' => $newAgentRecord['member_id'] ?? null,
+                        'zohoAgent' => $newAgentRecord['zohoAgent']?->getData(),
+                        'agentOwner' => $newAgentRecord['agentOwner']?->toArray(),
+                    ] : [],
                     'agentUpdateData' => $agentUpdateData ?? [],
                 ];
             },
