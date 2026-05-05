@@ -107,6 +107,33 @@ class SetupRolesCommand extends Command
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
             ],
+            'wallet-view' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::FINANCE,
+                MovipassRolesEnum::OPERATIONS,
+                MovipassRolesEnum::VIEWER,
+            ],
+            'wallet-recharge' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::FINANCE,
+                MovipassRolesEnum::OPERATIONS,
+            ],
+            'wallet-refund' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::FINANCE,
+            ],
+            'wallet-export' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::FINANCE,
+            ],
+            'wallet-configure' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+            ],
         ];
 
         Bouncer::scope()->to(RolesEnums::getScope($app));
