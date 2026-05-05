@@ -8,6 +8,7 @@ use Bavix\Wallet\Objects\Cart;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Models\PaymentLogs;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
+use Kanvas\Souk\Wallet\Enums\TransactionSourceEnum;
 use Kanvas\Souk\Wallet\Traits\HasWalletHolderTrait;
 use Kanvas\Souk\Wallet\Wallet;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -18,6 +19,11 @@ class PayFromWalletAction
 
     public function __construct(
         protected Order $order,
+        protected ?TransactionSourceEnum $source = null,
+        protected ?string $idempotencyKey = null,
+        protected ?int $actorUserId = null,
+        protected ?string $externalReference = null,
+        protected ?string $reason = null,
     ) {
     }
 
@@ -64,12 +70,22 @@ class PayFromWalletAction
             );
         }
 
-        $cart = $cart->withMeta([
-            'order_id' => $this->order->getId(),
-            'order_number' => (string) $this->order->number,
-            'type' => 'order_payment',
-            'description' => 'Wallet payment for order #' . (string) $this->order->number,
-        ]);
+        $audit = new BuildWalletTransactionMetaAction(
+            source: $this->source ?? TransactionSourceEnum::PAYMENT,
+            idempotencyKey: $this->idempotencyKey,
+            actorUserId: $this->actorUserId ?? $this->order->user?->getId(),
+            externalReference: $this->externalReference ?? $this->order->uuid ?? (string) $this->order->getId(),
+            reason: $this->reason,
+            additional: [
+                'service' => $this->order->orderType?->name,
+                'order_id' => $this->order->getId(),
+                'order_number' => (string) $this->order->number,
+                'type' => 'order_payment',
+                'description' => 'Wallet payment for order #' . (string) $this->order->number,
+            ],
+        )->execute();
+
+        $cart = $cart->withMeta($audit);
 
         $wallet->payCart($cart);
 
