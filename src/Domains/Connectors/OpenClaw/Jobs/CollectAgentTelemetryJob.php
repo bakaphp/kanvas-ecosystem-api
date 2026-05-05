@@ -36,6 +36,13 @@ class CollectAgentTelemetryJob implements ShouldQueue, ShouldBeUnique
     /** A duplicate job for the same deployment won't be enqueued while this is running. */
     public int $uniqueFor = 115;
 
+    /**
+     * Telemetry is collected on a schedule, so retrying a failed cycle just
+     * hammers the machine again before the next scheduled run. One attempt per
+     * cycle is enough — the scheduler will retry in 2 minutes.
+     */
+    public int $tries = 1;
+
     public function __construct(public readonly int $deploymentId)
     {
     }
