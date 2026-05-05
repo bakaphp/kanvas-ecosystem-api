@@ -19,11 +19,11 @@ class PayFromWalletAction
 
     public function __construct(
         protected Order $order,
-        protected ?TransactionSourceEnum $source = null,
-        protected ?string $idempotencyKey = null,
-        protected ?int $actorUserId = null,
-        protected ?string $externalReference = null,
-        protected ?string $reason = null,
+        protected readonly ?TransactionSourceEnum $source = null,
+        protected readonly ?string $idempotencyKey = null,
+        protected readonly ?int $actorUserId = null,
+        protected readonly ?string $externalReference = null,
+        protected readonly ?string $reason = null,
     ) {
     }
 
@@ -73,7 +73,7 @@ class PayFromWalletAction
         $audit = new BuildWalletTransactionMetaAction(
             source: $this->source ?? TransactionSourceEnum::PAYMENT,
             idempotencyKey: $this->idempotencyKey,
-            actorUserId: $this->actorUserId ?? $this->order->user?->getId(),
+            actorUserId: $this->actorUserId ?? $this->order->user->getId(),
             externalReference: $this->externalReference ?? $this->order->uuid ?? (string) $this->order->getId(),
             reason: $this->reason,
             additional: [

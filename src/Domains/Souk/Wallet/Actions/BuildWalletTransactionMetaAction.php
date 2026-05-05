@@ -6,6 +6,16 @@ namespace Kanvas\Souk\Wallet\Actions;
 
 use Kanvas\Souk\Wallet\Enums\TransactionSourceEnum;
 
+/**
+ * Builds the canonical transaction.meta shape for wallet operations.
+ *
+ * Idempotency note: when callers don't pass `idempotencyKey`, the auto-generated
+ * hash uses `sha256(source:external_reference:actor_user_id)` and intentionally
+ * omits the amount. Multiple partial refunds against the same order by the same
+ * actor will collide on this hash. Callers performing partial refunds must pass
+ * an explicit `idempotencyKey` (e.g. derived from a refund-event id, batch id,
+ * or unique increment counter) to keep each refund distinguishable in the ledger.
+ */
 class BuildWalletTransactionMetaAction
 {
     public function __construct(

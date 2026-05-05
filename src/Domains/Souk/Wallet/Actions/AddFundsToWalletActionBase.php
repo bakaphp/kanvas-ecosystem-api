@@ -39,11 +39,11 @@ abstract class AddFundsToWalletActionBase
         protected Order $order,
         protected bool $useOrderTotal = false,
         protected ?float $amount = null,
-        protected ?TransactionSourceEnum $source = null,
-        protected ?string $idempotencyKey = null,
-        protected ?int $actorUserId = null,
-        protected ?string $externalReference = null,
-        protected ?string $reason = null,
+        protected readonly ?TransactionSourceEnum $source = null,
+        protected readonly ?string $idempotencyKey = null,
+        protected readonly ?int $actorUserId = null,
+        protected readonly ?string $externalReference = null,
+        protected readonly ?string $reason = null,
     ) {
     }
 
