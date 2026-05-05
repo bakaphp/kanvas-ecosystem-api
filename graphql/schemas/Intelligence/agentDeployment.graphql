@@ -80,6 +80,7 @@ type AgentDeploymentType {
     gateway_port: Int!
     proxy_port: Int!
     container_name: String!
+    provider: String!
     status: String!
     launched_at: DateTime
     terminated_at: DateTime
@@ -119,6 +120,7 @@ input UpdateAgentMachineInput {
 input LaunchAgentInput {
     agent_id: ID!
     machine_id: ID!
+    provider: AgentProvider = OPENCLAW
 }
 
 extend type Query @guard {
