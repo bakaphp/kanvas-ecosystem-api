@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
 use Override;
@@ -27,14 +29,19 @@ class ListAvailableProductsTool implements Tool
         $limit = min($request->integer('limit', 20), 50);
         $isPublished = $request->boolean('is_published', true);
         $onlyInStock = $request->boolean('only_in_stock', false);
+        $allowCrossCompany = (bool) app(Apps::class)->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
 
-        $products = Products::fromApp()
-            ->fromCompany()
+        $builder = Products::fromApp()
             ->notDeleted()
             ->where('is_published', $isPublished ? 1 : 0)
             ->with('variants')
-            ->limit($limit)
-            ->get();
+            ->limit($limit);
+
+        if (! $allowCrossCompany) {
+            $builder->fromCompany();
+        }
+
+        $products = $builder->get();
 
         $label = $isPublished ? 'published' : 'unpublished';
 

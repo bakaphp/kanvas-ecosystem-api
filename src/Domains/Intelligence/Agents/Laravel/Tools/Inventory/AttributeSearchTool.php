@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
 use Override;
@@ -26,13 +27,17 @@ class AttributeSearchTool implements Tool
     {
         $keyword = $request->string('keyword');
         $app = app(Apps::class);
-        $companyId = auth()->user()->getCurrentCompany()->getId();
+        $allowCrossCompany = (bool) $app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
 
         $query = Attributes::fromApp()
             ->notDeleted()
-            ->whereIn('companies_id', [0, $companyId])
             ->with(['attributeType', 'defaultValues'])
             ->orderBy('name');
+
+        if (! $allowCrossCompany) {
+            $companyId = auth()->user()->getCurrentCompany()->getId();
+            $query->whereIn('companies_id', [0, $companyId]);
+        }
 
         if ($keyword !== '') {
             $query->where('name', 'like', '%' . $keyword . '%');
