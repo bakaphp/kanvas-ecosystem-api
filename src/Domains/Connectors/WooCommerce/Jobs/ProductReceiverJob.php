@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\WooCommerce\Jobs;
 use Kanvas\Connectors\WooCommerce\Actions\CreateProductAction;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class ProductReceiverJob extends ProcessWebhookJob
 {
+    #[Override]
     public function execute(): array
     {
         $payload = json_encode($this->webhookRequest->payload);

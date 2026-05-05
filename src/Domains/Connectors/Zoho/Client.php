@@ -22,16 +22,10 @@ class Client
     protected static string $region = Region::US;
     protected static ?ZohoCrm $instance = null;
 
-    /**
-     * Singleton.
-     */
     protected function __construct()
     {
     }
 
-    /**
-     * Connect to zoho CRM.
-     */
     public static function getInstance(AppInterface $app, CompanyInterface $company): ZohoCrm
     {
         $redis = RedisAdapter::createConnection(

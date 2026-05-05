@@ -39,6 +39,7 @@ use Kanvas\Connectors\Elead\Workflow\ScheduleActivityFromEventActivity;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsAgentDateWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsAgentWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsCalendarEventWebhookJob;
+use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsConversationInitiationWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsHandOffWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsProductShareWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsSendMessageWebhookJob;
@@ -192,6 +193,7 @@ use Kanvas\Intelligence\Workflows\Activities\ContactCheckerActivity;
 use Kanvas\Intelligence\Workflows\LeadAgentFirstMessageOutreachActivity;
 use Kanvas\Intelligence\Workflows\SaveLeadPreferredChannelActivity;
 use Kanvas\Intelligence\Workflows\SendNotificationActivity;
+use Kanvas\NervousSystem\Plan\Activities\ReplyToPlanCommentActivity;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
 use Kanvas\Social\Messages\Workflows\Activities\CheckMessageContentActivity;
@@ -424,6 +426,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncOpenClawAgentWorkspaceActivity::class,
             SyncAgentSwarmContextActivity::class,
             SendChannelMessageToAgentActivity::class,
+            ReplyToPlanCommentActivity::class,
             MicrosoftAgentChannelResponderActivity::class,
             SyncMicrosoftEmailActivity::class,
             SendLeadAdfByEmailActivity::class,
@@ -431,6 +434,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessRespondIOWebhookJob::class,
             ProcessElevenLabsAgentWebhookJob::class,
             ProcessElevenLabsAgentDateWebhookJob::class,
+            ProcessElevenLabsConversationInitiationWebhookJob::class,
             ProcessElevenLabsTranscriptWebhookJob::class,
             ProcessElevenLabsCalendarEventWebhookJob::class,
             ProcessElevenLabsProductShareWebhookJob::class,

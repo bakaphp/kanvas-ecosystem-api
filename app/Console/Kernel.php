@@ -8,6 +8,8 @@ use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
 use App\Console\Commands\NervousSystem\ArchiveOldLedgerEventsCommand;
+use App\Console\Commands\NervousSystem\DetectStalledPlanTasksCommand;
+use App\Console\Commands\NervousSystem\ExpireCapabilitiesCommand;
 use App\Console\Commands\OpenClaw\CollectAgentTelemetryCommand;
 use App\Console\Commands\Social\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
@@ -40,16 +42,22 @@ class Kernel extends ConsoleKernel
         $schedule->command(ChargeLateOrdersCommand::class)->hourly();
         $schedule->command(CancelStalePaymentsCommand::class)->everyFiveMinutes();
         $schedule->command(ArchiveOldLedgerEventsCommand::class)
-            ->weeklyOn(0, '02:00')
+            ->dailyAt('02:00')
+            ->withoutOverlapping();
+        $schedule->command(DetectStalledPlanTasksCommand::class)
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
+        $schedule->command(ExpireCapabilitiesCommand::class)
+            ->hourly()
             ->withoutOverlapping();
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()
                     ->withoutOverlapping(5)
                     ->runInBackground(); */
-        $schedule->command(CollectAgentTelemetryCommand::class)
-            ->everyTwoMinutes()
-            ->withoutOverlapping(5)
-            ->runInBackground();
+        /*         $schedule->command(CollectAgentTelemetryCommand::class)
+                    ->everyTwoMinutes()
+                    ->withoutOverlapping(5)
+                    ->runInBackground(); */
         //$schedule->command(SendBookingRemindersCommand::class)->everyFiveMinutes();
         #$schedule->command(ScoutMessageReindexCommand::class, [env('MESSAGE_REINDEX_SCOUT_APP_ID', '13'), env('MESSAGE_REINDEX_SCOUT_MESSAGE_TYPES_ID', '572')])->everyTenMinutes();
         #$schedule->command(MailunregisteredUsersCampaignCommand::class)->weeklyOn(2, '2:30'); //@todo move this to normal cron

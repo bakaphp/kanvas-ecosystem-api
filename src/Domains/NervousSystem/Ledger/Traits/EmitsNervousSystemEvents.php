@@ -8,20 +8,16 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\NervousSystem\Ledger\Services\LedgerEventDispatcher;
 
 /**
- * Opt-in trait that wires Eloquent lifecycle (created/updated/deleted)
- * into the Nervous System ledger. Models that use this trait emit one
- * AppendToLedgerJob per applicable event.
- *
  * Customization (override on the model):
  *   protected array $nervousSystemEventTypes = ['created', 'updated', 'deleted'];
  *   protected array $nervousSystemHiddenFields = ['credit_card_token'];
  *   protected string $nervousSystemSourceDomain = 'Guild';
+ *   protected float $nervousSystemSamplingRate = 0.1;        // 10% emission for noisy models
+ *   protected int   $nervousSystemDedupeWindowSeconds = 60;  // suppress identical events
  *
- * Implementation note: we register static event closures in the
- * trait boot method rather than calling static::observe(). The latter
+ * DO NOT switch from static event closures to `static::observe()`. That
  * triggers `new static` during Model::boot(), which Laravel rejects with
- * "may not be called on model [...] while it is being booted". Closure
- * registration avoids the re-entrant boot.
+ * "may not be called on model [...] while it is being booted".
  */
 trait EmitsNervousSystemEvents
 {
@@ -87,5 +83,37 @@ trait EmitsNervousSystemEvents
         $parts = explode('\\', static::class);
 
         return $parts[1] ?? 'Unknown';
+    }
+
+    /**
+     * Fraction of events to actually emit (0.0–1.0). Defaults to 1.0
+     * (every event). Override to throttle high-volume models — e.g. set
+     * 0.1 to keep ~10% of `updated` events for noisy entities. The
+     * dispatcher rolls a random number per event and skips when above
+     * the rate.
+     */
+    public function nervousSystemSamplingRate(): float
+    {
+        if (property_exists($this, 'nervousSystemSamplingRate')) {
+            return (float) $this->nervousSystemSamplingRate;
+        }
+
+        return 1.0;
+    }
+
+    /**
+     * Suppress identical events within this many seconds. Identical means
+     * same {model_class, model_id, event_type, payload_hash} fingerprint.
+     * Defaults to 0 (no dedupe). When set, the dispatcher uses Redis to
+     * skip duplicates and emits a single `*.deduped` summary event when
+     * the window closes.
+     */
+    public function nervousSystemDedupeWindowSeconds(): int
+    {
+        if (property_exists($this, 'nervousSystemDedupeWindowSeconds')) {
+            return (int) $this->nervousSystemDedupeWindowSeconds;
+        }
+
+        return 0;
     }
 }

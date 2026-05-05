@@ -6,15 +6,21 @@ namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\DatabaseSearchableTrait;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Intelligence\Agents\Observers\AgentSwarmObserver;
 use Kanvas\Intelligence\Models\BaseModel;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\SystemModules\Models\SystemModules;
+use Override;
 
 /**
  * @property int $id
@@ -30,12 +36,42 @@ use Kanvas\Intelligence\Models\BaseModel;
  * @property bool $is_active
  * @property bool $is_deleted
  */
+#[ObservedBy([AgentSwarmObserver::class])]
 class AgentSwarm extends BaseModel
 {
+    use HasLightHouseCache;
     use UuidTrait;
     use SlugTrait;
     use DatabaseSearchableTrait {
         search as public traitSearch;
+    }
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'AgentSwarm';
+    }
+
+    /**
+     * Required because Social\Channels\Models\Channel stores `entity_id`
+     * as varchar — Eloquent won't cast int → string for the FK pairing.
+     */
+    public function getStringIdAttribute(): string
+    {
+        return (string) $this->id;
+    }
+
+    public function socialChannels(): HasMany
+    {
+        return $this->hasMany(Channel::class, 'entity_id', 'string_id')
+            ->whereIn(
+                'entity_namespace',
+                [
+                    self::class,
+                    SystemModules::getLegacyNamespace(self::class),
+                ],
+            )
+            ->where('is_deleted', 0);
     }
 
     protected $table = 'agent_swarms';

@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
@@ -37,6 +38,7 @@ use Override;
  * @property int|null $parent_id
  * @property string|null $path
  * @property int $user_id
+ * @property int|null $created_by_users_id
  * @property string $name
  * @property string $slug
  * @property string|null $description
@@ -77,6 +79,7 @@ class Agent extends BaseModel
         'parent_id',
         'path',
         'user_id',
+        'created_by_users_id',
         'name',
         'slug',
         'description',
@@ -161,6 +164,43 @@ class Agent extends BaseModel
         return new Agent();
     }
 
+    /**
+     * Find an agent by ID scoped to the given company/app.
+     * Falls back to a global agent (companies_id = 0) or app-global (apps_id = 0) if not found.
+     */
+    public static function getByIdWithGlobalFallback(int $id, Apps $app, mixed $company): self
+    {
+        $companyId = is_int($company) ? $company : $company->getId();
+
+        $agent = self::where('id', $id)
+            ->notDeleted()
+            ->where(function ($q) use ($app, $companyId) {
+                $q->where(function ($q) use ($app, $companyId) {
+                    $q->where('apps_id', $app->getId())
+                        ->where('companies_id', $companyId);
+                })->orWhere(function ($q) use ($app) {
+                    $q->where('apps_id', $app->getId())
+                        ->where('companies_id', 0);
+                })->orWhere(function ($q) use ($companyId) {
+                    $q->where('apps_id', 0)
+                        ->where('companies_id', $companyId);
+                })->orWhere(function ($q) {
+                    $q->where('apps_id', 0)
+                        ->where('companies_id', 0);
+                });
+            })
+            ->orderByRaw('(apps_id = 0) ASC, (companies_id = 0) ASC')
+            ->first();
+
+        if (! $agent) {
+            throw new ModelNotFoundException(
+                sprintf('No Agent record found with ID %s for this app/company or globally', $id)
+            );
+        }
+
+        return $agent;
+    }
+
     #[Override]
     protected static function newFactory()
     {
@@ -173,6 +213,15 @@ class Agent extends BaseModel
         return $this->belongsTo(
             Users::class,
             'user_id',
+            'id'
+        );
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(
+            Users::class,
+            'created_by_users_id',
             'id'
         );
     }

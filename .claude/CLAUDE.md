@@ -694,6 +694,37 @@ Seed a record in the `integrations` table mapping the name to the handler class.
 - Integration status tracked per company via `IntegrationsCompany` model (ACTIVE, INACTIVE, FAILED, OFFLINE)
 - Every integration operation logged in `EntityIntegrationHistory` for auditing
 
+### Never Cache SDK Instances in Static Properties (Octane footgun)
+
+Do **not** cache external-SDK clients (Twilio, Shopify, VoiceBridge, etc.) in `private static array $instances = []` keyed by `app_X` / `company_X`. Under Swoole/Octane the worker process is long-lived, so any static state survives across requests on that worker. When a tenant rotates credentials in DB + Redis, workers that already cached the old client keep serving requests with stale keys — manifests as intermittent 4xx/auth errors that hit *some* requests but not others (the ones that landed on a worker that hadn't cached yet).
+
+```php
+// WRONG — stale credentials per worker after key rotation
+final class Client
+{
+    private static array $instances = [];
+
+    public static function getInstance(AppInterface $app): SomeSDK
+    {
+        $key = sprintf('app_%s', $app->getId());
+        return self::$instances[$key] ??= new SomeSDK($app->get('api_key'));
+    }
+}
+
+// CORRECT — thin factory, always reads fresh creds
+final class Client
+{
+    public static function getInstance(AppInterface $app): SomeSDK
+    {
+        return new SomeSDK($app->get('api_key'));
+    }
+}
+```
+
+Building an SDK client is almost always cheap (string assignments, no network handshake) — there's no real perf win to caching it, and the correctness cost is intermittent stale-creds bugs that are painful to reproduce. Same rule applies to any singleton-style `protected static ?SDK $instance = null` pattern. If you genuinely need to cache something heavy, key it on a credential fingerprint (`hash($sid.$token)`), not the app/company id, so rotation invalidates the cache automatically — but prefer just rebuilding.
+
+The same Octane risk applies to **any mutable static state on connector classes** (e.g. `protected static string $environment` mutated via `setEnvironment()`). Those mutations persist across requests on the same worker and cause cross-tenant state bleed. Keep environment/region per-instance, or pass at call time.
+
 ## Adding @search to GraphQL Queries
 
 All list queries should support the `@search` directive for text search. This requires two things:
@@ -1039,8 +1070,94 @@ new CreateActionAction(...)->execute();
 ### DTO Conventions
 - **Always include context objects** (app, company, user) in DTOs that create entities — never pass them as separate action constructor params
 - **Use model objects instead of raw IDs** for foreign key relationships (e.g., `TaskList $taskList` not `int $task_list_id`, `CompanyAction $companyAction` not `int $companies_action_id`)
-- **Mutation resolvers look up models** from IDs and construct DTOs manually with named args — do NOT use `::from($request['input'])` when the DTO has object properties
+- **Mutation resolvers look up models** from IDs and pass them to the DTO — do NOT use `::from($request['input'])` when the DTO has object properties
 - **Actions receive only the DTO** (and optionally the existing model for updates) — they pull IDs via `$this->data->taskList->getId()`
+
+#### Use `fromMultiple` for non-trivial DTOs (more than ~3 model lookups or enum casts)
+
+When a DTO has multiple model-lookups, enum casts, date parsing, or conditional defaults, **put that assembly logic in a static `fromMultiple` factory on the DTO** rather than repeating it in every mutation resolver. This is the codebase convention — see [`Event::fromMultiple`](../src/Domains/Event/Events/DataTransferObject/Event.php), [`Deal::fromMultiple`](../src/Domains/Guild/Deals/DataTransferObject/Deal.php), [`Engagement::fromMultiple`](../src/Domains/ActionEngine/Engagements/DataTransferObject/Engagement.php), [`DraftOrder::fromMultiple`](../src/Domains/Souk/Orders/DataTransferObject/DraftOrder.php).
+
+For updates, pair it with a `forUpdate(Model $existing, ..., array $data)` factory that overlays the input array onto the existing model's values so partial updates work without losing fields. See [`Plan::forUpdate`](../src/Domains/NervousSystem/Plan/DataTransferObject/Plan.php).
+
+**Pattern shape:**
+
+```php
+class Plan extends Data
+{
+    public function __construct(
+        public readonly AppInterface $app,
+        public readonly CompanyInterface $company,
+        public readonly string $title,
+        public readonly ?Agent $agent = null,
+        // ...
+    ) {}
+
+    public static function fromMultiple(
+        AppInterface $app,
+        Users $requestingUser,
+        CompanyInterface $company,
+        array $data,
+    ): self {
+        /** @var Agent|null $agent */
+        $agent = isset($data['agent_id'])
+            ? Agent::getByIdFromCompanyApp((int) $data['agent_id'], $company, $app)
+            : null;
+
+        return new self(
+            app: $app,
+            company: $company,
+            title: (string) $data['title'],
+            agent: $agent,
+            status: isset($data['status']) ? PlanStatusEnum::from((string) $data['status']) : PlanStatusEnum::DRAFT,
+            // ...
+        );
+    }
+
+    public static function forUpdate(PlanModel $plan, AppInterface $app, CompanyInterface $company, array $data): self
+    {
+        return new self(
+            app: $app,
+            company: $company,
+            title: (string) ($data['title'] ?? $plan->title),
+            // ... overlay input on existing
+        );
+    }
+}
+```
+
+**Mutation resolver becomes a 3-liner:**
+
+```php
+public function create(mixed $rootValue, array $request): Plan
+{
+    $app = app(Apps::class);
+    $user = auth()->user();
+    $company = $user->getCurrentCompany();
+
+    return new CreatePlanAction(
+        PlanData::fromMultiple($app, $user, $company, $request['input']),
+    )->execute();
+}
+
+public function update(mixed $rootValue, array $request): Plan
+{
+    $app = app(Apps::class);
+    $user = auth()->user();
+    $company = $user->getCurrentCompany();
+
+    /** @var Plan $plan */
+    $plan = Plan::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+
+    return new UpdatePlanAction(
+        $plan,
+        PlanData::forUpdate($plan, $app, $company, $request['input']),
+    )->execute();
+}
+```
+
+For DTOs that are simple value objects (3 or fewer fields, no model lookups), inline construction in the resolver is still fine — don't add `fromMultiple` for the sake of it.
+
+#### Trivial DTO example (still inline-construction, fine as-is)
 
 ```php
 // DTO with context and model objects
@@ -1284,7 +1401,7 @@ extend type Query @guardByAdmin {
     ledgerEvents(...): [LedgerEvent!]!
         @paginate(
             model: "Kanvas\\NervousSystem\\Ledger\\Models\\Event"
-            scopes: ["fromApp", "fromCompany", "notArchived", "recent"]
+            scopes: ["fromApp", "fromCompany", "recent"]
             defaultCount: 50
         )
 }
@@ -1311,6 +1428,82 @@ type LedgerEvent {
 ```
 
 If a query truly needs cross-tenant visibility (super-admin dashboards), use a separate `@guardByAppKey` query — never expose `apps_id` as a `@whereConditions` column on a normal query.
+
+### Don't Expose Any FK ID When the Relation Is Already There
+Same principle generalizes beyond tenant fields. If a GraphQL type exposes a `@belongsTo` relation, **don't also expose the underlying `*_id` column** — it's redundant and clients should use the relation. Pick one (the relation, always).
+
+```graphql
+# WRONG — duplicating
+type NervousSystemTask {
+    plan_id: Int!
+    plan: NervousSystemPlan! @belongsTo(relation: "plan")
+    ...
+}
+type NervousSystemPlan {
+    agent_id: Int
+    users_id: Int
+    approved_by_user_id: Int
+    parent_plan_id: Int
+    agent: Agent @belongsTo(relation: "agent")
+    user: User @belongsTo(relation: "user")
+    approver: User @belongsTo(relation: "approver")
+    parent: NervousSystemPlan @belongsTo(relation: "parent")
+    ...
+}
+
+# CORRECT — relations only
+type NervousSystemTask {
+    plan: NervousSystemPlan! @belongsTo(relation: "plan")
+    ...
+}
+type NervousSystemPlan {
+    agent: Agent @belongsTo(relation: "agent")
+    user: User @belongsTo(relation: "user")
+    approver: User @belongsTo(relation: "approver")
+    parent: NervousSystemPlan @belongsTo(relation: "parent")
+    ...
+}
+```
+
+The only time it's OK to expose a raw `*_id`: **input types** for create/update mutations, where the client passes an ID before the relation exists. Even there, prefer letting the resolver look up the model and pass it explicitly to the action's DTO (per the DTO conventions section).
+
+### Reduce Duplicate Ledger Emission with `EmitsLedgerEventsForEntity`
+When a domain entity emits multiple lifecycle events from various actions (e.g. `plan.created`, `plan.updated`, `plan.approved`, `plan.task.completed`), don't construct `new AppendEventAction(new EventData(...))` in every action — that's 15 lines repeated per call site. Use the `EmitsLedgerEventsForEntity` trait on the model:
+
+```php
+class Plan extends BaseModel
+{
+    use EmitsLedgerEventsForEntity;
+    // ...
+}
+```
+
+Actions then emit with one line:
+
+```php
+// Before — ~15 lines per emission
+new AppendEventAction(
+    new EventData(
+        app: $plan->app,
+        company: $plan->company,
+        sourceDomain: 'NervousSystem',
+        eventType: 'plan.created',
+        status: EventStatusEnum::INFO,
+        sourceEntityType: Plan::class,
+        sourceEntityId: $plan->id,
+        actorType: $plan->users_id !== null ? 'User' : 'Agent',
+        actorId: $plan->users_id ?? $plan->agent_id,
+        payload: [...],
+    ),
+)->execute();
+
+// After — one line
+$plan->emitLedgerEvent('plan.created', payload: [...]);
+```
+
+The trait pulls `app`/`company` from the model's KanvasModelTrait relations, sets `source_entity_type`/`source_entity_id` from the model itself, and resolves a default actor from `users_id`/`agent_id` columns. Override `resolveDefaultActorType()` / `resolveDefaultActorId()` per model when defaults aren't right (Tasks delegate to their parent plan; Grant pivots use `granted_by_users_id`).
+
+Use the explicit `AppendEventAction` form **only** when there's no entity to attach to (e.g. system events with `actorType='System'`, no `source_entity_*`).
 
 ### GraphQL Query Naming
 Check existing query names in `graphql/schemas/` before naming yours to avoid Lighthouse "Duplicate definition" merge errors.

@@ -14,6 +14,7 @@ use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenClaw\Events\AgentTelemetryUpdated;
 use Kanvas\Connectors\OpenClaw\Jobs\CollectMachineTelemetryJob;
 use Kanvas\Connectors\OpenClaw\SshClient;
+use Kanvas\Intelligence\Agents\Enums\AgentDeploymentEventTypeEnum;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentDeploymentEvent;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -119,16 +120,16 @@ class AgentTelemetryService
 
             $sections = $ssh->getAllTelemetryForContainer($deployment->container_name);
 
-            $agentSlug     = $deployment->agent?->slug;
+            $agentSlug = $deployment->agent?->slug;
             $containerName = $deployment->container_name;
-            $tools         = ($agentSlug && $containerName)
+            $tools = ($agentSlug && $containerName)
                 ? $ssh->getAgentTools($containerName, $agentSlug)
                 : null;
 
-            $health        = $this->parseJson($sections['health']);
+            $health = $this->parseJson($sections['health']);
             $gatewayStatus = $this->parseJson($sections['gateway']);
-            $memoryStats   = $this->parseMemoryStatus($sections['memory']);
-            $version       = $this->parseVersion(trim($sections['version']));
+            $memoryStats = $this->parseMemoryStatus($sections['memory']);
+            $version = $this->parseVersion(trim($sections['version']));
 
             if ($health === null) {
                 return;
@@ -223,17 +224,17 @@ class AgentTelemetryService
 
         // ── Gateway reachability ──────────────────────────────────────────────
         if ($prevGateway && ! $newGateway) {
-            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::GATEWAY_DOWN, [
+            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEventTypeEnum::GATEWAY_DOWN, [
                 'previous' => $prevGateway,
                 'current' => $newGateway,
             ]);
-            $this->sendSlackAlert($deployment, AgentDeploymentEvent::GATEWAY_DOWN);
+            $this->sendSlackAlert($deployment, AgentDeploymentEventTypeEnum::GATEWAY_DOWN);
         } elseif (! $prevGateway && $newGateway) {
-            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::GATEWAY_UP, [
+            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEventTypeEnum::GATEWAY_UP, [
                 'previous' => $prevGateway,
                 'current' => $newGateway,
             ]);
-            $this->sendSlackAlert($deployment, AgentDeploymentEvent::GATEWAY_UP);
+            $this->sendSlackAlert($deployment, AgentDeploymentEventTypeEnum::GATEWAY_UP);
         }
 
         // ── Service health (gateway service + node service both running) ──────
@@ -244,13 +245,13 @@ class AgentTelemetryService
         $newHealthy = $this->isDeploymentHealthy($newRaw, $newGateway);
 
         if ($prevHealthy && ! $newHealthy) {
-            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::HEALTH_FAIL, [
+            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEventTypeEnum::HEALTH_FAIL, [
                 'gateway_reachable' => $newGateway,
                 'gateway_service' => $newRaw['gatewayService']['runtimeShort'] ?? null,
                 'node_service' => $newRaw['nodeService']['runtimeShort'] ?? null,
             ]);
         } elseif (! $prevHealthy && $newHealthy) {
-            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::HEALTH_RECOVER, [
+            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEventTypeEnum::HEALTH_RECOVER, [
                 'gateway_reachable' => $newGateway,
             ]);
         }
@@ -260,7 +261,7 @@ class AgentTelemetryService
         $newSessions = (int) ($newPayload['session_count'] ?? 0);
 
         if ($newSessions > $prevSessions) {
-            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::SESSION_STARTED, [
+            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEventTypeEnum::SESSION_STARTED, [
                 'previous_count' => $prevSessions,
                 'current_count' => $newSessions,
                 'new_sessions' => $newSessions - $prevSessions,
@@ -297,7 +298,7 @@ class AgentTelemetryService
      * Set them via: $app->set('openclaw_slack_webhook_url', 'https://hooks.slack.com/...')
      * Silently no-ops when neither key is configured.
      */
-    protected function sendSlackAlert(AgentDeployment $deployment, string $eventType, string $detail = ''): void
+    protected function sendSlackAlert(AgentDeployment $deployment, AgentDeploymentEventTypeEnum $eventType, string $detail = ''): void
     {
         try {
             $app = Apps::find($deployment->apps_id);
@@ -309,17 +310,17 @@ class AgentTelemetryService
             $agentName = $deployment->agent?->name ?? $deployment->container_name;
 
             $emoji = match ($eventType) {
-                AgentDeploymentEvent::GATEWAY_DOWN => ':red_circle:',
-                AgentDeploymentEvent::AGENT_UNREACHABLE => ':warning:',
-                AgentDeploymentEvent::GATEWAY_UP => ':large_green_circle:',
+                AgentDeploymentEventTypeEnum::GATEWAY_DOWN => ':red_circle:',
+                AgentDeploymentEventTypeEnum::AGENT_UNREACHABLE => ':warning:',
+                AgentDeploymentEventTypeEnum::GATEWAY_UP => ':large_green_circle:',
                 default => ':information_source:',
             };
 
             $title = match ($eventType) {
-                AgentDeploymentEvent::GATEWAY_DOWN => 'Gateway offline',
-                AgentDeploymentEvent::AGENT_UNREACHABLE => 'Agent unreachable',
-                AgentDeploymentEvent::GATEWAY_UP => 'Gateway back online',
-                default => $eventType,
+                AgentDeploymentEventTypeEnum::GATEWAY_DOWN => 'Gateway offline',
+                AgentDeploymentEventTypeEnum::AGENT_UNREACHABLE => 'Agent unreachable',
+                AgentDeploymentEventTypeEnum::GATEWAY_UP => 'Gateway back online',
+                default => $eventType->value,
             };
 
             $text = "{$emoji} *{$title}* — `{$agentName}`";

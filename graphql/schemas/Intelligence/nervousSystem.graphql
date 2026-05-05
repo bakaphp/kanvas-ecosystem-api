@@ -10,13 +10,26 @@ type LedgerEvent {
     actor_id: Int
     status: String!
     payload: Mixed
+    payload_schema_version: Int!
     result: Mixed
     error: Mixed
     duration_ms: Int
     correlation_id: String
+    causation_id: String
     occurred_at: DateTime!
     indexed_at: DateTime!
-    is_archived: Boolean!
+}
+
+type NervousSystemHealth {
+    writes_per_second: Float!
+    queue_lag_seconds: Int!
+    queue_depth: Int!
+    dead_letter_count: Int!
+    last_archive_at: DateTime
+    archive_lag_hours: Int!
+    hot_event_count: Int!
+    archived_event_count: Int!
+    sampled_redis_dedupe_keys: Int!
 }
 
 extend type Query @guardByAdmin {
@@ -30,6 +43,7 @@ extend type Query @guardByAdmin {
                     "source_entity_id"
                     "status"
                     "correlation_id"
+                    "causation_id"
                     "actor_type"
                     "actor_id"
                 ]
@@ -38,7 +52,12 @@ extend type Query @guardByAdmin {
     ): [LedgerEvent!]!
         @paginate(
             model: "Kanvas\\NervousSystem\\Ledger\\Models\\Event"
-            scopes: ["fromApp", "fromCompany", "notArchived", "recent"]
+            scopes: ["fromApp", "fromCompany", "recent"]
             defaultCount: 50
+        )
+
+    nervousSystemHealth: NervousSystemHealth!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\NervousSystem\\NervousSystemHealthQuery@get"
         )
 }
