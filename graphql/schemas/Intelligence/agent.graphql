@@ -2,6 +2,7 @@ type AgentAi {
     id: ID!
     company: [Company!]! @belongsTo
     user: [User!]! @belongsTo
+    creator: User @belongsTo(relation: "creator")
     type: agentType! @belongsTo
     model: AgentAiModel @belongsTo
     companyTaskList: TaskList @belongsTo
@@ -52,6 +53,7 @@ type AgentAiModel {
 input AgentAiInput {
     agent_type_id: Int!
     name: String!
+    user_id: ID
     agent_model_id: Int
     description: String
     config: Mixed!
