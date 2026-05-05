@@ -112,7 +112,8 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
                     'zohoId' => $zohoId,
                     'users_id' => $user->getId(),
                     'companies_id' => $company->getId(),
-                    //'newAgentRecord' => $newAgentRecord ?? [],
+                    'newAgentRecord' => $newAgentRecord ?? [],
+                    'agentUpdateData' => $agentUpdateData ?? [],
                 ];
             },
             company: $company,
