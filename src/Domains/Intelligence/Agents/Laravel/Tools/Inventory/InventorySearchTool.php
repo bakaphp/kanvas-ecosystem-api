@@ -10,6 +10,7 @@ use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
+use Throwable;
 
 class InventorySearchTool implements Tool
 {
@@ -48,12 +49,20 @@ class InventorySearchTool implements Tool
                 'is_published' => (bool) $product->is_published,
                 'is_available' => $isAvailable,
                 'total_stock' => $totalStock,
-                'variants' => $variants->map(fn ($variant) => [
-                    'name' => $variant->name,
-                    'sku' => $variant->sku,
-                    'stock' => $variant->getTotalQuantity(),
-                    'price' => $variant->getPriceInfoFromDefaultChannel()->price ?? null,
-                ])->toArray(),
+                'variants' => $variants->map(function ($variant) {
+                    try {
+                        $price = $variant->getPriceInfoFromDefaultChannel()->price ?? null;
+                    } catch (Throwable) {
+                        $price = null;
+                    }
+
+                    return [
+                        'name' => $variant->name,
+                        'sku' => $variant->sku,
+                        'stock' => $variant->getTotalQuantity(),
+                        'price' => $price,
+                    ];
+                })->toArray(),
             ];
         });
 
