@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
 use Override;
@@ -35,11 +37,16 @@ class ProductRecommendationLookupTool implements Tool
         $minPrice = $request->has('min_price') ? (float) $request->float('min_price') : null;
         $maxPrice = $request->has('max_price') ? (float) $request->float('max_price') : null;
 
+        $allowCrossCompany = (bool) app(Apps::class)->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
+
         $query = Products::fromApp()
-            ->fromCompany()
             ->notDeleted()
             ->where('is_published', 1)
             ->with(['variants', 'categories']);
+
+        if (! $allowCrossCompany) {
+            $query->fromCompany();
+        }
 
         if ($keyword !== '') {
             $query->where(function ($q) use ($keyword) {

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
 use Override;
@@ -28,16 +30,22 @@ class VariantSearchTool implements Tool
             return 'Please provide a keyword (name or SKU) to search for variants.';
         }
 
-        $variants = Variants::fromApp()
-            ->fromCompany()
+        $allowCrossCompany = (bool) app(Apps::class)->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
+
+        $builder = Variants::fromApp()
             ->notDeleted()
             ->where(function ($q) use ($keyword) {
                 $q->where('name', 'like', '%' . $keyword . '%')
                     ->orWhere('sku', 'like', '%' . $keyword . '%');
             })
             ->with('product')
-            ->limit(20)
-            ->get();
+            ->limit(20);
+
+        if (! $allowCrossCompany) {
+            $builder->fromCompany();
+        }
+
+        $variants = $builder->get();
 
         if ($variants->isEmpty()) {
             return "No variants found matching '{$keyword}'.";

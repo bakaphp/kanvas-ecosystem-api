@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
 use Override;
@@ -23,11 +25,15 @@ class CategorySearchTool implements Tool
     public function handle(Request $request): Stringable|string
     {
         $keyword = $request->string('keyword');
+        $allowCrossCompany = (bool) app(Apps::class)->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
 
         $query = Categories::fromApp()
-            ->fromCompany()
             ->notDeleted()
             ->orderBy('name');
+
+        if (! $allowCrossCompany) {
+            $query->fromCompany();
+        }
 
         if ($keyword !== '') {
             $query->where('name', 'like', '%' . $keyword . '%');
