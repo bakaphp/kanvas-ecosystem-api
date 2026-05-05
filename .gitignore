@@ -43,3 +43,4 @@ compose.local.yml
 src/Baka/Search/
 .ai-workflow-template/
 docs/
+.claude/skills/Intelligence/
