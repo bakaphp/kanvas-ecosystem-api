@@ -121,11 +121,13 @@ class ApplyLeadAiModeV1Action
             )
         )->execute();
 
+        $user = $this->lead->company->getAiAgentUser() ?? $this->lead->user;
+
         $createMessageAction = new CreateMessageAction(
             new MessageInput(
                 app: $this->lead->app,
                 company: $this->lead->company,
-                user: $this->lead->user,
+                user: $user,
                 type: $messageType,
                 message: [
                     'content' => $noteContent,
@@ -135,6 +137,6 @@ class ApplyLeadAiModeV1Action
         );
         $createMessageAction->runWorkflow = true;
         $message = $createMessageAction->execute();
-        $notesChannel->addMessage($message, $this->lead->user);
+        $notesChannel->addMessage($message, $user);
     }
 }
