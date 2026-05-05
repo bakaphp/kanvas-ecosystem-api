@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\RespondIO\Actions;
 
-use Inspector\Configuration;
-use Inspector\Inspector;
 use Kanvas\Connectors\RespondIO\Client;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentResponderAction;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use NeuronAI\Chat\Messages\UserMessage;
-use NeuronAI\Observability\InspectorObserver;
 use Override;
 
 class AgentChannelResponderAction extends BaseAgentResponderAction
@@ -35,23 +32,12 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
 
         $phone = $this->hijackMessagePhone($this->message->message['chat_jid']);
 
-        $useInspector = $this->message->app->get('inspector-key') !== null;
-
         $currentAgent = new $this->agent->type->handler();
 
         $currentAgent->setConfiguration(
             $this->agent,
             $this->message->entity()->people
         );
-
-        if ($useInspector) {
-            $inspector = new Inspector(
-                new Configuration($this->message->app->get('inspector-key'))
-            );
-            $currentAgent->observe(
-                new InspectorObserver($inspector)
-            );
-        }
 
         $respondIOClient = new Client(
             $this->message->app,
