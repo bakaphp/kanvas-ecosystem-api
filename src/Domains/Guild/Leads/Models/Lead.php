@@ -1,5 +1,6 @@
 <?php
 
+
 declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
@@ -89,6 +90,93 @@ class Lead extends BaseModel implements EventResourceInterface
     ];
     protected $table = 'leads';
     protected $guarded = [];
+
+    public function setCustomFields(array $fields)
+    {
+        $vehicleInfoPrefix = 'lead.vehicle-info.';
+        $soldVehiclePrefix = 'lead.sold-vehicle.';
+
+        $vehicleInfoKeys = [];
+        $soldVehicleKeys = [];
+
+        foreach ($fields as $key => $value) {
+            // handle the case where it might be a CustomFieldEntityInput array format e.g. [['name' => 'foo', 'data' => 'bar']]
+            if (is_string($key)) {
+                if (str_starts_with($key, $vehicleInfoPrefix)) {
+                    $prop = substr($key, strlen($vehicleInfoPrefix));
+                    $vehicleInfoKeys[$prop] = $value;
+                } elseif (str_starts_with($key, $soldVehiclePrefix)) {
+                    $prop = substr($key, strlen($soldVehiclePrefix));
+                    $soldVehicleKeys[$prop] = $value;
+                }
+            } elseif (is_array($value) && isset($value['name']) && isset($value['data'])) {
+                $name = $value['name'];
+                $data = $value['data'];
+                if (str_starts_with($name, $vehicleInfoPrefix)) {
+                    $prop = substr($name, strlen($vehicleInfoPrefix));
+                    $vehicleInfoKeys[$prop] = $data;
+                } elseif (str_starts_with($name, $soldVehiclePrefix)) {
+                    $prop = substr($name, strlen($soldVehiclePrefix));
+                    $soldVehicleKeys[$prop] = $data;
+                }
+            }
+        }
+
+        $fieldsToAdd = [];
+        foreach ($vehicleInfoKeys as $prop => $value) {
+            $soldKey = $soldVehiclePrefix . $prop;
+            $soldExists = false;
+            foreach ($fields as $k => $v) {
+                if (is_string($k) && $k === $soldKey) {
+                    $soldExists = true;
+                    break;
+                } elseif (is_array($v) && isset($v['name']) && $v['name'] === $soldKey) {
+                    $soldExists = true;
+                    break;
+                }
+            }
+            if (!$soldExists) {
+                if (isset($fields[0])) {
+                    $fieldsToAdd[] = ['name' => $soldKey, 'data' => $value];
+                } else {
+                    $fieldsToAdd[$soldKey] = $value;
+                }
+            }
+        }
+
+        foreach ($soldVehicleKeys as $prop => $value) {
+            $vehicleKey = $vehicleInfoPrefix . $prop;
+            $vehicleExists = false;
+            foreach ($fields as $k => $v) {
+                if (is_string($k) && $k === $vehicleKey) {
+                    $vehicleExists = true;
+                    break;
+                } elseif (is_array($v) && isset($v['name']) && $v['name'] === $vehicleKey) {
+                    $vehicleExists = true;
+                    break;
+                }
+            }
+            if (!$vehicleExists) {
+                if (isset($fields[0])) {
+                    $fieldsToAdd[] = ['name' => $vehicleKey, 'data' => $value];
+                } else {
+                    $fieldsToAdd[$vehicleKey] = $value;
+                }
+            }
+        }
+
+        if (!empty($fieldsToAdd)) {
+            if (isset($fields[0])) {
+                $fields = array_merge($fields, $fieldsToAdd);
+            } else {
+                foreach ($fieldsToAdd as $k => $v) {
+                    $fields[$k] = $v;
+                }
+            }
+        }
+
+        parent::setCustomFields($fields);
+    }
 
     public function people(): BelongsTo
     {
