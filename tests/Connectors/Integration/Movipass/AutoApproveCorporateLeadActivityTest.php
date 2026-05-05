@@ -24,7 +24,7 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
 {
     use HasIntegrationCompany;
 
-    private Apps $app;
+    protected Apps $app;
     private LeadReceiver $corporateReceiver;
     private LeadReceiver $otherReceiver;
 
