@@ -23,6 +23,16 @@ class CreatePasoRapidoOrderAction
 
     public function execute(): array
     {
+        if (($this->order->metadata['data']['is_bulk_recharge'] ?? false) === true) {
+            $this->order->set(EchoPayCustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value, 1);
+
+            return [
+                'status' => 'success',
+                'message' => 'Bulk recharge order — per-TAG processing deferred to BulkRechargeTagsActivity',
+                'data' => ['order' => $this->order->getId()],
+            ];
+        }
+
         if (! isset($this->order->metadata['data']['paso_rapido_tag'])) {
             return [
                 'order' => $this->order->getId(),

@@ -100,7 +100,7 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
     private function approve(Lead $lead, AppInterface $app): array
     {
         try {
-            $appOwner = $this->resolveAppOwner($app);
+            $appOwner = $lead->receiver->user;
             $company = $this->findOrCreateCompany($lead, $appOwner);
 
             $this->copyCompanyFieldsFromLead($lead, $company);
@@ -147,13 +147,6 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
             'status' => 'skipped',
             'reason' => $reason,
         ];
-    }
-
-    private function resolveAppOwner(AppInterface $app): Users
-    {
-        $appsModel = $app instanceof Apps ? $app : app(Apps::class);
-
-        return Users::getById((int) $appsModel->users_id);
     }
 
     private function findOrCreateCompany(Lead $lead, Users $appOwner): Companies

@@ -24,7 +24,7 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
 {
     use HasIntegrationCompany;
 
-    protected Apps $app;
+    protected Apps $kanvasApp;
     private LeadReceiver $corporateReceiver;
     private LeadReceiver $otherReceiver;
 
@@ -36,12 +36,12 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
             $this->markTestSkipped('Movipass corporate workflow tests are skipped in CI');
         }
 
-        $this->app = app(Apps::class);
+        $this->kanvasApp = app(Apps::class);
         $user = Auth::user();
         $company = $user->getCurrentCompany();
 
         $this->setIntegration(
-            $this->app,
+            $this->kanvasApp,
             IntegrationsEnum::MOVIPASS,
             MovipassHandler::class,
             $company,
@@ -51,8 +51,8 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
         $this->corporateReceiver = $this->createReceiver('corporate');
         $this->otherReceiver = $this->createReceiver('other');
 
-        $this->app->set(ConfigurationEnum::CORPORATE_RECEIVER_ID->value, $this->corporateReceiver->getId());
-        $this->app->set(ConfigurationEnum::CORPORATE_AUTO_APPROVE->value, true);
+        $this->kanvasApp->set(ConfigurationEnum::CORPORATE_RECEIVER_ID->value, $this->corporateReceiver->getId());
+        $this->kanvasApp->set(ConfigurationEnum::CORPORATE_AUTO_APPROVE->value, true);
     }
 
     public function testSkipsWhenLeadIsFromDifferentReceiver(): void
@@ -67,7 +67,7 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
 
     public function testNeedsReviewWhenAutoApproveDisabled(): void
     {
-        $this->app->set(ConfigurationEnum::CORPORATE_AUTO_APPROVE->value, false);
+        $this->kanvasApp->set(ConfigurationEnum::CORPORATE_AUTO_APPROVE->value, false);
 
         $lead = $this->makeCorporateLead();
         Notification::fake();
@@ -155,13 +155,16 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
     {
         $receiver ??= $this->corporateReceiver;
         $email = $overrides['email'] ?? fake()->unique()->safeEmail();
+        $company = Auth::user()->getCurrentCompany();
 
-        $lead = Lead::factory()->withReceiverId($receiver->getId())->create([
-            'apps_id' => $this->app->getId(),
-            'email' => $email,
-            'firstname' => $overrides['firstname'] ?? fake()->firstName(),
-            'lastname' => $overrides['lastname'] ?? fake()->lastName(),
-        ]);
+        $lead = Lead::factory()
+            ->withAppAndCompany($this->kanvasApp->getId(), $company->getId())
+            ->withReceiverId($receiver->getId())
+            ->create([
+                'email' => $email,
+                'firstname' => $overrides['firstname'] ?? fake()->firstName(),
+                'lastname' => $overrides['lastname'] ?? fake()->lastName(),
+            ]);
 
         $lead->set('legal_name', $overrides['legal_name'] ?? 'Empresa de Pruebas SRL');
         $lead->set('commercial_name', $overrides['commercial_name'] ?? 'Empresa Pruebas');
@@ -181,14 +184,14 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
         $branch = $company->branch()->firstOrFail();
 
         return LeadReceiver::create([
-            'apps_id' => $this->app->getId(),
+            'apps_id' => $this->kanvasApp->getId(),
             'companies_id' => $company->getId(),
             'companies_branches_id' => $branch->getId(),
             'users_id' => $user->getId(),
             'agents_id' => 0,
             'rotations_id' => 0,
             'leads_sources_id' => 0,
-            'leads_types_id' => 0,
+            'lead_types_id' => 0,
             'name' => 'Test ' . $name . ' receiver',
             'source_name' => 'test-' . $name,
             'is_default' => 0,
@@ -205,6 +208,6 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
             []
         );
 
-        return $activity->execute($lead, $this->app, []);
+        return $activity->execute($lead, $this->kanvasApp, []);
     }
 }

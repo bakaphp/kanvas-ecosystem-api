@@ -78,6 +78,7 @@ use Kanvas\Connectors\Microsoft\Workflows\Activities\MicrosoftAgentChannelRespon
 use Kanvas\Connectors\Microsoft\Workflows\Activities\SyncMicrosoftEmailActivity;
 use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsProcessVehicleImageActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\AutoApproveCorporateLeadActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\BulkRechargeTagsActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\CreateVehicleFromOrderActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\PropagateCorporateFieldsToUserActivity;
@@ -342,6 +343,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncMovipassImpoundActivity::class,
             SyncMovipassRoadsideAssistanceActivity::class,
             AutoApproveCorporateLeadActivity::class,
+            BulkRechargeTagsActivity::class,
             PropagateCorporateFieldsToUserActivity::class,
             PushLeadNotesActivity::class,
             PushLeadActivity::class,
