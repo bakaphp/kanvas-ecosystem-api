@@ -52,6 +52,7 @@ class InventorySearchTool implements Tool
                     'name' => $variant->name,
                     'sku' => $variant->sku,
                     'stock' => $variant->getTotalQuantity(),
+                    'price' => $variant->getPriceInfoFromDefaultChannel()->price ?? null,
                 ])->toArray(),
             ];
         });
