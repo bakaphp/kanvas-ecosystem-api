@@ -7197,16 +7197,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.3.14",
+            "version": "3.4.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "656e294d2bdac384e9e84ca5a9e3d94a0cb0576b"
+                "reference": "fb6556a4b816fbfeeff787b648387ef90dca87c1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/656e294d2bdac384e9e84ca5a9e3d94a0cb0576b",
-                "reference": "656e294d2bdac384e9e84ca5a9e3d94a0cb0576b",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/fb6556a4b816fbfeeff787b648387ef90dca87c1",
+                "reference": "fb6556a4b816fbfeeff787b648387ef90dca87c1",
                 "shasum": ""
             },
             "require": {
@@ -7257,7 +7257,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.3.14"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.4.1"
             },
             "funding": [
                 {
@@ -7265,7 +7265,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-05-01T15:52:41+00:00"
+            "time": "2026-05-03T16:11:03+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
