@@ -92,7 +92,7 @@ class Event extends Data
         string $entityClass,
         $app,
         $company,
-        string| int|null $idField,
+        string|int|null $idField,
         string $defaultCondition = 'is_default',
         int $defaultValue = 1
     ): Model {
