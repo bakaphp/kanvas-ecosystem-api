@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Filesystem\Services\FilesystemServices;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 
@@ -62,12 +61,7 @@ class DownloadMessageFileAction
         $tempPath = sys_get_temp_dir() . '/' . $filename;
         file_put_contents($tempPath, $response->body());
 
-        $agentUser = $this->message->company->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
-        if ($agentUser !== null) {
-            $user = Users::getById($agentUser);
-        } else {
-            $user = Users::getById($this->message->user_id);
-        }
+        $user = $this->message->company->getAiAgentUser() ?? Users::getById($this->message->user_id);
 
         try {
             $uploadedFile = new UploadedFile(

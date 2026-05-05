@@ -18,12 +18,6 @@ use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 
 class ApplyLeadAiModeV1Action
 {
-    private const MANUAL_TRIGGERS = [
-        TriggersEnum::MANUAL_OFF->value,
-        TriggersEnum::MANUAL_SUPPORT->value,
-        TriggersEnum::MANUAL_FON->value,
-    ];
-
     public function __construct(
         protected Lead $lead,
         protected int $triggerType,
@@ -33,7 +27,7 @@ class ApplyLeadAiModeV1Action
     public function execute(): array
     {
         if ($this->lead->get('ai_mode') == IntelligenceModeEnum::OFF->value
-            && ! in_array($this->triggerType, self::MANUAL_TRIGGERS)) {
+            && ! in_array($this->triggerType, TriggersEnum::manualTriggerValues(), true)) {
             return [
                 'changed' => false,
                 'message' => 'Currently Lead is in OFF mode',
@@ -110,6 +104,7 @@ class ApplyLeadAiModeV1Action
         $carbon = Carbon::now($this->lead->company->timezone);
         $noteContent = $carbon->format('Y-m-d H:i:s') . ' Sally Mode set to ' . $newMode;
 
+        $user = $this->lead->company->getAiAgentUser() ?? $this->lead->user;
         $messageType = new CreateMessageTypeAction(
             new MessageTypeInput(
                 apps_id: $this->lead->app->getId(),
@@ -125,7 +120,7 @@ class ApplyLeadAiModeV1Action
             new MessageInput(
                 app: $this->lead->app,
                 company: $this->lead->company,
-                user: $this->lead->user,
+                user: $user,
                 type: $messageType,
                 message: [
                     'content' => $noteContent,
@@ -135,6 +130,6 @@ class ApplyLeadAiModeV1Action
         );
         $createMessageAction->runWorkflow = true;
         $message = $createMessageAction->execute();
-        $notesChannel->addMessage($message, $this->lead->user);
+        $notesChannel->addMessage($message, $user);
     }
 }
