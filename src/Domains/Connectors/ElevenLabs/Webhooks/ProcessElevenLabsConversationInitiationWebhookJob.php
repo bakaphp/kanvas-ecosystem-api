@@ -32,6 +32,8 @@ class ProcessElevenLabsConversationInitiationWebhookJob extends ProcessElevenLab
             'elevenlabs_agent_id' => isset($payload['agent_id']) ? (string) $payload['agent_id'] : '',
             'current_date' => $currentDate,
             'timezone' => (string) $timezone,
+            'dealership_name' => $company->name,
+            'company_language' => $company->language,
             'contact_exists' => false,
             'has_open_opportunity' => false,
             'customer_name' => '',
