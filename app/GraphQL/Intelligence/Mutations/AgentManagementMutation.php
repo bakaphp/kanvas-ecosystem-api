@@ -15,7 +15,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
-use Kanvas\Users\Models\Users;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class AgentManagementMutation
 {
@@ -34,7 +34,7 @@ class AgentManagementMutation
         $input = $this->mapRoleToFields($input);
 
         $personaUser = isset($input['user_id'])
-            ? Users::getByIdFromCompany((int) $input['user_id'], $company)
+            ? UsersRepository::getUserOfAppById((int) $input['user_id'], $app)
             : auth()->user();
 
         $agentDTO = new AgentDTO(
@@ -83,9 +83,8 @@ class AgentManagementMutation
             : null;
 
         $input = $this->mapRoleToFields($input);
-
         $personaUser = isset($input['user_id'])
-            ? Users::getByIdFromCompany((int) $input['user_id'], $company)
+            ? UsersRepository::getUserOfAppById((int) $input['user_id'], $app)
             : ($agent->user ?? auth()->user());
 
         $agentDTO = new AgentDTO(

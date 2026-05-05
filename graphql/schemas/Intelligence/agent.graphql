@@ -1,7 +1,7 @@
 type AgentAi {
     id: ID!
     company: [Company!]! @belongsTo
-    user: [User!]! @belongsTo
+    user: User @belongsTo(relation: "user")
     creator: User @belongsTo(relation: "creator")
     type: agentType! @belongsTo
     model: AgentAiModel @belongsTo
