@@ -64,6 +64,14 @@ class UpdatePlanAction
                 previousStatus: $oldStatus,
             );
 
+            // Org-level milestone — only on the actual transition into a
+            // terminal state (not on subsequent saves while already terminal).
+            if ($oldStatus !== $newStatus
+                && in_array($newStatus, ['done', 'failed', 'cancelled'], true)
+            ) {
+                new PostPlanCompletionToSwarmAction($this->plan)->execute();
+            }
+
             return $this->plan->fresh() ?? $this->plan;
         });
     }

@@ -113,14 +113,14 @@ class ChatWithAgentAction
         try {
             $response = $client->exec(
                 'docker exec ' . escapeshellarg($deployment->container_name)
-                . ' curl -sS --max-time 120 -w "\nHTTP_CODE:%{http_code}"'
+                . ' curl -sS --max-time 580 -w "\nHTTP_CODE:%{http_code}"'
                 . ' http://127.0.0.1:18789/v1/responses'
                 . ' -H ' . escapeshellarg('Authorization: Bearer ' . $token)
                 . ' -H ' . escapeshellarg('Content-Type: application/json')
                 . ' -H ' . escapeshellarg('x-openclaw-agent-id: ' . $this->agent->slug)
                 . ' -H ' . escapeshellarg('x-openclaw-session-key: ' . $sessionKey)
                 . ' -d ' . escapeshellarg($payload),
-                150,
+                600,
             );
         } finally {
             $client->disconnect();

@@ -27,7 +27,10 @@ class RunOpenClawChatAction
         $handler = new OpenClawAgentHandler();
         $handler->setAgent($this->agent);
 
-        $response = $handler->chat($this->message, $sessionId !== '' ? $sessionId : null);
+        $response = $handler->chat(
+            $this->message,
+            $sessionId !== '' ? $sessionId : null
+        );
 
         new KanvasConversationStore()->logTurn(
             userId: $this->user->getId(),

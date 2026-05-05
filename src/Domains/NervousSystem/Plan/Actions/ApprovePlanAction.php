@@ -63,6 +63,12 @@ class ApprovePlanAction
                     : PlanChangeTypeEnum::REJECTED,
             );
 
+            // Rejection is a terminal transition (→ cancelled). Approve
+            // moves to active, which isn't terminal — no swarm milestone.
+            if (! $this->approved) {
+                new PostPlanCompletionToSwarmAction($this->plan)->execute();
+            }
+
             return $this->plan->fresh() ?? $this->plan;
         });
     }

@@ -29,7 +29,7 @@ use Throwable;
  * Both paths land on the same per-plan Session so the agent's LLM context
  * is continuous across all wake-ups for the same plan.
  *
- * Emits three ledger events on success:
+ * Emits two ledger events on success:
  *   plan.agent.invoked      — after the LLM call returns (carries duration_ms)
  *   plan.agent.replied      — after the reply is posted on the channel
  *
@@ -183,6 +183,10 @@ class WakeAgentForPlanJob implements ShouldQueue
      * guard in ReplyToPlanCommentActivity so this message doesn't refire.
      *
      * Returns the saved Message (or null if any precondition failed).
+     *
+     * Note: do NOT pass channel_slug to CreateMessageAction here. When set,
+     * it unconditionally calls CreateChannelAction, which trips on an 'Admin'
+     * role lookup with a null company. We attach via $channel->addMessage().
      */
     protected function postReplyOnActivitiesChannel(string $response): ?Message
     {
@@ -219,7 +223,6 @@ class WakeAgentForPlanJob implements ShouldQueue
                         'content' => $response,
                         'from_me' => true,
                     ],
-                    channel_slug: $channel->slug,
                 ),
             )->execute();
 
