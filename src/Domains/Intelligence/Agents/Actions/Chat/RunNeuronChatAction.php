@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
-use Inspector\Configuration;
-use Inspector\Inspector;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -14,7 +12,6 @@ use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Messages\UserMessage;
-use NeuronAI\Observability\InspectorObserver;
 
 class RunNeuronChatAction
 {
@@ -31,14 +28,6 @@ class RunNeuronChatAction
     public function execute(): string
     {
         $sessionId = $this->session?->uuid ?? '';
-
-        if ($this->app->get('inspector-key') !== null) {
-            $this->handler->observe(
-                new InspectorObserver(
-                    new Inspector(new Configuration($this->app->get('inspector-key')))
-                )
-            );
-        }
 
         $responseContent = $this->handler instanceof ADKAgent
             ? $this->handler->chatSimple(
