@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Actions;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunLaravelAgentChatAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunOpenClawChatAction;
@@ -45,7 +46,19 @@ class ProcessAgentChatAction
 
     protected function runHandler(): string
     {
-        if ($this->agent->type->handler === OpenClawAgentHandler::class) {
+        $handlerClass = $this->agent->type?->handler;
+
+        if ($handlerClass === null || $handlerClass === '' || ! class_exists($handlerClass)) {
+            throw new ValidationException(sprintf(
+                'Agent %d cannot run: agent_type %s has no valid handler set (got %s). '
+                . 'Set agent_types.handler to a class implementing the agent runtime contract.',
+                $this->agent->getId(),
+                (string) ($this->agent->agent_type_id ?? 'null'),
+                $handlerClass === null ? 'null' : "'{$handlerClass}'",
+            ));
+        }
+
+        if ($handlerClass === OpenClawAgentHandler::class) {
             return new RunOpenClawChatAction(
                 agent: $this->agent,
                 session: $this->session,
@@ -54,7 +67,7 @@ class ProcessAgentChatAction
             )->execute();
         }
 
-        $handler = new $this->agent->type->handler();
+        $handler = new $handlerClass();
         $handler->setConfiguration($this->agent, $this->session?->entity());
 
         if ($handler instanceof KanvasLaravelAgent) {

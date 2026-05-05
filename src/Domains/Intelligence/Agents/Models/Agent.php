@@ -38,6 +38,7 @@ use Override;
  * @property int|null $parent_id
  * @property string|null $path
  * @property int $user_id
+ * @property int|null $created_by_users_id
  * @property string $name
  * @property string $slug
  * @property string|null $description
@@ -78,6 +79,7 @@ class Agent extends BaseModel
         'parent_id',
         'path',
         'user_id',
+        'created_by_users_id',
         'name',
         'slug',
         'description',
@@ -211,6 +213,15 @@ class Agent extends BaseModel
         return $this->belongsTo(
             Users::class,
             'user_id',
+            'id'
+        );
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(
+            Users::class,
+            'created_by_users_id',
             'id'
         );
     }
