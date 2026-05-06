@@ -7,8 +7,12 @@ namespace Kanvas\Intelligence\Agents\Neuron;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
+use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Chat\Enums\MessageRole;
 use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
@@ -28,7 +32,7 @@ class KanvasMessageHistory extends AbstractChatHistory
         private readonly Users $user,
         private readonly Model $entity,
         private readonly ?string $threadId = null,
-        private readonly bool $includeInternal = false, // ← nuevo
+        private readonly bool $includeInternal = false,
         int $contextWindow = 50000,
     ) {
         parent::__construct($contextWindow);
@@ -60,23 +64,28 @@ class KanvasMessageHistory extends AbstractChatHistory
 
                 $channel = $socialMessage->channels()->first();
 
+                $isInternal = $channel->isNoteChannel() || $channel->isAiAssistChannel();
+
                 $verb = $socialMessage->messageType?->verb ?? self::USER_VERB;
 
-                // Si no incluimos internos, filtramos los verbos internos
                 if (! $this->includeInternal && in_array($verb, self::INTERNAL_VERBS)) {
                     return null;
                 }
 
-                $text = $stored['text'] ?? '';
+                $text = $stored['content'] ?? $stored['text'] ?? '';
 
-                // Mensajes internos se marcan con prefijo para que el agente entienda el contexto
-                if (in_array($verb, self::INTERNAL_VERBS)) {
-                    return new UserMessage("[INTERNAL - {$verb}]: {$text}");
+                if ($isInternal) {
+                    return new UserMessage("[INTERNAL - {$channel->name}]: {$text}");
+                } elseif ($socialMessage->from_human) {
+                    $text = "[Owner - $socialMessage->user->displayname] $text";
+                } else {
+                    $text = "[Assistant] $text";
                 }
+                $neuronMessage = $socialMessage->from_ia ?
+                        new AssistantMessage($text)
+                        : new UserMessage($text);
 
-                return in_array($verb, [self::AGENT_VERB, 'assistant', 'ai', 'bot'])
-                    ? new AssistantMessage($text)
-                    : new UserMessage($text);
+                return $neuronMessage;
             })
             ->filter()
             ->values()
@@ -85,5 +94,38 @@ class KanvasMessageHistory extends AbstractChatHistory
         if (! empty($messages)) {
             $this->history = $messages;
         }
+    }
+
+    protected function onNewMessage(Message $message): void
+    {
+        if ($message->getRole() !== MessageRole::ASSISTANT->value) {
+            return;
+        }
+
+        $messageType = MessageTypeService::getOrCreate($this->app, self::AGENT_VERB);
+
+        $messageData = [
+            'content' => $message->getContent(),
+            'from_me' => true,
+            'from_ia' => true,
+        ];
+
+        if ($this->threadId !== null) {
+            $messageData['thread_id'] = $this->threadId;
+        }
+
+        $createMessageAction = new CreateMessageAction(
+            new MessageInput(
+                app: $this->app,
+                company: $this->company,
+                user: $this->user,
+                type: $messageType,
+                message: $messageData,
+                is_public: 0,
+            )
+        );
+        $createMessageAction->runWorkflow = false;
+        $socialMessage = $createMessageAction->execute();
+        $socialMessage->addEntity($this->entity);
     }
 }
