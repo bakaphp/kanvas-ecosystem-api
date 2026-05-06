@@ -7,7 +7,7 @@ namespace Kanvas\Connectors\OpenClaw\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
-use Kanvas\Connectors\OpenClaw\Enums\DeploymentStatusEnum;
+use Kanvas\Connectors\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Connectors\OpenClaw\Services\DockerComposeBuilder;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
@@ -211,9 +211,10 @@ class MigrateAgentWorkspaceAction
         $agent = $deployment->agent;
 
         // Build the shared image on the destination if it doesn't exist yet.
-        $imageName = DockerComposeBuilder::getSharedImageName($this->app);
-        $imageDir = DockerComposeBuilder::getSharedImageDir($this->app);
-        $exists = $client->exec('docker image inspect ' . escapeshellarg($imageName) . ' &>/dev/null && echo "EXISTS" || echo "MISSING"');
+        $builder   = new DockerComposeBuilder();
+        $imageName = $builder->getSharedImageName($this->app);
+        $imageDir  = $builder->getSharedImageDir($this->app);
+        $exists    = $client->exec('docker image inspect ' . escapeshellarg($imageName) . ' &>/dev/null && echo "EXISTS" || echo "MISSING"');
         if (str_contains($exists, 'MISSING')) {
             $buildResult = $client->exec(
                 'sudo docker build --no-cache -t ' . escapeshellarg($imageName) . ' ' . escapeshellarg($imageDir) . ' 2>&1; echo "EXIT_CODE:$?"',
@@ -225,8 +226,8 @@ class MigrateAgentWorkspaceAction
         }
 
         // Rewrite docker-compose.yml with the destination machine's allocated ports.
-        $gatewayToken = $this->company->get(\Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum::GATEWAY_TOKEN->value) ?? bin2hex(random_bytes(32));
-        $composeContent = DockerComposeBuilder::buildDockerCompose($deployment, (string) $gatewayToken, $this->app, $agent);
+        $gatewayToken   = $this->company->get(\Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum::GATEWAY_TOKEN->value) ?? bin2hex(random_bytes(32));
+        $composeContent = $builder->buildDockerCompose($deployment, (string) $gatewayToken, $this->app, $agent);
         $client->writeFileAsUser($openclawDir . '/docker-compose.yml', $composeContent, $deployment->system_user);
 
         // Stop existing containers if any, then start fresh.
