@@ -9,8 +9,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Connectors\OpenClaw\Actions\TerminateAgentOnMachineAction;
 use Kanvas\Connectors\AgentRuntime\Events\AgentDeploymentStatusChanged;
+use Kanvas\Connectors\OpenClaw\Actions\TerminateAgentOnMachineAction;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Throwable;
 

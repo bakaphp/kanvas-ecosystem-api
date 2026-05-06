@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\OpenClaw;
 
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\AgentRuntime\Contracts\ProviderConfig;
+use Kanvas\Connectors\AgentRuntime\SshClient as BaseClient;
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use phpseclib3\Crypt\Common\PrivateKey;
@@ -17,7 +18,7 @@ use phpseclib3\Net\SFTP;
  *
  * All shared SSH/SFTP logic lives in AgentRuntime\SshClient.
  */
-class SshClient extends \Kanvas\Connectors\AgentRuntime\SshClient
+class SshClient extends BaseClient
 {
     public static function makeProviderConfig(): ProviderConfig
     {
