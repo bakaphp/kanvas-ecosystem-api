@@ -12,10 +12,14 @@ use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Types\BaseAgent;
+use Kanvas\NervousSystem\Capability\Actions\AttachToolToAgentTypeAction;
+use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
 use ReflectionClass;
 use Symfony\Component\Finder\Finder;
 use Throwable;
+
+use function Laravel\Prompts\multiselect;
 
 class CreateAgentTypeCommand extends Command
 {
@@ -28,14 +32,24 @@ class CreateAgentTypeCommand extends Command
         $this->info('=== Agent Type Creator ===');
         $this->newLine();
 
-        $appsId = (int) $this->ask('App ID', 1);
+        $isGlobal = $this->confirm('Is this a global agent type? (available to all apps, apps_id=0)', false);
 
-        try {
-            $app = Apps::getById($appsId);
-        } catch (Throwable) {
-            $this->error("App with ID {$appsId} not found.");
+        $appsId = 0;
+        $app = null;
 
-            return Command::FAILURE;
+        if (! $isGlobal) {
+            $appsId = (int) $this->ask('App ID', 1);
+
+            try {
+                $app = Apps::getById($appsId);
+                $this->line("App: <fg=green>{$app->name}</>");
+            } catch (Throwable) {
+                $this->error("App with ID {$appsId} not found.");
+
+                return Command::FAILURE;
+            }
+        } else {
+            $this->line('<fg=yellow>Global agent type — will be visible in all apps.</>');
         }
 
         $name = $this->ask('Agent type name');
@@ -67,7 +81,7 @@ class CreateAgentTypeCommand extends Command
 
         $this->newLine();
         $this->info('--- Summary ---');
-        $this->line("App:         #{$appsId} ({$app->name})");
+        $this->line('Scope:       ' . ($isGlobal ? '<fg=yellow>Global (all apps)</>' : "<fg=green>App #{$appsId} ({$app->name})</>"));
         $this->line("Name:        {$name}");
         $this->line("Provider:    {$provider}");
         $this->line("Handler:     {$handler}");
@@ -98,8 +112,24 @@ class CreateAgentTypeCommand extends Command
 
         $this->info("Agent type created with ID: {$agentType->getId()}");
 
+        if ($this->confirm('Do you want to assign tools to this agent type?', false)) {
+            $this->assignTools($agentType, $app, $provider);
+        }
+
         if (! $this->confirm('Do you want to create an agent record linked to this type?', true)) {
             return Command::SUCCESS;
+        }
+
+        if ($app === null) {
+            $agentAppId = (int) $this->ask('App ID for the agent');
+
+            try {
+                $app = Apps::getById($agentAppId);
+            } catch (Throwable) {
+                $this->error("App with ID {$agentAppId} not found.");
+
+                return Command::FAILURE;
+            }
         }
 
         return $this->createAgent($agentType, $app);
@@ -201,6 +231,56 @@ class CreateAgentTypeCommand extends Command
         }
 
         return $nsMatch[1] . '\\' . $classMatch[1];
+    }
+
+    protected function assignTools(AgentType $agentType, ?Apps $app, string $provider): void
+    {
+        $this->newLine();
+        $this->info('=== Assign Tools ===');
+
+        $resolvedApp = $app ?? app(Apps::class);
+
+        $tools = Tool::query()
+            ->forApp($resolvedApp->getId())
+            ->active()
+            ->forFramework($provider)
+            ->orderBy('id')
+            ->get();
+
+        if ($tools->isEmpty()) {
+            $this->warn("No active {$provider} tools found for this app (or global). Create tools first with nervous-system:tool-setup.");
+
+            return;
+        }
+
+        $options = $tools->mapWithKeys(fn (Tool $t) => [
+            $t->getId() => "[{$t->getId()}] {$t->name} ({$t->tool_type})" . ($t->apps_id === 0 ? ' [global]' : ''),
+        ])->all();
+
+        $selected = multiselect(
+            label: "Select tools to attach to '{$agentType->name}' (space to select, enter to confirm)",
+            options: $options,
+            scroll: 10,
+        );
+
+        if (empty($selected)) {
+            $this->line('No tools selected.');
+
+            return;
+        }
+
+        $attached = 0;
+
+        foreach ($selected as $toolId) {
+            /** @var Tool $tool */
+            $tool = $tools->firstWhere('id', (int) $toolId);
+
+            new AttachToolToAgentTypeAction($tool, $agentType)->execute();
+            $this->line("  <fg=green>✓</> Attached: {$tool->name}");
+            $attached++;
+        }
+
+        $this->info("{$attached} tool(s) attached to agent type.");
     }
 
     protected function createAgent(AgentType $agentType, Apps $app): int
