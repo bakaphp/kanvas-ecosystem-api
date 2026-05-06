@@ -15,7 +15,6 @@ use Symfony\Component\Finder\Finder;
 use Throwable;
 
 use function Laravel\Prompts\select;
-use function Laravel\Prompts\text;
 
 class NervousSystemToolSetupCommand extends Command
 {
