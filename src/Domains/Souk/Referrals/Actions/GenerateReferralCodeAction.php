@@ -99,7 +99,7 @@ class GenerateReferralCodeAction
     private function generateUniqueCode(): string
     {
         do {
-            $userPrefix = strtoupper(substr($this->user->firstname ?? 'USER', 0, 3));
+            $userPrefix = strtoupper(mb_substr(Str::ascii($this->user->firstname ?? 'USER'), 0, 3, 'UTF-8'));
             $randomSuffix = strtoupper(Str::random(4));
             $code = $userPrefix . $randomSuffix;
         } while (ReferralCode::where('code', $code)->fromApp($this->app)->exists());
