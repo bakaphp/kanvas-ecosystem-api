@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Jobs;
 
+use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Carbon;
 use Kanvas\Event\Events\Models\ScheduleException;
@@ -60,17 +61,25 @@ class GenerateTimeSlots implements ShouldQueue
         Carbon $dayOccurrence,
         string $tz
     ): void {
-        // Parse day_rrule to get time slot occurrences within the day
-        $dayStart = $dayOccurrence->copy()->startOfDay();
+        $base = Carbon::instance($dayOccurrence)->setTimezone($tz);
+
+        // Use the TIME part of DTSTART as the daily open window; FREQ=MINUTELY with a
+        // date-only DTSTART would otherwise start at midnight and fill the whole day.
+        preg_match('/DTSTART[^:]*:(\d{8})T(\d{2})(\d{2})(\d{2})/', $rule->day_rrule, $dsm);
+        $dayStart = $dsm
+            ? $base->copy()->setTime((int) $dsm[2], (int) $dsm[3], (int) $dsm[4])
+            : $base->copy()->startOfDay();
+
+        // Use the TIME part of UNTIL as the daily close; without this the window runs
+        // to end-of-day because UNTIL is a series terminator, not a per-day boundary.
+        preg_match('/UNTIL=(\d{8})T(\d{2})(\d{2})(\d{2})Z?/', $rule->day_rrule, $um);
+        $dayEnd = $um
+            ? $base->copy()->setTime((int) $um[2], (int) $um[3], (int) $um[4])
+            : $base->copy()->endOfDay();
 
         try {
-            $dayRRule = RRule::createFromRfcString($rule->day_rrule, $dayStart->setTimezone($tz));
-            $dayEnd = $dayOccurrence->copy()->endOfDay();
-
-            $slotOccurrences = $dayRRule->getOccurrencesBetween(
-                $dayStart->setTimezone($tz),
-                $dayEnd->setTimezone($tz)
-            );
+            $dayRRule = RRule::createFromRfcString($rule->day_rrule, $dayStart);
+            $slotOccurrences = $dayRRule->getOccurrencesBetween($dayStart, $dayEnd);
 
             foreach ($slotOccurrences as $slotStart) {
                 $localStart = Carbon::instance($slotStart)->setTimezone($tz);
@@ -78,8 +87,7 @@ class GenerateTimeSlots implements ShouldQueue
 
                 $this->createTimeSlot($rule, $resource, $localStart, $localEnd, $tz);
             }
-        } catch (\Exception $e) {
-            // If day_rrule parsing fails, skip this day
+        } catch (Exception $e) {
             return;
         }
     }

@@ -68,9 +68,17 @@ class ProcessAgentChatAction
         }
 
         $handler = new $handlerClass();
-        $handler->setConfiguration($this->agent, $this->session?->entity());
 
         if ($handler instanceof KanvasLaravelAgent) {
+            // Pass the request-scoped app/company so tools get the correct tenant
+            // context even when the agent is global (companies_id = 0 / apps_id = 0).
+            $handler->setConfiguration(
+                agent: $this->agent,
+                entity: $this->session?->entity(),
+                app: $this->app,
+                company: $this->company,
+            );
+
             return new RunLaravelAgentChatAction(
                 agent: $this->agent,
                 session: $this->session,
@@ -81,6 +89,8 @@ class ProcessAgentChatAction
                 handler: $handler,
             )->execute();
         }
+
+        $handler->setConfiguration($this->agent, $this->session?->entity());
 
         return new RunNeuronChatAction(
             agent: $this->agent,

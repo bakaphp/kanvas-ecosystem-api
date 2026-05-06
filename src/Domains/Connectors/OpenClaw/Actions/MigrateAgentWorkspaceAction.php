@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenClaw\Actions;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\AgentRuntime\Enums\DeploymentStatusEnum;
+use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\Services\DockerComposeBuilder;
 use Kanvas\Connectors\OpenClaw\SshClient;
@@ -226,7 +225,7 @@ class MigrateAgentWorkspaceAction
         }
 
         // Rewrite docker-compose.yml with the destination machine's allocated ports.
-        $gatewayToken   = $this->company->get(\Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum::GATEWAY_TOKEN->value) ?? bin2hex(random_bytes(32));
+        $gatewayToken = $this->company->get(ConfigurationEnum::GATEWAY_TOKEN->value) ?? bin2hex(random_bytes(32));
         $composeContent = $builder->buildDockerCompose($deployment, (string) $gatewayToken, $this->app, $agent);
         $client->writeFileAsUser($openclawDir . '/docker-compose.yml', $composeContent, $deployment->system_user);
 

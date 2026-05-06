@@ -52,7 +52,7 @@ class ReplyToPlanCommentActivity extends KanvasActivity
                     return ['message' => 'Skipped: message is from this plan\'s assigned agent', 'entity' => null];
                 }
 
-                $content = (string) ($message->message['content'] ?? '');
+                $content = is_array($message->message) ? (string) ($message->message['content'] ?? '') : $message->message;
                 if ($content === '') {
                     return ['message' => 'Empty message body', 'entity' => null];
                 }

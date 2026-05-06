@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Wallet\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Souk\Wallet\Enums\TransactionSourceEnum;
 use Kanvas\Souk\Wallet\Wallet;
 use Kanvas\Users\Models\Users;
 
@@ -17,6 +18,7 @@ class FlushWalletAction
         protected Users|Companies $holder,
         protected string $tag,
         protected UserInterface $admin,
+        protected readonly ?string $reason = null,
     ) {
     }
 
@@ -31,10 +33,18 @@ class FlushWalletAction
         $balance = (int) $wallet->balanceInt;
 
         if ($balance > 0) {
-            $wallet->forceWithdraw($balance, [
-                'description' => 'Admin wallet flush',
-                'flushed_by' => $this->admin->getId(),
-            ]);
+            $audit = new BuildWalletTransactionMetaAction(
+                source: TransactionSourceEnum::FLUSH,
+                actorUserId: $this->admin->getId(),
+                externalReference: 'flush_' . class_basename($this->holder) . '_' . $this->holder->getId(),
+                reason: $this->reason,
+                additional: [
+                    'description' => 'Admin wallet flush',
+                    'flushed_by' => $this->admin->getId(),
+                ],
+            )->execute();
+
+            $wallet->forceWithdraw($balance, $audit);
         }
 
         return $wallet->refresh();
