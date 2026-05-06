@@ -7,7 +7,10 @@ namespace Kanvas\Intelligence\Agents\Models;
 use Baka\Casts\Json;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Factories\AgentTypeFactory;
 use Kanvas\Intelligence\Models\BaseModel;
 use Override;
@@ -36,6 +39,7 @@ class AgentType extends BaseModel
         'app_id',
         'name',
         'description',
+        'handler',
         'config',
         'role',
         'is_active',
@@ -52,9 +56,26 @@ class AgentType extends BaseModel
         'is_multi_agent' => 'boolean',
     ];
 
+    public function scopeFromAppOrGlobal(Builder $query, mixed $app = null): Builder
+    {
+        $app = $app instanceof Apps ? $app : app(Apps::class);
+
+        return $query->whereIn('apps_id', [0, $app->getId()]);
+    }
+
     public function agents(): HasMany
     {
         return $this->hasMany(Agent::class);
+    }
+
+    public function tools(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            \Kanvas\NervousSystem\Capability\Models\Tool::class,
+            'nervous_system_tool_agent_types',
+            'agent_type_id',
+            'tool_id'
+        );
     }
 
     #[Override]
