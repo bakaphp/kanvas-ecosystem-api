@@ -25,6 +25,7 @@ type AgentAi {
     agent_model_id: ID
     parent_id: ID
     is_active: Boolean!
+    selectedTools: [NervousSystemTool!]! @belongsToMany(relation: "selectedTools")
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -69,6 +70,7 @@ input AgentAiInput {
     company_task_list_id: Int
     communication_channels: [CommunicationChannelPivot!]
     swarm_ids: [ID!]
+    tool_ids: [ID!]
 }
 
 input CommunicationChannelPivot {
