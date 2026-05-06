@@ -104,6 +104,12 @@ class WalletTest extends TestCase
             }
         ');
 
+        $errors = $response->json('errors');
+        $this->assertNull(
+            $errors,
+            'getUserWalletTransactions returned GraphQL errors: ' . json_encode($errors, JSON_PRETTY_PRINT),
+        );
+
         $response->assertSuccessful()
             ->assertJsonStructure([
                 'data' => [
@@ -144,6 +150,12 @@ class WalletTest extends TestCase
                 }
             }
         ');
+
+        $errors = $response->json('errors');
+        $this->assertNull(
+            $errors,
+            'getWalletTransactions returned GraphQL errors: ' . json_encode($errors, JSON_PRETTY_PRINT),
+        );
 
         $response->assertSuccessful()
             ->assertJsonStructure([

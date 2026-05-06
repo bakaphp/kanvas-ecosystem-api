@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Wallet;
 
+use BackedEnum;
 use Bavix\Wallet\Models\Transaction as ModelsTransaction;
 
 class Transaction extends ModelsTransaction
@@ -12,6 +13,8 @@ class Transaction extends ModelsTransaction
 
     public function getTypeStringAttribute(): string
     {
-        return (string) $this->getAttribute('type');
+        $type = $this->getAttribute('type');
+
+        return $type instanceof BackedEnum ? (string) $type->value : (string) $type;
     }
 }
