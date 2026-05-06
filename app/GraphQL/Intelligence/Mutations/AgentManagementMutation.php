@@ -15,6 +15,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
+use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class AgentManagementMutation
@@ -66,6 +67,10 @@ class AgentManagementMutation
             $this->syncSwarms($agent, $input['swarm_ids'], $company, $app);
         }
 
+        if (isset($input['tool_ids'])) {
+            $this->syncTools($agent, $input['tool_ids'], $app);
+        }
+
         return $agent;
     }
 
@@ -115,6 +120,10 @@ class AgentManagementMutation
             $this->syncSwarms($agent, $input['swarm_ids'], $company, $app);
         }
 
+        if (isset($input['tool_ids'])) {
+            $this->syncTools($agent, $input['tool_ids'], $app);
+        }
+
         return $agent;
     }
 
@@ -152,6 +161,23 @@ class AgentManagementMutation
         }
 
         return $input;
+    }
+
+    /**
+     * @param array<int, string> $toolIds
+     */
+    private function syncTools(Agent $agent, array $toolIds, AppInterface $app): void
+    {
+        $ids = [];
+        foreach ($toolIds as $toolId) {
+            $tool = Tool::query()
+                ->where('id', (int) $toolId)
+                ->forApp((int) $app->getId())
+                ->firstOrFail();
+            $ids[] = $tool->getId();
+        }
+
+        $agent->selectedTools()->sync($ids);
     }
 
     /**
