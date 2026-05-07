@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Baka\Validations;
 
 use Baka\Support\Str;
+use Carbon\Carbon;
 use DateTime;
 use Exception;
 
@@ -13,10 +14,14 @@ class Date
     /**
      * Is validate date?
      */
-    public static function isValid(?string $date, string $format = 'Y-m-d'): bool
+    public static function isValid(null|string|Carbon $date, string $format = 'Y-m-d'): bool
     {
         if ($date === null || empty($date)) {
             return false;
+        }
+
+        if ($date instanceof Carbon) {
+            return true;
         }
 
         $format = trim($format);

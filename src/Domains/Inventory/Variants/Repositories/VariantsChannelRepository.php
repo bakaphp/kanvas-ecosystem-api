@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Variants\Repositories;
 
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 class VariantsChannelRepository
@@ -18,116 +20,115 @@ class VariantsChannelRepository
      */
     public static function filterByAttributes(string $channelId, array $attributes, array $priceRange = []): Builder
     {
-        $query = Variants::query();
-
-        //@todo this has to be configurable by the channel or company
         $millage = $attributes['millage'] ?? null;
         unset($attributes['millage']);
         unset($attributes['price']);
-        $index = 1;
 
-        foreach ($attributes as $name => $value) {
-            $alias = 'pva' . $index; // Aliases for each join
-            $attrAlias = 'a' . $index;
+        $channel = Channels::where('uuid', $channelId)
+            ->where('is_deleted', 0)
+            ->first(['id']);
 
-            // Join products_variants_attributes table
-            $query->join(
-                "products_variants_attributes as $alias",
-                'products_variants.id',
-                '=',
-                "$alias.products_variants_id"
-            );
-
-            // Join attributes table
-            $query->join(
-                "attributes as $attrAlias",
-                "$alias.attributes_id",
-                '=',
-                "$attrAlias.id"
-            );
-
-            // Add where conditions
-            $query->where("$attrAlias.name", '=', $name);
-
-            // Handle JSON and non-JSON values
-            $query->where(function ($subQuery) use ($alias, $value) {
-                $subQuery->where(function ($jsonQuery) use ($alias, $value) {
-                    $jsonQuery->whereRaw("JSON_VALID($alias.value) = 1")
-                              ->whereRaw("JSON_EXTRACT($alias.value, '$.en') = ?", [$value]);
-                })
-                ->orWhere("$alias.value", '=', $value);
-            });
-
-            $index++;
+        if (! $channel) {
+            return Variants::query()->whereRaw('1=0');
         }
 
-        // Handle millage separately with the same JSON handling logic
-        if ($millage !== null && is_array($millage) && count($millage) === 2) {
-            $alias = 'pva' . $index;
-            $attrAlias = 'a' . $index;
+        $query = Variants::query()
+            ->join('products_variants_channels as pvc', 'products_variants.id', '=', 'pvc.products_variants_id')
+            ->where('pvc.channels_id', $channel->id)
+            ->where('products_variants.is_deleted', 0)
+            ->where('pvc.is_published', 1)
+            ->where('pvc.is_deleted', 0);
 
-            $query->join(
-                "products_variants_attributes as $alias",
-                'products_variants.id',
-                '=',
-                "$alias.products_variants_id"
-            );
-
-            $query->join(
-                "attributes as $attrAlias",
-                "$alias.attributes_id",
-                '=',
-                "$attrAlias.id"
-            );
-
-            $query->where("$attrAlias.name", '=', 'odometer');
-
-            // Apply the range condition with JSON handling
-            $query->where(function ($subQuery) use ($alias, $millage) {
-                // For JSON values
-                $subQuery->where(function ($jsonQuery) use ($alias, $millage) {
-                    $jsonQuery->whereRaw("JSON_VALID($alias.value) = 1")
-                              ->whereRaw("CAST(JSON_EXTRACT($alias.value, '$.en') AS DECIMAL(10,2)) >= ?", [$millage[0]])
-                              ->whereRaw("CAST(JSON_EXTRACT($alias.value, '$.en') AS DECIMAL(10,2)) <= ?", [$millage[1]]);
-                })
-                // For non-JSON values
-                ->orWhere(function ($rangeQuery) use ($alias, $millage) {
-                    $rangeQuery->where("$alias.value", '>=', $millage[0])
-                               ->where("$alias.value", '<=', $millage[1]);
+        $attributeCount = count($attributes);
+        if ($attributeCount > 0) {
+            foreach ($attributes as $name => $value) {
+                $query->whereExists(function ($subQuery) use ($name, $value) {
+                    $subQuery->select(DB::raw(1))
+                        ->from('products_variants_attributes as pva')
+                        ->join('attributes as a', 'pva.attributes_id', '=', 'a.id')
+                        ->whereRaw('pva.products_variants_id = products_variants.id')
+                        ->where('a.name', $name)
+                        ->where('a.is_deleted', 0)
+                        ->where(function ($valueQuery) use ($value) {
+                            if (is_numeric($value)) {
+                                // For numeric values
+                                $valueQuery
+                                    // JSON format: {"en": 0} or {"en": 1}
+                                    ->whereRaw(
+                                        'JSON_VALID(pva.value) = 1 AND CAST(JSON_UNQUOTE(JSON_EXTRACT(pva.value, \'$.en\')) AS SIGNED) = ?',
+                                        [(int)$value]
+                                    )
+                                    // Legacy plain numeric: must be exactly the value
+                                    // Use explicit comparison to avoid type coercion issues
+                                    ->orWhere(function ($legacyQuery) use ($value) {
+                                        $legacyQuery->whereRaw('JSON_VALID(pva.value) = 0')
+                                                    ->where(function ($plainValueQuery) use ($value) {
+                                                        // Check both as string and as cast number
+                                                        $plainValueQuery->where('pva.value', (string)$value)
+                                                                        ->orWhereRaw('CAST(pva.value AS SIGNED) = ?', [(int)$value]);
+                                                    });
+                                    });
+                            } else {
+                                // For string values
+                                $valueQuery
+                                    // JSON format: {"en": "value"}
+                                    ->whereRaw(
+                                        'JSON_VALID(pva.value) = 1 AND JSON_UNQUOTE(JSON_EXTRACT(pva.value, \'$.en\')) = ?',
+                                        [$value]
+                                    )
+                                    // Legacy plain string
+                                    ->orWhere(function ($legacyQuery) use ($value) {
+                                        $legacyQuery->whereRaw('JSON_VALID(pva.value) = 0')
+                                                    ->where('pva.value', $value);
+                                    });
+                            }
+                        });
                 });
-            });
-
-            //$index++;
+            }
         }
 
-        $query->join(
-            'products_variants_channels as pvc',
-            'products_variants.id',
-            '=',
-            'pvc.products_variants_id'
-        );
-        $query->join('channels as c', 'pvc.channels_id', '=', 'c.id');
+        // Handle millage
+        if ($millage !== null && is_array($millage) && count($millage) === 2) {
+            $query->whereExists(function ($subQuery) use ($millage) {
+                $subQuery->select(DB::raw(1))
+                    ->from('products_variants_attributes as pva')
+                    ->join('attributes as a', 'pva.attributes_id', '=', 'a.id')
+                    ->whereRaw('pva.products_variants_id = products_variants.id')
+                    ->where('a.name', 'odometer')
+                    ->where('a.is_deleted', 0)
+                    ->where(function ($rangeQuery) use ($millage) {
+                        $rangeQuery
+                            // JSON format
+                            ->whereRaw(
+                                'JSON_VALID(pva.value) = 1 AND CAST(JSON_UNQUOTE(JSON_EXTRACT(pva.value, \'$.en\')) AS DECIMAL(10,2)) BETWEEN ? AND ?',
+                                [(float)$millage[0], (float)$millage[1]]
+                            )
+                            // Legacy format
+                            ->orWhere(function ($legacyQuery) use ($millage) {
+                                $legacyQuery->whereRaw('JSON_VALID(pva.value) = 0')
+                                            ->whereBetween(DB::raw('CAST(pva.value AS DECIMAL(10,2))'), [(float)$millage[0], (float)$millage[1]]);
+                            });
+                    });
+            });
+        }
 
-        $query->where('c.uuid', '=', $channelId)
-              ->where('products_variants.is_deleted', '=', 0)
-              ->where('pvc.is_published', '=', 1)
-              ->where('pvc.is_deleted', '=', 0)
-              ->where('c.is_deleted', '=', 0);
-
-        // Apply price range with JSON handling
+        // Apply price range filtering
         if ($priceRange && count($priceRange) === 2) {
             $query->where(function ($priceQuery) use ($priceRange) {
-                // Handle regular numeric price
-                $priceQuery->whereBetween('pvc.price', $priceRange)
-                // Handle JSON price format
-                ->orWhere(function ($jsonPriceQuery) use ($priceRange) {
-                    $jsonPriceQuery->whereRaw('JSON_VALID(pvc.price) = 1')
-                                  ->whereRaw("CAST(JSON_EXTRACT(pvc.price, '$.en') AS DECIMAL(10,2)) >= ?", [$priceRange[0]])
-                                  ->whereRaw("CAST(JSON_EXTRACT(pvc.price, '$.en') AS DECIMAL(10,2)) <= ?", [$priceRange[1]]);
-                });
+                $priceQuery
+                    // Legacy plain numeric price
+                    ->where(function ($legacyPrice) use ($priceRange) {
+                        $legacyPrice->whereRaw('JSON_VALID(pvc.price) = 0')
+                                    ->whereBetween('pvc.price', $priceRange);
+                    })
+                    // JSON format price
+                    ->orWhereRaw(
+                        'JSON_VALID(pvc.price) = 1 AND CAST(JSON_UNQUOTE(JSON_EXTRACT(pvc.price, \'$.en\')) AS DECIMAL(10,2)) BETWEEN ? AND ?',
+                        [(float)$priceRange[0], (float)$priceRange[1]]
+                    );
             });
         }
 
-        return $query->select('products_variants.*')->distinct();
+        return $query->select('products_variants.*');
     }
 }

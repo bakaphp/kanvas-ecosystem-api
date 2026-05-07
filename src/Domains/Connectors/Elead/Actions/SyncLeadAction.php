@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Elead\Actions;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Connectors\Elead\Entities\Lead as LeadEntity;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Elead\Support\EleadCache;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\UserConfig;
@@ -15,7 +16,8 @@ use Throwable;
 class SyncLeadAction
 {
     public function __construct(
-        protected Lead $lead
+        protected Lead $lead,
+        protected bool $fresh = false
     ) {
     }
 
@@ -32,14 +34,19 @@ class SyncLeadAction
 
             if ($lead->owner) {
                 try {
-                    if ($leadOwnerId = $lead->owner->get(CustomFieldEnum::getUserKey($this->lead->companies))) {
+                    if ($leadOwnerId = $lead->owner->get(CustomFieldEnum::getUserKey($this->lead->company))) {
                         $eLeadOpportunity->reAssignPrimarySalesUser($leadOwnerId);
                     }
                 } catch (Throwable $e) {
                 }
             }
         } else {
-            $eLeadOpportunity = LeadEntity::getById($this->lead->app, $this->lead->company, $eLeadOpportunityId);
+            $eLeadOpportunity = LeadEntity::getById(
+                $this->lead->app,
+                $this->lead->company,
+                $eLeadOpportunityId,
+                $this->fresh
+            );
         }
 
         if (isset($eLeadOpportunity->customer) && isset($eLeadOpportunity->customer['id'])) {
@@ -54,12 +61,17 @@ class SyncLeadAction
 
         if (! empty($eLeadOpportunity->soughtVehicles)) {
             $vehicleOfInterest = current($eLeadOpportunity->soughtVehicles);
+
+            if (! empty($vehicleOfInterest) && ! empty($vehicleOfInterest['yearTo'])) {
+                $vehicleOfInterest['year'] = $vehicleOfInterest['yearTo'];
+            }
+
             $lead->set(
                 LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value,
                 $vehicleOfInterest
             );
 
-            if (is_array($vehicleOfInterest) && count($vehicleOfInterest) && $lead->companies->get('enable_vehicle_checklist')) {
+            if (is_array($vehicleOfInterest) && count($vehicleOfInterest) && $lead->company->get('enable_vehicle_checklist')) {
                 if (isset($vehicleOfInterest['mileage'])) {
                     $isNew = $vehicleOfInterest['mileage'] < 3000 ? 1 : 0;
                     $taskList = [
@@ -68,7 +80,7 @@ class SyncLeadAction
                     ];
 
                     $completeTaskList = TaskList::fromApp($this->lead->app)->where([
-                        'companies_id' => $this->lead->companies->getId(),
+                        'companies_id' => $this->lead->company->getId(),
                         'name' => $taskList[$isNew],
                         'apps_id' => $this->lead->app->getId(),
                     ])->first();
@@ -84,7 +96,7 @@ class SyncLeadAction
                     } else {
                         $lead->set('check_list_status', [
                             'mode' => 'automatic',
-                            'activeTaskListId' => $lead->companies->get('default_checklist_id'),
+                            'activeTaskListId' => $lead->company->get('default_checklist_id'),
                         ]);
                     }
                 }
@@ -94,7 +106,7 @@ class SyncLeadAction
         if (! empty($eLeadOpportunity->tradeIns)) {
             $lead->set(
                 LeadCustomFieldEnum::TRADE_IN->value,
-                current($eLeadOpportunity->tradeIns)
+                end($eLeadOpportunity->tradeIns)
             );
         }
 
@@ -110,7 +122,7 @@ class SyncLeadAction
                 foreach ($eLeadOpportunity->salesTeam as $salesTeam) {
                     if ((bool)$salesTeam['isPrimary']) {
                         $userConfig = UserConfig::where([
-                            'name' => CustomFieldEnum::getUserKey($this->company),
+                            'name' => CustomFieldEnum::getUserKey($this->lead->company),
                             'value' => $salesTeam['id'],
                         ])->first();
 
@@ -129,7 +141,16 @@ class SyncLeadAction
 
         //update status
         if (! $eLeadOpportunity->isActive()) {
+            $lead->disableWorkflows();
             $lead->close();
+        } elseif ($eLeadOpportunity->isActive() && ! $lead->isActive()) {
+            $lead->disableWorkflows();
+            $lead->open();
+        }
+
+        if ($eLeadOpportunity->id !== null) {
+            $cache = new EleadCache($this->lead->app, $this->lead->company);
+            $cache->invalidate('lead', $eLeadOpportunity->id);
         }
 
         return $eLeadOpportunity;

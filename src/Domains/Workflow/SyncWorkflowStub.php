@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow;
 
-use Illuminate\Database\QueryException;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Traits\Macroable;
 use LimitIterator;
@@ -13,9 +11,10 @@ use ReflectionClass;
 use SplFileObject;
 use Workflow\Events\WorkflowFailed;
 use Workflow\Events\WorkflowStarted;
+use Workflow\Exceptions\TransitionNotFound;
 use Workflow\Models\StoredWorkflow;
 use Workflow\QueryMethod;
-use Workflow\Serializers\Y;
+use Workflow\Serializers\Serializer;
 use Workflow\Signal;
 use Workflow\SignalMethod;
 use Workflow\States\WorkflowCompletedStatus;
@@ -24,24 +23,41 @@ use Workflow\States\WorkflowFailedStatus;
 use Workflow\States\WorkflowPendingStatus;
 use Workflow\Traits\Awaits;
 use Workflow\Traits\AwaitWithTimeouts;
+use Workflow\Traits\Continues;
 use Workflow\Traits\Fakes;
 use Workflow\Traits\SideEffects;
 use Workflow\Traits\Timers;
+use Workflow\Traits\Versions;
+use Workflow\UpdateMethod;
+use Workflow\WorkflowMetadata;
 
 /**
- * hate this , but since the parent class is final we
- * cant extend , need to contact the package owner
+ * Sync version of WorkflowStub - always dispatches synchronously.
+ * Since the parent class is final we can't extend, this is a copy
+ * with dispatchSync instead of async dispatch.
  */
 class SyncWorkflowStub
 {
     use Awaits;
     use AwaitWithTimeouts;
+    use Continues;
     use Fakes;
     use Macroable;
     use SideEffects;
     use Timers;
+    use Versions;
+
+    public const DEFAULT_VERSION = -1;
 
     private static ?\stdClass $context = null;
+
+    private static array $signalMethodCache = [];
+
+    private static array $queryMethodCache = [];
+
+    private static array $updateMethodCache = [];
+
+    private static array $defaultPropertiesCache = [];
 
     private function __construct(
         protected $storedWorkflow
@@ -56,19 +72,16 @@ class SyncWorkflowStub
 
     public function __call($method, $arguments)
     {
-        if (collect((new ReflectionClass($this->storedWorkflow->class))->getMethods())
-            ->filter(static fn ($method): bool => collect($method->getAttributes())
-                ->contains(static fn ($attribute): bool => $attribute->getName() === SignalMethod::class))
-            ->map(static fn ($method) => $method->getName())
-            ->contains($method)
-        ) {
-            $this->storedWorkflow->signals()
+        if (self::isSignalMethod($this->storedWorkflow->class, $method)) {
+            $activeWorkflow = $this->storedWorkflow->active();
+
+            $activeWorkflow->signals()
                 ->create([
                     'method' => $method,
-                    'arguments' => Y::serialize($arguments),
+                    'arguments' => Serializer::serialize($arguments),
                 ]);
 
-            $this->storedWorkflow->toWorkflow();
+            $activeWorkflow->toWorkflow();
 
             if (static::faked()) {
                 $this->resume();
@@ -76,34 +89,61 @@ class SyncWorkflowStub
                 return;
             }
 
-            return Signal::dispatch($this->storedWorkflow, self::connection(), self::queue());
+            return Signal::dispatch($activeWorkflow, self::connection(), self::queue());
         }
 
-        if (collect((new ReflectionClass($this->storedWorkflow->class))->getMethods())
-            ->filter(static fn ($method): bool => collect($method->getAttributes())
-                ->contains(static fn ($attribute): bool => $attribute->getName() === QueryMethod::class))
-            ->map(static fn ($method) => $method->getName())
-            ->contains($method)
-        ) {
-            return (new $this->storedWorkflow->class(
-                $this->storedWorkflow,
-                ...Y::unserialize($this->storedWorkflow->arguments),
-            ))
+        if (self::isQueryMethod($this->storedWorkflow->class, $method)) {
+            $activeWorkflow = $this->storedWorkflow->active();
+
+            return (new $activeWorkflow->class($activeWorkflow, ...$activeWorkflow->workflowArguments()))
                 ->query($method);
+        }
+
+        if (self::isUpdateMethod($this->storedWorkflow->class, $method)) {
+            $activeWorkflow = $this->storedWorkflow->active();
+
+            $workflow = new $activeWorkflow->class($activeWorkflow, ...$activeWorkflow->workflowArguments());
+            $result = $workflow->query($method);
+
+            if ($workflow->outboxWasConsumed) {
+                $activeWorkflow->signals()
+                    ->create([
+                        'method' => $method,
+                        'arguments' => Serializer::serialize($arguments),
+                    ]);
+
+                $activeWorkflow->toWorkflow();
+
+                if (static::faked()) {
+                    $this->resume();
+
+                    return $result;
+                }
+
+                Signal::dispatch($activeWorkflow, self::connection(), self::queue());
+            }
+
+            return $result;
         }
     }
 
     public static function connection()
     {
-        return Arr::get(
-            (new ReflectionClass(self::$context->storedWorkflow->class))->getDefaultProperties(),
-            'connection'
-        );
+        return self::$context->storedWorkflow->effectiveConnection();
     }
 
     public static function queue()
     {
-        return Arr::get((new ReflectionClass(self::$context->storedWorkflow->class))->getDefaultProperties(), 'queue');
+        return self::$context->storedWorkflow->effectiveQueue();
+    }
+
+    public static function getDefaultProperties(string $class): array
+    {
+        if (! isset(self::$defaultPropertiesCache[$class])) {
+            self::$defaultPropertiesCache[$class] = (new ReflectionClass($class))->getDefaultProperties();
+        }
+
+        return self::$defaultPropertiesCache[$class];
     }
 
     public static function make($class): static
@@ -149,21 +189,25 @@ class SyncWorkflowStub
 
     public function logs()
     {
-        return $this->storedWorkflow->logs;
+        return $this->storedWorkflow->active()
+            ->logs;
     }
 
     public function exceptions()
     {
-        return $this->storedWorkflow->exceptions;
+        return $this->storedWorkflow->active()
+            ->exceptions;
     }
 
     public function output()
     {
-        if ($this->storedWorkflow->fresh()->output === null) {
+        $activeWorkflow = $this->storedWorkflow->active();
+
+        if ($activeWorkflow->output === null) {
             return null;
         }
 
-        return Y::unserialize($this->storedWorkflow->fresh()->output);
+        return Serializer::unserialize($activeWorkflow->output);
     }
 
     public function completed(): bool
@@ -188,7 +232,7 @@ class SyncWorkflowStub
 
     public function status(): string|bool
     {
-        return $this->storedWorkflow->fresh()
+        return $this->storedWorkflow->active()
             ->status::class;
     }
 
@@ -207,7 +251,11 @@ class SyncWorkflowStub
 
     public function start(...$arguments): void
     {
-        $this->storedWorkflow->arguments = Y::serialize($arguments);
+        $fallbackOptions = $this->storedWorkflow->workflowOptions();
+
+        $metadata = WorkflowMetadata::fromStartArguments($arguments, $fallbackOptions);
+
+        $this->storedWorkflow->arguments = Serializer::serialize($metadata->toArray());
 
         $this->dispatch();
     }
@@ -228,15 +276,11 @@ class SyncWorkflowStub
 
     public function fail($exception): void
     {
-        try {
-            $this->storedWorkflow->exceptions()
-                ->create([
-                    'class' => $this->storedWorkflow->class,
-                    'exception' => Y::serialize($exception),
-                ]);
-        } catch (QueryException) {
-            // already logged
-        }
+        $this->storedWorkflow->exceptions()
+            ->create([
+                'class' => $this->storedWorkflow->class,
+                'exception' => Serializer::serialize($exception),
+            ]);
 
         $this->storedWorkflow->status->transitionTo(WorkflowFailedStatus::class);
 
@@ -259,50 +303,110 @@ class SyncWorkflowStub
                 try {
                     $parentWorkflow->toWorkflow()
                         ->fail($exception);
-                } catch (\Spatie\ModelStates\Exceptions\TransitionNotFound) {
+                } catch (TransitionNotFound) {
                     return;
                 }
             });
     }
 
-    public function next($index, $now, $class, $result): void
+    public function next($index, $now, $class, $result, bool $shouldSignal = true): void
     {
         try {
-            $this->storedWorkflow->logs()
-                ->create([
-                    'index' => $index,
-                    'now' => $now,
-                    'class' => $class,
-                    'result' => Y::serialize($result),
-                ]);
-        } catch (QueryException) {
+            $this->storedWorkflow->createLog([
+                'index' => $index,
+                'now' => $now,
+                'class' => $class,
+                'result' => Serializer::serialize($result),
+            ]);
+        } catch (\Illuminate\Database\UniqueConstraintViolationException) {
             // already logged
         }
 
-        $this->dispatch();
+        if ($shouldSignal) {
+            $this->dispatch();
+        }
     }
 
+    public static function isUpdateMethod(string $class, string $method): bool
+    {
+        if (! isset(self::$updateMethodCache[$class])) {
+            self::$updateMethodCache[$class] = [];
+            foreach ((new ReflectionClass($class))->getMethods() as $reflectionMethod) {
+                foreach ($reflectionMethod->getAttributes() as $attribute) {
+                    if ($attribute->getName() === UpdateMethod::class) {
+                        self::$updateMethodCache[$class][$reflectionMethod->getName()] = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        return self::$updateMethodCache[$class][$method] ?? false;
+    }
+
+    private static function isSignalMethod(string $class, string $method): bool
+    {
+        if (! isset(self::$signalMethodCache[$class])) {
+            self::$signalMethodCache[$class] = [];
+            foreach ((new ReflectionClass($class))->getMethods() as $reflectionMethod) {
+                foreach ($reflectionMethod->getAttributes() as $attribute) {
+                    if ($attribute->getName() === SignalMethod::class) {
+                        self::$signalMethodCache[$class][$reflectionMethod->getName()] = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        return self::$signalMethodCache[$class][$method] ?? false;
+    }
+
+    private static function isQueryMethod(string $class, string $method): bool
+    {
+        if (! isset(self::$queryMethodCache[$class])) {
+            self::$queryMethodCache[$class] = [];
+            foreach ((new ReflectionClass($class))->getMethods() as $reflectionMethod) {
+                foreach ($reflectionMethod->getAttributes() as $attribute) {
+                    if ($attribute->getName() === QueryMethod::class) {
+                        self::$queryMethodCache[$class][$reflectionMethod->getName()] = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        return self::$queryMethodCache[$class][$method] ?? false;
+    }
+
+    /**
+     * Always dispatches synchronously — this is the key difference
+     * from WorkflowStub which dispatches async.
+     */
     private function dispatch(): void
     {
         if ($this->created()) {
             WorkflowStarted::dispatch(
                 $this->storedWorkflow->id,
                 $this->storedWorkflow->class,
-                json_encode(Y::unserialize($this->storedWorkflow->arguments)),
+                json_encode($this->storedWorkflow->workflowArguments()),
                 now()
                     ->format('Y-m-d\TH:i:s.u\Z')
             );
         }
 
-        $this->storedWorkflow->status->transitionTo(WorkflowPendingStatus::class);
+        try {
+            $this->storedWorkflow->status->transitionTo(WorkflowPendingStatus::class);
+        } catch (TransitionNotFound $exception) {
+            $this->storedWorkflow->refresh();
 
-        /**
-         * change , to make it run sync.
-         */
-        //\Illuminate\Support\Facades\Log::debug('Class stored workflow', [$this->storedWorkflow->class]);
+            if ($this->status() !== WorkflowPendingStatus::class) {
+                throw $exception;
+            }
+        }
+
         $this->storedWorkflow->class::dispatchSync(
             $this->storedWorkflow,
-            ...Y::unserialize($this->storedWorkflow->arguments)
+            ...$this->storedWorkflow->workflowArguments()
         );
     }
 }

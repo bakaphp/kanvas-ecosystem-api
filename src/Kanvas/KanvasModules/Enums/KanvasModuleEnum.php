@@ -12,4 +12,6 @@ enum KanvasModuleEnum: int
     case SOCIAL = 4;
     case WORKFLOW = 5;
     case ACTION_ENGINE = 6;
+    case AI = 10;
+    case COMMERCE = 11;
 }

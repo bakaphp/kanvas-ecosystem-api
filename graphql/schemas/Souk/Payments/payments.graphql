@@ -1,6 +1,6 @@
 type PaymentMethod {
     id: ID!
-    payment_ending_numbers: String 
+    payment_ending_numbers: String
     payment_methods_brand: String
     stripe_card_id: String
     expiration_date: String
@@ -11,21 +11,61 @@ type PaymentMethod {
     updated_at: String
 }
 
-input PaymentMethodInput{
+type PaymentLog @model(class: "Kanvas\\Souk\\Payments\\Models\\PaymentLogs") {
+    id: ID!
+    payment: Payment! @belongsTo(relation: "payment")
+    company: Company! @belongsTo
+    user: User! @belongsTo
+    status: String
+    metadata: Mixed
+    created_at: String!
+    updated_at: String
+    is_deleted: Boolean!
+}
+
+type Payment @model(class: "Kanvas\\Souk\\Payments\\Models\\Payments") {
+    id: ID!
+    apps_id: ID!
+    company: Company! @belongsTo
+    payable_id: ID!
+    payable_type: String!
+    uuid: String!
+    user: User! @belongsTo(relation: "user")
+    payment_method: PaymentMethod @belongsTo(relation: "paymentMethod")
+    payment_method_type: String @rename(attribute: "payment_method")
+    order: Order @field(resolver: "App\\GraphQL\\Souk\\Queries\\Payments\\PaymentOrderResolver")
+    payment_date: String!
+    concept: String!
+    notes: String
+    number: String
+    amount: Money
+    currency: String
+    status: String
+    metadata: Mixed
+    payment_logs: [PaymentLog!] @hasMany(relation: "paymentLogs")
+    created_at: String!
+    updated_at: String
+    is_deleted: Boolean!
+}
+
+input PaymentMethodInput {
     number: String!
     expiration_date: String!
+    cvv: String
     brand: String
     processor: String
     metadata: Mixed
-    address: String!
-    country: String!
-    city: String!
-    phone: String!
-    zip_code: String!
-    state: String!
+    address: String
+    country: String
+    city: String
+    phone: String
+    zip_code: String
+    state: String
+    firstname: String
+    lastname: String
 }
 
-input PaymentMethodUpdateInput{
+input PaymentMethodUpdateInput {
     number: String
     expiration_date: String
     brand: String
@@ -45,15 +85,98 @@ type PaymentIntentResult {
 }
 
 type PaymentResult {
-    payment: Mixed
+    status: String
+    payment: Payment
+    order: Order
     message: Mixed
 }
 
+type PaymentValidationResult {
+    status: String!
+    message: String!
+    payment: Payment
+    order: Order
+}
+
+type PaymentActionResult {
+    status: String!
+    message: String!
+    payment: Payment
+    data: Mixed
+}
+
+type PaymentVerifyResult {
+    status: String!
+    message: String!
+    iso_code: String
+    transaction_id: String
+    data: Mixed
+}
+
+type ThreeDSChallengeResult {
+    success: Boolean!
+    message: String!
+    status: String!
+    data: Mixed
+}
+
+input BrowserInfoInput {
+    accept_header: String
+    ip_address: String
+    language: String
+    color_depth: String
+    screen_width: String
+    screen_height: String
+    time_zone: String
+    user_agent: String
+    javascript_enabled: String
+}
+
+input StartChallengeCardInput {
+    number: String!
+    cvv: String
+    processor: String!
+    expiration_date: String!
+    address: String
+    city: String
+    state: String
+    zip_code: String
+    country: String
+    phone: String
+    firstname: String
+    lastname: String
+    browser_info: BrowserInfoInput
+}
+
+enum PaymentMethodTypeEnum {
+    MANUAL @enum(value: "manual")
+    CARD @enum(value: "card")
+    CASH @enum(value: "cash")
+    BANK_TRANSFER @enum(value: "bank_transfer")
+    WALLET @enum(value: "wallet")
+    PAYMENT @enum(value: "payment")
+}
+
 input PaymentInput {
-    amount: Money!
+    payment_methods_id: ID
+    payment_method: PaymentMethodTypeEnum
+    amount: Money
+    order_metadata: Mixed
     payment_date: String
     concept: String
-    payment_methods_id: ID
+    use_hold: Boolean
+}
+
+type PayerAuthResponse {
+    status: String!
+    message: String
+    data: Mixed
+}
+
+type PayerAuthStatus {
+    status: String!
+    message: String
+    data: Mixed
 }
 
 extend type Mutation @guard {
@@ -61,13 +184,20 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMethodMutation@createPaymentMethod"
         )
-    updatePaymentMethod(id: ID!, input: PaymentMethodUpdateInput!): PaymentMethod!
+    updatePaymentMethod(
+        id: ID!
+        input: PaymentMethodUpdateInput!
+    ): PaymentMethod!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMethodMutation@updatePaymentMethod"
         )
     deletePaymentMethod(id: ID!): Boolean
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMethodMutation@deletePaymentMethod"
+        )
+    activatePaymentMethod(id: ID!, activation_code: String!): PaymentMethod!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMethodMutation@activatePaymentMethod"
         )
     makePaymentIntent(paymentID: ID!): PaymentIntentResult!
         @field(
@@ -77,34 +207,181 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@makePaymentIntentFromOrder"
         )
-    addPaymentToOrder(orderID: ID!, input: PaymentInput!): PaymentIntentResult!
+    addPaymentToOrder(orderID: ID!, input: PaymentInput!): PaymentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@addPaymentToOrder"
         )
+    initiatePayerAuthentication(orderId: ID!): PayerAuthResponse!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@initiatePayerAuthentication"
+        )
+    completeDeviceData(orderId: ID!): PayerAuthStatus!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@completeDeviceData"
+        )
+    validatePayerAuthResult(orderId: ID!): PayerAuthStatus!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@validatePayerAuthResult"
+        )
+    validatePayment(paymentId: ID!): PaymentValidationResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@validatePayment"
+        )
+    validatePaymentByOrder(orderId: ID!): PaymentValidationResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@validatePaymentByOrder"
+        )
+    capturePayment(paymentId: ID!, amount: Float): PaymentActionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@capturePayment"
+        )
+    reversePayment(paymentId: ID!, reason: String): PaymentActionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@reversePayment"
+        )
+    processPayment(paymentId: ID!): PaymentActionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@processPayment"
+        )
+    refundPayment(paymentId: ID!, amount: Float): PaymentActionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@refundPayment"
+        )
+    voidPayment(paymentId: ID!): PaymentActionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@voidPayment"
+        )
+    verifyPayment(orderId: ID, paymentId: ID): PaymentVerifyResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@verifyPayment"
+        )
+    startPaymentChallenge(paymentId: ID!, browserInfo: BrowserInfoInput): ThreeDSChallengeResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@startChallenge"
+        )
+    startPaymentChallengeWithCard(orderId: ID!, paymentData: StartChallengeCardInput!): ThreeDSChallengeResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@startChallengeWithCard"
+        )
+    finalizePaymentChallenge(paymentId: ID!): ThreeDSChallengeResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@finalizeChallenge"
+        )
 }
 
-extend type Query {
-    paymentMethods(
-        orderBy: PaymentMethodOrderByInput
+extend type Query @guard {
+    payments(
         where: _
             @whereConditions(
                 columns: [
                     "id"
-                    "payment_methods_brand"
+                    "uuid"
+                    "companies_id"
                     "users_id"
+                    "payable_id"
+                    "payable_type"
+                    "payment_methods_id"
+                    "status"
+                    "amount"
+                    "currency"
+                    "payment_date"
+                    "created_at"
+                    "updated_at"
                 ]
+            )
+        hasOrder: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "order_number"
+                    "user_email"
+                    "user_phone"
+                    "status"
+                    "reference"
+                ]
+                handler: "App\\GraphQL\\Souk\\Handlers\\PaymentHasOrderHandler"
+            )
+        hasProvider: _
+            @whereConditions(
+                columns: ["company_id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\PaymentHasProviderHandler"
+            )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\PaymentOrderTypeHandler"
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "amount", "payment_date", "status"])
+    ): [Payment!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Souk\\Payments\\Models\\Payments"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+        )
+
+    providerPayments(
+        provider_company_id: ID!
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "users_id"
+                    "payable_id"
+                    "payable_type"
+                    "payment_methods_id"
+                    "status"
+                    "amount"
+                    "currency"
+                    "payment_date"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+        hasOrder: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "order_number"
+                    "user_email"
+                    "user_phone"
+                    "status"
+                    "reference"
+                ]
+                handler: "App\\GraphQL\\Souk\\Handlers\\PaymentHasOrderHandler"
+            )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\PaymentOrderTypeHandler"
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "amount", "payment_date", "status"])
+    ): [Payment!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Souk\\Builders\\Payment\\ProviderPaymentsBuilder@build"
+        )
+
+    paymentMethods(
+        orderBy: PaymentMethodOrderByInput
+        where: _
+            @whereConditions(
+                columns: ["id", "payment_methods_brand", "users_id"]
             )
     ): [PaymentMethod!]!
         @paginate(
-            defaultCount: 25 
+            defaultCount: 25
             model: "Kanvas\\Payments\\Models\\PaymentMethods"
-            scopes: ["fromCompany", "fromApp", "notDeleted"]
+            scopes: ["fromApp", "fromUser", "notDeleted"]
         )
-    
+
     paymentMethod(id: ID!): PaymentMethod!
         @find(
             model: "Kanvas\\Payments\\Models\\PaymentMethods"
-            scopes: ["fromCompany", "fromApp", "notDeleted"]
+            scopes: ["fromApp", "fromUser", "notDeleted"]
         )
 }
 

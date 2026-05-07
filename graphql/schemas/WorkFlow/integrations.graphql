@@ -45,10 +45,7 @@ type WorkflowIntegrationsHistory {
     workflow: Workflow
     response: Mixed
     exception: Mixed
-    trigger: String
-        @method(
-            name: "getTrigger"
-        )
+    trigger: String @method(name: "getTrigger")
     created_at: DateTime
 }
 
@@ -100,6 +97,7 @@ enum WorkFlowIntegrationsHistoryEnumColumn {
     ENTITY_ID @enum(value: "entity_integration_history.entity_id")
     STATUS_ID @enum(value: "entity_integration_history.status_id")
     INTEGRATIONS_ID @enum(value: "entity_integration_history.integrations_id")
+    CREATED_AT @enum(value: "entity_integration_history.created_at")
 }
 
 extend type Query @guard {
@@ -110,7 +108,7 @@ extend type Query @guard {
     ): [Integrations!]!
         @paginate(
             model: "Kanvas\\Workflow\\Models\\Integrations"
-            scopes: ["fromApp", "notDeleted", "fromPublicApp"]
+            scopes: ["notDeleted", "fromPublicOrCurrentApp"]
             defaultCount: 25
         )
     workflowStatus(
@@ -119,7 +117,7 @@ extend type Query @guard {
     ): [WorkflowStatus!]!
         @paginate(
             model: "Kanvas\\Workflow\\Integrations\\Models\\Status"
-            scopes: ["fromApp", "notDeleted", "fromPublicApp"]
+            scopes: ["notDeleted", "fromPublicOrCurrentApp"]
             defaultCount: 25
         )
     integrationsByEntityHistory(
@@ -146,5 +144,25 @@ extend type Query @guard {
             scopes: ["fromApp", "notDeleted", "fromCompany"]
             defaultCount: 25
         )
-    
+
+    integrationHistoryAnalytics(
+        from: Date
+        to: Date
+        bucket: AnalyticsBucket = DAY
+        timezone: String
+        integration_id: ID
+        status_id: ID
+        entity_namespace: String
+    ): IntegrationHistoryAnalytics!
+        @field(
+            resolver: "App\\GraphQL\\Analytics\\Queries\\IntegrationHistoryAnalyticsQuery"
+        )
+}
+
+type IntegrationHistoryAnalytics {
+    periods: [AnalyticsPoint!]!
+    total: Int!
+    by_integration: [AnalyticsCategoryPoint!]!
+    by_status: [AnalyticsCategoryPoint!]!
+    by_entity_namespace: [AnalyticsCategoryPoint!]!
 }

@@ -20,6 +20,7 @@ enum WorkflowEnum: string
     case AFTER_FORGOT_PASSWORD = 'after-forgot-password';
     case PUSH = 'push';
     case PULL = 'pull';
+    case FETCH = 'fetch';
     case REQUEST_FORGOT_PASSWORD = 'request-forgot-password';
     case CREATE_CUSTOM_FIELD = 'create-custom-field';
     case CREATE_CUSTOM_FIELDS = 'create-custom-fields';
@@ -35,6 +36,20 @@ enum WorkflowEnum: string
     case DURING_WORKFLOW = 'during-workflow';
     case AFTER_ADDING_MESSAGE_TO_CHANNEL = 'after-adding-message-to-channel';
     case BEFORE_ACTION = 'before-action';
+    case STATUS_TRANSITION = 'status-transition';
+    case AFTER_UPLOAD = 'after-upload';
+    case HANDOFF = 'handoff';
+    case FAKE_CONTEXT = 'fake-context';
+    case UPDATE_USER_PROFILE = 'update-user-profile';
+    case DECODE = 'decode';
+
+    case CONTACT_SAVED = 'contact-saved';
+    case TRIGGER_AI = 'trigger-ai';
+    case AFTER_LEGACY_FEED = 'after-legacy-feed';
+    case SUBSCRIPTION_LIFECYCLE = 'subscription-lifecycle';
+    case FOLLOW_UP_PROMPT = 'follow-up-prompt';
+    case DEBUG = 'debug';
+    case NOTIFICATION = 'notify';
 
     /**
      * Get the enum case by its value.

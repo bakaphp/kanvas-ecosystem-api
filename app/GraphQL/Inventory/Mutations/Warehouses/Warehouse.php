@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Warehouses;
 
+use Baka\Traits\ResolvesTargetCompanyTrait;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
@@ -13,6 +14,8 @@ use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 
 class Warehouse
 {
+    use ResolvesTargetCompanyTrait;
+
     /**
      * create.
      */
@@ -22,14 +25,18 @@ class Warehouse
 
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        if (! $user->isAppOwner()) {
-            unset($request['companies_id']);
-        }
+        $targetCompaniesId = $this->resolveTargetCompaniesId($user, $request);
 
-        return (new CreateWarehouseAction(
+        unset($request['companies_id']);
+
+        $warehouse = (new CreateWarehouseAction(
             WarehousesDto::viaRequest($request, $user, $company),
             $user
         ))->execute();
+
+        $this->applyTargetCompaniesId($warehouse, $targetCompaniesId);
+
+        return $warehouse;
     }
 
     /**
@@ -40,7 +47,7 @@ class Warehouse
         $warehouse = WarehouseRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
         $request = $request['input'];
         if (key_exists('regions_id', $request)) {
-            $request['regions_id'] = RegionRepository::getById(
+            $request['regions_id'] = RegionRepository::getByIdOrGlobal(
                 (int) $request['regions_id'],
                 auth()->user()->getCurrentCompany()
             )->getKey();

@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -17,6 +18,7 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Status\Models\VariantWarehouseStatusHistory;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Inventory\Warehouses\Observers\VariantsWarehouseObserver;
 use Override;
 
 /**
@@ -25,9 +27,10 @@ use Override;
  * @property int $products_variants_id
  * @property int $warehouses_id
  * @property int $quantity
+ * @property int $max_capacity
  * @property float $price
  * @property string $sku
- * @property int $status_id
+ * @property int|null $status_id
  * @property int $position
  * @property string $serial_number
  * @property int $is_default
@@ -39,10 +42,13 @@ use Override;
  * @property int $can_pre_order
  * @property int $is_coming_soon
  * @property int $is_new
+ * @property float|null $latitude
+ * @property float|null $longitude
  * @property string $created_at
  * @property string $updated_at
  * @property bool $is_deleted
  */
+#[ObservedBy([VariantsWarehouseObserver::class])]
 class VariantsWarehouses extends BaseModel
 {
     use NoAppRelationshipTrait;
@@ -58,8 +64,11 @@ class VariantsWarehouses extends BaseModel
     protected function casts(): array
     {
         return [
-            'price' => 'decimal:2',
+            'price' => 'decimal:4',
             'quantity' => 'integer',
+            'max_capacity' => 'integer',
+            'latitude' => 'decimal:6',
+            'longitude' => 'decimal:6',
             'config' => Json::class
         ];
     }

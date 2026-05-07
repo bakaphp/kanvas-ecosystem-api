@@ -16,6 +16,7 @@ enum RolesEnums: string
     case AGENT = 'Agents';
     case DEVELOPER = 'Developer';
     case MANAGER = 'Managers';
+    case INVENTORY_MANAGER = 'InventoryManager';
 
     case KEY_MAP = 'roles:abilities';
 
@@ -23,9 +24,9 @@ enum RolesEnums: string
      * Roles are scoped by app
      * in the future companies may create there own roles
      */
-    public static function getScope(Apps $app, ?Companies $company = null): string
+    public static function getScope(Apps $app, ?Companies $company = null, bool $global = false): string
     {
-        $companyId = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
+        $companyId = $global ? 0 : ($company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue());
 
         return 'app_' . $app->getKey() . '_company_' . $companyId;
     }
@@ -39,6 +40,7 @@ enum RolesEnums: string
             'agent', 'agents' => self::AGENT,
             'developer', 'developers' => self::DEVELOPER,
             'manager', 'managers' => self::MANAGER,
+            'inventorymanager', 'inventory_manager' => self::INVENTORY_MANAGER,
             default => self::ADMIN
         };
 
@@ -54,6 +56,7 @@ enum RolesEnums: string
             self::AGENT->value,
             self::DEVELOPER->value,
             self::MANAGER->value,
+            self::INVENTORY_MANAGER->value,
         ];
 
         return in_array($value, $values);

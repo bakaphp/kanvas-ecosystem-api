@@ -3,6 +3,7 @@ type Contact {
     type: ContactType! @belongsTo
     people: People! @belongsTo
     value: String
+    is_opt_out: Boolean!
     weight: Int!
 }
 
@@ -23,6 +24,8 @@ type Address {
     state: String
     zip: String
     country: Country
+    latitude: Float
+    longitude: Float
     is_default: Boolean!
     countries: Country @belongsTo(relation: "country")
     states: States @belongsTo(relation: "state")
@@ -33,7 +36,15 @@ input ContactInput {
     value: String!
     contacts_types_id: ID!
     weight: Int
+    is_opt_out: Boolean
     id: ID
+}
+
+input UpdateContactInput {
+    value: String
+    contacts_types_id: ID
+    weight: Int
+    is_opt_out: Boolean
 }
 
 input AddressInput {
@@ -47,6 +58,8 @@ input AddressInput {
     zip: String
     country: String
     country_id: ID
+    latitude: Float
+    longitude: Float
     is_default: Boolean
     id: ID
 }

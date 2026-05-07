@@ -1,14 +1,18 @@
 type WarehousesPricesHistoryRelationship {
     price: Money!
     from_date: String!
+    user: User @belongsTo(relation: "user")
 }
+
 type WarehouseVariantRelationship {
     warehouses_id: ID!
     warehouseinfo: Warehouse @belongsToMany(relation: "warehouse")
-    channels: [VariantChannelRelationship]
+    channels: [VariantChannelRelationship] @belongsToMany(relation: "channels")
     quantity: Float
+    max_capacity: Int
     price: Money
-    status: Status
+    cost: Money
+    status: Status @belongsTo(relation: "status")
     sku: String
     position: Int
     serial_number: String
@@ -21,6 +25,8 @@ type WarehouseVariantRelationship {
     is_coming_soon: Boolean
     is_new: Boolean
     is_published: Boolean
+    latitude: Float
+    longitude: Float
     config: Mixed
     status_history: [StatusHistoryRelationship!]!
         @method(name: "getStatusHistory")
@@ -44,6 +50,8 @@ input VariantsWarehousesInput {
     can_pre_order: Boolean
     is_coming_soon: Boolean
     is_new: Boolean
+    latitude: Float
+    longitude: Float
 }
 
 extend type Mutation @guard {

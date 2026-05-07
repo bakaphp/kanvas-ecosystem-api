@@ -18,7 +18,7 @@ class RuleWorkflowActionFactory extends Factory
     public function definition()
     {
         try {
-            $action = Action::getByName('Lead Zoho');
+            $action = Action::getByName('Generate Company Dashboard');
         } catch (Throwable $e) {
             $action = Action::factory()->create();
         }

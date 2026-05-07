@@ -10,18 +10,17 @@ use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
+use Kanvas\Templates\Models\Templates;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class AppManagementMutation
 {
-    /**
-     * activeApp
-     *
-     * @return void
-     */
-    public function activeApp(mixed $root, array $request)
+    use HasMutationUploadFiles;
+
+    public function activeApp(mixed $root, array $request): Apps
     {
         $id = $request['id'];
 
@@ -36,10 +35,7 @@ class AppManagementMutation
         return $app;
     }
 
-    /**
-     * @param  null  $_
-     */
-    public function deActive($_, array $request)
+    public function deActive($_, array $request): Apps
     {
         $id = $request['id'];
 
@@ -54,11 +50,7 @@ class AppManagementMutation
         return $app;
     }
 
-    /**
-     * createAppTemplate
-     * @param  null  $_
-     */
-    public function createAppTemplate($_, array $request)
+    public function createAppTemplate($_, array $request): Templates
     {
         /**
          * @todo only super admin can do this
@@ -80,10 +72,7 @@ class AppManagementMutation
         return $createTemplate->execute();
     }
 
-    /**
-     * @param null $_
-     */
-    public function createApp($_, array $request)
+    public function createApp($_, array $request): Apps
     {
         // TODO implement the resolver
         $dto = AppInput::from($request['input']);
@@ -92,10 +81,7 @@ class AppManagementMutation
         return $action->execute();
     }
 
-    /**
-     * @param null $_
-     */
-    public function updateApp($_, array $request)
+    public function updateApp($_, array $request): Apps
     {
         // TODO implement the resolver\
         $dto = AppInput::from($request['input']);
@@ -104,10 +90,7 @@ class AppManagementMutation
         return $action->execute($request['id']);
     }
 
-    /**
-     * @param null $_
-     */
-    public function deleteApp($_, array $request)
+    public function deleteApp($_, array $request): ?Apps
     {
         /**
          * @todo only super admin can do this
@@ -135,6 +118,23 @@ class AppManagementMutation
         $app->is_deleted = StateEnums::NO->getValue();
         $app->is_actived = StateEnums::YES->getValue();
         $app->saveOrFail();
+
+        return $app;
+    }
+
+    public function updateLogo(mixed $root, array $request): Apps
+    {
+        $app = AppsRepository::findFirstByKey($request['id']);
+
+        UsersRepository::userOwnsThisApp(auth()->user(), $app);
+
+        $this->uploadImageToEntity(
+            $app,
+            $app,
+            auth()->user(),
+            $request['file'],
+            'logo'
+        );
 
         return $app;
     }

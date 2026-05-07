@@ -8,6 +8,7 @@ use Exception;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
 use NetSuite\Classes\AddRequest;
+use NetSuite\NetSuiteService;
 
 trait UseNetSuiteCustomerTrait
 {
@@ -20,7 +21,9 @@ trait UseNetSuiteCustomerTrait
         $addRequest = new AddRequest();
         $addRequest->record = $customer;
 
-        $addResponse = $this->service->add($addRequest);
+        $addResponse = $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($addRequest) {
+            return $service->add($addRequest);
+        });
 
         if (! $addResponse->writeResponse->status->isSuccess) {
             throw new Exception(

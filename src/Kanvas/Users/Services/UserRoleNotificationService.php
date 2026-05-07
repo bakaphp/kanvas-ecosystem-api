@@ -16,10 +16,11 @@ class UserRoleNotificationService
         Notification $notification,
         AppInterface $app
     ): void {
-        $role = RolesRepository::getByNameFromCompany(
+        $role = RolesRepository::getByNameFromApp(
             name: $role,
             app: $app
         );
+
         UserRoleRepository::getAllUsersOfRole($role, $app)
             ->chunk(100, function ($users) use ($notification) {
                 foreach ($users as $user) {

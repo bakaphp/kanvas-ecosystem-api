@@ -21,6 +21,7 @@ use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -47,6 +48,7 @@ class CreateOrderInESimActivity extends KanvasActivity
             entity: $order,
             app: $app,
             integration: IntegrationsEnum::ESIM_SOLUTION,
+            additionalParams: $params,
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
                 $orderHasMetaData = $order->get(CustomFieldEnum::ORDER_ESIM_METADATA->value);
                 if (! empty($orderHasMetaData)) {
@@ -62,6 +64,12 @@ class CreateOrderInESimActivity extends KanvasActivity
                 $allEsimResponses = [];
                 $woocommerceResponse = ['web order' => true]; // Default for non-mobile orders
                 $woocommerceSent = false; // Flag to track if WooCommerce order was sent
+                $language = $order->metadata['language'] ?? $params['language'] ?? 'en';
+                $metaDataSendEmail = (bool) ($order->metadata['send_kanvas_email'] ?? false);
+
+                if (isset($order->metadata['is_stand'])) {
+                    $this->fixStandUSProductSku($order);
+                }
 
                 foreach ($order->items as $item) {
                     $variant = $item->variant;
@@ -87,12 +95,24 @@ class CreateOrderInESimActivity extends KanvasActivity
                     }
 
                     $providerValue = strtolower($provider->value);
-                    $fromMobile = isset($order->metadata['optionChecks']) && isset($order->metadata['paymentIntent']);
+                    $fromMobile = strtolower($order->metadata['source'] ?? '') !== 'b2b' && isset($order->metadata['optionChecks']) && isset($order->metadata['paymentIntent']);
                     $isRefuelOrder = isset($order->metadata['parent_order_id']) && ! empty($order->metadata['parent_order_id']);
                     $order->checkout_token = $order->metadata['paymentIntent']['client_secret'] ?? null;
+                    $language = $order->metadata['language'] ?? 'es';
 
                     // Get quantity from item (default to 1 if not set)
                     $quantity = $item->quantity ?? 1;
+                    $esimExtraInfoDetails = $order->metadata['esimDetails'] ?? [];
+
+                    if (isset($order->metadata['is_stand']) && (bool) $order->metadata['is_stand']) {
+                        $order->addTag('stand');
+                    } else {
+                        $order->addTag(strtolower($order->metadata['source'] ?? 'website'));
+                    }
+
+                    if (! empty($order->metadata['platformOS'])) {
+                        $order->addTag(strtolower($order->metadata['platformOS']));
+                    }
 
                     // Create eSims based on quantity
                     for ($i = 0; $i < $quantity; $i++) {
@@ -104,7 +124,11 @@ class CreateOrderInESimActivity extends KanvasActivity
                                     : ActionsCreateEsimOrderAction::class;
 
                                 // Pass the variant to the action for this specific eSim creation
-                                $esim = (new $actionClass($order, null, $variant))->execute();
+                                $esim = new $actionClass(
+                                    $order,
+                                    null,
+                                    $variant
+                                )->execute();
 
                                 // Send to WooCommerce only once and only for mobile orders
                                 if ($fromMobile && ! $woocommerceSent) {
@@ -162,11 +186,24 @@ class CreateOrderInESimActivity extends KanvasActivity
                             $response['label'] = $order->metadata['esimLabels'][0]['label'] ?? null;
                         }
 
+                        if (isset($esimExtraInfoDetails[$variant->id]['labels']) && ! empty($esimExtraInfoDetails[$variant->id]['labels'])) {
+                            $response['label'] = array_shift($esimExtraInfoDetails[$variant->id]['labels']);
+                        }
+
+                        if (empty($response['label']) && isset($item->metadata['eSimDetails'][$i]['label'])) {
+                            $response['label'] = $item->metadata['eSimDetails'][$i]['label'];
+                        }
+
+                        if (isset($item->metadata['eSimDetails'][$i])) {
+                            $response['eSimDetails'] = $item->metadata['eSimDetails'][$i];
+                        }
+
                         $sku = null;
                         foreach ($order->items as $itemDetail) {
                             $variantDetail = Variants::where('id', $itemDetail->variant_id)->first();
                             $detail['variant'] = $variantDetail->toArray();
                             $detail['variant']['attributes'] = $variantDetail->attributes()->pluck('value', 'name')->toArray();
+
                             $sku = $variantDetail->sku;
                             $response['items'][] = $detail;
                         }
@@ -195,6 +232,10 @@ class CreateOrderInESimActivity extends KanvasActivity
                                 $response['data']['plan_origin'] = $response['data']['plan'] ?? null;
                                 $response['data']['plan'] = $sku;
                             }
+
+                            $response['provider'] = $variantDetail->getAttributeBySlug(ConfigurationEnum::VARIANT_PROVIDER_SLUG->value)?->value
+                                ?? $variantDetail->product->getAttributeBySlug(ConfigurationEnum::PROVIDER_SLUG->value)?->value
+                                ?? $providerValue;
                         } catch (Throwable $e) {
                             report($e);
                         }
@@ -237,6 +278,7 @@ class CreateOrderInESimActivity extends KanvasActivity
                             $parentOrder = Order::getById($order->metadata['parent_order_id']);
                             $message = Message::getById($parentOrder->get(CustomFieldEnum::MESSAGE_ESIM_ID->value));
                             $message->setPublic();
+                            $message->addEntity($order);
                             $response['message_id'] = $message->getId();
                         }
 
@@ -296,17 +338,26 @@ class CreateOrderInESimActivity extends KanvasActivity
                 }
 
                 try {
-                    if ($app->get('esim-send-email')) {
+                    if ($app->get('esim-send-email') || (isset($params['send_email']) && $params['send_email'] === true) || $metaDataSendEmail) {
                         $orderNotification = new NewOrderNotification($order, [
                             'app' => $order->app,
                             'company' => $order->company,
-                            'subject' => 'Your eSIM from ' . ucfirst($order->app->name) . ' is ready for use',
+                            'isRefuelOrder' => $isRefuelOrder ?? false,
+                            'subject' => $language === 'en' ? 'Your eSIM from ' . ucfirst($order->app->name) . ' is ready for use' : 'Tu eSIM de ' . ucfirst($order->app->name) . ' está lista para usar',
                         ]);
                         $orderNotification->channels = ['mail'];
                         $order->user->notify($orderNotification);
                     }
+
+                    $order->user->set('coupon-sl5', 1); // Set a flag for sl5 coupon usage
                 } catch (ModelNotFoundException | ExceptionsModelNotFoundException $e) {
                     // Handle notification failure
+                }
+
+                foreach ($responses as $response) {
+                    if (isset($response['status']) && $response['status'] === 'error') {
+                        return $this->failWorkflow($responses);
+                    }
                 }
 
                 if (count($responses) === 1) {
@@ -328,7 +379,16 @@ class CreateOrderInESimActivity extends KanvasActivity
             $woocommerceOrder = new PushOrderToCommerceAction($order, $esim);
             $woocommerceResponse = $woocommerceOrder->execute($providerValue);
 
-            $orderCommerceId = $woocommerceResponse['order']['id'];
+            $orderCommerceId = $woocommerceResponse['order']['id'] ?? null;
+
+            if ($orderCommerceId === null) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Error sending order to commerce',
+                    'response' => $woocommerceResponse,
+                ];
+            }
+
             $order->set(CustomFieldEnum::WOOCOMMERCE_ORDER_ID->value, $woocommerceResponse['order']['id']);
 
             $stripe = new StripeClient($order->app->get(EnumsConfigurationEnum::STRIPE_SECRET_KEY->value));
@@ -336,12 +396,20 @@ class CreateOrderInESimActivity extends KanvasActivity
             $clientSecret = $order->checkout_token;
             $paymentIntentId = explode('_secret_', $clientSecret ?? '')[0]; // Gets "pi_3RAClYDdrFkcUBzl0vNHHnFD"
 
+            if (empty($paymentIntentId)) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Payment intent ID is empty',
+                ];
+            }
+
             $paymentIntent = $stripe->paymentIntents->retrieve($paymentIntentId);
 
             try {
                 $stripeService = new StripeCustomerService($order->app);
                 $stripe->paymentIntents->update($paymentIntentId, [
                     'customer' => $stripeService->getOrCreateCustomerByPerson($order->people)->id,
+                    'description' => 'Kanvas Order #' . $order->order_number,
                 ]);
             } catch (Throwable $e) {
                 report($e);
@@ -408,5 +476,128 @@ class CreateOrderInESimActivity extends KanvasActivity
             $filename,
             $order->user
         );
+    }
+
+    protected function findVariantByClosestChannelPrice(int $targetAmountInCents, int $productId, Order $order): ?Variants
+    {
+        try {
+            // Get the default channel for the order's company and app
+            $defaultChannel = Channels::getDefault($order->company, $order->app);
+
+            // Get all published variants for the product with their channel prices
+            $variants = Variants::query()
+                ->where('products_id', $productId)
+                ->where('is_published', 1)
+                ->whereHas('channels', function ($query) use ($defaultChannel) {
+                    $query->where('channels_id', $defaultChannel->getId());
+                })
+                ->get();
+
+            if ($variants->isEmpty()) {
+                return null;
+            }
+
+            $closestVariant = null;
+            $smallestDifference = PHP_INT_MAX;
+
+            foreach ($variants as $variant) {
+                // Get the channel price from the pivot relationship
+                $channelPrice = $variant->channels->first()?->pivot?->price ?? null;
+
+                if ($channelPrice === null) {
+                    continue;
+                }
+
+                // Convert to cents for comparison
+                $variantPriceInCents = (int) ($channelPrice * 100);
+                $difference = abs($targetAmountInCents - $variantPriceInCents);
+
+                if ($difference < $smallestDifference) {
+                    $smallestDifference = $difference;
+                    $closestVariant = $variant;
+                }
+
+                // If we found an exact match, no need to continue
+                if ($difference === 0) {
+                    break;
+                }
+            }
+
+            return $closestVariant;
+        } catch (Throwable $e) {
+            //report($e);
+
+            return null;
+        }
+    }
+
+    /**
+     * @todo remove this hack when frontend deploys
+     */
+    protected function fixStandUSProductSku(Order $order): void
+    {
+        $validateEsimProductType = ['local', 'global', 'regional'];
+        $stripe = new StripeClient($order->app->get(EnumsConfigurationEnum::STRIPE_SECRET_KEY->value));
+        $paymentIntentId = explode('_secret_', $order->metadata['paymentIntent'] ?? '')[0]; // Gets "pi_3RAClYDdrFkcUBzl0vNHHnFD"
+
+        if (empty($paymentIntentId)) {
+            return;
+        }
+
+        $stripePaymentIntent = $stripe->paymentIntents->retrieve($paymentIntentId);
+        $itemAmount = $stripePaymentIntent->amount ?? 0;
+        $correctProduct = 221606;
+
+        //  $hasUsBadProduct = false;
+        $foundItem = null;
+        foreach ($order->items as $item) {
+            $variant = $item->variant;
+            // Get the product type from the variant's product
+            $productType = strtolower($variant->product->productType->name ?? '');
+            if (! in_array($productType, $validateEsimProductType)) {
+                continue;
+            }
+
+            if ((int) $variant->getId() !== 239306) { // This is the bad product id
+                //  $hasUsBadProduct = true;
+
+                continue;
+            }
+
+            $itemUnitPrice = (int) ($item->unit_price_net_amount * 100); // Convert to cents for comparison
+            if ($itemAmount > $itemUnitPrice) {
+                $foundItem = $item->id;
+
+                break;
+            }
+        }
+
+        if ($foundItem) {
+            foreach ($order->items as $item) {
+                if ((int) $item->id === (int) $foundItem) {
+                    // Find the correct variant by closest channel price
+                    $correctVariant = $this->findVariantByClosestChannelPrice(
+                        $itemAmount,
+                        $item->variant->product->getId(),
+                        $order
+                    );
+
+                    if ($correctVariant) {
+                        $item->product_sku = $correctVariant->sku;
+                        $item->variant_id = $correctVariant->getId();
+                        $item->unit_price_net_amount = $itemAmount / 100;
+                        $item->unit_price_gross_amount = $itemAmount / 100;
+                        $item->saveOrFail();
+                        $order->calculateTotal();
+                        $order->updateOrFail();
+
+                        $order->addTag('stand-us-fix');
+                        $order->refresh();
+                    }
+
+                    return;
+                }
+            }
+        }
     }
 }

@@ -21,7 +21,7 @@ class UserManagementQuery
         $companiesId = auth()->user()->isAdmin() && ! empty($args['companies_id']) ? $args['companies_id'] : auth()->user()->currentCompanyId();
         $app = app(Apps::class);
 
-        return Users::select(
+        $query = Users::select(
             'users_associated_apps.users_id as id', // User ID
             'users.uuid',
             'users.dob',
@@ -37,10 +37,11 @@ class UserManagementQuery
             'users_associated_apps.two_step_phone_number',
             'users_associated_apps.is_active',
             'users_associated_apps.user_active',
-            'users_associated_apps.user_role',
+            'users_associated_company.user_role',
             'users_associated_apps.displayname',
             'users_associated_apps.phone_verified_at',
             'users_associated_apps.email_verified_at',
+            'users_associated_apps.lastvisit',
             'users_associated_apps.created_at',
             'users_associated_apps.updated_at'
         )
@@ -59,7 +60,18 @@ class UserManagementQuery
         ->where('users_associated_company.is_deleted', StateEnums::NO->getValue())
         ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue())
         ->where('users_associated_apps.is_active', StateEnums::YES->getValue())
-        ->groupBy('users_associated_apps.users_id'); // Group by the correct user ID
+        ->with(['companies', 'roles'])
+        ->groupBy('users_associated_apps.users_id');
+
+        if (! empty($args['search'])) {
+            $searchResults = Users::traitSearch((string) $args['search'])
+                ->whereIn('apps', [$app->getId()])
+                ->keys();
+
+            $query->whereIn('users.id', $searchResults->toArray());
+        }
+
+        return $query;
     }
 
     /**
@@ -119,6 +131,7 @@ class UserManagementQuery
             'users_associated_apps.apps_id',
             $app->getId()
         )
+        ->with(['companies', 'roles']) // Add eager loading
         ->groupBy('users_associated_apps.users_id'); // Group by the correct user ID
     }
 }

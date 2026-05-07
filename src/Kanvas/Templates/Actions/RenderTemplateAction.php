@@ -25,8 +25,12 @@ class RenderTemplateAction
     /**
      * Invoke function.
      */
-    public function execute(string $templateName, array $templateParams): string
+    public function execute(string $templateName, array $templateParams, ?string $templateContent = null): string
     {
+        if ($templateContent !== null) {
+            return Blade::render($templateContent, $templateParams);
+        }
+
         /**
          * @psalm-suppress PossiblyNullArgument
          */

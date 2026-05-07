@@ -6,7 +6,6 @@ namespace Kanvas\Social\Follows\Workflows;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Jobs\SendMessageNotificationsToAllFollowersJob;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -36,19 +35,16 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($viaList, $emailTemplate, $pushTemplate, $notificationMessage, $notificationTitle, $subject) {
-                // Map notification channels
-                $endViaList = array_map(
-                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                    $viaList
-                );
+                $endViaList = $viaList;
 
                 $metaData = $message->getMessage();
-                $keysToUnset = ['ai_nugged', 'nugget'];
+                unset($metaData['ai_nugget']['nugget']);
+                $keysToUnset = $additionalParams['keys_to_unset'] ?? ['prompt','ai_image'];
                 foreach ($keysToUnset as $key) {
                     unset($metaData[$key]); // @todo move this to a customization
                 }
 
-                $keysToClear = ['prompt', 'image'];
+                $keysToClear = $additionalParams['keys_to_clear'] ?? [];
                 foreach ($keysToClear as $key) {
                     if (isset($metaData[$key])) {
                         $metaData[$key] = ''; // @todo move this to a customization
@@ -66,8 +62,11 @@ class SendMessageNotificationToFollowersActivity extends KanvasActivity
                     'subject' => sprintf($subject, $message->user->displayname),
                     'via' => $endViaList,
                     'fromUser' => $message->user,
+                    'message_owner_id' => $message->user->getId(),
+                    'from_user_id' => $message->user->getId(),
                     'message_id' => $message->getId(),
-                    'parent_message_id' => $message->parent ? $message->parent->getId() : $message->getId(),
+                    'parent_message_id' => $message->getId(), //for now we send the current message as parent because of a mobil bug
+                    'message_parent_id' => $message->parent ? $message->parent->getId() : $message->getId(),
                     'destination_id' => $message->getId(),
                     'destination_type' => $additionalParams['destination_type'] ?? 'MESSAGE',
                     'destination_event' => $additionalParams['destination_event'] ?? 'NEW_MESSAGE',

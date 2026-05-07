@@ -6,9 +6,11 @@ namespace Kanvas\Apps\Models;
 
 use Baka\Support\Str;
 use Baka\Traits\UuidTrait;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
+use Override;
 
 /**
  * AppPlan Model.
@@ -28,6 +30,7 @@ use Kanvas\Users\Models\Users;
 class AppKey extends BaseModel
 {
     use UuidTrait;
+    use Cachable;
 
     /**
      * The table associated with the model.
@@ -55,10 +58,11 @@ class AppKey extends BaseModel
     public static function bootUuidTrait()
     {
         static::creating(function ($model) {
-            $model->client_id = $model->client_id ?? Str::uuid();
+            $model->client_id = $model->client_id ?? (string) Str::uuid();
         });
     }
 
+    #[Override]
     public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id', 'id');

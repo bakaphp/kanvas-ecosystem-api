@@ -54,28 +54,35 @@ class OrderItemService
     public function getValidOrderItems(array $orderItems): array
     {
         $validOrderItems = [];
+        $errors = [];
+
         foreach ($orderItems as $orderItem) {
             $variant = Variants::where('ean', $orderItem['variant_ean'])
                 ->orWhere('barcode', $orderItem['variant_ean'])
                 ->first();
 
             if (empty($variant)) {
+                $errors[] = "<b>({$orderItem['variant_ean']})</b>: Product does not exist in our inventory.";
                 continue;
             }
 
             $validOrderItems[] = [
                 ...$orderItem,
-                'variant_id' => $variant->id
+                'variant_id' => $variant->id,
             ];
         }
 
-        return $validOrderItems;
+        return [
+            'validItems' => $validOrderItems,
+            'errors' => $errors,
+        ];
     }
 
     public function processOrderItems(array $orderItems, int $channelId): array
     {
         $cartItems = [];
         $errors = [];
+
         foreach ($orderItems as $orderItem) {
             $variant = Variants::where('id', $orderItem['variant_id'])->first();
             $channel = $variant->variantChannels()->where('channels_id', $channelId)->first();
@@ -84,17 +91,24 @@ class OrderItemService
                 continue;
             }
 
-            $minimumOrderQuantity = $channel?->config['minimum_quantity'] ?? 0;
-            $warehouse = $channel?->productVariantWarehouse()->first();
+            $warehouse = $channel?->productVariantWarehouse()->first() ?? $variant->variantWarehouses()->first();
+            // @TODO: if we want to validate client minimun quantity the use this
+            $minimumOrderQuantity = $warehouse?->config['minimum_quantity'] ?? 0;
             $currentStock = $warehouse?->quantity ?? 0;
-
+            $moq = $variant->getAttributeByName('minimum_order_quantity')?->value ?? 0;
+            /**
+             * @todo validate overselling
+             */
+            $barcode = "<b>($variant->barcode)</b>";
             if ($currentStock < $orderItem['quantity']) {
-                $errors[] = 'Not enough stock for product ' . $variant->name;
+                $errors[] = "$barcode: You only have $currentStock in stock for $variant->name.";
+
                 continue;
             }
 
-            if ($minimumOrderQuantity > $orderItem['quantity']) {
-                $errors[] = 'Minimum order quantity for product ' . $variant->name . ' is ' . $minimumOrderQuantity;
+            if ($moq > $orderItem['quantity']) {
+                $errors[] = "$barcode: $variant->name requires a minimum order of $moq units.";
+
                 continue;
             }
 

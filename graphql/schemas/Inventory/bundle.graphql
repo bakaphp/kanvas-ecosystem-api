@@ -1,0 +1,100 @@
+type Bundle {
+    id: ID!
+    company: Company! @belongsTo(relation: "company")
+    variant: Variant @belongsTo(relation: "variant")
+    name: String!
+    slug: String!
+    weight: Int!
+    description: String
+    execution_mode: String
+    expose_as_product: Boolean
+    bundleItems: [BundleItem!]!
+        @hasMany(relation: "bundleItems", type: PAGINATOR)
+        @orderBy(column: "created_at", direction: DESC)
+    files: [Filesystem!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
+}
+
+type BundleItem {
+    variant: Variant!
+    quantity: Int!
+    unit: String
+    created_at: DateTime
+    updated_at: DateTime
+    bundle: Bundle! @belongsTo(relation: "bundle")
+    variant: Variant! @belongsTo(relation: "variant")
+}
+
+input BundleInput {
+    name: String!
+    description: String
+    variants: [BundleVariantInput!]!
+    execution_mode: String
+    expose_as_product: Boolean
+    variant_id: ID
+}
+input BundleVariantInput {
+    id: ID!
+    quantity: Int!
+    unit: String!
+}
+
+extend type Mutation @guard {
+    createBundle(input: BundleInput!): Bundle!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Bundles\\BundleManagementMutation@create"
+        )
+    updateBundle(id: ID!, input: BundleInput!): Bundle!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Bundles\\BundleManagementMutation@update"
+        )
+    deleteBundle(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Bundles\\BundleManagementMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    bundles(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "slug"
+                    "weight"
+                    "variant_id"
+                    "description"
+                    "execution_mode"
+                    "expose_as_product"
+                ]
+            )
+        hasBundleItems: _
+            @whereHasConditions(
+                columns: [
+                    "variant_id"
+                    "quantity"
+                    "unit"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: ["id", "created_at", "updated_at", "weight", "name"]
+            )
+    ): [Bundle!]!
+        @paginate(
+            model: "Kanvas\\Inventory\\Bundles\\Models\\Bundle"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+}

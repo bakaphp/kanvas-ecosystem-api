@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Apps\Actions;
 
+use Exception;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Actions\CreateRoleAction;
@@ -17,24 +18,15 @@ use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
 use Kanvas\Users\Models\Users;
-use Throwable;
 
 class CreateAppsAction
 {
-    /**
-     * Construct function.
-     */
     public function __construct(
         protected AppInput $data,
         protected Users $user
     ) {
     }
 
-    /**
-     * Invoke function.
-     *
-     * @throws Throwable
-     */
     public function execute(): Apps
     {
         $app = new Apps();
@@ -53,7 +45,12 @@ class CreateAppsAction
             $app->saveOrFail();
 
             $this->settings($app);
-            $app->associateUser($this->user, $this->data->is_actived);
+            $userAssociated = $app->associateUser($this->user, $this->data->is_actived);
+            $userAssociated->firstname = $this->user->firstname;
+            $userAssociated->lastname = $this->user->lastname;
+            $userAssociated->email = $this->user->email;
+            $userAssociated->displayname = $this->user->displayname;
+            $userAssociated->saveOrFail();
 
             $this->systemModules($app);
             $this->acl($app);
@@ -75,11 +72,14 @@ class CreateAppsAction
         Artisan::call('kanvas:update-abilities-templates', [
             'app' => $app->key,
         ]);
+        Artisan::call('kanvas:agent:create-default-channel', [
+            'app_id' => $app->id,
+        ]);
 
         return $app;
     }
 
-    protected function settings(Apps $app): void
+    public function settings(Apps $app): void
     {
         if ($app->settings()->count()) {
             return ;
@@ -119,7 +119,7 @@ class CreateAppsAction
             ], [
                 'name' => AppSettingsEnums::ONBOARDING_EVENT_SETUP->getValue(),
                 'value' => 1,
-            ]
+            ],
         ];
 
         foreach ($settings as $key => $value) {
@@ -159,21 +159,24 @@ class CreateAppsAction
         ];
 
         foreach ($roles as $role) {
-            $roles = Roles::firstOrCreate([
-                'name' => $role,
-                'apps_id' => $app->getId(),
-            ], [
-                'companies_id' => 1,
-                'is_active' => 1,
-                'scope' => 0,
-            ]);
+            try {
+                $roles = Roles::firstOrCreate([
+                    'name' => $role,
+                    'apps_id' => $app->getId(),
+                ], [
+                    'companies_id' => 1,
+                    'is_active' => 1,
+                    'scope' => 0,
+                ]);
 
-            $newRole = new CreateRoleAction(
-                $role,
-                $role,
-                $app
-            );
-            $newRole->execute();
+                $newRole = new CreateRoleAction(
+                    $role,
+                    $role,
+                    $app
+                );
+                $newRole->execute();
+            } catch (Exception $e) {
+            }
         }
     }
 }

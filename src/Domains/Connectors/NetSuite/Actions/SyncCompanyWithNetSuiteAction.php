@@ -12,6 +12,7 @@ use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Traits\UseNetSuiteCustomerTrait;
 use NetSuite\Classes\Customer;
 use NetSuite\Classes\UpdateRequest;
+use NetSuite\NetSuiteService;
 
 class SyncCompanyWithNetSuiteAction
 {
@@ -21,7 +22,7 @@ class SyncCompanyWithNetSuiteAction
         protected AppInterface $app,
         protected Companies $company
     ) {
-        $this->service = (new Client($app, $company))->getService();
+        $this->client = new Client($app, $company);
     }
 
     public function execute(): Companies
@@ -57,7 +58,9 @@ class SyncCompanyWithNetSuiteAction
         $updateRequest = new UpdateRequest();
         $updateRequest->record = $customer;
 
-        $updateResponse = $this->service->update($updateRequest);
+        $updateResponse = $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($updateRequest) {
+            return $service->update($updateRequest);
+        });
 
         if (! $updateResponse->writeResponse->status->isSuccess) {
             throw new Exception(

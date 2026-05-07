@@ -18,7 +18,7 @@ class ExportProductsAction
 
     public function execute()
     {
-        $export = new ProductsExportService($this->app);
+        $export = new ProductsExportService($this->app, $this->company);
         $path = 'products.csv';
 
         return $export->toCsv($path, 'public');

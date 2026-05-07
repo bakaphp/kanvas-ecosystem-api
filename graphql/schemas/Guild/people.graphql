@@ -9,11 +9,14 @@ type People {
     lastname: String
     subscriptions: [PeopleSubscription!]! @hasMany
     dob: Date
+    license_number: String
+    people_type: PeopleType @belongsTo(relation: "peopleType")
     organizations: [Organization!] @belongsToMany
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
     created_at: DateTime!
     updated_at: DateTime
+    photo: Filesystem @method(name: "getPhoto")
     employment_history: [PeopleEmploymentHistory!]
         @hasMany(relation: "employmentHistory")
     files: [Filesystem!]!
@@ -76,6 +79,8 @@ type PeopleRelationship {
     name: String!
     description: String
     company: Company! @belongsTo
+    created_at: DateTime!
+    updated_at: DateTime
 }
 
 input PeopleInput {
@@ -87,16 +92,17 @@ input PeopleInput {
     twitter_contact_id: String
     linkedin_contact_id: String
     google_contact_id: String
+    license_number: String
     dob: String
     contacts: [ContactInput!]
     address: [AddressInput!]
     files: [FilesystemInputUrl!]
     custom_fields: [CustomFieldEntityInput!]
     tags: [TagInput!]
+    people_type_id: ID
     peopleEmploymentHistory: [EmploymentPeopleHistoryInput!]
     organization: String
     created_at: DateTime
-    
 }
 
 input PeopleParticipantInput {
@@ -127,17 +133,26 @@ extend type Query @guard {
                     "name"
                     "firstname"
                     "lastname"
+                    "people_types_id"
                 ]
+            )
+        hasPeopleType: _
+            @whereHasConditions(
+                relation: "peopleType"
+                columns: ["id", "name", "slug"]
             )
         hasEventsVersions: _
             @whereHasConditions(
-                columns: ["id","name","version"]
+                columns: ["id", "name", "version"]
                 handler: "App\\GraphQL\\Event\\Builders\\Events\\EventVersionBuilder@getHasEventVersion"
             )
         hasEmails: _
             @whereHasConditions(relation: "emails", columns: ["id", "value"])
         hasOrganization: _
-            @whereHasConditions(relation: "organizations", columns: ["id", "name"])
+            @whereHasConditions(
+                relation: "organizations"
+                columns: ["id", "name"]
+            )
         hasPhones: _
             @whereHasConditions(relation: "phones", columns: ["id", "value"])
         hasTags: _ @whereHasConditions(relation: "tags", columns: ["name"])
@@ -154,6 +169,22 @@ extend type Query @guard {
                     "leads_sources_id"
                     "leads_types_id"
                 ]
+            )
+        hasOrders: _
+            @whereHasConditions(
+                relation: "orders"
+                columns: [
+                    "id"
+                    "uuid"
+                    "status"
+                    "total"
+                    "subtotal"
+                    "taxes"
+                    "shipping"
+                    "discounts"
+                    "created_at"
+                ]
+                handler: "App\\GraphQL\\Guild\\Handlers\\HasOrderHandler"
             )
         hasAddress: _
             @whereHasConditions(
@@ -174,12 +205,14 @@ extend type Query @guard {
             defaultCount: 25
         )
     peopleRelationships(
+        search: String @search
         where: _ @whereConditions(columns: ["name", "description", "id"])
+        orderBy: _ @orderBy(columns: ["id", "name", "created_at", "updated_at"])
     ): [PeopleRelationship!]!
         @paginate(
             model: "Kanvas\\Guild\\Customers\\Models\\PeopleRelationship"
             defaultCount: 25
-            scopes: ["fromApp", "fromCompany"]
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
         )
 
     peopleCount: Int
@@ -225,5 +258,21 @@ extend type Mutation @guard {
     attachFilesToPeople(files: [Upload!]!, id: ID!, params: Mixed): People!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@attachFile"
+        )
+    deletePeopleAddress(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@deletePeopleAddress"
+        )
+    updateContact(id: ID!, input: UpdateContactInput!): Contact!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@updateContact"
+        )
+    deleteContact(id: ID!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@deleteContact"
+        )
+    updatePeoplePhoto(id: ID!, file: Upload!): People!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@updatePeoplePhoto"
         )
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Amplitude\WebhookReceivers;
 
+use Exception;
 use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
@@ -51,7 +52,16 @@ class AmplitudeEventStreamWebhookJob extends ProcessWebhookJob
             ];
         }
 
-        $user = Users::getById($payload['user_id']);
+        //reove any string from user_id
+        $userId = preg_replace('/[^0-9]/', '', $payload['user_id'] ?? '');
+
+        try {
+            $user = Users::getById($userId);
+        } catch (Exception $e) {
+            return [
+              'message' => 'User not found',
+            ];
+        }
 
         UsersRepository::belongsToThisApp($user, $this->receiver->app);
 

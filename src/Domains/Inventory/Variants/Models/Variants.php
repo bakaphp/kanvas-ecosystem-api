@@ -23,6 +23,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
+use Kanvas\Activities\Contracts\ActivityLogInterface;
+use Kanvas\Activities\Models\Activity;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
@@ -35,6 +38,11 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
+use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction;
+use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel as VariantChannelDto;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses as VariantsWarehousesDto;
+use Kanvas\Inventory\Variants\Factories\VariantFactory;
 use Kanvas\Inventory\Variants\Observers\VariantObserver;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
@@ -45,6 +53,8 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
 use Override;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * Class Attributes.
@@ -67,7 +77,7 @@ use Override;
  * @property int is_deleted
  */
 #[ObservedBy(VariantObserver::class)]
-class Variants extends BaseModel implements EntityIntegrationInterface, ProductInterface
+class Variants extends BaseModel implements EntityIntegrationInterface, ProductInterface, ActivityLogInterface
 {
     use SlugTrait;
     use UuidTrait;
@@ -85,8 +95,8 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     use HasRating;
     use HasTranslationsDefaultFallback;
     use HasWallet;
+    use LogsActivity;
 
-    protected $is_deleted;
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
     public $translatable = ['name','description','short_description','html_description'];
 
@@ -129,6 +139,30 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     public static function searchableIndex(): string
     {
         return AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue();
+    }
+
+    #[Override]
+    public function getActivityLogName(): string
+    {
+        return 'variant-' . $this->companies_id . '-' . $this->apps_id;
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+        ->useLogName($this->getActivityLogName())
+        ->setDescriptionForEvent(fn (string $eventName) => "This variant has been {$eventName}")
+        ->logOnly(['*'])
+        ->dontLogIfAttributesChangedOnly(['created_at','updated_at','published_at'])
+        ->logOnlyDirty();
+    }
+
+    #[Override]
+    public function getActivities(): Collection
+    {
+        return Activity::forSubject($this)
+                ->where('log_name', $this->getActivityLogName())
+                ->get();
     }
 
     #[Override]
@@ -194,7 +228,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             VariantsWarehouses::class,
             'products_variants_id',
             'warehouses_id'
-        );
+        )->where('products_variants_warehouses.is_deleted', 0);
     }
 
     /**
@@ -254,7 +288,8 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         //We need to manually query product attribute by this relation so the translate can work for both.
         $query = $this->hasMany(VariantsAttributes::class, 'products_variants_id')
             ->join('attributes', 'products_variants_attributes.attributes_id', '=', 'attributes.id')
-            ->select('products_variants_attributes.*', 'attributes.*');
+            ->select('products_variants_attributes.*', 'attributes.*')
+            ->with('attribute'); // Add this line to eager load the attribute relationship
 
         foreach ($conditions as $column => $value) {
             $query->where("attributes.$column", $value);
@@ -308,6 +343,22 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             ->firstOrFail();
 
         return $this->channels()->where('channels_id', $channel->getId())->firstOrFail();
+    }
+
+    public function getChannelInfo(?Channels $channel = null): ?VariantsChannels
+    {
+        if ($channel === null) {
+            $channel = Channels::where('is_default', true)
+                ->where('apps_id', $this->apps_id)
+                ->notDeleted()
+                ->where('is_published', StateEnums::ON->getValue())
+                ->where('companies_id', $this->companies_id)
+                ->firstOrFail();
+        }
+
+        $result = $this->variantChannels()->where('channels_id', $channel->getId())->first();
+
+        return $result instanceof VariantsChannels ? $result : null;
     }
 
     /**
@@ -401,6 +452,8 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             'uuid' => $this->uuid,
             'slug' => $this->slug,
             'sku' => $this->sku,
+            'ean' => $this->ean,
+            'barcode' => $this->barcode,
             'status' => [
                 'id' => $this->status->id ?? null,
                 'name' => $this->status->name ?? null,
@@ -567,22 +620,45 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
 
     public function updatePriceInWarehouse(Warehouses $warehouse, float $price): void
     {
-        $warehouseInfo = $this->variantWarehouses()->where('warehouses_id', $warehouse->getId())->first();
+        $variantWarehouseDto = VariantsWarehousesDto::viaRequest(
+            $this,
+            $warehouse,
+            [
+                'price' => $price,
+            ]
+        );
 
-        if ($warehouseInfo) {
-            $warehouseInfo->price = $price;
-            $warehouseInfo->saveOrFail();
-        }
+        new AddToWarehouseAction(
+            $this,
+            $warehouse,
+            $variantWarehouseDto
+        )->execute();
     }
 
-    public function updatePriceInChannel(Channels $channel, float $price): void
-    {
-        $channelInfo = $this->variantChannels()->where('channels_id', $channel->getId())->first();
+    public function updatePriceInChannel(
+        Channels $channel,
+        float $price,
+        ?float $discountPrice = null,
+        ?VariantsWarehouses $variantWarehouse = null
+    ): void {
+        /** @var VariantsWarehouses|null $variantWarehouse */
+        $variantWarehouse = $variantWarehouse ?? $this->variantWarehouses()->first();
 
-        if ($channelInfo) {
-            $channelInfo->price = $price;
-            $channelInfo->saveOrFail();
+        if (! $variantWarehouse) {
+            return;
         }
+
+        $variantChannelDto = new VariantChannelDto(
+            price: $price,
+            discounted_price: $discountPrice ?? 0.00,
+            is_published: true,
+        );
+
+        new AddVariantToChannelAction(
+            $variantWarehouse,
+            $channel,
+            $variantChannelDto
+        )->execute();
     }
 
     /**
@@ -658,6 +734,16 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                     'facet' => true,
                 ],
                 [
+                    'name' => 'ean',
+                    'type' => 'string',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'barcode',
+                    'type' => 'string',
+                    'facet' => true,
+                ],
+                [
                     'name' => 'status',
                     'type' => 'object',
                     'optional' => true,
@@ -719,5 +805,156 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             'title' => $this->name,
             'description' => 'Purchase of Variant ID#' . $this->getId(),
         ];
+    }
+
+    /**
+     * Search for variants based on attribute name and value.
+     *
+     * @example
+     * // Search for variants with color attribute = 'red'
+     * $variants = Variants::searchByAttributeValue('color', 'red')->get();
+     */
+    public static function searchByAttributeValue(
+        AppInterface $app,
+        string $attributeName,
+        mixed $attributeValue,
+        string $locale = 'en',
+        ?UserInterface $user = null,
+        ?CompanyInterface $company = null,
+    ): Builder {
+        $query = self::query()
+            ->join('products_variants_attributes as pva', 'products_variants.id', '=', 'pva.products_variants_id')
+            ->join('attributes as a', 'pva.attributes_id', '=', 'a.id')
+            ->where('products_variants.is_deleted', 0)
+            ->where('products_variants.apps_id', $app->getId())
+            ->where('a.is_deleted', 0)
+            ->where('pva.is_deleted', 0);
+
+        // Handle attribute name - check both JSON and plain text formats
+        $query->where(function (Builder $nameQuery) use ($attributeName, $locale) {
+            $nameQuery->where(function (Builder $jsonNameQuery) use ($attributeName, $locale) {
+                $jsonNameQuery->whereRaw('JSON_VALID(a.name) = 1')
+                              ->whereRaw('JSON_EXTRACT(a.name, ?) = ?', ['$.' . $locale, $attributeName]);
+            })
+            ->orWhere('a.name', $attributeName)
+            ->orWhere('a.slug', Str::slug($attributeName));
+        });
+
+        // Handle attribute value - check both JSON and plain text formats
+        $query->where(function (Builder $valueQuery) use ($attributeValue, $locale) {
+            // For JSON values, check the locale-specific value
+            $valueQuery->where(function (Builder $jsonQuery) use ($attributeValue, $locale) {
+                $jsonQuery->whereRaw('JSON_VALID(pva.value) = 1')
+                          ->whereRaw('JSON_EXTRACT(pva.value, ?) = ?', ['$.' . $locale, $attributeValue]);
+            })
+            // For plain text values
+            ->orWhere('pva.value', $attributeValue);
+
+            // If it's a string, also check case-insensitive
+            if (is_string($attributeValue)) {
+                $valueQuery->orWhereRaw('LOWER(pva.value) = ?', [strtolower($attributeValue)]);
+            }
+        });
+
+        if ($company) {
+            $query->where('products_variants.companies_id', $company->getId());
+        } else {
+            if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+                $query->where('products_variants.companies_id', $user->getCurrentCompany()->getId());
+            }
+        }
+
+        // Select only variant columns to avoid ambiguity
+        return $query->select('products_variants.*')
+                     ->distinct();
+    }
+
+    /**
+     * Search for variants based on multiple attribute name and value pairs.
+     * All attributes must match (AND condition).
+     *
+     * @example
+     * // Search for variants with brand='Honda' AND model='Acura'
+     * $variants = Variants::searchByMultipleAttributes(
+     *     app: $app,
+     *     attributes: [
+     *         ['name' => 'brand', 'value' => 'Honda'],
+     *         ['name' => 'model', 'value' => 'Acura']
+     *     ]
+     * )->get();
+     *
+     * @param array $attributes Array of ['name' => string, 'value' => mixed] pairs
+     */
+    public static function searchByMultipleAttributes(
+        AppInterface $app,
+        array $attributes,
+        string $locale = 'en',
+        ?UserInterface $user = null,
+        ?CompanyInterface $company = null,
+    ): Builder {
+        $query = self::query()
+            ->where('products_variants.is_deleted', 0)
+            ->where('products_variants.apps_id', $app->getId());
+
+        // Add joins and conditions for each attribute
+        foreach ($attributes as $index => $attribute) {
+            // Create unique aliases for each join to avoid conflicts
+            $pvaAlias = "pva_{$index}";
+            $attrAlias = "attr_{$index}";
+
+            // Join tables for this attribute
+            $query->join("products_variants_attributes as {$pvaAlias}", 'products_variants.id', '=', "{$pvaAlias}.products_variants_id")
+                  ->join("attributes as {$attrAlias}", "{$pvaAlias}.attributes_id", '=', "{$attrAlias}.id")
+                  ->where("{$attrAlias}.is_deleted", 0)
+                  ->where("{$pvaAlias}.is_deleted", 0);
+
+            // Handle attribute name - check both JSON and plain text formats
+            $query->where(function (Builder $nameQuery) use ($attrAlias, $attribute, $locale) {
+                $attributeName = $attribute['name'];
+
+                $nameQuery->where(function (Builder $jsonNameQuery) use ($attrAlias, $attributeName, $locale) {
+                    $jsonNameQuery->whereRaw("JSON_VALID({$attrAlias}.name) = 1")
+                                  ->whereRaw("JSON_EXTRACT({$attrAlias}.name, ?) = ?", ['$.' . $locale, $attributeName]);
+                })
+                ->orWhere("{$attrAlias}.name", $attributeName)
+                ->orWhere("{$attrAlias}.slug", Str::slug($attributeName));
+            });
+
+            // Handle attribute value - check both JSON and plain text formats
+            $query->where(function (Builder $valueQuery) use ($pvaAlias, $attribute, $locale) {
+                $attributeValue = $attribute['value'];
+
+                // For JSON values, check the locale-specific value
+                $valueQuery->where(function (Builder $jsonQuery) use ($pvaAlias, $attributeValue, $locale) {
+                    $jsonQuery->whereRaw("JSON_VALID({$pvaAlias}.value) = 1")
+                              ->whereRaw("JSON_EXTRACT({$pvaAlias}.value, ?) = ?", ['$.' . $locale, $attributeValue]);
+                })
+                // For plain text values
+                ->orWhere("{$pvaAlias}.value", $attributeValue);
+
+                // If it's a string, also check case-insensitive
+                if (is_string($attributeValue)) {
+                    $valueQuery->orWhereRaw("LOWER({$pvaAlias}.value) = ?", [strtolower($attributeValue)]);
+                }
+            });
+        }
+
+        // Apply company filter
+        if ($company) {
+            $query->where('products_variants.companies_id', $company->getId());
+        } else {
+            if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+                $query->where('products_variants.companies_id', $user->getCurrentCompany()->getId());
+            }
+        }
+
+        // Select only variant columns to avoid ambiguity
+        return $query->select('products_variants.*')->distinct();
+    }
+
+    #[Override]
+    public static function newFactory(): VariantFactory
+    {
+        return new VariantFactory();
     }
 }

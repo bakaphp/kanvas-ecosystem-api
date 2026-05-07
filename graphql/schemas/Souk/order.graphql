@@ -1,7 +1,37 @@
+enum ExportFormat {
+    EXCEL
+    PDF
+}
+
+enum PaymentMethodType {
+    MANUAL
+    CARD
+    CASH
+    BANK_TRANSFER
+    WALLET
+    PAYMENT
+}
+
+enum OrderStatusEnum {
+    PENDING @enum(value: "pending")
+    COMPLETED @enum(value: "completed")
+    DRAFT @enum(value: "draft")
+    CANCELED @enum(value: "canceled")
+    FAILED @enum(value: "failed")
+}
+
+type OrderExportResult {
+    status: String!
+    download_url: String
+    file_name: String
+    message: Mixed
+}
+
 type Order {
     id: ID!
     uuid: String!
     tracking_client_id: String
+    ip_address: String
     user_email: String
     user_phone: String
     token: String
@@ -17,6 +47,10 @@ type Order {
     shipping_price_gross_amount: Money!
     shipping_price_net_amount: Money!
     discount_amount: Money!
+    tax_amount: Money!
+    commission_rate: Float
+    commission_amount: Money
+    provider_amount: Money
     discount_name: String
     voucher_id: Int
     language_code: String
@@ -29,6 +63,7 @@ type Order {
     customer_note: String
     weight: Money
     checkout_token: String
+    message: [Message] @hasMany(relation: "getIntegrationMessage")
     currency: String
     metadata: Mixed
     reference: String
@@ -36,18 +71,48 @@ type Order {
     is_deleted: Boolean!
     created_at: String!
     updated_at: String
-    order_type: OrderType
+    order_type: OrderType @belongsTo(relation: "orderType")
+    region: Region @belongsTo(relation: "region")
+    channel: Channel @belongsTo(relation: "channel")
+    parent: Order @belongsTo(relation: "parent")
+    order_status: OrderStatus @belongsTo(relation: "orderStatus")
+    payment_status: String
+    payments: [Payment!] @hasMany(relation: "payments")
+    payment_logs: [PaymentLog!] @hasMany(relation: "paymentLogs")
+    orderTransitionHistory: [OrderTransitionHistory!]
+        @hasMany(relation: "orderTransitionHistory")
+    discount_codes: [OrderDiscountRelation]
+        @hasMany(relation: "orderDiscountCodes")
+    transaction_link: String!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Builders\\Order\\TransactionLinkBuilder@getLink"
+        )
     items(includeAllItems: Boolean = false): [OrderItem!]
-        @HasMany (relation: "allItems")
+        @HasMany(relation: "allItems")
         @builder(
             method: "App\\GraphQL\\Souk\\Builders\\Order\\OrderBuilder@filterByItems"
         )
     shipping_address: Address @belongsTo(relation: "shippingAddress")
+    affiliate_conversion: [AffiliateConversion!]
+        @hasMany(relation: "affiliateConversion")
     custom_fields: [CustomField!]!
         @paginate(
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    provider_companies: [Company!]!
+        @belongsToMany(relation: "providerCompanies")
 }
 
 type OrderItem {
@@ -60,7 +125,9 @@ type OrderItem {
     unit_price_gross_amount: Money!
     is_shipping_required: Boolean
     quantity_fulfilled: Float
-    variant: Variant! @belongsTo
+    variant: Variant! @belongsTo(relation: "variant")
+    order: Order! @belongsTo(relation: "order")
+    channel: Channel @belongsTo(relation: "channel")
     tax_rate: Money!
     translated_product_name: String
     currency: String
@@ -74,6 +141,33 @@ type OrderItem {
 type OrderType {
     id: ID!
     name: String!
+    slug: String
+    title: String
+    total_statuses: Int!
+    statuses(
+        orderBy: _ @orderBy(columns: ["id", "sequence", "name", "created_at"])
+    ): [OrderStatus!]
+        @paginate(
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
+            relation: "statuses"
+            defaultCount: 25
+        )
+    created_at: String
+    updated_at: String
+}
+
+type OrderStatus {
+    id: ID!
+    companies_id: ID!
+    company: Company! @belongsTo
+    name: String!
+    slug: String!
+    order_type_id: ID!
+    order_type: OrderType! @belongsTo(relation: "orderType")
+    is_default: Boolean!
+    is_final: Boolean!
+    sequence: Int!
+    metadata: Mixed
 }
 
 type PaymentResult {
@@ -94,6 +188,7 @@ type ImportOrderCsvResult {
 }
 
 type GeneratePaymentIntentResult {
+    id: ID!
     client_secret: String!
     status: String
     message: Mixed
@@ -144,8 +239,22 @@ input OrderCustomerInput {
 
 input OrderCartInput {
     cartId: ID!
+    parent_id: ID
+    customer: OrderCustomerInput!
+    currency: String
+    billing: OrderBillingInput
+    shipping_address: AddressInput
+    items: [OrderLineItemInput]
+    order_type: String
+    metadata: Mixed
+    reference: String
+    payment_intent_id: ID
+}
+
+input ExtendOrderInput {
     customer: OrderCustomerInput!
     billing: OrderBillingInput
+    currency: String
     shipping_address: AddressInput
     items: [OrderLineItemInput]
     order_type: String
@@ -156,7 +265,16 @@ input OrderCartInput {
 input UpdateOrderInput {
     items: [OrderLineItemInput]
     fulfillment_status: String
+    status: String
+    payment_status: String
     metadata: Mixed
+    metadata_action: MetadataAction = MERGE
+}
+
+enum MetadataAction {
+    MERGE # Preserve old, add/update new
+    REPLACE # Replace all with new
+    CLEAR # Only keep new metadata
 }
 
 input DraftOrderInput {
@@ -169,12 +287,15 @@ input DraftOrderInput {
     items: [OrderLineItemInput!]!
     note: String
     metadata: Mixed
+    channel_id: ID
 }
 
 input OrderLineItemInput {
     variant_id: ID!
     quantity: Float!
     price: Money
+    metadata: Mixed
+    channel_id: ID
 }
 
 input PaymentInput {
@@ -202,6 +323,8 @@ input AppleInAppPurchaseReceipt {
     transaction_date: Mixed!
     region_id: ID
     custom_fields: [CustomFieldEntityInput!]
+    is_renewable_subscription: Boolean = false
+    original_transaction_id: String
 }
 
 input GooglePlayInAppPurchaseReceipt {
@@ -210,6 +333,113 @@ input GooglePlayInAppPurchaseReceipt {
     purchase_token: String!
     region_id: ID
     custom_fields: [CustomFieldEntityInput!]
+    is_renewable_subscription: Boolean = false
+}
+
+type PaymentLinkResult {
+    status: String!
+    payment_url: String
+    payment_link_id: String
+    session_id: String
+    provider: String
+    message: Mixed
+}
+
+input PaymentLinkOptionsInput {
+    success_url: String
+    cancel_url: String
+    automatic_tax: Boolean = false
+    allowed_countries: [String!]
+    payment_method_types: [String!] = ["card"]
+    use_detailed_items: Boolean = false
+    custom_fields: [PaymentCustomFieldInput!]
+    provider: String = "stripe"
+}
+
+input PaymentCustomFieldInput {
+    key: String!
+    type: String! # "text", "dropdown", "numeric"
+    label: String!
+    optional: Boolean = true
+    dropdown_options: [String!]
+}
+
+input TransitionOrderStatusInput {
+    order_id: ID!
+    status_slug: String
+    date: String
+}
+
+input CreateOrderStatusInput {
+    order_type_id: ID!
+    name: String!
+    slug: String!
+    is_default: Boolean = false
+    is_final: Boolean = false
+    sequence: Int!
+    transitions_from: [String!]
+}
+
+input UpdateOrderStatusInput {
+    name: String
+    slug: String
+    is_default: Boolean
+    is_final: Boolean
+    sequence: Int
+}
+
+input CreateOrderTypeInput {
+    name: String!
+    title: String
+}
+
+input UpdateOrderTypeInput {
+    name: String!
+    title: String
+}
+
+type PipelineStage {
+    status: OrderStatus!
+    is_current: Boolean!
+    is_completed: Boolean!
+    sequence: Int!
+}
+
+type OrderPipelineResult {
+    stages: [PipelineStage!]!
+    current_status: OrderStatus
+    available_transitions: [OrderStatus!]!
+}
+
+type OrderStatusTransitionResult {
+    status: String!
+    message: Mixed
+}
+
+type OrderTransitionHistory {
+    id: ID!
+    order_id: ID!
+    order: Order @belongsTo(relation: "order")
+    fromStatus: OrderStatus @belongsTo(relation: "fromStatus")
+    toStatus: OrderStatus @belongsTo(relation: "toStatus")
+    changedBy: User @belongsTo(relation: "changedBy")
+    endedBy: User @belongsTo(relation: "endedBy")
+    description: String
+    metadata: Mixed
+    is_current: Boolean
+    changed_at: String
+    ended_at: String
+    duration_in_seconds: Int
+    payment_type: String @method(name: "getPaymentType")
+    is_paid: Boolean! @method(name: "isPaid")
+    payment: Payment @hasOne(relation: "payment")
+}
+
+input ExportMetadataInput {
+    custom_title: String
+    subtitle: String
+    headerImages: [String!]
+    dateField: String
 }
 
 extend type Mutation @guard {
@@ -230,9 +460,17 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@create"
         )
+    updateDraftOrderStatus(order_id: ID!, status: OrderStatusEnum!): Order!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\DraftOrderManagementMutation@updateStatus"
+        )
     updateOrder(id: ID!, input: UpdateOrderInput!): OrderResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@update"
+        )
+    extendOrder(id: ID!, input: ExtendOrderInput!): OrderResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@extendOrder"
         )
     deleteOrder(id: ID!): Boolean
         @field(
@@ -262,6 +500,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@generatePaymentIntent"
         )
+    generatePaymentIntentFromOrder(orderId: ID!): GeneratePaymentIntentResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@generatePaymentIntentFromOrder"
+        )
     #createOrderFromCart(input: CartOrderInput!): Mixed!
     #    @field(
     #        resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@create"
@@ -270,6 +512,76 @@ extend type Mutation @guard {
     #    @field(
     #        resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@assignPaymentToOrder"
     #    )
+    transitionOrderStatus(
+        input: TransitionOrderStatusInput!
+    ): OrderStatusTransitionResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderManagementMutation@transitionOrderStatus"
+        )
+    createOrderStatus(input: CreateOrderStatusInput!): OrderStatus!
+        @can(
+            ability: "create"
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
+        )
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@create"
+        )
+    updateOrderStatus(id: ID!, input: UpdateOrderStatusInput!): OrderStatus!
+        @can(
+            ability: "edit"
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
+        )
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@update"
+        )
+    deleteOrderStatus(id: ID!): Boolean!
+        @can(
+            ability: "delete"
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
+        )
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderStatusMutation@delete"
+        )
+    createOrderType(input: CreateOrderTypeInput!): OrderType!
+        @can(
+            ability: "create"
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes"
+        )
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@create"
+        )
+    updateOrderType(id: ID!, input: UpdateOrderTypeInput!): OrderType!
+        @can(ability: "edit", model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes")
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@update"
+        )
+    deleteOrderType(id: ID!): Boolean!
+        @can(
+            ability: "delete"
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes"
+        )
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderTypeMutation@delete"
+        )
+}
+
+extend type Mutation @guardByAppKey {
+    generateCheckoutSession(
+        order_id: ID!
+        options: PaymentLinkOptionsInput
+    ): PaymentLinkResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentLinkMutation@generateCheckoutSession"
+        )
+    sendOrderEmail(order_id: ID!, template: String): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderEmailMutation@sendOrderEmail"
+        )
+
+    orderChangeCustomer(order_id: ID!, customer_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderCustomerManagementMutation@changeCustomer"
+        )
 }
 
 extend type Query @guard {
@@ -284,17 +596,30 @@ extend type Query @guard {
                     "users_id"
                     "user_email"
                     "user_phone"
+                    "people_id"
                     "status"
                     "fulfillment_status"
                     "order_number"
                     "reference"
                     "order_types_id"
+                    "parent_id"
+                    "created_at"
+                    "updated_at"
+                    "token"
+                    "ip_address"
+                    "payment_status"
+                    "total_net_amount"
                 ]
             )
         orderType: _
             @whereConditions(
                 columns: ["name"]
                 handler: "App\\GraphQL\\Souk\\Handlers\\OrderTypeHandler"
+            )
+        orderStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "order_types_id", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderStatusHandler"
             )
         hasAddress: _
             @whereConditions(
@@ -311,7 +636,248 @@ extend type Query @guard {
             )
         hasItems: _
             @whereHasConditions(
-                relation: "items"
+                relation: "allItems"
+                columns: ["product_name", "product_sku", "variant_id"]
+            )
+        hasPeople: _
+            @whereHasConditions(
+                handler: "App\\GraphQL\\Souk\\Handlers\\HasPeopleHandler"
+                columns: [
+                    "id"
+                    "users_id"
+                    "name"
+                    "firstname"
+                    "middlename"
+                    "lastname"
+                    "dob"
+                ]
+            )
+        hasAffiliateConversion: _
+            @whereHasConditions(
+                relation: "affiliateConversion"
+                columns: [
+                    "affiliates_id"
+                    "status"
+                    "confirmed"
+                    "commission_amount"
+                    "converted_at"
+                ]
+            )
+        whereHasProvider: ID
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "status"])
+    ): [Order!]!
+        @paginate(
+            scopes: ["fromCompany", "fromApp", "notDeleted", "filterByUser"]
+            builder: "App\\GraphQL\\Souk\\Builders\\Order\\OrderBuilder@applyProviderFilter"
+            defaultCount: 25
+        )
+
+    providerOrders(
+        provider_company_id: ID!
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "users_id"
+                    "user_email"
+                    "user_phone"
+                    "people_id"
+                    "status"
+                    "fulfillment_status"
+                    "order_number"
+                    "reference"
+                    "order_types_id"
+                    "parent_id"
+                    "created_at"
+                    "updated_at"
+                    "token"
+                    "ip_address"
+                    "payment_status"
+                    "total_net_amount"
+                ]
+            )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTypeHandler"
+            )
+        orderStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "order_types_id", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderStatusHandler"
+            )
+        hasAddress: _
+            @whereConditions(
+                columns: [
+                    "address"
+                    "address_2"
+                    "city"
+                    "county"
+                    "state"
+                    "zip"
+                    "countries_id"
+                ]
+                handler: "App\\GraphQL\\Souk\\Handlers\\HasAddressHandler"
+            )
+        hasItems: _
+            @whereHasConditions(
+                relation: "allItems"
+                columns: ["product_name", "product_sku", "variant_id"]
+            )
+        hasPeople: _
+            @whereHasConditions(
+                handler: "App\\GraphQL\\Souk\\Handlers\\HasPeopleHandler"
+                columns: [
+                    "id"
+                    "users_id"
+                    "name"
+                    "firstname"
+                    "middlename"
+                    "lastname"
+                    "dob"
+                ]
+            )
+        hasAffiliateConversion: _
+            @whereHasConditions(
+                relation: "affiliateConversion"
+                columns: [
+                    "affiliates_id"
+                    "status"
+                    "confirmed"
+                    "commission_amount"
+                    "converted_at"
+                ]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "status"])
+    ): [Order!]!
+        @paginate(
+            builder: "App\\GraphQL\\Souk\\Builders\\Order\\ProviderOrdersBuilder@build"
+            defaultCount: 25
+        )
+
+    orderTypes(
+        search: String @search
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+        where: _ @whereConditions(columns: ["id", "companies_id", "name"])
+    ): [OrderType!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderTypes"
+            scopes: ["fromApp", "notDeleted"]
+        )
+    orderTransitionHistory(
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "companies_id"
+                    "order_id"
+                    "transition_id"
+                    "from_status_id"
+                    "to_status_id"
+                    "changed_at"
+                    "ended_at"
+                    "is_current"
+                    "changed_by"
+                    "ended_by"
+                    "duration_in_seconds"
+                ]
+            )
+        toStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\ToStatusHandler"
+            )
+        fromStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\FromStatusHandler"
+            )
+        hasOrder: _
+            @whereHasConditions(
+                relation: "order"
+                columns: ["user_email", "user_phone", "status", "reference"]
+            )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryOrderTypeHandler"
+            )
+        hasVariant: _
+            @whereConditions(
+                columns: ["variant_id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryVariantHandler"
+            )
+        hasProvider: _
+            @whereConditions(
+                columns: ["company_id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryProviderHandler"
+            )
+        paymentMethodType: PaymentMethodType @scope(name: "paymentMethodType")
+    ): [OrderTransitionHistory!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderTransitionHistory"
+            scopes: ["fromApp", "notDeleted"]
+        )
+    exportOrders(
+        format: ExportFormat!
+        search: String @search
+        field_mapper: Mixed # JSON object with label => field_path mapping
+        metadata: ExportMetadataInput
+        timezone: String # e.g., "America/New_York"
+        whereHasProvider: ID # Filter export to orders attributed to this provider company via order_providers pivot
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "users_id"
+                    "user_email"
+                    "user_phone"
+                    "status"
+                    "fulfillment_status"
+                    "order_number"
+                    "reference"
+                    "order_types_id"
+                    "parent_id"
+                    "created_at"
+                    "updated_at"
+                    "ip_address"
+                ]
+            )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTypeHandler"
+            )
+        orderStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "order_types_id", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderStatusHandler"
+            )
+        hasAddress: _
+            @whereConditions(
+                columns: [
+                    "address"
+                    "address_2"
+                    "city"
+                    "county"
+                    "state"
+                    "zip"
+                    "countries_id"
+                ]
+                handler: "App\\GraphQL\\Souk\\Handlers\\HasAddressHandler"
+            )
+        hasItems: _
+            @whereHasConditions(
+                relation: "allItems"
                 columns: ["product_name", "product_sku", "variant_id"]
             )
         hasPeople: _
@@ -329,10 +895,136 @@ extend type Query @guard {
             )
         orderBy: _
             @orderBy(columns: ["id", "created_at", "updated_at", "status"])
+    ): OrderExportResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\Orders\\OrderExportQuery@export"
+            # scopes: ["fromApp", "notDeleted"]
+        )
+    exportOrderTransitionHistory(
+        format: ExportFormat!
+        field_mapper: Mixed
+        metadata: ExportMetadataInput
+        timezone: String
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "companies_id"
+                    "order_id"
+                    "transition_id"
+                    "from_status_id"
+                    "to_status_id"
+                    "changed_at"
+                    "ended_at"
+                    "is_current"
+                    "changed_by"
+                    "ended_by"
+                    "duration_in_seconds"
+                ]
+            )
+        toStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\ToStatusHandler"
+            )
+        fromStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\FromStatusHandler"
+            )
+        hasOrder: _
+            @whereHasConditions(
+                relation: "order"
+                columns: ["user_email", "user_phone", "status", "reference"]
+            )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryOrderTypeHandler"
+            )
+        hasVariant: _
+            @whereConditions(
+                columns: ["variant_id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryVariantHandler"
+            )
+        hasProvider: _
+            @whereConditions(
+                columns: ["company_id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTransitionHistoryProviderHandler"
+            )
+        paymentMethodType: PaymentMethodType @scope(name: "paymentMethodType")
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
+    ): OrderExportResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\Orders\\OrderTransitionHistoryExportQuery@export"
+        )
+    orderStatus(
+        search: String @search
+        orderBy: _
+            @orderBy(
+                columns: ["id", "created_at", "updated_at", "name", "sequence"]
+            )
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "companies_id"
+                    "name"
+                    "slug"
+                    "order_types_id"
+                    "sequence"
+                ]
+            )
+    ): [OrderStatus!]!
+        @paginate(
+            defaultCount: 25
+            model: "Kanvas\\Souk\\Orders\\Models\\OrderStatus"
+            scopes: ["fromPublicOrCurrentApp", "notDeleted"]
+        )
+    orderPipeline(order_id: ID!): OrderPipelineResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\Orders\\OrderPipelineQuery@resolve"
+        )
+    ordersByUserCustomField(
+        custom_field_name: String!
+        user_id: ID
+        orderStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "order_types_id", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderStatusHandler"
+            )
+        orderType: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderTypeHandler"
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "status"])
     ): [Order!]!
         @paginate(
-            model: "Kanvas\\Souk\\Orders\\Models\\Order"
-            scopes: ["fromCompany", "fromApp", "notDeleted", "filterByUser"]
+            builder: "App\\GraphQL\\Souk\\Queries\\Orders\\OrdersByUserCustomFieldQuery@build"
             defaultCount: 25
         )
+
+    orderAnalytics(
+        from: Date
+        to: Date
+        bucket: AnalyticsBucket = DAY
+        timezone: String
+        status: String
+    ): OrderAnalytics!
+        @field(
+            resolver: "App\\GraphQL\\Analytics\\Queries\\OrderAnalyticsQuery"
+        )
+}
+
+type OrderAnalytics {
+    "Count + total revenue per bucket."
+    periods: [AnalyticsPoint!]!
+    total: Int!
+    "Sum of `total_gross_amount` across the date range (ignores currency mix in v1)."
+    total_value: Float!
+    by_status: [AnalyticsCategoryPoint!]!
+    by_payment_status: [AnalyticsCategoryPoint!]!
+    by_fulfillment_status: [AnalyticsCategoryPoint!]!
 }

@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
-use Kanvas\Social\Messages\Jobs\DistributeMessagesToUsersJob;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -32,7 +31,11 @@ class DistributeMessageActivity extends KanvasActivity implements WorkflowActivi
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams) use ($params) {
-                //DistributeMessagesToUsersJob::dispatch($message, $app, $params);
+                //delay distribution for 1 minute
+                //allowing user to change status if they want before distribution
+                sleep(60);
+
+                $message->refresh();
 
                 $totalDelivery = new DistributeMessagesToUsersAction($message, $app)->execute();
 

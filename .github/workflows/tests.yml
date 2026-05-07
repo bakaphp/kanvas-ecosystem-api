@@ -4,15 +4,17 @@ on: ["push"]
 
 jobs:
   run-tests:
-    name: PHP ${{ matrix.php-versions }}
+    name: Tests - ${{ matrix.testsuite }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
-      extensions: mbstring, intl, json, redis, swoole, xdebug, igbinary
+      extensions: mbstring, intl, json, redis, swoole, igbinary
       APP_ENV: testing
       DB_HOST: 127.0.0.1
       DB_HOST_READ: 127.0.0.1
       REDIS_URL: tcp://127.0.0.1:6379?database=0
       REDIS_HOST: 127.0.0.1
+      REDIS_HOST_QUEUE: 127.0.0.1
       DB_USERNAME: root
       DB_PASSWORD: password
       DB_DATABASE: kanvas
@@ -62,7 +64,8 @@ jobs:
       MEILISEARCH_HOST: http://localhost:7700
       MEILISEARCH_KEY: masterKey
       SCOUT_QUEUE: false
-      # APP_DEBUG: true
+      APP_DEBUG: true
+      GITHUB_ACTIONS: true
 
       #third party integration
       TEST_ZOHO_CLIENT_ID: ${{ secrets.TEST_ZOHO_CLIENT_ID }}
@@ -107,6 +110,9 @@ jobs:
       TEST_RECOMBEE_DATABASE: ${{ secrets.TEST_RECOMBEE_DATABASE }}
       TEST_RECOMBEE_API_KEY: ${{ secrets.TEST_RECOMBEE_API_KEY }}
       TEST_RECOMBEE_REGION: ${{ secrets.TEST_RECOMBEE_REGION }}
+      TEST_RECOMBEE_DATABASE_ECOM: ${{ secrets.TEST_RECOMBEE_DATABASE_ECOM }}
+      TEST_RECOMBEE_DATABASE_ECOM_KEY: ${{ secrets.TEST_RECOMBEE_DATABASE_ECOM_KEY }}
+      TEST_RECOMBEE_DATABASE_ECOM_REGION: ${{ secrets.TEST_RECOMBEE_DATABASE_ECOM_REGION }}
       TEST_ELEAD_API_KEY: ${{ secrets.TEST_ELEAD_API_KEY }}
       TEST_ELEAD_API_SECRET: ${{ secrets.TEST_ELEAD_API_SECRET }}
       TEST_ELEAD_DEV_MODE: ${{ secrets.TEST_ELEAD_DEV_MODE }}
@@ -132,10 +138,37 @@ jobs:
       TEST_ECHO_PAY_SERVICE_TYPE_ID: ${{ secrets.TEST_ECHO_PAY_SERVICE_TYPE_ID }}
       TEST_ECHO_PAY_CONTRACT: ${{ secrets.TEST_ECHO_PAY_CONTRACT }}
       TEST_ECHO_PAY_TRANSACTION_ID: ${{ secrets.TEST_ECHO_PAY_TRANSACTION_ID }}
+      TEST_GOOGLE_PAYMENT_CLIENT_CONFIG: ${{ secrets.TEST_GOOGLE_PAYMENT_CLIENT_CONFIG }}
+      TEST_GOOGLE_PACKAGE_NAME: ${{ secrets.TEST_GOOGLE_PACKAGE_NAME }}
+      TEST_DEALER_SOCKET_PUBLIC_KEY: ${{ secrets.TEST_DEALER_SOCKET_PUBLIC_KEY }}
+      TEST_DEALER_SOCKET_PRIVATE_KEY: ${{ secrets.TEST_DEALER_SOCKET_PRIVATE_KEY }}
+      TEST_DEALER_SOCKET_DEALER_ID: ${{ secrets.TEST_DEALER_SOCKET_DEALER_ID }}
+      TEST_DEALER_SOCKET_USERNAME: ${{ secrets.TEST_DEALER_SOCKET_USERNAME }}
+      TEST_DEALER_SOCKET_PASSWORD: ${{ secrets.TEST_DEALER_SOCKET_PASSWORD }}
+      TEST_DEALER_SOCKET_VENDOR_NAME: ${{ secrets.TEST_DEALER_SOCKET_VENDOR_NAME }}
+      TEST_DEALER_CRM_CONFIG: ${{ secrets.TEST_DEALER_CRM_CONFIG }}
     strategy:
       fail-fast: false
       matrix:
-        php-versions: ["8.4"]
+        testsuite:
+          - GraphQL-Ecosystem
+          - GraphQL-Souk
+          - GraphQL-Guild
+          - GraphQL-Social
+          - GraphQL-Inventory
+          - GraphQL-Other
+          - Connectors
+          - Ecosystem
+          - Social
+          - Guild
+          - Inventory
+          - Souk
+          - Workflow
+          - Intelligence
+          - Baka
+          - Event
+          - ActionEngine
+          - Unit
     services:
       mysql:
         image: mysql:8.0
@@ -170,12 +203,21 @@ jobs:
         ports:
           - 7700:7700
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      - name: Load Aditional Test Secrets
+        run: |
+          echo "$TEST_DEALER_CRM_CONFIG" > dealer_crm.json
+
+          echo "TEST_DRIVE_CENTRIC_BASE_URL=$(jq -r .drivecentric.BASE_URL dealer_crm.json)" >> $GITHUB_ENV
+          echo "TEST_DRIVE_CENTRIC_API_KEY=$(jq -r .drivecentric.API_KEY dealer_crm.json)" >> $GITHUB_ENV
+          echo "TEST_DRIVE_CENTRIC_API_SECRET_KEY=$(jq -r .drivecentric.API_SECRET_KEY dealer_crm.json)" >> $GITHUB_ENV
+          echo "TEST_DRIVE_CENTRIC_STORE_ID=$(jq -r .drivecentric.STORE_ID dealer_crm.json)" >> $GITHUB_ENV
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php-versions }}
+          php-version: "8.5"
           extensions: ${{ env.extensions }}
           tools: pecl
 
@@ -184,7 +226,7 @@ jobs:
         run: echo "::set-output name=dir::$(composer config cache-files-dir)"
 
       - name: Cache composer dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
@@ -243,11 +285,16 @@ jobs:
 
       - name: Run Tests
         if: success()
-        run: php artisan test --dont-report-useless-tests
+        run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=4
+
+      - name: Run Filesystem Tests (single process)
+        if: success() && matrix.testsuite == 'GraphQL-Ecosystem'
+        run: vendor/bin/phpunit tests/GraphQL/Ecosystem/FilesystemTest.php
+        timeout-minutes: 5
 
       - name: Upload artifacts
         uses: actions/upload-artifact@master
         if: failure()
         with:
-          name: Logs
+          name: Logs-${{ matrix.testsuite }}
           path: ./storage/logs

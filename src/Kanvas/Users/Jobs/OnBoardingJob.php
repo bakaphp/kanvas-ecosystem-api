@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Event\Support\Enums\EventSetupTypeEnum;
 use Kanvas\Event\Support\Setup as EventSetup;
 use Kanvas\Guild\Support\Setup as GuildSetup;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
@@ -81,11 +82,16 @@ class OnBoardingJob implements ShouldQueue
         }
 
         if ($runOnboardingEvent) {
-            (new EventSetup(
+            $eventSetupType = EventSetupTypeEnum::tryFrom(
+                (string) $this->app->get(AppSettingsEnums::ONBOARDING_EVENT_SETUP_TYPE->getValue())
+            ) ?? EventSetupTypeEnum::STANDARD;
+
+            new EventSetup(
                 $this->app,
                 $this->user,
-                $company
-            ))->run();
+                $company,
+                $eventSetupType
+            )->run();
         }
     }
 }

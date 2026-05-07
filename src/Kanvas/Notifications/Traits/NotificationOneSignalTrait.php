@@ -22,9 +22,12 @@ trait NotificationOneSignalTrait
             return [];
         }
 
-        $messageContent = $this->getPushTemplate();
+        $messageContent = Str::cleanJsonString($this->getPushTemplate());
+        $messageContent = html_entity_decode($messageContent, ENT_QUOTES, 'UTF-8');
 
         if (! Str::isJson($messageContent)) {
+            report('Message content for push notification is not a valid JSON ' . json_encode($messageContent));
+
             //throw new ValidationException('Message content for push notification is not a valid JSON');
             return [];
         }
@@ -37,7 +40,7 @@ trait NotificationOneSignalTrait
             'title' => $messageContent['title'] ?? '',
             'subtitle' => $messageContent['subtitle'] ?? '',
             'apps_id' => $this->app->getId(),
-            'data' => $this->getData()
+            'data' => $this->getData(),
         ];
     }
 }

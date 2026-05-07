@@ -9,11 +9,13 @@ use Kanvas\Connectors\Stripe\Services\StripePlanService;
 use Kanvas\Subscription\Importer\Actions\PlanImporterAction;
 use Kanvas\Subscription\Importer\DataTransferObjects\PlanImporter;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class ImportStripePlanWebhookJob extends ProcessWebhookJob
 {
     public array $data = [];
 
+    #[Override]
     public function execute(): array
     {
         if (! in_array($this->webhookRequest->payload['type'], ['product.created', 'product.updated'])) {

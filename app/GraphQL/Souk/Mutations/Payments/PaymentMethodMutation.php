@@ -5,15 +5,18 @@ declare(strict_types=1);
 namespace App\GraphQL\Souk\Mutations\Payments;
 
 use Exception;
+use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Payments\Actions\CreatePaymentMethodAction;
 use Kanvas\Payments\Actions\UpdatePaymentMethodAction;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
 use Kanvas\Payments\Models\PaymentMethods;
+use Kanvas\Souk\Payments\Contracts\ActivationProcessorInterface;
 
 class PaymentMethodMutation
 {
-    public function createPaymentMethod($_, array $request): PaymentMethods
+    public function createPaymentMethod(mixed $root, array $request): PaymentMethods
     {
         $user = auth()->user();
         $app = app(Apps::class);
@@ -22,10 +25,37 @@ class PaymentMethodMutation
         $card = null;
 
         try {
-            // TODO: move this to a provider to avoid hardcoding here
             if ($input['processor']) {
+                $input['brand'] = $this->guessCardBrand($input['number']);
                 $processor = app("payment.{$input['processor']}");
-                $paymentMethod = $processor->addCardFromRequest($input, $user);
+                $result = $processor->tokenize($input, $user);
+
+                if (! $result->success) {
+                    throw new ValidationException($result->message);
+                }
+
+                $paymentMethod = new PaymentMethod(
+                    app: $app,
+                    user: $user,
+                    company: $company,
+                    payment_ending_numbers: $result->lastFour,
+                    payment_methods_brand: $result->brand,
+                    expiration_date: $input['expiration_date'],
+                    zip_code: $input['zip_code'] ?? '',
+                    stripe_card_id: $result->token,
+                    instrument_identifier_id: $result->raw['instrumentIdentifierId'] ?? null,
+                    processor: $input['processor'],
+                    metadata: array_merge($result->raw, [
+                        'country'   => $input['country'] ?? null,
+                        'city'      => $input['city'] ?? null,
+                        'address'   => $input['address'] ?? null,
+                        'phone'     => $input['phone'] ?? null,
+                        'zip_code'  => $input['zip_code'] ?? null,
+                        'state'     => $input['state'] ?? null,
+                        'firstname' => $input['firstname'] ?? null,
+                        'lastname'  => $input['lastname'] ?? null,
+                    ]),
+                );
             } else {
                 $paymentMethod = new PaymentMethod(
                     app: $app,
@@ -33,39 +63,57 @@ class PaymentMethodMutation
                     company: $company,
                     instrument_identifier_id: $input['instrument_identifier_id'] ?? '',
                     payment_ending_numbers: substr($input['number'], strlen($input['number']) - 4, 4),
-                    payment_methods_brand: $input['brand'] ?? $this->guessCardBrand($input['number']),
+                    payment_methods_brand: $this->guessCardBrand($input['number']),
                     stripe_card_id: $input['stripe_card_id'] ?? '',
                     expiration_date: $input['expiration_date'],
                     zip_code: $input['zip_code'],
                     processor: $input['processor'] ?? null,
                     metadata: $request['metadata'] ?? [
-                        'country' => $input['country'],
-                        'city' => $input['city'],
-                        'address' => $input['address'],
-                        'phone' => $input['phone'],
-                        'zip_code' => $input['zip_code'],
-                        'state' => $input['state'],
-                    ]
+                        'country'   => $input['country'],
+                        'city'      => $input['city'],
+                        'address'   => $input['address'],
+                        'phone'     => $input['phone'],
+                        'zip_code'  => $input['zip_code'],
+                        'state'     => $input['state'],
+                        'firstname' => $input['firstname'] ?? null,
+                        'lastname'  => $input['lastname'] ?? null,
+                    ],
                 );
             }
+
             return new CreatePaymentMethodAction($paymentMethod)->execute();
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
+        } catch (RequestException $e) {
+            $errorMessage = 'An error occurred while processing your request try again';
+
             if ($e->hasResponse()) {
-                $response = $e->getResponse();
-                $errorMessage = json_decode((string) $response->getBody())->message;
+                $statusCode = $e->getResponse()->getStatusCode();
+
+                // Report 5xx server errors
+                if ($statusCode >= 500) {
+                    report($e);
+                }
+
+                try {
+                    $decoded = json_decode((string) $e->getResponse()->getBody());
+                    $errorMessage = $decoded?->message ?? $errorMessage;
+                } catch (Exception $e) {
+                    // If JSON parsing fails, use default message
+                }
             } else {
                 $errorMessage = $e->getMessage();
+                // Also report if we can't get response details
+                report($e);
             }
 
             if (is_array($errorMessage)) {
                 $errorMessage = implode(', ', $errorMessage);
             }
 
-            throw new Exception($errorMessage);
+            throw new ValidationException($errorMessage);
         }
     }
 
-    public function updatePaymentMethod($_, array $request): PaymentMethods
+    public function updatePaymentMethod(mixed $root, array $request): PaymentMethods
     {
         $user = auth()->user();
         $app = app(Apps::class);
@@ -77,12 +125,12 @@ class PaymentMethodMutation
         ])->first();
 
         if (! $paymentMethod) {
-            throw new Exception('Payment method not found');
+            throw new ValidationException('Payment method not found');
         }
 
         if ($paymentMethod->processor) {
             $processor = app("payment.{$paymentMethod->processor}");
-            $paymentMethodUpdateData = $processor->updateCardFromRequest(PaymentMethod::from([
+            $paymentMethodUpdateData = $processor->updateToken(PaymentMethod::from([
                 ...$paymentMethod->toArray(),
                 'app' => $app,
                 'user' => $user,
@@ -110,7 +158,7 @@ class PaymentMethodMutation
         )->execute();
     }
 
-    public function deletePaymentMethod($_, array $request): bool
+    public function deletePaymentMethod(mixed $root, array $request): bool
     {
         $user = auth()->user();
         $app = app(Apps::class);
@@ -120,28 +168,52 @@ class PaymentMethodMutation
         ])->first();
 
         if (! $paymentMethod) {
-            throw new Exception('Payment method not found');
+            throw new ValidationException('Payment method not found');
         }
 
-        if ($paymentMethod->processor) {
+        if ($paymentMethod->processor && $paymentMethod->stripe_card_id) {
             $processor = app("payment.{$paymentMethod->processor}");
-            $processor->deleteCardFromRequest(PaymentMethod::from([
-                ...$paymentMethod->toArray(),
-                'app' => $app,
-                'user' => $user,
-                'company' => $company,
-            ]));
+            $processor->deleteToken($paymentMethod->stripe_card_id);
         }
 
         return $paymentMethod->delete();
     }
 
-    public function guessCardBrand($number): ?string
+    public function activatePaymentMethod(mixed $root, array $request): PaymentMethods
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $paymentMethod = PaymentMethods::fromCompany($company)->fromApp($app)->where([
+            'id' => $request['id'],
+        ])->firstOrFail();
+
+        if (empty($paymentMethod->processor)) {
+            throw new ValidationException('Payment method has no processor configured');
+        }
+
+        $processor = app("payment.{$paymentMethod->processor}");
+
+        if (! $processor instanceof ActivationProcessorInterface) {
+            throw new ValidationException("Processor '{$paymentMethod->processor}' does not support activation");
+        }
+
+        $result = $processor->activatePaymentMethod($paymentMethod, $request['activation_code']);
+
+        if (! $result->success) {
+            throw new ValidationException($result->message);
+        }
+
+        return $paymentMethod->refresh();
+    }
+
+    public function guessCardBrand(string $number): ?string
     {
         $number = preg_replace('/[^0-9]/', '', $number);
 
         if (! $this->isValidLuhn($number)) {
-            return null;
+            throw new ValidationException('The card number you entered is invalid. Please check and try again');
         }
 
         $firstDigit = substr($number, 0, 1);
@@ -159,7 +231,15 @@ class PaymentMethodMutation
 
         // American Express
         if ($firstTwoDigits === '34' || $firstTwoDigits === '37') {
-            return 'amex';
+            return 'american express';
+        }
+
+        // Discover
+        $firstFourDigits = substr($number, 0, 4);
+        $firstThreeDigits = substr($number, 0, 3);
+        if ($firstFourDigits === '6011' || $firstTwoDigits === '65'
+            || ($firstThreeDigits >= '644' && $firstThreeDigits <= '649')) {
+            return 'discover';
         }
 
         return null;

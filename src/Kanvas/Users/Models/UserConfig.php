@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
+use Override;
 
 /**
  * Companies Model.
@@ -32,10 +33,18 @@ class UserConfig extends BaseModel
     protected $attributes = [
     ];
 
+    protected $fillable = [
+        'users_id',
+        'name',
+        'value',
+        'is_public',
+    ];
+
     protected $casts = [
         'value' => Json::class,
     ];
 
+    #[Override]
     public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id');

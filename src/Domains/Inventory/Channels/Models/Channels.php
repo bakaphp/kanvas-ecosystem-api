@@ -10,10 +10,14 @@ use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
+use Kanvas\Inventory\Channels\Actions\UnPublishAllVariantsAction;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Traits\DefaultTrait;
-use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Regions\Models\Regions;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 
 /**
  * Class Channels.
@@ -37,6 +41,7 @@ class Channels extends BaseModel
     use SlugTrait;
     use DatabaseSearchableTrait;
     use DefaultTrait;
+    use HasTagsTrait;
 
     protected $table = 'channels';
     protected $guarded = [];
@@ -53,16 +58,9 @@ class Channels extends BaseModel
         );
     }
 
-    /**
-     * Update all variants doesn't matter the location from this channel
-     */
-    public function unPublishAllVariants(): bool
+    public function unPublishAllVariants(): void
     {
-        Variants::fromCompany($this->company)->chunkById(100, function ($variants) {
-            $variants->unsearchable();
-        }, $column = 'id');
-
-        return $this->availableProducts()->update(['is_published' => 0]) > 0;
+        new UnPublishAllVariantsAction($this)->execute();
     }
 
     public function pricesHistory(): HasMany
@@ -73,17 +71,22 @@ class Channels extends BaseModel
         );
     }
 
+    public function productVariantChannels(): HasMany
+    {
+        return $this->hasMany(VariantsChannels::class, 'channels_id');
+    }
+
     public function price(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->pivot->price,
+            get: fn () => $this->pivot ? $this->pivot->price : ($this->attributes['price'] ?? null),
         );
     }
 
     public function discountedPrice(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->pivot->discounted_price,
+            get: fn () => $this->pivot ? $this->pivot->discounted_price : ($this->attributes['discounted_price'] ?? null),
         );
     }
 
@@ -106,5 +109,33 @@ class Channels extends BaseModel
         return Attribute::make(
             get: fn () => Str::isJson($this->pivot->config) ? json_decode($this->pivot->config, true) : $this->pivot->config
         );
+    }
+
+    public function getRegions(): Collection
+    {
+        $warehousesTable = Warehouses::getTableName();
+        $variantChannelsTable = VariantsChannels::getTableName();
+
+        $regionIds = $this->productVariantChannels()
+            ->select($warehousesTable . '.regions_id')
+            ->join(
+                $warehousesTable,
+                $warehousesTable . '.id',
+                '=',
+                $variantChannelsTable . '.warehouses_id'
+            )
+            ->whereNotNull($warehousesTable . '.regions_id')
+            ->where($warehousesTable . '.is_deleted', 0)
+            ->distinct()
+            ->pluck($warehousesTable . '.regions_id');
+
+        if ($regionIds->isEmpty()) {
+            return collect();
+        }
+
+        return Regions::query()
+            ->whereIn(Regions::getTableName() . '.id', $regionIds->all())
+            ->where('is_deleted', 0)
+            ->get();
     }
 }

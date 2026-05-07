@@ -2,18 +2,32 @@ input TagInput {
     name: String!
     slug: String
     weight: Int
+    parent_id: ID
+    is_feature: Int
 }
 
 type Tag {
     id: ID!
-    user: User!
+    parent_id: ID
+    parent: Tag @belongsTo(relation: "parent")
+    user: User! @belongsTo(relation: "user")
     name: String!
     slug: String
+    description: String
     weight: Int
     is_feature: Int
     created_at: String
     updated_at: String
     taggables: [TagEntity!]! @hasMany(method: "taggables")
+    files: [Filesystem!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    children(
+        first: Int
+        orderBy: _ @orderBy(columns: ["weight", "name", "created_at"])
+    ): [Tag!] @hasMany(relation: "children", type: PAGINATOR)
 }
 
 type TagEntity {
@@ -53,6 +67,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Tags\\TagsManagement@attachTagToEntity"
         )
+    detachTagFromEntity(input: AttachTagEntityInput!): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Tags\\TagsManagement@detachTagFromEntity"
+        )
 }
 
 extend type Query @guard {
@@ -62,6 +80,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "parent_id"
                     "name"
                     "slug"
                     "weight"

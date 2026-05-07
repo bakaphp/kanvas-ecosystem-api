@@ -40,10 +40,10 @@ class Warehouses extends Data
         }
 
         return new self(
-            isset($request['companies_id']) ? Companies::getById($request['companies_id']) : $company,
+            (isset($request['companies_id']) && (int) $request['companies_id'] !== 0) ? Companies::getById($request['companies_id']) : $company,
             app(Apps::class),
             $user,
-            RegionRepository::getById((int) $request['regions_id'], $company),
+            RegionRepository::getByIdOrGlobal((int) $request['regions_id'], $company),
             $request['name'],
             $request['location'] ?? null,
             $request['is_default'] ?? (bool) StateEnums::NO->getValue(),

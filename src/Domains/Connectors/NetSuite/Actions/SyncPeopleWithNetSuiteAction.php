@@ -12,6 +12,7 @@ use Kanvas\Connectors\NetSuite\Traits\UseNetSuiteCustomerTrait;
 use Kanvas\Guild\Customers\Models\People;
 use NetSuite\Classes\Customer;
 use NetSuite\Classes\UpdateRequest;
+use NetSuite\NetSuiteService;
 
 class SyncPeopleWithNetSuiteAction
 {
@@ -21,7 +22,7 @@ class SyncPeopleWithNetSuiteAction
         protected AppInterface $app,
         protected People $people
     ) {
-        $this->service = (new Client($app, $people->company))->getService();
+        $this->client = new Client($app, $people->company);
     }
 
     public function execute(): People
@@ -58,10 +59,9 @@ class SyncPeopleWithNetSuiteAction
         $updateRequest = new UpdateRequest();
         $updateRequest->record = $customer;
 
-        /**
-         * @todo update phone , email, address, custom fields
-         */
-        $updateResponse = $this->service->update($updateRequest);
+        $updateResponse = $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($updateRequest) {
+            return $service->update($updateRequest);
+        });
 
         if (! $updateResponse->writeResponse->status->isSuccess) {
             throw new Exception(

@@ -1,0 +1,447 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Console\Commands\Connectors\VinSolution;
+
+use Baka\Traits\KanvasJobsTrait;
+use Carbon\Carbon;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Redis;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\VinSolution\Actions\PullLeadAction;
+use Kanvas\Connectors\VinSolution\Dealers\Dealer;
+use Kanvas\Connectors\VinSolution\Dealers\User;
+use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
+use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
+use Kanvas\Connectors\VinSolution\Leads\Lead;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
+use Throwable;
+
+class DownloadAllLeadsCommand extends Command
+{
+    use KanvasJobsTrait;
+
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'kanvas:vinsolution-download-all-leads 
+                            {app_id : The application ID}
+                            {company_ids : Comma-separated company IDs (e.g., "11265,8170,8171")}
+                            {user_ids : User ID(s) - single for all, comma-separated matching companies, or partial list (remaining use company relationship)}
+                            {--from-first-page=0 : Start from first page (1) or continue from last position (0)}
+                            {--total-page-limit= : Limit the total number of pages to process}
+                            {--items-per-page=10 : Number of items per page}
+                            {--sync-duplicates=1 : Sync duplicate active leads before download (1=yes, 0=no)}';
+
+    /**
+     * The console command description.
+     *
+     * @var string|null
+     */
+    protected $description = 'Download all leads from VinSolution for one or multiple companies (processed sequentially to avoid rate limiting)';
+
+    public function handle(): void
+    {
+        /** @var Apps $app */
+        $app = Apps::getById((int) $this->argument('app_id'));
+        $this->overwriteAppService($app);
+
+        // Parse company IDs
+        $companyIdsInput = $this->argument('company_ids');
+        if (is_array($companyIdsInput)) {
+            $this->error('Invalid company_ids format. Please provide a comma-separated string.');
+
+            return;
+        }
+        $companyIds = array_map('trim', explode(',', (string) $companyIdsInput));
+
+        // Parse user IDs
+        $userIdsInput = $this->argument('user_ids');
+        if (is_array($userIdsInput)) {
+            $this->error('Invalid user_ids format. Please provide a comma-separated string.');
+
+            return;
+        }
+        $userIds = array_map('trim', explode(',', (string) $userIdsInput));
+
+        // If only one user ID provided, use it for all companies
+        if (count($userIds) === 1 && count($companyIds) > 1) {
+            $userIds = array_fill(0, count($companyIds), $userIds[0]);
+        }
+
+        $companiesCount = count($companyIds);
+        $this->info("Processing {$companiesCount} companies sequentially to avoid rate limiting...");
+        $this->newLine();
+
+        // Process each company sequentially
+        foreach ($companyIds as $index => $companyId) {
+            try {
+                $company = Companies::getById((int) $companyId);
+
+                // Get user - either from provided IDs or from company relationship
+                if (isset($userIds[$index])) {
+                    $user = Users::getById((int) $userIds[$index]);
+                    $this->info("=== Processing Company ID: {$companyId} with User ID: {$userIds[$index]} ({" . ($index + 1) . "/{$companiesCount}) ===");
+                } else {
+                    // Get user from company relationship
+                    $user = $company->user;
+                    if (! $user) {
+                        $this->error("Company {$companyId} has no associated user and no user ID was provided.");
+
+                        continue;
+                    }
+                    $this->info("=== Processing Company ID: {$companyId} with User ID from company relationship: {$user->getId()} ({" . ($index + 1) . "/{$companiesCount}) ===");
+                }
+                $this->newLine();
+
+                $this->processCompany($app, $company, $user);
+            } catch (Throwable $e) {
+                $this->error("Failed to process company {$companyId}: " . $e->getMessage());
+            }
+
+            $this->newLine();
+
+            // Add a small delay between companies to further reduce rate limiting risk
+            if ($index < count($companyIds) - 1) {
+                $this->info('Waiting 5 seconds before processing next company...');
+                sleep(5);
+                $this->newLine();
+            }
+        }
+
+        $this->info('=== All companies processed ===');
+    }
+
+    /**
+     * Process a single company's leads download.
+     */
+    private function processCompany(Apps $app, Companies $company, Users $user): void
+    {
+        // Check if company has VinSolution configuration
+        if (! $company->get(ConfigurationEnum::COMPANY->value)) {
+            $this->error('Company does not have VinSolution configuration');
+
+            return;
+        }
+
+        // Check if user has VinSolution configuration
+        $vinUserId = $user->get(ConfigurationEnum::getUserKey($company, $user));
+        if (! $vinUserId) {
+            $this->error('User does not have VinSolution configuration');
+
+            return;
+        }
+
+        try {
+            $dealer = Dealer::getById($company->get(ConfigurationEnum::COMPANY->value), $app);
+            $vinUser = Dealer::getUser($dealer, $vinUserId, $app);
+        } catch (Throwable $e) {
+            $this->error('Failed to get VinSolution dealer or user: ' . $e->getMessage());
+
+            return;
+        }
+
+        // Get the percentage of leads to process communication channel for (default 100%)
+        $commChannelPercentage = (int) ($company->get('agent_communication_channel_percentage') ?? 100);
+
+        // Redis keys for tracking daily stats
+        $todayDate = now()->format('Y-m-d');
+        $redisDailyLeadsCountKey = CustomFieldEnum::LEADS_PAGINATION->value . '_daily_count_' . $company->getId() . '_' . $todayDate;
+        $redisDailyCommChannelCountKey = CustomFieldEnum::LEADS_PAGINATION->value . '_daily_comm_channel_' . $company->getId() . '_' . $todayDate;
+
+        // Redis key expiration time (48 hours in seconds)
+        $redisKeyExpirationSeconds = 48 * 60 * 60;
+
+        // Sync duplicate active leads before downloading (if enabled)
+        $syncDuplicates = (bool) $this->option('sync-duplicates');
+        if ($syncDuplicates) {
+            $this->syncDuplicateActiveLeads($app, $company, $user, $dealer, $vinUser);
+        }
+
+        // Pagination settings
+        $fromFirstPage = (bool) $this->option('from-first-page');
+        $totalPageLimit = $this->option('total-page-limit') ? (int) $this->option('total-page-limit') : null;
+        $itemsPerPage = (int) $this->option('items-per-page');
+
+        // Redis key for pagination
+        $redisPaginationKey = CustomFieldEnum::LEADS_PAGINATION->value . '_' . $company->getId();
+        $lastLeadsPagination = $fromFirstPage ? 0 : (int) Redis::get($redisPaginationKey);
+
+        // Get initial page to determine total pages
+        $initialParams = [
+            'leadStatusType' => 'Active',
+            'sortBy' => 'Date',
+            'pageNumber' => 1,
+            'limit' => $itemsPerPage,
+        ];
+
+        try {
+            $initialLeads = Lead::getAllV2($dealer, $vinUser, $initialParams);
+            $totalItems = $initialLeads['count'];
+            $totalPages = $totalPageLimit ?? (int) ceil($totalItems / $itemsPerPage);
+
+            // Get daily counts from Redis
+            $dailyLeadsCount = (int) (Redis::get($redisDailyLeadsCountKey) ?? 0);
+            $dailyCommChannelCount = (int) (Redis::get($redisDailyCommChannelCountKey) ?? 0);
+
+            $this->info("Total leads: {$totalItems}");
+            $this->info("Total pages: {$totalPages}");
+            $this->info('Starting from page: ' . ($lastLeadsPagination < 1 ? 1 : $lastLeadsPagination));
+            $this->info("Communication channel will be set for {$commChannelPercentage}% of leads (today)");
+            $this->info("Leads processed today: {$dailyLeadsCount}, Communication channels set: {$dailyCommChannelCount}");
+
+            $successCount = 0;
+            $errorCount = 0;
+
+            // Create progress bar
+            $progressBar = $this->output->createProgressBar($totalPages - $lastLeadsPagination);
+            $progressBar->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% - %message%');
+            $progressBar->setMessage('Starting download...');
+
+            for ($i = $lastLeadsPagination < 1 ? 1 : $lastLeadsPagination; $i <= $totalPages; $i++) {
+                $params = [
+                    'leadStatusType' => 'Active',
+                    'sortBy' => 'Date',
+                    'pageNumber' => $i,
+                    'limit' => $itemsPerPage,
+                ];
+
+                try {
+                    $leads = Lead::getAllV2($dealer, $vinUser, $params);
+
+                    foreach ($leads['items'] as $vinLeadData) {
+                        try {
+                            // Transform the lead data to match the expected format
+                            $transformedLead = $this->transformVinLeadData($vinLeadData);
+                            $leadId = $transformedLead['LeadId'];
+
+                            // Use cache lock to prevent duplicate lead creation from concurrent cron jobs
+                            $lockKey = "vinsolution_lead_sync:{$company->getId()}:{$leadId}";
+
+                            Cache::lock($lockKey, 10)->block(10, function () use ($leadId, $transformedLead, $company, $app, $user, &$successCount) {
+                                $existingLead = ModelsLead::getByCustomField(
+                                    CustomFieldEnum::LEADS->value,
+                                    $leadId,
+                                    $company,
+                                );
+
+                                // Use PullLeadAction to sync the lead
+                                $pullLeadAction = new PullLeadAction($app, $company, $user);
+                                $result = $pullLeadAction->execute(null, $leadId);
+
+                                if ($existingLead === null && strtolower($transformedLead['newLeadType']) === 'internet') {
+                                    //$lead = ModelsLead::getById($leadId);
+                                    //$lead->set('downloaded_from_vin_solution', true);
+                                    // Check if this lead should have communication channel set based on percentage
+                                    //if ($this->shouldProcessLeadByPercentage($dailyLeadsCount, $commChannelPercentage)) {
+                                    $this->setCommunicationChannel((string) $leadId, $transformedLead['createdUtc'] ?? '');
+                                    // Increment daily communication channel counter
+                                    /*  Redis::incr($redisDailyCommChannelCountKey);
+                                     Redis::expire($redisDailyCommChannelCountKey, $redisKeyExpirationSeconds);
+                                     $dailyCommChannelCount++; */
+                                    //}
+                                }
+
+                                // Increment daily leads counter
+                                /*     Redis::incr($redisDailyLeadsCountKey);
+                                    Redis::expire($redisDailyLeadsCountKey, $redisKeyExpirationSeconds);
+                                    $dailyLeadsCount++;
+     */
+                                if (! empty($result)) {
+                                    $successCount++;
+                                }
+                            });
+                        } catch (Throwable $e) {
+                            $errorCount++;
+                            $this->warn("Failed to sync lead {$vinLeadData['leadId']}: " . $e->getMessage());
+                        }
+                    }
+
+                    $progressBar->setMessage("Page {$i} - Success: {$successCount}, Errors: {$errorCount}");
+                    $progressBar->advance();
+
+                    // Update Redis pagination
+                    if ($i === $totalPages) {
+                        Redis::set($redisPaginationKey, 0); // Reset on completion
+                    } else {
+                        Redis::set($redisPaginationKey, $i + 1);
+                    }
+                } catch (Throwable $e) {
+                    $this->error("Failed to process page {$i}: " . $e->getMessage());
+                    Redis::set($redisPaginationKey, $i);
+
+                    break;
+                }
+            }
+
+            $progressBar->finish();
+            $this->newLine(2);
+            $this->info('Download completed!');
+            $this->info("Successfully synced: {$successCount} leads");
+            $this->info("Errors: {$errorCount} leads");
+        } catch (Throwable $e) {
+            $this->error('Failed to download leads: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Determine if a lead should have its communication channel set based on percentage.
+     * Uses a deterministic algorithm to ensure consistent distribution across leads processed today.
+     */
+    private function shouldProcessLeadByPercentage(int $dailyLeadsCount, int $percentage): bool
+    {
+        // If percentage is 100, always process
+        if ($percentage >= 100) {
+            return true;
+        }
+
+        // If percentage is 0 or less, never process
+        if ($percentage <= 0) {
+            return false;
+        }
+
+        // Calculate the interval: process every (100/percentage)th lead
+        $interval = (int) ceil(100 / $percentage);
+
+        // Process leads at regular intervals to maintain percentage across the entire day
+        return ($dailyLeadsCount % $interval) === 0;
+    }
+
+    private function setCommunicationChannel(string $leadId, string $vinSolutionDateIn): void
+    {
+        $lead = ModelsLead::getById($leadId);
+        $lead->set('downloaded_from_vin_solution', true);
+        $lead->set('vin_solution_date_in', $vinSolutionDateIn);
+        $lead->refresh();
+
+        $hasEmail = $lead->people?->getEmails()->count() > 0;
+        $hasCellPhone = $lead->people?->getCellPhones()->count() > 0;
+
+        $agentNotificationChannel = match (true) {
+            $hasEmail && $hasCellPhone => 'sms',
+            $hasEmail => 'email',
+            $hasCellPhone => 'sms',
+            default => null,
+        };
+
+        if ($agentNotificationChannel !== null) {
+            $lead->set(EnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
+        }
+
+        $lead->fireWorkflow(
+            WorkflowEnum::FAKE_CONTEXT->value,
+            true,
+            [
+                'app' => $lead->app,
+            ]
+        );
+        $lead->set('lead_first_contacted_cli_at', Carbon::now()->toDateTimeString());
+    }
+
+    /**
+     * Sync people's leads when they have 2 or more active leads.
+     * VinSolution doesn't allow multiple active leads per person, so we need to sync them to update status correctly.
+     */
+    private function syncDuplicateActiveLeads(Apps $app, Companies $company, Users $user, Dealer $dealer, User $vinUser): void
+    {
+        $this->info('Checking for people with multiple active leads...');
+
+        // Find people with 2 or more active leads (leads_status_id <= 2)
+        $peopleWithMultipleActiveLeads = DB::connection('crm')->table('leads')
+            ->select('people_id', DB::raw('COUNT(*) as active_leads_count'))
+            ->where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->where('leads_status_id', '<=', 2) // Active leads condition
+            ->where('is_deleted', 0)
+            ->groupBy('people_id')
+            ->having('active_leads_count', '>=', 2)
+            ->get();
+
+        if ($peopleWithMultipleActiveLeads->isEmpty()) {
+            $this->info('No people with multiple active leads found.');
+
+            return;
+        }
+
+        $this->info("Found {$peopleWithMultipleActiveLeads->count()} people with multiple active leads. Syncing...");
+
+        $syncCount = 0;
+        $errorCount = 0;
+
+        // Create progress bar for sync operation
+        $syncProgressBar = $this->output->createProgressBar($peopleWithMultipleActiveLeads->count());
+        $syncProgressBar->setFormat(' %current%/%max% [%bar%] %percent:3s%% %elapsed:6s%/%estimated:-6s% %memory:6s% - %message%');
+        $syncProgressBar->setMessage('Syncing duplicate active leads...');
+
+        foreach ($peopleWithMultipleActiveLeads as $peopleData) {
+            try {
+                // Get all active leads for this person
+                $activeLeads = ModelsLead::where('people_id', $peopleData->people_id)
+                    ->where('companies_id', $company->getId())
+                    ->where('apps_id', $app->getId())
+                    ->where('leads_status_id', '<=', 2)
+                    ->where('is_deleted', 0)
+                    ->get();
+
+                foreach ($activeLeads as $lead) {
+                    // Check if lead has VinSolution lead ID
+                    $vinLeadId = $lead->get(CustomFieldEnum::LEADS->value);
+
+                    if ($vinLeadId) {
+                        try {
+                            // Use PullLeadAction to sync the lead from VinSolution
+                            $pullLeadAction = new PullLeadAction($app, $company, $user);
+                            $result = $pullLeadAction->execute(null, $vinLeadId);
+
+                            if (! empty($result)) {
+                                $syncCount++;
+                            }
+                        } catch (Throwable $e) {
+                            $errorCount++;
+                            $this->warn("Failed to sync lead {$lead->id} (VIN ID: {$vinLeadId}): " . $e->getMessage());
+                        }
+                    }
+                }
+
+                $syncProgressBar->setMessage("Synced person {$peopleData->people_id} - Success: {$syncCount}, Errors: {$errorCount}");
+                $syncProgressBar->advance();
+            } catch (Throwable $e) {
+                $errorCount++;
+                $this->warn("Failed to sync leads for person {$peopleData->people_id}: " . $e->getMessage());
+                $syncProgressBar->advance();
+            }
+        }
+
+        $syncProgressBar->finish();
+        $this->newLine(2);
+        $this->info('Duplicate leads sync completed!');
+        $this->info("Successfully synced: {$syncCount} leads");
+        $this->info("Sync errors: {$errorCount} leads");
+        $this->newLine();
+    }
+
+    /**
+     * Transform VinSolution lead data to match expected format.
+     */
+    private function transformVinLeadData(array $vinLeadData): array
+    {
+        return [
+            'CustomerId' => $vinLeadData['contact']['id'] ?? null,
+            'LeadSource' => $vinLeadData['leadSource']['leadSourceId'] ?? null,
+            'newLeadType' => $vinLeadData['leadType'] ?? null,
+            'LeadStatusType' => $vinLeadData['leadStatusType'] ?? null,
+            'LeadId' => $vinLeadData['leadId'] ?? null,
+            'IsOnShowroom' => $vinLeadData['isOnShowroom'] ?? false,
+            'createdUtc' => $vinLeadData['createdUtc'] ?? null,
+        ];
+    }
+}

@@ -1,5 +1,6 @@
 type TaskList {
     id: ID!
+    uuid: String!
     name: String!
     company: Company!
     config: Mixed
@@ -13,8 +14,9 @@ type TaskListItem {
     due_date: Date
     completed_date: Date
     config: Mixed
-    action: CompanyAction!
+    action: CompanyAction! @belongsTo(relation: "companyAction")
     weight: Float!
+    task_list: TaskList! @belongsTo(relation: "task")
 }
 
 type LeadTaskEngagementItem {
@@ -29,12 +31,92 @@ type LeadTaskEngagementItem {
     updated_at: DateTime
 }
 
+input TaskListInput {
+    name: String!
+    config: Mixed
+}
+
+input UpdateTaskListInput {
+    name: String!
+    config: Mixed
+}
+
+input TaskListItemInput {
+    task_list_id: ID!
+    name: String!
+    companies_action_id: ID!
+    status: String
+    config: Mixed
+    weight: Float
+}
+
+input UpdateTaskListItemInput {
+    task_list_id: ID!
+    name: String
+    companies_action_id: ID!
+    status: String
+    config: Mixed
+    weight: Float
+}
+
+extend type Mutation @guardByAdmin {
+    createTaskList(input: TaskListInput!): TaskList!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Tasks\\TaskListMutation@create"
+        )
+    updateTaskList(id: ID!, input: UpdateTaskListInput!): TaskList!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Tasks\\TaskListMutation@update"
+        )
+    deleteTaskList(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Tasks\\TaskListMutation@delete"
+        )
+    createTaskListItem(input: TaskListItemInput!): TaskListItem!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Tasks\\TaskListItemMutation@create"
+        )
+    updateTaskListItem(id: ID!, input: UpdateTaskListItemInput!): TaskListItem!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Tasks\\TaskListItemMutation@update"
+        )
+    deleteTaskListItem(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\ActionEngine\\Mutations\\Tasks\\TaskListItemMutation@delete"
+        )
+}
+
 extend type Query @guard {
-    taskLists: [TaskList!]!
+    taskLists(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: ["id", "uuid", "name", "companies_id"]
+            )
+        orderBy: _
+            @orderBy(
+                columns: ["id", "created_at", "updated_at", "name"]
+            )
+    ): [TaskList!]!
         @paginate(
             model: "Kanvas\\ActionEngine\\Tasks\\Models\\TaskList"
             scopes: ["fromCompany", "notDeleted", "fromApp"]
             defaultCount: 25
+        )
+    taskListItems(
+        where: _
+            @whereConditions(
+                columns: ["id", "task_list_id", "companies_action_id", "status", "weight"]
+            )
+        orderBy: _
+            @orderBy(
+                columns: ["id", "weight", "created_at", "updated_at", "name"]
+            )
+    ): [TaskListItem!]!
+        @paginate(
+            builder: "App\\GraphQL\\ActionEngine\\Builders\\Tasks\\TaskListItemBuilder@getItems"
+            defaultCount: 25
+            scopes: ["notDeleted"]
         )
     leadTaskItems(lead_id: ID!, task_list_id: ID): [LeadTaskEngagementItem!]!
         @paginate(

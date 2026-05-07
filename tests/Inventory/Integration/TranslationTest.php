@@ -38,10 +38,17 @@ final class TranslationTest extends TestCase
             ]
         );
 
-        $product = (new CreateProductAction($productData, $user))->execute();
+        // Retry to handle deadlocks from parallel test execution
+        $product = retry(3, fn () => new CreateProductAction($productData, $user)->execute(), 100);
         $product->setTranslation('name', 'es', $product->name . ' es');
 
-        $this->assertEquals($product->name, $product->getTranslation('name', 'en'));
-        $this->assertEquals($product->name . ' es', $product->getTranslation('name', 'es'));
+        $this->assertEquals(
+            $product->name,
+            $product->getTranslation('name', 'en')
+        );
+        $this->assertEquals(
+            $product->name . ' es',
+            $product->getTranslation('name', 'es')
+        );
     }
 }

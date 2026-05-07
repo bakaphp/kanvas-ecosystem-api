@@ -34,3 +34,12 @@ frankenphp-worker.php
 google_auth.json
 google-play-service-account.json
 typesense-data/
+app/Console/Commands/Intelligence/FirstMessageCommand.php
+
+
+ansible/inventory.gcp.yaml
+.planning
+compose.local.yml
+src/Baka/Search/
+.ai-workflow-template/
+docs/

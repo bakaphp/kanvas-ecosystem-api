@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Arr;
 use Baka\Users\Contracts\UserInterface;
 use Berkayk\OneSignal\OneSignalClient;
 use Exception;
@@ -64,15 +65,23 @@ class OneSignalService
         ?string $headings = null,
         ?string $subtitle = null
     ): void {
-        $contents = [
-            'en' => $message,
-        ];
-
         $devicesIds = $this->getDevicesIds($user);
 
         if (empty($devicesIds)) {
             return;
         }
+
+        if (empty(trim($message)) && ! empty($headings)) {
+            $message = $headings;
+        }
+
+        if (empty(trim($message))) {
+            return;
+        }
+
+        $contents = [
+            'en' => $message,
+        ];
 
         $params = [
             'app_id' => $this->oneSignalAppId,
@@ -91,14 +100,13 @@ class OneSignalService
             $params['url'] = $url;
         }
 
-        if (isset($data)) {
-            $params['data'] = $data;
+        if (isset($data) && is_array($data) && ! empty($data)) {
+            $params['data'] = Arr::truncateToFit($data);
         }
 
-        if (isset($buttons)) {
+        if (isset($buttons) && is_array($buttons) && ! empty($buttons)) {
             $params['buttons'] = $buttons;
         }
-
         if (isset($schedule)) {
             $params['send_after'] = $schedule;
         }

@@ -34,6 +34,7 @@ class AddVariantToChannelAction
                 'is_published' => $this->variantChannelDto->is_published,
                 'products_variants_id' => $this->variantsWarehouses->products_variants_id,
                 'warehouses_id' => $this->variantsWarehouses->warehouses_id,
+                'is_deleted' => 0,
             ];
 
             // Only add config to update data if it's not null
@@ -41,17 +42,28 @@ class AddVariantToChannelAction
                 $updateData['config'] = $this->variantChannelDto->config;
             }
 
-            $variantChannel = VariantsChannels::updateOrCreate(
-                $search,
-                $updateData
-            );
+            $variantChannel = VariantsChannels::withTrashed()
+                ->updateOrCreate(
+                    $search,
+                    $updateData
+                );
 
             if ($this->variantChannelDto->price) {
-                (new CreatePriceHistoryAction(
+                new CreatePriceHistoryAction(
                     $this->variantsWarehouses,
                     $this->channel,
-                    $variantChannel->price
-                ))->execute();
+                    $variantChannel->price,
+                    auth()->user(),
+                )->execute();
+            }
+
+            // If a variant is being published, re-publish the parent product if it was unpublished
+            if ($this->variantChannelDto->is_published) {
+                $product = $this->variantsWarehouses->variant->product;
+                if ($product && ! $product->is_published) {
+                    $product->publish();
+                    $product->searchable();
+                }
             }
 
             return $variantChannel;

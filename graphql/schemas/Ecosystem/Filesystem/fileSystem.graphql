@@ -1,13 +1,23 @@
 type Filesystem {
     id: ID!
     uuid: String!
+    filesystem_uuid: String
     name: String!
     url: String!
     type: String
     size: Float!
     field_name: String
     attributes: Mixed
+    weight: Float
+    settings: [FilesystemSettings!]! @hasMany(relation: "settings")
     created_at: DateTimeTz @method(name: "createdAt")
+}
+
+type FilesystemSettings {
+    name: String!
+    value: Mixed
+    created_at: DateTime
+    updated_at: DateTime
 }
 
 input FilesystemInputUrl {
@@ -17,17 +27,26 @@ input FilesystemInputUrl {
     attributes: Mixed
 }
 
+input FilesystemEntityUpdateInput {
+    field_name: String!
+    weight: Float
+}
+
 input FilesystemAttachInput {
     filesystem_uuid: ID!
     field_name: String!
     system_module_uuid: String!
     entity_id: ID!
+    weight: Float
 }
 
 extend type Query @guard {
     entityFiles(
         entity: SystemModuleEntityInput!
-        where: _ @whereConditions(columns: ["field_name", "uuid", "file_type", "url"])
+        where: _
+            @whereConditions(
+                columns: ["field_name", "uuid", "file_type", "url"]
+            )
     ): [Filesystem!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFilesFromSystemModuleEntity"
@@ -68,5 +87,17 @@ extend type Mutation @guard {
     uploadCsv(file: Upload!): Mixed!
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@uploadCsv"
+        )
+    mergeFiles(files: [ID!]!): Filesystem
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@mergeFiles"
+        )
+    renameFile(id: ID!, name: String!): Filesystem!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@renameFile"
+        )
+    editFile(uuid: String!, input: FilesystemEntityUpdateInput!): String!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\FilesystemManagementMutation@editFile"
         )
 }

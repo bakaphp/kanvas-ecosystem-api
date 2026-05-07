@@ -30,8 +30,8 @@ type Company {
         )
     addresses: [CompanyAddress!]!
         @paginate(
-           builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\AddressManagementQuery@getAllCompanyAddress"
-           defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\AddressManagementQuery@getAllCompanyAddress"
+            defaultCount: 25
         )
     country_code: String
     created_at: DateTime
@@ -270,8 +270,14 @@ extend type Query @guard {
         )
 
     companyUsers(
+        search: String
         where: _ @whereConditions(columnsEnum: CompanyUserColumn)
         orderBy: _ @orderBy(columnsEnum: CompanyUserColumn)
+        userRole: _
+            @whereConditions(
+                columns: ["name"]
+                handler: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\Handlers\\UserRoleHandler"
+            )
     ): [User!]!
         @paginate(
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Companies\\UserManagementQuery@getAllCompanyUsers"
@@ -320,6 +326,8 @@ input CompanyAddressInput {
     zip: String
     country: String
     country_id: ID
+    latitude: Float
+    longitude: Float
     is_default: Boolean
 }
 
@@ -334,6 +342,8 @@ type CompanyAddress {
     state: String
     zip: String
     country: Country
+    latitude: Float
+    longitude: Float
     is_default: Boolean!
     countries: Country @belongsTo(relation: "country")
     states: States @belongsTo(relation: "state")

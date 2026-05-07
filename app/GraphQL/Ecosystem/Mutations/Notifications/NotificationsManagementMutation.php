@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Actions\EvaluateNotificationsLogicAction;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Jobs\SendMessageNotificationsToAllFollowersJob;
 use Kanvas\Notifications\Jobs\SendMessageNotificationsToUsersJob;
 use Kanvas\Notifications\Models\NotificationTypes;
@@ -42,15 +41,10 @@ class NotificationsManagementMutation
         $data = Str::isJson($request['data']) ? json_decode($request['data'], true) : (array) $request['data']; // This can have more validation like validate if is array o json
         $data['app'] = app(Apps::class);
 
-        $vias = [];
-        foreach ($request['via'] as $via) {
-            $vias[] = NotificationChannelEnum::getNotificationChannelBySlug($via);
-        }
-
         $notification = new Blank(
             $request['template_name'],
             $data,
-            $vias,
+            $request['via'],
             $user,
             key_exists('attachment', $request) ? $request['attachment'] : null
         );
@@ -61,7 +55,7 @@ class NotificationsManagementMutation
         return true;
     }
 
-    public function anonymousNotification(mixed $root, array $request)
+    public function anonymousNotification(mixed $root, array $request): bool
     {
         $data = Str::isJson($request['data']) ? json_decode($request['data'], true) : (array) $request['data'];
         $data['app'] = app(Apps::class);

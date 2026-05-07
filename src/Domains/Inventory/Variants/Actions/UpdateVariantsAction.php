@@ -28,6 +28,13 @@ class UpdateVariantsAction
     ) {
     }
 
+    public function disableWorkflow(): static
+    {
+        $this->runWorkflow = false;
+
+        return $this;
+    }
+
     /**
      * execute.
      */
@@ -71,8 +78,9 @@ class UpdateVariantsAction
             ]
         );
 
-        //update product searchable index
-        $this->variant->product?->searchable();
+        if ($this->runWorkflow && $this->variant->product?->shouldBeSearchable() === true) {
+            $this->variant->product->searchable();
+        }
 
         if ($this->runWorkflow) {
             $this->variant->product?->fireWorkflow(

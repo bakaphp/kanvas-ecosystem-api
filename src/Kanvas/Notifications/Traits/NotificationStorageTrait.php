@@ -9,6 +9,7 @@ use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Kanvas\Enums\AppEnums;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 trait NotificationStorageTrait
 {
@@ -59,7 +60,8 @@ trait NotificationStorageTrait
             'from_users_id' => $fromUserId,
             'companies_id' => $companiesId,
             'apps_id' => $this->app->getId(),
-            'system_modules_id' => $this->getType()->system_modules_id,
+            'system_modules_id' => SystemModulesRepository::getByModelName($this->entity::class, $this->app)->getId(),
+            'interaction_id' => $this->interaction ? $this->interaction->getId() : null,
             'notification_type_id' => $this->getType()->getId(),
             'entity_id' => method_exists($this->entity, 'getId') ? $this->entity->getId() : $this->entity->id,
             'content' => $this->message(),

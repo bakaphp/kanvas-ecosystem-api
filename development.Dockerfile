@@ -1,8 +1,9 @@
-FROM unit:php8.4
+FROM php:8.5.5-cli
 
 # Add docker PHP extension installer
 ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
 
+# Install PHP extensions
 RUN chmod +x /usr/local/bin/install-php-extensions && \
     install-php-extensions mbstring pdo_mysql zip exif pcntl gd memcached redis swoole opcache curl readline sqlite3 msgpack igbinary pcov sockets bcmath soap imagick
 
@@ -25,15 +26,46 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libmemcached-dev \
     nginx \
     vim \
-    wkhtmltopdf \
-    xvfb && \
+    xvfb \
+    ffmpeg \
+    fontconfig \
+    libxrender1 \
+    libxext6 \
+    xfonts-75dpi \
+    xfonts-base && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# Install wkhtmltopdf from GitHub releases (not available in Debian Trixie repos)
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "arm64" ]; then \
+        curl -L -o /tmp/wkhtmltox.deb https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.bookworm_arm64.deb; \
+    else \
+        curl -L -o /tmp/wkhtmltox.deb https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.bookworm_amd64.deb; \
+    fi && \
+    dpkg -i /tmp/wkhtmltox.deb || apt-get install -f -y && \
+    rm /tmp/wkhtmltox.deb
+
+# Install Node.js and chokidar for file watching
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g chokidar-cli
 
 # Copy application files
 COPY . /var/www/html/
 
 WORKDIR /var/www/html/
+
+# Install chokidar locally for Laravel Octane with debugging
+RUN echo "Installing chokidar for Laravel Octane..." && \
+    npm init -y && \
+    npm install chokidar@^3.5.3 && \
+    echo "Verifying chokidar installation..." && \
+    ls -la node_modules/ | grep chokidar && \
+    node -e "console.log('chokidar version:', require('chokidar/package.json').version)" && \
+    echo "NODE_PATH: $NODE_PATH" && \
+    echo "Current directory: $(pwd)" && \
+    echo "node_modules exists: $(test -d node_modules && echo 'YES' || echo 'NO')"
 
 # Install composer globally
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
@@ -42,7 +74,7 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 RUN chown -R www-data:www-data /var/www/html
 
 # Copy configuration files
-COPY ./docker/unit.json /docker-entrypoint.d/
+# COPY ./docker/unit.json /docker-entrypoint.d/
 COPY docker/docker-php-ext-opcache-prod.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
 COPY docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
 
@@ -59,3 +91,6 @@ RUN composer install --no-dev --optimize-autoloader
 
 # Expose the required port
 EXPOSE 8000
+
+# Keep container running without starting a web server
+CMD ["tail", "-f", "/dev/null"]

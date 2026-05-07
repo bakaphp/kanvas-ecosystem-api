@@ -10,6 +10,7 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Kanvas\Inventory\Products\Models\Products;
+use Override;
 
 class ProductScrapperEvent implements ShouldBroadcast
 {
@@ -20,28 +21,35 @@ class ProductScrapperEvent implements ShouldBroadcast
     public function __construct(
         protected AppInterface $app,
         protected string $uuid,
-        protected Products $product,
+        protected array $product,
         protected float $price,
-        protected ?string $shopifyProductId = null,
+        protected ?string $searchText = null
     ) {
     }
 
     public function broadcastWith(): array
     {
+        $product = Products::getById($this->product['id']);
         return [
-            'kanvas_product_id' => $this->product->getId(),
-            'shopify_product_id' => $this->shopifyProductId,
-            'sku' => $this->product->variants()->first()->sku,
-            'title' => $this->product->name,
-            'image' => $this->product->getFiles()[0]->url,
+            'kanvas_product_id' => $product->getId(),
+            'sku' => $product->variants()->first()->sku,
+            'variant_id' => $product->variants()->first()->getId(),
+            'title' => $product->name,
+            'image' => $product->getFiles()[0]->url,
             'price' => $this->price,
-            'images' => $this->product->getFiles(),
-            'discounted_price' => 0
+            'slug' => $product->slug,
+            'images' => $product->getFiles(),
+            'discounted_price' => 0,
         ];
     }
 
+    #[Override]
     public function broadcastOn(): Channel
     {
+        if (! empty($this->searchText)) {
+            return new Channel('app-' . $this->app->getId() . '-scrapper-' . md5(trim($this->searchText)));
+        }
+
         return new Channel('app-' . $this->app->getId() . '-scrapper-' . $this->uuid);
     }
 

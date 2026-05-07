@@ -67,6 +67,11 @@ class PeopleFactory extends Factory
                     'value' => $canUseFakeInfo ? fake()->phoneNumber : $phone,
                     'weight' => 0,
                 ],
+                [
+                    'contacts_types_id' => 3,
+                    'value' => $canUseFakeInfo ? fake()->phoneNumber : $phone,
+                    'weight' => 0,
+                ]
             ]);
         });
     }

@@ -11,8 +11,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Filesystem\Observers\FilesystemImportObserver;
-use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Models\BaseModel;
+use Kanvas\Regions\Models\Regions;
+use Kanvas\Users\Models\Users;
 use Override;
 
 /**
@@ -24,11 +25,15 @@ use Override;
  * @property int $companies_id
  * @property int $companies_branches_id
  * @property int $filesystem_id
- * @property int $filesystem_mapper_id
- * @property string $results
- * @property string $exception
+ * @property int|null $filesystem_mapper_id
+ * @property string|null $results
+ * @property string|null $exception
+ * @property string $status
+ * @property int $is_deleted
+ * @property array<string, mixed>|null $extra
  * @property string $created_at
- * @property string $updated_at
+ * @property string|null $updated_at
+ * @property string|null $finished_at
  */
 #[ObservedBy([FilesystemImportObserver::class])]
 class FilesystemImports extends BaseModel
@@ -67,5 +72,14 @@ class FilesystemImports extends BaseModel
     public function companiesBranches(): BelongsTo
     {
         return $this->belongsTo(CompaniesBranches::class, 'companies_branches_id', 'id');
+    }
+
+    public function users(): BelongsTo
+    {
+        return $this->belongsTo(
+            Users::class,
+            'users_id',
+            'id'
+        );
     }
 }

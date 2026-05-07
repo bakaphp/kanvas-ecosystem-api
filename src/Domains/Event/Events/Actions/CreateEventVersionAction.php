@@ -5,66 +5,86 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Actions;
 
 use Baka\Support\Str;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Carbon;
 use Kanvas\Event\Events\DataTransferObject\EventVersion;
 use Kanvas\Event\Events\Models\EventVersion as ModelsEventVersion;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateEventVersionAction
 {
+    protected bool $runWorkflow = true;
+
     public function __construct(
         protected EventVersion $eventVersion,
     ) {
     }
 
+    public function disableWorkflow(): self
+    {
+        $this->runWorkflow = false;
+
+        return $this;
+    }
+
     public function execute(): ModelsEventVersion
     {
-        $slug = $this->eventVersion->slug ?? Str::slug($this->eventVersion->name);
+        $baseSlug = $this->eventVersion->slug ?? Str::slug($this->eventVersion->name);
+        $appId = $this->eventVersion->event->app->getId();
+        $companyId = $this->eventVersion->event->company->getId();
 
-        // $this->validateSlug($slug);
+        $startAt = null;
+        $endAt = null;
 
-        $eventVersion = ModelsEventVersion::updateOrCreate([
-            'apps_id' => $this->eventVersion->event->app->getId(),
-            'companies_id' => $this->eventVersion->event->company->getId(),
-            'users_id' => $this->eventVersion->user->getId(),
-            'event_id' => $this->eventVersion->event->getId(),
-            'currency_id' => $this->eventVersion->currency->getId(),
-            'name' => $this->eventVersion->name,
-            'version' => $this->eventVersion->version,
-            'description' => $this->eventVersion->description,
-            'price_per_ticket' => $this->eventVersion->pricePerTicket,
-            'agenda' => $this->eventVersion->agenda ?? null,
-            'metadata' => $this->eventVersion->metadata ?? null,
-            'slug' => $slug,
-        ]);
+        if ($this->eventVersion->dates && $this->eventVersion->dates->count() > 0) {
+            $firstDate = $this->eventVersion->dates->first();
+            $lastDate = $this->eventVersion->dates->last();
+
+            $startAt = Carbon::parse($firstDate->date->format('Y-m-d') . ' ' . $firstDate->start_time);
+            $endAt = Carbon::parse($lastDate->date->format('Y-m-d') . ' ' . $lastDate->end_time);
+        }
+
+        $highestVersion = (int) ModelsEventVersion::withTrashed()
+            ->where('apps_id', $appId)
+            ->where('companies_id', $companyId)
+            ->where(function ($query) use ($baseSlug) {
+                $query->where('slug', $baseSlug)
+                    ->orWhere('slug', 'like', $baseSlug . '-%');
+            })
+            ->max('version');
+
+        $version = $highestVersion > 0 ? $highestVersion + 1 : (int) $this->eventVersion->version;
+        $slug = $highestVersion > 0 ? $baseSlug . '-' . $version : $baseSlug;
+
+        $eventVersion = new ModelsEventVersion();
+        $eventVersion->apps_id = $appId;
+        $eventVersion->companies_id = $companyId;
+        $eventVersion->users_id = $this->eventVersion->user->getId();
+        $eventVersion->event_id = $this->eventVersion->event->getId();
+        $eventVersion->currency_id = $this->eventVersion->currency->getId();
+        $eventVersion->time_slot_id = $this->eventVersion->timeSlotId;
+        $eventVersion->name = $this->eventVersion->name;
+        $eventVersion->version = $version;
+        $eventVersion->description = $this->eventVersion->description;
+        $eventVersion->price_per_ticket = $this->eventVersion->pricePerTicket;
+        $eventVersion->agenda = $this->eventVersion->agenda ?? null;
+        $eventVersion->metadata = $this->eventVersion->metadata ?? null;
+        $eventVersion->slug = $slug;
+        $eventVersion->start_at = $startAt;
+        $eventVersion->end_at = $endAt;
+        $eventVersion->saveOrFail();
 
         $eventVersion->addDates($this->eventVersion->dates);
 
-        return $eventVersion;
-    }
-
-    protected function validateSlug(string $slug): void
-    {
-        Validator::make(
-            ['slug' => $slug],
-            [
-                'slug' => [
-                    'required',
-                    // Custom rule using DB to specify the connection and validate uniqueness.
-                    function ($attribute, $value, $fail) {
-                        $exists = DB::connection('event') // Replace with your DB connection name.
-                            ->table('event_versions')
-                            ->where('slug', $value)
-                            ->where('apps_id', $this->eventVersion->event->app->getId())
-                            ->where('companies_id', $this->eventVersion->event->company->getId())
-                            ->exists();
-
-                        if ($exists) {
-                            $fail('The ' . $attribute . ' has already been taken.');
-                        }
-                    },
+        if ($this->runWorkflow) {
+            $eventVersion->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                [
+                    'app' => $this->eventVersion->event->app,
                 ],
-            ]
-        )->validate();
+            );
+        }
+
+        return $eventVersion;
     }
 }

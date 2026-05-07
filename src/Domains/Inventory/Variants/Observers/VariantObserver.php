@@ -11,7 +11,13 @@ class VariantObserver
 {
     public function saved(Variants $variant): void
     {
+        $variant->product->clearLightHouseCache(withKanvasConfiguration: false);
         $variant->clearLightHouseCache(withKanvasConfiguration: false);
+
+        if ($variant->app->get('product_increase_weight_by_image_count')) {
+            $variant->product->weight += 0.5;
+            $variant->product->save();
+        }
     }
 
     public function deleting(Variants $variant): void
@@ -24,5 +30,10 @@ class VariantObserver
         if ($totalVariant === 1 && ! $variant->is_deleted) {
             throw new ValidationException('There must be at least one variant for each product.');
         }
+    }
+
+    public function deleted(Variants $variant): void
+    {
+        $variant->product->clearLightHouseCache(withKanvasConfiguration: false);
     }
 }

@@ -3,6 +3,7 @@ type Channel {
     companies_id: Int!
     users_id: Int!
     companies: Company! @belongsTo(relation: "company")
+    regions: [Region]! @method(name: "getRegions")
     users: User
     name: String!
     uuid: String!
@@ -70,12 +71,17 @@ extend type Query @guard {
             scopes: ["fromApp", "fromCompany"]
             defaultCount: 25
         )
+    channelsByRegion(region_id: ID!): [Channel!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Builders\\Channels\\ChannelBuilder@getByRegion"
+        )
 }
 
-extend type Query {
+extend type Query @guard {
     channelProducts(
         id: String!
-        search: String @search
+        search: String
         visitor: VisitorEntityInput
         where: _ @whereConditions(columnsEnum: ChannelProductFilterEnum)
         hasAttributesValues: _

@@ -66,9 +66,14 @@ class StoredWorkflow extends BaseStoredWorkflow
             }
 
             if (is_array($value)) {
-                $results['params'] = $value;
+                $filtered = $this->filterUnserializedData($value);
+                if (! empty($filtered)) {
+                    $results[$key] = $filtered;
+                }
             } elseif (is_object($value) && method_exists($value, 'toArray')) {
-                $results[get_class($value)] = $value->toArray();
+                $results[class_basename($value)] = $value->toArray();
+            } elseif (is_scalar($value) || $value === null) {
+                $results[$key] = $value;
             }
         }
 

@@ -27,6 +27,7 @@ input WarehouseReferenceInput {
     quantity: Float
     status: StatusReferenceInput
     price: Float
+    cost: Float
     sku: String
     position: Int
     serial_number: String
@@ -38,6 +39,9 @@ input WarehouseReferenceInput {
     can_pre_order: Boolean
     is_coming_soon: Boolean
     is_new: Boolean
+    latitude: Float
+    longitude: Float
+    config: Mixed
 }
 
 input WarehouseInputUpdate {
@@ -47,6 +51,7 @@ input WarehouseInputUpdate {
     is_default: Boolean
     is_published: Int
 }
+
 extend type Mutation @guard {
     createWarehouse(input: WarehouseInput!): Warehouse!
         @field(
@@ -79,6 +84,13 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Inventory\\Warehouses\\Models\\Warehouses"
             defaultCount: 25
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
+        )
+
+    warehousesByChannel(channel_id: ID!): [Warehouse!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Builders\\Warehouses\\WarehouseBuilder@getByChannel"
             scopes: ["fromCompany", "fromApp", "notDeleted"]
         )
 }

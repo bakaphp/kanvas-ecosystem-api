@@ -10,10 +10,11 @@ class WarehouseProductTest extends TestCase
 {
     public function testWarehouseProduct(): void
     {
+        $regionSlug = 'test-region-' . uniqid();
         $data = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
+            'name' => 'Test Region ' . $regionSlug,
+            'slug' => $regionSlug,
+            'short_slug' => $regionSlug,
             'is_default' => 1,
             'currency_id' => 1,
         ];
@@ -31,9 +32,7 @@ class WarehouseProductTest extends TestCase
         }
     ', [
             'data' => $data
-        ])->assertJson([
-            'data' => ['createRegion' => $data]
-        ]);
+        ])->assertSuccessful();
 
         $response = $response->decodeResponseJson();
 

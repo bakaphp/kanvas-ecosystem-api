@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\UploadedFile;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
 use Kanvas\Filesystem\Services\FilesystemServices;
@@ -57,6 +58,27 @@ trait HasMutationUploadFiles
             $action = new AttachFilesystemAction($filesystemEntity, $model);
             $action->execute($file->getClientOriginalName());
         }
+
+        return $model;
+    }
+
+    public function uploadImageToEntity(
+        Model $model,
+        AppInterface $app,
+        UserInterface $user,
+        UploadedFile $file,
+        string $fieldName
+    ): Model {
+        if (! in_array($file->extension(), AllowedFileExtensionEnum::ONLY_IMAGES->getAllowedExtensions())) {
+            throw new Exception('Invalid file format ' . $file->extension());
+        }
+
+        $filesystem = new FilesystemServices(
+            $app,
+            isset($model->company) && $model->company instanceof CompanyInterface ? $model->company : null
+        );
+        $filesystemEntity = $filesystem->upload($file, $user);
+        new AttachFilesystemAction($filesystemEntity, $model)->execute($fieldName);
 
         return $model;
     }

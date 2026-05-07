@@ -13,7 +13,6 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
-use Exception;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -24,24 +23,27 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\AccessControlList\Traits\HasPermissions;
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Inventory\Categories\Traits\HasCategoriesTrait;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\Messages\Observers\MessageObserver;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Social\Models\BaseModel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\Topics\Models\Topic;
-use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
 use Override;
-use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
  *  Class Message
@@ -61,18 +63,23 @@ use Rennokki\QueryCache\Traits\QueryCacheable;
  *  @property int $total_disliked
  *  @property int $total_view
  *  @property int $is_public
+ *  @property int $is_locked
  *  @property int $is_premium
  *  @property int $total_children
  *  @property int $total_saved
  *  @property int $total_shared
  *  @property string|null ip_address
+ *  @property bool $is_un_response
+ *  @property int|null $response_message_id
  */
 // Company, User and App Relationship is defined in KanvasModelTrait,
 #[ObservedBy([MessageObserver::class])]
 class Message extends BaseModel
 {
     use UuidTrait;
-    use DynamicSearchableTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     use HasFactory;
     use HasTagsTrait;
     use CascadeSoftDeletes;
@@ -82,12 +89,9 @@ class Message extends BaseModel
     use CanUseWorkflow;
     use HasLightHouseCache;
     use HasFilesystemTrait;
-    use QueryCacheable;
+    use HasCategoriesTrait;
 
     protected $table = 'messages';
-    public $cacheFor = null;
-    public $cacheDriver = 'redis';
-    protected static $flushCacheOnUpdate = true;
 
     protected $guarded = [
         'uuid',
@@ -98,6 +102,8 @@ class Message extends BaseModel
         'message_types_id' => 'integer',
         'is_public' => 'integer',
         'is_deleted' => 'boolean',
+        'is_un_response' => 'boolean',
+        'response_message_id' => 'integer',
     ];
 
     #[Override]
@@ -131,9 +137,19 @@ class Message extends BaseModel
         return $this->hasOne(AppModuleMessage::class, 'message_id');
     }
 
-    public function users()
+    public function users(): BelongsToMany
     {
         return $this->belongsToMany(Users::class, 'user_messages', 'messages_id', 'users_id');
+    }
+
+    public function childrenByType(string $verb): HasMany
+    {
+        $messageTypeId = MessagesTypesRepository::getByVerb($verb, $this->app)->getId();
+
+        return $this->hasMany(static::class, $this->getParentKeyName())
+        ->where('message_types_id', $messageTypeId)
+        ->where('is_public', 1)
+        ->where('is_deleted', 0);
     }
 
     public function getMessage(): array
@@ -188,6 +204,20 @@ class Message extends BaseModel
         $legacyClassMap = SystemModules::convertLegacySystemModules($this->appModuleMessage->system_modules);
 
         return $legacyClassMap::getById($this->appModuleMessage->entity_id);
+    }
+
+    public function engagement(): HasOne
+    {
+        return $this->hasOne(
+            Engagement::class,
+            'message_id',
+            'id'
+        );
+    }
+
+    public function getEngagement(): Engagement
+    {
+        return $this->engagement()->firstOrFail();
     }
 
     #[Override]
@@ -290,6 +320,30 @@ class Message extends BaseModel
         return $query->where('is_public', 0);
     }
 
+    /**
+     * Scope to control cross-company message visibility.
+     *
+     * By default messages are public across all companies within the app (current behavior).
+     * Set app setting 'restrict_messages_by_company' to true to filter messages
+     * by the current user's company (company-scoped feed behavior).
+     */
+    public function scopeCompanyVisibility(Builder $query): Builder
+    {
+        if (app()->bound(AppKey::class) && ! app()->bound(CompaniesBranches::class)) {
+            return $query;
+        }
+
+        $app = app(Apps::class);
+
+        if ($app->get('restrict_messages_by_company')) {
+            $user = auth()->user();
+
+            return $query->where($this->getTable() . '.companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
+    }
+
     public function setLock(): void
     {
         $this->is_locked = 1;
@@ -308,6 +362,11 @@ class Message extends BaseModel
         $this->saveOrFail();
     }
 
+    public function isPremium(): bool
+    {
+        return (bool) $this->is_premium;
+    }
+
     public function setNotPremium(): void
     {
         $this->is_premium = 0;
@@ -316,23 +375,7 @@ class Message extends BaseModel
 
     public function isLocked(): bool
     {
-        //For now lets make sure all that all messages not linked with orders are unlocked.
-        if ((! $this->appModuleMessage->exist()) || (! $this->appModuleMessage->hasEntityOfClass(Order::class))) {
-            $this->setUnlock();
-
-            return (bool)$this->is_locked;
-        }
-
-        $orderEntity = $this->appModuleMessage->entity;
-        if ($this->is_locked && $orderEntity->isFullyCompleted()) {
-            $this->setUnlock();
-        }
-
-        if ($this->is_locked) {
-            throw new Exception('Message content is locked');
-        }
-
-        return (bool)$this->is_locked;
+        return (bool) $this->is_locked;
     }
 
     public function getUniqueId(): string
@@ -340,23 +383,95 @@ class Message extends BaseModel
         return (string) $this->verb . '-' . (string) $this->visitor_id;
     }
 
-    public static function getUserMessageCountInTimeFrame(
+    public static function getUserMessageCountInTimeFrameBuilder(
         int $userId,
         Apps $app,
         int $hours,
         ?int $messageTypesId = null,
-        bool $getChildrenCount = false
-    ): int {
+        bool $getChildrenCount = false,
+        ?array $messageJsonFilters = null
+    ): Builder {
         return self::fromApp($app)
-        ->where('users_id', $userId)
-        ->when($messageTypesId, fn ($query) => $query->where('message_types_id', $messageTypesId))
-        ->where('created_at', '>=', Carbon::now()->subHours($hours))
-        ->when($getChildrenCount, fn ($query) => $query->whereNotNull('parent_id'), fn ($query) => $query->whereNull('parent_id'))
-        ->count();
+            ->where('users_id', $userId)
+            ->when($messageTypesId, fn ($query) => $query->where('message_types_id', $messageTypesId))
+            ->where('created_at', '>=', Carbon::now()->subHours($hours))
+            ->when($getChildrenCount, fn ($query) => $query->whereNotNull('parent_id'), fn ($query) => $query->whereNull('parent_id'))
+            ->when($messageJsonFilters, function ($query) use ($messageJsonFilters) {
+                foreach ($messageJsonFilters as $jsonPath => $value) {
+                    if (is_array($value)) {
+                        // For multiple values, use whereIn with JSON path
+                        $query->whereIn("message->{$jsonPath}", $value);
+                    } else {
+                        // For single value, use where with JSON path
+                        $query->where("message->{$jsonPath}", $value);
+                    }
+                }
+            })
+            ->withTrashed();
+    }
+
+    public function toSearchableArray(): array
+    {
+        $this->loadMissing(['user', 'messageType']);
+
+        $data = [
+            'objectID' => $this->uuid,
+            ...$this->toArray(),
+            'user' => [
+                'id' => $this->users_id,
+                'name' => trim(($this->user->firstname ?? '') . ' ' . ($this->user->lastname ?? '')),
+                'displayname' => $this->user->displayname,
+            ],
+            'message_type' => $this->messageType ? [
+                'id' => $this->messageType->id,
+                'name' => $this->messageType->name,
+                'verb' => $this->messageType->verb,
+            ] : null,
+            'is_public' => $this->is_public,
+            'is_deleted' => $this->is_deleted,
+        ];
+
+        // Add parent reference for child messages
+        if ($this->parent_id) {
+            $data['parent'] = [
+                'id' => $this->parent_id,
+                'uuid' => $this->parent?->uuid,
+            ];
+        }
+
+        // Add children summary for parent messages
+        if (! $this->parent_id) {
+            $data['children'] = $this->getSearchableChildrenSummary();
+            $data['has_children'] = $this->total_children > 0;
+        }
+
+        return $data;
+    }
+
+    private function getSearchableChildrenSummary(): array
+    {
+        return $this->children()
+            ->where('is_public', 1)
+            ->select(['id', 'uuid', 'message', 'created_at', 'users_id'])
+            ->with('user:id,firstname,lastname,displayname')
+            ->limit(5) // Increased from 3 for better context
+            ->get()
+            ->map(fn ($child) => [
+                'id' => $child->id,
+                'uuid' => $child->uuid,
+                'message' => $child->message,
+                'created_at' => $child->created_at->toIso8601String(),
+                'user' => [
+                    'id' => $child->users_id,
+                    'name' => trim(($child->user->firstname ?? '') . ' ' . ($child->user->lastname ?? '')),
+                    'displayname' => $child->user->displayname,
+                ],
+            ])->toArray();
     }
 
     /**
      * The Typesense schema to be created for the Message model.
+     * @psalm-suppress MissingTemplateParam
      */
     public function typesenseCollectionSchema(): array
     {
@@ -535,5 +650,28 @@ class Message extends BaseModel
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,
         ];
+    }
+
+    /**
+     * Override search to enforce app and company visibility scoping.
+     * @search bypasses @paginate scopes, so this is the only place to enforce multi-tenancy during search.
+     * Respects the same 'restrict_messages_by_company' app setting as scopeCompanyVisibility.
+     */
+    public static function search($query = '', $callback = null)
+    {
+        $app = app(Apps::class);
+        $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+
+        if (app()->bound(AppKey::class) && ! app()->bound(CompaniesBranches::class)) {
+            return $searchQuery;
+        }
+
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && $app->get('restrict_messages_by_company')) {
+            $searchQuery->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $searchQuery;
     }
 }

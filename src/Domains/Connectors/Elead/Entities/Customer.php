@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Elead\Entities;
 
 use Baka\Contracts\AppInterface;
-use Baka\Support\Str;
-use Baka\Validations\Date;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Client;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Exceptions\ELeadException;
+use Kanvas\Connectors\Elead\Support\EleadCache;
 use Kanvas\Guild\Customers\Models\People;
 
 class Customer
@@ -27,6 +26,8 @@ class Customer
     public array $emails = [];
     public array $phones = [];
     public array $address = [];
+    public ?array $privacySettings = null;
+    public array $links = [];
     public ?Companies $company = null;
     public ?AppInterface $app = null;
 
@@ -41,125 +42,31 @@ class Customer
     }
 
     /**
-     * Convert people into customer.
+     * Sanitize payload by removing null values and empty arrays.
+     * Fortellis API rejects requests with empty arrays or null values.
      */
-    public static function convertPeopleToCustomerStructure(People $people): array
+    private static function sanitizePayload(array $data): array
     {
-        $name = $people->getFirstAndLastName();
-
-        $words = explode(' ', $name['lastName']);
-        $middleName = null;
-
-        if (count($words) >= 2) {
-            $name['lastName'] = implode(' ', array_slice($words, 1));
-            $middleName = $words[0];
-        }
-
-        $customerData = [
-            'isBusiness' => false,
-            'firstName' => $name['firstName'],
-            'lastName' => $name['lastName'],
-            'middleName' => $name['middleName'] ?? ($middleName ?? ''),
-            'birthday' => Date::isValid($people->dob) ? $people->dob : null,
-            'emails' => [],
-            'phones' => [],
-            'address' => [],
-        ];
-
-        if (empty($customerData['lastName'])) {
-            $customerData['lastName'] = '-';
-        }
-
-        $emailCount = 0;
-        if ($people->getEmails()->count()) {
-            foreach ($people->getEmails() as $email) {
-                if ($emailCount == 0) {
-                    $customerData['emails'][] = [
-                        'address' => filter_var($email->value, FILTER_VALIDATE_EMAIL) ? $email->value : preg_replace("/\s+/", '', Str::cleanup($name['firstName'] . $name['lastName']) . '@salesassist.io'),
-                        'emailType' => 'Personal',
-                    ];
-                    $emailCount++;
-                }
+        return array_filter($data, function ($value) {
+            // Remove null values
+            if ($value === null) {
+                return false;
             }
-        } else {
-            //unset($customerData['emails']);
-            $customerData['emails'][] = [
-                //remove any whitespace
-                'address' => preg_replace("/\s+/", '', Str::cleanup($name['firstName'] . $name['lastName']) . '@salesassist.io'),
-                'emailType' => 'Personal',
-            ];
-
-            $people->addEmail($customerData['emails'][0]['address']);
-        }
-
-        $phoneCount = 0;
-        $phoneExist = [];
-        $peoplePhones = $people->getCellPhones()->count() ? $people->getCellPhones() : $people->getPhones();
-        if ($peoplePhones->count()) {
-            foreach ($peoplePhones as $phone) {
-                if (! Str::contains($phone->value, '800')
-                    && ! Str::contains($phone->value, '888')
-                    && ! Str::contains($phone->value, '877')
-                    && ! Str::contains($phone->value, '866')
-                    && ! Str::contains($phone->value, '855')
-                    && ! Str::contains($phone->value, '844')
-                    && ! Str::contains($phone->value, '833')
-                ) {
-                    if ($phoneCount == 0 && ! empty($phone->value)) {
-                        $phoneValue = preg_replace('/\D+/', '', $phone->value);
-                        if (in_array($phoneValue, $phoneExist)) {
-                            continue;
-                        }
-
-                        $customerData['phones'][] = [
-                            'number' => preg_replace('/\D+/', '', $phoneValue),
-                            'phoneType' => 'Cellular',
-                            'preferredTimeToContact' => 'Unspecified',
-                        ];
-
-                        $phoneExist[] = $phoneValue;
-                        $phoneCount++;
-                    }
-                }
+            // Remove empty arrays
+            if (is_array($value) && empty($value)) {
+                return false;
             }
-        } else {
-            unset($customerData['phones']);
-        }
 
-        $addressCollection = $people->address()->get();
-        $firstAddress = $addressCollection->first();
-
-        if (
-            $addressCollection->count() &&
-            ! empty(trim((string) $firstAddress->zip)) &&
-            ! empty(trim((string) $firstAddress->city)) &&
-            ! empty(trim((string) $firstAddress->state)) &&
-            ! empty(trim((string) $firstAddress->address))
-        ) {
-            $customerData['address'] = [
-                'addressLine1' => $firstAddress->address,
-                'addressLine2' => $firstAddress->address_2 ?? '',
-                'city' => $firstAddress->city,
-                'state' => $firstAddress->state,
-                'zip' => $firstAddress->zip,
-                'country' => $firstAddress->country->code ?? 'US', // Adjusted to properly fetch country
-            ];
-        } else {
-            unset($customerData['address']);
-        }
-
-        return $customerData;
+            return true;
+        });
     }
 
-    /**
-     * Create a new customer.
-     */
     public static function create(AppInterface $app, Companies $company, array $data): self
     {
         $client = new Client($app, $company);
         $response = $client->post(
             '/sales/v1/elead/customers/',
-            $data,
+            self::sanitizePayload($data),
         );
 
         if (isset($response['code']) && $response['message']) {
@@ -179,11 +86,16 @@ class Customer
         $client = new Client($this->app, $this->company);
         $response = $client->post(
             '/sales/v1/elead/customers/' . $this->id,
-            $data,
+            self::sanitizePayload($data),
         );
 
         if (isset($response['code']) && $response['message']) {
             throw new ELeadException($response['message']);
+        }
+
+        if ($this->id !== null) {
+            $cache = new EleadCache($this->app, $this->company);
+            $cache->invalidate('customer', $this->id);
         }
 
         $this->assign($response);
@@ -191,12 +103,29 @@ class Customer
         return $this;
     }
 
-    public static function getById(AppInterface $app, Companies $company, string $id): self
+    public static function getById(AppInterface $app, Companies $company, string $id, bool $fresh = false): self
     {
+        $cache = new EleadCache($app, $company);
+
+        if (! $fresh) {
+            $cached = $cache->get('customer', $id);
+
+            if ($cached !== null) {
+                $customer = new Customer();
+                $customer->app = $app;
+                $customer->company = $company;
+                $customer->assign($cached);
+
+                return $customer;
+            }
+        }
+
         $client = new Client($app, $company);
         $response = $client->get(
             '/sales/v1/elead/customers/' . $id,
         );
+
+        $cache->set('customer', $id, $response);
 
         $customer = new Customer();
         $customer->app = $app;

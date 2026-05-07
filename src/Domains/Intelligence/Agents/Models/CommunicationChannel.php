@@ -9,6 +9,18 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Intelligence\Models\BaseModel;
 
+/**
+ * @property int $id
+ * @property string $uuid
+ * @property int $app_id
+ * @property string $name
+ * @property string|null $description
+ * @property string|null $handler
+ * @property array|null $config
+ * @property bool $is_active
+ * @property bool $is_published
+ * @property bool $is_deleted
+ */
 class CommunicationChannel extends BaseModel
 {
     use UuidTrait;

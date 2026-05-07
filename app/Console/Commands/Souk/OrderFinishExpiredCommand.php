@@ -10,7 +10,11 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Models\Settings;
 use Kanvas\Souk\Enums\ConfigurationEnum;
+use Kanvas\Souk\Orders\Actions\RecalculateSlotCapacityAction;
+use Kanvas\Souk\Orders\Enums\EmailTemplateEnum;
+use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Notifications\OrderExpirationNotification;
 
 class OrderFinishExpiredCommand extends Command
 {
@@ -51,33 +55,22 @@ class OrderFinishExpiredCommand extends Command
 
     protected function finishOrdersExpiredOrder(Order $order): void
     {
-        // get the variant
-        if (count($order->items) > 0) {
-            $variant = $order->items->first(function ($item) {
-                return $item->variant->product?->attributes
-                ->contains(fn ($attribute) => in_array($attribute->slug, ['capacity', 'slots']) && ! empty($attribute->value));
-            })->variant;
-            $channel = $variant->variantChannels()->first();
+        if (count($order->items) === 0) {
+            $this->info('No items found for order ' . $order->id . ' for app ' . $order->app->name);
 
-            $variantWarehouse = $channel?->productVariantWarehouse()->first();
-            // Mark order as completed
-            $order->fulfill();
-            $available = $variantWarehouse->quantity + 1;
-            $variant->updateQuantityInWarehouse($variantWarehouse->warehouse, $available);
-            $product = $variant->product;
-            $capacity = $product->getAttributeByName('capacity')?->value;
-            // @deprecated: remove this after new flow is implemented
-            if ($capacity) {
-                $product->addAttribute('capacity', [
-                    'occupiedParkingSpaces' => $capacity['occupiedParkingSpaces'] - 1,
-                    'availableParkingSpaces' => $available,
-                    'totalParkingSpaces' => $capacity['totalParkingSpaces'] ?? $available,
-                ]);
-            }
-            $this->info('Finished order ' . $order->id . ' for app ' . $order->app->name);
-        } else {
-            $this->info('No items found for order ' . $order->id . ' for app ' . $order->app->name . ' with ' . count($order->items) . ' items');
+            return;
         }
+
+        $order->fulfill();
+        $order->transitionToStatus(
+            $order->user,
+            OrderStatusEnum::COMPLETED->value
+        );
+
+        new RecalculateSlotCapacityAction($order, $order->app)->execute();
+        $this->sendExpiredOrderFinishedNotification($order);
+
+        $this->info('Finished order ' . $order->id . ' for app ' . $order->app->name);
     }
 
     protected function checkApps($appsId): void
@@ -90,27 +83,164 @@ class OrderFinishExpiredCommand extends Command
         ->notDeleted()
         ->whereNotFulfilled()
         ->whereNotNull('metadata')
+        ->whereRaw('JSON_VALID(metadata)')  // Add JSON validation
         ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")
         ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(COALESCE(metadata, '{}'), '$.data.end_at')) is not null")
         ->orderBy('id', 'desc')
         ->with('items');
 
-
         $ordersInProgress = $query->get();
         $this->info('Found ' . $ordersInProgress->count() . ' orders in progress to finish for app ' . $app->name . ' at ' . $endTime);
-        $appTimeZone = $app->get('timezone');
-
         foreach ($ordersInProgress as $order) {
             $orderEndTime = $order->metadata['data']['end_at'];
 
-            $parkingTimeZone = $order->items->first(function ($item) {
-                return $item->variant->first()?->attributes->first(fn ($attribute) => $attribute->key === 'timezone')?->value;
-            })?->variant?->attributes?->first(fn ($attribute) => $attribute->key === 'timezone')?->value;
+            $timezone = $this->resolveOrderTimezone($order);
+            $orderEndTime = Carbon::parse($orderEndTime, $timezone);
 
-            $orderEndTime = Carbon::parse($orderEndTime, $parkingTimeZone ?? $appTimeZone);
             if ($orderEndTime->isPast()) {
                 $this->finishOrdersExpiredOrder($order);
+            } else {
+                $this->sendExpiringOrderNotification($order, $orderEndTime);
             }
         }
+    }
+
+    protected function resolveOrderTimezone(Order $order): string
+    {
+        $orderAppTimeZone = $order->app?->get('timezone');
+
+        if (! empty($orderAppTimeZone)) {
+            return $orderAppTimeZone;
+        }
+
+        $companyTimeZone = $order->company?->get('timezone') ?? $order->company?->timezone;
+
+        if (! empty($companyTimeZone)) {
+            return $companyTimeZone;
+        }
+
+        return config('app.timezone', 'UTC');
+    }
+
+    protected function sendExpiredOrderFinishedNotification(Order $order): void
+    {
+        if (! $this->shouldSendExpiredOrderFinishedNotification($order) || ! $order->user) {
+            return;
+        }
+
+        $notification = new OrderExpirationNotification(
+            $order,
+            [
+                'app' => $order->app,
+                'company' => $order->company,
+                'order' => $order,
+                'title' => 'Your reservation has ended',
+                'message' => 'Your reservation time has ended.',
+                'metadata' => $order->toArray(),
+                'message_owner_id' => $order->users_id,
+                'message_id' => $order->getId(),
+                'parent_message_id' => $order->getId(),
+                'destination_id' => $order->getId(),
+                'destination_type' => 'ORDER',
+                'destination_event' => 'ORDER_EXPIRED_FINISHED',
+            ],
+            EmailTemplateEnum::ORDER_EXPIRED
+        );
+
+        $notification->setType(ConfigurationEnum::SEND_EXPIRED_ORDER_FINISHED_NOTIFICATION->value);
+        $notification->channels = ['mail'];
+
+        $order->user->notify($notification);
+    }
+
+    protected function sendExpiringOrderNotification(Order $order, Carbon $orderEndTime): void
+    {
+        $notifyMinutes = $this->getExpiringOrderNotificationMinutes($order);
+
+        if (
+            ! $this->shouldSendExpiringOrderNotification($order)
+            || ! $order->user
+            || $notifyMinutes <= 0
+            || $this->expiringOrderNotificationWasSent($order)
+        ) {
+            return;
+        }
+
+        $now = Carbon::now($orderEndTime->timezone);
+
+        if ($orderEndTime->greaterThan($now->copy()->addMinutes($notifyMinutes))) {
+            return;
+        }
+
+        $notification = new OrderExpirationNotification(
+            $order,
+            [
+                'app' => $order->app,
+                'company' => $order->company,
+                'order' => $order,
+                'title' => 'Your reservation is ending soon',
+                'message' => "Your reservation will end in {$notifyMinutes} minutes.",
+                'metadata' => $order->toArray(),
+                'message_owner_id' => $order->users_id,
+                'message_id' => $order->getId(),
+                'parent_message_id' => $order->getId(),
+                'destination_id' => $order->getId(),
+                'destination_type' => 'ORDER',
+                'destination_event' => 'ORDER_EXPIRING_SOON',
+            ],
+            EmailTemplateEnum::ORDER_EXPIRING
+        );
+
+        $notification->setType(ConfigurationEnum::SEND_EXPIRING_ORDER_NOTIFICATION->value);
+        $notification->channels = ['mail'];
+
+        $order->user->notify($notification);
+        $this->markExpiringOrderNotificationSent($order);
+    }
+
+    protected function shouldSendExpiredOrderFinishedNotification(Order $order): bool
+    {
+        $config = ConfigurationEnum::SEND_EXPIRED_ORDER_FINISHED_NOTIFICATION->value;
+
+        return $this->enabled($order->app?->get($config))
+            || $this->enabled($order->company?->get($config));
+    }
+
+    protected function shouldSendExpiringOrderNotification(Order $order): bool
+    {
+        $config = ConfigurationEnum::SEND_EXPIRING_ORDER_NOTIFICATION->value;
+
+        return $this->enabled($order->app?->get($config))
+            || $this->enabled($order->company?->get($config));
+    }
+
+    protected function getExpiringOrderNotificationMinutes(Order $order): int
+    {
+        $config = ConfigurationEnum::EXPIRING_ORDER_NOTIFICATION_MINUTES->value;
+        $minutes = $order->app?->get($config) ?? $order->company?->get($config);
+
+        return is_numeric($minutes) ? (int) $minutes : 0;
+    }
+
+    protected function expiringOrderNotificationWasSent(Order $order): bool
+    {
+        return (bool) ($order->metadata['data']['expiring_order_notification_sent_at'] ?? false);
+    }
+
+    protected function markExpiringOrderNotificationSent(Order $order): void
+    {
+        $order->metadata = [
+            ...($order->metadata ?? []),
+            'data' => [
+                ...($order->metadata['data'] ?? []),
+                'expiring_order_notification_sent_at' => now()->toIso8601String(),
+            ],
+        ];
+        $order->saveQuietly();
+    }
+
+    protected function enabled(mixed $value): bool
+    {
+        return filter_var($value, FILTER_VALIDATE_BOOL);
     }
 }

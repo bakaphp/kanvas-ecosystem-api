@@ -38,7 +38,7 @@ class Region extends Data
     public static function viaRequest(array $data): self
     {
         return new self(
-            isset($data['companies_id']) ? Companies::getById($data['companies_id']) : auth()->user()->getCurrentCompany(),
+            (isset($data['companies_id']) && (int) $data['companies_id'] !== 0) ? Companies::getById($data['companies_id']) : auth()->user()->getCurrentCompany(),
             app(Apps::class),
             auth()->user(),
             Currencies::getById($data['currency_id']),
@@ -46,7 +46,7 @@ class Region extends Data
             $data['short_slug'] ?? '',
             $data['settings'] ?? null,
             $data['is_default'],
-            $request['slug'] ?? null
+            $data['slug'] ?? null
         );
     }
 }

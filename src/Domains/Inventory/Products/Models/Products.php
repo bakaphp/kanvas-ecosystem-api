@@ -11,6 +11,7 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Exception;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -19,10 +20,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
+use Kanvas\Activities\Contracts\ActivityLogInterface;
+use Kanvas\Activities\Models\Activity;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Contracts\EntityImportFilesystemInterface;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
@@ -45,14 +51,16 @@ use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
+use Kanvas\Social\Messages\Traits\HasMessagesTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Souk\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Override;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * Class Products.
@@ -70,12 +78,13 @@ use Override;
  * @property ?string $html_description
  * @property ?string $warranty_terms
  * @property ?string $upc
+ * @property ?float $weight
  * @property bool $is_published
  * @property string $published_at
  * @property bool $is_deleted
  */
 #[ObservedBy(ProductsObserver::class)]
-class Products extends BaseModel implements EntityIntegrationInterface, EntityImportFilesystemInterface
+class Products extends BaseModel implements EntityIntegrationInterface, EntityImportFilesystemInterface, ActivityLogInterface
 {
     use UuidTrait;
     use SlugTrait;
@@ -83,6 +92,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     use HasShopifyCustomField;
     use HasTagsTrait;
     use IntegrationEntityTrait;
+    use HasMessagesTrait;
     use HasLightHouseCache;
     use DynamicSearchableTrait {
         search as public traitSearch;
@@ -93,6 +103,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     use CanUseWorkflow;
     use HasRating;
     use HasTranslationsDefaultFallback;
+    use LogsActivity;
 
     protected $table = 'products';
     protected $guarded = [];
@@ -103,14 +114,43 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         'is_deleted' => 'boolean',
     ];
 
-    protected $is_deleted;
-
     public $translatable = ['name', 'description', 'short_description', 'html_description', 'warranty_terms'];
 
     #[Override]
     public function getGraphTypeName(): string
     {
         return 'Product';
+    }
+
+    #[Override]
+    public function getActivityLogName(): string
+    {
+        return 'product-' . $this->companies_id . '-' . $this->apps_id;
+    }
+
+    public function searchableOptions(): array
+    {
+        return [
+            'hitsPerPage' => 100,
+        ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+        ->useLogName($this->getActivityLogName())
+        ->setDescriptionForEvent(fn (string $eventName) => "This product has been {$eventName}")
+        ->logOnly(['*'])
+        ->dontLogIfAttributesChangedOnly(['created_at','updated_at','published_at'])
+        ->logOnlyDirty();
+    }
+
+    #[Override]
+    public function getActivities(): Collection
+    {
+        return Activity::forSubject($this)
+                ->where('log_name', $this->getActivityLogName())
+                ->get();
     }
 
     /**
@@ -136,7 +176,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'products_warehouses',
             'products_id',
             'warehouses_id'
-        );
+        )->where('products_warehouses.is_deleted', 0);
     }
 
     /**
@@ -196,7 +236,8 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         //We need to manually query product attribute by this relation so the translate can work for both.
         $query = $this->hasMany(ProductsAttributes::class, 'products_id')
             ->join('attributes', 'products_attributes.attributes_id', '=', 'attributes.id')
-            ->select('products_attributes.*', 'attributes.*');
+            ->select('products_attributes.*', 'attributes.*')
+            ->with('attribute'); // Add this line to eager load the attribute relationship
 
         foreach ($conditions as $column => $value) {
             $query->where("attributes.$column", $value);
@@ -224,8 +265,19 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             ->whereHas('variants', function (Builder $query) use ($value) {
                 $query->where('products_variants.is_deleted', 0)
                     ->whereHas('attributes', function (Builder $query) use ($value) {
-                        $query->where('products_variants_attributes.value', $value)
-                            ->where('products_variants_attributes.is_deleted', 0);
+                        $query->where(function ($subQuery) use ($value) {
+                            $subQuery
+                                // If value is JSON, extract and compare
+                                ->whereRaw(
+                                    "IF(
+                                        JSON_VALID(products_variants_attributes.value),
+                                        JSON_UNQUOTE(JSON_EXTRACT(products_variants_attributes.value, '$.en')),
+                                        products_variants_attributes.value
+                                    ) LIKE ?",
+                                    ['%' . $value . '%']
+                                )
+                                ->where('products_variants_attributes.is_deleted', 0);
+                        });
                     });
             });
     }
@@ -274,31 +326,103 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         return $query;
     }
 
-    // @TODO: optimize this using another engine
     public function scopeFilterByNearLocation(Builder $query, array $location): Builder
     {
-        $EarthRadius = 6371; // km
+        $earthRadius = 6371; // km
+        $lat = (float) $location['lat'];
+        $long = (float) $location['long'];
+        $radius = (float) $location['radius'];
+
+        $latDelta = $radius / 111.0;
+        $longDelta = $radius / (111.0 * cos(deg2rad($lat)));
+        $minLat = $lat - $latDelta;
+        $maxLat = $lat + $latDelta;
+        $minLong = $long - $longDelta;
+        $maxLong = $long + $longDelta;
+
+        // Data is double-encoded JSON: {"en": "{\"lat\": \"18.560100\",\"long\": \"-68.372500\"}"}
+        $innerJson = "JSON_UNQUOTE(JSON_EXTRACT(pa.value, '$.en'))";
+        $latExtract = "CAST(JSON_UNQUOTE(JSON_EXTRACT({$innerJson}, '$.lat')) AS DECIMAL(10,6))";
+        $longExtract = "CAST(JSON_UNQUOTE(JSON_EXTRACT({$innerJson}, '$.long')) AS DECIMAL(10,6))";
+
+        $distanceSubquery = DB::connection('inventory')->table('products_attributes as pa')
+            ->join('attributes as a', 'a.id', '=', 'pa.attributes_id')
+            ->selectRaw("
+                pa.products_id,
+                ({$earthRadius} * acos(
+                    least(1, cos(radians(?)) *
+                    cos(radians({$latExtract})) *
+                    cos(radians({$longExtract}) - radians(?)) +
+                    sin(radians(?)) *
+                    sin(radians({$latExtract}))
+                    )
+                )) AS distance
+            ", [$lat, $long, $lat])
+            ->where('a.slug', 'coordinates')
+            ->whereRaw('JSON_VALID(pa.value)')
+            ->whereRaw("JSON_EXTRACT(pa.value, '$.en') IS NOT NULL")
+            ->whereRaw("JSON_VALID({$innerJson})")
+            ->whereRaw("{$latExtract} BETWEEN ? AND ?", [$minLat, $maxLat])
+            ->whereRaw("{$longExtract} BETWEEN ? AND ?", [$minLong, $maxLong])
+            ->whereRaw("{$latExtract} != 0")
+            ->whereRaw("{$longExtract} != 0")
+            ->havingRaw('distance <= ?', [$radius]);
 
         return $query
             ->where('products.is_deleted', 0)
-            ->whereHas('attributes', function ($query) use ($location, $EarthRadius) {
-                $query->whereRaw("JSON_EXTRACT(products_attributes.value, '$.en.lat') IS NOT NULL")
-                    ->whereRaw("JSON_EXTRACT(products_attributes.value, '$.en.long') IS NOT NULL")
-                    ->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.lat')) AS DECIMAL(10,6)) != 0")
-                    ->whereRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.long')) AS DECIMAL(10,6)) != 0")
-                    ->selectRaw("(
-                {$EarthRadius} * acos(
+            ->joinSub($distanceSubquery, 'location_distance', function ($join) {
+                $join->on('products.id', '=', 'location_distance.products_id');
+            })
+            ->select('products.*', 'location_distance.distance')
+            ->reorder()
+            ->orderByRaw('location_distance.distance ASC');
+    }
+
+    public function scopeFilterByNearWarehouseLocation(Builder $query, array $location): Builder
+    {
+        $earthRadius = 6371; // km
+        $lat = (float) $location['lat'];
+        $long = (float) $location['long'];
+        $radius = (float) $location['radius'];
+
+        // Bounding box pre-filter
+        $latDelta = $radius / 111.0;
+        $longDelta = $radius / (111.0 * cos(deg2rad($lat)));
+        $minLat = $lat - $latDelta;
+        $maxLat = $lat + $latDelta;
+        $minLong = $long - $longDelta;
+        $maxLong = $long + $longDelta;
+
+        $distanceSubquery = DB::connection('inventory')->table('products_variants_warehouses as pvw')
+            ->join('products_variants as pv', 'pv.id', '=', 'pvw.products_variants_id')
+            ->selectRaw("
+                pv.products_id,
+                MIN({$earthRadius} * acos(
                     least(1, cos(radians(?)) *
-                    cos(radians(CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.lat')) AS DECIMAL(10,6)))) *
-                    cos(radians(CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.long')) AS DECIMAL(10,6))) - radians(?)) +
+                    cos(radians(pvw.latitude)) *
+                    cos(radians(pvw.longitude) - radians(?)) +
                     sin(radians(?)) *
-                    sin(radians(CAST(JSON_UNQUOTE(JSON_EXTRACT(products_attributes.value, '$.en.lat')) AS DECIMAL(10,6))))
+                    sin(radians(pvw.latitude))
                     )
-                )
-                    ) AS distance", [$location['lat'], $location['long'], $location['lat']])
-                ->having('distance', '<=', $location['radius'])
-                ->orderBy('distance');
-            });
+                )) AS distance
+            ", [$lat, $long, $lat])
+            ->whereNotNull('pvw.latitude')
+            ->whereNotNull('pvw.longitude')
+            ->where('pvw.is_deleted', 0)
+            ->where('pv.is_deleted', 0)
+            ->whereBetween('pvw.latitude', [$minLat, $maxLat])
+            ->whereBetween('pvw.longitude', [$minLong, $maxLong])
+            ->groupBy('pv.products_id')
+            ->havingRaw('distance <= ?', [$radius]);
+
+        return $query
+            ->where('products.is_deleted', 0)
+            ->joinSub($distanceSubquery, 'warehouse_location', function ($join) {
+                $join->on('products.id', '=', 'warehouse_location.products_id');
+            })
+            ->select('products.*', 'warehouse_location.distance')
+            ->reorder()
+            ->orderByRaw('warehouse_location.distance ASC');
     }
 
     /**
@@ -337,7 +461,16 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         return $this->belongsTo(ProductsTypes::class, 'products_types_id');
     }
 
+    /**
+     * productTypes.
+     * @deprecated
+     */
     public function productType(): BelongsTo
+    {
+        return $this->belongsTo(ProductsTypes::class, 'products_types_id');
+    }
+
+    public function type(): BelongsTo
     {
         return $this->belongsTo(ProductsTypes::class, 'products_types_id');
     }
@@ -350,6 +483,19 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     #[Override]
     public function shouldBeSearchable(): bool
     {
+        //has to have a price and be published
+        if ($this->company->get('index_product_must_have_price')) {
+            foreach ($this->variants as $variant) {
+                try {
+                    if ($channelInfo = $variant->getPriceInfoFromDefaultChannel()) {
+                        return $this->isPublished() && $channelInfo->price > 0;
+                    }
+                } catch (Exception $e) {
+                    return false;
+                }
+            }
+        }
+
         return $this->isPublished();
     }
 
@@ -389,6 +535,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'position' => $category->position,
                 ];
             }),
+            'categories_flat' => $this->categories->flatMap(fn ($category) => [$category->name => 1])->toArray() ?? [],
             'variants' => $this->getVariantsData(),
             'status' => [
                 'id' => $this->status->id ?? null,
@@ -401,6 +548,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'short_description' => $this->short_description,
             'product_type_slug' => $this->productsType?->slug ?? null,
             'attributes' => [],
+            'weight' => (int) ($this->weight ?? 0),
             'translations' => [
                 'name' => $this->getAllTranslationsAsString('name'),
                 'description' => $this->getAllTranslationsAsString('description'),
@@ -506,28 +654,33 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     public static function search($query = '', $callback = null)
     {
         $app = app(Apps::class);
+        $model = new static();
+        $isTypesense = method_exists($model, 'isTypesense') ? $model->isTypesense() : false;
 
-        $app->fireWorkflow(
-            event: WorkflowEnum::SEARCH->value,
-            params: [
-                'search' => $query,
-            ]
-        );
+        $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
 
-        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
         $user = auth()->user();
 
-        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
-            $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
+        if (
+            $user instanceof UserInterface &&
+            (
+                ! auth()->user()->isAppOwner() ||
+                (
+                    app()->bound(CompaniesBranches::class) &&
+                    $app->get('enable_company_bound_search', false)
+                )
+            )
+        ) {
+            $searchQuery->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
 
-        if ($query->model->isTypesense()) {
-            $query->options([
-                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
+        if ($isTypesense) {
+            $searchQuery->options([
+                'query_by' => 'name,description,translations',
             ]);
         }
 
-        return $query;
+        return $searchQuery;
     }
 
     public function isPublished(): bool
@@ -550,9 +703,9 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     }
 
     #[Override]
-    public static function newFactory()
+    public static function newFactory(): ProductFactory
     {
-        return new ProductFactory();
+        return ProductFactory::new();
     }
 
     public function hasStock(Warehouses $warehouses): bool
@@ -639,6 +792,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     public function publish(): void
     {
         $this->is_published = 1;
+        $this->published_at = Carbon::now();
         $this->save();
     }
 
@@ -646,9 +800,15 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     {
         $limit = $this->app->get(ConfigurationEnum::PRODUCT_VARIANTS_SEARCH_LIMIT->value) ?? 200;
 
-        return $this->variants->count() > $limit
-            ? $this->variants->take($limit)->map(fn ($variant) => $variant->toSearchableArraySummary())
-            : $this->variants->map(fn ($variant) => $variant->toSearchableArray());
+        $query = $this->variants()
+            ->where('is_deleted', 0)
+            ->where('is_published', 1);
+
+        $variantCount = $query->count();
+
+        return $variantCount > $limit
+            ? $query->limit($limit)->get()->map(fn ($variant) => $variant->toSearchableArraySummary())
+            : $query->get()->map(fn ($variant) => $variant->toSearchableArray());
     }
 
     public function getTotalVariants(): int
@@ -666,7 +826,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
      */
     public function typesenseCollectionSchema(): array
     {
-        return [
+        $schema = [
             'name' => $this->searchableAs(),
             'fields' => [
                 [
@@ -681,7 +841,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'name' => 'name',
                     'type' => 'string',
                     'sort' => true,
-                    'facet' => true,
+                    // 'facet' => true,
                 ],
                 [
                     'name' => 'files',
@@ -713,6 +873,11 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 [
                     'name' => 'status',
                     'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'categories_flat',
+                    'type' => 'auto',
                     'optional' => true,
                 ],
                 [
@@ -816,16 +981,54 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
+                    'sort' => true,
                 ],
             ],
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,  // Enable nested fields support for complex objects
         ];
+        if ($this->app->get(AppSettingsEnums::OPEN_AI_EMBEDDING_KEY->getValue())) {
+            $schema['fields'][] = [
+                'name' => 'embedding',
+                'type' => 'float[]',
+                'embed' => [
+                    'from' => [
+                        'name',
+                        'description',
+                    ],
+                    'model_config' => [
+                        'model_name' => 'openai/text-embedding-3-small',
+                        'api_key' => $this->app->get(AppSettingsEnums::OPEN_AI_EMBEDDING_KEY->getValue()),
+                    ],
+                ],
+            ];
+        }
+
+        return $schema;
     }
 
     #[Override]
     public static function getImportHandler(FilesystemImports $filesystemImport): mixed
     {
         return new ImportProductFromFilesystemAction($filesystemImport);
+    }
+
+    public function recalculateWeightByImageCount(): void
+    {
+        if (! $this->company->get('product_increase_weight_by_image_count')) {
+            return;
+        }
+
+        $totalImages = $this->variants()
+            ->with('files')
+            ->get()
+            ->sum(fn ($variant) => $variant->files->count());
+
+        // Boost products with 2+ images
+        $imageBoost = $totalImages >= 2 ? 1.0 : 0;
+
+        // Or gradual boost: $imageBoost = min($totalImages * 0.5, 2.0);
+        $this->weight = $imageBoost;
+        $this->saveQuietly();
     }
 }

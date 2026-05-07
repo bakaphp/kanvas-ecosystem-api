@@ -8,4 +8,17 @@ enum ConfigurationEnum: string
 {
     case SEND_NEW_LEAD_NOTIFICATION = 'guild_send_new_lead_notification';
     case SEND_NEW_LEAD_TO_OWNER_NOTIFICATION = 'guild_send_new_lead_to_owner_notification';
+    case AGENT_COMMUNICATION_CHANNEL = 'guild_agent_communication_channel';
+    case FIRST_MESSAGE = 'guild_first_message';
+    case SENT_FIRST_MESSAGE_AT = 'guild_first_message_sent_at';
+    case IS_ENGAGEMENT = 'guild_is_engagement';
+    case CONTACTED = 'guild_lead_contacted';
+    case FOLLOW_UP_LEAD_TYPE = 'guild_follow_up_lead_type';
+    case PREFERRED_CHANNEL = 'guild_preferred_channel';
+    case IS_FROM_WHATSAPP = 'guild_is_from_whatsapp';
+    case LAST_CHANNEL_USED = 'guild_last_channel_used';
+    case GUILD_PREFERRED_CHANNEL_UUID = 'guild_prefered_channel_uuid';
+    case AI_MODE = 'lead_ai_mode';
+    case HAS_FOLLOW_UP = 'lead_has_follow_up';
+    case AI_MODE_IS_MANUAL = 'lead_ai_mode_is_manual';
 }

@@ -8,7 +8,6 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Enums\AppSettingsEnums;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
@@ -31,16 +30,12 @@ class AppUsersNotificationByRoleAction
         $company = $this->params['company'] ?? null;
         $role = $this->params['role'] ?? RolesEnums::USER->value;
         $appUsers = UsersRepository::getAppUserByRole($this->app, $role);
-        $notificationVias = $this->params['notificationVia'] ?? [NotificationChannelEnum::getNotificationChannelBySlug('mail')];
+        $vias = $this->params['notificationVia'] ?? ['mail'];
         $this->params['entity'] = $this->entity;
         $this->params['app'] = $this->app;
 
         if ($filterByCompany && $company) {
             $appUsers->where('users_associated_apps.companies_id', $company->getId());
-        }
-
-        foreach ($notificationVias as $via) {
-            $vias[] = NotificationChannelEnum::getNotificationChannelBySlug($via);
         }
 
         if (empty($this->params['template_name'])) {
@@ -56,7 +51,7 @@ class AppUsersNotificationByRoleAction
             ];
         }
 
-        $vias[] = NotificationChannelEnum::getNotificationChannelBySlug('database');
+        $vias[] = 'database';
         $notification = new Blank(
             $this->params['template_name'],
             $this->params,

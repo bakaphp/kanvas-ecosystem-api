@@ -34,6 +34,8 @@ enum AppModule {
     SOCIAL @enum(value: 4)
     WORKFLOW @enum(value: 5)
     ACTION_ENGINE @enum(value: 6)
+    AI @enum(value: 10)
+    COMMERCE @enum(value: 11)
 }
 extend type Query @guard {
     roles(
@@ -73,6 +75,7 @@ input RoleInput {
 input RolePermissionsInput {
     model_name: String!
     permission: [String!]
+    module_permissions: [String!]
 }
 
 extend type Mutation @guardByAdmin {
@@ -91,7 +94,7 @@ extend type Mutation @guardByAdmin {
         )
 
     #assign role to the company and to the app
-    assignRoleToUser(userId: ID!, role: Mixed!): Boolean
+    assignRoleToUser(userId: ID!, roleIds: [ID!]!): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@assignRoleToUser"
         )
@@ -122,5 +125,23 @@ extend type Mutation @guardByAdmin {
     ): Boolean
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@givePermissionToRole"
+        )
+
+    giveModulePermissionToRole(
+        role: String!
+        moduleId: Int!
+        permission: String!
+    ): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@giveModulePermissionToRole"
+        )
+
+    removeModulePermissionFromRole(
+        role: String!
+        moduleId: Int!
+        permission: String!
+    ): Boolean
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Roles\\RolesManagementMutation@removeModulePermissionFromRole"
         )
 }

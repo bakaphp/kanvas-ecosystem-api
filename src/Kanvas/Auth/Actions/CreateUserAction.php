@@ -105,12 +105,15 @@ class CreateUserAction
 
     protected function validateEmail(): void
     {
+        $emailRule = $this->app->get(AppSettingsEnums::VALIDATE_EMAIL_DNS->getValue())
+            ? 'required|email:rfc,dns'
+            : 'required|email';
+
         $validator = Validator::make(
             ['email' => $this->data->email],
-            ['email' => 'required|email']
+            ['email' => $emailRule]
         );
 
-        // This is the second time that we need get user data without an exception.
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
@@ -136,6 +139,34 @@ class CreateUserAction
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
+
+        if ($this->hasSpamNamePattern($this->data->firstname) || $this->hasSpamNamePattern($this->data->lastname)) {
+            $validator = Validator::make(
+                ['firstname' => $this->data->firstname],
+                ['firstname' => 'required'],
+                ['firstname.required' => 'Registration information appears to be invalid.']
+            );
+
+            throw new ValidationException($validator);
+        }
+    }
+
+    /**
+     * Detects spam registration names with randomized character patterns.
+     */
+    private function hasSpamNamePattern(string $name): bool
+    {
+        if (empty($name)) {
+            return true;
+        }
+
+        $uppercaseCount = preg_match_all('/[A-Z]/', $name);
+
+        if ($uppercaseCount === false) {
+            return false;
+        }
+
+        return ($uppercaseCount / strlen($name)) > 0.4;
     }
 
     protected function validatePhoneNumber(): void
@@ -161,6 +192,7 @@ class CreateUserAction
 
     protected function createNewUser(): Users
     {
+        $createAt = date('Y-m-d H:i:s');
         $user = new Users();
         $user->firstname = $this->data->firstname;
         $user->lastname = $this->data->lastname;
@@ -171,8 +203,8 @@ class CreateUserAction
         $user->cell_phone_number = $this->data->cell_phone_number;
         $user->sex = AppEnums::DEFAULT_SEX->getValue();
         $user->dob = date('Y-m-d');
-        $user->lastvisit = date('Y-m-d H:i:s');
-        $user->registered = date('Y-m-d H:i:s');
+        $user->lastvisit = $createAt;
+        $user->registered = $createAt;
         $user->timezone = AppEnums::DEFAULT_TIMEZONE->getValue();
         $user->user_active = StatusEnums::ACTIVE->getValue();
         $user->status = StatusEnums::ACTIVE->getValue();
@@ -187,6 +219,8 @@ class CreateUserAction
         $user->user_activation_key = Hash::make(time());
         $user->roles_id = AppEnums::DEFAULT_ROLE_ID->getValue(); //@todo : remove this , legacy code
         $user->system_modules_id = 2;
+        $user->created_at = $createAt;
+        $user->updated_at = $createAt;
 
         //create a new user assign it to the app and create the default company
         $user->saveOrFail();

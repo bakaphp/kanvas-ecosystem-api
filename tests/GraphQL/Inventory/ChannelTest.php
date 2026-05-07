@@ -4,10 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Inventory\Channels\Actions\UnPublishAllVariantsAction;
+use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Variants\Models\VariantsChannels;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
 class ChannelTest extends TestCase
 {
+    use InventoryCases;
     /**
      * testCreateChannel.
      *
@@ -185,7 +192,99 @@ class ChannelTest extends TestCase
             mutation($id: ID!) {
                 unPublishAllVariantsFromChannel(id: $id)
             }', ['id' => $channelId])->assertJson([
-            'data' => ['unPublishAllVariantsFromChannel' => false] //doesn't have any product
+            'data' => ['unPublishAllVariantsFromChannel' => true] // job dispatched to queue
         ]);
+    }
+
+    public function testUnPublishAllVariantsAction(): void
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $this->setupInventory($app, $company, $user);
+
+        $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
+        $channel = Channels::fromApp($app)->fromCompany($company)->first();
+
+        $productResponse = $this->createProduct();
+        $productResponse->assertJsonMissingPath('errors.0');
+        $productId = $productResponse->json('data.createProduct.id');
+        $this->assertNotNull($productId);
+
+        $variantResponse = $this->createVariant(
+            (string) $productId,
+            [
+                'id' => $warehouse->getId(),
+                'price' => 10.00,
+                'quantity' => 5,
+                'position' => 1,
+            ]
+        );
+        $variantId = $variantResponse->json('data.createVariant.id');
+
+        $this->addVariantToChannel(
+            (string) $variantId,
+            (string) $channel->getId(),
+            ['id' => $warehouse->getId()]
+        );
+
+        // Verify it's published in the channel
+        $channelRecord = VariantsChannels::where('channels_id', $channel->getId())
+            ->where('is_published', 1)
+            ->whereHas('variant', fn ($q) => $q->where('id', $variantId))
+            ->first();
+        $this->assertNotNull($channelRecord);
+
+        // Run the action
+        new UnPublishAllVariantsAction($channel)->execute();
+
+        // Verify it's unpublished (re-query since composite PK doesn't support refresh)
+        $updatedRecord = VariantsChannels::where('channels_id', $channel->getId())
+            ->whereHas('variant', fn ($q) => $q->where('id', $variantId))
+            ->first();
+        $this->assertNotNull($updatedRecord);
+        $this->assertEquals(0, (int) $updatedRecord->is_published);
+    }
+
+    public function testChannelRegionsResolvesFromVariantChannels(): void
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $this->setupInventory($app, $company, $user);
+
+        $warehouse = Warehouses::fromApp($app)->fromCompany($company)->firstOrFail();
+        $channel = Channels::fromApp($app)->fromCompany($company)->firstOrFail();
+
+        $productResponse = $this->createProduct();
+        $productId = $productResponse->json('data.createProduct.id');
+
+        $variantResponse = $this->createVariant(
+            (string) $productId,
+            [
+                'id' => $warehouse->getId(),
+                'price' => 10.00,
+                'quantity' => 5,
+                'position' => 1,
+            ]
+        );
+        $variantResponse->assertJsonMissingPath('errors.0');
+        $variantId = $variantResponse->json('data.createVariant.id');
+        $this->assertNotNull($variantId);
+
+        $addToChannelResponse = $this->addVariantToChannel(
+            (string) $variantId,
+            (string) $channel->getId(),
+            ['id' => $warehouse->getId()]
+        );
+        $addToChannelResponse->assertJsonMissingPath('errors.0');
+
+        $regions = $channel->fresh()->getRegions();
+
+        $this->assertNotNull($regions);
+        $this->assertTrue($regions->isNotEmpty());
+        $this->assertNotNull($regions->first()?->id);
     }
 }

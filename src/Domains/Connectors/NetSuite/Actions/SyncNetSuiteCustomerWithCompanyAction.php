@@ -15,6 +15,7 @@ use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
 use Kanvas\Inventory\Support\Setup;
+use Kanvas\Users\Actions\AddAdminsToCompanyAction;
 use Kanvas\Users\Actions\AssignCompanyAction;
 
 class SyncNetSuiteCustomerWithCompanyAction
@@ -36,9 +37,10 @@ class SyncNetSuiteCustomerWithCompanyAction
         );
 
         $customerInfo = $this->service->getCustomerById($customerId);
+        $companyName = $customerInfo->entityId ?? $customerInfo->companyName;
 
         if ($linkCompany) {
-            $linkCompany->name = $customerInfo->companyName;
+            $linkCompany->name = $companyName;
             $linkCompany->email = $customerInfo->email;
             $linkCompany->disableWorkflows();
             $linkCompany->saveOrFail();
@@ -47,7 +49,7 @@ class SyncNetSuiteCustomerWithCompanyAction
         }
 
         $company = CompaniesRepository::getCompanyByNameAndApp(
-            $customerInfo->companyName,
+            $companyName,
             $this->app
         );
 
@@ -57,10 +59,12 @@ class SyncNetSuiteCustomerWithCompanyAction
             return $company;
         }
 
+        $adminUser = $this->app->keys()->firstOrFail()->user;
+
         $createCompany = new CreateCompaniesAction(
             new Company(
-                user: $this->app->keys()->firstOrFail()->user,
-                name: $customerInfo->companyName,
+                user: $adminUser,
+                name: $companyName,
                 email: $customerInfo->email
             )
         );
@@ -82,6 +86,8 @@ class SyncNetSuiteCustomerWithCompanyAction
             $company->user,
             $company
         ))->run();
+
+        (new AddAdminsToCompanyAction($this->app, $adminUser, $company, $branch))->execute();
 
         return $company;
     }

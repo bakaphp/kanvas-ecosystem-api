@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class FilesystemEntitiesRepository
@@ -40,21 +42,28 @@ class FilesystemEntitiesRepository
             ->firstOrFail();
     }
 
-    /**
-     * Get files for the given entity.
-     *
-     * @psalm-suppress MixedReturnStatement
-     *
-     * @return Collection<int, FilesystemEntities>
-     */
     public static function getFilesByEntity(Model $entity): Collection
     {
         $app = $entity->app ?? app(Apps::class);
         $systemModule = SystemModulesRepository::getByModelName($entity::class, $app);
+        $legacySystemModule = SystemModulesRepository::getByModelName(
+            SystemModules::getLegacyNamespace($entity::class),
+            $app
+        );
+
+        $systemModuleIds = [$systemModule->getKey(), $legacySystemModule->getKey()];
+
+        if ($entity instanceof Message) {
+            $messageSystemModule = SystemModulesRepository::getByModelName(
+                'Kanvas\Social\Models\Messages',
+                $app
+            );
+            $systemModuleIds[] = $messageSystemModule->getKey();
+        }
 
         return FilesystemEntities::join('filesystem', 'filesystem.id', '=', 'filesystem_entities.filesystem_id')
             ->where('filesystem_entities.entity_id', '=', $entity->getKey())
-            ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
+            ->whereIn('filesystem_entities.system_modules_id', $systemModuleIds)
             ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
             ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue())
             ->select(
@@ -75,7 +84,7 @@ class FilesystemEntitiesRepository
      *
      * @psalm-suppress MixedReturnStatement
      */
-    public static function getFileFromEntityByNamBuilder(Model $entity, string $name): Builder
+    public static function getFileFromEntityByNameBuilder(Model $entity, string $name): Builder
     {
         $app = $entity->app ?? app(Apps::class);
         $systemModule = SystemModulesRepository::getByModelName($entity::class, $app);
@@ -100,7 +109,7 @@ class FilesystemEntitiesRepository
 
     public static function getFileFromEntityByName(Model $entity, string $name): ?FilesystemEntities
     {
-        return self::getFileFromEntityByNamBuilder($entity, $name)->orderBy('filesystem_entities.id', 'DESC')->first();
+        return self::getFileFromEntityByNameBuilder($entity, $name)->orderBy('filesystem_entities.id', 'DESC')->first();
     }
 
     /**
@@ -121,8 +130,7 @@ class FilesystemEntitiesRepository
                 'filesystem.users_id',
                 'filesystem.size',
                 'filesystem.file_type'
-            )
-            ->first();
+            )->first();
     }
 
     /**
@@ -143,8 +151,7 @@ class FilesystemEntitiesRepository
                 'filesystem.users_id',
                 'filesystem.size',
                 'filesystem.file_type'
-            )
-            ->first();
+            )->first();
     }
 
     /**

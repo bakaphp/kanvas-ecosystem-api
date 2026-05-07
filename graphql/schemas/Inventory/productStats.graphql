@@ -1,0 +1,20 @@
+type CapacityStats {
+    max_capacity: Int!
+    available_capacity: Int!
+    occupied_capacity: Int!
+    occupancy_percentage: Float!
+}
+
+input ProductStatsInput {
+    product_type_slug: String
+    product_ids: [ID!]
+    warehouse_id: ID
+    companies_id: ID
+}
+
+extend type Query @guard {
+    productStats(input: ProductStatsInput!): CapacityStats!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Queries\\ProductStatsQuery@getCapacityStats"
+        )
+}

@@ -10,7 +10,12 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\ChatHistory\RedisAgentChatHistory;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use NeuronAI\Agent\SystemPrompt;
 use NeuronAI\Chat\History\AbstractChatHistory;
+use NeuronAI\Chat\History\ChatHistoryInterface;
+use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\HttpClient\GuzzleHttpClient;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Providers\Anthropic\Anthropic;
 use NeuronAI\Providers\Gemini\Gemini;
@@ -18,9 +23,9 @@ use NeuronAI\RAG\Document;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
 use NeuronAI\RAG\Embeddings\OpenAIEmbeddingsProvider;
 use NeuronAI\RAG\RAG;
+use NeuronAI\RAG\VectorStore\MemoryVectorStore;
 use NeuronAI\RAG\VectorStore\PineconeVectorStore;
 use NeuronAI\RAG\VectorStore\VectorStoreInterface;
-use NeuronAI\SystemPrompt;
 use NeuronAI\Tools\Tool;
 use Override;
 
@@ -41,6 +46,7 @@ class BaseAgent extends RAG
         $this->entity = $entity;
         $this->app = $agent->app;
         $this->company = $agent->company;
+        $this->externalReferenceId = $externalReferenceId;
     }
 
     #[Override]
@@ -49,7 +55,8 @@ class BaseAgent extends RAG
         // return an AI provider (Anthropic, OpenAI, Gemini, Ollama, etc.)
         return new Gemini(
             key: $this->app->get(ConfigurationEnum::GEMINI_KEY->value),
-            model: $this->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-2.0-flash-lite',
+            model: $this->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-2.5-flash-lite',
+            httpClient: new GuzzleHttpClient(timeout: 220, connectTimeout: 220),
         );
     }
 
@@ -87,11 +94,12 @@ class BaseAgent extends RAG
     #[Override]
     protected function vectorStore(): VectorStoreInterface
     {
-        return new PineconeVectorStore(
-            key: $this->app->get(ConfigurationEnum::PINECONE_API_KEY->value),
-            indexUrl: $this->app->get(ConfigurationEnum::PINECONE_INDEX_URL->value),
-            topK: 4
-        );
+        /*  return new PineconeVectorStore(
+             key: $this->app->get(ConfigurationEnum::PINECONE_API_KEY->value),
+             indexUrl: $this->app->get(ConfigurationEnum::PINECONE_INDEX_URL->value),
+             topK: 4
+         ); */
+        return new MemoryVectorStore();
     }
 
     public function getVectorStore(): VectorStoreInterface
@@ -99,35 +107,6 @@ class BaseAgent extends RAG
         return $this->vectorStore();
     }
 
-    /*     #[Override]
-        protected function searchDocuments(string $question): array
-        {
-            $embedding = $this->getEmbeddingsProvider()->embedText($question);
-
-            // ✅ Custom filter logic here
-            $docs = $this->getVectorStore()->similaritySearch(
-                $embedding,
-                ['user_id' => '2']
-            );
-
-            $retrievedDocs = [];
-            foreach ($docs as $doc) {
-                $retrievedDocs[\md5($doc->content)] = $doc;
-            }
-
-            return \array_values($retrievedDocs);
-        } */
-
-    /*     #[Override]
-        protected function chatHistory(): AbstractChatHistory
-        {
-            return new FileChatHistory(
-                directory: storage_path('chat'),
-                key: '2',
-                contextWindow: 50000
-            );
-        }
-     */
     #[Override]
     protected function chatHistory(): AbstractChatHistory
     {
@@ -145,6 +124,58 @@ class BaseAgent extends RAG
             externalReferenceId: $this->externalReferenceId,
             contextWindow: 50000
         );
+    }
+
+    /**
+     * Chat with the agent using existing conversation context
+     * This method automatically loads and maintains chat history
+     */
+    public function chatWithHistory(string|UserMessage $message): Message
+    {
+        // Get chat history instance
+        $chatHistory = $this->chatHistory();
+
+        // Get existing messages from chat history
+        $existingMessages = $chatHistory->getAll();
+        if (! empty($existingMessages)) {
+            // Add the new message to existing conversation
+            $existingMessages[] = $message instanceof UserMessage ? $message : new UserMessage($message);
+
+            // Use the chat method with message history
+            return $this->chat($existingMessages);
+        } else {
+            // No existing history, start new conversation
+            return $this->chat($message);
+        }
+    }
+
+    /**
+     * Clear the chat history for this agent-entity combination
+     */
+    public function clearChatHistory(): void
+    {
+        $chatHistory = $this->chatHistory();
+        $chatHistory->clear();
+    }
+
+    /**
+     * Get the current chat history
+     */
+    #[Override]
+    public function getChatHistory(): ChatHistoryInterface
+    {
+        return $this->chatHistory();
+    }
+
+    /**
+     * Refresh chat history from database
+     */
+    public function refreshChatHistory(): void
+    {
+        $chatHistory = $this->chatHistory();
+        if ($chatHistory instanceof RedisAgentChatHistory) {
+            $chatHistory->refresh();
+        }
     }
 
     #[Override]

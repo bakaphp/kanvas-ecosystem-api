@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Wallet\Activities;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Actions\PayFromWalletAction;
+use Kanvas\Souk\Wallet\Enums\TransactionSourceEnum;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -25,6 +26,7 @@ class PayFromWalletActivity extends KanvasActivity
             integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
                 $wallet = new PayFromWalletAction(
                     order: $order,
+                    source: TransactionSourceEnum::PAYMENT,
                 )->execute();
 
                 return [

@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Notifications;
 
+use Kanvas\Connectors\PromptMine\Enums\NotificationTypesEnum;
+use Kanvas\Social\Enums\InteractionEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Notifications\CustomMessageNotification;
-use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Kanvas\Users\Models\Users;
 
 class ImageProcessingPushNotification extends CustomMessageNotification
@@ -19,6 +20,12 @@ class ImageProcessingPushNotification extends CustomMessageNotification
         array $via,
         array $templates = []
     ) {
+        $entity->refresh();
+        $metadata = $entity->getMessage();
+        unset($metadata['ai_image']);
+        unset($metadata['prompt']);
+        unset($metadata['ai_nugget']['nugget']);
+
         $data = [
             'email_template' => $templates['email_template'] ?? null,
             'push_template' => $templates['push_template'] ?? null,
@@ -26,7 +33,7 @@ class ImageProcessingPushNotification extends CustomMessageNotification
             'company' => $entity->company,
             'message' => $message,
             'title' => $title,
-            'metadata' => $entity->getMessage(),
+            'metadata' => $metadata,
             'via' => $via,
             'message_owner_id' => $entity->user->getId(),
             'message_id' => $entity->getId(),
@@ -37,9 +44,13 @@ class ImageProcessingPushNotification extends CustomMessageNotification
         ];
 
         parent::__construct($entity, $data, $via);
-        $this->setType(EmailTemplateEnum::BLANK->value);
+        $this->setType(NotificationTypesEnum::IMAGE_PROCESSING->value);
         $this->setPushTemplateName($templates['push_template']);
         $this->setData($data);
+        $this->setInteraction(InteractionEnum::SYSTEM_INFO->getValue());
+        if (! empty($templates['email_template'])) {
+            $this->setTemplateName($templates['email_template']);
+        }
         //$this->setFromUser($user);
         $this->channels = $via;
     }

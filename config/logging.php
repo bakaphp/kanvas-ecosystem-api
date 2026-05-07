@@ -5,7 +5,6 @@ use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Default Log Channel
@@ -50,7 +49,7 @@ return [
     'channels' => [
         'stack' => [
             'driver' => 'stack',
-            'channels' => ['single'],
+            'channels' => ['single', 'sentry_logs'],
             'ignore_exceptions' => false,
         ],
 
@@ -79,6 +78,11 @@ return [
             'driver' => 'sentry',
             'level' => null,
             'bubble' => true,
+        ],
+
+        'sentry_logs' => [
+            'driver' => 'sentry_logs',
+            'level' => env('SENTRY_LOGS_LEVEL', 'warning'),
         ],
 
         'papertrail' => [
@@ -111,7 +115,11 @@ return [
             'driver' => 'errorlog',
             'level' => env('LOG_LEVEL', 'debug'),
         ],
-
+         'deprecations' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/deprecations.log'),
+            'level' => 'warning',
+        ],
         'null' => [
             'driver' => 'monolog',
             'handler' => NullHandler::class,
@@ -127,5 +135,4 @@ return [
             'level' => 'info',
         ],
     ],
-
 ];

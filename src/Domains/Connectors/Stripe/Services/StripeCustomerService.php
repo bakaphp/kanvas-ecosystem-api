@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Stripe\Services;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Stripe\Enums\CustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People as ModelsPeople;
+use Stripe\Customer;
 use Stripe\StripeClient;
 
 class StripeCustomerService
@@ -17,16 +19,16 @@ class StripeCustomerService
     public function __construct(
         protected AppInterface $app,
     ) {
-        $this->stripe = new StripeClient($this->app->get('stripe_secret_key'));
+        $this->stripe = new StripeClient($this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
     }
 
-    public function getOrCreateCustomerByPerson(ModelsPeople $people): \Stripe\Customer
+    public function getOrCreateCustomerByPerson(ModelsPeople $people): Customer
     {
         $email = $people->getEmails()->first()->value ?? '';
         if (empty($email)) {
             throw new ValidationException('Email is required to create a Stripe customer');
         }
-        $name = $people->name;
+        $name = $people->getName();
 
         // Optional: check if you already saved stripe_customer_id in your DB
         if (! empty($people->get(CustomFieldEnum::STRIPE_ID->value))) {
@@ -49,9 +51,8 @@ class StripeCustomerService
                 'email' => $email,
                 'name' => $name,
             ]);
-
-            $people->set(CustomFieldEnum::STRIPE_ID->value, $customer->id);
         }
+        $people->set(CustomFieldEnum::STRIPE_ID->value, $customer->id);
 
         return $customer;
     }

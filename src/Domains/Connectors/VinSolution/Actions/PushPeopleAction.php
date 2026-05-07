@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Actions;
 
-use Baka\Helpers\DateHelper;
+use Baka\Support\DateHelper;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\OCR\DataTransferObjects\DriversLicense;
 use Kanvas\Connectors\SalesAssist\Enums\PeopleCustomFieldEnum;
@@ -37,68 +38,84 @@ class PushPeopleAction
      */
     public function execute(): Contact
     {
-        $contactId = CustomFieldEnum::CONTACT->value;
-        $exist = $this->people->get($contactId);
+        return DB::transaction(function () {
+            $this->people->lockForUpdate();
 
-        // Prepare contact data
-        $contactEmail = $this->prepareEmails($this->people, ! $exist);
-        $contactPhone = $this->preparePhones($this->people, ! $exist);
-        $contactAddress = $this->prepareAddresses($this->people, ! $exist);
+            $contactId = CustomFieldEnum::CONTACT->value;
+            $exist = $this->people->get($contactId);
 
-        if (! $exist) {
-            // Create new contact
-            $contact = [
-                'ContactInformation' => [
-                    'FirstName' => Str::of($this->people->firstname)->trim(),
-                    'LastName' => Str::of($this->people->lastname)->trim(),
-                    'MiddleName' => Str::of($this->people->middlename)->trim(),
-                    'Emails' => $contactEmail,
-                    'Phones' => $contactPhone,
-                    'Addresses' => $contactAddress,
-                ],
-                'LeadInformation' => [
-                    'CurrentSalesRepUserId' => $this->vinCredential->user->id ?? 0,
-                    'SplitSalesRepUserId' => 0,
-                    'LeadSourceId' => 0,
-                    'LeadTypeId' => 0,
-                    'OnShowRoom' => false,
-                    'SaleNotes' => '',
-                ],
-            ];
+            // Prepare contact data
+            $contactEmail = $this->prepareEmails($this->people, ! $exist);
+            $contactPhone = $this->preparePhones($this->people, ! $exist);
+            $contactAddress = $this->prepareAddresses($this->people, ! $exist);
 
-            $contact = Contact::create(
-                $this->vinCredential->dealer,
-                $this->vinCredential->user,
-                $contact
-            );
+            // Determine opt-out preferences
+            $hasEmailOptOut = $this->people->getEmails()->contains(fn ($email) => $email->is_opt_out === 1);
+            $hasPhoneOptOut = $this->people->getPhones()
+                ->merge($this->people->getCellPhones())
+                ->contains(fn ($phone) => $phone->is_opt_out === 1);
 
-            $this->people->set(
-                $contactId,
-                $contact->id
-            );
+            if (! $exist) {
+                // Create new contact
+                $contact = [
+                    'ContactInformation' => [
+                        'FirstName' => Str::of($this->people->firstname)->trim(),
+                        'LastName' => Str::of($this->people->lastname)->trim(),
+                        'MiddleName' => Str::of($this->people->middlename)->trim(),
+                        'Emails' => $contactEmail,
+                        'Phones' => $contactPhone,
+                        'Addresses' => $contactAddress,
+                        'DoNotEmail' => $hasEmailOptOut,
+                        'DoNotCall' => $hasPhoneOptOut,
+                    ],
+                    'LeadInformation' => [
+                        'CurrentSalesRepUserId' => $this->vinCredential->user->id ?? 0,
+                        'SplitSalesRepUserId' => 0,
+                        'LeadSourceId' => 0,
+                        'LeadTypeId' => 0,
+                        'OnShowRoom' => false,
+                        'SaleNotes' => '',
+                    ],
+                ];
 
-            // Update again if contact information is empty
-            if (empty($contact->information)) {
+                $contact = Contact::create(
+                    $this->vinCredential->dealer,
+                    $this->vinCredential->user,
+                    $contact
+                );
+
+                $this->people->set(
+                    $contactId,
+                    $contact->id
+                );
+
+                // Update again if contact information is empty
+                if (empty($contact->information)) {
+                    $contact = $this->updateContact(
+                        $contactEmail,
+                        $contactPhone,
+                        $contactAddress,
+                        (int) $this->people->get($contactId),
+                        $this->people,
+                        $hasEmailOptOut,
+                        $hasPhoneOptOut
+                    );
+                }
+            } else {
+                // Update existing contact
                 $contact = $this->updateContact(
                     $contactEmail,
                     $contactPhone,
                     $contactAddress,
                     (int) $this->people->get($contactId),
-                    $this->people
+                    $this->people,
+                    $hasEmailOptOut,
+                    $hasPhoneOptOut
                 );
             }
-        } else {
-            // Update existing contact
-            $contact = $this->updateContact(
-                $contactEmail,
-                $contactPhone,
-                $contactAddress,
-                (int) $this->people->get($contactId),
-                $this->people
-            );
-        }
 
-        return $contact;
+            return $contact;
+        });
     }
 
     /**
@@ -154,9 +171,11 @@ class PushPeopleAction
     {
         $contactAddress = [];
 
-        if ($people->address()->count() > 0) {
+        $addresses = $people->address()->latest('created_at')->get();
+
+        if ($addresses->count() > 0) {
             $i = 1;
-            foreach ($people->address as $address) {
+            foreach ($addresses as $address) {
                 $toAddress = new Address($isNew ? 0 : $i, $address);
                 $contactAddress[] = $toAddress->transform();
                 $i++;
@@ -249,7 +268,9 @@ class PushPeopleAction
         array $phone,
         array $address,
         int $contactId,
-        People $people
+        People $people,
+        bool $hasEmailOptOut = false,
+        bool $hasPhoneOptOut = false
     ): Contact {
         $vinContactService = new ContactService(
             $this->vinCredential,
@@ -261,6 +282,10 @@ class PushPeopleAction
         $contact->information['LastName'] = $this->people->lastname;
         $contact->emails = $emails;
         $contact->phones = $phone;
+
+        // Set opt-out preferences from people contacts
+        $contact->information['DoNotEmail'] = $hasEmailOptOut;
+        $contact->information['DoNotCall'] = $hasPhoneOptOut;
 
         // Check if customer already has address in Vin
         $customHasAddressInVin = ! empty($contact->addresses) && ! empty($contact->addresses[0]['StreetAddress']);

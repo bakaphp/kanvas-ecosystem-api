@@ -43,6 +43,8 @@ class CreateGlobalSystemModuleCommand extends Command
 
         $name = $this->ask('Enter System Module Name.');
 
+        $useImport = $this->confirm('¿Can be used for imports?');
+
         $systemModule = SystemModules::firstOrCreate([
             'model_name' => $class,
             'apps_id' => 0,
@@ -51,6 +53,7 @@ class CreateGlobalSystemModuleCommand extends Command
             'name' => $name,
             'apps_id' => 0,
             'slug' => Str::simpleSlug($name),
+            'use_import' => $useImport
         ]);
 
         info('System Module created successfully - ' . $systemModule->name . ' - ' . $systemModule->model_name);

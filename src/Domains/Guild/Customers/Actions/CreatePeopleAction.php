@@ -12,9 +12,9 @@ use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\AddressType;
-use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Guild\Customers\Traits\ManagesPeopleContactsTrait;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
@@ -22,19 +22,15 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreatePeopleAction
 {
+    use ManagesPeopleContactsTrait;
+
     public bool $runWorkflow = true;
 
-    /**
-     * __construct.
-     */
     public function __construct(
         protected readonly PeopleDataInput $peopleData
     ) {
     }
 
-    /**
-     * execute.
-     */
     public function execute(): People
     {
         $company = $this->peopleData->branch->company()->firstOrFail();
@@ -55,6 +51,8 @@ class CreatePeopleAction
             'google_contact_id' => $this->peopleData->google_contact_id,
             'facebook_contact_id' => $this->peopleData->facebook_contact_id,
             'apple_contact_id' => $this->peopleData->apple_contact_id,
+            'license_number' => $this->peopleData->license_number,
+            'people_types_id' => $this->peopleData->people_type_id,
         ];
 
         if (Date::isValid($this->peopleData->created_at, 'Y-m-d H:i:s')) {
@@ -64,7 +62,7 @@ class CreatePeopleAction
         //@todo how to avoid duplicated? should it be use or frontend?
         if ($this->peopleData->id) {
             $people = PeoplesRepository::getById($this->peopleData->id, $company);
-            $people->update($attributes);
+            $people->updateOrFail($attributes);
         } else {
             $attributes['companies_id'] = $company->getId();
             $people = People::create($attributes);
@@ -78,60 +76,13 @@ class CreatePeopleAction
         }
 
         if ($this->peopleData->contacts->count()) {
-            $existingContacts = $people->contacts()->pluck('value')->toArray();
-            $contactsToAdd = [];
-
-            foreach ($this->peopleData->contacts as $contact) {
-                if (empty($contact->value)) {
-                    continue;
-                }
-
-                if (! in_array($contact->value, $existingContacts)) {
-                    $contactsToAdd[] = new Contact([
-                        'contacts_types_id' => $contact->contacts_types_id,
-                        'value' => $contact->value,
-                        'weight' => $contact->weight,
-                    ]);
-                }
-            }
-
-            if (! empty($contactsToAdd)) {
-                $people->contacts()->saveMany($contactsToAdd);
-            }
+            $this->syncContactsForCreate($people, $this->peopleData->contacts);
         }
 
         if ($this->peopleData->address->count()) {
-            $existingAddresses = $people->address()
-                ->select('address', 'address_2', 'city', 'county', 'state', 'zip', 'city_id', 'state_id', 'countries_id')
-                ->get()
-                ->toArray();
-
-            $hasDefaultAddress = $people->address()->where('is_default', 1)->exists();
-
-            $addressesToAdd = [];
-
-            foreach ($this->peopleData->address as $address) {
-                $newAddress = [
-                    'address' => $address->address,
-                    'address_2' => $address->address_2,
-                    'city' => $address->city,
-                    'county' => $address->county,
-                    'state' => $address->state,
-                    'zip' => $address->zip,
-                    'city_id' => $address->city_id ?? 0,
-                    'state_id' => $address->state_id ?? 0,
-                    'countries_id' => $address->country_id ?? 0,
-                    'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->peopleData->app)->getId(),
-                    'duration' => $address->duration ?? 0.0,
-                ];
-
-                if (! in_array($newAddress, $existingAddresses)) {
-                    $addressesToAdd[] = $addressesToAdd[] = new Address(array_merge($newAddress, [
-                        'is_default' => $hasDefaultAddress ? 0 : ($address->is_default ? 1 : 0),
-                    ]));
-                }
-            }
+            $this->addAddressesForCreate($people);
         }
+
         if ($this->peopleData->peopleEmploymentHistory) {
             foreach ($this->peopleData->peopleEmploymentHistory as $employmentHistory) {
                 $people->employmentHistory()->updateOrCreate(
@@ -164,10 +115,6 @@ class CreatePeopleAction
             OrganizationPeople::addPeopleToOrganization($organization, $people);
         }
 
-        if (! empty($addressesToAdd)) {
-            $people->address()->saveMany($addressesToAdd);
-        }
-
         if ($this->runWorkflow) {
             $people->fireWorkflow(
                 WorkflowEnum::CREATED->value,
@@ -181,6 +128,61 @@ class CreatePeopleAction
         $people->refresh();
 
         return $people;
+    }
+
+    protected function addAddressesForCreate(People $people): void
+    {
+        $existingAddresses = $people->address()
+            ->select('address', 'address_2', 'city', 'county', 'state', 'zip', 'city_id', 'state_id', 'countries_id')
+            ->get()
+            ->toArray();
+
+        $hasDefaultAddress = $people->address()->where('is_default', 1)->exists();
+
+        $deduplicatedAddresses = $this->peopleData->address
+            ->toCollection()
+            ->filter(fn ($address) => ! empty($address->address))
+            ->unique(function ($address) {
+                return $address->address . '_' .
+                    ($address->address_2 ?? '') . '_' .
+                    ($address->city ?? '') . '_' .
+                    ($address->state ?? '') . '_' .
+                    ($address->zip ?? '') . '_' .
+                    ($address->country_id ?? 0);
+            })
+            ->values();
+
+        $addressesToAdd = [];
+
+        foreach ($deduplicatedAddresses as $address) {
+            $newAddress = [
+                'address' => $address->address,
+                'address_2' => $address->address_2,
+                'city' => $address->city,
+                'county' => $address->county,
+                'state' => $address->state,
+                'zip' => $address->zip,
+                'city_id' => $address->city_id ?? 0,
+                'state_id' => $address->state_id ?? 0,
+                'countries_id' => $address->country_id ?? 0,
+            ];
+
+            if (! in_array($newAddress, $existingAddresses)) {
+                $addressesToAdd[] = new Address(array_merge($newAddress, [
+                    'address_type_id' => $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->peopleData->app)->getId(),
+                    'duration' => $address->duration ?? 0.0,
+                    'is_default' => $hasDefaultAddress ? 0 : ($address->is_default ? 1 : 0),
+                ]));
+
+                if (! $hasDefaultAddress && $address->is_default) {
+                    $hasDefaultAddress = true;
+                }
+            }
+        }
+
+        if (! empty($addressesToAdd)) {
+            $people->address()->saveMany($addressesToAdd);
+        }
     }
 
     protected function checkIfPeopleExist(CompanyInterface $company): void

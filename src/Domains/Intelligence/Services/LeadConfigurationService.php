@@ -1,0 +1,123 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Intelligence\Services;
+
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+
+class LeadConfigurationService
+{
+    public function __construct(
+        private readonly bool $isV2 = false
+    ) {
+    }
+
+    public function isV2Enabled(Apps $app): bool
+    {
+        if ((bool) $app->get('intelligence_lead_type_mode_v2')) {
+            return true;
+        }
+
+        return $this->isV2;
+    }
+
+    private function getTypePrefix(?LeadType $leadType): string
+    {
+        $name = strtolower($leadType?->name ?? '');
+
+        if (str_contains($name, 'showroom')) {
+            return 'showroom';
+        }
+
+        if (str_contains($name, 'phone')) {
+            return 'phone';
+        }
+
+        return 'internet';
+    }
+
+    private function getStatusSuffix(Lead $lead): string
+    {
+        $statusName = strtolower($lead->status()->first()?->name ?? '');
+
+        if (str_contains($statusName, 'not') && str_contains($statusName, 'sold')) {
+            return 'closed-not-sold';
+        }
+
+        if (str_contains($statusName, 'sold')) {
+            return 'closed-sold';
+        }
+
+        return '';
+    }
+
+    public function getAiModeKey(Lead $lead): string
+    {
+        if (! $this->isV2Enabled($lead->app)) {
+            return 'ai_mode';
+        }
+
+        $prefix = $this->getTypePrefix($lead->type()->first());
+
+        return match ($prefix) {
+            'showroom' => 'showroom_ai_mode',
+            'phone' => 'phone_ai_mode',
+            default => 'ai_mode',
+        };
+    }
+
+    public function getFollowUpModeKey(Lead $lead): string
+    {
+        if (! $this->isV2Enabled($lead->app)) {
+            return IntelligenceModeEnum::AI_FOLLOW_UP->value;
+        }
+
+        $prefix = $this->getTypePrefix($lead->type()->first());
+        $statusSuffix = $this->getStatusSuffix($lead);
+
+        if ($statusSuffix !== '') {
+            return "{$prefix}_followup_{$statusSuffix}";
+        }
+
+        return match ($prefix) {
+            'showroom' => 'showroom_follow_up_mode',
+            'phone' => 'phone_follow_up_mode',
+            default => 'internet_follow_up_mode',
+        };
+    }
+
+    public function getFirstMessageDefaultKey(Lead $lead): string
+    {
+        $prefix = $this->getTypePrefix($lead->type()->first());
+
+        return "{$prefix}_first_fu_active_default";
+    }
+
+    public function getAiModeDefaultKey(Lead $lead, bool $isOpen = true): string
+    {
+        $prefix = $this->getTypePrefix($lead->type()->first());
+        $state = $isOpen ? 'open' : 'closed';
+
+        return "{$prefix}_ai_mode_{$state}_default";
+    }
+
+    public function getFollowUpDefaultKey(Lead $lead): string
+    {
+        $prefix = $this->getTypePrefix($lead->type()->first());
+        $statusSuffix = $this->getStatusSuffix($lead);
+
+        if ($statusSuffix === 'closed-not-sold') {
+            return "{$prefix}_con_fu_cns_default";
+        }
+
+        if ($statusSuffix === 'closed-sold') {
+            return "{$prefix}_con_fu_closed-sold_default";
+        }
+
+        return "{$prefix}_con_fu_active_default";
+    }
+}

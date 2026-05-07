@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\NetSuite\Traits;
 
+use Kanvas\Connectors\NetSuite\Client;
 use NetSuite\Classes\CustomerSearchBasic;
 use NetSuite\Classes\SearchRequest;
 use NetSuite\Classes\SearchStringField;
@@ -11,7 +12,7 @@ use NetSuite\NetSuiteService;
 
 trait UseNetSuiteCustomerSearchTrait
 {
-    protected NetSuiteService $service;
+    protected Client $client;
 
     protected function createEmailSearchCriteria(string $email): CustomerSearchBasic
     {
@@ -28,13 +29,15 @@ trait UseNetSuiteCustomerSearchTrait
         $searchRequest = new SearchRequest();
         $searchRequest->searchRecord = $this->createEmailSearchCriteria($email);
 
-        $searchResponse = $this->service->search($searchRequest);
+        return $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($searchRequest) {
+            $searchResponse = $service->search($searchRequest);
 
-        if ($searchResponse->searchResult->status->isSuccess &&
-            $searchResponse->searchResult->totalRecords > 0) {
-            return $searchResponse->searchResult->recordList->record[0];
-        }
+            if ($searchResponse->searchResult->status->isSuccess &&
+                $searchResponse->searchResult->totalRecords > 0) {
+                return $searchResponse->searchResult->recordList->record[0];
+            }
 
-        return null;
+            return null;
+        });
     }
 }

@@ -16,11 +16,6 @@ use Spatie\LaravelData\Data;
 
 class MessageInput extends Data
 {
-    /**
-     * __construct
-     *
-     * @return void
-     */
     public function __construct(
         public AppInterface $app,
         public CompanyInterface $company,
@@ -41,6 +36,9 @@ class MessageInput extends Data
         public ?string $slug = null,
         public ?string $channel_slug = null,
         public array $files = [],
+        public array $categories = [],
+        public int $is_locked = 0,
+        public array $custom_fields = [],
     ) {
     }
 
@@ -85,6 +83,9 @@ class MessageInput extends Data
             $data['slug'] ?? null,
             $data['channel_slug'] ?? null,
             $data['files'] ?? [],
+            $data['categories'] ?? [],
+            $data['is_locked'] ?? 0,
+            $data['custom_fields'] ?? [],
         );
     }
 }

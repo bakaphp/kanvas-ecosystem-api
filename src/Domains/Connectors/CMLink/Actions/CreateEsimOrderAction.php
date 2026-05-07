@@ -56,7 +56,10 @@ class CreateEsimOrderAction
     {
         $this->validateOrder();
 
-        $isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
+        //$isRefuelOrder = isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id']);
+        $isRefuelOrder = (isset($this->order->metadata['parent_order_id']) && ! empty($this->order->metadata['parent_order_id'])) ||
+                      (isset($this->order->metadata['target_iccid']) && ! empty($this->order->metadata['target_iccid'])) ||
+                      (isset($this->order->metadata['parent_order_iccid']) && ! empty($this->order->metadata['parent_order_iccid']));
         if ($isRefuelOrder) {
             $this->processRefuelOrder();
         } else {
@@ -85,12 +88,17 @@ class CreateEsimOrderAction
 
     protected function processRefuelOrder(): void
     {
-        $parentOrder = Order::getById($this->order->metadata['parent_order_id']);
+        $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['iccid'] ?? null;
+        $findOrderByIccid = ! isset($this->order->metadata['parent_order_id']) && $targetIccid !== null;
+
+        $parentOrder = ! $findOrderByIccid ? Order::getById($this->order->metadata['parent_order_id']) : $this->findOrderByIccid($targetIccid);
+
+        if (! $parentOrder) {
+            throw new ValidationException('Parent order not found for refuel order');
+        }
 
         // Get the specific ICCID from the refuel order metadata
-        $targetIccid = $this->order->metadata['target_iccid'] ?? $this->order->metadata['iccid'] ?? null;
-
-        if ($targetIccid) {
+        if ($targetIccid !== null && ! empty($targetIccid)) {
             // Use the specific ICCID provided by the frontend
             $this->availableVariant = $this->findVariantByIccid($parentOrder, $targetIccid);
             if (! $this->availableVariant) {
@@ -115,6 +123,8 @@ class CreateEsimOrderAction
             throw new ValidationException($this->cmLinkOrder['description']);
         }
 
+        $this->order->addTag('reFuel');
+        $this->order->set('cmlink_response', $this->cmLinkOrder);
         $this->orderMetaData = $parentOrder->metadata ?? [];
     }
 
@@ -134,6 +144,12 @@ class CreateEsimOrderAction
             dataBundleId: $this->variantSkuIsBundleId,
             activeDate: $this->order->created_at->format('Y-m-d')
         );
+
+        if ($this->cmLinkOrder['code'] !== '0000000') {
+            throw new ValidationException($this->cmLinkOrder['description']);
+        }
+
+        $this->order->set('cmlink_response', $this->cmLinkOrder);
 
         $this->orderMetaData = $this->order->metadata ?? [];
     }
@@ -202,7 +218,7 @@ class CreateEsimOrderAction
             $this->availableVariant->sku,
             $this->esimData['data']['state'],
             (int) ($this->cmLinkOrder['quantity'] ?? 1),
-            (float) $this->cmLinkOrder['price'],
+            (float) ($this->cmLinkOrder['price'] ?? 0.0),
             'bundle',
             $this->orderVariant->sku,
             $this->esimData['data']['smdpAddress'],
@@ -230,12 +246,22 @@ class CreateEsimOrderAction
     protected function findVariantByIccid(Order $parentOrder, string $iccid): ?Variants
     {
         // Look through all order items to find the one with matching ICCID (SKU)
-        foreach ($parentOrder->allItems() as $item) {
+        foreach ($parentOrder->allItems()->get() as $item) {
             if ((string) $item->variant->sku === $iccid || (string) $item->product_sku === $iccid) {
                 return $item->variant;
             }
         }
 
         return null;
+    }
+
+    protected function findOrderByIccid(string $iccid): ?Order
+    {
+        // Search for an order that contains the specified ICCID in its items
+        return Order::query()
+            ->whereHas('allItems', function ($query) use ($iccid) {
+                $query->where('product_sku', $iccid);
+            })
+            ->first();
     }
 }

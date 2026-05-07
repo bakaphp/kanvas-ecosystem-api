@@ -11,4 +11,6 @@ enum ConfigurationEnum: string
     case STRIPE_USER_ID = 'stripe_id';
     case STRIPE_ACCOUNT_CONNECTED = 'stripe_account_connected';
     case STRIPE_ACCOUNT_EMAIL = 'stripe_email';
+    case CHECKOUT_SUCCESS_URL = 'CHECKOUT_SUCCESS_URL';
+    case CHECKOUT_CANCEL_URL = 'CHECKOUT_CANCEL_URL';
 }

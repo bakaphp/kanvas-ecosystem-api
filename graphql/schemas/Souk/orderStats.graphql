@@ -1,0 +1,239 @@
+enum DateGroupBy {
+    DAY
+    WEEK
+    MONTH
+}
+
+enum PeriodType {
+    DAY
+    WEEK
+    MONTH
+    YEAR
+}
+
+type OrderPaymentBreakdownItem {
+    label: String!
+    total_transactions: Int!
+    total_amount: Float!
+}
+
+type OrderPeriodData {
+    period_type: String!
+    count: Int!
+    avg_count: Float!
+    total: Float!
+    amount_avg: Float!
+    periods_in_range: Int!
+}
+
+type OrderStats {
+    period: Period!
+    ordersInPeriod: OrdersInPeriod!
+    currentCount: Int!
+    dailyTurnover: DailyTurnover!
+    averageRotation: AverageRotation!
+    orderRotationAvg: Float
+    orderTransactions: String
+    groupBy: String
+    byProvider: [OrderPaymentByProvider!]!
+}
+type OrderPaymentStats {
+    period: Period!
+    ordersInPeriod: OrdersInPeriodPayment!
+    currentCount: Int!
+    byPeriod: [OrderPaymentBreakdownItem!]!
+    periods: [OrderPeriodData!]!
+}
+
+type OrdersInPeriodPayment {
+    orderAvg: Float
+    count: Int
+    totalAmount: Float
+    byServices: [OrderPaymentService!]
+    byTransaction: OrderPaymentByTransaction
+    byProvider: [OrderPaymentByProvider!]
+    data: [OrderPaymentStateCount!]!
+}
+
+type OrderPaymentService {
+    variantId: Int!
+    productName: String!
+    variantName: String
+    serviceName: String!
+    orderCount: Int!
+    totalQuantity: Int!
+    totalAmount: Float!
+}
+
+type OrderPaymentByTransaction {
+    card: Int
+    transfer: Int
+    cardAmount: Money
+    transferAmount: Money
+}
+
+type OrderPaymentByProvider {
+    name: String!
+    count: Int!
+    totalAmount: Float!
+}
+
+type OrderPaymentStateCount {
+    date: String!
+    count: Int!
+    totalAmount: Float!
+    states: Mixed!
+}
+
+type AverageRotation {
+    orders: [OrderRotation!]!
+    averageTime: Float!
+}
+
+type OrderRotation {
+    orderId: Int!
+    initialDate: String!
+    finalDate: String!
+    time: Float!
+}
+
+type Period {
+    start: String!
+    end: String!
+}
+
+type OrderTurnover {
+    date: String!
+    entries: Int!
+    exits: Int!
+}
+
+type DateCount {
+    date: String,
+    count: Int
+}
+
+type DailyTurnover {
+    totalEntries: Int,
+    totalExits: Int,
+    exitAvg: Float,
+    entryAvg: Float,
+    exitPercentage: Int,
+    maxExitDate: DateCount
+    maxEntryDate: DateCount
+    data: [OrderTurnover]
+}
+
+type OrderStateCount {
+    date: String!
+    states: Mixed!
+    count: Int!
+}
+
+type OrdersInPeriod {
+    orderAvg: Float
+    maxOrdersDate: DateCount
+    minOrdersDate: DateCount
+    data: [OrderStateCount!]!
+}
+
+input OrderStatsInput {
+    initialStates: [String!]
+    finalStates: [String!]
+    currentCountStates: [String!]
+    productId: Int # Filter by product ID (orders containing variants of this product)
+    productTypeSlugs: [String!] # Filter services by product type slugs (e.g., ["service", "accessory"])
+    orderTypeNames: [String!] # Filter by order type names (e.g., ["parking", "reservation"])
+    date: String # single date (e.g., "2025-07-07")
+    startDate: String # start of period (e.g., "2025-07-01")
+    endDate: String # end of period (e.g., "2025-07-07")
+    timezone: String # e.g., "America/New_York"
+    baseDate: String # starting date to count current orders (e.g., "2025-07-07")
+    groupBy: DateGroupBy # DAY (default), WEEK, or MONTH
+    provider_company_id: [ID!] # DB-level filter: only orders linked to these provider companies via order_providers
+    providers: [ProviderInput!] # Email-pattern byProvider breakdown (same as OrderPaymentStatsInput)
+    user_email: String # Filter by order user email
+}
+
+input ProviderInput {
+    name: String!
+    emailPattern: String!
+}
+
+enum MetadataFilterOperator {
+    EQ
+    LIKE
+}
+
+input OrderMetadataFilter {
+    path: String!                                    # Dot-notation into orders.metadata (e.g. "data.paso_rapido_tag")
+    value: String!
+    operator: MetadataFilterOperator                 # Defaults to EQ when omitted
+}
+
+input OrderPaymentStatsInput {
+    paidStates: [String!]
+    variantId: Int # Filter by specific service/variant
+    productId: Int # Filter by product ID (orders containing variants of this product)
+    productTypeSlugs: [String!] # Filter services by product type slugs (e.g., ["service", "accessory"])
+    orderTypeNames: [String!] # Filter by order type names (e.g., ["parking", "reservation"])
+    date: String # single date (e.g., "2025-07-07")
+    startDate: String # start of period (e.g., "2025-07-01")
+    endDate: String # end of period (e.g., "2025-07-07")
+    timezone: String # e.g., "America/New_York"
+    baseDate: String # starting date to count current orders (e.g., "2025-07-07")
+    providers: [ProviderInput!] # Filter and group by provider email patterns
+    groupPeriods: [PeriodType!] # Period types for averages summary (DAY, WEEK, MONTH, YEAR)
+    periodBreakdown: PeriodType # Period type for time-series data in byPeriod (default: MONTH)
+    provider_company_id: [ID!]   # DB-level filter: only orders linked to these provider companies via order_providers
+    user_email: String # Filter by order user email
+    metadata: OrderMetadataFilter # Filter orders by a value at a specific metadata path (e.g. { path: "data.paso_rapido_tag", value: "01070877" })
+    reference: String # Filter by order reference (supports LIKE patterns)
+    orderNumber: String # Filter by exact order_number
+}
+
+input ExportOrderPaymentsInput {
+    paidStates: [String!]
+    orderTypeNames: [String!]
+    startDate: String
+    endDate: String
+    timezone: String
+    language: String # "en" (default) or "es"
+    fieldMapper: Mixed # keys = column headers, values = dot-notation field paths (e.g. {"Order": "order_number"})
+    user_email: String # Filter by order user email (supports LIKE patterns)
+    provider_company_id: [ID!] # DB-level filter: only orders linked to these provider companies via order_providers
+}
+
+type OrderCommissionStats {
+    total_revenue: Float!
+    total_commission: Money!
+    total_provider_amount: Money!
+    order_count: Int!
+}
+
+input OrderCommissionStatsInput {
+    from: DateTime!
+    to: DateTime!
+    company_id: ID
+    order_type: String
+    provider_company_id: [ID!]
+}
+
+extend type Query @guard {
+    orderCommissionStats(input: OrderCommissionStatsInput!): OrderCommissionStats!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@commissionStats"
+        )
+    orderStats(input: OrderStatsInput): OrderStats!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@getOrderStats"
+        )
+    orderPaymentStats(input: OrderPaymentStatsInput): OrderPaymentStats!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@getPaymentStats"
+        )
+    exportOrderPayments(input: ExportOrderPaymentsInput!, format: ExportFormat!): OrderExportResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@exportPayments"
+        )
+}

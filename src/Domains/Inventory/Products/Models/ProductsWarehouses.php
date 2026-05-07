@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Models;
 
-use Baka\Traits\HasCompositePrimaryKeyTrait;
+use Baka\Traits\NoAppRelationshipTrait;
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Thiagoprz\CompositeKey\HasCompositeKey;
 
 /**
  * Class Products Categories.
@@ -21,19 +23,20 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
  */
 class ProductsWarehouses extends BaseModel
 {
-    use HasCompositePrimaryKeyTrait;
+    use HasCompositeKey;
+    use NoAppRelationshipTrait;
+    use NoCompanyRelationshipTrait;
 
     protected $table = 'products_warehouses';
     protected $guarded = [
         'products_id',
-        'warehouses_id'
+        'warehouses_id',
     ];
 
     protected $primaryKey = ['products_id', 'warehouses_id'];
 
     /**
      * Get the product.
-     *
      */
     public function product(): BelongsTo
     {
@@ -42,7 +45,6 @@ class ProductsWarehouses extends BaseModel
 
     /**
      * Get the warehouse.
-     *
      */
     public function warehouse(): BelongsTo
     {

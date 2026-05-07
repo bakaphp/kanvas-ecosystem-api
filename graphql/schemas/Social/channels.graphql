@@ -12,18 +12,34 @@ type SocialChannel {
     entity_id: ID!
     last_message_id: ID
     title: String
+    metadata: Mixed
     messages: [Message!]! @belongsToMany
     users: [User!]! @belongsToMany
-    systemModule: SystemModule! @belongsTo
+    systemModule: SystemModule! @belongsTo(relation: "systemModule")
     created_at: DateTime!
+    updated_at: DateTime
+    categories: [Category!]
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Queries\\Categories\\CategoryQueries@getCategoriesBuilder"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
 }
 
 input SocialChannelInput {
     name: String!
     slug: String
+    title: String
     description: String!
     entity_namespace_uuid: String!
     entity_id: ID!
+    metadata: Mixed
+    tags: [TagInput!]
 }
 
 enum UsersRolesChannel {
@@ -68,6 +84,16 @@ extend type Query {
                     "entity_id"
                 ]
             )
+        hasTags: _
+            @whereHasConditions(
+                relation: "tags"
+                columns: ["id", "name", "slug"]
+            )
+        hasCategories: _
+            @whereHasConditions(
+                relation: "categories"
+                columns: ["id", "name", "slug"]
+            )
         orderBy: _ @orderBy(columnsEnum: ChannelColumns)
     ): [SocialChannel!]!
         @paginate(
@@ -77,7 +103,7 @@ extend type Query {
         )
 }
 
-extend type Mutation {
+extend type Mutation @guard {
     createSocialChannel(input: SocialChannelInput!): SocialChannel
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@createChannel"
@@ -97,5 +123,12 @@ extend type Mutation {
     detachUserToSocialChannel(channel_id: ID!, user_id: ID!): SocialChannel
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@detachUserToChannel"
+        )
+}
+
+extend type Mutation @guardByAdmin {
+    clearSocialChannelMessages(channel_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Channels\\ChannelsManagementMutation@clearMessages"
         )
 }

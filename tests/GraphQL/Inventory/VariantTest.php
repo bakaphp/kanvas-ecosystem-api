@@ -110,6 +110,9 @@ class VariantTest extends TestCase
             'price' => rand(1, 1000),
             'quantity' => rand(1, 5),
             'position' => rand(1, 4),
+            'config' => [
+                'name' => 'naming'
+            ]
         ];
         $warehouseResponse = $this->graphQL('
         mutation($data: WarehouseReferenceInput! $id: ID!) {
@@ -120,6 +123,7 @@ class VariantTest extends TestCase
                 description
                 products_id
                 warehouses{
+                    config
                     warehouseinfo{
                         id
                     }
@@ -133,6 +137,11 @@ class VariantTest extends TestCase
         $this->assertEquals(
             $warehouseData['id'],
             $warehouseResponse['data']['addVariantToWarehouse']['warehouses'][1]['warehouseinfo']['id']
+        );
+
+        $this->assertEquals(
+            $data['config'],
+            $warehouseResponse['data']['addVariantToWarehouse']['warehouses'][1]['config']
         );
     }
 
@@ -169,6 +178,7 @@ class VariantTest extends TestCase
         $data = [
             'id' => $warehouseData['id'],
             'price' => rand(1, 1000),
+            'cost' => rand(1, 500),
             'quantity' => rand(1, 5),
             'position' => rand(1, 4),
         ];
@@ -182,6 +192,7 @@ class VariantTest extends TestCase
                 products_id
                 warehouses{
                     price
+                    cost
                     warehouseinfo{
                         id
                     }
@@ -195,6 +206,10 @@ class VariantTest extends TestCase
         $this->assertEquals(
             $data['price'],
             $warehouseResponse['data']['updateVariantInWarehouse']['warehouses'][0]['price']
+        );
+        $this->assertEquals(
+            $data['cost'],
+            $warehouseResponse['data']['updateVariantInWarehouse']['warehouses'][0]['cost']
         );
     }
 }

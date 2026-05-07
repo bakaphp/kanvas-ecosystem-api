@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Types;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\Users\Models\Users;
+use Laravel\Cashier\Subscription;
 
 class UserType
 {
@@ -35,5 +37,25 @@ class UserType
             'cell_phone_number' => $user->cell_phone_number,
             'two_step_phone_number' => $user->getAppProfile($app)->two_step_phone_number,
         ];
+    }
+
+    /**
+     * Return the latest subscription for the user in the current app.
+     * User subscriptions use companies_id = 0 to distinguish from company subscriptions.
+     */
+    public function currentSubscription(Users $user, array $request): ?Subscription
+    {
+        $app = app(Apps::class);
+
+        $stripeCustomer = AppsStripeCustomer::where('users_id', $user->getId())
+            ->where('companies_id', 0)
+            ->where('apps_id', $app->getId())
+            ->first();
+
+        if (! $stripeCustomer) {
+            return null;
+        }
+
+        return $stripeCustomer->subscriptions()->latest()->first();
     }
 }

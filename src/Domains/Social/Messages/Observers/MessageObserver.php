@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Observers;
 
-use Kanvas\Connectors\PromptMine\Actions\CheckNuggetGenerationCountAction;
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
@@ -15,12 +14,18 @@ class MessageObserver
     public function creating(Message $message): void
     {
         //$messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
-        if ($message->app->get('message-image-type') && is_array($message->message) && isset($message->message['type']) && $message->message['type'] === 'image-format') {
+        /* if (
+            $message->app->get('message-image-type')
+            && is_array($message->message)
+            && isset($message->message['type'])
+            && $message->message['type'] === 'image-format'
+            && $message->messageType->verb == $message->app->get('image-generation-limit-message-type-verb')
+        ) {
             (new CheckMessagePostLimitAction(
                 message: $message,
-                getChildrenCount: true
+                messageTypeId: $message->message_types_id
             ))->execute();
-        }
+        } */
 
         if ($message->app->get('validate-message-schema')) {
             $checkJson = new MessageSchemaValidator($message, $message->messageType);
@@ -28,26 +33,51 @@ class MessageObserver
         }
     }
 
-    public function saved(Message $message): void
+    public function created(Message $message): void
     {
-        // check if it has a parent, update parent total children
+        if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
+            $message->searchable();
+        }
+
         if ($message->parent_id && $message->parent) {
             $message->parent->increment('total_children');
         }
-    }
-
-    public function created(Message $message): void
-    {
-        /*         if ($message->app->get('check-free-generation-count') && $message->app->get('free-generation-check-message-type') && $message->parent_id) {
-                    (new CheckNuggetGenerationCountAction($message))->execute();
-                } */
 
         $message->clearLightHouseCacheJob();
+
+        $message->user->getAppProfile($message->app)->increment('total_messages_count');
     }
 
     public function updated(Message $message): void
     {
         $message->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['app' => $message->app]);
         $message->clearLightHouseCacheJob();
+
+        if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
+            $message->searchableSync();
+        }
+    }
+
+    public function deleted(Message $message): void
+    {
+        // Check each channel this message belongs to
+        foreach ($message->channels as $channel) {
+            $remainingMessagesCount = $channel->messages()
+                ->where('messages.id', '!=', $message->id)
+                ->count();
+
+            if ($remainingMessagesCount === 0) {
+                $channel->is_deleted = 1;
+                $channel->last_message_id = null;
+                $channel->saveOrFail();
+            } elseif ($channel->last_message_id === $message->id) {
+                $previousMessage = $channel->getPreviousMessage($message);
+                $channel->last_message_id = $previousMessage?->id;
+                $channel->saveOrFail();
+            }
+        }
+        if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
+            $message->unsearchable();
+        }
     }
 }

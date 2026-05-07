@@ -1,12 +1,15 @@
 type Notification {
     id: ID!
-    users: User!
-    fromUsers: User
-    companies: Company
-    systemModule: SystemModule
-    types(filter: NotificationTypeFilterInput): NotificationType!
+    users: User! @belongsTo
+    fromUsers: User @belongsTo
+    companies: Company @belongsTo
+    systemModule: SystemModule @belongsTo
+    interaction: Interaction @belongsTo
+    interaction_id: Int
+    types(filter: NotificationTypeFilterInput): NotificationType! @belongsTo
     entity_id: String!
     entity(fields: JSON): Mixed @method(name: "getEntityData")
+    entity_children(fields: JSON): Mixed @method(name: "getEntityChildrenData")
     content: String
     read: Int!
     content_group: String
@@ -16,9 +19,9 @@ type Notification {
 
 type NotificationType {
     id: ID!
-    systemModule: SystemModule!
-    parent: NotificationType
-    channel: NotificationChannel
+    systemModule: SystemModule! @belongsTo
+    parent: NotificationType @belongsTo
+    channel: NotificationChannel @belongsTo
     name: String!
     key: String!
     verb: String
@@ -64,6 +67,15 @@ input NotificationTypeFilterInput {
     event: String
 }
 
+input SystemModuleFilterInput {
+    slugs: [String!]
+    message_type_verb: String
+}
+
+input InteractionsFilterInput {
+    name: String
+}
+
 input NotificationMessageMetaDataInput {
     notification_type_id: ID!
     distribution: NotificationMessageMetaDataDistributionInput!
@@ -93,6 +105,8 @@ extend type Query @guard {
         whereEntity: NotificationEntityFilterInput
             @whereJsonNestedKey(key: "entity_content", nestedKey: "nested_key")
         whereType: NotificationTypeFilterInput
+        whereSystemModule: SystemModuleFilterInput
+        whereInteraction: InteractionsFilterInput
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
     ): [Notification!]!
         @paginate(

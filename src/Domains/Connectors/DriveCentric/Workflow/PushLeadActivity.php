@@ -22,11 +22,14 @@ class PushLeadActivity extends KanvasActivity
             entity: $lead,
             app: $app,
             integration: IntegrationsEnum::DRIVE_CENTRIC,
+            additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params): array {
-                $pushLead = new PushLeadAction($lead)->execute();
+                $pushAction = new PushLeadAction($lead);
+                $result = $pushAction->execute();
+
                 return [
-                    'message' => 'People pulled successfully',
-                    'entity' => $pushLead,
+                    'message' => 'Lead pushed successfully to DriveCentric',
+                    'entity' => $result,
                 ];
             },
             company: $lead->company,

@@ -15,7 +15,7 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
     upc: String
     system_module: SystemModule! @method(name: "getSystemModule")
     total_variants: Int @method(name: "getTotalVariants")
-    status: Status
+    status: Status @belongsTo(relation: "status")
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -23,7 +23,8 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
     is_published: Boolean
-    created_at: DateTime
+    created_at: DateTime!
+    message: [Message] @hasMany(relation: "getIntegrationMessage")
     updated_at: DateTime
     categories: [Category!]! @BelongsToMany
     warehouses: [Warehouse!]! @BelongsToMany
@@ -31,6 +32,7 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
         @method(name: "visibleAttributes")
         @cacheRedis
     variants(includeUnpublished: Boolean = false, limit: Int): [Variant!]!
+        @cacheRedis
         @HasMany
         @builder(
             method: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilder@filterByPublished"
@@ -57,6 +59,7 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
+    activities: [ActivityLog!] @method(name: "getActivities")
 }
 
 ### @todo extract this into its own type.
@@ -182,6 +185,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addAttribute"
         )
+    addAttributeToProduct(id: ID!, input: ProductAttributesInput!): Product
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addAttributeToProduct"
+        )
     removeAttribute(id: ID!, attribute_id: ID!): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@removeAttribute"
@@ -202,6 +209,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@duplicateProduct"
         )
+    publishProduct(id: ID!, is_published: Boolean!): Product!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@publishManagement"
+        )
     updateProductAttributeTranslations(
         product_id: ID!
         attribute_id: ID!
@@ -220,6 +231,7 @@ extend type Query @guard {
         variantAttributeOrderBy: ProductAttributeOrderBy
         attributeOrderBy: ProductAttributeOrderBy
         nearByLocation: NearByLocationInput
+        nearByWarehouseLocation: NearByLocationInput
         where: _
             @whereConditions(
                 columns: [
@@ -240,7 +252,10 @@ extend type Query @guard {
         hasVariants: _
             @whereHasConditions(relation: "variants", columns: ["id", "sku"])
         hasCategories: _
-            @whereHasConditions(relation: "categories", columns: ["id", "name"])
+            @whereHasConditions(
+                relation: "categories"
+                columns: ["id", "name", "slug"]
+            )
         hasWarehouses: _
             @whereHasConditions(
                 relation: "warehouses"
@@ -283,8 +298,23 @@ extend type Query @guard {
             builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProducts"
             defaultCount: 25
         )
+        @searchCache
     productsExport: EntityExport
         @field(
             resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductsExport"
+        )
+    productSemanticSearch(query: String!): [Product!]!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@productSemanticSearch"
+        )
+    productRecommendations(
+        id: ID!
+        intent: String!
+        config: Mixed
+    ): [Product!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductRecommendations"
+            defaultCount: 25
         )
 }

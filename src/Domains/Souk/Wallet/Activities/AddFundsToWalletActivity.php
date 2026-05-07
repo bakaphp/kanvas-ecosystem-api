@@ -6,8 +6,9 @@ namespace Kanvas\Souk\Wallet\Activities;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Wallet\Actions\AddFundsToWalletAction;
+use Kanvas\Souk\Wallet\Actions\AddFundsToCompanyWalletAction;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
+use Kanvas\Souk\Wallet\Enums\TransactionSourceEnum;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -58,8 +59,9 @@ class AddFundsToWalletActivity extends KanvasActivity
                     ];
                 }
 
-                $transaction = new AddFundsToWalletAction(
+                $transaction = new AddFundsToCompanyWalletAction(
                     order: $order,
+                    source: TransactionSourceEnum::RECHARGE_MANUAL,
                 )->execute();
 
                 return [

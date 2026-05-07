@@ -11,6 +11,10 @@ class RegionObserver
 {
     public function creating(Regions $region): void
     {
+        if ($region->isGlobal()) {
+            return;
+        }
+
         $defaultRegion = $region::getDefault($region->company);
 
         // if default already exist remove its default
@@ -26,6 +30,10 @@ class RegionObserver
 
     public function updating(Regions $region): void
     {
+        if ($region->isGlobal()) {
+            return;
+        }
+
         $defaultRegion = Regions::getDefault($region->company);
 
         // if default already exist remove its default
@@ -47,6 +55,10 @@ class RegionObserver
     {
         if ($region->hasDependencies()) {
             throw new ValidationException('Can\'t delete, Region has warehouses associated');
+        }
+
+        if ($region->isGlobal()) {
+            return;
         }
 
         $defaultRegion = $region::getDefault($region->company);

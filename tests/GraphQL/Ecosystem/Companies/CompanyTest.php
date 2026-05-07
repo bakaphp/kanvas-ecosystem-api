@@ -6,7 +6,12 @@ namespace Tests\GraphQL\Ecosystem\Companies;
 
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Actions\DeleteCompaniesAction;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Products\Actions\AddAttributeAction;
+use Kanvas\Inventory\Products\Models\Products;
 use Tests\TestCase;
 
 class CompanyTest extends TestCase
@@ -285,6 +290,52 @@ class CompanyTest extends TestCase
         ->assertSee('deleteCompany', true);
     }
 
+    public function testDeleteCompanyWithInventoryProducts(): void
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $company = Companies::factory()->create(['users_id' => $user->getId()]);
+
+        $product = Products::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->create();
+
+        $attribute = new Attributes();
+        $attribute->apps_id = $app->getId();
+        $attribute->companies_id = $company->getId();
+        $attribute->users_id = $user->getId();
+        $attribute->name = 'Test ' . uniqid();
+        $attribute->slug = 'test-' . uniqid();
+        $attribute->save();
+
+        new AddAttributeAction($product, $attribute, 'some-value')->execute();
+
+        $this->assertDatabaseHas(
+            'products_attributes',
+            [
+                'products_id' => $product->getId(),
+                'attributes_id' => $attribute->getId(),
+            ],
+            'inventory',
+        );
+
+        $result = new DeleteCompaniesAction($user)->execute($company->getId());
+
+        $this->assertTrue($result);
+        $this->assertTrue((bool) $company->refresh()->is_deleted);
+        $this->assertDatabaseMissing(
+            'products_attributes',
+            [
+                'products_id' => $product->getId(),
+                'attributes_id' => $attribute->getId(),
+            ],
+            'inventory',
+        );
+    }
+
     public function testUploadFileToCompany()
     {
         $user = auth()->user();
@@ -323,5 +374,48 @@ class CompanyTest extends TestCase
             ->assertSee('name')
             ->assertSee('files')
             ->assertSee('company.jpg');
+    }
+
+    public function testUpdateCompanyPhotoProfile(): void
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $operations = [
+            'query' => '
+                mutation updateCompanyPhotoProfile($file: Upload!, $id: ID!) {
+                    updateCompanyPhotoProfile(file: $file, id: $id) {
+                        id
+                        name
+                        photo {
+                            name
+                            url
+                        }
+                    }
+                }
+            ',
+            'variables' => [
+                'id' => $company->getId(),
+                'file' => null,
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.file'],
+        ];
+
+        $file = [
+            '0' => UploadedFile::fake()->create('company-photo.png', 100, 'image/png'),
+        ];
+
+        $this->multipartGraphQL($operations, $map, $file)
+            ->assertSuccessful()
+            ->assertJson([
+                'data' => [
+                    'updateCompanyPhotoProfile' => [
+                        'id' => (string) $company->getId(),
+                    ],
+                ],
+            ]);
     }
 }

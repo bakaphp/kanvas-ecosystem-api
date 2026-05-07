@@ -13,6 +13,7 @@ use Laravel\Scout\Searchable;
 trait DynamicSearchableTrait
 {
     use Searchable;
+
     protected bool $isTypesense = false;
 
     public function searchableUsing()
@@ -52,5 +53,10 @@ trait DynamicSearchableTrait
         $engine = $modelSpecificEngine ?? $defaultEngine;
 
         return $engine === 'typesense';
+    }
+
+    public function getRelations(?string $modelClass = null): array
+    {
+        return func_num_args() > 0 ? [] : $this->relations;
     }
 }

@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             CurrencySeeder::class,
+            LanguagesSeeder::class,
             AppSeeder::class,
             AppSettingsSeeder::class,
             AppPlansSeeder::class,
@@ -31,6 +32,7 @@ class DatabaseSeeder extends Seeder
             MessageActivityTypeSeeder::class,
             NotificationChannelsSeeder::class,
             KanvasModulesSeeder::class,
+            SoukSeeder::class,
         ]);
     }
 }

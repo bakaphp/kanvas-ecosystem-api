@@ -12,24 +12,36 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Event\Events\Contracts\EventResourceInterface;
+use Kanvas\Event\Events\Traits\EventResourceTrait;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
+use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Factories\LeadFactory;
+use Kanvas\Guild\LeadSubSources\Models\LeadSubSource;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
+use Throwable;
 
 /**
  * Class Leads.
@@ -58,17 +70,24 @@ use Override;
  * @property string $phone
  * @property string|null $description
  * @property string $is_duplicate
- * @property string $third_party_sync_status @deprecated version 0.3
+ * @property string $third_party_sync_status
  */
-class Lead extends BaseModel
+class Lead extends BaseModel implements EventResourceInterface
 {
     use UuidTrait;
-    use DynamicSearchableTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     use HasTagsTrait;
     use FollowersTrait;
     use CanUseWorkflow;
     use HasLightHouseCache;
+    use EventResourceTrait;
 
+    protected $observables = [
+        'softDeleting',
+        'softDeleted',
+    ];
     protected $table = 'leads';
     protected $guarded = [];
 
@@ -110,6 +129,15 @@ class Lead extends BaseModel
 
         if ($app->get(LeadFilterEnum::FILTER_BY_BRANCH->value)) {
             return $query->where('companies_branches_id', $user->getCurrentBranch()->getId());
+        }
+
+        if ($app->get(LeadFilterEnum::FILTER_BY_OWNER_AGENTS->value) && $user->get('ZOHO_USER_OWNER_ID')) {
+            try {
+                $query->where('leads_receivers_id', '=', LeadReceiver::getByName('Agents Platform', $app)->getId())
+                    ->where('leads_owner_id', $user->getId());
+            } catch (Throwable $th) {
+                //do nothing
+            }
         }
 
         if ($app->get(LeadFilterEnum::FILTER_BY_AGENTS->value)) {
@@ -154,6 +182,10 @@ class Lead extends BaseModel
             })->where('is_deleted', 0);
         }
 
+        if ($app->get(LeadFilterEnum::FILTER_EXCLUDE_LEAD_TYPE->value) && is_array($app->get(LeadFilterEnum::FILTER_EXCLUDE_LEAD_TYPE->value))) {
+            $query->whereNotIn('leads_types_id', $app->get(LeadFilterEnum::FILTER_EXCLUDE_LEAD_TYPE->value));
+        }
+
         return $query;
     }
 
@@ -162,9 +194,47 @@ class Lead extends BaseModel
         return $this->belongsTo(Users::class, 'leads_owner_id', 'id');
     }
 
+    /**
+     * Cast id to string for cross-database relationships where entity_id is char(50).
+     * Without this, Eloquent sends integer bindings against a char column,
+     * which prevents MySQL from using indexes (full table scan on 400k rows).
+     */
+    public function getStringIdAttribute(): string
+    {
+        return (string) $this->id;
+    }
+
     public function socialChannels(): HasMany
     {
-        return $this->hasMany(Channel::class, 'entity_id', 'id')->where('entity_namespace', self::class);
+        return $this->hasMany(Channel::class, 'entity_id', 'string_id')
+            ->whereIn(
+                'entity_namespace',
+                [
+                    self::class,
+                    SystemModules::getLegacyNamespace(self::class),
+                ]
+            )
+            ->where('is_deleted', 0);
+    }
+
+    public function aiSession(): HasMany
+    {
+        return $this->hasMany(Session::class, 'entity_id', 'string_id')
+            ->where('entity_namespace', self::class);
+    }
+
+    public function notes(): HasOne
+    {
+        return $this->hasOne(Channel::class, 'entity_id', 'string_id')
+            ->where('entity_namespace', self::class)
+            ->where('name', ChannelNameEnum::NOTES->value);
+    }
+
+    public function systemNotes(): HasOne
+    {
+        return $this->hasOne(Channel::class, 'entity_id', 'string_id')
+            ->where('entity_namespace', self::class)
+            ->where('slug', $this->uuid);
     }
 
     public function receiver(): BelongsTo
@@ -180,6 +250,11 @@ class Lead extends BaseModel
     public function source(): BelongsTo
     {
         return $this->belongsTo(LeadSource::class, 'leads_sources_id', 'id');
+    }
+
+    public function subSource(): BelongsTo
+    {
+        return $this->belongsTo(LeadSubSource::class, 'leads_sub_sources_id', 'id');
     }
 
     public function type(): BelongsTo
@@ -231,7 +306,14 @@ class Lead extends BaseModel
 
     public function close(): void
     {
+        //LeadStatus::getByName('close')->id
         $this->leads_status_id = 6; //change by dynamic
+        $this->saveOrFail();
+    }
+
+    public function open(): void
+    {
+        $this->leads_status_id = 2; //change by dynamic
         $this->saveOrFail();
     }
 
@@ -255,6 +337,103 @@ class Lead extends BaseModel
     protected static function newFactory()
     {
         return new LeadFactory();
+    }
+
+    public function addCoBuyerParticipant(People $people): LeadParticipant
+    {
+        $type = LeadParticipantType::where('name', 'Co-Buyer')
+            ->where('is_deleted', 0)
+            ->where('companies_id', $this->companies_id)
+            ->first();
+
+        // Find existing participant or create new one
+        $participant = LeadParticipant::where('leads_id', $this->id)
+            ->where('peoples_id', $people->id)
+            ->first();
+
+        if (! $participant) {
+            $participant = new LeadParticipant();
+        }
+
+        // Set participant data
+        $participant->leads_id = $this->id;
+        $participant->peoples_id = $people->id;
+        $participant->participants_types_id = $type ? $type->id : 0;
+        $participant->is_deleted = 0;
+
+        $participant->save();
+
+        return $participant;
+    }
+
+    public function addParticipant(People $people): LeadParticipant
+    {
+        // Find existing participant or create new one
+        $participant = LeadParticipant::where('leads_id', $this->id)
+            ->where('peoples_id', $people->id)
+            ->where('is_deleted', 0)
+            ->first();
+
+        if (! $participant) {
+            $participant = new LeadParticipant();
+        }
+
+        $participant->leads_id = $this->id;
+        $participant->peoples_id = $people->id;
+        $participant->is_deleted = 0;
+
+        $participant->save();
+
+        return $participant;
+    }
+
+    public function removeParticipant(People $people): bool
+    {
+        return LeadParticipant::where('leads_id', $this->id)
+            ->where('peoples_id', $people->id)
+            ->firstOrFail()->delete();
+    }
+
+    public function setOrganization(Organization $organization): void
+    {
+        $this->organization_id = $organization->id;
+        $this->save();
+    }
+
+    public function toSearchableArray(): array
+    {
+        $lead = [
+            'objectID' => "Kanvas\Guild\Leads\Models\Lead::{$this->id}",
+            'id' => (string) $this->id,
+            'uuid' => (string) $this->uuid,
+            'email' => (string) $this->email,
+            'phone' => (string) $this->phone,
+            'title' => (string) $this->title,
+            'firstname' => (string) $this->firstname,
+            'lastname' => (string) $this->lastname,
+            'description' => (string) $this->description,
+            'reason_lost' => (string) $this->reason_lost,
+            'is_duplicate' => (bool) $this->is_duplicate,
+            'users_id' => $this->users_id,
+            'companies_id' => $this->companies_id,
+            'apps_id' => $this->apps_id,
+            'companies_branches_id' => $this->companies_branches_id,
+            'leads_receivers_id' => $this->leads_receivers_id,
+            'leads_owner_id' => $this->leads_owner_id,
+            'leads_status_id' => $this->leads_status_id,
+            'leads_sources_id' => $this->leads_sources_id,
+            'pipeline_id' => $this->pipeline_id,
+            'pipeline_stage_id' => $this->pipeline_stage_id,
+            'people_id' => $this->people_id,
+            'organization_id' => (int) $this->organization_id,
+            'leads_types_id' => $this->leads_types_id,
+            'status' => $this->status,
+            'created_at' => $this->created_at ? $this->created_at->timestamp : null,
+            'updated_at' => $this->updated_at ? $this->updated_at->timestamp : null,
+            'people' => $this->people ? $this->people->toSearchableArray() : null,
+        ];
+
+        return $lead;
     }
 
     /**
@@ -337,6 +516,7 @@ class Lead extends BaseModel
                     'name' => 'organization_id',
                     'type' => 'int64',
                     'facet' => true,
+                    'optional' => true,
                 ],
                 [
                     'name' => 'leads_types_id',
@@ -435,10 +615,12 @@ class Lead extends BaseModel
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
+                    'sort' => true,
                 ],
                 [
                     'name' => 'updated_at',
                     'type' => 'int64',
+                    'optional' => true,
                 ],
             ],
             'default_sorting_field' => 'created_at',
@@ -461,5 +643,104 @@ class Lead extends BaseModel
     {
         $this->set('is_chrono_running', 1);
         $this->set('chrono_start_date', date('c'));
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $app->fireWorkflow(
+            event: WorkflowEnum::SEARCH->value,
+            params: [
+                'search_type' => 'lead',
+                'search' => trim($query),
+            ]
+        );
+
+        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        $user = auth()->user();
+
+        /*  if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+         } */
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+            $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
+            ]);
+        }
+
+        return $query;
+    }
+
+    public function getCurrentPipelineStage(): ?PipelineStage
+    {
+        if ($this->pipeline_stage_id) {
+            return PipelineStage::find($this->pipeline_stage_id);
+        }
+
+        return null;
+    }
+
+    public function getNextPipelineStage(): ?PipelineStage
+    {
+        $currentStage = $this->getCurrentPipelineStage();
+        if ($currentStage) {
+            return PipelineStage::where('pipelines_id', $currentStage->pipelines_id)
+                ->where('weight', '>', $currentStage->weight)
+                ->where('is_deleted', 0)
+                ->orderBy('weight', 'asc')
+                ->first();
+        }
+
+        return null;
+    }
+
+    public function moveToNextPipelineStage(): void
+    {
+        $nextStage = $this->getNextPipelineStage();
+        if ($nextStage) {
+            $this->pipeline_stage_id = $nextStage->id;
+            $this->saveOrFail();
+        }
+    }
+
+    public function hasBeenContacted(): bool
+    {
+        return $this->get(ConfigurationEnum::CONTACTED->value) && $this->get(ConfigurationEnum::CONTACTED->value) === LeadGroupStatusEnum::CONTACTED->value;
+    }
+
+    public function setContactStatus(LeadGroupStatusEnum $status): void
+    {
+        $this->set(ConfigurationEnum::CONTACTED->value, $status->value);
+    }
+
+    public function isAiMuted(): bool
+    {
+        $aiMode = $this->get(EnumsConfigurationEnum::AI_MODE->value);
+
+        $mode = IntelligenceModeEnum::tryFrom((string) $aiMode);
+
+        return $mode?->isOff() ?? false;
+    }
+
+    public function canRunAiAgent(): bool
+    {
+        return ! $this->isAiMuted();
+    }
+
+    public function isServiceLead(): bool
+    {
+        return Str::contains(
+            strtolower($this->type?->name ?? ''),
+            'service'
+        );
     }
 }

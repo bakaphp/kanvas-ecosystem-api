@@ -7,10 +7,13 @@ namespace Kanvas\Apps\Actions;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\File;
+use Kanvas\ActionEngine\Engagements\Enums\NotificationTemplateEnum as EngagementsEnumsNotificationTemplateEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Enums\EmailTemplateEnum as LeadsEnumsEmailTemplateEnum;
+use Kanvas\Inventory\Products\Enums\EmailTemplateEnum as ProductsEnumsEmailTemplateEnum;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
+use Kanvas\Notifications\Templates\EmailVerification;
 use Kanvas\Notifications\Templates\Invite;
 use Kanvas\Notifications\Templates\ResetPassword;
 use Kanvas\Notifications\Templates\Welcome;
@@ -65,6 +68,9 @@ class SyncEmailTemplateAction
                 'name' => EmailTemplateEnum::WELCOME->value,
                 'template' => File::get(resource_path('views/emails/welcome.blade.php')),
             ], [
+                'name' => EmailTemplateEnum::EMAIL_VERIFICATION->value,
+                'template' => File::get(resource_path('views/emails/emailVerification.blade.php')),
+            ], [
                 'name' => PushNotificationTemplateEnum::DEFAULT->value,
                 'template' => File::get(resource_path('views/emails/pushNotification.blade.php')),
             ], [
@@ -88,6 +94,12 @@ class SyncEmailTemplateAction
             ],[
                 'name' => EnumsNotificationTemplateEnum::PUSH_NEW_INTERACTION_MESSAGE->value,
                 'template' => File::get(resource_path('views/emails/newPushNotification.blade.php')),
+            ],[
+                'name' => ProductsEnumsEmailTemplateEnum::LOW_STOCK->value,
+                'template' => File::get(resource_path('views/emails/lowStock.blade.php')),
+            ],[
+                'name' => EngagementsEnumsNotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED->value,
+                'template' => File::get(resource_path('views/push/engagement-status-changed.blade.php')),
             ],
         ];
 
@@ -96,7 +108,7 @@ class SyncEmailTemplateAction
             'name' => $templates[0]['name'],
             'template' => $templates[0]['template'],
             'user' => $this->user,
-            'is_system' => true
+            'is_system' => true,
         ]);
 
         $action = new CreateTemplateAction($dto);
@@ -111,7 +123,7 @@ class SyncEmailTemplateAction
                 'name' => $template['name'],
                 'template' => $template['template'],
                 'user' => $this->user,
-                'is_system' => true
+                'is_system' => true,
             ]);
             $action = new CreateTemplateAction($dto);
             $action->execute(
@@ -127,6 +139,7 @@ class SyncEmailTemplateAction
             EmailTemplateEnum::USER_INVITE->value => Invite::class,
             EmailTemplateEnum::RESET_PASSWORD->value => ResetPassword::class,
             EmailTemplateEnum::WELCOME->value => Welcome::class,
+            EmailTemplateEnum::EMAIL_VERIFICATION->value => EmailVerification::class,
             EmailTemplateEnum::CHANGE_PASSWORD->value => ChangePasswordUserLogged::class,
             EmailTemplateEnum::BLANK->value => EmailTemplateEnum::BLANK->value,
         ];

@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Credit700;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use GuzzleHttp\Client as GuzzleClient;
 use Kanvas\Connectors\Credit700\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
@@ -110,7 +111,7 @@ class Client
            'json' => [
                 'url' => $unsignedUrl,
                 'duration' => $duration,
-                'signedBy' => $signedBy,
+                'signedBy' => Str::cleanup($signedBy),
             ],
         ]);
 

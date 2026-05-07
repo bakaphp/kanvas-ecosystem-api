@@ -21,6 +21,8 @@ type User {
     addresses: [Address!] @HasMany(relation: "addresses")
     sex: String
     user_active: Boolean!
+    is_verified: Boolean! @method(name: "getAppIsVerified")
+    lastvisit: String
     timezone: String
     abilities: Mixed! @method(name: "getAbilitiesList")
     roles: Mixed! @method(name: "getRolesToArray")
@@ -34,6 +36,8 @@ type User {
     apps: [App!]! @HasManyThrough
     photo: Filesystem @method(name: "getPhoto")
     social: UserSocialInfo @method(name: "getSocialInfo")
+    total_unread_notifications: Int!
+        @method(name: "getUnreadNotificationsCount")
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25
@@ -45,6 +49,10 @@ type User {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\HashFieldsQuery@getAllByGraphType"
+        )
+    currentSubscription: UserSubscription
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@currentSubscription"
         )
 }
 
@@ -96,6 +104,7 @@ type UserSocialInfo {
     total_lists: Int
     is_following: Boolean
     is_blocked: Boolean
+    unread_notifications: Int
 }
 
 type UserContactsMatchesFindings {
@@ -227,6 +236,15 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@reset"
         )
+    verifyEmail(token: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@verifyEmail"
+        )
+    resendVerificationEmail: Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@resendVerificationEmail"
+        )
     updateUser(id: ID!, data: UpdateUserInput!): User!
         @guard
         @field(
@@ -325,6 +343,8 @@ extend type Query @guard {
     users(
         search: String @search
         where: _ @whereConditions(columnsEnum: UserAppEnumColumn)
+        hasRoles: _
+            @whereHasConditions(relation: "roles", columns: ["id", "name"])
         orderBy: _
             @orderBy(
                 columns: [

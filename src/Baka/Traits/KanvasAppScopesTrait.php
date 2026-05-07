@@ -12,7 +12,6 @@ trait KanvasAppScopesTrait
 {
     /**
      * scopeApp.
-     *
      */
     public function scopeFromApp(Builder $query, mixed $app = null): Builder
     {

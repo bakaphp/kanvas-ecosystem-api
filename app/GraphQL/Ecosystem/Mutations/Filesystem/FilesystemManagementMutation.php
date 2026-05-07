@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
 
+use Baka\Helpers\MergePdf;
+use Baka\Support\Str;
+use Baka\Validations\Pdf;
+use Exception;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -12,12 +18,14 @@ use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\DataTransferObject\FilesystemAttachInput;
+use Kanvas\Filesystem\DataTransferObject\FilesystemEntityUpdate;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use League\Csv\Reader;
+use Throwable;
 
 class FilesystemManagementMutation
 {
@@ -40,7 +48,10 @@ class FilesystemManagementMutation
             $entity
         );
 
-        $fileSystemEntity = $attachFile->execute($filesystemAttachmentInput->fieldName);
+        $fileSystemEntity = $attachFile->execute(
+            fieldName: $filesystemAttachmentInput->fieldName,
+            weight: $filesystemAttachmentInput->weight
+        );
 
         return (string) $fileSystemEntity->uuid;
     }
@@ -97,16 +108,21 @@ class FilesystemManagementMutation
         if ($fileEntity->filesystem->apps_id != $app->getId()) {
             return false;
         }
+
+        $systemModule = $fileEntity->systemModule->model_name;
+        $entityId = $fileEntity->entity_id;
+
         $response = $fileEntity->softDelete();
 
         try {
-            $systemModule = $fileEntity->systemModule->model_name;
-            $entityData = $systemModule::getById($fileEntity->entity_id);
+            $entityData = $systemModule::getById($entityId);
             //@todo Set the same cache trait to all filesystem entities
             if (method_exists($entityData, 'clearLightHouseCacheJob')) {
                 $entityData->clearLightHouseCacheJob();
             }
+            $entityData->fireObserverEvent('saved');
         } catch (ModelNotFoundException $e) {
+            report($e);
         }
 
         return $response;
@@ -203,10 +219,17 @@ class FilesystemManagementMutation
 
         // Process CSV
         $csv = Reader::createFromPath($storagePath, 'r');
-        $csv->setHeaderOffset(0);
 
-        $header = $csv->getHeader();
-        $row = $csv->nth(0);
+        try {
+            $csv->setHeaderOffset(0);
+
+            $header = $csv->getHeader();
+            $row = $csv->nth(0);
+        } catch (Throwable $th) {
+            $result = $this->processCsvWithoutHeaders($storagePath);
+            $row = $result['row'];
+            $header = $result['header'];
+        }
 
         // Upload to filesystem
         $fileSystem = $this->singleFile($rootValue, $request);
@@ -254,5 +277,135 @@ class FilesystemManagementMutation
         }
 
         return false;
+    }
+
+    public function mergeFiles(mixed $rootValue, array $request): ?Filesystem
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $globalMergeFilesEnabled = $company->get(AppSettingsEnums::ENABLE_GLOBAL_MERGE_FILESYSTEM->getValue(), false);
+
+        if (count($request['files']) > 0) {
+            $files = [];
+            foreach ($request['files'] as $fileId) {
+                try {
+                    $fileUrl = FilesystemEntities::getById($fileId)->filesystem()->where('apps_id', $app->getId())
+                        ->when(! $globalMergeFilesEnabled, function (Builder $query) use ($company) {
+                            $query->where('companies_id', $company->getId());
+                        })
+                        ->firstOrFail()
+                        ->url;
+
+                    if (Str::contains($fileUrl, 'jpg')
+                        || Str::contains($fileUrl, 'png')
+                        || Str::contains($fileUrl, 'jpeg')
+                        || Str::contains($fileUrl, 'pdf')) {
+                        if (Str::contains($fileUrl, 'pdf')) {
+                            if (Pdf::isValidFile($fileUrl)) {
+                                $files[] = $fileUrl;
+                            }
+                        } else {
+                            $files[] = $fileUrl;
+                        }
+                    }
+                } catch (Exception $e) {
+                }
+            }
+
+            if (empty($files)) {
+                throw new Exception('No valid files to merge');
+            }
+
+            $mergePDF = new MergePdf($app, ...$files);
+            $mergeFileName = tempnam(sys_get_temp_dir(), 'mergefile-') . '.pdf';
+
+            $mergePDF->merge($mergeFileName);
+
+            // Create an UploadedFile from the temporary merged PDF
+            $uploadedFile = new UploadedFile(
+                $mergeFileName,                      // Path to the file
+                'merged_file.pdf',                   // Original file name
+                'application/pdf',                   // MIME type
+                null,                               // Error (null means no error)
+                true                                // Mark it as a test file (will not delete original file)
+            );
+
+            // Use FilesystemServices to upload the merged file
+            $filesystemService = new FilesystemServices($app, $company);
+            $uploadedFilesystem = $filesystemService->upload($uploadedFile, $user);
+
+            // Clean up the temporary file
+            unlink($mergeFileName);
+
+            return $uploadedFilesystem;
+        }
+
+        return null;
+    }
+
+    public function renameFile(mixed $rootVale, array $request): Filesystem
+    {
+        $filesystem = Filesystem::getById($request['id'], app(Apps::class));
+        if ($filesystem->users_id != auth()->user()->getId() && ! auth()->user()->isAdmin()) {
+            throw new ModelNotFoundException('File not found or you do not have permission to rename it.');
+        }
+        $filesystem->update([
+            'name' => $request['name'],
+        ]);
+
+        return $filesystem;
+    }
+
+    public function processCsvWithoutHeaders(string $storagePath): array
+    {
+        $csv = Reader::createFromPath($storagePath, 'r');
+
+        $allRecords = iterator_to_array($csv->getRecords());
+
+        if (empty($allRecords)) {
+            return [
+                'headers' => [],
+                'firstRow' => [],
+            ];
+        }
+
+        $firstRecord = array_values($allRecords[0]);
+
+        $headers = [];
+        for ($i = 0; $i < count($firstRecord); $i++) {
+            $headers[] = 'column_' . ($i + 1);
+        }
+
+        $firstRow = [];
+        foreach ($firstRecord as $index => $value) {
+            $firstRow[$headers[$index]] = $value;
+        }
+
+        return [
+            'header' => $headers,
+            'row' => $firstRow,
+        ];
+    }
+
+    public function editFile(mixed $rootValue, array $request): string
+    {
+        $fileSystemEntityInput = FilesystemEntityUpdate::from($request['input']);
+        $appId = app(Apps::class)->getId();
+
+        $fileSystemEntity = FilesystemEntities::whereHas('filesystem', function ($query) use ($appId) {
+            $query->where('apps_id', $appId);
+        })->where('uuid', $request['uuid'])->firstOrFail();
+
+        if ($fileSystemEntity->filesystem->users_id != auth()->user()->getId() && ! auth()->user()->isAdmin()) {
+            throw new ModelNotFoundException('File not found or you do not have permission to rename it.');
+        }
+
+        $fileSystemEntity->updateOrFail([
+            'field_name' => $fileSystemEntityInput->fieldName,
+            'weight' => $fileSystemEntityInput->weight,
+        ]);
+
+        return (string) $fileSystemEntity->uuid;
     }
 }

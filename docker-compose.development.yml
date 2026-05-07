@@ -14,17 +14,11 @@ x-common-queue-settings: &common-queue-settings
     XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
   volumes:
     - ".:/var/www/html"
+    - vendor-volume:/var/www/html/vendor
     - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
     - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
   networks:
-    - kanvas_docker_swarm_network
-  deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure  # Changed from 'any' to work with max_attempts
-        delay: 5s
-        max_attempts: 3
-        window: 30s 
+    - sail
 
 services:
   php:
@@ -48,21 +42,23 @@ services:
       XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
     volumes:
       - ".:/var/www/html"
+      - vendor-volume:/var/www/html/vendor
       - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
       - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
     networks:
-      - kanvas_docker_swarm_network
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure  # Changed from 'any' to work with max_attempts
-        delay: 5s
-        max_attempts: 3
-        window: 30s 
+      - sail
 
   queue:
     <<: *common-queue-settings
     container_name: queue
+
+  queue2:
+    <<: *common-queue-settings
+    container_name: queue2
+
+  queue3:
+    <<: *common-queue-settings
+    container_name: queue3
 
   batch-logger-queue:
     <<: *common-queue-settings
@@ -111,13 +107,6 @@ services:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3 --timeout=3750"
-    deploy:
-      replicas: 4
-      restart_policy:
-        condition: on-failure  # Changed from 'any' to work with max_attempts
-        delay: 5s
-        max_attempts: 3
-        window: 30s 
 
   queue-sync-shopify:
     <<: *common-queue-settings
@@ -126,13 +115,6 @@ services:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=sync-shopify-queue --tries=3 --timeout=3750"
-    deploy:
-      replicas: 3
-      restart_policy:
-        condition: on-failure  # Changed from 'any' to work with max_attempts
-        delay: 5s
-        max_attempts: 3
-        window: 30s 
 
   queue-scout-worker:
     <<: *common-queue-settings
@@ -141,13 +123,6 @@ services:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue scout --tries=3 --timeout=3750"
-    deploy:
-      replicas: 3
-      restart_policy:
-        condition: on-failure  # Changed from 'any' to work with max_attempts
-        delay: 5s
-        max_attempts: 3
-        window: 30s 
 
   queue-workflow:
     <<: *common-queue-settings
@@ -156,13 +131,22 @@ services:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=workflow --tries=3 --timeout=3750"
-    deploy:
-      replicas: 3
-      restart_policy:
-        condition: on-failure  # Changed from 'any' to work with max_attempts
-        delay: 5s
-        max_attempts: 3
-        window: 30s 
+
+  openclaw-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=openclaw --tries=3 --timeout=3750"
+
+  ledger-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=ledger --tries=3 --timeout=3750"
 
   laravel-scheduler:
     container_name: laravel-scheduler
@@ -181,10 +165,11 @@ services:
       XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
     volumes:
       - ".:/var/www/html"
+      - vendor-volume:/var/www/html/vendor
       - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
       - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
     networks:
-      - kanvas_docker_swarm_network
+      - sail
 
   nginx:
     image: nginx:latest
@@ -198,7 +183,7 @@ services:
       - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf
       - ./docker/global-nginx.conf:/etc/nginx/conf.d/upload_limit.conf
     networks:
-      - kanvas_docker_swarm_network
+      - sail
     depends_on:
       - php
     healthcheck:
@@ -209,9 +194,9 @@ services:
 networks:
   sail:
     driver: bridge
-  kanvas_docker_swarm_network:
-    driver: bridge
 
 volumes:
   sail-redis:
+    driver: local
+  vendor-volume:
     driver: local

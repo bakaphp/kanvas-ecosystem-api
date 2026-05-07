@@ -26,6 +26,7 @@ class SubscriptionBuilder
             ->select('subscriptions.*')
             ->join('apps_stripe_customers', 'apps_stripe_customers.id', '=', 'subscriptions.apps_stripe_customer_id')
             ->where('apps_stripe_customers.companies_id', $company->id)
+            ->where('apps_stripe_customers.users_id', 0)
             ->where('apps_stripe_customers.apps_id', $app->getId());
     }
 }

@@ -9,9 +9,11 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Google\Actions\GenerateMessageTagAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 class GenerateMessageTagsWithAiActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);

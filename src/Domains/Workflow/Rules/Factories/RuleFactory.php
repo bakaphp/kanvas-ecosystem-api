@@ -12,12 +12,14 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleType;
+use Override;
 use Throwable;
 
 class RuleFactory extends Factory
 {
     protected $model = Rule::class;
 
+    #[Override]
     public function definition()
     {
         $app = app(Apps::class);

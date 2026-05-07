@@ -28,9 +28,15 @@ class WooCommerceImportOrder extends OrderDto
         object $order,
         ?Address $shippingAddress = null,
         ?Address $billingAddress = null,
-    ) {
+    ): self {
         $items = [];
         $currency = Currencies::getByCode($order->currency);
+
+        // Calculate order-level tax total
+        $taxTotal = array_reduce($order->tax_lines, function ($carry, $tax) {
+            return $carry + $tax->tax_total;
+        }, 0);
+
         foreach ($order->line_items as $item) {
             $variant = Variants::where('sku', $item->sku)
                       ->where('apps_id', $app->getId())
@@ -48,9 +54,6 @@ class WooCommerceImportOrder extends OrderDto
                 ))->execute();
                 $variant = $product->variants()->where('sku', $item->sku)->first();
             }
-            $taxTotal = array_reduce($order->tax_lines, function ($carry, $tax) {
-                return $carry + $tax->tax_total;
-            }, 0);
 
             $items[] = [
                 'app' => $app,
@@ -60,7 +63,7 @@ class WooCommerceImportOrder extends OrderDto
                 'quantity' => $item->quantity,
                 'price' => $item->price,
                 'discount' => 0,
-                'tax' => $taxTotal,
+                'tax' => (float)$item->total_tax,
                 'currency' => $currency,
                 'id' => $variant->id,
             ];
@@ -78,6 +81,9 @@ class WooCommerceImportOrder extends OrderDto
             default => throw new InvalidArgumentException('Invalid status'),
         };
 
+        // Calculate total before discount (WooCommerce's total is already discounted)
+        $totalBeforeDiscount = (float)$order->total + (float)$order->discount_total;
+
         return new self(
             app: $app,
             region: $region,
@@ -88,7 +94,7 @@ class WooCommerceImportOrder extends OrderDto
             orderNumber: (string)$order->number,
             shippingAddress: $shippingAddress,
             billingAddress: $billingAddress,
-            total: (float)$order->total,
+            total: $totalBeforeDiscount,
             totalDiscount: (float)$order->discount_total,
             totalShipping: $shippingLine,
             taxes: $taxTotal,

@@ -1,0 +1,245 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\ActionEngine\Tasks\Actions;
+
+use Baka\Contracts\AppInterface;
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\ActionEngine\Tasks\Enums\TaskStatusEnum;
+use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
+use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
+use Throwable;
+
+class ChangeTaskEngagementItemStatusAction
+{
+    public function __construct(
+        protected TaskListItem $taskListItem,
+        protected Lead $lead,
+        protected string $status,
+        protected Users $user,
+        protected AppInterface $app,
+        protected Companies $company,
+        protected ?Message $message = null,
+        protected ?array $config = null
+    ) {
+    }
+
+    public function execute(): TaskEngagementItem
+    {
+        $this->validateInput();
+
+        $taskEngagementItem = $this->getOrCreateTaskEngagementItem();
+
+        $this->updateTaskEngagementItemStatus($taskEngagementItem);
+
+        $this->handleRelatedTasks($taskEngagementItem);
+
+        $this->fireWorkflow($taskEngagementItem);
+
+        return $taskEngagementItem;
+    }
+
+    protected function validateInput(): void
+    {
+        if ($this->taskListItem->companyAction->companies_id !== $this->company->getId()) {
+            throw new ValidationException('You are not allowed to change the status of this task, company mismatch');
+        }
+
+        if ($this->taskListItem->companyAction->apps_id !== $this->app->getId()) {
+            throw new ValidationException('You are not allowed to change the status of this task, app mismatch');
+        }
+
+        if (! TaskStatusEnum::validate($this->status)) {
+            throw new ValidationException('Invalid Task Status');
+        }
+    }
+
+    protected function getOrCreateTaskEngagementItem(): TaskEngagementItem
+    {
+        return TaskEngagementItem::firstOrCreate(
+            [
+                'task_list_item_id' => $this->taskListItem->getId(),
+                'lead_id' => $this->lead->getId(),
+            ],
+            [
+                'companies_id' => $this->company->getId(),
+                'apps_id' => $this->app->getId(),
+                'users_id' => $this->user->getId(),
+            ],
+        );
+    }
+
+    protected function updateTaskEngagementItemStatus(TaskEngagementItem $taskEngagementItem): void
+    {
+        // Handle engagement associations based on status
+        if ($this->status === TaskStatusEnum::IN_PROGRESS->value && $this->message) {
+            $engagement = $this->getEngagementFromMessage(ActionStatusEnum::SENT->value);
+            if ($engagement && empty($taskEngagementItem->engagement_start_id)) {
+                $taskEngagementItem->engagement_start_id = $engagement->getId();
+            }
+        }
+
+        if ($this->status === TaskStatusEnum::COMPLETED->value && $this->message) {
+            $engagement = $this->getEngagementFromMessage(ActionStatusEnum::SUBMITTED->value);
+            if ($engagement && empty($taskEngagementItem->engagement_end_id)) {
+                $taskEngagementItem->engagement_end_id = $engagement->getId();
+            }
+        }
+
+        $taskEngagementItem->status = $this->status;
+
+        if ($this->config !== null) {
+            $taskEngagementItem->config = $this->config;
+        }
+
+        $taskEngagementItem->saveOrFail();
+    }
+
+    protected function getEngagementFromMessage(string $status): ?Engagement
+    {
+        if (! $this->message) {
+            return null;
+        }
+
+        return Engagement::fromApp($this->app)
+            ->fromCompany($this->company)
+            ->where('message_id', $this->message->getId())
+            ->first();
+    }
+
+    protected function handleRelatedTasks(TaskEngagementItem $taskEngagementItem): void
+    {
+        if ($this->status === TaskStatusEnum::COMPLETED->value) {
+            $taskEngagementItem->disableRelatedItems();
+            $taskEngagementItem->enableRelatedTasks();
+            $taskEngagementItem->completeRelatedItems();
+
+            // Handle complete_other_task_items configuration
+            $this->completeOtherTaskItems($taskEngagementItem);
+
+            // Hack: complete all sibling items in the same checklist for this company
+            if ($this->company->get('checklist_auto_complete_siblings')) {
+                $this->completeSiblingChecklistItems();
+            }
+        }
+    }
+
+    protected function completeOtherTaskItems(TaskEngagementItem $taskEngagementItem): void
+    {
+        $config = $taskEngagementItem->item->config ?? [];
+        $completeOtherTaskItems = $config['complete_other_task_items'] ?? [];
+
+        if (is_array($completeOtherTaskItems) && ! empty($completeOtherTaskItems)) {
+            foreach ($completeOtherTaskItems as $taskItemId) {
+                try {
+                    $this->completeTaskEngagementItem($taskItemId);
+                } catch (Throwable $e) {
+                    // Log error but don't stop the process
+                    report($e);
+                }
+            }
+        }
+    }
+
+    protected function completeTaskEngagementItem(int $taskItemId): void
+    {
+        TaskListItem::findOrFail($taskItemId);
+
+        $engagement = $this->message
+            ? $this->getEngagementFromMessage(ActionStatusEnum::SUBMITTED->value)
+            : null;
+
+        $existingTaskEngagementItem = TaskEngagementItem::firstOrCreate(
+            [
+                'task_list_item_id' => $taskItemId,
+                'lead_id' => $this->lead->getId(),
+            ],
+            [
+                'companies_id' => $this->company->getId(),
+                'apps_id' => $this->app->getId(),
+                'users_id' => $this->user->getId(),
+                'status' => TaskStatusEnum::COMPLETED->value,
+                'engagement_end_id' => $engagement?->getId(),
+            ],
+        );
+
+        if ($existingTaskEngagementItem->status === TaskStatusEnum::COMPLETED->value) {
+            return;
+        }
+
+        if ($engagement) {
+            $existingTaskEngagementItem->engagement_end_id = $engagement->getId();
+        }
+
+        $existingTaskEngagementItem->status = TaskStatusEnum::COMPLETED->value;
+        $existingTaskEngagementItem->saveOrFail();
+    }
+
+    /**
+     * Hack: when an item is completed, find all matching items (same name +
+     * companies_action_id) across other checklists for this company/app and
+     * mark them as completed too. Temporary until the UI behaviour is updated.
+     */
+    protected function completeSiblingChecklistItems(): void
+    {
+        $matchingItems = TaskListItem::join('company_task_list', 'company_task_list.id', '=', 'company_task_list_items.task_list_id')
+            ->where('company_task_list.companies_id', $this->company->getId())
+            ->where('company_task_list.apps_id', $this->app->getId())
+            ->where('company_task_list.is_deleted', 0)
+            ->where('company_task_list_items.name', $this->taskListItem->name)
+            ->where('company_task_list_items.companies_action_id', $this->taskListItem->companies_action_id)
+            ->where('company_task_list_items.id', '!=', $this->taskListItem->getId())
+            ->where('company_task_list_items.is_deleted', 0)
+            ->select('company_task_list_items.*')
+            ->get();
+
+        foreach ($matchingItems as $matchingItem) {
+            try {
+                $existing = TaskEngagementItem::firstOrCreate(
+                    [
+                        'task_list_item_id' => $matchingItem->getId(),
+                        'lead_id' => $this->lead->getId(),
+                    ],
+                    [
+                        'companies_id' => $this->company->getId(),
+                        'apps_id' => $this->app->getId(),
+                        'users_id' => $this->user->getId(),
+                        'status' => TaskStatusEnum::COMPLETED->value,
+                    ],
+                );
+
+                if ($existing->status === TaskStatusEnum::COMPLETED->value) {
+                    continue;
+                }
+
+                $existing->status = TaskStatusEnum::COMPLETED->value;
+                $existing->saveOrFail();
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
+    }
+
+    protected function fireWorkflow(TaskEngagementItem $taskEngagementItem): void
+    {
+        $taskEngagementItem->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'app' => $this->app,
+                'company' => $this->company,
+                'lead' => $this->lead,
+                'message' => $this->message,
+                'status' => $this->status,
+            ]
+        );
+    }
+}

@@ -1,4 +1,4 @@
-type Variant {
+type Variant @model(class: "Kanvas\\Inventory\\Variants\\Models\\Variants") {
     id: ID!
     uuid: String!
     slug: String!
@@ -11,9 +11,11 @@ type Variant {
     ean: String
     barcode: String
     serial_number: String
-    status: Status
+    status: Status @belongsTo(relation: "status")
     rating: Float
     weight: Float
+    created_at: DateTime!
+    updated_at: DateTime
     is_published: Boolean
     translation(languageCode: String!): ProductTranslation
         @field(
@@ -28,14 +30,18 @@ type Variant {
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
     user_interactions: Mixed! @method(name: "getUserSocialInteractions") @guard
-    product: Product
+    product: Product @belongsTo(relation: "product")
     warehouses: [WarehouseVariantRelationship!]!
+        @cacheRedis
         @hasMany(relation: "variantWarehouses")
-    attributes: [VariantsAttributes!]! @method(name: "visibleAttributes") @cacheRedis
+    attributes: [VariantsAttributes!]!
+        @method(name: "visibleAttributes")
+        @cacheRedis
     companies: Company! @belongsTo(relation: "company")
     channels(currencyCode: String): [VariantChannelRelationship!]!
         @BelongsToMany(relation: "channels")
     channel(currencyCode: String): VariantPricingInfo
+        @cacheRedis
         @field(
             resolver: "App\\GraphQL\\Inventory\\Types\\ChannelInfoType@price"
         )
@@ -49,6 +55,7 @@ type Variant {
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
     inventory_quantity: Int @method(name: "getTotalQuantity")
+    activities: [ActivityLog!] @method(name: "getActivities")
 }
 
 type VariantPricingInfo {

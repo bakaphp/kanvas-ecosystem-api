@@ -26,7 +26,7 @@ class DownloadPlanToProductAction
         $this->channel = $channel ?? Channels::fromCompany($this->region->company)->where('is_default', 1)->firstOrFail();
     }
 
-    public function execute(string $language = '2', int $totalPages = 12): array
+    public function execute(string $language = '2', int $totalPages = 100): array
     {
         $carrierService = new CarrierService($this->region->app, $this->region->company);
 

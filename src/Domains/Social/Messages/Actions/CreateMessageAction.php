@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Actions;
 
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Services\ImageOptimizerService;
+use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
+use Kanvas\Social\Channels\Models\Channel as ModelsChannel;
+use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\ValidParentMessage;
@@ -17,6 +23,8 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class CreateMessageAction
 {
+    use HasMutationUploadFiles;
+
     public bool $runWorkflow = true;
 
     public function __construct(
@@ -46,6 +54,7 @@ class CreateMessageAction
                 'ip_address' => $this->messageInput->ip_address,
                 'is_public' => $this->messageInput->is_public,
                 'slug' => $this->messageInput->slug,
+                'is_locked' => $this->messageInput->is_locked,
             ];
 
             $validator = Validator::make($data, [
@@ -62,8 +71,17 @@ class CreateMessageAction
 
             $message = Message::create($data);
 
+            if (! empty($this->messageInput->custom_fields)) {
+                $message->setCustomFields($this->messageInput->custom_fields);
+                $message->saveCustomFields();
+            }
+
             if (count($this->messageInput->tags)) {
                 $message->syncTags($this->messageInput->tags);
+            }
+
+            if (count($this->messageInput->categories)) {
+                $message->syncCategories($this->messageInput->categories);
             }
 
             if ($this->systemModule && $this->entityId !== null) {
@@ -75,14 +93,41 @@ class CreateMessageAction
                 $associateMessage->execute();
             }
 
+            // Upload files before adding to channel so workflow can access them
+            if (! empty($this->messageInput->files)) {
+                $this->constrainMessageFiles();
+
+                $this->handleFileUpload(
+                    $message,
+                    $this->messageInput->app,
+                    $this->messageInput->user,
+                    $this->messageInput->files
+                );
+            }
+
             if ($this->messageInput->channel_slug !== null) {
+                $allowAppWideChannel = (bool) $this->messageInput->app->get(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value);
+
+                $channel = ModelsChannel::where('slug', $this->messageInput->channel_slug)
+                    ->where('apps_id', $this->messageInput->app->getId())
+                    ->when(! $allowAppWideChannel, fn (Builder $q): Builder => $q->where('companies_id', $this->messageInput->company->getId()))
+                    ->where('is_deleted', 0)
+                    ->when($this->entityId !== null && $this->systemModule !== null, function (Builder $query) {
+                        $query->where('entity_id', $this->entityId)
+                            ->where('entity_namespace', $this->systemModule->model_name);
+                    })
+                    ->first();
+
                 new CreateChannelAction(new Channel(
                     apps: $message->app,
                     companies: $message->company,
                     users: $message->user,
-                    entity_id: $message->getId(),
-                    entity_namespace: Message::class,
+                    //entity_id: $this->entityId ?? $message->getId(),
+                    entity_id: $channel?->entity_id ?? $message->getId(),
+                    //entity_namespace: $this->systemModule?->model_name ?? Message::class,
+                    entity_namespace: $channel?->entity_namespace ?? Message::class,
                     name: $this->messageInput->channel_slug,
+                    description: $this->messageInput->channel_slug,
                     slug: $this->messageInput->channel_slug,
                 ))->execute()->addMessage($message, $message->user);
             }
@@ -99,5 +144,50 @@ class CreateMessageAction
 
             return $message;
         });
+    }
+
+    /**
+     * Constrain image file sizes for message types that have size limits (e.g., SMS/MMS).
+     */
+    private function constrainMessageFiles(): void
+    {
+        $app = $this->messageInput->app;
+        $maxFileSize = (int) ($app->get('filesystem-message-max-filesize') ?: 0);
+
+        if ($maxFileSize <= 0) {
+            return;
+        }
+
+        $allowedVerbs = (array) $app->get('filesystem-message-constrain-verbs');
+        if (empty($allowedVerbs)) {
+            return;
+        }
+
+        if (! in_array($this->messageInput->type->verb, $allowedVerbs, true)) {
+            return;
+        }
+
+        foreach ($this->messageInput->files as $key => $file) {
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+
+            $convertedPath = ImageOptimizerService::constrainFileSize(
+                $file->getRealPath(),
+                $maxFileSize,
+            );
+
+            // constrainFileSize may convert HEIC to JPEG at a new path,
+            // so we need to update the file reference
+            if ($convertedPath !== $file->getRealPath()) {
+                $this->messageInput->files[$key] = new UploadedFile(
+                    $convertedPath,
+                    pathinfo($convertedPath, PATHINFO_BASENAME),
+                    (string) mime_content_type($convertedPath),
+                    $file->getError(),
+                    true
+                );
+            }
+        }
     }
 }

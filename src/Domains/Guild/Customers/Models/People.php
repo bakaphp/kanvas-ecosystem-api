@@ -6,11 +6,21 @@ namespace Kanvas\Guild\Customers\Models;
 
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
+use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -22,6 +32,9 @@ use Kanvas\Locations\Models\Countries;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
@@ -34,9 +47,10 @@ use Override;
  * @property int $users_id
  * @property int $companies_id
  * @property string $name
- * @property string $firstname
+ * @property string|null $firstname
  * @property string|null $middlename = null
- * @property string $lastname
+ * @property string|null $lastname
+ * @property string $license_number
  * @property string|null $dob = null
  * @property string|null $google_contact_id
  * @property string|null $facebook_contact_id
@@ -48,20 +62,34 @@ use Override;
 class People extends BaseModel
 {
     use UuidTrait;
-    use DynamicSearchableTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     use HasTagsTrait;
     use CanUseWorkflow;
     use SocialInteractionsTrait;
     use Notifiable;
     use HasLightHouseCache;
     use LikableTrait;
+    use SoftDeletesTrait;
+    use CascadeSoftDeletes;
+
+    public const DELETED_AT = 'is_deleted';
 
     protected $table = 'peoples';
     protected $guarded = [];
 
+    protected $cascadeDeletes = ['contacts', 'address'];
+
     protected $casts = [
         'dob' => 'datetime:Y-m-d',
+        'is_deleted' => 'boolean',
     ];
+
+    public function trashed()
+    {
+        return (bool) $this->{$this->getDeletedAtColumn()};
+    }
 
     #[Override]
     public function getGraphTypeName(): string
@@ -96,6 +124,20 @@ class People extends BaseModel
         )->orderBy('created_at', 'desc');
     }
 
+    public function orders(): HasMany
+    {
+        return $this->hasMany(
+            Order::class,
+            'peoples_id',
+            'id'
+        )->orderBy('created_at', 'desc');
+    }
+
+    public function peopleType(): BelongsTo
+    {
+        return $this->belongsTo(PeopleType::class, 'people_types_id');
+    }
+
     public function emails(): HasMany
     {
         return $this->hasMany(
@@ -109,7 +151,7 @@ class People extends BaseModel
     }
 
     // Define the relationship with the Organization model
-    public function organizations()
+    public function organizations(): BelongsToMany
     {
         return $this->belongsToMany(
             Organization::class,
@@ -179,6 +221,17 @@ class People extends BaseModel
                 ->get();
     }
 
+    public function getAllPhones(): Collection
+    {
+        $cellphoneTypeId = ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId();
+        $phoneTypeId = ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId();
+
+        return $this->contacts()
+                ->whereIn('contacts_types_id', [$phoneTypeId, $cellphoneTypeId])
+                ->orderByRaw("FIELD(contacts_types_id, {$cellphoneTypeId}, {$phoneTypeId})")
+                ->get();
+    }
+
     /**
      * @psalm-suppress MixedReturnStatement
      */
@@ -238,26 +291,235 @@ class People extends BaseModel
         );
     }
 
-    public function addEmail(string $email): Contact
+    public function addDefaultAddress(DataTransferObjectAddress $address): Address
+    {
+        $address = $this->addAddress($address);
+        $address->is_default = 1;
+        $address->saveOrFail();
+
+        return $address;
+    }
+
+    public function addEmail(string $email, int $isOptOut = 0, int $weight = 0): Contact
     {
         return Contact::updateOrCreate(
             [
                 'peoples_id' => $this->id,
                 'value' => $email,
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId(),
+            ],
+            [
+                'is_opt_out' => $isOptOut,
+                'weight' => $weight,
             ]
         );
     }
 
-    public function addPhone(string $phone): Contact
+    public function addPhone(string $phone, int $isOptOut = 0, int $weight = 0): Contact
     {
         return Contact::updateOrCreate(
             [
                 'peoples_id' => $this->id,
                 'value' => $phone,
                 'contacts_types_id' => ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
+            ],
+            [
+                'is_opt_out' => $isOptOut,
+                'weight' => $weight,
             ]
         );
+    }
+
+    public function addCellPhone(string $phone, int $isOptOut = 0, int $weight = 0): Contact
+    {
+        return Contact::updateOrCreate(
+            [
+                'peoples_id' => $this->id,
+                'value' => $phone,
+                'contacts_types_id' => ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+            ],
+            [
+                'is_opt_out' => $isOptOut,
+                'weight' => $weight,
+            ]
+        );
+    }
+
+    public function optOutPhoneContacts(): int
+    {
+        $phoneTypes = [
+            ContactTypeEnum::PHONE->value,
+            ContactTypeEnum::CELLPHONE->value,
+            ContactTypeEnum::WORK_PHONE->value,
+        ];
+
+        return $this->contacts()
+            ->whereIn('contacts_types_id', $phoneTypes)
+            ->update(['is_opt_out' => 1]);
+    }
+
+    public static function findByEmailOrCreate(
+        string $email,
+        Companies $company,
+        Users $user,
+        ?string $name = null,
+        ?Apps $app = null
+    ): self {
+        $app = $app ?? app(Apps::class);
+
+        // Try to find existing person by email
+        $person = self::whereHas('contacts', function ($query) use ($email) {
+            $query->where('value', $email)
+                  ->where('contacts_types_id', ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId());
+        })->where('apps_id', $app->getId())
+          ->first();
+
+        if (! $person) {
+            // Create new person if not found
+            $person = new self();
+            $person->apps_id = $app->getId();
+            $person->companies_id = $company->getId();
+            $person->users_id = $user->getId();
+            $person->name = $name ?? explode('@', $email)[0];
+
+            // Extract name parts if provided
+            if ($name) {
+                $nameParts = explode(' ', trim($name));
+                $person->firstname = $nameParts[0] ?? '';
+                $person->lastname = count($nameParts) > 1 ? end($nameParts) : '';
+                if (count($nameParts) > 2) {
+                    $person->middlename = implode(' ', array_slice($nameParts, 1, -1));
+                }
+            }
+
+            $person->save();
+
+            // Add email contact
+            $person->addEmail($email);
+        }
+
+        return $person;
+    }
+
+    public static function findByPhoneOrCreate(
+        string $phone,
+        Companies $company,
+        Users $user,
+        ?string $name = null,
+        ?Apps $app = null
+    ): self {
+        $app = $app ?? app(Apps::class);
+
+        $phoneContactTypeIds = [
+            ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+            ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
+            //ContactType::getByName(ContactTypeEnum::WORK_PHONE->getName())->getId(),
+        ];
+
+        $person = self::whereHas('contacts', function ($query) use ($phone, $phoneContactTypeIds) {
+            $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', '')", [$phone])
+                  ->whereIn('contacts_types_id', $phoneContactTypeIds);
+        })->where('apps_id', $app->getId())
+          ->first();
+
+        if (! $person) {
+            // Create new person if not found
+            $person = new self();
+            $person->apps_id = $app->getId();
+            $person->companies_id = $company->getId();
+            $person->users_id = $user->getId();
+            $person->name = $name ?? 'Unknown';
+
+            // Extract name parts if provided
+            if ($name) {
+                $nameParts = explode(' ', trim($name));
+                $person->firstname = $nameParts[0] ?? '';
+                $person->lastname = count($nameParts) > 1 ? end($nameParts) : '';
+                if (count($nameParts) > 2) {
+                    $person->middlename = implode(' ', array_slice($nameParts, 1, -1));
+                }
+            }
+
+            $person->save();
+
+            // Add phone contact
+            $person->addPhone($phone);
+        }
+
+        return $person;
+    }
+
+    /**
+     * Get person by email.
+     */
+    public static function getByEmail(string $email, ?Apps $app = null): ?self
+    {
+        $app = $app ?? app(Apps::class);
+
+        return self::whereHas('contacts', function ($query) use ($email) {
+            $query->where('value', $email)
+                  ->where('contacts_types_id', ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId());
+        })->where('apps_id', $app->getId())
+          ->where('is_deleted', 0)
+          ->first();
+    }
+
+    /**
+     * Get person by phone matching (strips non-numeric characters for comparison).
+     */
+    public static function getByPhoneMatchingValue(string $phone, Companies $company, Apps $app): ?self
+    {
+        return self::whereHas('contacts', function ($query) use ($phone) {
+            $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', '')", [$phone])
+                  ->whereIn('contacts_types_id', [
+                      ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
+                      ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+                  ]);
+        })->where('apps_id', $app->getId())
+          ->where('companies_id', $company?->getId())
+          ->where('is_deleted', 0)
+          ->first();
+    }
+
+    public static function getByMatchingValue(string $value, Companies $company, Apps $app): ?self
+    {
+        return self::whereHas('contacts', function ($query) use ($value) {
+            $query->where('value', $value);
+        })
+            ->where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->where('is_deleted', 0)
+            ->first();
+    }
+
+    /**
+     * Get all people by phone matching (strips non-numeric characters for comparison).
+     */
+    public static function getAllByPhoneMatchingValue(string $phone, Companies $company, Apps $app): Collection
+    {
+        return self::whereHas(
+            'contacts',
+            fn ($query) => $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', '')", [$phone])
+                ->whereIn('contacts_types_id', [
+                    ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
+                    ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+                ])
+        )->where('apps_id', $app->getId())
+          ->where('companies_id', $company?->getId())
+          ->where('is_deleted', 0)
+          ->get();
+    }
+
+    public static function getAllByMatchingValue(string $value, Companies $company, Apps $app): Collection
+    {
+        return self::whereHas(
+            'contacts',
+            fn ($query) => $query->where('value', $value)
+        )
+            ->where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->where('is_deleted', 0)
+            ->get();
     }
 
     #[Override]
@@ -280,7 +542,7 @@ class People extends BaseModel
     {
         $people = [
             'objectID' => $this->uuid,
-            'id' => $this->id,
+            'id' => (string) $this->id,
             'name' => $this->name,
             'firstname' => $this->firstname,
             'middlename' => $this->middlename,
@@ -289,8 +551,8 @@ class People extends BaseModel
             'dob' => $this->dob,
             'apps_id' => $this->apps_id,
             'users_id' => $this->users_id,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'created_at' => $this->created_at->getTimestamp(),
+            'updated_at' => $this->updated_at->getTimestamp(),
             'files' => $this->getFiles()->take(5)->map(function ($files) { //for now limit
                 return [
                     'uuid' => $files->uuid,
@@ -319,11 +581,11 @@ class People extends BaseModel
             'tags' => $this->tags->map(function ($tag) {
                 return $tag->name;
             }),
-            'custom_fields' => $this->customFields()->get()->map(function ($customField) {
+            'custom_fields' => []/* $this->customFields()->get()->map(function ($customField) {
                 return [
                     $customField->name => $customField->value,
                 ];
-            }),
+            }) */,
             'contacts' => $this->contacts()->get()->map(function ($contact) {
                 return [
                     'type' => $contact->type->name,
@@ -402,11 +664,13 @@ class People extends BaseModel
                 ],
                 [
                     'name' => 'created_at',
-                    'type' => 'string',
+                    'type' => 'int64',
+                    'sort' => true,
                 ],
                 [
                     'name' => 'updated_at',
-                    'type' => 'string',
+                    'type' => 'int64',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'files',
@@ -448,5 +712,92 @@ class People extends BaseModel
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,  // Enable nested fields support for complex objects
         ];
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $app->fireWorkflow(
+            event: WorkflowEnum::SEARCH->value,
+            params: [
+                'search' => trim($query),
+                'search_type' => 'people',
+                'user' => $user instanceof UserInterface ? $user : null,
+                'company' => $user instanceof UserInterface ? $user->getCurrentCompany() : null,
+            ]
+        );
+
+        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+
+        /*         if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+                    $query->where('companies_id', $user->getCurrentCompany()->getId());
+                } */
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
+            ]);
+        }
+
+        return $query;
+    }
+
+    /**
+     * @return array{driversLicenseNumber: string, driversLicenseState: string|null}|null
+     */
+    public function getDriverLicenseData(): ?array
+    {
+        $licenseNumber = null;
+        $licenseState = null;
+
+        if (! empty($this->license_number)) {
+            $licenseNumber = $this->license_number;
+        }
+
+        if (empty($licenseNumber)) {
+            $licenseNumber = $this->get('drivers_license_number');
+        }
+
+        $legacyLicense = $this->get('get_docs_drivers_license');
+        if (! empty($legacyLicense) && is_array($legacyLicense)) {
+            if (empty($licenseNumber) && ! empty($legacyLicense['license'])) {
+                $licenseNumber = $legacyLicense['license'];
+            }
+            if (! empty($legacyLicense['state'])) {
+                $licenseState = $legacyLicense['state'];
+            }
+        }
+
+        if (empty($licenseState)) {
+            $defaultAddress = $this->address()->where('is_default', true)->first();
+            if ($defaultAddress && ! empty($defaultAddress->state)) {
+                $licenseState = $defaultAddress->state;
+            }
+        }
+
+        if (empty($licenseNumber)) {
+            return null;
+        }
+
+        return [
+            'driversLicenseNumber' => $licenseNumber,
+            'driversLicenseState' => $licenseState,
+        ];
+    }
+
+    public function getPhoto(): ?FilesystemEntities
+    {
+        $app = app(Apps::class);
+        $defaultAvatarId = $app->get(AppSettingsEnums::DEFAULT_USER_AVATAR->getValue());
+
+        return $this->getFileByName('photo') ?: ($defaultAvatarId ? FilesystemEntitiesRepository::getFileFromEntityById($defaultAvatarId) : null);
     }
 }

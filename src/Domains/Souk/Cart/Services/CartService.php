@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Cart\Services;
 
-use Joelwmale\Cart\Cart;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Wearepixel\Cart\Cart;
 
 class CartService
 {
@@ -29,6 +29,9 @@ class CartService
 
         $totalDiscount = 0;
         $discounts = array_map(function ($discount) use (&$totalDiscount) {
+            if ($discount['type'] === 'shipping') {
+                return null;
+            }
             $totalDiscount += $this->cart->getCalculatedValueForCondition($discount['name']);
 
             return [
@@ -47,7 +50,7 @@ class CartService
             'items' => $cartItems, //$this->cart->getContent()->toArray(),
             'discounts' => $discounts,
             'total_discount' => $totalDiscount,
-            'subtotal' => $this->cart->getSubTotal(),
+            'subtotal' => $this->cart->getSubTotalWithoutConditions(false),
             'total' => $this->cart->getTotal(),
         ];
         if ($shipping) {

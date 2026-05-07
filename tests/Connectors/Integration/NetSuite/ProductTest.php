@@ -9,6 +9,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\PullNetSuiteProductPriceAction;
 use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
+use Kanvas\Connectors\NetSuite\Services\NetSuiteProductSearchService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteProductService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteServices;
 use Kanvas\Users\Actions\AssignCompanyAction;
@@ -16,6 +17,14 @@ use Tests\TestCase;
 
 final class ProductTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('NetSuite integration tests are skipped in CI');
+        }
+    }
+
     public function testSetup()
     {
         $app = app(Apps::class);
@@ -23,11 +32,11 @@ final class ProductTest extends TestCase
         $data = new NetSuite(
             app: $app,
             company: $company,
-            account: getenv('NET_SUITE_ACCOUNT'),
-            consumerKey: getenv('NET_SUITE_CONSUMER_KEY'),
-            consumerSecret: getenv('NET_SUITE_CONSUMER_SECRET'),
-            token: getenv('NET_SUITE_TOKEN'),
-            tokenSecret: getenv('NET_SUITE_TOKEN_SECRET')
+            account: env('NET_SUITE_ACCOUNT'),
+            consumerKey: env('NET_SUITE_CONSUMER_KEY'),
+            consumerSecret: env('NET_SUITE_CONSUMER_SECRET'),
+            token: env('NET_SUITE_TOKEN'),
+            tokenSecret: env('NET_SUITE_TOKEN_SECRET')
         );
 
         $result = NetSuiteServices::setup($data);
@@ -75,6 +84,19 @@ final class ProductTest extends TestCase
         $this->assertGreaterThan(0, $quantity);
     }
 
+    public function testNewGetProductQuantityBylocation()
+    {
+        $company = Companies::first();
+        $app = app(Apps::class);
+
+        $productService = new NetSuiteProductSearchService($app, $company);
+        $product = $productService->searchProductByItemNumber(getenv('NET_SUITE_ITEM_NUMBER'), getenv('NET_SUITE_LOCATION_ID'));
+
+        $this->assertNotNull($product[0]['colorCode']);
+        $this->assertGreaterThan(0, $product[0]['mapPrice']);
+        $this->assertGreaterThan(0, $product[0]['quantityAvailable']);
+    }
+
     public function testGetProductPrice()
     {
         $company = Companies::first();
@@ -105,6 +127,19 @@ final class ProductTest extends TestCase
         $this->assertGreaterThan(0, $price);
     }
 
+    public function testGetProductMoq()
+    {
+        $company = Companies::first();
+        $app = app(Apps::class);
+
+        $productService = new NetSuiteProductService($app, $company);
+        $product = $productService->searchProductByItemNumber(env('NET_SUITE_ITEM_NUMBER'));
+
+        $product = $productService->getProductById($product[0]->internalId);
+        $price = (int) $productService->getCustomField($product, CustomFieldEnum::NET_SUITE_MOQ_CUSTOM_FIELD->value);
+
+        $this->assertGreaterThanOrEqual(0, $price);
+    }
 
     public function testSyncNetSuiteProduct()
     {

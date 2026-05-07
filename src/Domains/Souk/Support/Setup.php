@@ -7,7 +7,7 @@ namespace Kanvas\Souk\Support;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
-use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
+use Kanvas\Souk\Orders\Models\OrderTypes;
 
 class Setup
 {
@@ -23,6 +23,14 @@ class Setup
         //$createSystemModule = new CreateInCurrentAppAction($this->app);
         (new CreateSystemModule($this->app))->run();
 
-        return true;
+        $defaultOrderType = OrderTypes::firstOrCreate([
+                        'apps_id' => $this->app->getId(),
+                        'companies_id' => $this->company->getId(),
+                        'name' => 'Default',
+                    ], [
+                        'is_default' => true,
+                    ]);
+
+        return $defaultOrderType instanceof OrderTypes;
     }
 }

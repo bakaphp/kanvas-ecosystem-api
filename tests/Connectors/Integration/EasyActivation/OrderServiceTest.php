@@ -11,6 +11,14 @@ use Tests\TestCase;
 
 final class OrderServiceTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('EasyActivation integration tests are skipped in CI');
+        }
+    }
+
     public function testOrderStatus(): void
     {
         $app = app(Apps::class);

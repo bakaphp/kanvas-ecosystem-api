@@ -25,6 +25,7 @@ class EntityInteractionsQueries
         )
         ->where('entity_id', $args['entity_id'])
         ->where('entity_namespace', $args['entity_namespace'])
+        ->notDeleted()
         ->groupBy(
             'entity_interactions.entity_id',
             'entity_interactions.entity_namespace',

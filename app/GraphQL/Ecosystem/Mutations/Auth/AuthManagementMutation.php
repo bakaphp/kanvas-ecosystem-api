@@ -4,22 +4,29 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Auth;
 
+use Baka\Support\IPInfo;
 use Baka\Validations\PasswordValidation;
 use GraphQL\Type\Definition\ResolveInfo;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException as LaravelValidationException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\Actions\SocialLoginAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\AuthenticationService;
+use Kanvas\Auth\Services\EmailVerification as EmailVerificationService;
 use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
 use Kanvas\Auth\Socialite\SocialManager;
 use Kanvas\Auth\Traits\AuthTrait;
 use Kanvas\Auth\Traits\TokenTrait;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Enums\UserConfigEnum;
@@ -33,16 +40,13 @@ class AuthManagementMutation
     use TokenTrait;
     use AuthTrait;
 
-    /**
-     *
-     * @throws \Exception
-     */
     public function loginMutation(
         mixed $rootValue,
         array $request,
         ?GraphQLContext $context = null,
         ?ResolveInfo $resolveInfo = null
     ): array {
+        $app = app(Apps::class);
         $email = $request['data']['email'];
         $password = $request['data']['password'];
         $deviceId = $request['data']['device_id'] ?? null;
@@ -52,12 +56,29 @@ class AuthManagementMutation
             LoginInput::from([
                 'email' => $email,
                 'password' => $password,
-                'ip' => $request->ip(),
+                'ip' => IPInfo::getClientIp($request),
                 'deviceId' => $deviceId,
             ])
         );
 
-        return $user->createToken(name: AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue(), deviceId: $deviceId)->toArray();
+        //$userApp = $user->getAppProfile($app);
+        $logLogin = $app->get('log_login_attempts');
+        if ($logLogin) {
+            Log::info('auth.2fa_login_triggered', [
+                'user_id' => $user->getId(),
+                'email' => $email,
+                'app_id' => $app->getId(),
+                'app_name' => $app->name,
+                'ip' => IPInfo::getClientIp($request),
+                'device_id' => $deviceId,
+                'user_agent' => $request->userAgent(),
+            ]);
+        }
+
+        return $user->createToken(
+            name: AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue(),
+            deviceId: $deviceId
+        )->toArray();
     }
 
     /**
@@ -96,10 +117,6 @@ class AuthManagementMutation
         );
     }
 
-    /**
-     *
-     * @throws \Exception
-     */
     public function register(
         mixed $rootValue,
         array $request,
@@ -107,6 +124,8 @@ class AuthManagementMutation
         ?ResolveInfo $resolveInfo = null
     ): array {
         $app = app(Apps::class);
+
+        $this->enforceRegistrationRateLimit($app);
 
         Validator::make(
             $request['data'],
@@ -178,7 +197,6 @@ class AuthManagementMutation
     }
 
     /**
-     *
      * @throws \Exception
      */
     public function forgot(
@@ -222,5 +240,55 @@ class AuthManagementMutation
         $user->reset($request['data']['new_password'], $request['data']['hash_key']);
 
         return true;
+    }
+
+    public function verifyEmail(mixed $rootValue, array $request): bool
+    {
+        $app = app(Apps::class);
+
+        return new EmailVerificationService($app)->verify($request['token']);
+    }
+
+    public function resendVerificationEmail(mixed $rootValue, array $request): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $rateLimitKey = 'email-verification-resend:' . $app->getId() . ':' . $user->getId();
+        $maxAttempts = 4;
+        $decaySeconds = 28800;
+
+        if (RateLimiter::tooManyAttempts($rateLimitKey, $maxAttempts)) {
+            throw new ValidationException('Too many verification requests. Please try again later.');
+        }
+
+        RateLimiter::hit($rateLimitKey, $decaySeconds);
+
+        return new EmailVerificationService($app)->send($user);
+    }
+
+    protected function enforceRegistrationRateLimit(Apps $app): void
+    {
+        $ip = IPInfo::getClientIp();
+        $key = 'register_attempt:' . $app->getId() . ':' . $ip;
+        $maxAttempts = (int) ($app->get(AppSettingsEnums::REGISTRATION_RATE_LIMIT->getValue()) ?: 10);
+
+        if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
+            $seconds = RateLimiter::availableIn($key);
+
+            Log::warning('auth.registration_rate_limit_exceeded', [
+                'app_id' => $app->getId(),
+                'app_name' => $app->name,
+                'ip' => $ip,
+                'max_attempts' => $maxAttempts,
+                'user_agent' => request()->userAgent(),
+            ]);
+
+            throw LaravelValidationException::withMessages([
+                'email' => ["Too many registration attempts. Please try again in {$seconds} seconds."],
+            ]);
+        }
+
+        RateLimiter::hit($key, 60);
     }
 }

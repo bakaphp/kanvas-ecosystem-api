@@ -7,6 +7,7 @@ namespace App\Console\Commands\Setup;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Event\Support\Enums\EventSetupTypeEnum;
 use Kanvas\Event\Support\Setup;
 use Kanvas\Users\Models\Users;
 
@@ -17,7 +18,7 @@ class EventSetupCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas-event:setup {app_id} {user_id} {company_id}';
+    protected $signature = 'kanvas-event:setup {app_id} {user_id} {company_id} {--type=standard : Setup type (standard or full)}';
 
     /**
      * The console command description.
@@ -28,22 +29,25 @@ class EventSetupCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {
         $company = Companies::getById((int) $this->argument('company_id'));
         $user = Users::getById((int) $this->argument('user_id'));
         $app = Apps::getById((int) $this->argument('app_id'));
+        /** @var string $type */
+        $type = $this->option('type');
+        $setupType = EventSetupTypeEnum::from($type);
 
-        (new Setup(
+        new Setup(
             $app,
             $user,
-            $company
-        ))->run();
+            $company,
+            $setupType
+        )->run();
 
         $this->newLine();
-        $this->info('Event setup for Company ' . $company->name . ' and App ' . $app->name . ' completed successfully');
+        $this->info('Event setup (' . $setupType->value . ') for Company ' . $company->name . ' and App ' . $app->name . ' completed successfully');
         $this->newLine();
 
         return;

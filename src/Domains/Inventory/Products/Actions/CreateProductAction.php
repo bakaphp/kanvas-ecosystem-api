@@ -12,11 +12,9 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
-use Kanvas\Inventory\Products\Jobs\IndexProductJob;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Throwable;
 
 class CreateProductAction
 {
@@ -36,9 +34,7 @@ class CreateProductAction
             $this->user
         );
 
-        try {
-            DB::connection('inventory')->beginTransaction();
-
+        $products = DB::connection('inventory')->transaction(function () {
             $productType = $this->productDto?->productsType?->getId();
 
             $search = [
@@ -61,10 +57,14 @@ class CreateProductAction
                 'upc' => $this->productDto->upc,
                 'status_id' => $this->productDto->status_id,
                 'users_id' => $this->user->getId(),
-                'is_published' => $this->productDto->is_published,
-                'published_at' => Carbon::now(),
-                'weight' => $this->productDto->weight ?? 0,
+                'weight' => $this->productDto->weight ?? $existingProduct?->weight ?? 0,
             ];
+
+            //for now use isAdmin until we have the full role online
+            if ($this->user->can('is_published', Products::class) || $this->user->isAdmin()) {
+                $updateData['is_published'] = $this->productDto->is_published;
+                $updateData['published_at'] = Carbon::now();
+            }
 
             if ($productType == null) {
                 unset($updateData['products_types_id']);
@@ -102,16 +102,10 @@ class CreateProductAction
                 VariantService::createDefaultVariant($products, $this->user, $this->productDto);
             }
 
-            DB::connection('inventory')->commit();
+            return $products;
+        }, 3);
 
-            //IndexProductJob::dispatch($products)->delay(now()->addSeconds(2));
-        } catch (Throwable $e) {
-            DB::connection('inventory')->rollback();
-
-            throw $e;
-        }
-
-        if ($products->isPublished()) {
+        if ($products->shouldBeSearchable()) {
             $products->searchable();
         } else {
             $products->unsearchable();

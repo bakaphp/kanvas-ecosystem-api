@@ -17,9 +17,6 @@ class DuplicateVariantAction
 {
     protected bool $runWorkflow = true;
 
-    /**
-     * __construct.
-     */
     public function __construct(
         protected Variants $originalVariant,
         protected Products $product,
@@ -27,9 +24,6 @@ class DuplicateVariantAction
     ) {
     }
 
-    /**
-     * execute.
-     */
     public function execute(): Variants
     {
         CompaniesRepository::userAssociatedToCompany(
@@ -83,9 +77,9 @@ class DuplicateVariantAction
         return $variant;
     }
 
-    public function setDuplicateName()
+    public function setDuplicateName(): array
     {
-        $duplicateSku = $this->originalVariant->sku . "(Copy)";
+        $duplicateSku = $this->originalVariant->sku . '(Copy)';
 
         $originalName = $this->originalVariant->name;
         $originalSlug = $this->originalVariant->slug;
@@ -95,9 +89,9 @@ class DuplicateVariantAction
         $companyId = $this->originalVariant->company->getId();
 
         // Add "(Copy)" to the original name
-        $baseCopyName = $originalName . " (Copy)";
-        $baseCopySlug = $originalSlug . "-copy";
-        $baseCopySku = $originalSlug . "(Copy)";
+        $baseCopyName = $originalName . ' (Copy)';
+        $baseCopySlug = $originalSlug . '-copy';
+        $baseCopySku = $originalSlug . '(Copy)';
 
         $existingSlugs = Variants::where('apps_id', $appId)
             ->where('companies_id', $companyId)
@@ -122,7 +116,7 @@ class DuplicateVariantAction
         return [
             'name' => $duplicateName,
             'slug' => $duplicateSlug,
-            'sku' => $duplicateSku
+            'sku' => $duplicateSku,
         ];
     }
 }

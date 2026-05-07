@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Workflow\Mutations\Workflows;
 
+use Baka\Support\IPInfo;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -32,7 +33,7 @@ class WorkflowMutationManagement
         $entityId = $request['entity_id'];
         $entityClass = $request['entity_namespace'];
         $workflowAction = $request['action'];
-        $params = array_merge(['app' => app(Apps::class)], $request['params'] ?? [], ['ip' => request()->ip()]);
+        $params = array_merge(['app' => app(Apps::class)], $request['params'] ?? [], ['ip' => IPInfo::getClientIp()]);
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -54,6 +55,37 @@ class WorkflowMutationManagement
             WorkflowEnum::fromString($workflowAction);
         } catch (InvalidArgumentException $e) {
             return ['success' => false, 'message' => $e->getMessage()];
+        }
+
+        $activityClass = $request['activity_class'] ?? null;
+
+        if ($activityClass !== null) {
+            if (! class_exists($activityClass)) {
+                throw new Exception('activity_class ' . $activityClass . ' not found');
+            }
+
+            if (! empty($entityId)) {
+                $entity = Str::isUuid($entityId)
+                    ? $entityClass::getByUuid($entityId, $app)
+                    : $entityClass::getById($entityId, $app);
+            } else {
+                $entity = new $entityClass();
+                $entity->fill([
+                    'id' => 0,
+                    'apps_id' => $app->getId(),
+                    'companies_id' => $company->getId(),
+                ]);
+                $entity->setRelation('company', $company);
+            }
+
+            $activity = new $activityClass(
+                index: 0,
+                now: now()->toDateTimeString(),
+                storedWorkflow: new StoredWorkflow(),
+                arguments: []
+            );
+
+            return $activity->execute($entity, $app, $params);
         }
 
         try {
@@ -107,6 +139,7 @@ class WorkflowMutationManagement
 
             return $activity->execute($entity, $app, $params);
         }
+
         $results = $entity->fireWorkflow($workflowAction, true, $params);
 
         //if its sync we return the results

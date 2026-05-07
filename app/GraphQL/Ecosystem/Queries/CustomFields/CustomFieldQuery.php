@@ -7,8 +7,11 @@ namespace App\GraphQL\Ecosystem\Queries\CustomFields;
 use Baka\Enums\StateEnums;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\CustomFields\DataTransferObject\CustomFieldInput;
 use Kanvas\CustomFields\Models\AppsCustomFields;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -25,6 +28,15 @@ class CustomFieldQuery
     ): LengthAwarePaginator {
         $limit = $args['first'] ?? 25;
         $page = $args['page'] ?? 1;
+
+        //for now to support legacy custom fields we need to revalidate it the apps is still using old infra
+        $app = $root->app ?? null;
+
+        $canRun = $root instanceof Lead || $root instanceof People;
+        if ($app !== null && $app instanceof Apps && $canRun && $app->get('recache-custom-fields', false)) {
+            $root->reGenerateRedisCustomFields();
+        }
+
         $results = $root->getAllCustomFieldsFromRedisPaginated($limit, $page);
 
         //...apply your logic

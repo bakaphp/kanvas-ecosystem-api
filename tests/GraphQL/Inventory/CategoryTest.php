@@ -235,6 +235,218 @@ class CategoryTest extends TestCase
         ]);
     }
 
+    public function testCategoryParentChildRelationship(): void
+    {
+        // Create parent category
+        $parentData = [
+            'name' => fake()->name,
+            'code' => fake()->unique()->word,
+            'position' => 1,
+            'is_published' => true,
+            'weight' => 0
+        ];
+
+        $parentResponse = $this->graphQL('
+            mutation($data: CategoryInput!) {
+                createCategory(input: $data)
+                {
+                    id
+                    name
+                    code
+                    is_published
+                    position
+                    weight
+                }
+            }', ['data' => $parentData])->assertJson([
+            'data' => ['createCategory' => $parentData]
+        ]);
+
+        $parentId = $parentResponse->json()['data']['createCategory']['id'];
+
+        // Create child category with parent_id
+        $childData = [
+            'name' => fake()->name,
+            'code' => fake()->unique()->word,
+            'position' => 1,
+            'is_published' => true,
+            'weight' => 0,
+            'parent_id' => (int) $parentId
+        ];
+
+        $childResponse = $this->graphQL('
+            mutation($data: CategoryInput!) {
+                createCategory(input: $data)
+                {
+                    id
+                    name
+                    code
+                    is_published
+                    position
+                    weight
+                    parent {
+                        id
+                        name
+                    }
+                }
+            }', ['data' => $childData]);
+
+        $childResponse->assertJsonPath('data.createCategory.parent.id', $parentId);
+        $childId = $childResponse->json()['data']['createCategory']['id'];
+
+        // Query parent category and verify children relationship
+        $response = $this->graphQL('
+            query($id: Mixed!) {
+                categories(where: { column: ID, operator: EQ, value: $id }) {
+                    data {
+                        id
+                        name
+                        children(first: 10) {
+                            data {
+                                id
+                                name
+                            }
+                        }
+                    }
+                }
+            }', ['id' => $parentId]);
+
+        $children = $response->json()['data']['categories']['data'][0]['children']['data'];
+        $this->assertNotEmpty($children);
+        $childIds = array_column($children, 'id');
+        $this->assertContains($childId, $childIds);
+    }
+
+    public function testCategoryMultipleChildrenRelationship(): void
+    {
+        // Create parent category
+        $parentData = [
+            'name' => fake()->name,
+            'code' => fake()->unique()->word,
+            'position' => 1,
+            'is_published' => true,
+            'weight' => 0
+        ];
+
+        $parentResponse = $this->graphQL('
+            mutation($data: CategoryInput!) {
+                createCategory(input: $data)
+                {
+                    id
+                    name
+                }
+            }', ['data' => $parentData]);
+
+        $parentId = $parentResponse->json()['data']['createCategory']['id'];
+
+        // Create multiple child categories
+        $childIds = [];
+        for ($i = 0; $i < 3; $i++) {
+            $childData = [
+                'name' => fake()->name,
+                'code' => fake()->unique()->word,
+                'position' => $i + 1,
+                'is_published' => true,
+                'weight' => 0,
+                'parent_id' => (int) $parentId
+            ];
+
+            $childResponse = $this->graphQL('
+                mutation($data: CategoryInput!) {
+                    createCategory(input: $data)
+                    {
+                        id
+                        name
+                        parent {
+                            id
+                        }
+                    }
+                }', ['data' => $childData]);
+
+            $childResponse->assertJsonPath('data.createCategory.parent.id', $parentId);
+            $childIds[] = $childResponse->json()['data']['createCategory']['id'];
+        }
+
+        // Query parent and verify all children
+        $response = $this->graphQL('
+            query($id: Mixed!) {
+                categories(where: { column: ID, operator: EQ, value: $id }) {
+                    data {
+                        id
+                        name
+                        children(first: 10) {
+                            data {
+                                id
+                                name
+                            }
+                        }
+                    }
+                }
+            }', ['id' => $parentId]);
+
+        $children = $response->json()['data']['categories']['data'][0]['children']['data'];
+        $this->assertCount(3, $children);
+
+        $returnedChildIds = array_column($children, 'id');
+        foreach ($childIds as $childId) {
+            $this->assertContains($childId, $returnedChildIds);
+        }
+    }
+
+    public function testUpdateCategoryParent(): void
+    {
+        // Create two parent categories
+        $parent1Response = $this->createCategory();
+        $parent1Id = $parent1Response['data']['createCategory']['id'];
+
+        $parent2Response = $this->createCategory();
+        $parent2Id = $parent2Response['data']['createCategory']['id'];
+
+        // Create child category under parent1
+        $childData = [
+            'name' => fake()->name,
+            'code' => fake()->unique()->word,
+            'position' => 1,
+            'is_published' => true,
+            'weight' => 0,
+            'parent_id' => (int) $parent1Id
+        ];
+
+        $childResponse = $this->graphQL('
+            mutation($data: CategoryInput!) {
+                createCategory(input: $data)
+                {
+                    id
+                    name
+                    parent {
+                        id
+                    }
+                }
+            }', ['data' => $childData]);
+
+        $childId = $childResponse->json()['data']['createCategory']['id'];
+        $childResponse->assertJsonPath('data.createCategory.parent.id', $parent1Id);
+
+        // Update child to have parent2 as parent
+        $updateData = [
+            'name' => fake()->name,
+            'parent_id' => (int) $parent2Id
+        ];
+
+        $updateResponse = $this->graphQL('
+            mutation($id: ID!, $data: CategoryUpdateInput!) {
+                updateCategory(id: $id, input: $data)
+                {
+                    id
+                    name
+                    parent {
+                        id
+                    }
+                }
+            }', ['id' => $childId, 'data' => $updateData]);
+
+        $updateResponse->assertJsonPath('data.updateCategory.parent.id', $parent2Id);
+    }
+
     private function createCategory()
     {
         $data = [

@@ -9,4 +9,5 @@ class OwnerRoleTemplate extends RoleTemplate
     public string $role = 'Owner';
     public array $denied = [];
     public array $allowed = [];
+    public bool $hasAllPermissions = true;
 }

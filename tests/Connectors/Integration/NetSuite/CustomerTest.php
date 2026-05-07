@@ -16,12 +16,19 @@ use Kanvas\Connectors\NetSuite\DataTransferObject\NetSuite;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteServices;
-use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Tests\TestCase;
 
 final class CustomerTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('NetSuite integration tests are skipped in CI');
+        }
+    }
+
     public function getPayload(): array
     {
         return [
@@ -105,13 +112,7 @@ final class CustomerTest extends TestCase
         $payload = $this->getPayload();
         $addressData = $payload['sublists']['addressbook']['line 1'];
         $addAddressAction = new AddAddressToCompanyAction($company, $app->keys()->firstOrFail()->user, $app);
-        $address = $addAddressAction->execute(address: new Address(
-            address: $addressData['addrtext_initialvalue'],
-            city: $addressData['city_initialvalue'],
-            state: $addressData['displaystate_initialvalue'],
-            zip: $addressData['zip_initialvalue'],
-            country: $addressData['country_initialvalue']
-        ), isDefault: true);
+        $address = $addAddressAction->fromNetSuite($addressData);
 
         $this->assertEquals($address->is_default, true);
         $this->assertEquals($address->address, $addressData['addrtext_initialvalue']);
@@ -156,6 +157,52 @@ final class CustomerTest extends TestCase
         $result = $syncCustomerItemsList->execute();
 
         $this->assertIsArray($result);
+    }
+
+    public function testSyncNetSuiteCustomerItemsListFromPayload()
+    {
+        $app = app(Apps::class);
+        $company = Companies::first();
+
+        $buyerCompany = Companies::factory()->create();
+        $buyerCompany->associateUser($company->user, true, $buyerCompany->defaultBranch);
+
+        $itemPricingList = [
+            [
+                'item' => '492',
+                'level' => '-1',
+                'price' => '3.14',
+                'sys_id' => '20859524076679148',
+                'currency' => '1',
+                'item_display' => '4511338002063',
+                'sys_parentid' => '20859524069940939',
+                'currency_display' => 'USD',
+            ],
+            [
+                'item' => '494',
+                'level' => '-1',
+                'price' => '3.14',
+                'sys_id' => '20859524076673028',
+                'currency' => '1',
+                'item_display' => '4511338002087',
+                'sys_parentid' => '20859524069940939',
+                'currency_display' => 'USD',
+            ],
+        ];
+
+        $syncCustomerItemsList = new SyncNetSuiteCustomerItemsListAction(
+            $app,
+            $company,
+            $buyerCompany,
+            $itemPricingList
+        );
+        $result = $syncCustomerItemsList->execute();
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('channel', $result);
+        $this->assertArrayHasKey('total_processed', $result);
+        $this->assertArrayHasKey('products_not_found', $result);
+        $this->assertEquals(2, $result['total_items']);
     }
 
     public function testGetCustomerInvoiceByNumber()

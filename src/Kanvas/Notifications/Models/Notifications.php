@@ -4,17 +4,21 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Models;
 
-use Awobaz\Compoships\Database\Eloquent\Model;
 use Baka\Casts\Json;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Models\BaseModel;
+use Kanvas\Notifications\Observers\NotificationObserver;
+use Kanvas\Social\Interactions\Models\Interactions;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -36,6 +40,7 @@ use Throwable;
  * @property string $updated_at
  * @property string $is_deleted
  */
+#[ObservedBy(NotificationObserver::class)]
 class Notifications extends BaseModel
 {
     public $table = 'notifications';
@@ -82,11 +87,18 @@ class Notifications extends BaseModel
         return $this->belongsTo(NotificationTypes::class, 'notification_type_id');
     }
 
+    public function interaction(): BelongsTo
+    {
+        return $this->belongsTo(Interactions::class, 'interaction_id');
+    }
+
     /**
      * Not deleted scope.
      */
     public function scopeAllNotifications(Builder $query, array $args): Builder
     {
+        $app = app(Apps::class);
+        $socialDb = config('database.connections.social.database');
         if (isset($args['whereType'])) {
             $notificationTypeFilter = $args['whereType'];
             $query->whereHas('types', function ($query) use ($notificationTypeFilter) {
@@ -100,9 +112,36 @@ class Notifications extends BaseModel
             });
         }
 
+        if (isset($args['whereSystemModule'])) {
+            $systemModuleFilter = $args['whereSystemModule'];
+            $query->whereHas('systemModule', function ($query) use ($systemModuleFilter, $app, $socialDb) {
+                if ($systemModuleFilter['slugs']) {
+                    $systemModuleIds = [];
+                    foreach ($systemModuleFilter['slugs'] as $systemModuleSlug) {
+                        $notificationSystemModule = SystemModulesRepository::getBySlug($systemModuleSlug, $app);
+                        $systemModuleIds[] = $notificationSystemModule->getId();
+                        if ($notificationSystemModule->model_name == Message::class && isset($systemModuleFilter['message_type_verb'])) {
+                            $query->getQuery()->join($socialDb . '.messages', 'messages.id', '=', 'notifications.entity_id');
+
+                            $messageType = MessagesTypesRepository::getByVerb($systemModuleFilter['message_type_verb'], $app);
+                            $query->where($socialDb . '.messages.message_types_id', $messageType->getId());
+                        }
+                    }
+                    $query->whereIn('system_modules_id', $systemModuleIds);
+                }
+            });
+        }
+
+        if (isset($args['whereInteraction']) && $args['whereInteraction']['name']) {
+            $interaction = Interactions::getByName($args['whereInteraction']['name'], $app);
+            if ($interaction) {
+                $query->where('interaction_id', $interaction->getId());
+            }
+        }
+
         return $query->where('users_id', auth()->user()->id)
-                ->where('is_deleted', StateEnums::NO->getValue())
-                ->where('apps_id', app(Apps::class)->id);
+            ->where('is_deleted', StateEnums::NO->getValue())
+            ->where('apps_id', $app->id);
     }
 
     /**
@@ -116,12 +155,30 @@ class Notifications extends BaseModel
 
         try {
             $systemModule = $this->systemModule()->firstOrFail();
-            $modelName = $systemModule->model_name;
+            $modelName = SystemModules::convertLegacySystemModules($systemModule->model_name);
 
             /**
              * @todo cache
              */
             return $modelName::getById($this->entity_id);
+        } catch (Throwable $e) {
+        }
+
+        return null;
+    }
+
+    /**
+     * Get entity children if it is a instance of Messages and has parent_id NULL
+     */
+    public function getEntityChildrenData(): mixed
+    {
+        try {
+            $systemModule = $this->systemModule()->firstOrFail();
+            $modelName = $systemModule->model_name;
+            $entity = $modelName::getById($this->entity_id);
+            if ($entity instanceof Message && $entity->parent_id === null && $entity->total_children > 0) {
+                return $entity->children;
+            }
         } catch (Throwable $e) {
         }
 

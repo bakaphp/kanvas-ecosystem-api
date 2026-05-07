@@ -7,6 +7,7 @@ namespace Kanvas\Inventory\Products\Services;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use League\Csv\Writer;
@@ -15,6 +16,7 @@ class ProductsExportService
 {
     public function __construct(
         protected Apps $app,
+        protected Companies $company,
     ) {
     }
 
@@ -24,6 +26,7 @@ class ProductsExportService
     public function headings(): array
     {
         return [
+            'App ID',
             'Variant ID',
             'Name',
             'SKU',
@@ -31,13 +34,19 @@ class ProductsExportService
             'Price',
             'Tax',
             'Discount',
-            'Currency'
+            'Currency',
+            'min quantity',
+            'map price',
         ];
     }
 
     public function map(Variants $variant): array
     {
+        $variantWarehouse = $variant?->variantWarehouses?->first();
+        $config = $variantWarehouse?->config ?? [];
+
         return [
+            $variant->apps_id,
             $variant->id,
             $variant->name,
             (string) ($variant->sku ?? $variant->id),
@@ -45,7 +54,9 @@ class ProductsExportService
             (float) $variant->price,
             (float) ($variant->tax ?? 0),
             (float) ($variant->discount ?? 0),
-            'USD'
+            'USD',
+            $config['minimum_quantity'] ?? "N/A",
+            $config['map_price'] ?? "N/A",
         ];
     }
 
@@ -53,7 +64,8 @@ class ProductsExportService
     {
         $products = Products::where([
             'apps_id' => $this->app->getId(),
-        ])->with(['variants'])->get();
+            'companies_id' => $this->company->getId(),
+        ])->with(['variants', 'variants.variantWarehouses'])->get();
 
         return $products->flatMap(function ($product) {
             return $product->variants;

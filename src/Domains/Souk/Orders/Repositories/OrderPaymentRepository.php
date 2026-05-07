@@ -1,0 +1,498 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Souk\Orders\Repositories;
+
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Souk\Orders\Models\Order;
+
+class OrderPaymentRepository
+{
+    public function __construct(
+        protected Apps $app
+    ) {
+    }
+
+    /**
+     * Apply tag / reference / order_number filters shared across all stat queries.
+     *
+     * @param  mixed  $query  Eloquent builder for Order
+     */
+    private function applyOrderIdentifierFilters(
+        $query,
+        ?string $reference,
+        ?string $orderNumber,
+        ?array $metadataFilter
+    ): void {
+        if ($reference !== null && $reference !== '') {
+            $query->where('orders.reference', 'LIKE', $reference);
+        }
+
+        if ($orderNumber !== null && $orderNumber !== '') {
+            $query->where('orders.order_number', $orderNumber);
+        }
+
+        if (
+            $metadataFilter !== null
+            && ! empty($metadataFilter['path'])
+            && isset($metadataFilter['value'])
+            && $metadataFilter['value'] !== ''
+        ) {
+            $path = ltrim((string) $metadataFilter['path'], '.');
+            // JSON path is interpolated, not bound — restrict to safe dot-separated identifiers.
+            if (! preg_match('/^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$/', $path)) {
+                return;
+            }
+
+            $operator = strtoupper((string) ($metadataFilter['operator'] ?? 'EQ')) === 'LIKE' ? 'LIKE' : '=';
+            $query->whereRaw(
+                "JSON_UNQUOTE(JSON_EXTRACT(IF(JSON_VALID(orders.metadata), orders.metadata, '{}'), '$.{$path}')) {$operator} ?",
+                [$metadataFilter['value']]
+            );
+        }
+    }
+
+    /**
+     * Get orders in period with payment information grouped by date.
+     *
+     * Supports two payment resolution strategies (OR logic):
+     * 1. paidStates: order transitioned to one of these status slugs → date = changed_at of that transition
+     * 2. payment_status = 'paid': order has a paid payment record → date = first payment's payment_date
+     *
+     * COALESCE(paid_transition.changed_at, first_payment.payment_date) is used so that
+     * existing callers keep the original date anchor while orders that skip the status-transition
+     * step (e.g. movipass) are still captured using their payment date.
+     */
+    public function getOrdersInPeriodWithPayments(
+        Carbon $start,
+        Carbon $end,
+        array $paidStates,
+        ?int $variantId = null,
+        string $timezone = 'UTC',
+        array $orderTypeNames = [],
+        array $productVariantIds = [],
+        array $providerCompanyIds = [],
+        ?string $userEmail = null,
+        ?string $reference = null,
+        ?string $orderNumber = null,
+        ?array $metadataFilter = null
+    ): Collection {
+        $firstPaymentSub = DB::connection('commerce')
+            ->table('payments')
+            ->where('payable_type', Order::class)
+            ->where('is_deleted', 0)
+            ->where('status', 'paid')
+            ->selectRaw('payable_id AS order_id, MIN(payment_date) AS payment_date')
+            ->groupBy('payable_id');
+
+        $query = Order::query()
+            ->leftJoinSub($firstPaymentSub, 'first_payment', 'first_payment.order_id', '=', 'orders.id')
+            ->leftJoin('payments', function ($join) {
+                $join->on('payments.payable_id', '=', 'orders.id')
+                    ->where('payments.payable_type', Order::class)
+                    ->where('payments.is_deleted', '=', 0)
+                    ->where('payments.status', '=', 'paid');
+            })
+            ->when(! empty($orderTypeNames), function ($query) use ($orderTypeNames) {
+                $query->join('order_types', 'orders.order_types_id', '=', 'order_types.id')
+                    ->whereIn('order_types.name', $orderTypeNames);
+            })
+            ->when($variantId, function ($query) use ($variantId) {
+                $query->whereHas('allItems', function ($q) use ($variantId) {
+                    $q->where('variant_id', $variantId);
+                });
+            })
+            ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
+                $query->whereHas('allItems', function ($q) use ($productVariantIds) {
+                    $q->whereIn('variant_id', $productVariantIds);
+                });
+            })
+            ->when(! empty($providerCompanyIds), function ($query) use ($providerCompanyIds) {
+                $query->whereIn(
+                    'orders.id',
+                    DB::connection('commerce')
+                        ->table('order_providers')
+                        ->whereIn('company_id', $providerCompanyIds)
+                        ->select('order_id')
+                );
+            })
+            ->when($userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $userEmail))
+            ->with(['items'])
+            ->where('orders.apps_id', $this->app->id);
+
+        $this->applyOrderIdentifierFilters($query, $reference, $orderNumber, $metadataFilter);
+
+        if (! empty($paidStates)) {
+            $slugPlaceholders = implode(',', array_fill(0, count($paidStates), '?'));
+            $query->leftJoin(
+                DB::raw("(
+                    SELECT oth.order_id, MIN(oth.changed_at) AS changed_at
+                    FROM order_transitions_history oth
+                    INNER JOIN order_statuses os ON os.id = oth.to_status_id
+                    WHERE os.slug IN ({$slugPlaceholders})
+                    GROUP BY oth.order_id
+                ) AS paid_transition"),
+                'paid_transition.order_id',
+                '=',
+                'orders.id'
+            )->addBinding($paidStates, 'join')
+            ->where(function ($q) {
+                $q->whereNotNull('paid_transition.changed_at')
+                    ->orWhereNotNull('first_payment.order_id');
+            })
+            ->whereBetween(
+                DB::raw('COALESCE(paid_transition.changed_at, first_payment.payment_date)'),
+                [$start, $end]
+            )
+            ->selectRaw("
+                DATE(CONVERT_TZ(COALESCE(paid_transition.changed_at, first_payment.payment_date), 'UTC', ?)) AS date,
+                COUNT(DISTINCT orders.id) AS total,
+                SUM(orders.total_net_amount) AS amount,
+                COUNT(DISTINCT CASE WHEN payments.payment_method = 'card' THEN payments.id END) AS card,
+                GROUP_CONCAT(orders.id, 'p_id_', payments.id, 'p_date_', payments.payment_date) AS orders_id,
+                COUNT(DISTINCT CASE WHEN payments.payment_method IS NULL OR payments.payment_method != 'card' THEN orders.id END) AS transaction,
+                SUM(CASE WHEN payments.payment_method IS NULL OR payments.payment_method != 'card' THEN orders.total_net_amount ELSE 0 END) AS transaction_amount,
+                SUM(CASE WHEN payments.payment_method = 'card' THEN orders.total_net_amount ELSE 0 END) AS card_amount
+            ", [$timezone]);
+        } else {
+            $query->whereNotNull('first_payment.order_id')
+                ->whereBetween('first_payment.payment_date', [$start, $end])
+                ->selectRaw("
+                    DATE(CONVERT_TZ(first_payment.payment_date, 'UTC', ?)) AS date,
+                    COUNT(DISTINCT orders.id) AS total,
+                    SUM(orders.total_net_amount) AS amount,
+                    COUNT(DISTINCT CASE WHEN payments.payment_method = 'card' THEN payments.id END) AS card,
+                    GROUP_CONCAT(orders.id, 'p_id_', payments.id, 'p_date_', payments.payment_date) AS orders_id,
+                    COUNT(DISTINCT CASE WHEN payments.payment_method IS NULL OR payments.payment_method != 'card' THEN orders.id END) AS transaction,
+                    SUM(CASE WHEN payments.payment_method IS NULL OR payments.payment_method != 'card' THEN orders.total_net_amount ELSE 0 END) AS transaction_amount,
+                    SUM(CASE WHEN payments.payment_method = 'card' THEN orders.total_net_amount ELSE 0 END) AS card_amount
+                ", [$timezone]);
+        }
+
+        return $query->groupBy('date')->orderBy('date')->get();
+    }
+
+    /**
+     * Get orders grouped by provider based on user_email patterns
+     */
+    public function getOrdersByProvider(
+        Carbon $start,
+        Carbon $end,
+        array $paidStates,
+        array $providers,
+        ?int $variantId = null,
+        array $productVariantIds = [],
+        array $providerCompanyIds = [],
+        ?string $userEmail = null,
+        ?string $reference = null,
+        ?string $orderNumber = null,
+        ?array $metadataFilter = null
+    ): Collection {
+        $firstPaymentSub = DB::connection('commerce')
+            ->table('payments')
+            ->where('payable_type', Order::class)
+            ->where('is_deleted', 0)
+            ->where('status', 'paid')
+            ->selectRaw('payable_id AS order_id, MIN(payment_date) AS payment_date')
+            ->groupBy('payable_id');
+
+        $paidTransitionSub = DB::connection('commerce')
+            ->table('order_transitions_history AS oth')
+            ->join('order_statuses as os', 'os.id', '=', 'oth.to_status_id')
+            ->whereIn('os.slug', $paidStates)
+            ->selectRaw('oth.order_id, MIN(oth.changed_at) AS changed_at')
+            ->groupBy('oth.order_id');
+
+        $query = Order::query()
+            ->leftJoinSub($firstPaymentSub, 'first_payment', 'first_payment.order_id', '=', 'orders.id')
+            ->leftJoinSub($paidTransitionSub, 'paid_transition', 'paid_transition.order_id', '=', 'orders.id')
+            ->where('orders.apps_id', $this->app->id)
+            ->where(function ($q) {
+                $q->whereNotNull('paid_transition.changed_at')
+                    ->orWhereNotNull('first_payment.order_id');
+            })
+            ->whereBetween(
+                DB::raw('COALESCE(paid_transition.changed_at, first_payment.payment_date)'),
+                [$start, $end]
+            )
+            ->when($variantId, function ($query) use ($variantId) {
+                $query->whereHas('allItems', function ($q) use ($variantId) {
+                    $q->where('variant_id', $variantId);
+                });
+            })
+            ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
+                $query->whereHas('allItems', function ($q) use ($productVariantIds) {
+                    $q->whereIn('variant_id', $productVariantIds);
+                });
+            })
+            ->when(! empty($providerCompanyIds), function ($query) use ($providerCompanyIds) {
+                $query->whereIn(
+                    'orders.id',
+                    DB::connection('commerce')
+                        ->table('order_providers')
+                        ->whereIn('company_id', $providerCompanyIds)
+                        ->select('order_id')
+                );
+            })
+            ->when($userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $userEmail));
+
+        $this->applyOrderIdentifierFilters($query, $reference, $orderNumber, $metadataFilter);
+
+        // Build CASE WHEN for provider matching
+        $caseStatements = [];
+        $bindings = [];
+        foreach ($providers as $provider) {
+            $caseStatements[] = "WHEN orders.user_email LIKE ? THEN ?";
+            $bindings[] = $provider['emailPattern'];
+            $bindings[] = $provider['name'];
+        }
+        $caseStatements[] = "ELSE 'other'";
+        $caseExpression = 'CASE ' . implode(' ', $caseStatements) . ' END';
+
+        return $query
+            ->selectRaw("
+                ({$caseExpression}) AS provider_name,
+                COUNT(DISTINCT orders.id) AS total_count,
+                SUM(orders.total_net_amount) AS total_amount
+            ", $bindings)
+            ->groupByRaw("provider_name")
+            ->get();
+    }
+
+    /**
+     * Get order IDs that match the payment criteria.
+     * Mirrors the OR logic from getOrdersInPeriodWithPayments:
+     * paidStates transition (date = changed_at) OR payment_status = 'paid' (date = payment_date).
+     */
+    public function getOrderIdsByPaymentCriteria(
+        Carbon $start,
+        Carbon $end,
+        array $paidStates,
+        ?int $variantId = null,
+        array $orderTypeNames = [],
+        array $productVariantIds = [],
+        array $providerCompanyIds = [],
+        ?string $userEmail = null,
+        ?string $reference = null,
+        ?string $orderNumber = null,
+        ?array $metadataFilter = null
+    ): Collection {
+        $firstPaymentSub = DB::connection('commerce')
+            ->table('payments')
+            ->where('payable_type', Order::class)
+            ->where('is_deleted', 0)
+            ->where('status', 'paid')
+            ->selectRaw('payable_id AS order_id, MIN(payment_date) AS payment_date')
+            ->groupBy('payable_id');
+
+        $query = Order::query()
+            ->leftJoinSub($firstPaymentSub, 'first_payment', 'first_payment.order_id', '=', 'orders.id')
+            ->when(! empty($orderTypeNames), function ($query) use ($orderTypeNames) {
+                $query->join('order_types', 'orders.order_types_id', '=', 'order_types.id')
+                    ->whereIn('order_types.name', $orderTypeNames);
+            })
+            ->where('orders.apps_id', $this->app->id)
+            ->when($variantId, function ($query) use ($variantId) {
+                $query->whereHas('allItems', function ($q) use ($variantId) {
+                    $q->where('variant_id', $variantId);
+                });
+            })
+            ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
+                $query->whereHas('allItems', function ($q) use ($productVariantIds) {
+                    $q->whereIn('variant_id', $productVariantIds);
+                });
+            })
+            ->when(! empty($providerCompanyIds), function ($query) use ($providerCompanyIds) {
+                $query->whereIn(
+                    'orders.id',
+                    DB::connection('commerce')
+                        ->table('order_providers')
+                        ->whereIn('company_id', $providerCompanyIds)
+                        ->select('order_id')
+                );
+            })
+            ->when($userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $userEmail));
+
+        $this->applyOrderIdentifierFilters($query, $reference, $orderNumber, $metadataFilter);
+
+        if (! empty($paidStates)) {
+            $slugPlaceholders = implode(',', array_fill(0, count($paidStates), '?'));
+            $query->leftJoin(
+                DB::raw("(
+                    SELECT oth.order_id, MIN(oth.changed_at) AS changed_at
+                    FROM order_transitions_history oth
+                    INNER JOIN order_statuses os ON os.id = oth.to_status_id
+                    WHERE os.slug IN ({$slugPlaceholders})
+                    GROUP BY oth.order_id
+                ) AS paid_transition"),
+                'paid_transition.order_id',
+                '=',
+                'orders.id'
+            )->addBinding($paidStates, 'join')
+            ->where(function ($q) {
+                $q->whereNotNull('paid_transition.changed_at')
+                    ->orWhereNotNull('first_payment.order_id');
+            })
+            ->whereBetween(
+                DB::raw('COALESCE(paid_transition.changed_at, first_payment.payment_date)'),
+                [$start, $end]
+            );
+        } else {
+            $query->whereNotNull('first_payment.order_id')
+                ->whereBetween('first_payment.payment_date', [$start, $end]);
+        }
+
+        return $query->pluck('orders.id');
+    }
+
+    /**
+     * Get order items aggregated by variant from commerce DB
+     */
+    public function getOrderItemStatsByVariant(Collection $orderIds): Collection
+    {
+        if ($orderIds->isEmpty()) {
+            return collect();
+        }
+
+        return DB::connection('commerce')
+            ->table('order_items')
+            ->whereIn('order_items.order_id', $orderIds)
+            ->where('order_items.is_deleted', 0)
+            ->selectRaw('
+                order_items.variant_id as variant_id,
+                COUNT(DISTINCT order_items.order_id) as order_count,
+                SUM(order_items.quantity) as total_quantity,
+                SUM(order_items.quantity * order_items.unit_price_net_amount) as total_amount
+            ')
+            ->groupBy('order_items.variant_id')
+            ->get()
+            ->keyBy('variant_id');
+    }
+
+    /**
+     * Get orders grouped by the given period type (DAY, WEEK, MONTH, YEAR)
+     */
+    public function getBreakdownByPeriod(
+        string $periodType,
+        Carbon $start,
+        Carbon $end,
+        array $paidStates,
+        string $timezone = 'UTC',
+        array $orderTypeNames = [],
+        ?int $variantId = null,
+        array $productVariantIds = [],
+        array $providerCompanyIds = [],
+        ?string $userEmail = null,
+        ?string $reference = null,
+        ?string $orderNumber = null,
+        ?array $metadataFilter = null
+    ): Collection {
+        $format = match (strtoupper($periodType)) {
+            'DAY'   => '%Y-%m-%d',
+            'WEEK'  => '%x-W%v',
+            'YEAR'  => '%Y',
+            default => '%Y-%m',   // MONTH
+        };
+
+        $firstPaymentSub = DB::connection('commerce')
+            ->table('payments')
+            ->where('payable_type', Order::class)
+            ->where('is_deleted', 0)
+            ->where('status', 'paid')
+            ->selectRaw('payable_id AS order_id, MIN(payment_date) AS payment_date')
+            ->groupBy('payable_id');
+
+        $paidTransitionSub = DB::connection('commerce')
+            ->table('order_transitions_history AS oth')
+            ->join('order_statuses as os', 'os.id', '=', 'oth.to_status_id')
+            ->whereIn('os.slug', $paidStates)
+            ->selectRaw('oth.order_id, MIN(oth.changed_at) AS changed_at')
+            ->groupBy('oth.order_id');
+
+        $query = Order::query()
+            ->leftJoinSub($firstPaymentSub, 'first_payment', 'first_payment.order_id', '=', 'orders.id')
+            ->leftJoinSub($paidTransitionSub, 'paid_transition', 'paid_transition.order_id', '=', 'orders.id')
+            ->when(! empty($orderTypeNames), function ($query) use ($orderTypeNames) {
+                $query->join('order_types', 'orders.order_types_id', '=', 'order_types.id')
+                    ->whereIn('order_types.name', $orderTypeNames);
+            })
+            ->when($variantId, function ($query) use ($variantId) {
+                $query->whereHas('allItems', function ($q) use ($variantId) {
+                    $q->where('variant_id', $variantId);
+                });
+            })
+            ->when(! empty($productVariantIds), function ($query) use ($productVariantIds) {
+                $query->whereHas('allItems', function ($q) use ($productVariantIds) {
+                    $q->whereIn('variant_id', $productVariantIds);
+                });
+            })
+            ->when(! empty($providerCompanyIds), function ($query) use ($providerCompanyIds) {
+                $query->whereIn(
+                    'orders.id',
+                    DB::connection('commerce')
+                        ->table('order_providers')
+                        ->whereIn('company_id', $providerCompanyIds)
+                        ->select('order_id')
+                );
+            })
+            ->when($userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $userEmail))
+            ->where('orders.apps_id', $this->app->id)
+            ->where(function ($q) {
+                $q->whereNotNull('paid_transition.changed_at')
+                    ->orWhereNotNull('first_payment.order_id');
+            })
+            ->whereBetween(
+                DB::raw('COALESCE(paid_transition.changed_at, first_payment.payment_date)'),
+                [$start, $end]
+            );
+
+        $this->applyOrderIdentifierFilters($query, $reference, $orderNumber, $metadataFilter);
+
+        return $query
+            ->selectRaw("
+                DATE_FORMAT(CONVERT_TZ(COALESCE(paid_transition.changed_at, first_payment.payment_date), 'UTC', ?), ?) AS label,
+                COUNT(DISTINCT orders.id) AS total_transactions,
+                SUM(orders.total_net_amount) AS total_amount
+            ", [$timezone, $format])
+            ->groupBy('label')
+            ->orderBy('label')
+            ->get();
+    }
+
+    /**
+     * Get variant and product information from inventory DB
+     */
+    public function getVariantsWithProductInfo(
+        array $variantIds,
+        array $productTypeSlugs = []
+    ): Collection {
+        if (empty($variantIds)) {
+            return collect();
+        }
+
+        $variantsQuery = DB::connection('inventory')
+            ->table('products_variants')
+            ->join('products', 'products.id', '=', 'products_variants.products_id')
+            ->whereIn('products_variants.id', $variantIds);
+
+        // Filter by product type slugs (e.g., exclude vehicles)
+        if (! empty($productTypeSlugs)) {
+            $variantsQuery->join('products_types', 'products_types.id', '=', 'products.products_types_id')
+                ->whereIn('products_types.slug', $productTypeSlugs);
+        }
+
+        return $variantsQuery
+            ->select(
+                'products_variants.id as variant_id',
+                'products.name as product_name',
+                'products_variants.name as variant_name'
+            )
+            ->get()
+            ->keyBy('variant_id');
+    }
+}

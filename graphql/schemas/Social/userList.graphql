@@ -5,16 +5,16 @@ input UserListInput {
     is_default: Boolean
 }
 
-union RelatedEntity = Message | Product
+union RelatedEntity = Message | Product | Variant
 
-type Entity {
+type Entity @model(class: "\\Kanvas\\Social\\UsersLists\\Models\\UserListEntity") {
     id: ID!
     users_lists_id: ID!
     entity_id: ID!
     entity_namespace: String
     description: String
     is_pin: Boolean
-    entity: RelatedEntity!
+    entity: RelatedEntity! @morphTo
 }
 
 input EntityInput {

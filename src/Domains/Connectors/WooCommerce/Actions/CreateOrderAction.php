@@ -28,7 +28,8 @@ class CreateOrderAction
         protected Companies $company,
         protected Users $user,
         protected Regions $region,
-        protected object $order
+        protected object $order,
+        protected bool $runWorkflows = true,
     ) {
     }
 
@@ -98,6 +99,9 @@ class CreateOrderAction
             $billingAddress,
         );
         $createOrder = new SoukCreateOrderAction($orderDto);
+        if (! $this->runWorkflows) {
+            $createOrder->runWorkflow = false;
+        }
 
         return $createOrder->execute();
     }

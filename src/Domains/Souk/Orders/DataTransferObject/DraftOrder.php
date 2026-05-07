@@ -16,7 +16,8 @@ use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Address as ModelsAddress;
 use Kanvas\Guild\Customers\Models\People as ModelsPeople;
-use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
@@ -29,6 +30,7 @@ class DraftOrder extends Data
         public readonly CompaniesBranches $branch,
         public readonly Regions $region,
         public readonly Users $user,
+        public readonly Channels $channel,
         public readonly string $email,
         public readonly ModelsPeople $people,
         public readonly float $total,
@@ -48,8 +50,13 @@ class DraftOrder extends Data
     ) {
     }
 
-    public static function viaRequest(AppInterface $app, CompaniesBranches $branch, UserInterface $user, Regions $region, array $request): self
-    {
+    public static function fromMultiple(
+        AppInterface $app,
+        CompaniesBranches $branch,
+        UserInterface $user,
+        Regions $region,
+        array $request
+    ): self {
         $customer = $request['input']['customer'];
         $customer['contacts'] = [
             [
@@ -88,6 +95,10 @@ class DraftOrder extends Data
 
         $people = (new CreatePeopleAction($people))->execute();
 
+        $channel = isset($request['input']['channel_id'])
+            ? Channels::getByIdFromCompanyApp($request['input']['channel_id'], $branch->company, $app)
+            : Channels::getDefault($branch->company, $app);
+
         $shippingAddress = ! empty($request['input']['shipping_address']['address1']) ?
             $customer->addAddress(new Address(
                 address: $request['input']['shipping_address']['address1'] ?? '',
@@ -123,25 +134,26 @@ class DraftOrder extends Data
         }
 
         return new self(
-            $app,
-            $branch,
-            $region,
-            $user,
-            $request['input']['email'],
-            $people,
-            $total,
-            $totalTax,
-            $totalDiscount,
-            $totalShipping,
-            'draft',
-            $region->currency,
-            OrderItem::collect($lineItems, DataCollection::class),
-            ['manual'],
-            $shippingAddress,
-            $billingAddress,
-            $request['input']['phone'] ?? null,
-            $request['input']['notes'] ?? null,
-            $request['input']['metadata'] ?? null,
+            app: $app,
+            branch: $branch,
+            region: $region,
+            user: $user,
+            email: $request['input']['email'],
+            people: $people,
+            total: $total,
+            taxes: $totalTax,
+            totalDiscount: $totalDiscount,
+            totalShipping: $totalShipping,
+            status: 'draft',
+            currency: $region->currency,
+            items: OrderItem::collect($lineItems, DataCollection::class),
+            paymentGatewayName: ['manual'],
+            shippingAddress: $shippingAddress,
+            billingAddress: $billingAddress,
+            phone: $request['input']['phone'] ?? null,
+            notes: $request['input']['notes'] ?? null,
+            metadata: $request['input']['metadata'] ?? null,
+            channel: $channel
         );
     }
 }

@@ -23,6 +23,8 @@ class CreateTagAction
             'users_id' => $this->tagData->user?->getId(),
             'weight' => $this->tagData->weight ?? 0,
             'companies_id' => $this->tagData->company->getId(),
+            'parent_id' => $this->tagData->parent_id,
+            'is_feature' => $this->tagData->is_feature ?? 0,
         ]);
     }
 }

@@ -1,0 +1,84 @@
+enum MechanicFilterEnum {
+    NOTIFIED
+    ASSIGNED
+}
+
+input CorporateOnboardingInput {
+    legal_name: String!
+    commercial_name: String
+    rnc: String!
+    contact_name: String!
+    contact_role: String
+    contact_email: String!
+    contact_phone: String
+}
+
+type CorporateOnboardingResult {
+    company: Company!
+    status: String!
+}
+
+extend type Mutation @guard {
+    enableCorporateMode(
+        input: CorporateOnboardingInput!
+    ): CorporateOnboardingResult!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\EnableCorporateModeMutation@enable"
+        )
+}
+
+enum MechanicAvailabilityEnum {
+    ACTIVO
+    NO_DISPONIBLE
+}
+
+enum MechanicWhereColumn {
+    ID @enum(value: "users.id")
+    FIRSTNAME @enum(value: "users.firstname")
+    LASTNAME @enum(value: "users.lastname")
+    EMAIL @enum(value: "users.email")
+    CREATED_AT @enum(value: "users.created_at")
+}
+
+extend type Query @guard {
+    mechanics(
+        company_id: ID
+        availability: MechanicAvailabilityEnum
+        where: _
+            @whereConditions(columnsEnum: MechanicWhereColumn)
+        orderBy: _
+            @orderBy(columns: ["id", "firstname", "lastname", "created_at"])
+    ): [User!]!
+        @paginate(
+            builder: "App\\GraphQL\\Connector\\Movipass\\Builders\\MechanicsBuilder@build"
+            defaultCount: 25
+        )
+
+    mechanicOrders(
+        all: Boolean
+        mechanic_id: ID
+        mechanic_filter: MechanicFilterEnum
+        provider_id: ID
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "users_id"
+                    "created_at"
+                    "updated_at"
+                    "fulfillment_status"
+                ]
+            )
+        orderStatus: _
+            @whereConditions(
+                columns: ["name", "slug", "order_type_id", "id"]
+                handler: "App\\GraphQL\\Souk\\Handlers\\OrderStatusHandler"
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at"])
+    ): [Order!]!
+        @paginate(
+            builder: "App\\GraphQL\\Connector\\Movipass\\Builders\\MechanicOrdersBuilder@build"
+            defaultCount: 25
+        )
+}

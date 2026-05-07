@@ -24,6 +24,7 @@ enum IntegrationsEnum: string
     case STRIPE = 'stripe';
     case ESIM_VENTA_MOBILE = 'esim_ventamobile';
     case AERO_AMBULANCIA = 'aero_ambulancia';
+    case UNIVERSAL_ASSISTANCE = 'universal_assistance';
     case WASENDER = 'wa_sender';
     case DRIVE_CENTRIC = 'drive_centric';
     case PASO_RAPIDO = 'paso_rapido';
@@ -31,5 +32,26 @@ enum IntegrationsEnum: string
     case MINDEE = 'mindee';
     case SALESASSIST = 'salesassist';
     case ECHO_PAY = 'echo_pay';
+    case AZUL = 'azul';
     case PLUSVAL = 'plusval';
+    case MOVIPASS = 'movipass';
+    case QUICKBOOKS = 'quickbooks';
+    case OFAC = 'ofac';
+    case TEE_TIME = 'teetime';
+    case TWILIO = 'twilio';
+    case MAILGUN = 'mailgun';
+    case DEALERSOCKET = 'dealersocket';
+    case SUPERCARROS = 'supercarros';
+    case TOOKAN = 'tookan';
+    case CHROMEDATA = 'chromedata';
+    case TRIGGER_AI = 'trigger-ai';
+    case RESPOND_IO = 'respond_io';
+    case CALENDLY = 'calendly';
+    case CARDNET = 'cardnet';
+    case CONTACT_CHECKER = 'contact_checker';
+    case OPENCLAW = 'openclaw';
+    case MICROSOFT = 'microsoft';
+    case INTRAS = 'intras';
+    case LICENSE_PLATE_EXTRACTOR = 'license_plate_extractor';
+    case LENDFLOW = 'lendflow';
 }

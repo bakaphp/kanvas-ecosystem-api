@@ -11,6 +11,8 @@ use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HashTableTrait;
 use Baka\Traits\KanvasModelTrait;
 use Baka\Users\Contracts\UserInterface;
+use Bavix\Wallet\Interfaces\Confirmable;
+use Bavix\Wallet\Traits\CanConfirm;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -22,11 +24,13 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Traits\HasModuleAccess;
 use Kanvas\Apps\Enums\DefaultRoles;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
@@ -55,16 +59,21 @@ use Kanvas\Roles\Models\Roles;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
-use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Users\Traits\CanBlockUser;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
+use Kanvas\Souk\Loyalty\Models\LoyaltyTierMembership;
+use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
+use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Enums\UserConfigEnum;
 use Kanvas\Users\Factories\UsersFactory;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use NotificationChannels\Expo\ExpoPushToken;
 use Override;
+use Silber\Bouncer\BouncerFacade as Bouncer;
 use Silber\Bouncer\Database\HasRolesAndAbilities;
 
 /**
@@ -116,14 +125,17 @@ use Silber\Bouncer\Database\HasRolesAndAbilities;
  * @property string $zip_code
  * @property int    $user_recover_code
  * @property int    $is_deleted
+ * @property string $created_at
+ * @property string $updated_at
  */
-class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable
+class Users extends Authenticatable implements UserInterface, ContractsAuthenticatable, Confirmable
 {
     use HashTableTrait;
     use Notifiable;
     use HasFactory;
     use HasApiTokens;
     use HasRolesAndAbilities;
+    use HasModuleAccess;
     use LikableTrait;
     use FollowersTrait;
     use HasFilesystemTrait;
@@ -136,6 +148,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
     use HasRating;
     use CanUseWorkflow;
+    use HasWalletsTrait;
+    use CanConfirm;
 
     protected ?string $defaultCompanyName = null;
     protected ?string $currentDeviceId = null;
@@ -285,7 +299,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'id',
             'companies_id'
         )->where('users_associated_apps.apps_id', app(Apps::class)->getId())
-        ->where('companies.is_deleted', StateEnums::NO->getValue())->distinct();
+            ->where('companies.is_deleted', StateEnums::NO->getValue())->distinct();
     }
 
     /**
@@ -304,6 +318,23 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $this->belongsTo(States::class, 'state_id');
     }
 
+    public function orders(): HasMany
+    {
+        return $this->hasMany(
+            Order::class,
+            'users_id',
+            'id'
+        )->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * User loyalty tier memberships relationship.
+     */
+    public function loyaltyTierMemberships(): HasMany
+    {
+        return $this->hasMany(LoyaltyTierMembership::class, 'users_id');
+    }
+
     /**
      * User country relationship.
      */
@@ -317,6 +348,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         return $this->hasMany(UserAddress::class, 'users_id');
     }
 
+    public function defaultAddress(): HasOne
+    {
+        return $this->hasOne(
+            UserAddress::class,
+            'users_id'
+        )->where('is_default', true);
+    }
+
     public function getMainRoleAttribute(): string
     {
         $role = Roles::where('scope', RolesEnums::getScope(app(Apps::class)))->first();
@@ -328,8 +367,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         try {
             return self::where('id', $id)
-            ->notDeleted()
-            ->firstOrFail();
+                ->notDeleted()
+                ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             //we want to expose the not found msg
             throw new ExceptionsModelNotFoundException($e->getMessage() . " $id");
@@ -356,7 +395,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             try {
                 UsersRepository::belongsToThisApp($this, $app);
             } catch (ModelNotFoundException $e) {
-                throw new ModelNotFoundException('User not found in app - ' . $this->getId());
+                throw new ModelNotFoundException('User not found in app - ' . $this->getId() . ' - ');
             }
             $userRegisterInApp = new RegisterUsersAppAction($this);
             $userRegisterInApp->execute($this->password);
@@ -424,6 +463,28 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     public function linkedSources(): HasMany
     {
         return $this->hasMany(UserLinkedSources::class, 'users_id');
+    }
+
+    /**
+     * Expo push notification
+     * @return array<int, ExpoPushToken>
+     */
+    public function routeNotificationForExpo(): array
+    {
+        $tokens = $this->linkedSources()
+            ->whereHas('source', function ($query) {
+                $query->where('title', 'expo');
+            })
+            ->get()
+            ->map(function ($source) {
+                if (Str::contains($source->source_users_id_text, 'ExponentPushToken')) {
+                    return ExpoPushToken::make($source->source_users_id_text);
+                }
+            })
+            ->filter()
+            ->values();
+
+        return $tokens->toArray();
     }
 
     public function channels(): BelongsToMany
@@ -511,12 +572,16 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     public function defaultCompanyUuid(): string
     {
-        return Companies::getById($this->currentCompanyId())->uuid;
+        $companyId = $this->currentCompanyId();
+
+        return $companyId > 0 ? Companies::getById($companyId)->uuid : '';
     }
 
     public function defaultCompanyBranchUuid(): string
     {
-        return CompaniesBranches::getById($this->currentBranchId())->uuid;
+        $branchId = $this->currentBranchId();
+
+        return $branchId > 0 ? CompaniesBranches::getById($branchId)->uuid : '';
     }
 
     /**
@@ -526,14 +591,28 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function currentCompanyId(): int
     {
-        if (! app()->bound(CompaniesBranches::class)) {
-            $currentCompanyId = $this->get(Companies::cacheKey());
-        } else {
-            //verify I have access to it
-            $currentCompanyId = app(CompaniesBranches::class)->company()->first()->getId();
+        if (app()->bound(CompaniesBranches::class)) {
+            $companyId = app(CompaniesBranches::class)->company()->first()?->getId();
+
+            if ($companyId > 0) {
+                return $companyId;
+            }
         }
 
-        return $currentCompanyId ? (int) $currentCompanyId : $this->default_company;
+        $companyId = (int) ($this->get(Companies::cacheKey()) ?? $this->default_company);
+
+        if ($companyId === 0) {
+            $company = $this->companies()->first();
+
+            if ($company !== null) {
+                $companyId = (int) $company->getId();
+                $this->default_company = $companyId;
+                $this->default_company_branch = (int) ($company->branches()->first()?->getId() ?? 0);
+                $this->saveQuietly();
+            }
+        }
+
+        return $companyId;
     }
 
     /**
@@ -542,13 +621,18 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
      */
     public function currentBranchId(): int
     {
-        if (! app()->bound(CompaniesBranches::class)) {
-            $currentBranchId = (int) $this->get($this->getCurrentCompany()->branchCacheKey());
-        } else {
-            $currentBranchId = app(CompaniesBranches::class)->getId();
+        if (app()->bound(CompaniesBranches::class)) {
+            $branchId = app(CompaniesBranches::class)->getId();
         }
 
-        return $currentBranchId ? (int) $currentBranchId : $this->default_company_branch;
+        $companyId = $this->currentCompanyId();
+        if ($companyId === 0) {
+            return $this->default_company_branch;
+        }
+
+        $branchId = (int) ($branchId ?? $this->get($this->getCurrentCompany()->branchCacheKey()));
+
+        return $branchId > 0 ? $branchId : $this->default_company_branch;
     }
 
     /**
@@ -561,8 +645,8 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             return Companies::getById($this->currentCompanyId());
         } catch (EloquentModelNotFoundException $e) {
             throw new InternalServerErrorException(
-                'No default company app configured for this user on 
-                the current app ' . app(Apps::class)->name . ', 
+                'No default company app configured for this user on
+                the current app ' . app(Apps::class)->name . ',
                 please contact support'
             );
         }
@@ -578,11 +662,20 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             return CompaniesBranches::getById($this->currentBranchId());
         } catch (EloquentModelNotFoundException $e) {
             throw new InternalServerErrorException(
-                'No default company app configured 
-                for this user on the current app ' . app(Apps::class)->name . ', 
+                'No default company app configured
+                for this user on the current app ' . app(Apps::class)->name . ',
                 please contact support'
             );
         }
+    }
+
+    public function getStripeAccount(AppInterface $app): AppsStripeCustomer
+    {
+        return AppsStripeCustomer::firstOrCreate([
+            'users_id' => $this->getId(),
+            'companies_id' => 0,
+            'apps_id' => $app->getId(),
+        ]);
     }
 
     /**
@@ -629,16 +722,28 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $user->password = Hash::make($newPassword);
         $user->user_activation_forgot = '';
 
-        $this->fireWorkflow(
-            WorkflowEnum::AFTER_FORGOT_PASSWORD->value,
-            true,
-            [
-                'app' => $app,
-                'profile' => $user,
-            ]
-        );
+        /**
+         * Update the legacy user model with the new password and activation hash.
+         * @todo remove once we shut down the legacy apis
+         */
+        $this->password = $user->password;
+        $this->user_activation_forgot = '';
 
-        return $user->saveOrFail();
+        return DB::transaction(function () use ($user, $app) {
+            $user->saveOrFail();
+            $this->saveOrFail();
+
+            $this->fireWorkflow(
+                WorkflowEnum::AFTER_FORGOT_PASSWORD->value,
+                true,
+                [
+                    'app' => $app,
+                    'profile' => $user,
+                ]
+            );
+
+            return true;
+        });
     }
 
     public function updateDisplayName(string $displayName, AppInterface $app): bool
@@ -747,7 +852,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $user = $this->getAppProfile(app(Apps::class));
 
-        return $user->displayname ?? $this->displayname;
+        return $user->displayname ?? $this->displayname ?? '';
+    }
+
+    public function getAppIsVerified(): bool
+    {
+        $user = $this->getAppProfile(app(Apps::class));
+
+        return (bool) $user->is_verified;
     }
 
     public function getAppEmail(): string
@@ -773,8 +885,13 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     public function runVerifyTwoFactorAuth(?AppInterface $app = null): bool
     {
-        $user = $this->getAppProfile($app ?? app(Apps::class));
+        $app = $app ?? app(Apps::class);
+        $user = $this->getAppProfile($app);
         $twoFactorKey = $this->getCurrentDeviceId() ? UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value . '-' . $this->getCurrentDeviceId() : UserConfigEnum::TWO_FACTOR_AUTH_30_DAYS->value;
+
+        if ($app && ! $app->get('DISABLE_TWO_FACTOR_AUTH')) {
+            return false;
+        }
 
         if (! $this->get($twoFactorKey) && $user->phone_verified_at && now()->subDays(7)->lte(new Carbon($user->phone_verified_at))) {
             return false;
@@ -784,7 +901,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
          * @todo user config per app
          */
         return ! ((bool) $this->get($twoFactorKey)
-                && $user->phone_verified_at && now()->subDays(30)->lte(new Carbon($user->phone_verified_at)));
+            && $user->phone_verified_at && now()->subDays(30)->lte(new Carbon($user->phone_verified_at)));
     }
 
     public function getPhoto(): ?FilesystemEntities
@@ -802,7 +919,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
         $currentUser = auth()->user();
 
         return [
-            'total_message' => Message::fromApp(app(Apps::class))->where('users_id', $this->getId())->count(),
+            'total_message' => $this->getAppProfile($app)->total_messages_count,
             'total_like' => 0,
             'total_followers' => $socialCount['users_followers_count'] ?? 0,
             'total_following' => $socialCount['users_following_count'] ?? 0,
@@ -810,6 +927,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'is_following' => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isFollowing($this, $app) : false,
             'is_blocked' => $currentUser && ($currentUser->getId() !== $this->getId()) ? $currentUser->isBlocked($this, $app) : false,
             'total_list' => 0,
+            'unread_notifications' => $this->getUnreadNotificationsCount($app),
         ];
     }
 
@@ -856,20 +974,24 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             'email' => $this->email,
             'apps' => $this->apps->pluck('id')->toArray(),
             'companies' => $this->companies->pluck('id')->toArray(),
+            'user_active' => (bool) $this->user_active,
             'created_at' => $this->isTypesense() ? $this->created_at->timestamp : $this->created_at->toDateTimeString(),
         ];
     }
 
     public function searchableAs(): string
     {
-        return config('scout.prefix') . '_users';
+        $customIndex = $this->app ? $this->app->get('app_custom_users_index') : null;
+
+        return $customIndex ?: config('scout.prefix') . '_users';
     }
 
     public static function search($query = '', $callback = null)
     {
         $query = self::traitSearch($query, $callback)->whereIn('apps', [app(Apps::class)->getId()]);
-        if (! auth()->user()->isAdmin()) {
-            $query->whereIn('companies', [auth()->user()->currentCompanyId()]);
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->whereIn('companies', [$user->currentCompanyId()]);
         }
 
         return $query;
@@ -1027,6 +1149,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
+                    'sort' => true,
                 ],
                 [
                     'name' => 'updated_at',
@@ -1041,6 +1164,18 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     public function getRolesToArray(): array
     {
+        //$app = app(Apps::class);
+        //Bouncer::scope()->to(RolesEnums::getScope($app));
+
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->toArray();
+        }
+
         return $this->getRoles()->toArray();
+    }
+
+    public function getUnreadNotificationsCount(?AppInterface $app = null): int
+    {
+        return (int) ($this->getAppProfile($app ?? app(Apps::class))->unread_notifications_count ?? 0);
     }
 }

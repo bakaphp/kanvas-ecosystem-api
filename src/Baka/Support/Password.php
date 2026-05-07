@@ -6,6 +6,7 @@ namespace Baka\Support;
 
 use Illuminate\Support\Facades\Hash;
 use Kanvas\Auth\Contracts\Authenticatable;
+use Kanvas\Users\Models\UsersAssociatedApps;
 
 class Password extends Hash
 {
@@ -16,6 +17,13 @@ class Password extends Hash
     {
         if (self::needsRehash($entity->password)) {
             $entity->password = self::make($password);
+
+            //legacy update user
+            if ($entity instanceof UsersAssociatedApps) {
+                $entity->user->password = $entity->password;
+                $entity->user->updateOrFail();
+            }
+
             $entity->updateOrFail();
 
             return true;

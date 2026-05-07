@@ -4,16 +4,29 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\PasoRapido;
 
+use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\PasoRapido\Client;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmData;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmResponse;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\VerifyCustomerResponse;
+use Kanvas\Connectors\PasoRapido\Enums\ConfigurationEnum;
 use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
+use Mockery;
 use Tests\TestCase;
 
 final class PasoRapidoTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('PasoRapido tests require external API credentials and are skipped in CI.');
+        }
+    }
+
     private function getPasoRapidoConfig(): array
     {
         return [
@@ -54,6 +67,51 @@ final class PasoRapidoTest extends TestCase
         $this->assertEquals($tag, $result->device);
     }
 
+    public function testVerifyCustomerWithoutUsername()
+    {
+        // Create a mock of the HTTP client
+        $mockClient = Mockery::mock(Client::class);
+        $tag = env('TEST_PASO_RAPIDO_TAG');
+
+        // Set up the expectation
+        $mockClient->shouldReceive('post')
+            ->once()
+            ->with(
+                ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag,
+                []
+            )
+            ->andReturn([
+                'nombreUsuario' => null,
+                'apellidoUsuario' => null,
+                'dispositivo' => $tag,
+                'descripcionMensaje' => "test description",
+                'rnc_Cedula' => "1234",
+                'balance' => 2000,
+                'tipoDeReferencia' => "test",
+                'referencia' => $tag,
+                'cuenta' => "1234",
+                'estado' => "activo",
+            ]);
+
+        // Inject the mock into your class
+        $app = app(Apps::class);
+        $company = Companies::first();
+        $config = $this->getPasoRapidoConfig();
+
+        $pasoRapidoService = new PasoRapidoService(
+            app: $app,
+            company: $company,
+            config: $config,
+            client: $mockClient
+        );
+
+        // Execute your test
+        $result = $pasoRapidoService->verifyCustomer($tag);
+
+        $this->assertInstanceOf(VerifyCustomerResponse::class, $result);
+        $this->assertEquals($tag, $result->device);
+    }
+
     public function testConfirmPayment()
     {
         $app = app(Apps::class);
@@ -81,5 +139,73 @@ final class PasoRapidoTest extends TestCase
         // $verifiedPayment = $pasoRapidoService->verifyPayment($transactionId);
         // $this->assertInstanceOf(VerifyPaymentResponse::class, $verifiedPayment);
         $this->assertInstanceOf(PaymentConfirmResponse::class, $confirmedPayment);
+    }
+
+    public function testTokenIsCachedAndReused()
+    {
+        $app = app(Apps::class);
+        $company = Companies::first();
+        $config = $this->getPasoRapidoConfig();
+
+        $redisKey = 'RdVialAuthToken-' . ($config['client_id'] ?? '');
+
+        // Clear any existing token
+        Redis::del($redisKey);
+
+        // Create first client - should fetch token from API
+        $client1 = new Client($app, $company, $config);
+        $token1 = $client1->getAccessToken();
+
+        // Token should now be cached in Redis
+        $cachedToken = Redis::get($redisKey);
+        $this->assertNotNull($cachedToken);
+        $this->assertEquals($token1, $cachedToken);
+
+        // Create second client - should use cached token
+        $client2 = new Client($app, $company, $config);
+        $token2 = $client2->getAccessToken();
+
+        $this->assertEquals($token1, $token2);
+    }
+
+    public function testTokenRefreshOnForceRefresh()
+    {
+        $app = app(Apps::class);
+        $company = Companies::first();
+        $config = $this->getPasoRapidoConfig();
+
+        $redisKey = 'RdVialAuthToken-' . ($config['client_id'] ?? '');
+
+        // Clear any existing token
+        Redis::del($redisKey);
+
+        $client = new Client($app, $company, $config);
+        $token1 = $client->getAccessToken();
+
+        // Force refresh should get a new token
+        $token2 = $client->getAccessToken(forceRefresh: true);
+
+        // Both tokens should be valid (not null/empty)
+        $this->assertNotEmpty($token1);
+        $this->assertNotEmpty($token2);
+    }
+
+    public function testClientCanMakeRequestsWithCachedToken()
+    {
+        $app = app(Apps::class);
+        $company = Companies::first();
+        $config = $this->getPasoRapidoConfig();
+
+        $client = new Client($app, $company, $config);
+        $tag = env('TEST_PASO_RAPIDO_TAG');
+
+        // Make a request using the cached token
+        $result = $client->post(
+            ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag,
+            []
+        );
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('dispositivo', $result);
     }
 }

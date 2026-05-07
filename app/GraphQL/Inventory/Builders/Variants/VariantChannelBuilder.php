@@ -34,20 +34,20 @@ class VariantChannelBuilder
         $variants = new ModelsVariants();
         $variantsChannel = new VariantsChannels();
 
-        /**
-         * @var Builder
-         */
-        return ModelsVariants::select(
+        $query = ModelsVariants::select(
             $variants->getTable() . '.*',
             DB::raw("'{$channel->name}' as channel_name"), //add channel name
             $variantsChannel->getTable() . '.price',
             $variantsChannel->getTable() . '.discounted_price',
             $variantsChannel->getTable() . '.is_published',
         )
+        ->with(['product', 'variantWarehouses', 'attributes'])
         ->join($variantsChannel->getTable(), $variantsChannel->getTable() . '.products_variants_id', '=', $variants->getTable() . '.id')
         ->where($variantsChannel->getTable() . '.channels_id', $channel->getId())
         ->where($variantsChannel->getTable() . '.is_deleted', 0)
         ->where($variantsChannel->getTable() . '.is_published', 1);
+
+        return $query;
     }
 
     public function allVariantsPublishedInChannelFilterByAttributes(
@@ -58,6 +58,7 @@ class VariantChannelBuilder
     ): Builder {
         $channelUuid = $args['id'];
         $attributes = $args['attributes'] ?? [];
+        $searchQuery = $args['search'] ?? null;
 
         if (isset($attributes['price']) && ! is_array($attributes['price'])) {
             throw new ValidationException('Price must be an array');
@@ -72,14 +73,23 @@ class VariantChannelBuilder
         //set index
         //ModelsVariants::setSearchIndex((int) $channel->companies_id);
 
-        /**
-        * @var Builder
-        */
-        return VariantsChannelRepository::filterByAttributes(
+        // Start with your attribute filters
+        $query = VariantsChannelRepository::filterByAttributes(
             $channel->uuid,
             $attributes,
             $attributes['price'] ?? []
         );
+
+        // If there's a search query, get matching IDs from Algolia and filter by them
+        if ($searchQuery !== null) {
+            $algoliaResults = ModelsVariants::search($searchQuery)
+                ->take(100) // Adjust limit as needed
+                ->keys(); // Returns collection of IDs
+
+            $query->whereIn('products_variants.id', $algoliaResults);
+        }
+
+        return $query;
     }
 
     /**

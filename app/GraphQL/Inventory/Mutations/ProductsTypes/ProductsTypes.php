@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\ProductsTypes;
 
+use Baka\Traits\ResolvesTargetCompanyTrait;
 use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\Actions\UpdateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes as ProductsTypesDto;
@@ -15,6 +16,8 @@ use Kanvas\Languages\Services\Translation as TranslationService;
 
 class ProductsTypes
 {
+    use ResolvesTargetCompanyTrait;
+
     /**
      * create.
      *
@@ -25,14 +28,16 @@ class ProductsTypes
 
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        if (! $user->isAppOwner()) {
-            unset($request['companies_id']);
-        }
+        $targetCompaniesId = $this->resolveTargetCompaniesId($user, $request);
+
+        unset($request['companies_id']);
 
         $productType = (new CreateProductTypeAction(
             ProductsTypesDto::viaRequest($request, $user, $company),
             $user
         ))->execute();
+
+        $this->applyTargetCompaniesId($productType, $targetCompaniesId);
 
         if (isset($request['products_attributes'])) {
             ProductTypeService::addAttributes(
@@ -60,9 +65,9 @@ class ProductsTypes
      */
     public function update(mixed $root, array $request): ProductsTypesModel
     {
-        $productType = ProductsTypesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+        $productType = ProductsTypesRepository::getByIdOrGlobal((int) $request['id'], $company);
 
         (new UpdateProductTypeAction(
             $productType,
@@ -98,7 +103,7 @@ class ProductsTypes
      */
     public function assignAttributes(mixed $root, array $request): ProductsTypesModel
     {
-        $productType = ProductsTypesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
+        $productType = ProductsTypesRepository::getByIdOrGlobal((int) $request['id'], auth()->user()->getCurrentCompany());
 
         if (isset($request['input']['products_attributes'])) {
             $productType->productsTypesAttributes()->where('to_variants', 0)->delete();
@@ -119,7 +124,7 @@ class ProductsTypes
      */
     public function delete(mixed $root, array $request): bool
     {
-        $productType = ProductsTypesRepository::getById((int) $request['id'], auth()->user()->getCurrentCompany());
+        $productType = ProductsTypesRepository::getByIdOrGlobal((int) $request['id'], auth()->user()->getCurrentCompany());
         return $productType->delete();
     }
 
@@ -130,7 +135,7 @@ class ProductsTypes
     {
         $company = auth()->user()->getCurrentCompany();
 
-        $productType = ProductsTypesRepository::getById((int) $req['id'], $company);
+        $productType = ProductsTypesRepository::getByIdOrGlobal((int) $req['id'], $company);
         $productTypeTranslateDto = Translate::fromMultiple($req['input'], $company);
 
         $response = TranslationService::updateTranslation(

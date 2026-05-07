@@ -40,6 +40,13 @@ type Message {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
+    categories: [Category!]
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Queries\\Categories\\CategoryQueries@getCategoriesBuilder"
+        )
+    channels: [SocialChannel!] @cacheRedis @belongsToMany
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -73,16 +80,22 @@ input MessageInput {
     channel_slug: String
     distribution: DistributionInput
     tags: [TagInput!]
+    categories: [CategoryInput!]
     slug: String
     files: [Upload!]
+    is_locked: Int
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 input MessageUpdateInput {
     message: Mixed
     message_verb: ID
     is_public: Int
+    is_locked: Int
     is_deleted: Int
     tags: [TagInput!]
+    categories: [CategoryInput!]
+    custom_fields: [CustomFieldEntityInput!]
 }
 
 enum DistributionType {
@@ -200,11 +213,23 @@ extend type Query @guard {
         hasChannel: _
             @whereHasConditions(
                 relation: "channels"
-                columns: ["id", "name", "slug"]
+                columns: [
+                    "id"
+                    "uuid"
+                    "name"
+                    "slug"
+                    "entity_id"
+                    "entity_namespace"
+                ]
             )
         hasTags: _
             @whereHasConditions(
                 relation: "tags"
+                columns: ["id", "name", "slug"]
+            )
+        hasCategories: _
+            @whereHasConditions(
+                relation: "categories"
                 columns: ["id", "name", "slug"]
             )
         requiredTags: [String!]
@@ -213,6 +238,11 @@ extend type Query @guard {
             @whereHasConditions(
                 relation: "messageType"
                 columns: ["id", "name", "verb"]
+            )
+        hasChannelCategory: _
+            @whereHasConditions(
+                relation: "channels.categories"
+                columns: ["id", "name", "slug"]
             )
         hasAppModuleMessage: _
             @whereHasConditions(columns: ["entity_id", "system_modules"])
@@ -231,11 +261,12 @@ extend type Query @guard {
                 ]
             )
         search: String @search
+        random: Boolean = false
     ): [Message!]!
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getAll"
-            scopes: ["fromApp", "notDeleted"]
+            scopes: ["fromApp", "notDeleted", "companyVisibility"]
         )
 
     forYouMessages(
@@ -289,7 +320,7 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             resolver: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getForYouFeed"
-            scopes: ["fromApp", "notDeleted"]
+            scopes: ["fromApp", "notDeleted", "companyVisibility"]
         )
     followingFeedMessages(
         where: _
@@ -342,7 +373,7 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getFollowingFeed"
-            scopes: ["notDeleted"]
+            scopes: ["notDeleted", "companyVisibility"]
         )
     customFeedMessages(
         where: _
@@ -396,7 +427,7 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             resolver: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getCustomFeed"
-            scopes: ["fromApp", "notDeleted"]
+            scopes: ["fromApp", "notDeleted", "companyVisibility"]
         )
 
     channelMessages(
@@ -437,7 +468,7 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getChannelMessages"
-            scopes: ["fromApp", "notDeleted"]
+            scopes: ["fromApp", "notDeleted", "companyVisibility"]
         )
 
     messagesGroupByDate(
@@ -483,7 +514,7 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@getGroupByDate"
-            scopes: ["fromApp", "notDeleted"]
+            scopes: ["fromApp", "notDeleted", "companyVisibility"]
         )
     messageSearchSuggestions(search: String): Mixed!
         @field(
@@ -525,4 +556,21 @@ extend type Query @guard {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@viewMessageHistory"
         )
+
+    messageAnalytics(
+        from: Date
+        to: Date
+        bucket: AnalyticsBucket = DAY
+        timezone: String
+        message_type_id: ID
+    ): MessageAnalytics!
+        @field(
+            resolver: "App\\GraphQL\\Analytics\\Queries\\MessageAnalyticsQuery"
+        )
+}
+
+type MessageAnalytics {
+    periods: [AnalyticsPoint!]!
+    total: Int!
+    by_type: [AnalyticsCategoryPoint!]!
 }

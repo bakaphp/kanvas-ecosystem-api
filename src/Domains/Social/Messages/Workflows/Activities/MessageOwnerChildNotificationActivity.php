@@ -7,8 +7,8 @@ namespace Kanvas\Social\Messages\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\Connectors\PromptMine\Enums\NotificationTypesEnum;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Notifications\NewMessageNotification;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -48,16 +48,12 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
                     ];
                 }
 
-                $notificationMessage = $params['message'] ?? 'New message from %s';
-                $notificationTitle = $params['title'] ?? 'New message';
-                $subject = $params['subject'] ?? 'New message from %s';
+                $notificationMessage = $params['message'] ?? 'New AI creation from %s';
+                $notificationTitle = $params['title'] ?? 'New AI creation';
+                $subject = $params['subject'] ?? 'New AI creation from %s';
                 $viaList = $params['via'] ?? ['database'];
 
-                // Map notification channels
-                $endViaList = array_map(
-                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                    $viaList
-                );
+                $endViaList = $viaList;
 
                 $metaData = $message->getMessage();
                 $keysToUnset = ['ai_nugged', 'nugget'];
@@ -107,7 +103,7 @@ class MessageOwnerChildNotificationActivity extends KanvasActivity
                         $config['via']
                     );
                     $newMessageNotification->setFromUser($message->user);
-
+                    $newMessageNotification->setType(NotificationTypesEnum::NEW_MESSAGE->value);
                     $message->parent->user->notify($newMessageNotification);
                 } catch (ModelNotFoundException|ExceptionsModelNotFoundException $e) {
                     return [

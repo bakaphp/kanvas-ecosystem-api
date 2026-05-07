@@ -8,6 +8,7 @@ use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Event\Models\BaseModel;
+use Override;
 
 class EventVersionDate extends BaseModel
 {
@@ -22,6 +23,7 @@ class EventVersionDate extends BaseModel
         return $this->belongsTo(EventVersion::class);
     }
 
+    #[Override]
     protected function casts(): array
     {
         return [

@@ -18,6 +18,7 @@ enum AppSettingsEnums implements EnumsInterface
     case ONBOARDING_GUILD_SETUP;
     case ONBOARDING_INVENTORY_SETUP;
     case ONBOARDING_EVENT_SETUP;
+    case ONBOARDING_EVENT_SETUP_TYPE;
     case ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY;
     case GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY;
     case KANVAS_APP_MAIN_COMPANY_ID;
@@ -36,12 +37,22 @@ enum AppSettingsEnums implements EnumsInterface
     case INACTIVE_ACCOUNT_ERROR_MESSAGE;
     case INACTIVE_COMPANY_ACCOUNT_ERROR_MESSAGE;
     case RESET_PASSWORD_EMAIL_SUBJECT;
+    case SEND_EMAIL_VERIFICATION;
+    case EMAIL_VERIFICATION_LINK_URL;
+    case EMAIL_VERIFICATION_LINK_TTL_HOURS;
+    case EMAIL_VERIFICATION_EMAIL_SUBJECT;
     case FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME;
     case FILESYSTEM_MAPPER_HEADER_VALIDATION;
     case NOTIFICATION_FROM_USER_ID;
     case USE_LEGACY_ROLES;
     case DEFAULT_FILESYSTEM_UPLOAD_FILE_SIZE;
     case ALLOW_RESET_PASSWORD_WITH_DISPLAYNAME;
+    case OPEN_AI_EMBEDDING_KEY;
+    case ENABLE_GLOBAL_MERGE_FILESYSTEM;
+
+    case DATE_ADK_AGENT_RESPONSES;
+    case REGISTRATION_RATE_LIMIT;
+    case VALIDATE_EMAIL_DNS;
 
     #[Override]
     public function getValue(): mixed
@@ -56,6 +67,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::ONBOARDING_GUILD_SETUP => 'onboarding_guild_setup',
             self::ONBOARDING_INVENTORY_SETUP => 'onboarding_inventory_setup',
             self::ONBOARDING_EVENT_SETUP => 'onboarding_event_setup',
+            self::ONBOARDING_EVENT_SETUP_TYPE => 'onboarding_event_setup_type',
             self::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY => 'admin_user_registration_assign_current_company',
             self::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY => 'global_user_registration_assign_global_company',
             self::KANVAS_APP_MAIN_COMPANY_ID => 'kanvas_app_main_company_id',
@@ -74,12 +86,21 @@ enum AppSettingsEnums implements EnumsInterface
             self::INACTIVE_ACCOUNT_ERROR_MESSAGE => 'inactive_account_error_message',
             self::INACTIVE_COMPANY_ACCOUNT_ERROR_MESSAGE => 'inactive_company_account_error_message',
             self::RESET_PASSWORD_EMAIL_SUBJECT => 'reset_password_email_subject',
+            self::SEND_EMAIL_VERIFICATION => 'send_email_verification',
+            self::EMAIL_VERIFICATION_LINK_URL => 'app_email_verification_link_url',
+            self::EMAIL_VERIFICATION_LINK_TTL_HOURS => 'email_verification_link_ttl_hours',
+            self::EMAIL_VERIFICATION_EMAIL_SUBJECT => 'email_verification_email_subject',
             self::FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME => 'filesystem_allow_duplicate_files_by_name',
             self::FILESYSTEM_MAPPER_HEADER_VALIDATION => 'filesystem_mapper_header_validation',
             self::NOTIFICATION_FROM_USER_ID => 'notification_from_user_id',
             self::USE_LEGACY_ROLES => 'app_use_legacy_roles',
             self::DEFAULT_FILESYSTEM_UPLOAD_FILE_SIZE => 'default_filesystem_upload_file_size',
             self::ALLOW_RESET_PASSWORD_WITH_DISPLAYNAME => 'allow_reset_password_with_displayname',
+            self::OPEN_AI_EMBEDDING_KEY => 'open_ai_embedding_key',
+            self::ENABLE_GLOBAL_MERGE_FILESYSTEM => 'enable_global_merge_filesystem',
+            self::DATE_ADK_AGENT_RESPONSES => 'date_adk_agent_responses',
+            self::REGISTRATION_RATE_LIMIT => 'registration_rate_limit',
+            self::VALIDATE_EMAIL_DNS => 'validate_email_dns',
         };
     }
 }

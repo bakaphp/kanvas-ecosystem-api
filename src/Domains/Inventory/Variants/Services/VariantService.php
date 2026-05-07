@@ -30,6 +30,8 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehou
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 use Kanvas\Inventory\Warehouses\Services\WarehouseService;
+use Kanvas\Workflow\Enums\WorkflowEnum;
+use Throwable;
 
 class VariantService
 {
@@ -57,9 +59,9 @@ class VariantService
             $existVariantUpdate = Variants::fromCompany($product->company)->fromApp($product->app)->where('sku', $variantDto->sku);
 
             if (! $existVariantUpdate->exists()) {
-                $variantModel = (new CreateVariantsAction($variantDto, $user))->execute();
+                $variantModel = (new CreateVariantsAction($variantDto, $user))->disableWorkflow()->execute();
             } else {
-                $variantModel = (new UpdateVariantsAction($existVariantUpdate->first(), $variantDto, $user))->execute();
+                $variantModel = (new UpdateVariantsAction($existVariantUpdate->first(), $variantDto, $user))->disableWorkflow()->execute();
             }
 
             $company = $variantDto->product->company;
@@ -97,13 +99,12 @@ class VariantService
                     );
                 }
             } else {
-                $warehouse = Warehouses::getDefault($company);
-                $variantWarehouseInfo = [];
-
+                $warehouse = Warehouses::getDefault($company, $product->app);
                 $variantWarehouseInfo = array_filter([
                     'price' => $variant['price'] ?? null,
                     'quantity' => $variant['quantity'] ?? null,
-                ]);
+                    'max_capacity' => $variant['max_capacity'] ?? null,
+                ], fn ($v) => $v !== null);
 
                 WarehouseService::addToWarehouses(
                     $variantModel,
@@ -112,13 +113,23 @@ class VariantService
                     $variantWarehouseInfo
                 );
             }
-
             if (isset($variant['channels'])) {
                 foreach ($variant['channels'] as $variantChannel) {
-                    $warehouse = WarehouseRepository::getById((int) $variantChannel['warehouses_id']);
-                    $channel = ChannelRepository::getById((int) $variantChannel['channels_id']);
+                    if (isset($variantChannel['warehouses_id'])) {
+                        $warehouse = WarehouseRepository::getById(
+                            (int) $variantChannel['warehouses_id'],
+                            $company,
+                            $product->app
+                        );
+                    } else {
+                        $warehouse = Warehouses::getDefault($company, $product->app);
+                    }
+                    $channel = ChannelRepository::getById(
+                        (int) $variantChannel['channels_id'],
+                        $company,
+                        $product->app
+                    );
                     $variantChannelDto = VariantChannelDto::from($variantChannel);
-
                     self::addVariantChannel(
                         $variantModel,
                         $warehouse,
@@ -130,6 +141,12 @@ class VariantService
 
             $variantsData[] = $variantModel;
         }
+
+        if ($product->shouldBeSearchable()) {
+            $product->searchable();
+        }
+
+        $product->fireWorkflow(WorkflowEnum::UPDATED->value, true);
 
         return $variantsData;
     }
@@ -154,7 +171,20 @@ class VariantService
 
         $company = $variantDto->product->company;
 
-        $warehouse = Warehouses::getDefault($company);
+        $warehouse = Warehouses::getDefault($company, $product->app);
+
+        $warehouseId = $productDto?->warehouses[0] ?? null;
+
+        if ($warehouseId !== null) {
+            try {
+                $warehouse = Warehouses::getByIdFromCompanyApp(
+                    (int) $warehouseId,
+                    $company,
+                    $product->app
+                );
+            } catch (Throwable $e) {
+            }
+        }
 
         if (isset($variant['warehouse']['status'])) {
             $variant['warehouse']['status_id'] = StatusRepository::getById(
@@ -162,7 +192,7 @@ class VariantService
                 $company
             )->getId();
         } else {
-            $variant['warehouse']['status_id'] = Status::getDefault($company)->getId();
+            $variant['warehouse']['status_id'] = Status::getDefault($company, $product->app)->getId();
         }
 
         if (! empty($productDto->warehouses) && isset($productDto->warehouses[0]['quantity']) && isset($productDto->warehouses[0]['price'])) {
@@ -253,7 +283,7 @@ class VariantService
 
             $missingVariants = [
                 ...$missingVariants,
-                ...array_values(array_diff($chunk, $foundVariants))
+                ...array_values(array_diff($chunk, $foundVariants)),
             ];
         }
 
@@ -270,7 +300,7 @@ class VariantService
             ->where([
                 'sku' => $variantData['sku'],
                 'companies_id' => $company->id,
-                'apps_id' => $app->id
+                'apps_id' => $app->id,
             ])
             ->first();
 
@@ -285,8 +315,8 @@ class VariantService
         }
 
         return [
-            "missing_skus" => $missingSkus,
-            "changed_barcodes" => $changedBarcodes
+            'missing_skus' => $missingSkus,
+            'changed_barcodes' => $changedBarcodes,
         ];
     }
 }

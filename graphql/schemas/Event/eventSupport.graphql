@@ -77,6 +77,7 @@ type EventClass {
 type EventStatus {
     id: ID!
     name: String!
+    slug: String
     user: User! @belongsTo(relation: "user")
     created_at: DateTime
     updated_at: DateTime
@@ -90,6 +91,86 @@ type EventStatus {
         @paginate(
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+}
+
+input EventLookupInput {
+    name: String!
+    is_default: Boolean
+}
+
+input EventLookupUpdateInput {
+    name: String
+    is_default: Boolean
+}
+
+extend type Mutation @guard {
+    createEventType(input: EventLookupInput!): EventType!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@createEventType"
+        )
+    updateEventType(id: ID!, input: EventLookupUpdateInput!): EventType!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@updateEventType"
+        )
+    deleteEventType(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@deleteEventType"
+        )
+
+    createEventClass(input: EventLookupInput!): EventClass!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@createEventClass"
+        )
+    updateEventClass(id: ID!, input: EventLookupUpdateInput!): EventClass!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@updateEventClass"
+        )
+    deleteEventClass(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@deleteEventClass"
+        )
+
+    createEventStatus(input: EventLookupInput!): EventStatus!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@createEventStatus"
+        )
+    updateEventStatus(id: ID!, input: EventLookupUpdateInput!): EventStatus!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@updateEventStatus"
+        )
+    deleteEventStatus(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@deleteEventStatus"
+        )
+
+    createEventTheme(input: EventLookupInput!): EventTheme!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@createEventTheme"
+        )
+    updateEventTheme(id: ID!, input: EventLookupUpdateInput!): EventTheme!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@updateEventTheme"
+        )
+    deleteEventTheme(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@deleteEventTheme"
+        )
+
+    createEventThemeArea(input: EventLookupInput!): EventThemeArea!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@createEventThemeArea"
+        )
+    updateEventThemeArea(
+        id: ID!
+        input: EventLookupUpdateInput!
+    ): EventThemeArea!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@updateEventThemeArea"
+        )
+    deleteEventThemeArea(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Mutations\\Lookups\\EventLookupMutation@deleteEventThemeArea"
         )
 }
 

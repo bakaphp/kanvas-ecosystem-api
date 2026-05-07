@@ -1,0 +1,13 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\Lendflow\Enums;
+
+enum CustomFieldEnum: string
+{
+    case LENDFLOW_APPLICATION_ID = 'LENDFLOW_APPLICATION_ID';
+    case LENDFLOW_UPLOADED_FILES = 'LENDFLOW_UPLOADED_FILES';
+    case LENDFLOW_UPLOADED_FILE_IDS = 'LENDFLOW_UPLOADED_FILE_IDS';
+    case LENDFLOW_SUBMISSION_HISTORY = 'LENDFLOW_SUBMISSION_HISTORY';
+}

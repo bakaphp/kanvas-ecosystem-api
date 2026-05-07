@@ -16,7 +16,7 @@ return new class () extends Migration {
             $table->bigInteger('companies_id')->index();
             $table->bigInteger('apps_id')->index();
             $table->bigInteger('users_id')->index();
-            $table->enum('status', ['pending', 'in_progress', 'completed'])->default('pending')->comment('pending, in_progress, completed')->index();
+            $table->enum('status', ['pending', 'in_progress', 'completed', 'no_applicable'])->default('pending')->comment('pending, in_progress, completed')->index();
             $table->bigInteger('engagement_start_id')->nullable()->index();
             $table->bigInteger('engagement_end_id')->nullable()->index();
             $table->json('config')->nullable();

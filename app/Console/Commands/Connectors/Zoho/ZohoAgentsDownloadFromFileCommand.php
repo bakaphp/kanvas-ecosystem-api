@@ -8,10 +8,13 @@ use Baka\Traits\KanvasJobsTrait;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoAgentAction;
 use Kanvas\Guild\Agents\Models\Agent;
+use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Models\Users;
 use League\Csv\Reader;
 
@@ -35,7 +38,6 @@ class ZohoAgentsDownloadFromFileCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {
@@ -76,6 +78,17 @@ class ZohoAgentsDownloadFromFileCommand extends Command
 
             if ($user && Agent::where('users_id', $user->getId())->fromApp($app)->exists()) {
                 $i++;
+
+                //add user to company and app
+                $assignCompanyAction = new AssignCompanyAction(
+                    $user,
+                    $company->defaultBranch,
+                    RolesRepository::getByNameFromCompany(RolesEnums::USER->value, $company),
+                    $app
+                );
+                $assignCompanyAction->execute();
+
+                $user->set('member_number_' . $company->getId(), $record['Member Number'] ?? null);
 
                 continue;
             }

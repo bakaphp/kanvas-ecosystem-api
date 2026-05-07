@@ -1,0 +1,381 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Intelligence\Agents\Services;
+
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Exception;
+use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\ServerException;
+use Illuminate\Support\Facades\Validator;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Users\Models\Users;
+
+class GoogleADKService
+{
+    protected GuzzleClient $client;
+    protected string $baseUrl;
+    protected string $apiKey;
+    protected string $appName;
+
+    public function __construct(
+        protected AppInterface $app,
+        protected CompanyInterface $company,
+        protected ?string $agent = null,
+        protected ?string $baseUrlOverride = null
+    ) {
+        $this->baseUrl = $this->app->get(ConfigurationEnum::ADK_BASE_URL->value);
+        $this->apiKey = $this->app->get(ConfigurationEnum::ADK_API_KEY->value);
+        $this->appName = $this->agent ?? $this->app->get(ConfigurationEnum::ADK_APP_NAME->value) ?? 'orchestrator';
+
+        $companyBaseUrl = $this->company->get(ConfigurationEnum::ADK_BASE_URL->value) ?? null;
+        if ($companyBaseUrl !== null && ! empty($companyBaseUrl)) {
+            $this->baseUrl = $companyBaseUrl;
+        }
+
+        if ($this->baseUrlOverride !== null && ! empty($this->baseUrlOverride)) {
+            $this->baseUrl = $this->baseUrlOverride;
+        }
+
+        if (empty($this->baseUrl)) {
+            throw new ValidationException('Google Orchestrator configuration is missing');
+        }
+
+        $this->client = new GuzzleClient([
+            'base_uri' => $this->baseUrl,
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+            ],
+            'verify' => false,
+        ]);
+    }
+
+    public function startSession(string $userId, string $sessionId): array
+    {
+        $endpoint = "apps/{$this->appName}/users/{$userId}/sessions/{$sessionId}";
+
+        try {
+            $response = $this->client->post($endpoint, [
+                'json' => [
+                    'kanvas_app_id' => $this->app->key,
+                ],
+            ]);
+
+            return json_decode($response->getBody()->getContents(), true) ?? [];
+        } catch (ClientException|ServerException $e) {
+            $responseBody = $e->getResponse() ? $e->getResponse()->getBody()->getContents() : '';
+            $responseData = json_decode($responseBody, true);
+
+            if ($e->getResponse() && $this->isSessionAlreadyExistsError($e->getResponse()->getStatusCode(), $responseData)) {
+                return [
+                    'error' => true,
+                    'message' => $responseData['detail'] ?? 'Session already exists',
+                    'session_id' => $sessionId,
+                ];
+            }
+
+            throw $e;
+        }
+    }
+
+    private function isSessionAlreadyExistsError(int $statusCode, ?array $responseData): bool
+    {
+        $detail = $responseData['detail'] ?? '';
+
+        return in_array($statusCode, [400, 409, 500])
+            && (str_contains($detail, 'Session already exists')
+            || str_contains($detail, 'UniqueViolation')
+            || str_contains($detail, 'duplicate key'));
+    }
+
+    /**
+     * Send a chat message and get streaming response
+     *
+     * @param callable|null $onChunk Callback function to process each chunk
+     * @return string Complete response text
+     * @throws GuzzleException
+     */
+    public function chat(
+        string $userId,
+        string $sessionId,
+        string $message,
+        ?callable $onChunk = null,
+        int $maxRetries = 3,
+        ?Users $user = null
+    ): string {
+        $attempt = 0;
+
+        while (true) {
+            try {
+                return $this->executeChat(
+                    $userId,
+                    $sessionId,
+                    $message,
+                    $onChunk,
+                    $user
+                );
+            } catch (Exception $e) {
+                $attempt++;
+                if ($attempt >= $maxRetries || ! str_contains($e->getMessage(), 'stale session')) {
+                    throw $e;
+                }
+                usleep(500_000 * $attempt); // 0.5s, 1s, 1.5s backoff
+            }
+        }
+    }
+
+    protected function executeChat(
+        string $userId,
+        string $sessionId,
+        string $message,
+        ?callable $onChunk = null,
+        ?Users $user = null
+    ): string {
+        $response = $this->client->post('/run_sse', [
+            'headers' => [
+                'Accept' => 'text/event-stream',
+            ],
+            'json' => [
+                'app_name' => $this->appName,
+                'user_id' => $userId,
+                'session_id' => $sessionId,
+                'new_message' => [
+                    'role' => 'user',
+                    'parts' => [['text' => $message]],
+                    ],
+                    // 'stateDelta' => [
+                    //     'current_user_id' => $user ? $user->id : '',
+                    // ],
+            ],
+            'stream' => true,
+        ]);
+
+        $completeResponse = '';
+        $buffer = '';
+        $stream = $response->getBody();
+
+        while (! $stream->eof()) {
+            $chunk = $stream->read(1024);
+
+            if ($chunk) {
+                $buffer .= $chunk;
+
+                // Process complete lines ending with \n
+                while (($pos = strpos($buffer, "\n")) !== false) {
+                    $line = substr($buffer, 0, $pos);
+                    $buffer = substr($buffer, $pos + 1);
+
+                    $line = trim($line);
+
+                    // Skip empty lines
+                    if (empty($line)) {
+                        continue;
+                    }
+
+                    // Handle SSE format - remove "data: " prefix
+                    if (strpos($line, 'data: ') === 0) {
+                        $jsonString = substr($line, 6); // Remove "data: " prefix
+
+                        // Skip empty data lines
+                        if (empty($jsonString)) {
+                            continue;
+                        }
+
+                        // Try to decode JSON
+                        $data = json_decode($jsonString, true);
+
+                        if ($data) {
+                            // Check for error messages
+                            if (isset($data['error'])) {
+                                throw new Exception('API Error: ' . $data['error']);
+                            }
+
+                            // Process content parts
+                            if (isset($data['content']['parts'])) {
+                                foreach ($data['content']['parts'] as $part) {
+                                    if (isset($part['text'])) {
+                                        $text = $part['text'];
+                                        $completeResponse .= $text;
+
+                                        // Call the callback if provided
+                                        if ($onChunk) {
+                                            $onChunk($text, $data);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return $completeResponse;
+    }
+
+    /**
+     * Send a chat message with simple response (non-streaming)
+     *
+     * @throws GuzzleException
+     */
+    public function chatSimple(string $userId, string $sessionId, string $message, ?Users $user): array
+    {
+        $response = $this->client->post('/run', [
+            'json' => [
+                'app_name' => $this->appName,
+                'user_id' => $userId,
+                'session_id' => $sessionId,
+                'new_message' => [
+                    'role' => 'user',
+                    'parts' => [['text' => $message]],
+                    'stateDelta' => [
+                        'current_user_id' => $user ? $user->id : '',
+                    ],
+                ],
+            ],
+        ]);
+
+        return json_decode($response->getBody()->getContents(), true) ?? [];
+    }
+
+    /**
+     * Get session history
+     *
+     * @throws GuzzleException
+     */
+    public function getSessionHistory(string $userId, string $sessionId): array
+    {
+        $endpoint = "apps/{$this->appName}/users/{$userId}/sessions/{$sessionId}";
+
+        $response = $this->client->get($endpoint);
+
+        return json_decode($response->getBody()->getContents(), true) ?? [];
+    }
+
+    public function updateSessionState(
+        string $sessionId,
+        string $userId,
+        array $stateDelta = [],
+        bool $reloadContext = true
+    ): void {
+        $this->client->post('/session/state', [
+            'json' => [
+                'session_id' => $sessionId,
+                'user_id' => $userId,
+                'reload_context' => true,
+            ],
+        ]);
+    }
+
+    public function sendData(string $userId, string $sessionId, array $data): void
+    {
+        $endpoint = "apps/{$this->appName}/users/{$userId}/sessions/{$sessionId}";
+
+        try {
+            $response = $this->client->patch($endpoint, [
+                'json' => $data,
+            ]);
+        } catch (ClientException $e) {
+            $responseBody = $e->getResponse() ? $e->getResponse()->getBody()->getContents() : '';
+            $responseData = json_decode($responseBody, true);
+
+            if ($e->getResponse() && $e->getResponse()->getStatusCode() === 400 && isset($responseData['detail']) && str_contains($responseData['detail'], 'Session already exists')) {
+                // Return a specific response or handle as needed
+                return;
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Delete a session
+     *
+     * @throws GuzzleException
+     */
+    public function deleteSession(string $userId, string $sessionId): bool
+    {
+        $endpoint = "apps/{$this->appName}/users/{$userId}/sessions/{$sessionId}";
+
+        $response = $this->client->delete($endpoint);
+
+        return $response->getStatusCode() === 200;
+    }
+
+    /**
+     * Get all sessions for a user
+     *
+     * @throws GuzzleException
+     */
+    public function getUserSessions(string $userId): array
+    {
+        $endpoint = "apps/{$this->appName}/users/{$userId}/sessions";
+
+        $response = $this->client->get($endpoint);
+
+        return json_decode($response->getBody()->getContents(), true) ?? [];
+    }
+
+    /**
+     * Inject messages into an existing session without triggering an agent reply.
+     * Use this to sync conversations that happened while the AI was disabled
+     * (e.g. direct salesperson↔lead exchanges), so the agent has full context on the next turn.
+     *
+     * @param array<int, array{role: string, text: string}> $messages
+     */
+    public function injectSessionEvents(string $userId, string $sessionId, array $messages): array
+    {
+        $validator = Validator::make(
+            ['messages' => $messages],
+            [
+                'messages' => 'required|array|min:1',
+                'messages.*.role' => 'required|string',
+                'messages.*.text' => 'required|string',
+            ]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator->errors()->first());
+        }
+
+        $response = $this->client->post('/events/session', [
+            'json' => [
+                'session_id' => $sessionId,
+                'user_id' => $userId,
+                'messages' => $messages,
+            ],
+        ]);
+
+        return json_decode($response->getBody()->getContents(), true) ?? [];
+    }
+
+    /**
+     * Generate a unique session ID
+     */
+    public function generateSessionId(): string
+    {
+        return 's_' . uniqid();
+    }
+
+    /**
+     * Get the current app name
+     */
+    public function getAppName(): string
+    {
+        return $this->appName;
+    }
+
+    /**
+     * Get the base URL
+     */
+    public function getBaseUrl(): string
+    {
+        return $this->baseUrl;
+    }
+}

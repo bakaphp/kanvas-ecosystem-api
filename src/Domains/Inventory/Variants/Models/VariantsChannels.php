@@ -15,6 +15,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Models\VariantChannelPriceHistory;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Override;
 
 /**
  * Class Variants Channels.
@@ -23,7 +24,7 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
  * @property int $warehouses_id
  * @property int $channels_id
  * @property float $price
- * @property float $discount_price
+ * @property float $discounted_price
  * @property bool $is_published
  * @property ?string $config = null
  * @property string $created_at
@@ -45,11 +46,12 @@ class VariantsChannels extends BaseModel
     protected $primaryKey = ['product_variants_warehouse_id', 'channels_id'];
     protected $forceDeleting = true;
 
+    #[Override]
     protected function casts(): array
     {
         return [
-            'price' => 'decimal:2',
-            'discount_price' => 'decimal:2',
+            'price' => 'decimal:4',
+            'discounted_price' => 'decimal:4',
             'config' => Json::class,
         ];
     }

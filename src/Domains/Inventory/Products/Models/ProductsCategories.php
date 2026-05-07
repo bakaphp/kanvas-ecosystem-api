@@ -17,6 +17,7 @@ use Kanvas\Inventory\Models\BaseModel;
  *
  * @property int $products_id
  * @property int $categories_id
+ * @property int $weight
  * @property string $created_at
  * @property string $updated_at
  * @property bool $is_deleted

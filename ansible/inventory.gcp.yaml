@@ -1,0 +1,14 @@
+plugin: google.cloud.gcp_compute
+projects:
+  - your-gcp-project-id
+zones:
+  - us-central1-a
+filters:
+  - status = RUNNING
+auth_kind: serviceaccount
+service_account_file: /path/to/service-account.json
+keyed_groups:
+  - key: labels
+    prefix: label
+groups:
+  myapp: "'your-instance-group-name' in name"

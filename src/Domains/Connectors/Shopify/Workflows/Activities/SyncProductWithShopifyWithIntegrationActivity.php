@@ -78,6 +78,14 @@ class SyncProductWithShopifyWithIntegrationActivity extends KanvasActivity
                         app: $app,
                         status: $status
                     ))->execute();
+
+                    $this->createIntegrationMessageByVerb(
+                        response: $response,
+                        messageTypeVerb: 'product',
+                        messageTypeName: IntegrationsEnum::SHOPIFY->value,
+                        entity: $product,
+                        app: $app
+                    );
                 }
             }
         }

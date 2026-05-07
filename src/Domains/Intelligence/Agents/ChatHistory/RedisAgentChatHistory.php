@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\ChatHistory;
 
+use Exception;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Redis;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
+use NeuronAI\Chat\Enums\MessageRole;
 use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\ChatHistoryInterface;
 use NeuronAI\Chat\Messages\Message;
@@ -15,16 +16,9 @@ use Override;
 
 class RedisAgentChatHistory extends AbstractChatHistory
 {
-    protected const REDIS_PREFIX = 'agent_chat_history_v2:';
-    protected const REDIS_EXPIRATION = 86400;
     protected string $entityNamespace;
     protected int|string $entityId;
     protected ?string $externalReferenceId = null;
-
-    /**
-     * @var bool Flag to track if changes have been made since last save
-     */
-    protected bool $isDirty = false;
 
     public function __construct(
         protected Agent $agent,
@@ -32,92 +26,68 @@ class RedisAgentChatHistory extends AbstractChatHistory
         ?string $externalReferenceId = null,
         int $contextWindow = 16000
     ) {
-        parent::__construct($contextWindow);
-
         $this->agent = $agent;
         $this->entityNamespace = get_class($entity);
         $this->entityId = $entity->getKey();
         $this->externalReferenceId = $externalReferenceId;
 
-        $this->init();
+        parent::__construct($contextWindow);
+        $this->loadFromDatabase();
     }
 
-    protected function init(): void
+    protected function loadFromDatabase(): void
     {
-        // First try to load from Redis for speed
-        $redisKey = $this->getRedisKey();
-        //Redis::del($redisKey);
-        $cachedHistory = false; //Redis::get($redisKey); no redis for now
-
-        /*  if ($cachedHistory) {
-             $messages = json_decode($cachedHistory, true);
-             $this->history = $this->unserializeMessages($messages);
-
-             return;
-         } */
-
-        // If not in Redis, try to load from database
         $history = AgentHistory::where('agent_id', $this->agent->id)
             ->fromApp($this->agent->app)
             ->where('entity_namespace', $this->entityNamespace)
             ->where('entity_id', $this->entityId)
+            ->where('is_deleted', 0)
             ->orderBy('created_at', 'asc')
             ->get();
 
         if ($history->isNotEmpty()) {
-            // Transform database records into message history
             $messages = [];
-            foreach ($history as $record) {
-                $input = $record->input;
-                $output = $record->output;
 
-                if (isset($input['role']) && isset($input['content'])) {
+            foreach ($history as $record) {
+                // Add input message (user message)
+                if ($record->input && isset($record->input['role']) && isset($record->input['content'])) {
                     $messages[] = [
-                        'role' => $input['role'],
-                        'content' => $input['content'],
+                        'role' => $record->input['role'],
+                        'content' => $record->input['content'],
                     ];
                 }
 
-                if (isset($output['role']) && isset($output['content'])) {
+                // Add output message (assistant message)
+                if ($record->output && isset($record->output['role']) && isset($record->output['content'])) {
                     $messages[] = [
-                        'role' => $output['role'],
-                        'content' => $output['content'],
+                        'role' => $record->output['role'],
+                        'content' => $record->output['content'],
                     ];
                 }
             }
 
-            //$this->history = $this->unserializeMessages($messages);
-
-            // Cache in Redis for faster access next time
-            $this->updateRedis();
+            if (! empty($messages)) {
+                $this->history = $this->deserializeMessages($messages);
+            }
         }
     }
 
-    protected function getRedisKey(): string
-    {
-        return self::REDIS_PREFIX . $this->agent->id . ':' . $this->entityNamespace . ':' . $this->entityId;
-    }
-
-    protected function updateRedis(): void
-    {
-        $redisKey = $this->getRedisKey();
-        Redis::setex(
-            $redisKey,
-            self::REDIS_EXPIRATION,
-            json_encode($this->jsonSerialize())
-        );
-    }
-
+    /**
+     * Deserialize messages from storage using the proper NeuronAI method
+     */
     #[Override]
+    protected function deserializeMessages(array $messages): array
+    {
+        return array_map(function (array $messageData) {
+            return $this->deserializeMessage($messageData);
+        }, $messages);
+    }
+
+    /**
+     * Store message to database
+     */
     protected function storeMessage(Message $message): ChatHistoryInterface
     {
-        // Mark history as dirty so we know to save to database
-        $this->isDirty = true;
-
-        // Update Redis immediately for fast access
-        $this->updateRedis();
-
-        // Save to database asynchronously
         $this->saveToDatabase($message);
 
         return $this;
@@ -125,27 +95,25 @@ class RedisAgentChatHistory extends AbstractChatHistory
 
     protected function saveToDatabase(Message $message): void
     {
-        // Determine if this is a user or assistant message
-        $isUserMessage = $message->getRole() === 'user';
+        try {
+            $isUserMessage = $message->getRole() === MessageRole::USER;
 
-        // Create a new history record
-        AgentHistory::create([
-            'agent_id' => $this->agent->id,
-            'companies_id' => $this->agent->companies_id,
-            'apps_id' => $this->agent->apps_id,
-            'entity_namespace' => $this->entityNamespace,
-            'entity_id' => $this->entityId,
-            'context' => $this->getContext(),
-            'external_reference' => $this->externalReferenceId ? ['id' => $this->externalReferenceId] : null,
-            'input' => $isUserMessage ? [
-                'role' => $message->getRole(),
-                'content' => $message->getContent(),
-            ] : null,
-            'output' => ! $isUserMessage ? [
-                'role' => $message->getRole(),
-                'content' => $message->getContent(),
-            ] : null,
-        ]);
+            AgentHistory::create([
+                'agent_id' => $this->agent->id,
+                'companies_id' => $this->agent->companies_id,
+                'apps_id' => $this->agent->apps_id,
+                'entity_namespace' => $this->entityNamespace,
+                'entity_id' => $this->entityId,
+                'context' => $this->getContext(),
+                'external_reference' => $this->externalReferenceId ? ['id' => $this->externalReferenceId] : null,
+                'input' => $isUserMessage ? $message->jsonSerialize() : null,
+                'output' => ! $isUserMessage ? $message->jsonSerialize() : null,
+            ]);
+        } catch (Exception $e) {
+            report($e);
+
+            throw $e;
+        }
     }
 
     protected function getContext(): string
@@ -154,65 +122,113 @@ class RedisAgentChatHistory extends AbstractChatHistory
         $contextString = '';
 
         foreach ($contextMessages as $message) {
-            $role = ucfirst($message->getRole());
+            $role = $message->getRole()->value ?? $message->getRole();
+            $role = ucfirst($role);
             $contextString .= "{$role}: {$message->getContent()}\n\n";
         }
 
-        return $contextString;
+        return trim($contextString);
+    }
+
+    /**
+     * Remove message by index
+     */
+    public function removeOldMessage(int $index): ChatHistoryInterface
+    {
+        if (isset($this->history[$index])) {
+            unset($this->history[$index]);
+            $this->history = array_values($this->history); // Re-index array
+        }
+
+        return $this;
     }
 
     /**
      * Remove the oldest message from the history
      */
-    #[Override]
     public function removeOldestMessage(): ChatHistoryInterface
     {
-        // Mark history as dirty
-        $this->isDirty = true;
-
-        // Update Redis
-        $this->updateRedis();
-
-        // No need to modify database as we're just removing from context window
+        if (! empty($this->history)) {
+            array_shift($this->history);
+        }
 
         return $this;
     }
 
     /**
-     * Clear the chat history
+     * Clear the chat history (required by AbstractChatHistory)
      */
     #[Override]
-    protected function clear(): ChatHistoryInterface
+    protected function clear(): void
     {
-        // Delete from Redis
-        $redisKey = $this->getRedisKey();
-        Redis::del($redisKey);
+        // Clear in-memory history
+        $this->history = [];
 
-        // Mark as soft deleted in database (don't actually delete the records)
+        // Mark as soft deleted in database
         AgentHistory::where('agent_id', $this->agent->id)
             ->fromApp($this->agent->app)
             ->where('entity_namespace', $this->entityNamespace)
             ->where('entity_id', $this->entityId)
             ->update(['is_deleted' => true]);
+    }
+
+    /**
+     * Clear the chat history (public interface)
+     */
+    #[Override]
+    public function flushAll(): ChatHistoryInterface
+    {
+        $this->clear();
 
         return $this;
     }
 
+    /**
+     * Get all messages
+     */
     public function getAll(): array
     {
         return $this->history;
     }
 
-    public function sync(): void
+    /**
+     * Force refresh from database
+     */
+    public function refresh(): void
     {
-        if ($this->isDirty) {
-            $this->updateRedis();
-            $this->isDirty = false;
+        // Clear in-memory history
+        $this->history = [];
+
+        // Reload from database
+        $this->loadFromDatabase();
+    }
+
+    /**
+     * Set messages and persist to database
+     */
+    #[Override]
+    protected function setMessages(array $messages): void
+    {
+        $this->history = $messages;
+
+        // Store each message that's not already in the database
+        foreach ($messages as $message) {
+            if ($message instanceof Message) {
+                $this->storeMessage($message);
+            }
         }
     }
 
-    public function __destruct()
+    /**
+     * Add a new message
+     */
+    #[Override]
+    public function addMessage(Message $message): ChatHistoryInterface
     {
-        $this->sync();
+        $this->history[] = $message;
+        $this->trimHistory();
+        $this->storeMessage($message);
+
+        return $this;
     }
 }

@@ -27,6 +27,8 @@ use Override;
  * @property string $state
  * @property string $zip
  * @property int $countries_id
+ * @property float $latitude
+ * @property float $longitude
  * @property int $is_default
  */
 class CompaniesAddress extends BaseModel

@@ -37,6 +37,7 @@ class ProductImporter extends Data
         ],
         public array $tags = [],
         public ?string $vendor = null,
+        public ?float $weight = null,
     ) {
     }
 

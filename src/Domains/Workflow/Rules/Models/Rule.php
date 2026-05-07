@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Workflow\Rules\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Rules\Factories\RuleFactory;
+use Override;
 
 /**
  * @param int $id
@@ -24,6 +29,8 @@ use Kanvas\Workflow\Rules\Factories\RuleFactory;
  */
 class Rule extends BaseModel
 {
+    use DatabaseSearchableTrait;
+
     protected $table = 'rules';
 
     protected $guarded = [];
@@ -32,6 +39,20 @@ class Rule extends BaseModel
         'params' => 'array',
         'is_async' => 'boolean',
     ];
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
+    }
 
     public function type(): BelongsTo
     {
@@ -58,6 +79,7 @@ class Rule extends BaseModel
         return $this->is_async;
     }
 
+    #[Override]
     protected static function newFactory()
     {
         return RuleFactory::new();
@@ -66,11 +88,8 @@ class Rule extends BaseModel
     /**
      * Get the expression conditional to run the rule.
      *
-     * [expression] => created_at > created_at_Variable
-     * [value] => Array
-     *   (
-     *       [created_at_Variable] => 2020-01-01
-     *   )
+     * [expression] => id > 0 and order.items.count() > 2
+     * [value] => Array (empty since values are resolved dynamically)
      */
     public function getExpressionCondition(): array
     {
@@ -91,23 +110,52 @@ class Rule extends BaseModel
             }
 
             if (is_array($value)) {
-                // Handle array operators
                 $condition = sprintf('%s %s [%s]', $attribute, $operator, implode(', ', array_map(fn ($v) => "'$v'", $value)));
             } else {
-                // Replace placeholders directly
-                $condition = sprintf("%s %s '%s'", $attribute, $operator, $value);
+                $formattedValue = $this->formatValue($value);
+                $condition = sprintf('%s %s %s', $attribute, $operator, $formattedValue);
             }
 
-            // Replace the pattern placeholder
-            $pattern = str_replace((string) ($key + 1), $condition, $pattern);
+            // Use word boundary regex to replace only complete tokens
+            $placeholder = (string) ($key + 1);
+            $pattern = preg_replace('/\b' . preg_quote($placeholder, '/') . '\b/', $condition, $pattern);
+            // This becomes: preg_replace('/\b1\b/', "message_types_id == '572'", "1 or 2")
         }
 
-        // Normalize AND/OR keywords
         $pattern = str_ireplace(['AND', 'OR'], ['and', 'or'], $pattern);
 
         return [
             'expression' => $pattern,
-            'values' => $values, // Values are no longer used in the expression
+            'values' => $values,
         ];
+    }
+
+    /**
+     * Format value for expression based on its type
+     */
+    private function formatValue(string|int|float|bool|null $value): string
+    {
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if ($value === null) {
+            return 'null';
+        }
+
+        $lower = strtolower(trim($value));
+        if ($lower === 'true' || $lower === 'false' || $lower === 'null') {
+            return $lower;
+        }
+
+        if (is_numeric($value)) {
+            return $value;
+        }
+
+        return "'" . addslashes($value) . "'";
     }
 }

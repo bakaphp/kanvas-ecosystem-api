@@ -11,6 +11,8 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Models\PeopleRelationship;
+use Kanvas\Guild\Customers\Models\PeopleType;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadSource;
@@ -71,6 +73,22 @@ class Setup
         'Lost',
     ];
 
+    public array $peopleTypes = [
+        'Participant' => true,
+        'Facilitator' => false,
+        'Contact' => false,
+        'Key Contact' => false,
+        'Employee' => false,
+    ];
+
+    public array $relationshipTypes = [
+        'Participant' => 'Generic participant',
+        'Co-Buyer' => 'Co-buyer on a deal',
+        'Spouse' => 'Spouse or partner',
+        'Guarantor' => 'Guarantor or co-signer',
+        'Reference' => 'Reference contact',
+    ];
+
     public array $addressType = [
         AddressTypeEnum::HOME->value,
         AddressTypeEnum::PREVIOUS_HOME->value,
@@ -113,6 +131,17 @@ class Setup
             ]);
         }
 
+        foreach ($this->peopleTypes as $name => $isDefault) {
+            PeopleType::firstOrCreate([
+                'name' => $name,
+                'companies_id' => $this->company->getId(),
+                'apps_id' => $this->app->getId(),
+            ], [
+                'users_id' => $this->user->getId(),
+                'is_default' => $isDefault,
+            ]);
+        }
+
         foreach ($this->leadSources as $key => $value) {
             LeadSource::firstOrCreate([
                 'name' => $value,
@@ -121,6 +150,16 @@ class Setup
             ], [
                'description' => $value ?? null,
                'leads_types_id' => null,
+            ]);
+        }
+
+        foreach ($this->relationshipTypes as $name => $description) {
+            PeopleRelationship::firstOrCreate([
+                'name' => $name,
+                'companies_id' => $this->company->getId(),
+                'apps_id' => $this->app->getId(),
+            ], [
+                'description' => $description,
             ]);
         }
 

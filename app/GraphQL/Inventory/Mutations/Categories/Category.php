@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Categories;
 
+use Baka\Traits\ResolvesTargetCompanyTrait;
 use Kanvas\Inventory\Categories\Actions\CreateCategory as CreateCategoryAction;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as CategoriesDto;
 use Kanvas\Inventory\Categories\Models\Categories;
@@ -13,6 +14,8 @@ use Kanvas\Languages\Services\Translation as TranslationService;
 
 class Category
 {
+    use ResolvesTargetCompanyTrait;
+
     /**
      * create.
      *
@@ -23,14 +26,18 @@ class Category
 
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        if (! $user->isAppOwner()) {
-            unset($request['companies_id']);
-        }
+        $targetCompaniesId = $this->resolveTargetCompaniesId($user, $request);
 
-        return (new CreateCategoryAction(
+        unset($request['companies_id']);
+
+        $category = (new CreateCategoryAction(
             CategoriesDto::viaRequest($request, $user, $company),
             $user
         ))->execute();
+
+        $this->applyTargetCompaniesId($category, $targetCompaniesId);
+
+        return $category;
     }
 
     /**

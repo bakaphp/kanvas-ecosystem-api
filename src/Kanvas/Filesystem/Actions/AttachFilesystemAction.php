@@ -6,7 +6,7 @@ namespace Kanvas\Filesystem\Actions;
 
 use Baka\Enums\StateEnums;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
-use Illuminate\Database\QueryException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -24,9 +24,9 @@ class AttachFilesystemAction
     ) {
     }
 
-    public function execute(string $fieldName, ?int $id = null): FilesystemEntities
+    public function execute(string $fieldName, ?int $id = null, ?float $weight = 0): FilesystemEntities
     {
-        return DB::connection('ecosystem')->transaction(function () use ($fieldName, $id) {
+        return DB::connection('ecosystem')->transaction(function () use ($fieldName, $id, $weight) {
             $systemModule = SystemModulesRepository::getByModelName($this->entity::class, $this->filesystem->app);
             $update = (int) $id > 0;
             $allowDuplicateFiles = $this->filesystem->app->get(AppSettingsEnums::FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME->getValue());
@@ -66,14 +66,15 @@ class AttachFilesystemAction
                             // and update its filesystem_id
                             $fileEntity = $existingByFieldName;
                             $fileEntity->filesystem_id = $this->filesystem->getKey();
+                            $fileEntity->weight = $weight ?? $fileEntity->weight;
                             $fileEntity->saveOrFail();
                         } else {
                             // No existing record found, create a new one
-                            $fileEntity = $this->createFileEntity($fieldName, $systemModule);
+                            $fileEntity = $this->createFileEntity($fieldName, $systemModule, $weight);
                         }
                     } else {
                         // We allow duplicate files by name, so create a new one
-                        $fileEntity = $this->createFileEntity($fieldName, $systemModule);
+                        $fileEntity = $this->createFileEntity($fieldName, $systemModule, $weight);
                     }
                 }
             }
@@ -103,6 +104,11 @@ class AttachFilesystemAction
                 $needsUpdate = true;
             }
 
+            if ($fileEntity->weight != $weight) {
+                $fileEntity->weight = $weight;
+                $needsUpdate = true;
+            }
+
             // Ensure it's not marked as deleted
             if ($fileEntity->is_deleted == StateEnums::YES->getValue()) {
                 $fileEntity->is_deleted = StateEnums::NO->getValue();
@@ -116,12 +122,30 @@ class AttachFilesystemAction
 
             // Flush cache if method exists
             if (method_exists($fileEntity, 'flushCache')) {
-                $fileEntity->flushCache();
+                //   $fileEntity->flushCache();
             }
 
             // Fire events after successful database operations
             if ($this->entity->hasWorkflow()) {
-                $this->entity->fireWorkflow(WorkflowEnum::ATTACH_FILE->value);
+                $this->entity->fireWorkflow(
+                    WorkflowEnum::ATTACH_FILE->value,
+                    true,
+                    [
+                        'app' => $this->filesystem->app,
+                        'company' => $this->filesystem->company,
+                    ]
+                );
+            }
+
+            if ($fileEntity->hasWorkflow()) {
+                $fileEntity->fireWorkflow(
+                    WorkflowEnum::CREATED->value,
+                    true,
+                    [
+                        'app' => $this->filesystem->app,
+                        'company' => $this->filesystem->company,
+                    ]
+                );
             }
 
             if (method_exists($this->entity, 'clearLightHouseCache')) {
@@ -129,7 +153,11 @@ class AttachFilesystemAction
             }
 
             if (method_exists($this->entity, 'searchable')) {
-                $this->entity->searchable();
+                if ($this->entity->shouldBeSearchable()) {
+                    $this->entity->searchable();
+                } else {
+                    $this->entity->unsearchable();
+                }
             }
 
             return $fileEntity;
@@ -139,34 +167,34 @@ class AttachFilesystemAction
     /**
      * Helper method to create a new file entity with proper error handling
      */
-    private function createFileEntity(string $fieldName, SystemModules $systemModule): FilesystemEntities
+    private function createFileEntity(string $fieldName, SystemModules $systemModule, ?float $weight = 0): FilesystemEntities
     {
         try {
             // Try to create the entity
-            return FilesystemEntities::create([
+            return FilesystemEntities::firstOrCreate([
                 'entity_id' => $this->entity->getKey(),
                 'system_modules_id' => $systemModule->getKey(),
                 'companies_id' => $this->filesystem->companies_id,
                 'filesystem_id' => $this->filesystem->getKey(),
                 'field_name' => $fieldName,
+            ], [
+                'weight' => $weight,
                 'is_deleted' => StateEnums::NO->getValue(),
             ]);
-        } catch (QueryException $e) {
-            // Check if it's a duplicate key error (integrity constraint violation)
-            if ($e->getCode() == 23000) {
-                // Someone else created this record between our check and our insert
-                // Find the record that was created
-                $existingEntity = FilesystemEntities::where([
-                    'filesystem_id' => $this->filesystem->getKey(),
-                    'entity_id' => $this->entity->getKey(),
-                    'companies_id' => $this->filesystem->companies_id,
-                    'system_modules_id' => $systemModule->getKey(),
-                ])->first();
+        } catch (UniqueConstraintViolationException $e) {
+            // Someone else created this record between our check and our insert
+            // Find the record that was created
+            $existingEntity = FilesystemEntities::where([
+                'filesystem_id' => $this->filesystem->getKey(),
+                'entity_id' => $this->entity->getKey(),
+                'companies_id' => $this->filesystem->companies_id,
+                'field_name' => $fieldName,
+                'system_modules_id' => $systemModule->getKey(),
+            ])->first();
 
-                if ($existingEntity) {
-                    // Return the existing entity
-                    return $existingEntity;
-                }
+            if ($existingEntity) {
+                // Return the existing entity
+                return $existingEntity;
             }
 
             // If it's not a duplicate key error or we couldn't find the record, rethrow

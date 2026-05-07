@@ -48,6 +48,7 @@ extend type Query @guard {
                     "uuid"
                     "slug"
                     "parents_id"
+                    "use_import"
                     "created_at"
                     "updated_at"
                     "is_deleted"

@@ -9,7 +9,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemMapper;
-use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\Data;
 

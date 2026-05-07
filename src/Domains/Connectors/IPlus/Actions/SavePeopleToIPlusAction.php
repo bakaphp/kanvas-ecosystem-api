@@ -47,6 +47,12 @@ class SavePeopleToIPlusAction
                 $address->city,
                 $address->state,
             ]))) : null,
+            'eDireccion' => $address ? trim(implode(', ', array_filter([
+                $address->address,
+                $address->address_2,
+                $address->city,
+                $address->state,
+            ]))) : null,
             'codigoPostal' => $address ? $address->zip : null,
             'telCelular' => $this->people->getPhones()->count() ? $this->people->getPhones()->first()->value : null,
             'email' => $this->people->getEmails()->count() ? $this->people->getEmails()->first()->value : null,

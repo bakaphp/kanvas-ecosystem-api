@@ -19,11 +19,13 @@ input AttributeUpdateInput {
 
 input AttributesValueInput {
     value: Mixed!
+    parent_id: ID
 }
 
 input UpdateAttributesValueInput {
     id: ID!
     value: Mixed!
+    parent_id: ID
 }
 
 input AttributeTranslationInput {
@@ -62,6 +64,8 @@ type AttributesValue {
             resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
         )
     value: Mixed
+    parent_id: ID
+    has_children: Boolean
 }
 
 type AttributeTranslation {
@@ -120,6 +124,14 @@ extend type Query @guard {
         @paginate(
             defaultCount: 25
             model: "Kanvas\\Inventory\\Attributes\\Models\\Attributes"
-            scopes: ["fromApp", "fromCompany"]
+            scopes: ["fromApp", "fromCompanyAndGlobal"]
+        )
+    attributeValues(
+        where: _ @whereConditions(columns: ["id", "attributes_id", "parent_id", "has_children"])
+        orderBy: _ @orderBy(columns: ["id", "value"])
+    ): [AttributesValue!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Inventory\\Builders\\Attributes\\AttributeValuesBuilder@getAttributeValues"
         )
 }

@@ -153,6 +153,42 @@ class LeadTest extends TestCase
         ]);
     }
 
+    public function testCreateLeadWithoutPeopleContacts(): void
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $title = fake()->title();
+
+        $input = [
+            'branch_id' => $branch->getId(),
+            'title' => $title,
+            'pipeline_stage_id' => 0,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'custom_fields' => [],
+            ],
+            'custom_fields' => [],
+        ];
+
+        $this->graphQL('
+            mutation($input: LeadInput!) {
+                createLead(input: $input) {
+                    id
+                    title
+                    people {
+                        firstname
+                        lastname
+                    }
+                }
+            }
+        ', [
+            'input' => $input,
+        ])->assertJsonPath('data.createLead.title', $title)
+            ->assertJsonPath('data.createLead.people.firstname', $input['people']['firstname'])
+            ->assertJsonPath('data.createLead.people.lastname', $input['people']['lastname']);
+    }
+
     public function testWonLead()
     {
         $user = auth()->user();
@@ -488,6 +524,71 @@ class LeadTest extends TestCase
                 'updateLead' => [
                     'id' => $leadId,
                     'title' => $title,
+                ],
+            ],
+        ]);
+    }
+
+    public function testUpdateLeadWithoutTitle()
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+
+        $input = [
+            'branch_id' => $branch->getId(),
+            'title' => 'Original Title ' . fake()->word(),
+            'pipeline_stage_id' => 0,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                ],
+                'address' => [
+                    [
+                        'address' => fake()->address(),
+                        'city' => fake()->city(),
+                        'state' => fake()->state(),
+                        'country' => fake()->country(),
+                        'zip' => fake()->postcode(),
+                    ],
+                ],
+            ],
+            'custom_fields' => [],
+            'files' => [],
+        ];
+
+        $response = $this->createLeadAndGetResponse($input);
+        $leadId = $response['data']['createLead']['id'];
+        $peopleId = $response['data']['createLead']['people']['id'];
+
+        $updateInput = [
+            'branch_id' => $branch->getId(),
+            'people_id' => $peopleId,
+            'custom_fields' => [],
+            'files' => [],
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: LeadUpdateInput!) {
+                updateLead(id: $id, input: $input) {
+                    id
+                    title
+                }
+            }
+        ', [
+            'id' => $leadId,
+            'input' => $updateInput,
+        ])->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateLead' => [
+                    'id' => $leadId,
+                    'title' => $input['title'],
                 ],
             ],
         ]);
@@ -851,7 +952,7 @@ class LeadTest extends TestCase
         )->assertJson([
             'data' => [
                 'createMessage' => [
-                    'message' => json_encode($lead['data']['createLead']),
+                    'message' => $lead['data']['createLead'],
                 ],
             ],
         ]);

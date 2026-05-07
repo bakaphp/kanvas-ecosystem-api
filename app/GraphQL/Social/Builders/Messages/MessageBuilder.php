@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Builders\Messages;
 
-use Algolia\AlgoliaSearch\SearchClient;
+use Algolia\AlgoliaSearch\Api\SearchClient;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
@@ -61,11 +61,10 @@ class MessageBuilder
                     $q->where('slug', $slug);
                 });
             }
+        }
 
-            $messageCacheTime = (int) $app->get('message_tags_cache_time');
-            if ($messageCacheTime > 0) {
-                $query->cacheFor($messageCacheTime);
-            }
+        if (isset($args['random']) && $args['random'] === true) {
+            $query->inRandomOrder();
         }
 
         //Check in this condition if the message is an item and if then check if it has been bought by the current user via status=completed on Order
@@ -192,10 +191,13 @@ class MessageBuilder
 
         $messageTypeId = $app->get('social-user-message-filter-message-type');
 
-        return UserMessage::getUserMessageFollowingFeed($user, $app)->when(
+        //return UserMessage::getUserMessageFollowingFeed($user, $app)->when( should be using this one but need to check events
+        return UserMessage::getFollowingFeed($user, $app)->when(
             $messageTypeId !== null,
             function ($query) use ($messageTypeId) {
-                return $query->where('messages.message_types_id', $messageTypeId);
+                return $query->where('messages.message_types_id', $messageTypeId)
+                        ->where('messages.is_public', 1)
+                        ->where('messages.is_deleted', 0);
             }
         );
     }
@@ -210,16 +212,22 @@ class MessageBuilder
             throw new InvalidArgumentException('Provide only one of channel_uuid or channel_slug, not both.');
         }
 
+        $app = app(Apps::class);
+        $allowAppWide = (bool) $app->get(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value);
+        $user = auth()->user();
+
         return Message::fromApp()
-            ->whereHas('channels', function ($query) use ($args) {
+            ->where('is_deleted', 0)
+            ->whereHas('channels', function (Builder $query) use ($args): void {
+                $query->where('channels.is_deleted', 0);
                 if (isset($args['channel_uuid'])) {
                     $query->where('channels.uuid', $args['channel_uuid']);
                 } elseif (isset($args['channel_slug'])) {
                     $query->where('channels.slug', $args['channel_slug']);
                 }
             })
-            ->when(! auth()->user()->isAdmin(), function ($query) {
-                $query->where('companies_id', auth()->user()->currentCompanyId());
+            ->when(! $allowAppWide && ! $user->isAdmin(), function (Builder $query) use ($user): void {
+                $query->where('companies_id', $user->currentCompanyId());
             });
     }
 
@@ -256,12 +264,15 @@ class MessageBuilder
             return ['error' => 'No index for message suggestion configure in your app'];
         }
 
-        $index = $client->initIndex($app->get($suggestionIndex));
-
-        $results = $index->search($args['search'], [
-            'hitsPerPage' => 15,
-            'attributesToRetrieve' => ['name', 'description'],
-        ]);
+        $results = $client->searchSingleIndex(
+            $app->get($suggestionIndex),
+            [
+                'query' => $args['search'],
+                'hitsPerPage' => 15,
+                'attributesToRetrieve' => ['name', 'description'],
+                'filters' => 'is_public = 1 AND is_deleted = 0',
+            ]
+        );
 
         return $results['hits'];
     }

@@ -6,8 +6,11 @@ namespace Kanvas\Guild\Pipelines\Models;
 
 use Baka\Traits\SlugTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
+use Kanvas\Guild\Pipelines\Enums\PipelineEnum;
+use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 
 /**
  * Class Pipeline.
@@ -34,12 +37,24 @@ class Pipeline extends BaseModel
 
     public function stages(): HasMany
     {
-        return $this->hasMany(PipelineStage::class, 'pipelines_id', 'id')->orderBy('weight', 'ASC');
+        return $this->hasMany(PipelineStage::class, 'pipelines_id', 'id')
+            ->orderBy('weight', 'ASC');
+    }
+
+    public function firstStage(): HasOne
+    {
+        return $this->hasOne(PipelineStage::class, 'pipelines_id', 'id')
+            ->orderBy('weight', 'ASC');
     }
 
     public function leads(): HasMany
     {
         return $this->hasMany(Lead::class, 'pipeline_id', 'id');
+    }
+
+    public function followUps(): HasMany
+    {
+        return $this->hasMany(FollowUp::class, 'pipelines_id', 'id');
     }
 
     public function switchDefaultPipeline(): void
@@ -55,5 +70,10 @@ class Pipeline extends BaseModel
     public function isDefault(): bool
     {
         return (bool) $this->is_default;
+    }
+
+    public function getStageCountAttribute(): int
+    {
+        return $this->get(PipelineEnum::STAGE_COUNTER->value) ?? 0;
     }
 }

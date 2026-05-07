@@ -5,17 +5,27 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\Observers\EventVersionObserver;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Event\Participants\Models\ParticipantType;
+use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Follows\Traits\FollowersTrait;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Override;
 use Spatie\LaravelData\DataCollection;
 
 #[ObservedBy([EventVersionObserver::class])]
@@ -24,15 +34,31 @@ class EventVersion extends BaseModel
     use UuidTrait;
     use SlugTrait;
     use CanUseWorkflow;
+    use FollowersTrait;
+    use HasTagsTrait;
+    use HasLightHouseCache;
 
     protected $table = 'event_versions';
     protected $guarded = [];
 
-    protected $is_deleted;
-
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
+    }
+
+    public function eventStatus(): BelongsTo
+    {
+        return $this->belongsTo(EventStatus::class);
+    }
+
+    public function timeSlot(): BelongsTo
+    {
+        return $this->belongsTo(TimeSlots::class, 'time_slot_id');
+    }
+
+    public function currency(): BelongsTo
+    {
+        return $this->belongsTo(Currencies::class, 'currency_id');
     }
 
     public function dates(): HasMany
@@ -40,23 +66,31 @@ class EventVersion extends BaseModel
         return $this->hasMany(EventVersionDate::class);
     }
 
-    public function participants(): HasManyThrough
+    public function participants(): BelongsToMany
     {
-        return $this->hasManyThrough(
-            Participant::class,
-            EventVersionParticipant::class,
-            'event_version_id',
-            'id',
-            'id',
-            'participant_id'
-        );
+        return $this->belongsToMany(Participant::class, 'event_version_participants')
+        ->withPivot(['ticket_price', 'discount', 'invoice_date', 'metadata', 'participant_type_id'])
+        ->withTimestamps();
     }
 
+    public function eventVersionParticipants(): HasMany
+    {
+        return $this->hasMany(EventVersionParticipant::class, 'event_version_id');
+    }
+
+    public function reminders(): HasMany
+    {
+        return $this->hasMany(EventReminder::class, 'event_version_id');
+    }
+
+    #[Override]
     protected function casts(): array
     {
         return [
             'metadata' => Json::class,
             'agenda' => Json::class,
+            'start_at' => 'datetime',
+            'end_at' => 'datetime',
         ];
     }
 
@@ -79,9 +113,17 @@ class EventVersion extends BaseModel
 
     public function addParticipant(Participant $participant): EventVersionParticipant
     {
+        $defaultParticipantType = ParticipantType::fromApp($this->app)->first();
+
         $participantType = ParticipantType::fromApp($this->app)
             ->fromCompany($this->company)
-            ->where('name', 'Attendee')->firstOrFail();
+            ->firstOrCreate(
+                ['name' => 'Attendee'],
+                [
+                    'name' => 'Attendee',
+                    'users_id' => $defaultParticipantType->users_id,
+                ]
+            );
 
         $eventVersionParticipant = EventVersionParticipant::withTrashed() // includes soft-deleted records
             ->where('event_version_id', $this->getId())
@@ -132,5 +174,52 @@ class EventVersion extends BaseModel
     {
         $this->total_attendees--;
         $this->saveOrFail();
+    }
+
+    public function getStringIdAttribute(): string
+    {
+        return (string) $this->id;
+    }
+
+    public function socialChannels(): HasMany
+    {
+        return $this->hasMany(Channel::class, 'entity_id', 'string_id')
+            ->whereIn(
+                'entity_namespace',
+                [
+                    self::class,
+                    SystemModules::getLegacyNamespace(self::class),
+                ],
+            )
+            ->where('is_deleted', 0);
+    }
+
+    public function notes(): HasOne
+    {
+        return $this->hasOne(Channel::class, 'entity_id', 'string_id')
+            ->where('entity_namespace', self::class)
+            ->where('name', ChannelNameEnum::NOTES->value);
+    }
+
+    public function aiSession(): HasMany
+    {
+        return $this->hasMany(Session::class, 'entity_id', 'string_id')
+            ->where('entity_namespace', self::class);
+    }
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'EventVersion';
+    }
+
+    public function getMaxCapacity(): ?int
+    {
+        $metadata = $this->metadata;
+        if (! is_array($metadata)) {
+            return null;
+        }
+
+        return isset($metadata['max_capacity']) ? (int) $metadata['max_capacity'] : null;
     }
 }

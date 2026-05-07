@@ -85,7 +85,7 @@ class Contact
         $data['DealerId'] = $dealer->id;
         $data['UserId'] = $user->id;
 
-        if (isset($data['ContactInformation']['Phones'])) {
+        if (isset($data['ContactInformation']['Phones'][0])) {
             $data['ContactInformation']['Phones'][0]['Number'] = Str::limit(
                 preg_replace('/[^0-9]/', '', $data['ContactInformation']['Phones'][0]['Number']),
                 10,

@@ -42,12 +42,22 @@ class AssignCompanyAction
     public function execute(): void
     {
         $app = $this->app;
+        $userSetCompanySetting = false;
+
         if (! $this->user->get(Companies::cacheKey())) {
             $this->user->set(Companies::cacheKey(), $this->company->id);
+            $this->user->default_company = $this->company->id;
+            $userSetCompanySetting = true;
         }
 
         if (! $this->user->get($this->company->branchCacheKey())) {
             $this->user->set($this->company->branchCacheKey(), $this->branch->id);
+            $this->user->default_company_branch = $this->branch->id;
+            $userSetCompanySetting = true;
+        }
+
+        if ($userSetCompanySetting) {
+            $this->user->saveOrFail();
         }
 
         $this->company->associateUser(

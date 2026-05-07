@@ -12,6 +12,7 @@ use NetSuite\Classes\GetRequest;
 use NetSuite\Classes\InventoryItem;
 use NetSuite\Classes\ItemSearch;
 use NetSuite\Classes\ItemSearchBasic;
+use NetSuite\Classes\ItemSearchRow;
 use NetSuite\Classes\RecordRef;
 use NetSuite\Classes\RecordType;
 use NetSuite\Classes\SearchRequest;
@@ -20,13 +21,13 @@ use NetSuite\NetSuiteService;
 
 class NetSuiteProductService
 {
-    protected NetSuiteService $service;
+    protected Client $client;
 
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company
     ) {
-        $this->service = (new Client($app, $company))->getService();
+        $this->client = new Client($app, $company);
     }
 
     /**
@@ -41,13 +42,15 @@ class NetSuiteProductService
         $getRequest = new GetRequest();
         $getRequest->baseRef = $productRef;
 
-        $response = $this->service->get($getRequest);
+        return $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($getRequest) {
+            $response = $service->get($getRequest);
 
-        if ($response->readResponse->status->isSuccess) {
-            return $response->readResponse->record;
-        }
+            if ($response->readResponse->status->isSuccess) {
+                return $response->readResponse->record;
+            }
 
-        throw new Exception('Error retrieving product: ' . $response->readResponse->status->statusDetail[0]->message);
+            throw new Exception('Error retrieving product: ' . $response->readResponse->status->statusDetail[0]->message);
+        });
     }
 
     public function getInventoryQuantityByLocation(InventoryItem $product, int|string $locationId): int
@@ -58,8 +61,30 @@ class NetSuiteProductService
 
         foreach ($product->locationsList->locations as $assignment) {
             if ($assignment->location == $locationId) {
-                return (int)$assignment->quantityOnHand;
+                return (int)$assignment->quantityAvailable;
             }
+        }
+
+        throw new Exception('Inventory quantity not found for the specified location.');
+    }
+
+    public function getInventoryQuantityFromSearch(ItemSearchRow $product, int|string $locationId): int
+    {
+        if (! isset($product->basic->inventoryLocation)) {
+            throw new Exception('Inventory locations not found for the specified product.');
+        }
+
+        $inventoryIndex = null;
+
+        foreach ($product->basic->inventoryLocation as $index => $assignment) {
+            if ($assignment->searchValue->internalId == $locationId) {
+                $inventoryIndex = $index;
+                break;
+            }
+        }
+
+        if ($inventoryIndex !== null && isset($product->basic->locationQuantityAvailable[$inventoryIndex])) {
+            return (int)$product->basic->locationQuantityAvailable[$inventoryIndex]->searchValue;
         }
 
         throw new Exception('Inventory quantity not found for the specified location.');
@@ -133,6 +158,17 @@ class NetSuiteProductService
     }
 
     /**
+     * Search for products by item number using saved search.
+     *
+     * @deprecated Use NetSuiteProductSearchService::searchProductByItemNumberFromSavedSearch instead
+     */
+    public function searchProductByItemNumberFromSearch(string|int $itemNumber): array
+    {
+        $searchService = new NetSuiteProductSearchService($this->app, $this->company);
+        return $searchService->searchProductByItemNumberFromSavedSearch($itemNumber);
+    }
+
+    /**
      * Search for products by SKU.
      */
     public function searchProductBySKU(string $sku): array
@@ -159,20 +195,22 @@ class NetSuiteProductService
         $searchRequest = new SearchRequest();
         $searchRequest->searchRecord = $search;
 
-        $response = $this->service->search($searchRequest);
+        return $this->client->executeWithRateLimit(function (NetSuiteService $service) use ($searchRequest) {
+            $response = $service->search($searchRequest);
 
-        if (! $response->searchResult->status->isSuccess) {
-            throw new Exception('Error searching products: ' . $response->searchResult->status->statusDetail[0]->message);
-        }
-
-        $products = [];
-        if (isset($response->searchResult->recordList->record)) {
-            foreach ($response->searchResult->recordList->record as $record) {
-                $products[] = $record;
+            if (! $response->searchResult->status->isSuccess) {
+                throw new Exception('Error searching products: ' . $response->searchResult->status->statusDetail[0]->message);
             }
-        }
 
-        return $products;
+            $products = [];
+            if (isset($response->searchResult->recordList->record)) {
+                foreach ($response->searchResult->recordList->record as $record) {
+                    $products[] = $record;
+                }
+            }
+
+            return $products;
+        });
     }
 
     public function pullNetsuiteProductsSku(array $barcodeList): array

@@ -13,7 +13,9 @@ use Kanvas\Connectors\Elead\DataTransferObject\TradeIn;
 use Kanvas\Connectors\Elead\DataTransferObject\Vehicle;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Exceptions\ELeadException;
+use Kanvas\Connectors\Elead\Support\EleadCache;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Kanvas\Guild\Leads\Models\LeadSource;
 
 class Lead
 {
@@ -21,6 +23,7 @@ class Lead
     public ?string $customerId = null;
     public ?string $dateIn = null;
     public ?string $source = null;
+    public ?string $subSource = null;
     public ?string $status = null;
     public ?string $subStatus = null;
     public ?string $upType = null;
@@ -28,6 +31,8 @@ class Lead
     public array $tradeIns = [];
     public array $address = [];
     public array $salesTeam = [];
+    public array|object|null $customer = null;
+    public array $links = [];
     public ?Companies $company = null;
     public ?AppInterface $app = null;
     public static array $defaultLeadType = ['Unknown', 'Campaign', 'Internet', 'Phone', 'Showroom'];
@@ -65,14 +70,23 @@ class Lead
 
         $date = $lead->created_at->setTimezone('America/New_York');
         $dateFormat = str_replace('-04:00', '.402Z', $date->format('c'));
+        $hasLeadSource = is_object($lead->source) && $lead->source->name && ! empty($lead->source->description);
+        $leadSourceName = $hasLeadSource ? $lead->source->name : 'Lead Link';
+        $leadUpType = $hasLeadSource ? $lead->source->description : 'Internet';
+
+        //hotfix source mismatch
+        if ($hasLeadSource && $lead->type()->first()?->name !== $lead->source->description) {
+            $leadUpType = $lead->type()->first()?->name ?? 'Internet';
+            $leadSourceName = LeadSource::fromCompany($lead->company)->where('is_active', 1)->where('description', $leadUpType)->first()?->name ?? 'Lead Link';
+        }
 
         $opportunityData = [
             'customerId' => $customerId,
             // 'dateIn' => self::currentDateIn(),
-            'source' => is_object($lead->source) && $lead->source->name && ! empty($lead->source->description) ? $lead->source->name : 'Lead Link',
+            'source' => $leadSourceName,
             'status' => $lead->leads_status && strtolower($lead->leads_status->name) == 'inactive' ? 'Inactive' : 'Active', //$lead->leads_status->name,
             'subStatus' => 'Unknown', //change
-            'upType' => is_object($lead->source) && $lead->source->name && ! empty($lead->source->description) ? $lead->source->description : 'Internet', // !in_array($lead->type->name, self::$defaultLeadType) ? self::$defaultLeadType[1] : $lead->type->name, //source and type are tied in together
+            'upType' => $leadSourceName !== 'Lead Link' ? $leadUpType : 'Internet',
         ];
 
         if ($lead->owner
@@ -117,6 +131,12 @@ class Lead
      */
     public function addComment(string $comment): void
     {
+        // Normalize the text
+        $comment = html_entity_decode($comment, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        // Replace any remaining problematic characters
+        $comment = mb_convert_encoding($comment, 'UTF-8', 'auto');
+
         $client = new Client($this->app, $this->company);
         $client->post(
             '/sales/v2/elead/opportunities/comment',
@@ -216,12 +236,36 @@ class Lead
     /**
      * Get Lead by lead ID.
      */
-    public static function getById(AppInterface $app, Companies $company, string $id): self
-    {
+    public static function getById(
+        AppInterface $app,
+        Companies $company,
+        string $id,
+        bool $fresh = false
+    ): self {
+        $cache = new EleadCache($app, $company);
+
+        if (! $fresh) {
+            $cached = $cache->get('lead', $id);
+
+            if ($cached !== null) {
+                $lead = new Lead();
+                $lead->company = $company;
+                $lead->app = $app;
+                if (isset($cached['customer']['id'])) {
+                    $lead->customerId = $cached['customer']['id'];
+                }
+                $lead->assign($cached);
+
+                return $lead;
+            }
+        }
+
         $client = new Client($app, $company);
         $response = $client->get(
             '/sales/v2/elead/opportunities/' . $id,
         );
+
+        $cache->set('lead', $id, $response);
 
         $lead = new Lead();
         $lead->company = $company;

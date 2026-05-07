@@ -18,8 +18,6 @@ use Throwable;
 use Webleit\ZohoCrmApi\Exception\ApiError;
 use Webleit\ZohoCrmApi\Modules\Leads as ZohoLeadModule;
 
-use function Sentry\captureException;
-
 class SyncLeadToZohoAction
 {
     public function __construct(
@@ -58,7 +56,9 @@ class SyncLeadToZohoAction
                     $zohoData['Owner'] = $lead->owner->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value) ?? $company->get(CustomFieldEnum::DEFAULT_OWNER->value);
                 }
 
-                $zohoData['Lead_Status'] = 'New Lead';
+                if (! isset($zohoData['Lead_Status'])) {
+                    $zohoData['Lead_Status'] = 'New Lead';
+                }
                 $organization = $lead->organization;
                 if ($organization) {
                     $zohoData['Company'] = $organization->name;
@@ -81,7 +81,7 @@ class SyncLeadToZohoAction
                             'message' => (string) $e->response()->getBody(),
                         ]);
 
-                        captureException($e);
+                        report($e);
                     });
                 }
             } else {
@@ -188,11 +188,37 @@ class SyncLeadToZohoAction
     protected function uploadAttachments(ZohoLeadModule $zohoLead, Lead $lead): void
     {
         $lead->load('files');
-        if (! $lead->files()->count()) {
+        $attachmentString = $lead->get('Attachments');
+        $attachments = $attachmentString ? explode(',', $attachmentString) : [];
+
+        if (! $lead->files()->count() && empty($attachments)) {
             return;
         }
 
         $syncFiles = $lead->get(CustomFieldEnum::ZOHO_LEAD_SYNC_FILES->value) ?? [];
+
+        if (! empty($attachments) && is_array($attachments)) {
+            foreach ($attachments as $attachment) {
+                $attachment = trim($attachment);
+
+                if (empty($attachment)) {
+                    continue;
+                }
+
+                try {
+                    $fileContent = file_get_contents($attachment);
+                    $fileName = basename(parse_url($attachment, PHP_URL_PATH)) ?: 'attachment_' . uniqid();
+
+                    $zohoLead->uploadAttachment(
+                        (string) $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value),
+                        $fileName,
+                        $fileContent
+                    );
+                } catch (Throwable $e) {
+                    report($e);
+                }
+            }
+        }
 
         foreach ($lead->files()->get() as $file) {
             if (isset($syncFiles[$file->id])) {

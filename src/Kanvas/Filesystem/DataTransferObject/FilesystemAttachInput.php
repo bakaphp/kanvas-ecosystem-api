@@ -13,6 +13,7 @@ class FilesystemAttachInput extends Data
         public string $fieldName,
         public string $systemModuleUuid,
         public string $entityId,
+        public float $weight = 0,
     ) {
     }
 
@@ -22,7 +23,8 @@ class FilesystemAttachInput extends Data
             $data['filesystem_uuid'],
             $data['field_name'],
             $data['system_module_uuid'],
-            $data['entity_id']
+            $data['entity_id'],
+            $data['weight'] ?? 0
         );
     }
 }

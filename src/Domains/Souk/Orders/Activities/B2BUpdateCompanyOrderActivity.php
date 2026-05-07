@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Orders\Activities;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Actions\SendUserNotificationAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -27,6 +28,8 @@ class B2BUpdateCompanyOrderActivity extends KanvasActivity
 
                 sleep(30);
 
+                $order->refresh();
+
                 if ($orderCompany->getId() !== $userCompany->getId()) {
                     // Check for conflict
                     $conflict = Order::fromApp($app)
@@ -44,6 +47,15 @@ class B2BUpdateCompanyOrderActivity extends KanvasActivity
                     }
 
                     $order->updateOrFail();
+                    $order->refresh();
+
+                    new SendUserNotificationAction(
+                        $order->app,
+                        $order->company,
+                        $order->user
+                    )->execute('admin-new-order', [
+                        'order' => $order,
+                    ]);
 
                     return [
                         'result' => true,

@@ -109,7 +109,7 @@ class MessageTypeTest extends TestCase
             '
                 mutation createMessageType(
                     $input: CreateMessageTypeInput!
-                ) 
+                )
                 {
                     createMessageType(input: $input) {
                         id
@@ -140,6 +140,70 @@ class MessageTypeTest extends TestCase
             '
         )->assertSee([
             $name,
+        ]);
+    }
+
+    public function testDeleteMessageType()
+    {
+        $language = Languages::factory()->create();
+        $name = fake()->name();
+        $createResponse = $this->graphQL(/** @lang GRAPHQL */
+            '
+                mutation createMessageType($input: CreateMessageTypeInput!) {
+                    createMessageType(input: $input) {
+                        id
+                        name
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'name' => $name,
+                    'languages_id' => $language->id,
+                    'verb' => 'test-delete-' . $name,
+                    'template' => '<fake>',
+                    'templates_plura' => '<fake>',
+                ],
+            ]
+        )->assertSuccessful();
+
+        $id = $createResponse->json('data.createMessageType.id');
+
+        $this->graphQL(/** @lang GRAPHQL */
+            '
+                mutation deleteMessageType($id: ID!) {
+                    deleteMessageType(id: $id)
+                }
+            ',
+            ['id' => $id]
+        )->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'deleteMessageType' => true,
+            ],
+        ]);
+    }
+
+    public function testCannotDeleteMessageTypeInUse()
+    {
+        $app = app(\Kanvas\Apps\Models\Apps::class);
+        $messageType = \Kanvas\Social\MessagesTypes\Models\MessageType::fromApp($app)
+            ->whereHas('messages')
+            ->first();
+
+        if (! $messageType) {
+            $this->markTestSkipped('No message type with messages found to test deletion prevention');
+        }
+
+        $this->graphQL(/** @lang GRAPHQL */
+            '
+                mutation deleteMessageType($id: ID!) {
+                    deleteMessageType(id: $id)
+                }
+            ',
+            ['id' => $messageType->id]
+        )->assertJsonFragment([
+            'message' => 'Cannot delete a message type that has been used by messages',
         ]);
     }
 }

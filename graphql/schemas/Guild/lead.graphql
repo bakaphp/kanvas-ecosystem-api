@@ -1,28 +1,32 @@
 type Lead {
     id: ID!
     uuid: String!
-    company: Company! @belongsTo (relation: "company")
-    branch: CompanyBranch! @belongsTo (relation: "branch")
-    title: String!
+    company: Company! @belongsTo(relation: "company")
+    branch: CompanyBranch! @belongsTo(relation: "branch")
+    title: String
     people: People
-    user: User @belongsTo (relation: "user")
-    owner: User @belongsTo (relation: "owner")
-    organization: Organization @belongsTo (relation: "organization")
-    receiver: LeadReceiver @belongsTo (relation: "receiver")
-    status: LeadStatus @belongsTo (relation: "status")
-    type: LeadType @belongsTo (relation: "type")
-    source: LeadSource @belongsTo (relation: "source")
+    user: User @belongsTo(relation: "user")
+    owner: User @belongsTo(relation: "owner")
+    organization: Organization @belongsTo(relation: "organization")
+    receiver: LeadReceiver @belongsTo(relation: "receiver")
+    status: LeadStatus @belongsTo(relation: "status")
+    type: LeadType @belongsTo(relation: "type")
+    source: LeadSource @belongsTo(relation: "source")
+    subSource: LeadSubSource @belongsTo(relation: "subSource")
     firstname: String
     lastname: String
     email: String
     phone: String
     description: String
     reason_lost: String
-    pipeline: LeadPipeline @belongsTo (relation: "pipeline")
+    pipeline: LeadPipeline @belongsTo(relation: "pipeline")
     stage: LeadPipelineStage @belongsTo(relation: "stage")
     participants: [LeadsParticipants!]! @hasMany(relation: "participants")
     channels: [SocialChannel]! @hasMany(relation: "socialChannels")
     systemModule: SystemModule @belongsTo(relation: "systemModule")
+    events: [Event!]! @morphToMany(relation: "events")
+    ai_session: [AIAgentSession!]!
+        @hasMany(relation: "aiSession", type: PAGINATOR)
     tags: [Tag!]
         @paginate(
             defaultCount: 25
@@ -33,6 +37,13 @@ type Lead {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    channel_files(
+        includeParticipants: Boolean = true
+        groupByAction: Boolean = true
+    ): LeadChannelFilesViewer!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Queries\\Leads\\LeadChannelFilesQuery@getChannelFiles"
         )
     followers: [User!]!
         @paginate(
@@ -48,15 +59,47 @@ type Lead {
     updated_at: DateTime!
 }
 
+type LeadChannelFilesViewer {
+    total_groups: Int!
+    groups: [LeadChannelFileGroup!]!
+}
+
+type LeadChannelFileGroup {
+    id: ID!
+    uuid: String!
+    action: String!
+    verb: String
+    status: String!
+    participant_name: String
+    created_at: DateTime!
+    last_message_at: DateTime!
+    files: [LeadChannelFile!]!
+    metadata: Mixed
+}
+
+type LeadChannelFile {
+    id: ID!
+    name: String!
+    url: String!
+    file_type: String
+    size: Int
+    field_name: String
+    verification_status: String
+    verification_message: String
+    attributes: Mixed
+}
+
 type LeadsParticipants {
     people: People! @belongsTo(relation: "people")
     relationship: PeopleRelationship @belongsTo(relation: "type")
 }
+
 type Rotation {
     id: ID!
     users_id: ID!
     companies_id: ID!
 }
+
 type LeadReceiver {
     id: ID!
     uuid: String!
@@ -111,6 +154,7 @@ input LeadInput {
     status_id: ID
     type_id: ID
     source_id: ID
+    sub_source_id: ID
     description: String
     reason_lost: String
     pipeline_stage_id: ID!
@@ -119,7 +163,7 @@ input LeadInput {
 }
 
 input LeadUpdateInput {
-    branch_id: ID!
+    branch_id: ID
     title: String
     people_id: ID!
     leads_owner_id: ID
@@ -128,6 +172,7 @@ input LeadUpdateInput {
     status_id: ID
     type_id: ID
     source_id: ID
+    sub_source_id: ID
     description: String
     reason_lost: String
     pipeline_stage_id: ID
@@ -204,6 +249,7 @@ extend type Query @guard {
                     "id"
                     "uuid"
                     "companies_id"
+                    "users_id"
                     "companies_branches_id"
                     "leads_receivers_id"
                     "leads_owner_id"
@@ -216,6 +262,7 @@ extend type Query @guard {
                     "people_id"
                     "lead_types_id"
                     "status"
+                    "created_at"
                 ]
             )
         hasCustomFields: _
@@ -265,4 +312,24 @@ extend type Query @guard {
         @paginate(
             builder: "App\\GraphQL\\Guild\\Builders\\Leads\\DashboardBuilder@getCompanyInfo"
         )
+
+    leadAnalytics(
+        from: Date
+        to: Date
+        bucket: AnalyticsBucket = WEEK
+        timezone: String
+        pipeline_id: ID
+    ): LeadAnalytics!
+        @field(
+            resolver: "App\\GraphQL\\Analytics\\Queries\\LeadAnalyticsQuery"
+        )
+}
+
+type LeadAnalytics {
+    periods: [AnalyticsPoint!]!
+    total: Int!
+    by_status: [AnalyticsCategoryPoint!]!
+    by_source: [AnalyticsCategoryPoint!]!
+    by_pipeline: [AnalyticsCategoryPoint!]!
+    by_user: [AnalyticsCategoryPoint!]!
 }

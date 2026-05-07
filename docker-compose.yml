@@ -29,10 +29,10 @@ services:
             dockerfile: development.Dockerfile
         extra_hosts:
             - "host.docker.internal:host-gateway"
-        # command:
-            # - "sh"
-            # - "-c"
-            # - "php artisan octane:start --server=swoole --task-workers=10 --workers=8"
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan octane:start --server=swoole --task-workers=10 --workers=8 --watch"
         environment:
             WWWUSER: "${WWWUSER}"
             LARAVEL_SAIL: 1
@@ -58,6 +58,20 @@ services:
             - "sh"
             - "-c"
             - "php artisan config:cache && php artisan queue:work --queue=batch-logger --tries=3 --timeout=3750"
+    openclaw-queue:
+        <<: *common-queue-settings
+        container_name: openclaw-queue
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && php artisan queue:work --queue=openclaw --tries=3 --timeout=3750"
+    ledger-queue:
+        <<: *common-queue-settings
+        container_name: ledger-queue
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && php artisan queue:work --queue=ledger --tries=3 --timeout=3750"
 
     nginx:
         image: nginx:latest

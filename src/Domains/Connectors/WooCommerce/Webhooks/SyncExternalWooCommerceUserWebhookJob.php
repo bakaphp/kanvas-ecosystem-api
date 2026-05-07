@@ -131,6 +131,10 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
         $user->phone_number = $userData['phone_number'] ?? $user->phone_number;
         $user->cell_phone_number = $userData['cell_phone_number'] ?? $user->cell_phone_number;
 
+        if (! empty($userData['password']) && isset($userData['action']) && $userData['action'] === 'profile_form_password_update') {
+            $user->password = $userData['password'];
+        }
+
         if (! empty($userData['custom_fields'])) {
             $user->setAll($userData['custom_fields']);
         }

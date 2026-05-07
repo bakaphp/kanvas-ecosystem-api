@@ -4,16 +4,23 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\Event\Events\Actions\ResourceScheduleValidator;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\DataTransferObject\Order;
 use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
+use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
 use Kanvas\Souk\Orders\Notifications\NewOrderStoreOwnerNotification;
+use Kanvas\Souk\Orders\Validations\DuplicatedMetadata;
 use Kanvas\Souk\Orders\Validations\UniqueOrderNumber;
 use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
 use Kanvas\Users\Services\UserRoleNotificationService;
@@ -30,6 +37,8 @@ class CreateOrderAction
 
     public function execute(): ModelsOrder
     {
+        $this->validateSlotAvailability();
+
         $orderId = DB::connection('commerce')->transaction(function () {
             // Lock the table for uniqueness check
             $existingOrder = ModelsOrder::where([
@@ -44,13 +53,28 @@ class CreateOrderAction
 
             // Additional validation
             $validator = Validator::make(
-                ['order_number' => $this->orderData->orderNumber],
-                ['order_number' => new UniqueOrderNumber($this->orderData->app, $this->orderData->company, $this->orderData->region)]
+                [
+                    'order_number' => $this->orderData->orderNumber,
+                    'metadata' => $this->orderData->metadata,
+                ],
+                [
+                    'order_number' => new UniqueOrderNumber($this->orderData->app, $this->orderData->company, $this->orderData->region),
+                    'metadata' => new DuplicatedMetadata(
+                        $this->orderData->app,
+                        $this->orderData->company,
+                        $this->orderData->app->get(ConfigurationEnum::VALIDATE_METADATA_DUPLICATED_ENABLED->value) ? $this->resolveOrderType() : null,
+                    ),
+                ]
             );
 
             if ($validator->fails()) {
                 throw new ValidationException($validator->messages()->__toString());
             }
+
+            // Validate product companies are active
+            new ValidateProductCompaniesAction($this->orderData->items)->execute();
+
+            $this->validateScheduleAvailability();
 
             $order = new ModelsOrder();
             $order->apps_id = $this->orderData->app->getId();
@@ -69,6 +93,7 @@ class CreateOrderAction
             $order->shipping_price_gross_amount = $this->orderData->totalShipping;
             $order->shipping_price_net_amount = $this->orderData->totalShipping;
             $order->discount_amount = $this->orderData->totalDiscount;
+            $order->tax_amount = $this->orderData->taxes;
             $order->status = $this->orderData->status;
             $order->shipping_method_name = $this->orderData->shippingMethod;
             $order->fulfillment_status = $this->orderData->fulfillmentStatus;
@@ -79,16 +104,26 @@ class CreateOrderAction
             $order->payment_gateway_names = $this->orderData->paymentGatewayName;
             $order->language_code = $this->orderData->languageCode;
             $order->reference = $this->orderData->reference;
+            $order->parent_id = $this->orderData->parent?->getId() ?? null;
+            $order->ip_address = $this->orderData->ipAddress;
             $order->saveOrFail();
-
-            if ($this->orderData->orderType) {
-                $order->setOrderType($this->orderData->orderType);
-            }
 
             $order->addItems($this->orderData->items);
 
+            // Sync provider companies to order_providers pivot table
+            new SyncOrderProvidersAction($order)->execute();
+
+            if ($this->orderData->items->first()->channelId) {
+                $order->setChannelId($this->orderData->items->first()->channelId);
+            }
+
+            if ($this->orderData->orderType) {
+                $order->setOrderType($this->orderData->orderType);
+                new TransitionOrderStateAction($order, $this->orderData->user, $order->orderStatus)->setInitialState();
+            }
+
             if ($order->metadata && isset($order->metadata['data']['payment_methods_id'])) {
-                new CreatePaymentAction($order)->execute($order->metadata['data']);
+                new CreatePaymentAction($order, $this->orderData->user)->execute($order->metadata['data']);
             }
 
             // Run after commit
@@ -101,6 +136,8 @@ class CreateOrderAction
                             'app' => $this->orderData->app,
                         ]
                     );
+
+                    // $this->simulateWorkflow($order);
                 }
 
                 try {
@@ -144,5 +181,82 @@ class CreateOrderAction
         $this->runWorkflow = false;
 
         return $this;
+    }
+
+    private function validateScheduleAvailability(): void
+    {
+        $startAt = $this->orderData->metadata['data']['start_at'] ?? null;
+
+        if ($startAt === null) {
+            return;
+        }
+
+        $startTime = Carbon::parse($startAt);
+
+        foreach ($this->orderData->items as $item) {
+            ResourceScheduleValidator::validateResourceAvailability($item->variant, $startTime);
+        }
+    }
+
+    private function resolveOrderType(): ?OrderTypes
+    {
+        if (! $this->orderData->orderType) {
+            return null;
+        }
+
+        return OrderTypes::where('name', $this->orderData->orderType)
+            ->where('apps_id', $this->orderData->app->getId())
+            ->where(function ($q) {
+                $q->where('companies_id', $this->orderData->company->getId())
+                  ->orWhere('companies_id', 0);
+            })
+            ->orderByRaw('CASE WHEN companies_id = 0 THEN 1 ELSE 0 END')
+            ->first();
+    }
+
+    private function validateSlotAvailability(): void
+    {
+        $orderType = $this->resolveOrderType();
+
+        if (! $orderType?->isExpirable()) {
+            return;
+        }
+
+        foreach ($this->orderData->items as $item) {
+            $variant = $item->variant;
+
+            if (! $variant) {
+                continue;
+            }
+
+            $rawMaxCapacity = $variant->variantWarehouses()->first()?->max_capacity;
+
+            // 0 is the DTO default (unconfigured); null means no warehouse record — both = unlimited
+            if (! ($rawMaxCapacity > 0)) {
+                continue;
+            }
+
+            $lock = Cache::lock('slot_availability:' . $variant->getId(), 10);
+
+            try {
+                try {
+                    $lock->block(5);
+                } catch (LockTimeoutException) {
+                    throw new ValidationException(
+                        "Could not verify slot availability for {$variant->name}. Please try again."
+                    );
+                }
+
+                $slotData = new GetSlotAvailabilityAction($variant, $this->orderData->app)->execute();
+
+                if ($slotData->availableCapacity <= 0) {
+                    throw new ValidationException(
+                        "No available slots for {$variant->name}. Current availability: 0."
+                    );
+                }
+            } finally {
+                $lock->release();
+            }
+        }
     }
 }

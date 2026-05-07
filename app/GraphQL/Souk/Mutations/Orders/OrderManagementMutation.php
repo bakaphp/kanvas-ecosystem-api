@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Orders;
 
+use Baka\Support\IPInfo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
@@ -17,10 +18,12 @@ use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Souk\Orders\Actions\CreateOrderFromCartAction;
 use Kanvas\Souk\Orders\Actions\CreateOrderFromCartWalletAction;
+use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Actions\UpdateOrderAction;
 use Kanvas\Souk\Orders\DataTransferObject\DirectOrder;
 use Kanvas\Souk\Orders\DataTransferObject\OrderCustomer;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCard;
 use Kanvas\Souk\Payments\DataTransferObject\CreditCardBilling;
 use Kanvas\Souk\Payments\Providers\AuthorizeNetPaymentProcessor;
@@ -85,7 +88,8 @@ class OrderManagementMutation
         $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
         $app = app(Apps::class);
         $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
-        $region = Regions::getDefault($company);
+
+        $region = Regions::getDefault($company, $app);
         $orderCustomer = OrderCustomer::from($request['input']['customer']);
         $createPeople = new CreatePeopleFromUserAction(
             $app,
@@ -117,6 +121,7 @@ class OrderManagementMutation
             ])
             ->log('User attempted to create order from cart');
 
+        $ipAddress = IPInfo::getClientIp();
         $createOrder = new $actionClass(
             $cart,
             $company,
@@ -127,7 +132,9 @@ class OrderManagementMutation
             $app,
             $billing,
             $shippingAddress,
-            $request
+            $request,
+            null,
+            $ipAddress
         )->execute();
 
         $log->subject_type = get_class($createOrder);
@@ -149,17 +156,22 @@ class OrderManagementMutation
         $orderId = (int) $request['id'];
         $orderData = $request['input'];
 
-        if (! $user->isAdmin()) {
-            throw new ValidationException('User is not authorized to delete this order');
+        if (! $user->isAdmin() && ! $app->get('ALLOW_USERS_UPDATE_ORDERS')) {
+            throw new ValidationException('User is not authorized to update this order');
         }
 
-        $order = Order::where([
-            'apps_id' => $app->getId(),
-            'id' => $orderId,
-        ])->first();
+        $order = Order::getById($orderId, $app);
 
-        if ($order->fulfillment_status === 'fulfilled') {
+        if ($order->isFulfilled() && ! $app->get('ALLOW_USERS_UPDATE_ORDERS') && ! $user->isAdmin()) {
             throw new ValidationException('Order is already fulfilled');
+        }
+
+        //remove it when we figure out wtf is going on with a app
+        if ($app->get('DONT_OVERWRITE_METADATA_ON_ORDER_UPDATE', false)) {
+            $newMetadata = is_array($orderData['metadata'] ?? null) ? $orderData['metadata'] : [];
+            $existingMetadata = is_array($order->metadata) ? $order->metadata : [];
+            $orderData['metadata'] = $existingMetadata;
+            $orderData['metadata']['new_data'] = $newMetadata;
         }
 
         $updateOrder = new UpdateOrderAction(
@@ -171,6 +183,94 @@ class OrderManagementMutation
         return [
             'order' => $updateOrder->execute(),
             'message' => 'Order updated successfully',
+        ];
+    }
+
+    public function extendOrder(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $cart = app('cart')->session(app(AppEnums::KANVAS_IDENTIFIER->getValue()));
+        $app = app(Apps::class);
+        $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
+
+        $parentOrder = Order::where([
+            'apps_id' => $app->getId(),
+            'id' => $request['id'],
+            'companies_id' => $company->getId(),
+        ])->first();
+
+        if (! $parentOrder) {
+            return [
+                'order' => null,
+                'message' => [
+                    'error_code' => 'Parent order not found',
+                    'error_message' => 'Parent order not found',
+                ],
+            ];
+        }
+
+        $orderInput = $request['input'];
+
+        if ($parentOrder->metadata['data']['end_at'] > $orderInput['metadata']['data']['end_at']) {
+            throw new ValidationException('Extended reservation is not allowed');
+        }
+
+        $region = Regions::getDefault($company, $app);
+        $orderCustomer = OrderCustomer::from($request['input']['customer']);
+        $createPeople = new CreatePeopleFromUserAction(
+            $app,
+            $user->getCurrentBranch(),
+            $user
+        );
+        $people = $createPeople->execute();
+        $billing = isset($request['input']['billing']) ? CreditCardBilling::from($request['input']) : null;
+        $shippingAddress = isset($request['input']['shipping_address']) ? Address::from($request['input']['shipping_address']) : null;
+
+        if ($cart->isEmpty() && empty($request['input']['items'])) {
+            return [
+                'order' => null,
+                'message' => [
+                    'error_code' => 'Cart is empty',
+                    'error_message' => 'Cart is empty',
+                ],
+            ];
+        }
+
+        $log = activity('create-order-from-cart')
+            ->causedBy($user)
+            ->withProperties([
+                'request_data' => $request,
+                'user_id' => $user->id,
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+                'cart_items' => $cart->getContent()->toArray(),
+            ])
+            ->log('User attempted to create order from cart');
+
+        $ipAddress = IPInfo::getClientIp();
+        $createOrder = new CreateOrderFromCartAction(
+            $cart,
+            $company,
+            $region,
+            $orderCustomer,
+            $people,
+            $user,
+            $app,
+            $billing,
+            $shippingAddress,
+            $request,
+            $parentOrder,
+            $ipAddress
+        )->execute();
+
+        $log->subject_type = get_class($createOrder);
+        $log->subject_id = $createOrder->id;
+        $log->description = 'User successfully created order from cart';
+        $log->save();
+
+        return [
+            'order' => $createOrder,
+            'message' => 'Order created successfully',
         ];
     }
 
@@ -290,6 +390,53 @@ class OrderManagementMutation
                 'error_code' => $response->getMessages()->getMessage()[0]->getCode(),
                 'error_message' => $response->getMessages()->getMessage()[0]->getText(),
             ];
+        }
+    }
+
+    public function transitionOrderStatus(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
+
+        $input = $request['input'];
+
+        $order = Order::where([
+            'apps_id' => $app->getId(),
+            'id' => $input['order_id'],
+            'companies_id' => $company->getId(),
+        ])->first();
+
+        if (! $order) {
+            throw new ValidationException('Order not found');
+        }
+
+        $statusSlug = $input['status_slug'] ?? null;
+
+        if ($statusSlug) {
+            $newOrderStatus = OrderStatus::where([
+                'apps_id' => $app->getId(),
+                'order_types_id' => $order->orderType->getId(),
+                'slug' => $statusSlug,
+            ])->first();
+
+            if (! $newOrderStatus) {
+                throw new ValidationException('Order status not found');
+            }
+        } else {
+            $newOrderStatus = $order->orderType->nextStatus($order);
+        }
+
+        try {
+            $date = $input['date'] ?? null;
+
+            return new TransitionOrderStateAction(
+                $order,
+                $user,
+                $newOrderStatus
+            )->execute(false, $date);
+        } catch (Throwable $e) {
+            throw new ValidationException($e->getMessage());
         }
     }
 }

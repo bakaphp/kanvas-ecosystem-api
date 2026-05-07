@@ -17,6 +17,7 @@ use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException
 use Kanvas\Users\Models\Users;
 use Laravel\Sanctum\PersonalAccessToken;
 use Lcobucci\JWT\Token\Plain;
+use Override;
 
 /**
  * Sessions Model.
@@ -111,6 +112,7 @@ class Sessions extends PersonalAccessToken
      * Override the getIncrementing() function to return false to tell
      * Laravel that the identifier does not auto increment (it's a string).
      */
+    #[Override]
     public function getIncrementing(): bool
     {
         return false;
@@ -119,6 +121,7 @@ class Sessions extends PersonalAccessToken
     /**
      * Tell laravel that the key type is a string, not an integer.
      */
+    #[Override]
     public function getKeyType(): string
     {
         return 'string';
@@ -291,6 +294,7 @@ class Sessions extends PersonalAccessToken
      *
      * @return \Illuminate\Database\Eloquent\Relations\MorphTo
      */
+    #[Override]
     public function tokenable()
     {
         return $this->morphTo('sessions_keys');
@@ -303,6 +307,7 @@ class Sessions extends PersonalAccessToken
      *
      * @return static|null
      */
+    #[Override]
     public static function findToken($token)
     {
         return static::where('token', $token)->first();
@@ -315,6 +320,7 @@ class Sessions extends PersonalAccessToken
      *
      * @return bool
      */
+    #[Override]
     public function can($ability)
     {
         return in_array('*', $this->abilities) ||
@@ -328,6 +334,7 @@ class Sessions extends PersonalAccessToken
      *
      * @return bool
      */
+    #[Override]
     public function cant($ability)
     {
         return ! $this->can($ability);

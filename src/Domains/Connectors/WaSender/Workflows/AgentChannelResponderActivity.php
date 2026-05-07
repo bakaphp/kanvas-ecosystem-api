@@ -6,13 +6,19 @@ namespace Kanvas\Connectors\WaSender\Workflows;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Traits\HandlesSupportModeDelayedResponseTrait;
+use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
+use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 class AgentChannelResponderActivity extends KanvasActivity
 {
+    use HandlesSupportModeDelayedResponseTrait;
     public $tries = 3;
 
     public function execute(Channel $channel, Apps $app, array $params): array
@@ -30,6 +36,7 @@ class AgentChannelResponderActivity extends KanvasActivity
             entity: $channel,
             app: $app,
             integration: IntegrationsEnum::WASENDER,
+            additionalParams: $params,
             integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $user, $defaultAgentId, $allowedChannels, $channelAgentMapping, $params) {
                 if (empty($message)) {
                     return [
@@ -39,14 +46,17 @@ class AgentChannelResponderActivity extends KanvasActivity
                 }
 
                 $chatJid = $message->message['chat_jid'] ?? null;
-
+                $filterByChannel = (bool) ($params['filterByChannel'] ?? false);
                 // Check if this channel is allowed
-                if (! in_array($chatJid, $allowedChannels)) {
+                if ($filterByChannel && ! in_array($chatJid, $allowedChannels)) {
                     return [
                         'message' => 'Agent is not running on this channel',
                         'entity' => null,
                     ];
                 }
+
+                $lead = $message->entity();
+                $message->addTag('engagement');
 
                 // Don't process messages from the phone owner
                 if ($message->message['from_me'] ?? false) {
@@ -56,7 +66,13 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
-                // Get agent ID from mapping or use default
+                if ($lead instanceof Lead && $lead->isAiMuted()) {
+                    return [
+                        'message' => 'Lead turned off AI agent responses',
+                        'entity' => null,
+                    ];
+                }
+
                 $agentId = $defaultAgentId;
                 if (isset($channelAgentMapping[$chatJid]) && isset($channelAgentMapping[$chatJid]['agent_id'])) {
                     $agentId = $channelAgentMapping[$chatJid]['agent_id'];
@@ -70,10 +86,57 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
+                $chatSession = null;
+                if (! $message->message['from_me']) {
+                    $phoneNumber = str_replace('@s.whatsapp.net', '', $message->message['chat_jid']);
+                    $canalId = SessionChannelService::createCanalId('whatsapp', $phoneNumber);
+
+                    $chatSession = new CreateSessionAction(
+                        Session::from([
+                            'app' => $app,
+                            'company' => $channel->company,
+                            'channel' => $channel,
+                            'entity_namespace' => is_object($lead) ? get_class($lead) : null,
+                            'entity_id' => $lead->getId(),
+                            'canal_id' => $canalId,
+                            'user' => [
+                                'name' => $lead->people->getName(),
+                                'id' => $lead->people->getId(),
+                                'email' => $lead->people->getEmails()->first()?->value,
+                            ],
+                            'agent' => Agent::getById($agentId, $app),
+                        ])
+                    )->execute();
+                }
+
+                if ($lead instanceof Lead) {
+                    $delayedResponse = $this->handleSupportModeDelayedResponse(
+                        $lead,
+                        $channel,
+                        $message,
+                        $app,
+                        $defaultAgentId,
+                        $channelAgentMapping,
+                        $chatJid,
+                        $params,
+                        AgentChannelResponderAction::class,
+                        $chatSession
+                    );
+
+                    if ($delayedResponse !== null) {
+                        return $delayedResponse;
+                    }
+                }
+
+                $slowDownApiResponseTime = $params['slowDownApiResponseTime'] ?? 5;
+                //https://wasenderapi.com/api-docs/rate-limits/understanding-rate-limits
+                sleep($slowDownApiResponseTime); // Simulate processing time
+
                 return new AgentChannelResponderAction(
                     $channel,
                     $message,
-                    Agent::getById($agentId, $app)
+                    Agent::getById($agentId, $app),
+                    $chatSession
                 )->execute($params);
             },
             company: $channel->company,

@@ -6,17 +6,17 @@ namespace Kanvas\Souk\Orders\Actions;
 
 use Exception;
 use Illuminate\Http\UploadedFile;
-use Joelwmale\Cart\Cart;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Cart\Actions\AddToCartAction;
 use Kanvas\Souk\Orders\Jobs\ProcessOrderItemJob;
 use Kanvas\Souk\Orders\Services\OrderItemService;
 use Kanvas\Users\Models\Users;
+use Wearepixel\Cart\Cart;
 
 class ProcessOrderItemAction
 {
-    private const int LIMIT_ITEMS_PER_REQUEST = 100;
+    private const int LIMIT_ITEMS_PER_REQUEST = 700;
 
     public function __construct(
         protected Apps $app,
@@ -31,7 +31,9 @@ class ProcessOrderItemAction
         $items = $orderItemService->getOrderItemsFromCsv($file);
 
         // Get the valid order items.
-        $validOrderItems = $orderItemService->getValidOrderItems($items);
+        $validationResult = $orderItemService->getValidOrderItems($items);
+        $validOrderItems = $validationResult['validItems'];
+        $notFoundErrors = $validationResult['errors'];
         $validOrderItemsCount = count($validOrderItems);
 
         if ($validOrderItemsCount === 0) {
@@ -40,7 +42,14 @@ class ProcessOrderItemAction
 
         // If the number of valid order items is greater than the limit, dispatch a job to process the order items.
         if ($validOrderItemsCount > self::LIMIT_ITEMS_PER_REQUEST) {
-            ProcessOrderItemJob::dispatch($this->app, $this->user, $this->currentUserCompany, $validOrderItems, $channelId);
+            ProcessOrderItemJob::dispatch(
+                $this->app,
+                $this->user,
+                $this->currentUserCompany,
+                $validOrderItems,
+                $channelId,
+                $cart->getSessionKey()
+            );
 
             return [
                 'status' => 'pending',
@@ -51,8 +60,11 @@ class ProcessOrderItemAction
         // Process the order items and add to cart.
         $result = $orderItemService->processOrderItems($validOrderItems, $channelId);
 
-        if (count($result['errors']) > 0) {
-            throw new Exception(implode(', ', $result['errors']));
+        // Merge errors from both validation steps
+        $allErrors = array_merge($notFoundErrors, $result['errors']);
+
+        if (count($allErrors) > 0) {
+            throw new Exception(implode(', ', $allErrors));
         }
 
         // Add the items to the cart.

@@ -14,6 +14,7 @@ use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Users\Models\Users;
+use Throwable;
 
 class SyncZohoAgentAction
 {
@@ -35,7 +36,7 @@ class SyncZohoAgentAction
             $zohoService = new ZohoService($this->app, $this->company);
             $record = $zohoService->getAgentByEmail($this->email);
 
-            $name = explode(' ', $record->Name);
+            $name = explode(' ', $record->Name ?? $record->Vendor_Name ?? 'Unknown User');
             $firstName = $name[0];
             $lastName = implode(' ', array_slice($name, 1));
             $memberNumber = $record->Member_Number;
@@ -43,11 +44,17 @@ class SyncZohoAgentAction
             $owner = $record->Owner;
             $updatedMemberNumber = false;
             $newMemberNumber = false;
+            $sponsorInfo = $record->Sponsor_Name ?? [];
 
             // Get or create owner and their agent record
-            $ownerData = $this->getOrCreateOwner($owner);
-            $ownerUser = $ownerData['user'];
-            $ownerAgent = $ownerData['agent'];
+            try {
+                $ownerData = $this->getOrCreateOwner($owner);
+                $ownerUser = $ownerData['user'];
+                $ownerAgent = $ownerData['agent'];
+            } catch (Throwable $e) {
+                report($e);
+                $ownerAgent = null;
+            }
 
             if ($existingUser) {
                 $user = $existingUser;
@@ -97,12 +104,36 @@ class SyncZohoAgentAction
 
             // Update the agent if it exists, otherwise create a new record
             $agentData = [
-                'name' => $record->Name,
+                'name' => $record->Name ?? $record->Vendor_Name,
                 'owner_linked_source_id' => $owner['id'],
                 'owner_id' => $record->Sponsor ?? ($ownerAgent ? $ownerAgent->member_id : null),
                 'status_id' => 1,
                 'updated_at' => now(),
             ];
+
+            if ($owner['id']) {
+                $agentOwner = Agent::where([
+                    'apps_id' => $this->app->getId(),
+                    'companies_id' => $this->company->getId(),
+                    'users_linked_source_id' => $owner['id'],
+                ])->lockForUpdate()->first();
+
+                if ($agent->owner_id !== $agentOwner->member_id) {
+                    $agentData['owner_id'] = $agentOwner->member_id;
+                }
+            }
+
+            if ($sponsorInfo && isset($sponsorInfo['id'])) {
+                $agentData['sponsor_name'] = $sponsorInfo['name'] ?? null;
+                $agentData['sponsor_user_id'] = Agent::where([
+                    'apps_id' => $this->app->getId(),
+                    'companies_id' => $this->company->getId(),
+                    'users_linked_source_id' => $sponsorInfo['id'],
+                ])->lockForUpdate()->first()?->users_id ?? null;
+            } elseif (is_object($agentOwner) && empty($sponsorInfo)) {
+                $agentData['sponsor_name'] = $agentOwner->name;
+                $agentData['sponsor_user_id'] = $agentOwner->users_id;
+            }
 
             if ($agent) {
                 if ($updatedMemberNumber) {

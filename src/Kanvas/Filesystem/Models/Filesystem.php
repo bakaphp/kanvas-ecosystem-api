@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Models;
 
+use Baka\Traits\HashTableTrait;
 use Baka\Traits\UuidTrait;
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Models\BaseModel;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * Filesystem Model.
@@ -29,7 +31,8 @@ use Kanvas\Models\BaseModel;
 class Filesystem extends BaseModel
 {
     use UuidTrait;
-    use Cachable;
+    use HashTableTrait;
+    use CanUseWorkflow;
 
     protected $table = 'filesystem';
     protected $fillable = [
@@ -42,6 +45,16 @@ class Filesystem extends BaseModel
         'file_type',
     ];
     public $timestamps = true;
+
+    public function settings(): HasMany
+    {
+        return $this->hasMany(FilesystemSettings::class, 'filesystem_id');
+    }
+
+    protected function createSettingsModel(): void
+    {
+        $this->settingsModel = new FilesystemSettings();
+    }
 
     public function createdAt(): Carbon
     {

@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Customers\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
+use Baka\Traits\SoftDeletesTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Locations\Models\Cities;
@@ -27,6 +28,8 @@ use Kanvas\Locations\Models\States;
  * @property int $state_id
  * @property string $zip
  * @property string $countries_id
+ * @property float $latitude
+ * @property float $longitude
  * @property int $is_default
  * @property int $address_type_id
  * @property float $duration
@@ -35,9 +38,21 @@ class Address extends BaseModel
 {
     use NoCompanyRelationshipTrait;
     use NoAppRelationshipTrait;
+    use SoftDeletesTrait;
+
+    public const DELETED_AT = 'is_deleted';
 
     protected $table = 'peoples_address';
     protected $guarded = [];
+
+    protected $casts = [
+        'is_deleted' => 'boolean',
+    ];
+
+    public function trashed()
+    {
+        return (bool) $this->{$this->getDeletedAtColumn()};
+    }
 
     public function people(): BelongsTo
     {

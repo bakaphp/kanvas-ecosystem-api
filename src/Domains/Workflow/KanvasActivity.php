@@ -17,7 +17,7 @@ class KanvasActivity extends Activity
     use KanvasJobsTrait;
     use ActivityIntegrationTrait;
 
-    //public $tries = 3;
+    public $tries = 3;
     //public $timeout = 60;
     public $queue = 'workflow';
 }

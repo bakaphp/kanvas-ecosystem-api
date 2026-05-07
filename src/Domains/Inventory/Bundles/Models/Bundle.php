@@ -1,0 +1,56 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Inventory\Bundles\Models;
+
+use Baka\Traits\SlugTrait;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Inventory\Models\BaseModel;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
+
+/**
+ * Class Bundle
+ * @property int $id
+ * @property int $apps_id
+ * @property int $companies_id
+ * @property int $users_id
+ * @property int|null $variant_id
+ * @property string $name
+ * @property string|null $description
+ * @property string $execution_mode
+ * @property bool $expose_as_product
+ */
+class Bundle extends BaseModel
+{
+    use HasFilesystemTrait;
+    use HasTagsTrait;
+    use SlugTrait;
+
+    protected $table = 'bundles';
+    protected $guarded = [];
+
+    public function variants(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Variants::class,
+            'bundle_items',
+            'bundle_id',
+            'variant_id'
+        )->withPivot('quantity', 'unit')->withTimestamps();
+    }
+
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(Variants::class, 'variant_id');
+    }
+
+    public function bundleItems(): HasMany
+    {
+        return $this->hasMany(BundleItem::class, 'bundle_id');
+    }
+}

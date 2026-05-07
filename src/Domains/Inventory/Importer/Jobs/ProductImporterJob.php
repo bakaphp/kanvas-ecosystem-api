@@ -29,7 +29,6 @@ class ProductImporterJob extends AbstractImporterJob
         $this->overwriteAppServiceLocation($this->branch);
 
         $company = $this->branch->company()->firstOrFail();
-        $totalItems = count($this->importer);
         $totalProcessSuccessfully = 0;
         $totalProcessFailed = 0;
         $created = 0;
@@ -43,17 +42,18 @@ class ProductImporterJob extends AbstractImporterJob
                 }, $column = 'id'); */
 
         $this->startFilesystemMapperImport();
+        $processProducts = [];
 
-        foreach ($this->importer as $request) {
+        foreach ($this->iterateImporterRows() as $request) {
             try {
-                $product = (new ProductImporterAction(
+                $product = new ProductImporterAction(
                     ProductImporter::from($request),
                     $company,
                     $this->user,
                     $this->region,
                     $this->app,
                     $this->runWorkflow
-                ))->execute();
+                )->execute();
                 if ($product->wasRecentlyCreated) {
                     $created++;
                     $processProducts['created'][] = $product->only(['id', 'name']);
@@ -78,6 +78,8 @@ class ProductImporterJob extends AbstractImporterJob
                 $processProducts['failed'][] = $errorDetails;
             }
         }
+
+        $totalItems = $totalProcessSuccessfully + $totalProcessFailed;
 
         $this->finishFilesystemMapperImport(
             $totalItems,

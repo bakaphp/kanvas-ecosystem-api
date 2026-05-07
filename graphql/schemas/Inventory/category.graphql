@@ -4,17 +4,19 @@ type Category {
     parent_id: Int
     uuid: String!
     name: String!
+    description: String
     slug: String!
     code: String
     position: Int
+    is_featured: Boolean!
     translation(languageCode: String!): ProductTranslation
         @field(
             resolver: "App\\GraphQL\\Translation\\Resolvers\\TranslationResolver@translation"
         )
     is_published: Boolean!
-    companies: Company!
-    weight: Int
-    users: User!
+    companies: Company @belongsTo(relation: "company")
+    weight: Float
+    users: User! @belongsTo(relation: "user")
     total_products: Int! @method(name: "getTotalProducts")
     files: [Filesystem!]!
         @cacheRedis
@@ -22,13 +24,19 @@ type Category {
             defaultCount: 25
             builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
-    children: [Category!] @hasMany(type: PAGINATOR)
-    products: [Product!] @belongsToMany(relation: "products", type: PAGINATOR)
-    productsTags(tag: String!): [Product!]! 
-    @paginate(
-        defaultCount: 4
-        builder: "App\\GraphQL\\Inventory\\Builders\\Categories\\GetProductByTag@getProductsByTag"
-    )
+    children: [Category!]
+        @cacheRedis
+        @hasMany(relation: "children", type: PAGINATOR)
+    parent: Category @belongsTo(relation: "parent")
+    products: [Product!]
+        @cacheRedis
+        @belongsToMany(relation: "products", type: PAGINATOR)
+    productsTags(tag: String!): [Product!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 4
+            builder: "App\\GraphQL\\Inventory\\Builders\\Categories\\GetProductByTag@getProductsByTag"
+        )
 }
 
 input CategoryInput {
@@ -39,8 +47,11 @@ input CategoryInput {
     source_id: Mixed
     companies_id: Int
     is_published: Boolean!
-    weight: Int
+    weight: Float
+    description: String
+    is_featured: Boolean
 }
+
 input CategoryUpdateInput {
     parent_id: Int
     name: String!
@@ -48,6 +59,9 @@ input CategoryUpdateInput {
     slug: String
     position: Int
     is_published: Boolean
+    weight: Float
+    description: String
+    is_featured: Boolean
 }
 
 input ProductCategoriesReferenceInput {
@@ -93,7 +107,9 @@ extend type Query @guard {
                     "code"
                     "uuid"
                     "is_published"
+                    "is_featured"
                     "position"
+                    "weight"
                     "id"
                 ]
             )
@@ -105,6 +121,8 @@ extend type Query @guard {
                     "updated_at"
                     "name"
                     "position"
+                    "weight"
+                    "is_featured"
                     "code"
                 ]
             )
@@ -112,6 +130,6 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Inventory\\Categories\\Models\\Categories"
             defaultCount: 25
-            scopes: ["fromApp", "fromCompany"]
+            scopes: ["fromApp", "fromCompanyOrGlobal", "notDeleted"]
         )
 }

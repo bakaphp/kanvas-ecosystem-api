@@ -20,7 +20,7 @@ type VariantChannel {
         )
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
-    product: Product
+    product: Product @belongsTo(relation: "product")
     warehouses: [WarehouseVariantRelationship!]!
         @hasMany(relation: "variantWarehouses")
     attributes: [VariantsAttributes!]! @hasMany(relation: "attributes")
@@ -28,7 +28,9 @@ type VariantChannel {
 type ChannelsPricesHistoryRelationship {
     price: Money!
     from_date: String!
+    user: User @belongsTo(relation: "user")
 }
+
 type VariantChannelRelationship {
     channels_id: ID! @rename(attribute: "id")
     name: String
@@ -56,6 +58,7 @@ input VariantChannelReferenceInput {
     channels_id: ID!
     price: Float!
     discounted_price: Float
+    config: Mixed
     is_published: Boolean!
 }
 
@@ -106,6 +109,11 @@ extend type Query {
                 relation: "attributeValues"
                 columns: ["products_variants_id", "value", "attributes_id"]
             )
+        hasWarehouse: _
+            @whereHasConditions(
+                relation: "warehouses"
+                columns: ["id", "name", "uuid"]
+            )
         orderBy: _
             @orderBy(
                 columns: [
@@ -127,7 +135,7 @@ extend type Query {
     channelVariantsFilterByAttributes(
         id: ID!
         attributes: Mixed
-        search: String @search
+        search: String
         where: _
             @whereConditions(columnsEnum: ChannelVariantsFilterByAttributesEnum)
         orderBy: _

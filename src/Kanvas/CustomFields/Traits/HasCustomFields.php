@@ -71,8 +71,9 @@ trait HasCustomFields
         $legacySystemModule = SystemModules::getLegacyNamespace($currentClass);
         $hasLegacySystemModule = $legacySystemModule !== $currentClass;
 
-        // Build the query dynamically
-        $query = 'SELECT name, value 
+        // Build the query dynamically with ordering to prioritize newer records
+        $query = 'SELECT name, value, model_name, 
+                COALESCE(updated_at, created_at) as last_modified
             FROM ' . DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields
             WHERE companies_id = ? AND entity_id = ?';
 
@@ -88,12 +89,25 @@ trait HasCustomFields
             $parameters[] = $currentClass;
         }
 
+        // Order by: prioritize current class over legacy, then by last modified (newest first)
+        $query .= ' ORDER BY 
+                CASE WHEN model_name = ? THEN 0 ELSE 1 END ASC,
+                last_modified DESC';
+        $parameters[] = $currentClass;
+
         $results = DB::select($query, $parameters);
 
         $listOfCustomFields = [];
+        $processedFields = []; // Track which field names we've already processed
 
         foreach ($results as $row) {
+            // Skip if we've already processed this field name (keeps the first/newest one)
+            if (isset($processedFields[$row->name])) {
+                continue;
+            }
+
             $listOfCustomFields[$row->name] = Str::jsonToArray($row->value);
+            $processedFields[$row->name] = true;
         }
 
         return $listOfCustomFields;
@@ -203,7 +217,9 @@ trait HasCustomFields
      */
     public function getCustomField(string $name): ?AppsCustomFields
     {
-        return AppsCustomFields::where('companies_id', $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue())
+        $companiesId = $this->companies_id ? [$this->companies_id, AppEnums::GLOBAL_COMPANY_ID->getValue()] : [AppEnums::GLOBAL_COMPANY_ID->getValue()];
+
+        return AppsCustomFields::whereIn('companies_id', $companiesId)
                                 ->whereIn('model_name', [get_class($this), SystemModules::getLegacyNamespace(get_class($this))]) //allow legacy
                                 ->where('entity_id', $this->getKey())
                                 ->where('name', $name)
@@ -380,27 +396,36 @@ trait HasCustomFields
     }
 
     /**
-     * Remove all the custom fields from the entity.
-     *
-     */
+    * Remove all the custom fields from the entity.
+    */
     public function deleteAllCustomFields(): bool
     {
         $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
 
         $this->deleteAllCustomFieldsFromRedis();
         $this->clearCustomFieldsCacheIfNeeded();
+        $legacySystemModule = SystemModules::getLegacyNamespace(get_class($this));
+        $hasLegacySystemModule = $legacySystemModule !== get_class($this);
+
+        $modelNames = $hasLegacySystemModule
+            ? [$legacySystemModule, get_class($this)]
+            : [get_class($this)];
+
+        $placeholders = implode(',', array_fill(0, count($modelNames), '?'));
+
+        $params = [
+            $companyId,
+            ...$modelNames,
+            $this->getKey(),
+        ];
 
         return DB::statement('
-            DELETE
-                FROM ' . DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields
-                    WHERE
-                        companies_id = :companies_id
-                        AND model_name = :model_name
-                        AND entity_id = :entity_id', [
-            'companies_id' => $companyId,
-            'model_name' => get_class($this),
-            'entity_id' => $this->getKey(),
-        ]);
+        DELETE
+            FROM ' . DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields
+                WHERE
+                    companies_id = ?
+                    AND model_name IN (' . $placeholders . ')
+                    AND entity_id = ?', $params);
     }
 
     /**
@@ -463,20 +488,40 @@ trait HasCustomFields
     /**
      * Get a model from a custom field.
      */
-    public static function getByCustomField(string $name, mixed $value, ?Companies $company = null): ?Model
-    {
-        return self::getByCustomFieldBuilder($name, $value, $company)->first();
+    public static function getByCustomField(
+        string $name,
+        mixed $value,
+        ?Companies $company = null,
+        bool $useCompanyFilter = true
+    ): ?Model {
+        return self::getByCustomFieldBuilder(
+            $name,
+            $value,
+            $company,
+            $useCompanyFilter
+        )->first();
     }
 
-    public static function getByCustomFieldBuilder(string $name, mixed $value, ?Companies $company = null): Builder
-    {
-        $company = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
+    public static function getByCustomFieldBuilder(
+        string $name,
+        mixed $value,
+        ?Companies $company = null,
+        bool $useCompanyFilter = true
+    ): Builder {
         $table = (new static())->getTable();
+        $systemModuleLegacy = SystemModules::getLegacyNamespace(static::class);
+        $systemModules = $systemModuleLegacy !== static::class
+            ? [static::class, $systemModuleLegacy]
+            : [static::class];
 
         $query = self::join(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields', 'apps_custom_fields.entity_id', '=', $table . '.id')
-            ->where('apps_custom_fields.companies_id', $company)
-            ->where('apps_custom_fields.model_name', static::class)
+            ->whereIn('apps_custom_fields.model_name', $systemModules)
             ->where('apps_custom_fields.name', $name);
+
+        if ($useCompanyFilter) {
+            $companyId = $company ? $company->getKey() : AppEnums::GLOBAL_COMPANY_ID->getValue();
+            $query->where('apps_custom_fields.companies_id', $companyId);
+        }
 
         if ($value !== null) {
             $query->where('apps_custom_fields.value', $value);

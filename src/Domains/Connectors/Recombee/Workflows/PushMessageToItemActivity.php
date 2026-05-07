@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
@@ -26,6 +27,14 @@ class PushMessageToItemActivity extends KanvasActivity implements WorkflowActivi
     {
         $this->overwriteAppService($app);
 
+        if (! $message->is_public) {
+            return [
+                'result' => false,
+                'message' => 'Message is not public, should not be indexed',
+                'id' => $message->id,
+            ];
+        }
+
         try {
             $company = $app->getAppCompany();
         } catch (ModelNotFoundException $e) {
@@ -41,6 +50,7 @@ class PushMessageToItemActivity extends KanvasActivity implements WorkflowActivi
 
                 if ($messageType !== null) {
                     if ($message->message_types_id !== (int) $messageType) {
+                        $this->setWorkflowStatus(StatusEnum::FAILED);
                         return [
                             'result' => false,
                             'message' => 'Message type does not match the expected ' . $messageType . ' but found ' . $message->message_types_id,

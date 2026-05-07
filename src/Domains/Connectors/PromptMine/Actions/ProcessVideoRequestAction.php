@@ -1,0 +1,401 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\PromptMine\Actions;
+
+use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
+use Exception;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection as SupportCollection;
+use Illuminate\Support\Facades\Http;
+use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Filesystem\Services\ImageOptimizerService;
+use Kanvas\Social\Messages\Models\Message;
+
+class ProcessVideoRequestAction
+{
+    protected bool $isGoogleService = false;
+
+    public function __construct(
+        protected Message $entity,
+        protected AppInterface $app,
+        protected array $params = []
+    ) {
+    }
+
+    public function execute(): array
+    {
+        $isGoogleService = false;
+        $baseApiUrl = $this->entity->app->get('PROMPT_VIDEO_API_URL');
+        $isImageToVideo = isset($this->entity->message['hasFiles']) && $this->entity->message['hasFiles'] === true;
+        $videoModel = $this->entity->message['ai_model']['value'];
+        $videoKey = 'fal-ai';
+        $videoType = $isImageToVideo ? '/image-to-video' : '/text-to-video';
+        $videoKey = $videoKey . $videoType;
+
+        /**
+         * if its google use the specific api route
+         */
+        if (Str::contains($videoModel, 'veo')) {
+            $videoKey = str_replace('fal-ai' . $videoType, 'google-v2', $videoKey);
+            $videoModel = str_replace('fal-ai/', '', $videoModel);
+            $isGoogleService = true;
+            $this->isGoogleService = true;
+        }
+
+        $apiUrl = $baseApiUrl . '/api/v2/video/' . $videoKey;
+
+        if (empty($apiUrl) || empty($baseApiUrl)) {
+            return [
+                'result' => false,
+                'message' => 'Video API URL not configured',
+            ];
+        }
+
+        try {
+            // Check if we already have a request_id (in case of retry)
+            $existingRequestId = $this->entity->message['video_request_id'] ?? null;
+
+            if ($existingRequestId) {
+                return [
+                    'result' => true,
+                    'model' => $videoModel,
+                    'request_id' => $existingRequestId,
+                    'message' => 'Video processing request already submitted. Processing continues asynchronously.',
+                    'message_id' => $this->entity->getId(),
+                    'status' => 'IN_QUEUE',
+                ];
+            }
+
+            if ($isImageToVideo) {
+                // Process image-to-video
+                //$messageFiles = $this->entity->getFiles();
+                $messageFiles = $this->getFilesWithRetry($this->entity);
+                if ($messageFiles->isEmpty()) {
+                    return [
+                        'result' => false,
+                        'message' => 'Message does not have any files for image-to-video processing',
+                    ];
+                }
+
+                $imageUrlsArray = $messageFiles->map(fn ($file) => $file->url)->toArray();
+                $results = $this->submitImageToVideo($imageUrlsArray, $videoModel, $apiUrl);
+                $requestId = $results['request_id'] ?? null;
+            } else {
+                // Process text-to-video
+                $results = $this->submitTextToVideo($videoModel, $apiUrl);
+                $requestId = $results['request_id'] ?? null;
+            }
+
+            if ($requestId === null) {
+                return [
+                    'result' => false,
+                    'model' => $videoModel,
+                    'message' => 'Failed to submit video processing request',
+                ];
+            }
+
+            // Store the request ID for tracking
+            $messageCopy = $this->entity->message;
+            $messageCopy['video_request_id'] = $requestId;
+            $messageCopy['video_processing_status'] = 'IN_QUEUE';
+            $this->entity->message = $messageCopy;
+            $this->entity->save();
+
+            return [
+                'result' => true,
+                'model' => $videoModel,
+                'request_id' => $requestId,
+                'results' => $results,
+                'message' => 'Video processing request submitted successfully. Processing will continue asynchronously.',
+                'message_id' => $this->entity->getId(),
+                'status' => 'IN_QUEUE',
+                'api_url' => $apiUrl,
+                'video_type' => $isImageToVideo ? 'image-to-video' : 'text-to-video',
+                'is_google_service' => $isGoogleService,
+                'videoKey' => $videoKey,
+            ];
+        } catch (Exception $e) {
+            return [
+                'result' => false,
+                'message_id' => $this->entity->getId(),
+                'message' => 'Error submitting video processing request: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    protected function getFilesWithRetry(Model $entity, int $maxAttempts = 5, int $delaySeconds = 2): Collection
+    {
+        $attempts = 0;
+
+        while ($attempts < $maxAttempts) {
+            $entity->refresh();
+            $files = $entity->getFiles();
+
+            if ($files->isNotEmpty()) {
+                return $files;
+            }
+
+            $attempts++;
+            if ($attempts < $maxAttempts) {
+                sleep($delaySeconds);
+            }
+        }
+
+        return new Collection();
+    }
+
+    /**
+     * Submit text-to-video request and return request ID
+     */
+    protected function submitTextToVideo(string $videoModel, string $apiUrl): array
+    {
+        // Get default values from app settings
+        $defaultValues = $this->getDefaultVideoValues('text-to-video');
+
+        // Submit the video generation request
+        $submitPayload = [
+            'operation' => 'submit',
+            'model' => $videoModel,
+            'prompt' => $this->entity->message['prompt'] ?? '',
+            'resolution' => $defaultValues['resolution'] ?? '720p',
+        ];
+
+        // Add optional webhook URL if configured
+        $webhookUrl = $this->entity->app->get('PROMPT_VIDEO_WEBHOOK_URL');
+        if ($webhookUrl) {
+            $submitPayload['webhookUrl'] = $webhookUrl;
+        }
+
+        // Add other optional parameters based on model configuration
+        if (isset($defaultValues['aspect_ratio'])) {
+            $submitPayload['aspect_ratio'] = $defaultValues['aspect_ratio'];
+        }
+        if (isset($defaultValues['generate_audio'])) {
+            $submitPayload['generate_audio'] = $defaultValues['generate_audio'];
+        }
+        if (isset($defaultValues['duration'])) {
+            $submitPayload['duration'] = $defaultValues['duration'];
+        }
+        if (isset($defaultValues['negative_prompt'])) {
+            $submitPayload['negative_prompt'] = $defaultValues['negative_prompt'];
+        }
+        if (isset($defaultValues['style'])) {
+            $submitPayload['style'] = $defaultValues['style'];
+        }
+        if (isset($defaultValues['prompt_optimizer'])) {
+            $submitPayload['prompt_optimizer'] = $defaultValues['prompt_optimizer'];
+        }
+
+        $submitResponse = $this->submitVideoRequest($submitPayload, $apiUrl);
+
+        if (! isset($submitResponse['request_id'])) {
+            (new MessageOrderFulfillmentAction($this->entity))->execute('video', true);
+
+            throw new Exception('Failed to submit video for processing: ' . json_encode($submitResponse));
+        }
+
+        return [
+            'request_id' => $submitResponse['request_id'],
+            'payload' => $submitPayload,
+            'model' => $videoModel,
+        ];
+    }
+
+    /**
+     * Submit image-to-video request and return request ID
+     */
+    protected function submitImageToVideo(array $imageUrlsArray, string $videoModel, string $apiUrl): array
+    {
+        // Get default values from app settings
+        $defaultValues = $this->getDefaultVideoValues('image-to-video');
+
+        // Submit the video generation request
+        $submitPayload = [
+            'operation' => 'submit',
+            'model' => $videoModel,
+            'prompt' => $this->entity->message['prompt'] ?? '',
+        ];
+
+        $submitPayload = $this->constructModelPayload($submitPayload);
+
+        // Add optional webhook URL if configured
+        $webhookUrl = $this->entity->app->get('PROMPT_VIDEO_WEBHOOK_URL');
+        if ($webhookUrl) {
+            $submitPayload['webhookUrl'] = $webhookUrl;
+        }
+
+        // Add other optional parameters based on model configuration
+        if (isset($defaultValues['prompt_optimizer'])) {
+            $submitPayload['prompt_optimizer'] = $defaultValues['prompt_optimizer'];
+        }
+        if (isset($defaultValues['aspect_ratio'])) {
+            $submitPayload['aspect_ratio'] = $defaultValues['aspect_ratio'];
+        }
+        if (isset($defaultValues['resolution'])) {
+            $submitPayload['resolution'] = $defaultValues['resolution'];
+        }
+        if (isset($defaultValues['duration'])) {
+            $submitPayload['duration'] = $defaultValues['duration'];
+        }
+        if (isset($defaultValues['negative_prompt'])) {
+            $submitPayload['negative_prompt'] = $defaultValues['negative_prompt'];
+        }
+
+        $submitResponse = $this->submitVideoRequest($submitPayload, $apiUrl, true);
+
+        if (! isset($submitResponse['request_id'])) {
+            (new MessageOrderFulfillmentAction($this->entity))->execute('video', true);
+
+            throw new Exception('Failed to submit image-to-video for processing: ' . json_encode($submitResponse));
+        }
+
+        return $submitResponse;
+    }
+
+    /**
+     * Submit a video generation request
+     */
+    protected function submitVideoRequest(array $payload, string $apiUrl, bool $isVideo = false): array
+    {
+        if ($this->isGoogleService && $isVideo) {
+            $response = Http::post($apiUrl, $payload);
+        } else {
+            // For non-Google services, use JSON
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+            ])->post($apiUrl, $payload);
+        }
+
+        return $response->json();
+    }
+
+    /**
+     * Get default video values from app settings based on the model from the message
+     */
+    protected function getDefaultVideoValues(string $type): array
+    {
+        $settings = $this->entity->app->get('llm_list_video_categorization_dev');
+
+        if (! $settings || ! is_array($settings)) {
+            return [];
+        }
+
+        // Get the model value from the message
+        $messageModel = $this->entity->message['ai_model']['value'] ?? null;
+
+        if (! $messageModel) {
+            return [];
+        }
+
+        $videoProvider = Str::contains($messageModel, 'veo') ? 'google-v2' : 'fal-ai';
+        $videoKey = $type === 'text-to-video' ? $videoProvider . '/text-to-video' : $videoProvider . '/image-to-video';
+
+        // Search through all categories for the video key
+        foreach ($settings as $category) {
+            if (! isset($category['value']) || ! is_array($category['value'])) {
+                continue;
+            }
+
+            foreach ($category['value'] as $videoTypeConfig) {
+                if (isset($videoTypeConfig['key']) && $videoTypeConfig['key'] === $videoKey) {
+                    if (isset($videoTypeConfig['value']) && is_array($videoTypeConfig['value'])) {
+                        // Find the model configuration that matches the message model
+                        foreach ($videoTypeConfig['value'] as $modelConfig) {
+                            if (
+                                isset($modelConfig['model']) &&
+                                (str_contains($modelConfig['model'], $messageModel) || str_contains($messageModel, $modelConfig['model']))
+                            ) {
+                                if (isset($modelConfig['input_config'])) {
+                                    return $this->extractDefaultsFromInputConfig($modelConfig['input_config']);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Extract default values from input_config (taking position 0 from array values)
+     */
+    private function extractDefaultsFromInputConfig(array $inputConfig): array
+    {
+        $defaults = [];
+
+        foreach ($inputConfig as $key => $values) {
+            // Skip comment fields
+            if (strpos($key, '__') === 0 && strpos($key, '_comment__') !== false) {
+                continue;
+            }
+
+            if (is_array($values) && ! empty($values)) {
+                // Take the first value (position 0) from the array
+                $defaults[$key] = $values[0];
+            } elseif (! is_array($values)) {
+                $defaults[$key] = $values;
+            }
+        }
+
+        return $defaults;
+    }
+
+    private function constructModelPayload(array $payload): array
+    {
+        $messageFiles = $this->entity->getFiles();
+        $imageUrls = $this->processFileUrls($messageFiles);
+        $attachmentType = $this->entity->message['attachment_type'] ?? 'reference_to_video';
+        $isSingleFile = $messageFiles->count() === 1;
+
+        if (! array_key_exists('attachment_type', $this->entity->message)) {
+            //throw new Exception("Attachment Type not set for video (entity: {$this->entity->id})");
+        }
+
+        $attachmentData = match ($attachmentType) {
+            'start_end_frame' => [
+                'image_url' => $imageUrls[0],
+                'lastFrameUrl' => $imageUrls[1],
+            ],
+            default => $isSingleFile
+                ? ['image_url' => $imageUrls[0]]
+                : ['referenceImageUrls' => $imageUrls],
+        };
+
+        return array_merge($payload, $attachmentData);
+    }
+
+    /**
+     * Process file URLs, optimizing images over 10MB
+     */
+    private function processFileUrls(SupportCollection $files): array
+    {
+        $maxFileSize = 10 * 1024 * 1024; // 10MB in bytes
+
+        return $files->map(function (FilesystemEntities $fileEntity) use ($maxFileSize): string {
+            $file = $fileEntity->filesystem;
+            $fileSize = $file->size ?? 0;
+
+            if ($fileSize > $maxFileSize) {
+                try {
+                    return ImageOptimizerService::optimizeFilesystem(
+                        filesystem: $file,
+                        optimize: false,
+                        quality: 90
+                    )->url;
+                } catch (Exception $e) {
+                    report($e);
+
+                    return $file->url;
+                }
+            }
+
+            return $file->url;
+        })->toArray();
+    }
+}

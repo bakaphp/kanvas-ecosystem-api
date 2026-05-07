@@ -5,12 +5,20 @@ declare(strict_types=1);
 namespace Kanvas\Social\Channels\Models;
 
 use Baka\Casts\Json;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Baka\Traits\MorphEntityDataTrait;
+use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Kanvas\Inventory\Categories\Traits\HasCategoriesTrait;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
+use Kanvas\Social\Channels\Events\ChannelMessageCreatedEvent;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -22,17 +30,23 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  *  @property int $id
  *  @property string $name
  *  @property string $slug
- *  @property string $description
+ *  @property string|null $title
+ *  @property string|null $description
  *  @property int $last_message_id
  *  @property int $apps_id
  *  @property int $companies_id
- *  @property int $entity_id
- *  @property int $entity_namespace
+ *  @property int|null $entity_id
+ *  @property string|null $entity_namespace
+ *  @property array|null $metadata
  */
 class Channel extends BaseModel
 {
     use UuidTrait;
     use CanUseWorkflow;
+    use HasTagsTrait;
+    use HasCategoriesTrait;
+    use MorphEntityDataTrait;
+    use SlugTrait;
 
     protected $table = 'channels';
 
@@ -81,6 +95,19 @@ class Channel extends BaseModel
             ->first();
     }
 
+    public function deleteLastMessageLocked(): bool
+    {
+        $message = $this->getLastMessage();
+        if ($message && $message->isLocked()) {
+            $newLastMessage = $this->getPreviousMessage($message);
+            $this->last_message_id = $newLastMessage?->id;
+
+            return $message->softDelete();
+        }
+
+        return false;
+    }
+
     public function addMessage(
         Message $message,
         ?UserInterface $user = null
@@ -100,12 +127,20 @@ class Channel extends BaseModel
         $this->last_message_id = $message->id;
         $this->saveOrFail();
 
-        $this->fireWorkflow(WorkflowEnum::UPDATED->value, true, [
-           'message' => $message,
-           'user' => $user,
-           'app' => $message->app,
-           'company' => $message->company,
-        ]);
+        $this->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'message' => $message,
+                'user' => $user,
+                'app' => $message->app,
+                'company' => $message->company,
+            ]
+        );
+
+        if ($message->isPublic() && ! $message->isLocked()) {
+            ChannelMessageCreatedEvent::dispatch($this, $message);
+        }
     }
 
     /**
@@ -127,9 +162,30 @@ class Channel extends BaseModel
                         $q->where('messages.created_at', '=', $currentMessageTimestamp)
                           ->where('messages.id', '<', $currentMessage->id);
                     });
+                $query->where('messages.message_types_id', $currentMessage->message_types_id);
             })
             ->orderBy('messages.created_at', 'desc')
             ->orderBy('messages.id', 'desc')
             ->first();
+    }
+
+    public static function getBySlug(string $slug, AppInterface $app, CompanyInterface $company): ?self
+    {
+        return self::query()
+            ->where('slug', $slug)
+            ->where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->notDeleted()
+            ->first();
+    }
+
+    public function isNoteChannel(): bool
+    {
+        return $this->name === ChannelNameEnum::NOTES->value;
+    }
+
+    public function isDefaultChannel(): bool
+    {
+        return $this->name === ChannelNameEnum::DEFAULT->value;
     }
 }

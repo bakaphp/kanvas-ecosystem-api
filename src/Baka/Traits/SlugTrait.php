@@ -30,6 +30,7 @@ trait SlugTrait
 
     /**
      * Get Model by Slug firstOrFail.
+     * @todo Add app
      */
     public static function getBySlugOrFail(string $slug, CompanyInterface $company): Model
     {

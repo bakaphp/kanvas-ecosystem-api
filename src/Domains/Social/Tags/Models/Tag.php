@@ -5,35 +5,55 @@ declare(strict_types=1);
 namespace Kanvas\Social\Tags\Models;
 
 use Baka\Traits\DynamicSearchableTrait;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Social\Models\BaseModel;
+use Kanvas\Social\Tags\Observers\TagsObserver;
+use Nevadskiy\Tree\AsTree;
 use Override;
 
 /**
  * @property int id
+ * @property int parent_id
+ * @property string path
  * @property int apps_id
  * @property int companies_id
  * @property int users_id
  * @property string name
  * @property string slug
+ * @property string description
+ * @property int weight
  * @property string color
  * @property int status
  * @property int is_feature
  */
+#[ObservedBy([TagsObserver::class])]
 class Tag extends BaseModel
 {
     use SlugTrait;
+    use AsTree;
+    use HasFilesystemTrait;
+    use HasLightHouseCache;
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
 
     protected $guarded = [];
     protected $table = 'tags';
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'Tag';
+    }
 
     public function taggables(): HasMany
     {
@@ -69,8 +89,11 @@ class Tag extends BaseModel
     {
         $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
         $user = auth()->user();
-        if ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
-            $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+            $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
         }
 
         return $query;
@@ -80,7 +103,7 @@ class Tag extends BaseModel
     {
         return [
             'objectID' => $this->id,
-            'id' => $this->id,
+            'id' => (string) $this->id,
             'name' => $this->name,
             'company' => [
                 'id' => $this->companies_id,
@@ -91,6 +114,7 @@ class Tag extends BaseModel
                 'lastname' => $this?->company?->user?->lastname,
             ],
             'slug' => $this->slug,
+            'description' => $this->description,
             'apps_id' => $this->apps_id,
             'weight' => $this->weight,
             'status' => $this->status,

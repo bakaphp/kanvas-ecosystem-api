@@ -7,8 +7,9 @@ namespace Kanvas\Connectors\EchoPay;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use GuzzleHttp\Client as GuzzleClient;
-use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\RequestException;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
+use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Exceptions\ValidationException;
 
 class Client
@@ -19,18 +20,12 @@ class Client
     protected string $secret;
     protected GuzzleClient $client;
 
-
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
         protected array $config = []
     ) {
         $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value) ?? ConfigurationEnum::SANDBOX_URL->value;
-
-        if (app()->environment() == 'production') {
-            // TODO: Remove this once we have a production environment
-            throw new ValidationException('Echo Pay is not available in production yet');
-        }
 
         $this->clientId = $this->app->get(ConfigurationEnum::CLIENT_ID->value) ?? $config['client_id'] ?? '';
         $this->secret = $this->app->get(ConfigurationEnum::SECRET->value) ?? $config['secret'] ?? '';
@@ -42,11 +37,13 @@ class Client
         $this->appToken = $this->getAccessToken();
 
         $this->client = new GuzzleClient([
-            'base_uri' => ConfigurationEnum::SANDBOX_URL->value,
+            'base_uri' => $this->baseUrl,
             'headers' => [
                 'Content-Type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->appToken,
             ],
+            'timeout' => 90,
+            'connect_timeout' => 15,
         ]);
     }
 
@@ -61,6 +58,7 @@ class Client
         ]);
 
         $body = json_decode($result->getBody()->getContents());
+
         return $body->data->token;
     }
 
@@ -74,25 +72,57 @@ class Client
             $body = $response->getBody()->getContents();
 
             return json_decode($body, true);
-        } catch (ClientException $e) {
-            throw $e;
+        } catch (RequestException $e) {
+            $errorBody = [];
+            $statusCode = 0;
+
+            if ($e->hasResponse()) {
+                $response = $e->getResponse();
+                $errorBody = json_decode($response->getBody()->getContents(), true) ?? [];
+                $statusCode = $response->getStatusCode();
+            }
+
+            throw new EchoPayException(
+                $errorBody['message'] ?? $e->getMessage(),
+                $statusCode,
+                $e,
+                $errorBody
+            );
         }
     }
 
     /**
      * Perform a POST request to the API.
      */
-    public function post(string $endpoint, array $data): array
+    public function post(string $endpoint, array $data, ?int $timeout = null): array
     {
         try {
-            $response = $this->client->post($endpoint, [
-                'json' => $data,
-            ]);
+            $options = ['json' => $data];
+
+            if ($timeout !== null) {
+                $options['timeout'] = $timeout;
+            }
+
+            $response = $this->client->post($endpoint, $options);
             $body = $response->getBody()->getContents();
 
             return json_decode($body, true);
-        } catch (ClientException $e) {
-            throw $e;
+        } catch (RequestException $e) {
+            $errorBody = [];
+            $statusCode = 0;
+
+            if ($e->hasResponse()) {
+                $response = $e->getResponse();
+                $errorBody = json_decode($response->getBody()->getContents(), true) ?? [];
+                $statusCode = $response->getStatusCode();
+            }
+
+            throw new EchoPayException(
+                $errorBody['message'] ?? $e->getMessage(),
+                $statusCode,
+                $e,
+                $errorBody
+            );
         }
     }
 
@@ -108,8 +138,18 @@ class Client
             $body = $response->getBody()->getContents();
 
             return json_decode($body, true);
-        } catch (ClientException $e) {
-            throw $e;
+        } catch (RequestException $e) {
+            $response = $e->getResponse();
+            $errorBody = json_decode($response->getBody()->getContents(), true);
+
+            $errorMessage = $errorBody['message'] ?? $e->getMessage();
+
+            throw new EchoPayException(
+                $errorMessage,
+                $response->getStatusCode(),
+                $e,
+                $errorBody
+            );
         }
     }
 
@@ -123,8 +163,22 @@ class Client
             $body = $response->getBody()->getContents();
 
             return json_decode($body, true);
-        } catch (ClientException $e) {
-            throw $e;
+        } catch (RequestException $e) {
+            $errorBody = [];
+            $statusCode = 0;
+
+            if ($e->hasResponse()) {
+                $response = $e->getResponse();
+                $errorBody = json_decode($response->getBody()->getContents(), true) ?? [];
+                $statusCode = $response->getStatusCode();
+            }
+
+            throw new EchoPayException(
+                $errorBody['message'] ?? $e->getMessage(),
+                $statusCode,
+                $e,
+                $errorBody
+            );
         }
     }
 }

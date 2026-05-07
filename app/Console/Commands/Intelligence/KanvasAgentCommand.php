@@ -6,15 +6,21 @@ namespace App\Console\Commands\Intelligence;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
-use Inspector\Configuration;
-use Inspector\Inspector;
+use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Types\ADKAgent;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
+use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use NeuronAI\Chat\Messages\UserMessage;
-use NeuronAI\Observability\AgentMonitoring;
 
 class KanvasAgentCommand extends Command
 {
@@ -24,8 +30,10 @@ class KanvasAgentCommand extends Command
      * The name and signature of the console command.
      *
      * @var string
-     */
-    protected $signature = 'kanvas:agent {app_id} {agent_id} {namespace} {entity_id} {--interactive : Start an interactive chat session}';
+    */
+    protected $signature = 'kanvas:agent {app_id} {agent_id} {namespace} {entity_id} 
+                           {--clear-history= : Clear history - options: all, agent, entity, or specific external_reference_id} 
+                           {--interactive : Start an interactive chat session}';
 
     /**
      * The console command description.
@@ -48,12 +56,21 @@ class KanvasAgentCommand extends Command
         $this->overwriteAppService($app);
         $agentId = (int) $this->argument('agent_id');
         $agent = Agent::getById($agentId, $app);
+        $clearHistoryOption = $this->option('clear-history');
 
+        if ($clearHistoryOption) {
+            $this->info('Clearing chat history...');
+
+            // Get all keys matching the pattern
+            $keys = Redis::keys('agent_chat_history_v3:*');
+
+            if (! empty($keys)) {
+                // Delete all matching keys
+                Redis::del($keys);
+            }
+        }
         // Initialize the agent
         $crm = new $agent->type->handler();
-        $inspector = new Inspector(
-            new Configuration($app->get('inspector-key'))
-        );
 
         // Assuming the People model is correctly set up
         //$person = People::getById(57626); // You might want to make this configurable
@@ -62,16 +79,22 @@ class KanvasAgentCommand extends Command
         $entity = $namespace::getById($entity);
         $crm->setConfiguration($agent, $entity);
 
-        $crm->observe(
-            new AgentMonitoring($inspector)
-        );
-
         if ($this->option('interactive')) {
-            $this->startInteractiveChat($crm);
+            $this->startInteractiveChat($crm, $entity);
         } else {
             // Handle single question mode for backward compatibility
             $question = $this->ask('What would you like to ask the agent?');
-            $response = $crm->chat(new UserMessage($question));
+            if ($crm instanceof ADKAgent) {
+                $response = $crm->chatSimple(
+                    app: $app,
+                    company: $entity->company,
+                    userId: (string) $entity->users_id,
+                    sessionId: $entity->uuid,
+                    message: $question,
+                );
+            } else {
+                $response = $crm->chat(new UserMessage($question));
+            }
             $this->info(ChatHelper::extractTextFromResponse($response->getContent()));
         }
     }
@@ -79,7 +102,7 @@ class KanvasAgentCommand extends Command
     /**
      * Start an interactive chat session with the agent.
      */
-    protected function startInteractiveChat($agent)
+    protected function startInteractiveChat(object $agent, Model $entity): void
     {
         $this->info("Interactive chat session started. Type 'exit' or 'quit' to end the conversation.");
         $chatHistory = [];
@@ -94,8 +117,40 @@ class KanvasAgentCommand extends Command
                 break;
             }
 
+            $channel = new Channel();
+            $channel->name = 'Kanvas Agent Channel';
+            $channel->slug = $entity->uuid;
+            $channel->companies_id = $entity->companies_id;
+            $channel->apps_id = $entity->apps_id;
+            $channel->description = 'Channel for Kanvas Agent interactions';
+            $channel->save();
+            $messageType = 'kanvas-agent-message';
+            $messageTypeModel = (new CreateMessageTypeAction(
+                new MessageTypeInput(
+                    $entity->app->getId(),
+                    0,
+                    $messageType,
+                    $messageType,
+                )
+            ))->execute();
+
+            // Create the message using the action
+            $messageInput = new MessageInput(
+                app: $entity->app,
+                company: $entity->company,
+                user: $entity->user,
+                type: $messageTypeModel,
+                message: [
+                ],
+                is_public: 1,
+                slug: $entity->uuid,
+            );
+
+            $createMessageAction = new CreateMessageAction($messageInput);
+            $message = $createMessageAction->execute();
+
             // Send message to agent
-            $response = $agent->chat(new UserMessage($question));
+            $response = $agent instanceof ADKAgent ? $agent->chat($channel, $message, $question) : $agent->chat(new UserMessage($question));
 
             // Store in chat history if you want to implement context
             $chatHistory[] = [

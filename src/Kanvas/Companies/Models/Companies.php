@@ -13,6 +13,7 @@ use Baka\Traits\SoftDeletesTrait;
 use Baka\Users\Contracts\UserInterface;
 use Bavix\Wallet\Interfaces\Customer;
 use Bavix\Wallet\Traits\CanPayFloat;
+use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
+use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CompaniesTotalBranchesAction;
 use Kanvas\Companies\Actions\SetUsersCountAction as CompaniesSetUsersCountAction;
@@ -37,6 +39,7 @@ use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Models\BaseModel;
 use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
@@ -97,6 +100,12 @@ class Companies extends BaseModel implements CompanyInterface, Customer
 
     protected $guarded = ['files', 'users_id', 'custom_fields'];
 
+    public $cacheFor = 86400; //1 day
+    public $cacheTags = ['companies'];
+    public $cachePrefix = 'companies_';
+    public $cacheDriver = 'redis';
+    protected static $flushCacheOnUpdate = true;
+
     /**
      * Create a new factory instance for the model.
      *
@@ -120,6 +129,14 @@ class Companies extends BaseModel implements CompanyInterface, Customer
     public function addresses(): HasMany
     {
         return $this->hasMany(CompaniesAddress::class, 'companies_id');
+    }
+
+    public function defaultAddress(): HasOne
+    {
+        return $this->hasOne(
+            CompaniesAddress::class,
+            'companies_id'
+        )->where('is_default', StateEnums::YES->getValue());
     }
 
     /**
@@ -309,6 +326,9 @@ class Companies extends BaseModel implements CompanyInterface, Customer
             'user_active' => $isActive,
             'user_role' => $userRoleId ?? $user->roles_id,
             'password' => $password,
+            'email' => $user->email,
+            'firstname' => $user->firstname,
+            'lastname' => $user->lastname,
         ]);
     }
 
@@ -364,12 +384,24 @@ class Companies extends BaseModel implements CompanyInterface, Customer
     {
         $app = app(Apps::class);
 
-        return $query->join(
-            'user_company_apps',
-            'user_company_apps.companies_id',
-            '=',
-            'companies.id'
-        )->where('user_company_apps.apps_id', '=', $app->getId());
+        $user = auth()->user();
+
+        // If user CANNOT view all companies, limit to their companies only
+        if (! $user->isAdmin()) {
+            return $query->whereIn('companies.id', function ($subquery) use ($app, $user) {
+                $subquery->select('companies_id')
+                    ->from('users_associated_apps')
+                    ->where('apps_id', $app->getId())
+                    ->where('is_deleted', StateEnums::NO->getValue())
+                    ->where('users_id', $user->getId());
+            });
+        }
+
+        return $query->whereIn('companies.id', function ($subquery) use ($app) {
+            $subquery->select('companies_id')
+                ->from('user_company_apps')
+                ->where('apps_id', $app->getId());
+        });
     }
 
     public static function search($query = '', $callback = null)
@@ -389,7 +421,12 @@ class Companies extends BaseModel implements CompanyInterface, Customer
         $array['users'] = CompaniesRepository::getAllCompanyUsers($this)->pluck('id')->toArray();
         $array = $this->transform($array);
         $array['id'] = (string) $this->getKey();
-        $array['created_at'] = $this->isTypesense() ? $this->created_at->timestamp : $this->created_at->toDateTimeString();
+        $array['created_at'] = $this->created_at
+            ? ($this->isTypesense() ? $this->created_at->timestamp : $this->created_at->toDateTimeString())
+            : null;
+        $array['is_active'] = (bool) $this->is_active;
+        $array['is_deleted'] = (bool) $this->is_deleted;
+        $array['zipcode'] = (string) ($this->zipcode ?? '');
 
         return $array;
     }
@@ -408,6 +445,13 @@ class Companies extends BaseModel implements CompanyInterface, Customer
             'companies_id' => $this->getId(),
             'apps_id' => $app->getId(),
         ]);
+    }
+
+    public function getAiAgentUser(): ?Users
+    {
+        $agentUserId = $this->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
+
+        return $agentUserId !== null ? Users::getById((int) $agentUserId) : null;
     }
 
     public function hasCompanyPermission(UserInterface $user): void
@@ -540,6 +584,7 @@ class Companies extends BaseModel implements CompanyInterface, Customer
                 [
                     'name' => 'created_at',
                     'type' => 'int64',
+                    'sort' => true,
                 ],
                 [
                     'name' => 'updated_at',
@@ -550,5 +595,40 @@ class Companies extends BaseModel implements CompanyInterface, Customer
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,
         ];
+    }
+
+    public function isWithinWorkingHours(Carbon $now): bool
+    {
+        $schedule = $this->get('work_hours');
+
+        if (! $schedule || empty($schedule)) {
+            throw new InvalidArgumentException('Working days schedule is not set or invalid for company ID: ' . $this->getId());
+        }
+
+        $now->setTimezone($this->timezone);
+        $dayName = $now->format('l'); // Monday, Tuesday, etc.
+
+        if (! isset($schedule[$dayName])) {
+            return false;
+        }
+
+        $hours = $schedule[$dayName] ?? '';
+
+        // Handle closed days
+        if (strtolower($hours) === 'closed') {
+            return false;
+        }
+
+        [$start, $end] = array_map('trim', explode('-', $hours));
+
+        $startTime = Carbon::parse($dayName . ' ' . $start, $this->timezone);
+        $endTime = Carbon::parse($dayName . ' ' . $end, $this->timezone);
+
+        return $now->between($startTime, $endTime);
+    }
+
+    public function isAIEnabled(): bool
+    {
+        return (bool) $this->get('ai');
     }
 }

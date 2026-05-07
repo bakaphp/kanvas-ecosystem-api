@@ -15,6 +15,7 @@ use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
 use Kanvas\Regions\Models\Regions as ModelsRegions;
+use Kanvas\Souk\Orders\Models\Order as ModelsOrder;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
@@ -31,7 +32,7 @@ class Order extends Data
         public readonly People $people,
         public readonly UserInterface $user,
         public readonly string $token,
-        public readonly string $orderNumber,
+        public int|float|string $orderNumber,
         public readonly ?Address $shippingAddress,
         public readonly ?Address $billingAddress,
         public float $total,
@@ -56,6 +57,9 @@ class Order extends Data
         public readonly array $paymentGatewayName = [],
         public readonly ?string $reference = null,
         public readonly ?PaymentMethod $paymentMethod = null,
+        public readonly ?string $paymentStatus = null, // enums
+        public readonly ?ModelsOrder $parent = null,
+        public readonly ?string $ipAddress = null,
     ) {
         $this->items = is_array($items) ? $this->getOrderItems($items) : $items;
     }
@@ -73,7 +77,6 @@ class Order extends Data
     public function getOrderItems(array $lineItems): DataCollection
     {
         $orderItems = [];
-
         if (! isset($lineItems[0]['name']) || ! isset($lineItems[0]['id']) || ! isset($lineItems[0]['quantity'])) {
             throw new InvalidArgumentException('Not the correct item structure to generate a line item');
         }
@@ -95,8 +98,9 @@ class Order extends Data
                 price: (float) $lineItem['price'],
                 tax: $lineItem['tax'] ?? 0,
                 discount: (float) ($lineItem['total_discount'] ?? 0),
-                currency: Currencies::getByCode('USD'),
-                quantityShipped: 0
+                currency: $this->currency,
+                quantityShipped: 0,
+                channelId: $lineItem['attributes']['channel_id'] ?? null,
             );
 
             $orderItems[] = $item;

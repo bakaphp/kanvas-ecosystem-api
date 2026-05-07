@@ -10,6 +10,7 @@ use Kanvas\Guild\Customers\Actions\CreateOrUpdatePeopleSubscriptionAction;
 use Kanvas\Guild\Customers\DataTransferObject\PeopleSubscription as PeopleSubscriptionDTO;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 use Stripe\StripeClient;
 
 // Maybe add action at the of the class name
@@ -17,6 +18,7 @@ class UpdatePeopleStripeSubscriptionJob extends ProcessWebhookJob
 {
     public array $data = [];
 
+    #[Override]
     public function execute(): array
     {
         if (! in_array($this->webhookRequest->payload['type'], ['customer.subscription.updated', 'customer.subscription.created', 'customer.subscription.deleted'])) {

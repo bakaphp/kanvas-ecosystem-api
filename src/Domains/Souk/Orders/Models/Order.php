@@ -11,23 +11,37 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Enums\B2BSettingsEnums;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Social\Messages\Traits\HasMessagesTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Souk\Affiliates\Models\AffiliateConversion;
+use Kanvas\Souk\Discounts\Models\Discount;
+use Kanvas\Souk\Discounts\Models\OrderDiscount;
+use Kanvas\Souk\Discounts\Services\DiscountService;
 use Kanvas\Souk\Models\BaseModel;
+use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Factories\OrderFactory;
 use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
-use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Souk\Traits\PayableTrait;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
+use Nevadskiy\Tree\AsTree;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
@@ -36,10 +50,14 @@ use Spatie\LaravelData\DataCollection;
  *
  * @property int $id
  * @property int $apps_id
- * @property int companies_id
+ * @property int $companies_id
  * @property int $region_id
+ * @property int|null $channel_id
  * @property string $uuid
  * @property string|null $tracking_client_id
+ * @property string|null $ip_address
+ * @property int|null $parent_id
+ * @property int $companies_id
  * @property string|null $user_email
  * @property string|null $user_phone
  * @property string|null $token
@@ -53,13 +71,17 @@ use Spatie\LaravelData\DataCollection;
  * @property float|null $shipping_price_gross_amount
  * @property float|null $shipping_price_net_amount
  * @property float|null $discount_amount
+ * @property float|null $tax_amount
+ * @property float|null $commission_rate
+ * @property float|null $commission_amount
+ * @property float|null $provider_amount
  * @property string|null $discount_name
  * @property int|null $voucher_id
  * @property string|null $language_code
  * @property string $status
+ * @property string|null $payment_status
  * @property string|null $fulfillment_status
  * @property string|null $shipping_method_name
- * @property string|null $fulfillment_status
  * @property int|null $shipping_method_id
  * @property bool $display_gross_prices
  * @property string|null $translated_discount_name
@@ -67,24 +89,29 @@ use Spatie\LaravelData\DataCollection;
  * @property float|null $weight
  * @property string|null $checkout_token
  * @property string|null $currency
- * @property string|null $metadata
- * @property string|null $private_metadata
+ * @property array|null $metadata
+ * @property array|null $private_metadata
  * @property string|null $estimate_shipping_date
  * @property string|null $shipped_date
  * @property string|null $payment_gateway_names
  * @property bool $is_deleted
  * @property string|null $reference
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  */
 #[ObservedBy(OrderObserver::class)]
 class Order extends BaseModel
 {
     use UuidTrait;
-    use DynamicSearchableTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     use CanUseWorkflow;
     use HasShopifyCustomField;
     use HasTagsTrait;
+    use HasMessagesTrait;
+    use AsTree;
+    use PayableTrait;
 
     protected $table = 'orders';
     protected $guarded = [];
@@ -95,6 +122,9 @@ class Order extends BaseModel
         'shipping_price_gross_amount' => 'float',
         'shipping_price_net_amount' => 'float',
         'discount_amount' => 'float',
+        'commission_rate' => 'float',
+        'commission_amount' => 'float',
+        'provider_amount' => 'float',
         'weight' => 'float',
         'payment_gateway_names' => Json::class,
         'metadata' => Json::class,
@@ -126,21 +156,49 @@ class Order extends BaseModel
         return $this->hasMany(OrderItem::class, 'order_id', 'id');
     }
 
+    public function orderDiscountCodes(): HasMany
+    {
+        return $this->hasMany(OrderDiscount::class, 'order_id')
+        ->with(['discount.discountType']);
+    }
+
     public function shippingAddress(): BelongsTo
     {
         return $this->belongsTo(Address::class, 'shipping_address_id', 'id');
     }
 
-    public function payments(): MorphMany
+    public function orderDiscounts(): HasMany
     {
-        return $this->morphMany(Payments::class, 'payable');
+        return $this->hasMany(OrderDiscount::class, 'order_id', 'id');
+    }
+
+    public function affiliateConversion(): HasMany
+    {
+        return $this->hasMany(AffiliateConversion::class, 'orders_id', 'id');
+    }
+
+    public function resource(): MorphTo
+    {
+        return $this->morphTo('resources');
+    }
+
+    public function providerCompanies(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Companies::class,
+            OrderProvider::getQualifiedTableName(),
+            'order_id',
+            'company_id'
+        )
+        ->using(OrderProvider::class)
+        ->withTimestamps();
     }
 
     public function scopeFilterByUser(Builder $query, mixed $user = null): Builder
     {
         $user = $user instanceof UserInterface ? $user : auth()->user();
 
-        if (! $user->isAppOwner()) {
+        if (! $user->isAppOwner() && ! $user->can('view-all-orders')) {
             return $query->where('users_id', $user->getId());
         }
 
@@ -185,6 +243,8 @@ class Order extends BaseModel
         $orderItem->tax_rate = 0;
         $orderItem->currency = $item->currency->code;
         $orderItem->variant_name = $item->variant->name;
+        $orderItem->metadata = $item->metadata;
+        $orderItem->channel_id = $item->channelId;
         $orderItem->saveOrFail();
 
         return $orderItem;
@@ -207,6 +267,12 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
+    public function fulfillPending(): void
+    {
+        $this->fulfillment_status = 'pending';
+        $this->saveOrFail();
+    }
+
     public function completed(): void
     {
         $this->status = 'completed';
@@ -223,6 +289,26 @@ class Order extends BaseModel
     {
         $this->status = 'canceled';
         $this->saveOrFail();
+    }
+
+    public function transitionToStatus(UserInterface $user, string $statusSlug): void
+    {
+        if ($orderStatus = $this->orderType?->statuses()->where('slug', $statusSlug)->first()) {
+            new TransitionOrderStateAction(
+                $this,
+                $user,
+                $orderStatus
+            )->execute(true);
+        }
+    }
+
+    public function markAsPaid(UserInterface $user): void
+    {
+        $this->transitionToStatus($user, PaymentStatusEnum::PAID->value);
+
+        // to keep the legacy support
+        $this->payment_status = PaymentStatusEnum::PAID->value;
+        $this->completed();
     }
 
     public function scopeWhereNotCompleted(Builder $query): Builder
@@ -272,11 +358,13 @@ class Order extends BaseModel
 
     public function generateOrderNumber(): int
     {
-        // Lock the orders table while retrieving the last order
-        $lastOrder = Order::where('companies_id', $this->companies_id)
-            ->where('apps_id', $this->apps_id)
+        // Lock the orders table while retrieving the order with the highest order_number
+        $isB2BMode = $this->app->get(B2BSettingsEnums::B2B_APP_WISE_ORDER_NUMBERING->getValue());
+        $lastOrder = Order::where('apps_id', $this->apps_id)
+            ->when(! $isB2BMode, fn ($q) => $q->where('companies_id', $this->companies_id))
             ->lockForUpdate() // Ensure no race conditions
-            ->latest('id')
+            ->withTrashed()
+            ->orderBy('order_number', 'desc') // Order by the actual order_number field
             ->first();
 
         $lastOrderNumber = $lastOrder ? intval($lastOrder->order_number) : 0;
@@ -575,6 +663,22 @@ class Order extends BaseModel
         return config('scout.prefix') . ($customIndex ?? 'orders');
     }
 
+    public static function search($query = '', $callback = null)
+    {
+        $app = app(Apps::class);
+
+        $query = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
+            $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        return $query;
+    }
+
     public function setOrderType(string $orderType): void
     {
         $orderType = OrderTypes::firstOrCreate([
@@ -589,12 +693,16 @@ class Order extends BaseModel
         $this->saveOrFail();
     }
 
+    public function setChannelId(int $channelId): void
+    {
+        $this->channel_id = $channelId;
+        $this->saveOrFail();
+    }
+
     public function checkPayments(): void
     {
         if ($this && ($this->payments)) {
-            $totalPaid = $this->getPaidAmount();
-            $totalDebt = $this->total_net_amount - $totalPaid;
-            if ($totalDebt <= 0) {
+            if ($this->isPaid()) {
                 $this->completed();
 
                 $this->fireWorkflow(
@@ -608,15 +716,111 @@ class Order extends BaseModel
         }
     }
 
-    public function getPaidAmount(): float
-    {
-        $paidAmount = $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
-
-        return (float) $paidAmount;
-    }
-
     public function orderType(): BelongsTo
     {
         return $this->belongsTo(OrderTypes::class, 'order_types_id', 'id');
+    }
+
+    public function orderStatus(): BelongsTo
+    {
+        return $this->belongsTo(OrderStatus::class, 'order_status_id', 'id');
+    }
+
+    public function orderTransitionHistory(): HasMany
+    {
+        return $this->hasMany(OrderTransitionHistory::class, 'order_id', 'id');
+    }
+
+    public function channel(): BelongsTo
+    {
+        return $this->belongsTo(Channels::class, 'channel_id', 'id');
+    }
+
+    /**
+     * Get the most recent transition history entry
+     */
+    public function getLastTransition(): ?OrderTransitionHistory
+    {
+        return $this->orderTransitionHistory()
+            ->orderBy('changed_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
+    }
+
+    /**
+     * Get the first transition history entry
+     */
+    public function getFirstTransition(): ?OrderTransitionHistory
+    {
+        return $this->orderTransitionHistory()
+            ->orderBy('changed_at', 'asc')
+            ->orderBy('id', 'asc')
+            ->first();
+    }
+
+    /**
+     * Get transition history by the to_status slug
+     */
+    public function getTransitionByStatus(string $statusSlug): ?OrderTransitionHistory
+    {
+        return $this->orderTransitionHistory()
+            ->whereHas('toStatus', function ($query) use ($statusSlug) {
+                $query->where('slug', $statusSlug);
+            })
+            ->first();
+    }
+
+    /**
+     * Get the current active transition (where is_current = true)
+     */
+    public function getCurrentTransition(): ?OrderTransitionHistory
+    {
+        return $this->orderTransitionHistory()
+            ->where('is_current', true)
+            ->first();
+    }
+
+    public function calculateTotal(bool $autoSave = true): void
+    {
+        $total = OrderItem::query()->where(['order_id' => $this->id])
+            ->selectRaw('sum(unit_price_net_amount * quantity) as price, count(*) as count')
+            ->first();
+
+        $orderTotal = (float) ($total->price ?? 0);
+
+        // Get discount amount from orderDiscounts relationship (single source of truth)
+        $discountAmount = (float) $this->orderDiscounts()->sum('amount');
+
+        $this->total_gross_amount = $orderTotal;
+        $this->discount_amount = $discountAmount;
+        $this->total_net_amount = $orderTotal - $discountAmount;
+        $this->shipping_price_gross_amount = (float) $this->shipping_price_gross_amount;
+        $this->shipping_price_net_amount = (float) $this->shipping_price_net_amount;
+
+        if ($this->commission_rate !== null) {
+            $netAmount = (float) $this->total_net_amount;
+            $this->commission_amount = $netAmount > 0 ? round($netAmount * $this->commission_rate / 100, 2) : 0.0;
+            $this->provider_amount = $netAmount > 0 ? $netAmount - $this->commission_amount : 0.0;
+        }
+
+        if ($autoSave) {
+            $this->saveOrFail();
+        }
+    }
+
+    #[Override]
+    protected static function newFactory()
+    {
+        return new OrderFactory();
+    }
+
+    public function applyDiscountCode(string $code): ?Discount
+    {
+        $discountService = new DiscountService(
+            $this->app,
+            $this->company
+        );
+
+        return $discountService->applyDiscountCode($code, $this);
     }
 }

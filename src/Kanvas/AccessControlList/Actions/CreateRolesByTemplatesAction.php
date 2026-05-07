@@ -33,6 +33,14 @@ class CreateRolesByTemplatesAction
             $role = $templateInstance->role;
             $denied = $templateInstance->denied;
             $allowed = $templateInstance->allowed;
+
+            // If role has all permissions, grant everything
+            if ($templateInstance->hasAllPermissions) {
+                Bouncer::allow($role)->everything();
+
+                continue;
+            }
+
             if (empty($allowed)) {
                 $allowed = ModulesRepositories::getAllAbilities();
             }

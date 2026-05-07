@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Actions\SyncLeadToZohoAction;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
+use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -38,12 +39,13 @@ class ZohoLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
             entity: $lead,
             app: $app,
             integration: IntegrationsEnum::ZOHO,
+            additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
                 $syncLeadWithZoho = new SyncLeadToZohoAction($app, $lead);
                 $zohoLead = $syncLeadWithZoho->execute();
 
                 return [
-                    'zohoLeadId' => $lead->getId(),
+                    'zohoLeadId' => $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value),
                     'zohoRequest' => $zohoLead,
                     'leadId' => $lead->getId(),
                     'status' => $lead->status()->first()->name,

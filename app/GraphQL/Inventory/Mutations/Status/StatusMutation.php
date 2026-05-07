@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Status;
 
+use App\GraphQL\Base\BaseMutation;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Status\Actions\CreateStatusAction;
 use Kanvas\Inventory\Status\DataTransferObject\Status as StatusDto;
@@ -12,14 +13,17 @@ use Kanvas\Inventory\Status\Repositories\StatusRepository;
 use Kanvas\Languages\DataTransferObject\Translate;
 use Kanvas\Languages\Services\Translation as TranslationService;
 
-class StatusMutation
+class StatusMutation extends BaseMutation
 {
+    protected string $model = StatusModel::class;
     /**
      * create.
      *
      */
     public function create(mixed $rootValue, array $request): StatusModel
     {
+        $this->authorize('create');
+
         if (auth()->user()->isAppOwner() && isset($request['input']['company_id'])) {
             $company = Companies::getById($request['input']['company_id']);
         } else {
@@ -38,6 +42,8 @@ class StatusMutation
      */
     public function update(mixed $rootValue, array $request): StatusModel
     {
+        $this->authorize('edit');
+
         $id = $request['id'];
         $data = $request['input'];
         $status = StatusRepository::getById((int) $id, auth()->user()->getCurrentCompany());
@@ -52,6 +58,8 @@ class StatusMutation
      */
     public function delete(mixed $rootValue, array $request): bool
     {
+        $this->authorize('delete');
+
         $id = $request['id'];
         $status = StatusRepository::getById((int) $id, auth()->user()->getCurrentCompany());
 

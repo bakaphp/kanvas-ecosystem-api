@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Leads;
 
+use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\VinSolution\Client;
 use Kanvas\Connectors\VinSolution\Dealers\Dealer;
 use Kanvas\Connectors\VinSolution\Dealers\User;
@@ -11,29 +12,52 @@ use Kanvas\Connectors\VinSolution\Dealers\User;
 class Lead
 {
     public int $id;
-    public ?string $leadSource = null;
+    public string|int|null $leadSource = null;
     public ?string $leadStatusType = null;
     public int $leadStatusId = 0;
-    public int $leadType = 0;
+    public int|string $leadType = 0;
+    public ?string $leadTypeName = null;
+    public ?string $leadGroupCategory = null;
     public int $contactId = 0;
     public int $isHot = 0;
     public int $isOnShowroom = 0;
     public int $coBuyerContact = 0;
 
-    /**
-     * Initialize.
-     */
+    public string $createdAt;
+
     public function __construct(array $data)
     {
         $this->id = $data['LeadId'] ?? $data['leadId'];
-        $this->leadSource = $data['LeadSource'] ?? '55694';
-        $this->leadStatusType = $data['LeadStatusType'] ?? null;
+        $this->leadSource = $data['LeadSource'] ?? $data['leadSource']['leadSourceId'] ?? '55694';
+        $this->leadStatusType = $data['LeadStatusType'] ?? $data['leadStatusType'] ?? null;
         $this->leadStatusId = $data['LeadStatusId'] ?? 0;
-        $this->leadType = $data['LeadType'] ?? 0;
-        $this->contactId = $data['CustomerId'] ?? 0;
-        $this->isHot = isset($data['IsHot']) ? (int) $data['IsHot'] : 0;
-        $this->coBuyerContact = isset($data['coBuyerContact']) && (int) $data['coBuyerContact'] > 0 ? (int) $data['coBuyerContact'] : 0;
-        $this->isOnShowroom = isset($data['IsOnShowroom']) ? (int) $data['IsOnShowroom'] : 0;
+
+        // Support both V1 (numeric) and V2 (string) leadType
+        $leadType = $data['LeadType'] ?? $data['leadType'] ?? 0;
+        if (is_string($leadType) && ! is_numeric($leadType)) {
+            $this->leadType = 0;
+            $this->leadTypeName = $leadType;
+        } else {
+            $this->leadType = (int) $leadType;
+            $this->leadTypeName = $data['leadTypeName'] ?? null;
+        }
+
+        $this->leadGroupCategory = $data['leadGroupCategory'] ?? null;
+
+        // Support both V1 (CustomerId) and V2 (contact.id)
+        $this->contactId = $data['CustomerId'] ?? $data['contact']['id'] ?? 0;
+
+        $this->isHot = isset($data['IsHot']) ? (int) $data['IsHot'] : (isset($data['isHot']) ? (int) $data['isHot'] : 0);
+
+        // Support both V1 and V2 coBuyerContact
+        if (isset($data['coBuyerContact']) && is_array($data['coBuyerContact'])) {
+            $this->coBuyerContact = ! empty($data['coBuyerContact']['id']) ? (int) $data['coBuyerContact']['id'] : 0;
+        } else {
+            $this->coBuyerContact = isset($data['coBuyerContact']) && (int) $data['coBuyerContact'] > 0 ? (int) $data['coBuyerContact'] : 0;
+        }
+
+        $this->isOnShowroom = isset($data['IsOnShowroom']) ? (int) $data['IsOnShowroom'] : (isset($data['isOnShowroom']) ? (int) $data['isOnShowroom'] : 0);
+        $this->createdAt = $data['createdUtc'] ?? '';
     }
 
     /**
@@ -41,7 +65,8 @@ class Lead
      */
     public static function getAll(Dealer $dealer, User $user, array $params = []): array
     {
-        $client = new Client($dealer->id, $user->id);
+        $app = isset($params['app']) && $params['app'] instanceof AppInterface ? $params['app'] : null;
+        $client = new Client($dealer->id, $user->id, $app);
         $client->useDigitalShowRoomKey();
 
         $data = [];
@@ -59,7 +84,8 @@ class Lead
 
     public static function getAllV2(Dealer $dealer, User $user, array $params = []): array
     {
-        $client = new Client($dealer->id, $user->id);
+        $app = isset($params['app']) && $params['app'] instanceof AppInterface ? $params['app'] : null;
+        $client = new Client($dealer->id, $user->id, $app);
 
         $data = [];
         $data['DealerId'] = $dealer->id;
@@ -72,6 +98,22 @@ class Lead
             [
                 'headers' => [
                     'Content-Type' => 'application/vnd.coxauto.v3+json',
+                ],
+            ]
+        );
+
+        return $response;
+    }
+
+    public static function getByVin(Dealer $dealer, User $user, string $vin, ?AppInterface $app = null): array
+    {
+        $client = new Client($dealer->id, $user->id, $app);
+
+        $response = $client->get(
+            '/vehicles/vin?vin=' . urlencode($vin),
+            [
+                'headers' => [
+                    'Accept' => 'application/vnd.coxauto.v1+json',
                 ],
             ]
         );
@@ -96,6 +138,28 @@ class Lead
         );
 
         return new self($response['Leads'][0]);
+    }
+
+    public static function getByIdV2(Dealer $dealer, User $user, int $leadsId, AppInterface $app): self
+    {
+        $client = new Client($dealer->id, $user->id, $app);
+        //$client->useDigitalShowRoomKey();
+
+        $data = [];
+        $data['DealerId'] = $dealer->id;
+        $data['UserId'] = $user->id;
+
+        $response = $client->get(
+            '/leads/id/' . $leadsId,
+            [
+                'headers' => [
+                    'Content-Type' => 'application/vnd.coxauto.v3+json',
+                ],
+            ]
+        );
+
+        //print_r($response);
+        return new self($response);
     }
 
     /**
@@ -207,6 +271,10 @@ class Lead
                 ],
             ]
         );
+
+        if (! isset($response['coBuyerContact']) || empty($response['coBuyerContact'])) {
+            return null;
+        }
 
         if (preg_match("/\/id\/(\d+)/", $response['coBuyerContact'], $matches)) {
             return $matches[1];

@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Models;
 
 use Baka\Traits\UuidTrait;
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
  * FilesystemEntities Model.
@@ -28,10 +28,10 @@ use Kanvas\SystemModules\Models\SystemModules;
 class FilesystemEntities extends BaseModel
 {
     use UuidTrait;
-    use Cachable;
+    use CanUseWorkflow;
 
     protected $table = 'filesystem_entities';
-    protected $touches = ['filesystem'];
+    // protected $touches = ['filesystem'];
 
     protected $fillable = [
         'filesystem_id',
@@ -39,6 +39,7 @@ class FilesystemEntities extends BaseModel
         'system_modules_id',
         'entity_id',
         'field_name',
+        'weight',
         'is_deleted',
     ];
 

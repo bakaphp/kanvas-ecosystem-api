@@ -20,10 +20,15 @@ class Client
 
     public function __construct(
         protected AppInterface $app,
-        protected CompanyInterface $company
+        protected CompanyInterface $company,
+        protected bool $outboundMode = false
     ) {
-        $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value);
-        $this->apiKey = $this->app->get(ConfigurationEnum::API_KEY->value);
+        $baseUrlEnum = $this->outboundMode
+            ? ConfigurationEnum::BASE_URL_OUTBOUND
+            : ConfigurationEnum::BASE_URL;
+
+        $this->baseUrl = $app->get($baseUrlEnum->value);
+        $this->apiKey = $company->get(ConfigurationEnum::API_KEY->value) ?? $app->get(ConfigurationEnum::API_KEY->value);
 
         if (empty($this->baseUrl) || empty($this->apiKey)) {
             throw new ValidationException('Wasender configuration is missing');

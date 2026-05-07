@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Categories\Observers\CategoryObserver;
@@ -46,6 +47,14 @@ class Categories extends BaseModel
         return 'Category';
     }
 
+    #[Override]
+    public function getTable()
+    {
+        $databaseName = DB::connection($this->connection)->getDatabaseName();
+
+        return $databaseName . '.categories';
+    }
+
     public function apps(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id', 'id');
@@ -66,6 +75,11 @@ class Categories extends BaseModel
         return $this->belongsToMany(Products::class, 'products_categories', 'categories_id', 'products_id');
     }
 
+    public function categoryEntities(): HasMany
+    {
+        return $this->hasMany(CategoryEntity::class, 'categories_id');
+    }
+
     public function getProductsByTags(string $tag): Collection
     {
         return $this->products()
@@ -75,6 +89,7 @@ class Categories extends BaseModel
              ->inRandomOrder()
              ->get();
     }
+
     /**
      * Get the total amount of products of a product type.
      */

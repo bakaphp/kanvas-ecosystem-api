@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Generator;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Client;
+use Kanvas\Connectors\Elead\Support\EleadCache;
 
 class LeadSource
 {
@@ -28,14 +29,33 @@ class LeadSource
         }
     }
 
-    public static function getAll(AppInterface $app, Companies $company): Generator
+    public static function getAll(AppInterface $app, Companies $company, bool $fresh = false): Generator
     {
+        $cache = new EleadCache($app, $company);
+
+        if (! $fresh) {
+            $cached = $cache->get('lead_sources', 'all');
+
+            if ($cached !== null) {
+                foreach ($cached as $item) {
+                    $leadSource = new self();
+                    $leadSource->assign($item);
+                    yield $leadSource;
+                }
+
+                return;
+            }
+        }
+
         $client = new Client($app, $company);
         $response = $client->get(
             '/sales/v1/elead/productreferencedata/companyOpportunitySources'
         );
 
-        foreach ($response['items'] as $item) {
+        $items = $response['items'] ?? [];
+        $cache->setReference('lead_sources', 'all', $items);
+
+        foreach ($items as $item) {
             $leadSource = new self();
             $leadSource->assign($item);
             yield $leadSource;

@@ -7,7 +7,6 @@ namespace Kanvas\Inventory\Products\Actions;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Categories\Repositories\CategoriesRepository;
 use Kanvas\Inventory\Products\Models\Products;
@@ -17,7 +16,6 @@ use Throwable;
 
 class DuplicateProductAction
 {
-    protected Apps $app;
     protected bool $runWorkflow = true;
 
     public function __construct(
@@ -90,7 +88,6 @@ class DuplicateProductAction
                 $products->addAttributes($this->originalProduct->user, $this->originalProduct->attributes->toArray());
             }
 
-
             foreach ($this->originalProduct->variants as $variant) {
                 (new DuplicateVariantAction(
                     $variant,
@@ -131,15 +128,15 @@ class DuplicateProductAction
         return $this;
     }
 
-    public function setDuplicateName()
+    public function setDuplicateName(): array
     {
         $originalName = $this->originalProduct->name;
         $originalSlug = $this->originalProduct->slug;
         $appId = $this->originalProduct->app->getId();
         $companyId = $this->originalProduct->company->getId();
 
-        $baseCopyName = $originalName . " (Copy)";
-        $baseCopySlug = $originalSlug . "-copy";
+        $baseCopyName = $originalName . ' (Copy)';
+        $baseCopySlug = $originalSlug . '-copy';
 
         $existingSlugs = Products::where('apps_id', $appId)
             ->where('companies_id', $companyId)
@@ -162,7 +159,7 @@ class DuplicateProductAction
 
         return [
             'name' => $duplicateName,
-            'slug' => $duplicateSlug
+            'slug' => $duplicateSlug,
         ];
     }
 }
