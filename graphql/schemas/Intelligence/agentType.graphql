@@ -18,6 +18,7 @@ type agentType {
 input AgentTypeInput {
     name: String!
     description: String
+    handler: String
     config: String!
     is_active: Boolean
     role: String!
