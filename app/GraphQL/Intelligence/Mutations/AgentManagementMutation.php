@@ -47,7 +47,7 @@ class AgentManagementMutation
             name: $input['name'],
             role: $input['role'],
             is_active: $input['is_active'],
-            description: $input['description'],
+            description: $input['description'] ?? null,
             config: $input['config'],
             task: $task,
             communicationChannel: $input['communication_channels'] ?? [],
@@ -101,7 +101,7 @@ class AgentManagementMutation
             name: $input['name'],
             role: $input['role'],
             is_active: $input['is_active'],
-            description: $input['description'],
+            description: $input['description'] ?? null,
             config: $input['config'],
             task: $task,
             communicationChannel: $input['communication_channels'] ?? [],
@@ -136,6 +136,44 @@ class AgentManagementMutation
         );
 
         return (bool) $agent->delete();
+    }
+
+    public function attachTool(mixed $root, array $req): Agent
+    {
+        $app = app(Apps::class);
+        $agent = Agent::getByIdFromCompanyApp(
+            id: $req['agent_id'],
+            app: $app,
+            company: auth()->user()->getCurrentCompany()
+        );
+
+        $tool = Tool::query()
+            ->where('id', (int) $req['tool_id'])
+            ->forApp($app)
+            ->firstOrFail();
+
+        $agent->selectedTools()->syncWithoutDetaching([$tool->getId()]);
+
+        return $agent;
+    }
+
+    public function detachTool(mixed $root, array $req): bool
+    {
+        $app = app(Apps::class);
+        $agent = Agent::getByIdFromCompanyApp(
+            id: $req['agent_id'],
+            app: $app,
+            company: auth()->user()->getCurrentCompany()
+        );
+
+        $tool = Tool::query()
+            ->where('id', (int) $req['tool_id'])
+            ->forApp($app)
+            ->firstOrFail();
+
+        $agent->selectedTools()->detach($tool->getId());
+
+        return true;
     }
 
     /**
