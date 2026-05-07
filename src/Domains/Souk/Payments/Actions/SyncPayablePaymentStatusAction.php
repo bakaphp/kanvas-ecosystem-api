@@ -59,17 +59,12 @@ class SyncPayablePaymentStatusAction
             return PaymentStatusEnum::PAID->value;
         }
 
-        $hasProcessing = $payments->whereIn('status', [
+        $hasPending = $payments->whereIn('status', [
+            PaymentStatusEnum::PENDING->value,
             PaymentStatusEnum::PROCESSING->value,
             PaymentStatusEnum::WAITING_DEVICE_DATA->value,
             PaymentStatusEnum::PENDING_AUTHORIZATION->value,
         ])->isNotEmpty();
-
-        if ($hasProcessing) {
-            return PaymentStatusEnum::PROCESSING->value;
-        }
-
-        $hasPending = $payments->where('status', PaymentStatusEnum::PENDING->value)->isNotEmpty();
 
         if ($hasPending) {
             return PaymentStatusEnum::PENDING->value;
