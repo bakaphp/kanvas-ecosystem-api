@@ -42,6 +42,7 @@ class AgentType extends BaseModel
         'app_id',
         'name',
         'description',
+        'provider',
         'handler',
         'config',
         'role',
