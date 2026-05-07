@@ -30,7 +30,9 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Responses\StructuredAgentResponse;
+
 use function Laravel\Ai\agent;
+
 class CreateMessageFollowUpAction
 {
     protected Agent $agent;
