@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
+use Baka\Contracts\AppInterface;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Intelligence\Agents\Factories\AgentTypeFactory;
 use Kanvas\Intelligence\Models\BaseModel;
+use Kanvas\NervousSystem\Capability\Models\Tool;
 use Override;
 
 /**
@@ -56,6 +59,23 @@ class AgentType extends BaseModel
         'is_multi_agent' => 'boolean',
     ];
 
+    #[Override]
+    public static function getById(mixed $id, ?AppInterface $app = null): static
+    {
+        $app = $app instanceof Apps ? $app : app(Apps::class);
+
+        $record = static::where('id', $id)
+            ->fromAppOrGlobal($app)
+            ->notDeleted()
+            ->first();
+
+        if (! $record) {
+            throw new ModelNotFoundException("No query results for model [" . static::class . "]. $id");
+        }
+
+        return $record;
+    }
+
     public function scopeFromAppOrGlobal(Builder $query, mixed $app = null): Builder
     {
         $app = $app instanceof Apps ? $app : app(Apps::class);
@@ -71,7 +91,7 @@ class AgentType extends BaseModel
     public function tools(): BelongsToMany
     {
         return $this->belongsToMany(
-            \Kanvas\NervousSystem\Capability\Models\Tool::class,
+            Tool::class,
             'nervous_system_tool_agent_types',
             'agent_type_id',
             'tool_id'

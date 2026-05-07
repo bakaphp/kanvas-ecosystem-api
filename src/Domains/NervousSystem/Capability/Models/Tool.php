@@ -78,8 +78,12 @@ class Tool extends BaseModel
         return $query->whereJsonContains('frameworks', $framework);
     }
 
-    public function scopeForApp(Builder $query, int $appsId): Builder
+    public function scopeForApp(Builder $query, mixed $appsId = null): Builder
     {
-        return $query->whereIn('apps_id', [0, $appsId]);
+        $id = $appsId instanceof \Kanvas\Apps\Models\Apps
+            ? $appsId->getId()
+            : (int) ($appsId ?? app(\Kanvas\Apps\Models\Apps::class)->getId());
+
+        return $query->whereIn('apps_id', [0, $id]);
     }
 }
