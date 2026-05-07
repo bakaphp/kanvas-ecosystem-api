@@ -57,6 +57,16 @@ class SendRotationEmailsAction
         );
     }
 
+    /**
+     * Reads `rotation.config.notification_mode` — controls WHO on the recipient axis gets the email.
+     *
+     * - NOTIFY_ALL (default) → both agents and the lead's contact email
+     * - NOTIFY_AGENTS        → agents only (lead does not get an email)
+     * - NOTIFY_LEAD          → the lead's contact email only (agents do not get an email)
+     *
+     * Note: `extraEmails` (rotation.leads_rotations_email) currently always fires regardless
+     * of this mode — it is gated by notification_user_mode instead.
+     */
     private function resolveNotificationMode(): LeadNotificationModeEnum
     {
         $value = $this->leadRotation?->config['notification_mode'] ?? null;
@@ -66,6 +76,20 @@ class SendRotationEmailsAction
             : LeadNotificationModeEnum::NOTIFY_ALL;
     }
 
+    /**
+     * Reads `rotation.config.notification_user_mode` — controls WHICH users on the agent side get
+     * the email.
+     *
+     * - NOTIFY_OWNER (default) → only the receiver's owner (LeadReceiver.users_id)
+     * - NOTIFY_ROTATION_USERS  → owner + every active rotation agent, AND
+     *                            rotation.leads_rotations_email CCs are injected
+     *
+     * Quirks:
+     *   - NOTIFY_ROTATION_USERS notifies ALL active rotation agents, not just the round-robin
+     *     assignee for this lead.
+     *   - If the rotation has zero active agents, this mode silently falls back to NOTIFY_OWNER
+     *     behavior (and `extraEmails` does not fire).
+     */
     private function resolveNotificationUserMode(): LeadNotificationUserModeEnum
     {
         $value = $this->leadRotation?->config['notification_user_mode'] ?? null;
@@ -76,6 +100,12 @@ class SendRotationEmailsAction
     }
 
     /**
+     * Reads `rotation.config.notification_channels` — additional Laravel notification channels
+     * stacked on top of the default `mail` channel.
+     *
+     * Currently only the literal string 'database' is recognized; anything else is ignored. If set,
+     * the notification is also persisted to the database notifications table for in-app inboxes.
+     *
      * @return array<string>
      */
     private function resolveChannels(): array
