@@ -54,6 +54,7 @@ class PeopleManagementMutation
             'peopleEmploymentHistory' => $data['peopleEmploymentHistory'] ?? [],
             'organization' => $data['organization'] ?? null,
             'license_number' => $data['license_number'] ?? null,
+            'license_expiration_date' => $data['license_expiration_date'] ?? null,
             'people_type_id' => isset($data['people_type_id']) ? (int) $data['people_type_id'] : null,
         ]);
 
@@ -101,6 +102,7 @@ class PeopleManagementMutation
             'custom_fields' => $data['custom_fields'] ?? [],
             'organization' => $data['organization'] ?? null,
             'license_number' => $data['license_number'] ?? null,
+            'license_expiration_date' => $data['license_expiration_date'] ?? null,
             'people_type_id' => isset($data['people_type_id']) ? (int) $data['people_type_id'] : null,
         ]);
 

@@ -39,6 +39,7 @@ class UpdatePeopleAction
             'facebook_contact_id' => $this->peopleData->facebook_contact_id,
             'apple_contact_id' => $this->peopleData->apple_contact_id,
             'license_number' => $this->peopleData->license_number,
+            'license_expiration_date' => $this->peopleData->license_expiration_date,
             'people_types_id' => $this->peopleData->people_type_id ?? $this->people->people_types_id,
         ];
 

@@ -6,7 +6,9 @@ namespace Kanvas\Souk\Payments\Models;
 
 use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
@@ -32,5 +34,15 @@ class PaymentLogs extends BaseModel
     public function user(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'users_id', 'id');
+    }
+
+    public function paymentMethod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethods::class, 'payment_methods_id', 'id');
+    }
+
+    public function payable(): MorphTo
+    {
+        return $this->morphTo();
     }
 }
