@@ -194,7 +194,6 @@ type GeneratePaymentIntentResult {
     message: Mixed
     customer: String
     ephemeral_key: String
-    publishable_key: String
 }
 
 type OrderResult {
