@@ -105,12 +105,7 @@ class CreateMessageFollowUpAction
             $this->getMessageTypeVerb()
         );
 
-        $agentUser = $this->lead->company->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
-        if ($agentUser !== null) {
-            $user = Users::getById($agentUser);
-        } else {
-            $user = Users::getById($this->session->agent->user_id);
-        }
+        $user = $this->lead->company->getAiAgentUser() ?? Users::getById($this->session->agent->user_id);
 
         $message = $responseText['message'];
 

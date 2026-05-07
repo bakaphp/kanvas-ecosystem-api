@@ -23,7 +23,6 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
-use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class BaseAgentResponderAction
@@ -79,11 +78,7 @@ class BaseAgentResponderAction
         Channel $channel,
         ?string $from = null
     ): Message {
-        $user = $message->user;
-        $agentUser = $this->channel->company->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
-        if ($agentUser !== null) {
-            $user = Users::getById((int) $agentUser);
-        }
+        $user = $this->channel->company->getAiAgentUser() ?? $message->user;
         $type = $this->getMessageType($message->app);
         $messageInput = new MessageInput(
             app: $message->app,

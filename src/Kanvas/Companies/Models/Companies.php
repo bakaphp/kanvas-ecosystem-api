@@ -39,6 +39,7 @@ use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Models\BaseModel;
 use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
@@ -444,6 +445,13 @@ class Companies extends BaseModel implements CompanyInterface, Customer
             'companies_id' => $this->getId(),
             'apps_id' => $app->getId(),
         ]);
+    }
+
+    public function getAiAgentUser(): ?Users
+    {
+        $agentUserId = $this->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
+
+        return $agentUserId !== null ? Users::getById((int) $agentUserId) : null;
     }
 
     public function hasCompanyPermission(UserInterface $user): void

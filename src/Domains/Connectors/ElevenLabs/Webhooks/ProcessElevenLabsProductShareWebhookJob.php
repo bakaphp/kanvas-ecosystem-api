@@ -86,7 +86,12 @@ class ProcessElevenLabsProductShareWebhookJob extends ProcessElevenLabsWebhookJo
 
         try {
             if ($fromPhone) {
-                $sendMessage->execute('sms', $smsMessage, (string) $fromPhone);
+                $sendMessage->execute(
+                    channel: 'sms',
+                    message: $smsMessage,
+                    from: (string) $fromPhone,
+                    to: $phone,
+                );
                 $smsSent = true;
             }
         } catch (Throwable $e) {

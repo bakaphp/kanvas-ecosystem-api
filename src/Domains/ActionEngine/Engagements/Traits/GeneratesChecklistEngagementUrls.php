@@ -24,8 +24,7 @@ trait GeneratesChecklistEngagementUrls
         ];
 
         $results = [];
-        $aiAgentUserId = (int) $lead->company->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
-        $user = $aiAgentUserId ? Users::getById($aiAgentUserId) : $lead->user;
+        $user = $lead->company->getAiAgentUser() ?? $lead->user;
 
         foreach ($actions as $key => $action) {
             try {
