@@ -26,7 +26,12 @@ class PaymentMethodMutation
 
         try {
             if ($input['processor']) {
-                $input['brand'] = $this->guessCardBrand($input['number']);
+                if ($input['processor'] !== 'stripe' && empty($input['number'] ?? null)) {
+                    throw new ValidationException("'number' is required for processor '{$input['processor']}'.");
+                }
+                if (! empty($input['number'] ?? null)) {
+                    $input['brand'] = $this->guessCardBrand($input['number']);
+                }
                 $processor = app("payment.{$input['processor']}");
                 $result = $processor->tokenize($input, $user);
 

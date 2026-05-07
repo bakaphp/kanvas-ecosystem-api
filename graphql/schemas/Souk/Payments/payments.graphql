@@ -49,11 +49,12 @@ type Payment @model(class: "Kanvas\\Souk\\Payments\\Models\\Payments") {
 }
 
 input PaymentMethodInput {
-    number: String!
+    number: String
     expiration_date: String!
     cvv: String
     brand: String
     processor: String
+    stripe_payment_method_id: String
     metadata: Mixed
     address: String
     country: String
