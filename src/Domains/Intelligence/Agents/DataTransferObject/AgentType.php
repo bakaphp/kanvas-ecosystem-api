@@ -16,6 +16,7 @@ class AgentType extends Data
         public bool $is_published = false,
         public bool $is_multi_agent = false,
         public ?string $description = null,
+        public ?string $handler = null,
         public ?string $config = null,
         public ?string $role = null,
         public ?string $multi_agent_list = null,

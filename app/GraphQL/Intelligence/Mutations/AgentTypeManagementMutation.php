@@ -18,7 +18,8 @@ class AgentTypeManagementMutation
         $agentTypeDTO = new AgentTypeDTO(
             app: app(Apps::class),
             name: $input['name'],
-            description: $input['description'],
+            description: $input['description'] ?? null,
+            handler: $input['handler'] ?? null,
             config: $input['config'],
             role: $input['role'],
             is_active: $input['is_active'] ?? true,
@@ -38,7 +39,8 @@ class AgentTypeManagementMutation
         $agentTypeDTO = new AgentTypeDTO(
             app: app(Apps::class),
             name: $input['name'],
-            description: $input['description'],
+            description: $input['description'] ?? null,
+            handler: $input['handler'] ?? $agentTypeModel->handler,
             config: $input['config'],
             role: $input['role'],
             is_active: $input['is_active'] ?? true,
