@@ -51,7 +51,7 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             $userFlag,
             $emailTemplate,
         );
-        
+
         $this->fireWorkflows(
             $lead,
             $leadReceiver,
