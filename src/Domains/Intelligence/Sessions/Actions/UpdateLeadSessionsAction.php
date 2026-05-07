@@ -8,8 +8,6 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Throwable;
 
-use function Sentry\captureException;
-
 class UpdateLeadSessionsAction
 {
     public function __construct(
@@ -39,7 +37,7 @@ class UpdateLeadSessionsAction
                     $stateDelta,
                 );
             } catch (Throwable $e) {
-                captureException($e);
+                report($e);
             }
         }
     }
