@@ -14,6 +14,7 @@ use Kanvas\Users\Models\Users;
 class SendRotationEmailsAction
 {
     private mixed $channels = ['mail'];
+
     public function __construct(
         private ModelsLead $lead,
         private LeadReceiver $leadReceiver,
@@ -88,7 +89,10 @@ class SendRotationEmailsAction
     {
         $fieldMaps = [];
         foreach ($customFields as $customField) {
-            $fieldMaps[$customField['name']] = $customField['data'];
+            if (! isset($customField['name'])) {
+                continue;
+            }
+            $fieldMaps[$customField['name']] = $customField['data'] ?? null;
         }
 
         return $fieldMaps;
@@ -100,9 +104,12 @@ class SendRotationEmailsAction
         $fieldMaps = [];
 
         foreach ($customFields as $customField) {
+            if (! isset($customField['name'])) {
+                continue;
+            }
             $fieldName = $customField['name'];
             $fieldMaps[$fieldName] = [
-                'data' => $customField['data'],
+                'data' => $customField['data'] ?? null,
                 'label' => $formLabels[$fieldName] ?? $fieldName,
             ];
         }
