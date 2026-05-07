@@ -236,6 +236,20 @@ class DriverLicenseVerificationService
             }
         }
 
+        $licenseExpirationDate = null;
+        if (isset($driverLicenseData['exp_date'])) {
+            $expDate = $driverLicenseData['exp_date'];
+            $expDateString = sprintf(
+                '%04d-%02d-%02d',
+                $expDate['year'],
+                $expDate['month'],
+                $expDate['day']
+            );
+            if (self::isValidDate($expDateString)) {
+                $licenseExpirationDate = Carbon::createFromFormat('Y-m-d', $expDateString);
+            }
+        }
+
         $peopleData = new PeopleDataInput(
             app: $this->app,
             branch: $people->company->defaultBranch,
@@ -248,6 +262,7 @@ class DriverLicenseVerificationService
             address: DataTransferObjectAddress::collect($addressArray, DataCollection::class),
             id: $people->id,
             license_number: $driverLicenseData['license'] ?? null,
+            license_expiration_date: $licenseExpirationDate,
             custom_fields: [],
             tags: []
         );
