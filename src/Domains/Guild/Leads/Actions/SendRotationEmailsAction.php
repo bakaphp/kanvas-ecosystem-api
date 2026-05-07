@@ -6,86 +6,105 @@ namespace Kanvas\Guild\Leads\Actions;
 
 use Kanvas\Guild\Leads\Enums\LeadNotificationModeEnum;
 use Kanvas\Guild\Leads\Enums\LeadNotificationUserModeEnum;
-use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Users\Models\Users;
 
 class SendRotationEmailsAction
 {
-    private mixed $channels = ['mail'];
-
     public function __construct(
-        private ModelsLead $lead,
-        private LeadReceiver $leadReceiver,
-        private LeadRotation|null $leadRotation,
-        private Users $user
+        private readonly Lead $lead,
+        private readonly LeadReceiver $leadReceiver,
+        private readonly ?LeadRotation $leadRotation,
+        private readonly Users $user,
     ) {
     }
 
     public function execute(
         array $payload,
         string $userFlag = 'user',
-        string|null $defaultEmailTemplate = null
+        ?string $defaultEmailTemplate = null,
     ): void {
-        $emailTemplate = $this->leadRotation?->config['email_template'] ?? $defaultEmailTemplate;
+        $template = $this->leadRotation?->config['email_template'] ?? $defaultEmailTemplate;
 
-        if ($emailTemplate !== null) {
-            $emailReceiverUser = $userFlag === 'user' ? $this->leadReceiver->user : $this->user;
-
-            // determine notification mode: just agents, just leads or all
-            $notificationMode = isset($this->leadReceiver->rotation->config['notification_mode']) ? LeadNotificationModeEnum::get($this->leadReceiver->rotation->config['notification_mode']) : LeadNotificationModeEnum::NOTIFY_ALL; // leads || agets
-
-            // determine notification user mode: just owner or rotation users + owner
-            $notificationUserMode = isset($this->leadReceiver->rotation->config['notification_user_mode']) ? LeadNotificationUserModeEnum::get($this->leadReceiver->rotation->config['notification_user_mode']) : LeadNotificationUserModeEnum::NOTIFY_OWNER;
-
-            $activeUsers = $this->leadReceiver->rotation?->getActiveUsers() ?? collect();
-            $shouldNotifyRotationUsers = $notificationUserMode === LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS && $activeUsers->isNotEmpty();
-            // get the users/agents to notify
-            $users = $shouldNotifyRotationUsers
-            ? collect([$emailReceiverUser])
-            ->merge($activeUsers)
-            ->all()
-            : [$emailReceiverUser];
-
-            if ($shouldNotifyRotationUsers) {
-                $payload['extraEmails'] = $this->leadReceiver->rotation->leads_rotations_email;
-            }
-
-            if (isset($this->leadRotation?->config['notification_channels']) && $this->leadRotation->config['notification_channels'] === 'database') {
-                $this->channels = [...$this->channels, 'database'];
-            }
-
-            $this->sendLeadEmails(
-                $emailTemplate,
-                $users,
-                $this->lead,
-                $payload,
-                $notificationMode
-            );
+        if ($template === null) {
+            return;
         }
+
+        $owner = $userFlag === 'user' ? $this->leadReceiver->user : $this->user;
+        $activeUsers = $this->leadRotation?->getActiveUsers() ?? collect();
+        $shouldNotifyAgents = $this->resolveNotificationUserMode() === LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS
+            && $activeUsers->isNotEmpty();
+
+        $recipients = $shouldNotifyAgents
+            ? collect([$owner])->merge($activeUsers)->all()
+            : [$owner];
+
+        if ($shouldNotifyAgents) {
+            $payload['extraEmails'] = $this->leadRotation->leads_rotations_email;
+        }
+
+        $sender = new SendLeadEmailsAction(
+            $this->lead,
+            $template,
+            $this->resolveChannels()
+        );
+        $sender->execute(
+            $this->enrichPayload($payload, $sender),
+            $recipients,
+            $this->resolveNotificationMode(),
+        );
     }
 
-    protected function sendLeadEmails(
-        string $emailTemplate,
-        array $users,
-        ModelsLead $lead,
-        array $payload,
-        LeadNotificationModeEnum $notificationMode = LeadNotificationModeEnum::NOTIFY_ALL
-    ): void {
-        $sendLeadEmailsAction = new SendLeadEmailsAction($lead, $emailTemplate, $this->channels);
-        $fieldMaps = $this->mapCustomFields($payload['custom_fields']);
+    private function resolveNotificationMode(): LeadNotificationModeEnum
+    {
+        $value = $this->leadRotation?->config['notification_mode'] ?? null;
+
+        return $value !== null
+            ? LeadNotificationModeEnum::get($value)
+            : LeadNotificationModeEnum::NOTIFY_ALL;
+    }
+
+    private function resolveNotificationUserMode(): LeadNotificationUserModeEnum
+    {
+        $value = $this->leadRotation?->config['notification_user_mode'] ?? null;
+
+        return $value !== null
+            ? LeadNotificationUserModeEnum::get($value)
+            : LeadNotificationUserModeEnum::NOTIFY_OWNER;
+    }
+
+    /**
+     * @return array<string>
+     */
+    private function resolveChannels(): array
+    {
+        $channels = ['mail'];
+        if (($this->leadRotation?->config['notification_channels'] ?? null) === 'database') {
+            $channels[] = 'database';
+        }
+
+        return $channels;
+    }
+
+    private function enrichPayload(array $payload, SendLeadEmailsAction $sender): array
+    {
+        $customFields = $payload['custom_fields'] ?? [];
+        $fieldMaps = $this->mapCustomFields($customFields);
+
         if (isset($fieldMaps['product_id'])) {
-            $payload['product'] = $sendLeadEmailsAction->getProduct($fieldMaps['product_id']);
+            $payload['product'] = $sender->getProduct($fieldMaps['product_id']);
         }
-        $payload['field_maps'] = $fieldMaps;
-        $payload['field_maps_with_labels'] = $this->mapCustomFieldsWithLabels($payload['custom_fields']);
-        $payload['photo'] = $lead->company?->getPhoto()?->url;
 
-        $sendLeadEmailsAction->execute($payload, $users, $notificationMode, $this->channels);
+        $payload['field_maps'] = $fieldMaps;
+        $payload['field_maps_with_labels'] = $this->mapCustomFieldsWithLabels($customFields);
+        $payload['photo'] = $this->lead->company?->getPhoto()?->url;
+
+        return $payload;
     }
 
-    protected function mapCustomFields(array $customFields): array
+    private function mapCustomFields(array $customFields): array
     {
         $fieldMaps = [];
         foreach ($customFields as $customField) {
@@ -98,7 +117,7 @@ class SendRotationEmailsAction
         return $fieldMaps;
     }
 
-    protected function mapCustomFieldsWithLabels(array $customFields): array
+    private function mapCustomFieldsWithLabels(array $customFields): array
     {
         $formLabels = $this->lead->app->get('JSON_FORM_LABELS') ?? [];
         $fieldMaps = [];
@@ -107,10 +126,10 @@ class SendRotationEmailsAction
             if (! isset($customField['name'])) {
                 continue;
             }
-            $fieldName = $customField['name'];
-            $fieldMaps[$fieldName] = [
+            $name = $customField['name'];
+            $fieldMaps[$name] = [
                 'data' => $customField['data'] ?? null,
-                'label' => $formLabels[$fieldName] ?? $fieldName,
+                'label' => $formLabels[$name] ?? $name,
             ];
         }
 
