@@ -15,6 +15,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
+use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class AgentManagementMutation
@@ -46,7 +47,7 @@ class AgentManagementMutation
             name: $input['name'],
             role: $input['role'],
             is_active: $input['is_active'],
-            description: $input['description'],
+            description: $input['description'] ?? null,
             config: $input['config'],
             task: $task,
             communicationChannel: $input['communication_channels'] ?? [],
@@ -64,6 +65,10 @@ class AgentManagementMutation
 
         if (! empty($input['swarm_ids'])) {
             $this->syncSwarms($agent, $input['swarm_ids'], $company, $app);
+        }
+
+        if (isset($input['tool_ids'])) {
+            $this->syncTools($agent, $input['tool_ids'], $app);
         }
 
         return $agent;
@@ -96,7 +101,7 @@ class AgentManagementMutation
             name: $input['name'],
             role: $input['role'],
             is_active: $input['is_active'],
-            description: $input['description'],
+            description: $input['description'] ?? null,
             config: $input['config'],
             task: $task,
             communicationChannel: $input['communication_channels'] ?? [],
@@ -115,6 +120,10 @@ class AgentManagementMutation
             $this->syncSwarms($agent, $input['swarm_ids'], $company, $app);
         }
 
+        if (isset($input['tool_ids'])) {
+            $this->syncTools($agent, $input['tool_ids'], $app);
+        }
+
         return $agent;
     }
 
@@ -127,6 +136,44 @@ class AgentManagementMutation
         );
 
         return (bool) $agent->delete();
+    }
+
+    public function attachTool(mixed $root, array $req): Agent
+    {
+        $app = app(Apps::class);
+        $agent = Agent::getByIdFromCompanyApp(
+            id: $req['agent_id'],
+            app: $app,
+            company: auth()->user()->getCurrentCompany()
+        );
+
+        $tool = Tool::query()
+            ->where('id', (int) $req['tool_id'])
+            ->forApp($app)
+            ->firstOrFail();
+
+        $agent->selectedTools()->syncWithoutDetaching([$tool->getId()]);
+
+        return $agent;
+    }
+
+    public function detachTool(mixed $root, array $req): bool
+    {
+        $app = app(Apps::class);
+        $agent = Agent::getByIdFromCompanyApp(
+            id: $req['agent_id'],
+            app: $app,
+            company: auth()->user()->getCurrentCompany()
+        );
+
+        $tool = Tool::query()
+            ->where('id', (int) $req['tool_id'])
+            ->forApp($app)
+            ->firstOrFail();
+
+        $agent->selectedTools()->detach($tool->getId());
+
+        return true;
     }
 
     /**
@@ -152,6 +199,23 @@ class AgentManagementMutation
         }
 
         return $input;
+    }
+
+    /**
+     * @param array<int, string> $toolIds
+     */
+    private function syncTools(Agent $agent, array $toolIds, AppInterface $app): void
+    {
+        $ids = [];
+        foreach ($toolIds as $toolId) {
+            $tool = Tool::query()
+                ->where('id', (int) $toolId)
+                ->forApp((int) $app->getId())
+                ->firstOrFail();
+            $ids[] = $tool->getId();
+        }
+
+        $agent->selectedTools()->sync($ids);
     }
 
     /**

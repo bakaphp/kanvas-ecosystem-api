@@ -7,7 +7,6 @@ namespace Kanvas\NervousSystem\Capability\Services;
 use Illuminate\Support\Collection;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Capability\Models\AgentSkill;
-use Kanvas\NervousSystem\Capability\Models\AgentTool;
 use Kanvas\NervousSystem\Capability\Models\Skill;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 
@@ -22,10 +21,8 @@ use Kanvas\NervousSystem\Capability\Models\Tool;
  *   invocation.
  * - GraphQL admin views — "show me what this agent has."
  *
- * All methods filter by:
- * - is_active=1 AND is_deleted=0 on both grant + catalog
- * - expires_at IS NULL OR expires_at > NOW()
- * - tenant scope (agent's apps_id + companies_id)
+ * Skills: still per-agent grants (AgentSkill pivot) with expiry support.
+ * Tools: type-based — an agent inherits all active tools from its agent_type.
  *
  * Optional `framework:` argument restricts to capabilities supporting
  * a specific framework provider (`neuron`/`laravel`/`adk`/`openclaw`).
@@ -67,36 +64,30 @@ class CapabilityProvider
     }
 
     /**
+     * Returns the agent's explicitly selected tools.
+     * The agent_type tools act as a catalog/guide for selection — not a fallback.
+     *
      * @return Collection<int, Tool>
      */
     public function getActiveTools(Agent $agent, ?string $framework = null): Collection
     {
         $framework = $framework ?? $agent->type?->provider;
 
-        /** @var \Illuminate\Database\Eloquent\Collection<int, AgentTool> $grants */
-        $grants = AgentTool::query()
-            ->with('tool')
-            ->where('agent_id', $agent->getId())
-            ->where('apps_id', $agent->apps_id)
-            ->where('companies_id', $agent->companies_id)
-            ->active()
-            ->notExpired()
-            ->get();
+        $tools = $agent->selectedTools()->active()->get();
 
-        return $grants
-            ->filter(fn (AgentTool $g): bool => $g->tool !== null
-                && $g->tool->is_active
-                && ! $g->tool->is_deleted)
-            ->filter(function (AgentTool $g) use ($framework): bool {
-                if ($framework === null) {
-                    return true;
-                }
-                $frameworks = is_array($g->tool->frameworks) ? $g->tool->frameworks : [];
+        if ($tools->isEmpty()) {
+            return collect();
+        }
+
+        if ($framework !== null) {
+            $tools = $tools->filter(function (Tool $tool) use ($framework): bool {
+                $frameworks = is_array($tool->frameworks) ? $tool->frameworks : [];
 
                 return in_array($framework, $frameworks, true);
-            })
-            ->map(fn (AgentTool $g): Tool => $g->tool)
-            ->values();
+            });
+        }
+
+        return $tools->values();
     }
 
     /**
