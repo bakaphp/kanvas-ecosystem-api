@@ -88,8 +88,6 @@ class ProcessPaymentAction
         }
 
         try {
-            $this->order->markAsPaid($this->payment->user);
-
             new SendPaymentReceiptAction(
                 $this->order,
                 $this->payment,

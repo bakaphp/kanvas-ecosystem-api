@@ -50,7 +50,7 @@ class CancelStalePaymentsAction
             $ageMinutes = (int) Carbon::parse($payment->updated_at)->diffInMinutes(now());
 
             $payment->status = PaymentStatusEnum::CANCELLED->value;
-            $payment->save();
+            $payment->saveQuietly();
 
             $payment->addLog('cancelled_stale', [
                 'reason' => "Payment stuck in processing for {$ageMinutes} minutes (TTL: {$ttlMinutes}m)",
