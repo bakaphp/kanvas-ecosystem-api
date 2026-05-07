@@ -21,7 +21,6 @@ use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Spatie\LaravelData\DataCollection;
@@ -30,9 +29,7 @@ abstract class ProcessElevenLabsWebhookJob extends ProcessWebhookJob
 {
     protected function resolveUser(): Users
     {
-        $agentUserId = (int) $this->receiver->company->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
-
-        return $agentUserId ? Users::getById($agentUserId) : $this->receiver->user;
+        return $this->receiver->company->getAiAgentUser() ?? $this->receiver->user;
     }
 
     protected function resolveLeadByPhone(string $phone): Lead

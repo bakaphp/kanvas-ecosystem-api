@@ -164,7 +164,7 @@ final class SyncMovipassActivityTest extends TestCase
         $activity = new SyncMovipassActivity(
             0,
             now()->toDateTimeString(),
-            StoredWorkflow::make(),
+            new StoredWorkflow(),
             []
         );
 
@@ -197,7 +197,7 @@ final class SyncMovipassActivityTest extends TestCase
         $activity = new SyncMovipassActivity(
             0,
             now()->toDateTimeString(),
-            StoredWorkflow::make(),
+            new StoredWorkflow(),
             []
         );
 
@@ -222,7 +222,7 @@ final class SyncMovipassActivityTest extends TestCase
         $activity = new SyncMovipassActivity(
             0,
             now()->toDateTimeString(),
-            StoredWorkflow::make(),
+            new StoredWorkflow(),
             []
         );
 
@@ -236,5 +236,32 @@ final class SyncMovipassActivityTest extends TestCase
         $this->assertEquals(0, $order->orderDiscounts()->count());
         $this->assertNull($order->discount_name);
         $this->assertNull($order->voucher_id);
+    }
+
+    public function testCreatedOrderWithoutVehiclePlateUpdatesReference(): void
+    {
+        $app = app(Apps::class);
+
+        $order = $this->createMovipassOrder($app);
+        $metadata = $order->metadata;
+        unset($metadata['data']['vehiclePlate']);
+        $order->metadata = $metadata;
+        $order->saveQuietly();
+
+        $activity = new SyncMovipassActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        );
+
+        $result = $activity->execute($order, $app, [
+            'currentEventTypeName' => WorkflowEnum::CREATED->value,
+        ]);
+
+        $order->refresh();
+
+        $this->assertEquals('success', $result['status']);
+        $this->assertSame('Movipass parking test #' . $order->order_number, $order->reference);
     }
 }

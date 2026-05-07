@@ -39,6 +39,7 @@ use Kanvas\Connectors\Elead\Workflow\ScheduleActivityFromEventActivity;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsAgentDateWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsAgentWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsCalendarEventWebhookJob;
+use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsConversationInitiationWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsHandOffWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsProductShareWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsSendMessageWebhookJob;
@@ -431,6 +432,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessRespondIOWebhookJob::class,
             ProcessElevenLabsAgentWebhookJob::class,
             ProcessElevenLabsAgentDateWebhookJob::class,
+            ProcessElevenLabsConversationInitiationWebhookJob::class,
             ProcessElevenLabsTranscriptWebhookJob::class,
             ProcessElevenLabsCalendarEventWebhookJob::class,
             ProcessElevenLabsProductShareWebhookJob::class,
