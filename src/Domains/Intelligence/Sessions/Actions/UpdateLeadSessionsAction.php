@@ -36,7 +36,8 @@ class UpdateLeadSessionsAction
                     $session->entity_id,
                     $stateDelta,
                 );
-            } catch (Throwable) {
+            } catch (Throwable $e) {
+                report($e);
             }
         }
     }
