@@ -57,7 +57,8 @@ class BackfillVariantRatingCommand extends Command
             });
 
         $elapsed = round(microtime(true) - $started, 1);
-        $this->info("Done. Processed={$processed} Updated={$updated} Skipped={$skipped} Elapsed={$elapsed}s");
+        $this->info("Processed={$processed} Updated={$updated} Skipped={$skipped} Elapsed={$elapsed}s");
+        $this->info('Done.');
 
         return self::SUCCESS;
     }
