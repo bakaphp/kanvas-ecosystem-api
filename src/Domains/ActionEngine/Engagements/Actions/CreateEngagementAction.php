@@ -256,9 +256,8 @@ class CreateEngagementAction
 
         if ($isNewActionPage) {
             $baseDomain = rtrim((string) $this->app->get('NEW_ACTION_PAGE_V4'), '/');
-            return $actionPathV4
-                ? $baseDomain . '/' . ltrim((string) $actionPathV4, '/') . '/' . $engagement->uuid
-                : $baseDomain . '/' . $engagement->uuid;
+            $actionPath = $actionPathV4 ?: 'form';
+            return $baseDomain . '/' . ltrim((string) $actionPath, '/') . '/' . $engagement->uuid;
         }
 
         $landingPageActions = $this->app->get('new-action-slug-v3') ?? [];
