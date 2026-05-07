@@ -23,10 +23,12 @@ class AddDocumentDealJacket
         $participants = $this->lead->participants;
         $signatories = [];
         $eSignBlocks = [];
+        
         foreach ($participants as $participant) {
             $people = $participant->people;
             $email = $people->getEmails()->first()->value;
             $phone = $people->getPhones()->first()->value;
+            
             $signatories[] = [
                 'firstName' => $people->firstName,
                 'lastName' => $people->lastName,
@@ -34,6 +36,7 @@ class AddDocumentDealJacket
                 'textMsgPhone' => $phone,
                 'email' => $email,
             ];
+            
             // @todo: we need create a way for determinate the blocks positions
             $eSignBlocks[] = [
                 'role' => 'BUYER',
@@ -45,6 +48,7 @@ class AddDocumentDealJacket
                 'type' => 'SIGNATURE',
             ];
         }
+        
         $body = [
             'signatories' => $signatories,
             'createDealJacket' => true,
@@ -58,6 +62,7 @@ class AddDocumentDealJacket
             ],
             'source' => $this->lead->company->name,
         ];
+        
         $client = new Client($this->app, $this->lead->company);
         $dealId = $this->lead->id; // @todo: what is dealId
         $client->post("/cdk/sales/post-doc/v1/deal-jackets/{{$dealId}}/documents", $body);
