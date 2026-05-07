@@ -14,6 +14,7 @@ class AuthorizeResult
         public readonly string $transactionId,
         public readonly PaymentStatusEnum $paymentStatus,
         public readonly array $raw = [],
+        public readonly array $data = [],
     ) {
     }
 }

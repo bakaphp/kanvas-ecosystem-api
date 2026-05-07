@@ -3,6 +3,7 @@
 namespace Kanvas\Souk\Payments\Actions;
 
 use Exception;
+use Illuminate\Support\Str;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
@@ -52,6 +53,7 @@ class CreatePaymentAction
             "concept" => $formData['concept'] ?? "Payment {$this->order->reference}",
             "payment_methods_id" => $paymentMethodId,
             'payment_intent_id' => $paymentIntent,
+            'idempotency_key' => $formData['idempotency_key'] ?? Str::uuid()->toString(),
             'users_id' => $this->user->getId(),
             'companies_id' => $this->order->companies_id,
             'currency' => $this->order->currency,
