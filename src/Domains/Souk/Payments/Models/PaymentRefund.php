@@ -65,10 +65,14 @@ class PaymentRefund extends BaseModel
 
         if ($payment->isFullyRefunded()) {
             $payment->status = PaymentStatusEnum::REVERSED->value;
-            $payment->save();
-        }
+            $payment->saveQuietly();
 
-        if ($payment->payable) {
+            if ($payment->payable && method_exists($payment->payable, 'markAsReversed')) {
+                $payment->payable->markAsReversed($payment->user);
+            } elseif ($payment->payable) {
+                new SyncPayablePaymentStatusAction($payment->payable)->execute();
+            }
+        } elseif ($payment->payable) {
             new SyncPayablePaymentStatusAction($payment->payable)->execute();
         }
 

@@ -311,6 +311,14 @@ class Order extends BaseModel
         $this->firePaidSideEffects();
     }
 
+    public function markAsReversed(UserInterface $user): void
+    {
+        $this->transitionToStatus($user, PaymentStatusEnum::REVERSED->value);
+
+        $this->payment_status = PaymentStatusEnum::REVERSED->value;
+        $this->saveQuietly();
+    }
+
     protected function firePaidSideEffects(): void
     {
         $this->completed();
