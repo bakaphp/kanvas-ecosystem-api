@@ -28,12 +28,9 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
-
-use function Laravel\Ai\agent;
-
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Responses\StructuredAgentResponse;
-
+use function Laravel\Ai\agent;
 class CreateMessageFollowUpAction
 {
     protected Agent $agent;
