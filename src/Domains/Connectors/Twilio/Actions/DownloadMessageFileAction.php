@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Filesystem\Services\FilesystemServices;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 

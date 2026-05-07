@@ -11,7 +11,6 @@ use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
 use Kanvas\ActionEngine\Engagements\Models\Engagement as EngagementModel;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Users\Models\Users;
 
 trait GeneratesChecklistEngagementUrls

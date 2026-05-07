@@ -17,7 +17,6 @@ use Kanvas\Connectors\Twilio\Client as TwilioClient;
 use Kanvas\Connectors\VoiceBridge\Actions\FetchCallRecordingAction;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Throwable;

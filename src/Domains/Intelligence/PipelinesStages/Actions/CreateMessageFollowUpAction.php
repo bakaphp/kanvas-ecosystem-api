@@ -15,7 +15,6 @@ use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\AgentEnum;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
 use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -29,10 +28,11 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
-use Laravel\Ai\Enums\Lab;
-use Laravel\Ai\Responses\StructuredAgentResponse;
 
 use function Laravel\Ai\agent;
+
+use Laravel\Ai\Enums\Lab;
+use Laravel\Ai\Responses\StructuredAgentResponse;
 
 class CreateMessageFollowUpAction
 {
