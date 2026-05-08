@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Hermes\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\AgentRuntime\Enums\DeploymentStatusEnum;
+use Kanvas\Connectors\AgentRuntime\SshClient as BaseClient;
 use Kanvas\Connectors\Hermes\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Hermes\Services\DockerComposeBuilder;
@@ -121,6 +122,10 @@ class MigrateFromOpenClawAction
             $destDeployment->saveOrFail();
 
             $agent->set(CustomFieldEnum::HERMES_DEPLOYMENT_ID->value, $destDeployment->getId());
+
+            // Stop OpenClaw containers — same machine, reuse the open connection.
+            // We do NOT userdel since the user/home directory is shared with Hermes.
+            $this->terminateSourceDeployment($client);
         } catch (Throwable $e) {
             $destDeployment->status = DeploymentStatusEnum::FAILED->value;
             $destDeployment->error_message = $e->getMessage();
@@ -165,6 +170,14 @@ class MigrateFromOpenClawAction
             $destDeployment->saveOrFail();
 
             $agent->set(CustomFieldEnum::HERMES_DEPLOYMENT_ID->value, $destDeployment->getId());
+
+            // Stop OpenClaw containers on the source machine now that Hermes is running.
+            $sourceClient = OpenClawSshClient::fromMachine($this->sourceDeployment->machine);
+            try {
+                $this->terminateSourceDeployment($sourceClient);
+            } finally {
+                $sourceClient->disconnect();
+            }
         } catch (Throwable $e) {
             $destDeployment->status = DeploymentStatusEnum::FAILED->value;
             $destDeployment->error_message = $e->getMessage();
@@ -178,6 +191,29 @@ class MigrateFromOpenClawAction
                 unlink($localTempFile);
             }
         }
+    }
+
+    /**
+     * Stop the OpenClaw containers and mark the source deployment as terminated.
+     *
+     * We intentionally do NOT remove the Linux user or home directory — the workspace
+     * files may still be needed (e.g. same-machine shared user) and a soft stop keeps
+     * the migration reversible. The `docker compose down` without `--rmi local` leaves
+     * the images intact so a restart is cheap if needed.
+     */
+    private function terminateSourceDeployment(BaseClient $client): void
+    {
+        $openclawDir = $this->sourceDeployment->home_directory . '/.openclaw';
+
+        $client->exec(
+            'sudo -u ' . escapeshellarg($this->sourceDeployment->system_user)
+            . ' bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose down 2>&1 || true'),
+            60
+        );
+
+        $this->sourceDeployment->status = DeploymentStatusEnum::TERMINATED->value;
+        $this->sourceDeployment->terminated_at = now();
+        $this->sourceDeployment->saveOrFail();
     }
 
     /**
