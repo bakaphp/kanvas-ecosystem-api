@@ -16,12 +16,8 @@ class DeleteSessionAction
 
     public function execute(): void
     {
-        $sessions = Session::where('entity_namespace', Lead::class)
+        Session::where('entity_namespace', Lead::class)
             ->where('entity_id', $this->lead->getId())
-            ->get();
-
-        foreach ($sessions as $session) {
-            $session->delete();
-        }
+            ->delete();
     }
 }

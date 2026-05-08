@@ -32,8 +32,8 @@ class UpdateLeadSessionsAction
                 $adkAgent->updateSessionState(
                     $this->lead->app,
                     $this->lead->company,
-                    $session->uuid,
-                    $session->entity_id,
+                    (string)$session->uuid,
+                    (string)$session->entity_id,
                     $stateDelta,
                 );
             } catch (Throwable $e) {
