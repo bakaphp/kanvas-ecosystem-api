@@ -88,6 +88,7 @@ abstract class BaseDockerComposeBuilder
         $config  = $this->getProviderConfig();
         $envVars = $this->buildDefaultEnvironment($app);
         $envVars['NODE_ENV'] = $envVars['NODE_ENV'] ?? 'production';
+        $envVars['KANVAS_DEPLOYMENT_ID'] = (string) $deployment->getId();
 
         foreach ($this->getProviderEnvVarDefaults() as $key => $default) {
             $envVars[$key] = $envVars[$key] ?? $default;
