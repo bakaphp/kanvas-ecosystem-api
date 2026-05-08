@@ -237,7 +237,7 @@ class ImportProductFromFilesystemAction
         }
 
         /** @var ProductsTypes $productType */
-        $productType = ProductsTypesRepository::getById(
+        $productType = ProductsTypesRepository::getByIdOrGlobal(
             (int) $productTypeId,
             $this->filesystemImports->company,
             $this->filesystemImports->app,
