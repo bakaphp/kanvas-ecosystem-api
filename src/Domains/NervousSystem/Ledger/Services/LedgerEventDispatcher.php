@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redis;
-use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Ledger\Jobs\AppendToLedgerJob;
 use Throwable;
@@ -83,22 +82,23 @@ class LedgerEventDispatcher
         }
 
         AppendToLedgerJob::dispatch(
-            new EventData(
-                app: $app,
-                company: $company,
-                sourceDomain: $model->nervousSystemSourceDomain(),
-                eventType: $eventType,
-                status: EventStatusEnum::INFO,
-                sourceEntityType: $model::class,
-                sourceEntityId: (int) $model->getKey(),
-                actorType: self::actorType(),
-                actorId: self::actorId(),
-                payload: $payload,
-                payloadSchemaVersion: 1,
-                correlationId: self::correlationId(),
-                causationId: self::causationId(),
-                occurredAt: Carbon::now(),
-            ),
+            app: $app,
+            company: $company,
+            sourceDomain: $model->nervousSystemSourceDomain(),
+            eventType: $eventType,
+            status: EventStatusEnum::INFO,
+            sourceEntityType: $model::class,
+            sourceEntityId: (int) $model->getKey(),
+            actorType: self::actorType(),
+            actorId: self::actorId(),
+            payload: $payload,
+            payloadSchemaVersion: 1,
+            result: null,
+            error: null,
+            durationMs: null,
+            correlationId: self::correlationId(),
+            causationId: self::causationId(),
+            occurredAt: Carbon::now()->toIso8601String(),
         );
     }
 
