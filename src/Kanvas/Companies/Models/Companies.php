@@ -411,6 +411,12 @@ class Companies extends BaseModel implements CompanyInterface, Customer
             $query->whereIn('users', [auth()->user()->getId()]);
         }
 
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'name,email,address,phone,website',
+            ]);
+        }
+
         return $query;
     }
 
@@ -421,12 +427,11 @@ class Companies extends BaseModel implements CompanyInterface, Customer
         $array['users'] = CompaniesRepository::getAllCompanyUsers($this)->pluck('id')->toArray();
         $array = $this->transform($array);
         $array['id'] = (string) $this->getKey();
-        $array['created_at'] = $this->created_at
-            ? ($this->isTypesense() ? $this->created_at->timestamp : $this->created_at->toDateTimeString())
-            : null;
+        $array['created_at'] = $this->created_at?->timestamp ?? 0;
         $array['is_active'] = (bool) $this->is_active;
         $array['is_deleted'] = (bool) $this->is_deleted;
         $array['zipcode'] = (string) ($this->zipcode ?? '');
+        $array['phone'] = (string) ($this->phone ?? '');
 
         return $array;
     }
