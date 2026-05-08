@@ -25,6 +25,7 @@ use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Models\BaseModel;
+use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
 use Nevadskiy\Tree\AsTree;
 use Override;
@@ -38,6 +39,7 @@ use Override;
  * @property int|null $parent_id
  * @property string|null $path
  * @property int $user_id
+ * @property int|null $created_by_users_id
  * @property string $name
  * @property string $slug
  * @property string|null $description
@@ -78,6 +80,7 @@ class Agent extends BaseModel
         'parent_id',
         'path',
         'user_id',
+        'created_by_users_id',
         'name',
         'slug',
         'description',
@@ -157,6 +160,16 @@ class Agent extends BaseModel
          ->withTimestamps();
     }
 
+    public function selectedTools(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Tool::class,
+            'nervous_system_agent_selected_tools',
+            'agent_id',
+            'tool_id'
+        );
+    }
+
     public static function getModel(): Model
     {
         return new Agent();
@@ -211,6 +224,15 @@ class Agent extends BaseModel
         return $this->belongsTo(
             Users::class,
             'user_id',
+            'id'
+        );
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(
+            Users::class,
+            'created_by_users_id',
             'id'
         );
     }

@@ -23,6 +23,7 @@ class AgentFactory extends Factory
             'config' => [],
             'agent_type_id' => AgentType::factory(),
             'user_id' => 1,
+            'created_by_users_id' => fn (array $attributes) => $attributes['user_id'],
             'role' => [],
             'is_active' => true,
         ];

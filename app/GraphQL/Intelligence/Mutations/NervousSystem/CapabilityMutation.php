@@ -7,18 +7,18 @@ namespace App\GraphQL\Intelligence\Mutations\NervousSystem;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\NervousSystem\Capability\Actions\AttachToolToAgentTypeAction;
 use Kanvas\NervousSystem\Capability\Actions\CreateSkillAction;
 use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
+use Kanvas\NervousSystem\Capability\Actions\DetachToolFromAgentTypeAction;
 use Kanvas\NervousSystem\Capability\Actions\GrantSkillToAgentAction;
-use Kanvas\NervousSystem\Capability\Actions\GrantToolToAgentAction;
 use Kanvas\NervousSystem\Capability\Actions\RevokeSkillFromAgentAction;
-use Kanvas\NervousSystem\Capability\Actions\RevokeToolFromAgentAction;
 use Kanvas\NervousSystem\Capability\Actions\UpdateSkillAction;
 use Kanvas\NervousSystem\Capability\Actions\UpdateToolAction;
 use Kanvas\NervousSystem\Capability\DataTransferObject\Skill as SkillData;
 use Kanvas\NervousSystem\Capability\DataTransferObject\Tool as ToolData;
 use Kanvas\NervousSystem\Capability\Models\AgentSkill;
-use Kanvas\NervousSystem\Capability\Models\AgentTool;
 use Kanvas\NervousSystem\Capability\Models\Skill;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
@@ -134,16 +134,9 @@ class CapabilityMutation
         )->execute();
     }
 
-    public function grantTool(mixed $rootValue, array $request): AgentTool
+    public function attachToolToAgentType(mixed $rootValue, array $request): Tool
     {
         $app = app(Apps::class);
-        /** @var Users $user */
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-        $input = $request['input'];
-
-        /** @var Agent $agent */
-        $agent = Agent::getByIdFromCompanyApp((int) $input['agent_id'], $company, $app);
 
         /** @var Tool $tool */
         $tool = Tool::query()
@@ -151,33 +144,25 @@ class CapabilityMutation
             ->forApp((int) $app->getId())
             ->firstOrFail();
 
-        return new GrantToolToAgentAction(
-            agent: $agent,
-            tool: $tool,
-            grantedByUserId: $user->getId(),
-            expiresAt: isset($input['expires_at']) ? Carbon::parse((string) $input['expires_at']) : null,
-            config: $input['config'] ?? null,
-        )->execute();
+        /** @var AgentType $agentType */
+        $agentType = AgentType::getById((int) $request['agent_type_id'], $app);
+
+        return new AttachToolToAgentTypeAction($tool, $agentType)->execute();
     }
 
-    public function revokeTool(mixed $rootValue, array $request): AgentTool
+    public function detachToolFromAgentType(mixed $rootValue, array $request): bool
     {
         $app = app(Apps::class);
-        /** @var Users $user */
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
 
-        /** @var AgentTool $grant */
-        $grant = AgentTool::query()
-            ->where('id', (int) $request['grant_id'])
-            ->fromApp($app)
-            ->fromCompany($company)
+        /** @var Tool $tool */
+        $tool = Tool::query()
+            ->where('id', (int) $request['tool_id'])
+            ->forApp((int) $app->getId())
             ->firstOrFail();
 
-        return new RevokeToolFromAgentAction(
-            grant: $grant,
-            actorUserId: $user->getId(),
-            reason: $request['reason'] ?? null,
-        )->execute();
+        /** @var AgentType $agentType */
+        $agentType = AgentType::getById((int) $request['agent_type_id'], $app);
+
+        return new DetachToolFromAgentTypeAction($tool, $agentType)->execute();
     }
 }

@@ -201,6 +201,7 @@ input ExportOrderPaymentsInput {
     language: String # "en" (default) or "es"
     fieldMapper: Mixed # keys = column headers, values = dot-notation field paths (e.g. {"Order": "order_number"})
     user_email: String # Filter by order user email (supports LIKE patterns)
+    provider_company_id: [ID!] # DB-level filter: only orders linked to these provider companies via order_providers
 }
 
 type OrderCommissionStats {

@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
+use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Kanvas\Inventory\Products\Models\Products;
-use Laravel\Ai\Contracts\Tool;
+use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
 
-class ListAvailableProductsTool implements Tool
+class ListAvailableProductsTool implements KanvasToolInterface
 {
+    use HasKanvasContext;
+
     #[Override]
     public function description(): Stringable|string
     {
@@ -27,14 +31,19 @@ class ListAvailableProductsTool implements Tool
         $limit = min($request->integer('limit', 20), 50);
         $isPublished = $request->boolean('is_published', true);
         $onlyInStock = $request->boolean('only_in_stock', false);
+        $allowCrossCompany = (bool) $this->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
 
-        $products = Products::fromApp()
-            ->fromCompany()
+        $builder = Products::fromApp($this->app)
             ->notDeleted()
             ->where('is_published', $isPublished ? 1 : 0)
             ->with('variants')
-            ->limit($limit)
-            ->get();
+            ->limit($limit);
+
+        if (! $allowCrossCompany) {
+            $builder->fromCompany($this->company);
+        }
+
+        $products = $builder->get();
 
         $label = $isPublished ? 'published' : 'unpublished';
 

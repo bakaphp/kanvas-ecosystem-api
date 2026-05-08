@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
+use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
 
-class VariantSearchTool implements Tool
+class VariantSearchTool implements KanvasToolInterface
 {
+    use HasKanvasContext;
+
     #[Override]
     public function description(): Stringable|string
     {
@@ -28,8 +31,8 @@ class VariantSearchTool implements Tool
             return 'Please provide a keyword (name or SKU) to search for variants.';
         }
 
-        $variants = Variants::fromApp()
-            ->fromCompany()
+        $variants = Variants::fromApp($this->app)
+            ->fromCompany($this->company)
             ->notDeleted()
             ->where(function ($q) use ($keyword) {
                 $q->where('name', 'like', '%' . $keyword . '%')

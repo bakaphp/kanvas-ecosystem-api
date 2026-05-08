@@ -18,13 +18,15 @@ class AgentTypeManagementMutation
         $agentTypeDTO = new AgentTypeDTO(
             app: app(Apps::class),
             name: $input['name'],
-            description: $input['description'],
+            description: $input['description'] ?? null,
+            provider: $input['provider'] ?? null,
+            handler: $input['handler'] ?? null,
             config: $input['config'],
             role: $input['role'],
             is_active: $input['is_active'] ?? true,
             is_published: $input['is_published'] ?? false,
             is_multi_agent: $input['is_multi_agent'] ?? false,
-            multi_agent_list: $input['multi_agent_list']
+            multi_agent_list: $input['multi_agent_list'],
         );
         $action = new CreateAgentTypeAction($agentTypeDTO);
 
@@ -38,7 +40,8 @@ class AgentTypeManagementMutation
         $agentTypeDTO = new AgentTypeDTO(
             app: app(Apps::class),
             name: $input['name'],
-            description: $input['description'],
+            description: $input['description'] ?? null,
+            handler: $input['handler'] ?? $agentTypeModel->handler,
             config: $input['config'],
             role: $input['role'],
             is_active: $input['is_active'] ?? true,
