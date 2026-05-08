@@ -124,7 +124,7 @@ class LeadObserver
         LeadUpdateEvent::dispatch($lead);
         LeadCompanyUpdateEvent::dispatch($lead);
 
-        if ($lead->get(ConfigurationEnum::AI_ENABLE->value)) {
+        if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
             new UpdateLeadSessionsAction($lead)->execute();
         }
 
@@ -160,7 +160,7 @@ class LeadObserver
             $channel->delete();
         }
 
-        if ($lead->get(ConfigurationEnum::AI_ENABLE->value)) {
+        if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
             new DeleteSessionAction($lead)->execute();
         }
     }
@@ -173,7 +173,7 @@ class LeadObserver
             'updated_at' => now(),
         ]);
 
-        if ($lead->get(ConfigurationEnum::AI_ENABLE->value)) {
+        if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
             new DeleteSessionAction($lead)->execute();
         }
     }
