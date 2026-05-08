@@ -14,4 +14,5 @@ enum ConfigurationEnum: string
     case FTP_PORT = 'wordpress_ftp_port';
     case FTP_ROOT = 'wordpress_ftp_root';
     case FTP_SSL = 'wordpress_ftp_ssl';
+    case FTP_PROTOCOL = 'wordpress_ftp_protocol';
 }
