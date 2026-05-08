@@ -124,7 +124,7 @@ class LeadObserver
         LeadUpdateEvent::dispatch($lead);
         LeadCompanyUpdateEvent::dispatch($lead);
 
-        if ($lead->get(ConfigurationEnum::AI_ENABLE->value)) {
+        if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
             new UpdateLeadSessionsAction($lead)->execute();
         }
 
