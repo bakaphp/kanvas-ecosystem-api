@@ -23,12 +23,15 @@ use Throwable;
  * The OpenClaw source deployment remains untouched. A new (or reused)
  * AgentDeployment record is created on the destination Hermes machine.
  *
- * Flow:
- *  1. SSH into the OpenClaw source machine and archive ~/.openclaw
- *  2. Upload the archive to the destination Hermes machine
- *  3. Provision a Linux user on the destination
- *  4. Extract the archive and run `hermes claw migrate` to convert the workspace
- *  5. Write docker-compose.yml and start Hermes containers
+ * Same-machine flow (source machine == destination machine):
+ *  1. SSH once into the shared machine
+ *  2. cp -r the .openclaw directory into a staging dir — no archive round trip
+ *  3. Provision user, build image, run `hermes claw migrate`, start containers
+ *
+ * Cross-machine flow (different machines):
+ *  1. SSH into source → tar .openclaw → download to local temp file
+ *  2. SSH into destination → upload archive → extract into staging dir
+ *  3. Provision user, build image, run `hermes claw migrate`, start containers
  */
 class MigrateFromOpenClawAction
 {
@@ -45,18 +48,7 @@ class MigrateFromOpenClawAction
     public function execute(): AgentDeployment
     {
         $agent = $this->sourceDeployment->agent;
-        $timestamp = date('Ymd_His');
-        $archiveName = 'openclaw_agents_' . $timestamp . '.tar.gz';
-        $remoteArchive = '/tmp/' . $archiveName;
-        $localTempFile = sys_get_temp_dir() . '/' . $archiveName;
-
-        $sourceClient = OpenClawSshClient::fromMachine($this->sourceDeployment->machine);
-
-        try {
-            $this->packWorkspace($sourceClient, $remoteArchive, $localTempFile);
-        } finally {
-            $sourceClient->disconnect();
-        }
+        $sameMachine = $this->sourceDeployment->machine->getId() === $this->destinationMachine->getId();
 
         $systemUser = 'agent-' . $agent->slug;
         $ports = $this->destinationMachine->allocatePortPair();
@@ -87,10 +79,83 @@ class MigrateFromOpenClawAction
             $destDeployment->saveOrFail();
         }
 
+        if ($sameMachine) {
+            $this->executeOnSameMachine($destDeployment);
+        } else {
+            $this->executeAcrossMachines($destDeployment);
+        }
+
+        return $destDeployment;
+    }
+
+    /**
+     * Same-machine path: open one SSH connection, cp -r the source .openclaw dir
+     * into a staging directory, then migrate and start in place — no archive needed.
+     */
+    private function executeOnSameMachine(AgentDeployment $destDeployment): void
+    {
+        $agent = $destDeployment->agent;
+        $client = SshClient::fromMachine($this->destinationMachine);
+
+        try {
+            $this->provisionUser($client, $destDeployment->system_user);
+            $this->ensureSharedImage($client);
+
+            $sourceDir = $this->sourcePath ?? ($this->sourceDeployment->home_directory . '/.openclaw');
+            $stagingDir = $destDeployment->home_directory . '/.openclaw-import';
+
+            $client->exec('sudo mkdir -p ' . escapeshellarg($stagingDir));
+            $client->exec(
+                'sudo cp -r ' . escapeshellarg($sourceDir) . '/. ' . escapeshellarg($stagingDir) . '/'
+            );
+            $client->exec(
+                'sudo chown -R ' . escapeshellarg($destDeployment->system_user . ':' . $destDeployment->system_user)
+                . ' ' . escapeshellarg($stagingDir)
+            );
+
+            $this->runMigrateCommand($client, $stagingDir, $destDeployment);
+            $this->startContainers($client, $destDeployment);
+
+            $destDeployment->status = DeploymentStatusEnum::RUNNING->value;
+            $destDeployment->launched_at = now();
+            $destDeployment->saveOrFail();
+
+            $agent->set(CustomFieldEnum::HERMES_DEPLOYMENT_ID->value, $destDeployment->getId());
+        } catch (Throwable $e) {
+            $destDeployment->status = DeploymentStatusEnum::FAILED->value;
+            $destDeployment->error_message = $e->getMessage();
+            $destDeployment->saveOrFail();
+
+            throw $e;
+        } finally {
+            $client->disconnect();
+        }
+    }
+
+    /**
+     * Cross-machine path: archive .openclaw on the source, stream it through local
+     * temp storage, upload to the destination, extract, then migrate and start.
+     */
+    private function executeAcrossMachines(AgentDeployment $destDeployment): void
+    {
+        $agent = $destDeployment->agent;
+        $timestamp = date('Ymd_His');
+        $archiveName = 'openclaw_agents_' . $timestamp . '.tar.gz';
+        $remoteArchive = '/tmp/' . $archiveName;
+        $localTempFile = sys_get_temp_dir() . '/' . $archiveName;
+
+        $sourceClient = OpenClawSshClient::fromMachine($this->sourceDeployment->machine);
+
+        try {
+            $this->packWorkspace($sourceClient, $remoteArchive, $localTempFile);
+        } finally {
+            $sourceClient->disconnect();
+        }
+
         $destClient = SshClient::fromMachine($this->destinationMachine);
 
         try {
-            $this->provisionUser($destClient, $systemUser);
+            $this->provisionUser($destClient, $destDeployment->system_user);
             $this->ensureSharedImage($destClient);
             $this->extractAndMigrate($destClient, $localTempFile, $remoteArchive, $destDeployment);
             $this->startContainers($destClient, $destDeployment);
@@ -113,8 +178,6 @@ class MigrateFromOpenClawAction
                 unlink($localTempFile);
             }
         }
-
-        return $destDeployment;
     }
 
     /**
@@ -195,6 +258,7 @@ class MigrateFromOpenClawAction
             throw new ValidationException('Failed to extract OpenClaw archive on destination: ' . $result);
         }
 
+        // Remove the archive now that the files are extracted.
         $client->exec('rm -f ' . escapeshellarg($remoteArchive));
 
         $client->exec(
@@ -202,25 +266,35 @@ class MigrateFromOpenClawAction
             . ' ' . escapeshellarg($openclawExtractDir)
         );
 
-        // Ensure ~/.hermes exists so the migrate command has somewhere to write.
+        $this->runMigrateCommand($client, $openclawExtractDir, $deployment);
+    }
+
+    /**
+     * Run `hermes claw migrate` inside the shared container, converting the OpenClaw
+     * staging directory into a Hermes workspace under the agent's home directory.
+     * Cleans up the staging directory on success.
+     */
+    private function runMigrateCommand(SshClient $client, string $stagingDir, AgentDeployment $deployment): void
+    {
+        $homeDir = $this->destinationPath ?? $deployment->home_directory;
         $hermesDir = $homeDir . '/.hermes';
+
         $client->exec(
             'sudo -u ' . escapeshellarg($deployment->system_user)
             . ' mkdir -p ' . escapeshellarg($hermesDir)
         );
 
-        // Run `hermes claw migrate` inside the container so it has the Hermes binary.
-        // We use --source to point at the extracted OpenClaw directory, --yes to skip
-        // the confirmation prompt, and --migrate-secrets to carry over API keys.
+        $imageName = (new DockerComposeBuilder())->getSharedImageName($this->app);
+
         $result = $client->exec(
             'sudo -u ' . escapeshellarg($deployment->system_user)
             . ' bash -c ' . escapeshellarg(
                 'docker run --rm'
-                . ' -v ' . $openclawExtractDir . ':' . $openclawExtractDir
+                . ' -v ' . $stagingDir . ':' . $stagingDir
                 . ' -v ' . $hermesDir . ':' . $hermesDir
-                . ' ' . (new DockerComposeBuilder())->getSharedImageName($this->app)
+                . ' ' . $imageName
                 . ' hermes claw migrate'
-                . ' --source ' . escapeshellarg($openclawExtractDir)
+                . ' --source ' . escapeshellarg($stagingDir)
                 . ' --workspace-target ' . escapeshellarg($hermesDir)
                 . ' --migrate-secrets --yes 2>&1'
             )
@@ -229,7 +303,7 @@ class MigrateFromOpenClawAction
         );
 
         if (str_contains($result, 'EXIT_CODE:1')) {
-            throw new ValidationException('hermes claw migrate failed on destination: ' . $result);
+            throw new ValidationException('hermes claw migrate failed: ' . $result);
         }
 
         // Fix ownership after the migration writes files as root inside the container.
@@ -237,12 +311,10 @@ class MigrateFromOpenClawAction
             'sudo chown -R 1000:' . escapeshellarg($deployment->system_user)
             . ' ' . escapeshellarg($hermesDir)
         );
-        $client->exec(
-            'sudo chmod -R g+rwx ' . escapeshellarg($hermesDir)
-        );
+        $client->exec('sudo chmod -R g+rwx ' . escapeshellarg($hermesDir));
 
         // Clean up the staging directory.
-        $client->exec('sudo rm -rf ' . escapeshellarg($openclawExtractDir));
+        $client->exec('sudo rm -rf ' . escapeshellarg($stagingDir));
     }
 
     /**
