@@ -61,6 +61,7 @@ jobs:
             docker stop queue-workflow-3
             docker stop batch-logger-queue
             docker restart openclaw-queue
+            docker restart ledger-queue
             docker stop queue-user-interactions
 
             if [ "${{ github.ref_name }}" == "1.x" ]; then
