@@ -7,7 +7,7 @@ namespace App\Console\Commands\Inventory;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Variants\Actions\SyncVariantRatingAction;
+use Kanvas\Inventory\Variants\Actions\SetVariantSortingRatingFromCategoryAction;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 class BackfillVariantRatingCommand extends Command
@@ -41,7 +41,7 @@ class BackfillVariantRatingCommand extends Command
             ->with('product.categories')
             ->chunkById(500, function ($variants) use (&$processed, &$updated, &$skipped, $started): void {
                 foreach ($variants as $variant) {
-                    $result = new SyncVariantRatingAction($variant)->execute();
+                    $result = new SetVariantSortingRatingFromCategoryAction($variant)->execute();
                     $processed++;
 
                     match ($result['status'] ?? null) {

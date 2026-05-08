@@ -10,14 +10,14 @@ use Kanvas\Inventory\Categories\Actions\CreateCategory;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as CategoriesDto;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
-use Kanvas\Inventory\Products\WorkflowActivity\SyncProductVariantsRatingFromCategoryActivity;
+use Kanvas\Inventory\Products\WorkflowActivity\SetProductVariantsSortingRatingFromCategoryActivity;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\TestCase;
 
-class SyncProductVariantsRatingFromCategoryActivityTest extends TestCase
+class SetProductVariantsSortingRatingFromCategoryActivityTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -77,7 +77,7 @@ class SyncProductVariantsRatingFromCategoryActivityTest extends TestCase
 
         $product->categories()->attach($category->id);
 
-        $activity = new SyncProductVariantsRatingFromCategoryActivity(
+        $activity = new SetProductVariantsSortingRatingFromCategoryActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),
@@ -129,7 +129,7 @@ class SyncProductVariantsRatingFromCategoryActivityTest extends TestCase
 
         $product->categories()->attach($category->id);
 
-        $activity = new SyncProductVariantsRatingFromCategoryActivity(
+        $activity = new SetProductVariantsSortingRatingFromCategoryActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),

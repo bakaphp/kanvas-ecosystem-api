@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Database\Seeders\Workflow;
 
 use Illuminate\Database\Seeder;
-use Kanvas\Inventory\Products\WorkflowActivity\SyncProductVariantsRatingFromCategoryActivity;
-use Kanvas\Inventory\Variants\WorkflowActivity\SyncVariantRatingFromCategoryActivity;
+use Kanvas\Inventory\Products\WorkflowActivity\SetProductVariantsSortingRatingFromCategoryActivity;
+use Kanvas\Inventory\Variants\WorkflowActivity\SetVariantSortingRatingFromCategoryActivity;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
 
@@ -16,12 +16,12 @@ class RatingWorkflowActionsSeeder extends Seeder
     {
         $activities = [
             [
-                'name' => 'Sync Variant Rating From Category Weight',
-                'model_name' => SyncVariantRatingFromCategoryActivity::class,
+                'name' => 'Set Variant Sorting Rating From Category',
+                'model_name' => SetVariantSortingRatingFromCategoryActivity::class,
             ],
             [
-                'name' => 'Sync Product Variants Rating From Category Weight',
-                'model_name' => SyncProductVariantsRatingFromCategoryActivity::class,
+                'name' => 'Set Product Variants Sorting Rating From Category',
+                'model_name' => SetProductVariantsSortingRatingFromCategoryActivity::class,
             ],
         ];
 

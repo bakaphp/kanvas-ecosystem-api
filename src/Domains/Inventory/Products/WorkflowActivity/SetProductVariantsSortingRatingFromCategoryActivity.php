@@ -7,12 +7,12 @@ namespace Kanvas\Inventory\Products\WorkflowActivity;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Variants\Actions\SyncVariantRatingAction;
+use Kanvas\Inventory\Variants\Actions\SetVariantSortingRatingFromCategoryAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-class SyncProductVariantsRatingFromCategoryActivity extends KanvasActivity implements WorkflowActivityInterface
+class SetProductVariantsSortingRatingFromCategoryActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
@@ -37,7 +37,7 @@ class SyncProductVariantsRatingFromCategoryActivity extends KanvasActivity imple
 
         $results = [];
         foreach ($entity->variants()->where('is_deleted', 0)->cursor() as $variant) {
-            $results[] = new SyncVariantRatingAction($variant)->execute();
+            $results[] = new SetVariantSortingRatingFromCategoryAction($variant)->execute();
         }
 
         return [
