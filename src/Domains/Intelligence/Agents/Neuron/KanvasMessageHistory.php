@@ -14,6 +14,7 @@ use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Enums\MessageRole;
 use NeuronAI\Chat\History\AbstractChatHistory;
+use NeuronAI\Chat\History\ChatHistoryInterface;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\UserMessage;
@@ -62,52 +63,113 @@ class KanvasMessageHistory extends AbstractChatHistory
                     return null;
                 }
 
-                $channel = $socialMessage->channels()->first();
-
-                $isInternal = $channel->isNoteChannel() || $channel->isAiAssistChannel();
-
                 $verb = $socialMessage->messageType?->verb ?? self::USER_VERB;
 
-                if (! $this->includeInternal && in_array($verb, self::INTERNAL_VERBS)) {
+                if (! $this->includeInternal && in_array($verb, self::INTERNAL_VERBS, true)) {
                     return null;
                 }
 
-                $text = $stored['content'] ?? $stored['text'] ?? '';
+                $text = (string) ($stored['content'] ?? $stored['text'] ?? '');
+
+                if ($text === '') {
+                    return null;
+                }
+
+                $fromIa = (bool) ($stored['from_ia'] ?? false);
+                $fromHuman = (bool) ($stored['from_human'] ?? false);
+
+                $channel = $socialMessage->channels()->first();
+                $isInternal = $channel?->isNoteChannel() || $channel?->isAiAssistChannel();
 
                 if ($isInternal) {
-                    return new UserMessage("[INTERNAL - {$channel->name}]: {$text}");
-                } elseif ($socialMessage->from_human) {
-                    $text = "[Owner - $socialMessage->user->displayname] $text";
+                    $prefixed = "[INTERNAL - {$channel->name}] {$text}";
+                } elseif ($fromIa) {
+                    $prefixed = "[Assistant] {$text}";
+                } elseif ($fromHuman) {
+                    $owner = $socialMessage->user?->displayname ?: 'Owner';
+                    $prefixed = "[Owner - {$owner}] {$text}";
                 } else {
-                    $text = "[Assistant] $text";
+                    $prefixed = '[' . $this->entityIdentityLabel() . "] {$text}";
                 }
-                $neuronMessage = $socialMessage->from_ia ?
-                        new AssistantMessage($text)
-                        : new UserMessage($text);
 
-                return $neuronMessage;
+                return $fromIa
+                    ? new AssistantMessage($prefixed)
+                    : new UserMessage($prefixed);
             })
             ->filter()
             ->values()
             ->toArray();
 
-        if (! empty($messages)) {
-            $this->history = $messages;
+        $coalesced = [];
+        foreach ($messages as $m) {
+            $last = end($coalesced) ?: null;
+            if ($last !== null && $last->getRole() === $m->getRole()) {
+                $last->setContents($last->getContent() . "\n\n" . $m->getContent());
+
+                continue;
+            }
+            $coalesced[] = $m;
         }
+
+        while (! empty($coalesced) && $coalesced[0]->getRole() !== MessageRole::USER->value) {
+            array_shift($coalesced);
+        }
+
+        if (! empty($coalesced)) {
+            $this->history = array_values($coalesced);
+        }
+    }
+
+    public function addMessage(Message $message): ChatHistoryInterface
+    {
+        $last = end($this->history) ?: null;
+        if ($last !== null && $last->getRole() === $message->getRole()) {
+            $last->setContents($last->getContent() . "\n\n" . $message->getContent());
+            $this->trimHistory();
+            $this->onNewMessage($message);
+            $this->setMessages($this->history);
+
+            return $this;
+        }
+
+        return parent::addMessage($message);
+    }
+
+    private function entityIdentityLabel(): string
+    {
+        if (method_exists($this->entity, 'people') && $this->entity->people) {
+            $name = (string) $this->entity->people->getName();
+            if ($name !== '') {
+                return "Lead - {$name}";
+            }
+        }
+
+        return class_basename($this->entity) . ':' . $this->entity->getKey();
     }
 
     protected function onNewMessage(Message $message): void
     {
-        if ($message->getRole() !== MessageRole::ASSISTANT->value) {
+        $role = $message->getRole();
+
+        if (! in_array($role, [MessageRole::USER->value, MessageRole::ASSISTANT->value], true)) {
             return;
         }
 
-        $messageType = MessageTypeService::getOrCreate($this->app, self::AGENT_VERB);
+        $content = (string) $message->getContent();
+
+        if ($content === '') {
+            return;
+        }
+
+        $isAssistant = $role === MessageRole::ASSISTANT->value;
+        $verb = $isAssistant ? self::AGENT_VERB : self::USER_VERB;
+        $messageType = MessageTypeService::getOrCreate($this->app, $verb);
 
         $messageData = [
-            'content' => $message->getContent(),
-            'from_me' => true,
-            'from_ia' => true,
+            'content' => $content,
+            'from_me' => $isAssistant,
+            'from_ia' => $isAssistant,
+            'from_human' => ! $isAssistant,
         ];
 
         if ($this->threadId !== null) {

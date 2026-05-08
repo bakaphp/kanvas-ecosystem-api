@@ -9,6 +9,7 @@ use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ArtifactsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CommunicationChannelTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyInformationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompletionStatusTool;
@@ -50,6 +51,7 @@ class IntelligenceCRM extends BaseKanvasAgent
             threadId: $this->threadId,
         );
     }
+
     #[Override]
     public function instructions(): string
     {
@@ -61,7 +63,11 @@ class IntelligenceCRM extends BaseKanvasAgent
         $background = explode('\n', $background);
 
         return new SystemPrompt(
-            background: [...$background, "lead_id: {$this->entity->getId()}"],
+            background: [
+                ...$background,
+                "lead_id: {$this->entity->getId()}",
+                "companies_id: {$this->entity->companies_id}",
+            ],
             steps: explode('\n', $steps),
             output: explode('\n', $output),
         )->__toString();
@@ -73,6 +79,7 @@ class IntelligenceCRM extends BaseKanvasAgent
         $tools = [
             new ArtifactsTool(),
             new CommunicationChannelTool(),
+            new CompanyInformationTool(),
             new CompanyIsHolidayTool(),
             new CompanyWorkHoursTool(),
             new CompletionStatusTool(),
