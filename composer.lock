@@ -16706,16 +16706,16 @@
         },
         {
             "name": "yakovenko/laravel-lighthouse-graphql-multi-schema",
-            "version": "v2.2.4",
+            "version": "v2.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema.git",
-                "reference": "2228c8b619979c0ce1c9de88798824b84a1d9e2c"
+                "reference": "e60d5069cb801a0b4c9e8469bf027c65e74fc8b9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/as-yakovenko/laravel-lighthouse-graphql-multi-schema/zipball/2228c8b619979c0ce1c9de88798824b84a1d9e2c",
-                "reference": "2228c8b619979c0ce1c9de88798824b84a1d9e2c",
+                "url": "https://api.github.com/repos/as-yakovenko/laravel-lighthouse-graphql-multi-schema/zipball/e60d5069cb801a0b4c9e8469bf027c65e74fc8b9",
+                "reference": "e60d5069cb801a0b4c9e8469bf027c65e74fc8b9",
                 "shasum": ""
             },
             "require": {
@@ -16758,9 +16758,9 @@
             ],
             "support": {
                 "issues": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema/issues",
-                "source": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema/tree/v2.2.4"
+                "source": "https://github.com/as-yakovenko/laravel-lighthouse-graphql-multi-schema/tree/v2.3.0"
             },
-            "time": "2026-05-07T17:36:28+00:00"
+            "time": "2026-05-08T06:56:22+00:00"
         }
     ],
     "packages-dev": [
