@@ -18,10 +18,13 @@ use Kanvas\Users\Models\Users;
 
 class SendLeadEmailsAction
 {
+    /** @var array<string,string> */
+    private array $typeNameCache = [];
+
     public function __construct(
-        private Lead $lead,
-        private string $emailTemplate,
-        private mixed $channels = ['mail']
+        private readonly Lead $lead,
+        private readonly string $emailTemplate,
+        private readonly array $channels = ['mail'],
     ) {
     }
 
@@ -32,63 +35,42 @@ class SendLeadEmailsAction
     ): void {
         $userTemplate = 'user-' . $this->emailTemplate;
         $leadTemplate = 'lead-' . $this->emailTemplate;
-        $data = [
-            ...$payload,
-            'lead' => $this->lead,
-            'company' => $this->lead->company,
-            'app' => $this->lead->app,
-        ];
-        $leadEmail = $this->lead->people()->first()->emails()->first()?->value;
-        $shouldSendToUser = $notificationMode === LeadNotificationModeEnum::NOTIFY_ALL || $notificationMode === LeadNotificationModeEnum::NOTIFY_AGENTS;
-        $shouldSendToLead = $leadEmail && ($notificationMode === LeadNotificationModeEnum::NOTIFY_LEAD || $notificationMode === LeadNotificationModeEnum::NOTIFY_ALL);
+        $leadEmail = $this->lead->people?->getEmails()->first()?->value;
+        $data = $this->buildTemplateData($payload);
 
-        if ($shouldSendToUser) {
+        if ($notificationMode->shouldNotifyAgents()) {
             foreach ($users as $user) {
-                try {
-                    $this->sendEmail(
-                        $user,
-                        $userTemplate,
-                        $user->email,
-                        $data
-                    );
-                } catch (Exception $e) {
-                    report($e);
-
-                    continue;
-                }
+                $this->safeSend(
+                    $user,
+                    $userTemplate,
+                    $user->email,
+                    $data
+                );
             }
         }
-        if ($shouldSendToLead) {
-            $this->sendEmail(
+
+        if ($notificationMode->shouldNotifyLead() && $leadEmail) {
+            $this->safeSend(
                 $this->lead,
                 $leadTemplate,
                 $leadEmail,
-                $data
+                $data,
             );
         }
 
-        if ($payload['extraEmails'] ?? null) {
-            $extraEmails = is_array($payload['extraEmails']) ? $payload['extraEmails'] : explode(',', $payload['extraEmails']);
-            foreach ($extraEmails as $email) {
-                try {
-                    $this->sendEmail(
-                        $this->lead,
-                        $userTemplate,
-                        trim($email),
-                        $data
-                    );
-                } catch (Exception $e) {
-                    report($e);
-
-                    continue;
-                }
-            }
+        foreach ($this->parseExtraEmails($payload['extraEmails'] ?? null) as $email) {
+            $this->safeSend(
+                $this->lead,
+                $userTemplate,
+                $email,
+                $data
+            );
         }
     }
 
     public function getProduct(string $productId): object
     {
-        $product = Products::where('id', $productId)->with(['variants', 'variants.warehouses'])->first();
+        $product = Products::with(['variants', 'variants.warehouses'])->where('id', $productId)->first();
         $variant = $product->variants->first();
         $warehouse = $variant->warehouses->first();
         $defaultChannel = $variant->channels->first();
@@ -100,33 +82,85 @@ class SendLeadEmailsAction
         ];
     }
 
-    protected function sendEmail(
-        Model $entity,
-        string $emailTemplateName,
-        string $email,
-        array $mailData
-    ): void {
-        $notification = new NewLeadNotification(
-            $this->lead,
-            $mailData,
-        );
-        $notification->setTemplateName($emailTemplateName);
-        $notification->setType(NotificationTypes::firstOrCreate([
-           'apps_id' => $this->lead->app->getId(),
-           'key' => $this->lead::class,
-           'name' => Str::simpleSlug($this->lead::class),
-           'system_modules_id' => SystemModulesRepository::getByModelName($this->lead::class, $this->lead->app)->getId(),
-           'is_deleted' => 0,
-        ], [
-           'template' => $emailTemplateName,
-        ])->name);
+    private function buildTemplateData(array $payload): array
+    {
+        return [
+            ...$payload,
+            'lead' => $this->lead,
+            'company' => $this->lead->company,
+            'app' => $this->lead->app,
+        ];
+    }
 
+    /**
+     * @param string|array<string>|null $value
+     * @return list<string>
+     */
+    private function parseExtraEmails(string|array|null $value): array
+    {
+        if (empty($value)) {
+            return [];
+        }
+
+        $list = is_array($value) ? $value : explode(',', $value);
+
+        return array_values(array_filter(array_map('trim', $list)));
+    }
+
+    private function safeSend(
+        Model $entity,
+        string $template,
+        string $email,
+        array $data,
+    ): void {
+        try {
+            $this->sendEmail(
+                $entity,
+                $template,
+                $email,
+                $data,
+            );
+        } catch (Exception $e) {
+            report($e);
+        }
+    }
+
+    private function sendEmail(
+        Model $entity,
+        string $template,
+        string $email,
+        array $data,
+    ): void {
+        $notification = new NewLeadNotification($this->lead, $data);
+        $notification->setTemplateName($template);
+        $notification->setType($this->resolveNotificationTypeName($template));
         $notification->channels = $this->channels;
 
         if ($entity instanceof Users) {
             $entity->notify($notification);
-        } else {
-            Notification::route('mail', $email)->notify($notification);
+
+            return;
         }
+
+        Notification::route('mail', $email)->notify($notification);
+    }
+
+    private function resolveNotificationTypeName(string $template): string
+    {
+        $appId = $this->lead->app->getId();
+        $key = $appId . ':' . $template;
+
+        return $this->typeNameCache[$key] ??= NotificationTypes::firstOrCreate(
+            [
+                'apps_id' => $appId,
+                'key' => Lead::class,
+                'name' => Str::simpleSlug(Lead::class),
+                'system_modules_id' => SystemModulesRepository::getByModelName(Lead::class, $this->lead->app)->getId(),
+                'is_deleted' => 0,
+            ],
+            [
+                'template' => $template,
+            ],
+        )->name;
     }
 }

@@ -26,6 +26,7 @@ type NervousSystemTool {
     frameworks: Mixed!
     version: String!
     is_active: Boolean!
+    agentTypes: [agentType!]! @belongsToMany(relation: "agentTypes")
     created_at: DateTime!
     updated_at: DateTime
 }
@@ -35,20 +36,6 @@ type NervousSystemAgentSkill {
     uuid: String!
     agent: AgentAi! @belongsTo(relation: "agent")
     skill: NervousSystemSkill! @belongsTo(relation: "skill")
-    grantedBy: User @belongsTo(relation: "grantedBy")
-    granted_at: DateTime!
-    expires_at: DateTime
-    is_active: Boolean!
-    config: Mixed
-    created_at: DateTime!
-    updated_at: DateTime
-}
-
-type NervousSystemAgentTool {
-    id: ID!
-    uuid: String!
-    agent: AgentAi! @belongsTo(relation: "agent")
-    tool: NervousSystemTool! @belongsTo(relation: "tool")
     grantedBy: User @belongsTo(relation: "grantedBy")
     granted_at: DateTime!
     expires_at: DateTime
@@ -157,7 +144,7 @@ extend type Query @guard {
             resolver: "App\\GraphQL\\Intelligence\\Queries\\NervousSystem\\CapabilityQuery@agentSkills"
         )
 
-    nervousSystemAgentTools(agent_id: ID!): [NervousSystemAgentTool!]!
+    nervousSystemAgentTools(agent_id: ID!): [NervousSystemTool!]!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Queries\\NervousSystem\\CapabilityQuery@agentTools"
         )
@@ -218,19 +205,19 @@ extend type Mutation @guardByAdmin {
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\CapabilityMutation@revokeSkill"
         )
 
-    grantNervousSystemTool(
+    attachNervousSystemToolToAgentType(
         tool_id: ID!
-        input: GrantNervousSystemCapabilityInput!
-    ): NervousSystemAgentTool!
+        agent_type_id: ID!
+    ): NervousSystemTool!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\CapabilityMutation@grantTool"
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\CapabilityMutation@attachToolToAgentType"
         )
 
-    revokeNervousSystemTool(
-        grant_id: ID!
-        reason: String
-    ): NervousSystemAgentTool!
+    detachNervousSystemToolFromAgentType(
+        tool_id: ID!
+        agent_type_id: ID!
+    ): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\CapabilityMutation@revokeTool"
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\CapabilityMutation@detachToolFromAgentType"
         )
 }

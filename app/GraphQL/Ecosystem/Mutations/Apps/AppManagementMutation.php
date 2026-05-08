@@ -11,9 +11,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
-use Kanvas\Templates\Actions\CreateTemplateAction;
-use Kanvas\Templates\DataTransferObject\TemplateInput;
-use Kanvas\Templates\Models\Templates;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class AppManagementMutation
@@ -48,28 +45,6 @@ class AppManagementMutation
         $app->saveOrFail();
 
         return $app;
-    }
-
-    public function createAppTemplate($_, array $request): Templates
-    {
-        /**
-         * @todo only super admin can do this
-         */
-        $app = AppsRepository::findFirstByKey($request['id']);
-
-        UsersRepository::userOwnsThisApp(auth()->user(), $app);
-
-        $createTemplate = new CreateTemplateAction(
-            new TemplateInput(
-                $app,
-                $request['input']['name'],
-                $request['input']['template'],
-                null,
-                auth()->user()
-            )
-        );
-
-        return $createTemplate->execute();
     }
 
     public function createApp($_, array $request): Apps

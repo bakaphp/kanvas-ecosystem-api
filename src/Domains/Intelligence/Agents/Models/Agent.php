@@ -25,6 +25,7 @@ use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Models\BaseModel;
+use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
 use Nevadskiy\Tree\AsTree;
 use Override;
@@ -157,6 +158,16 @@ class Agent extends BaseModel
         )->wherePivot('is_deleted', 0)
          ->withPivot('role', 'config')
          ->withTimestamps();
+    }
+
+    public function selectedTools(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Tool::class,
+            'nervous_system_agent_selected_tools',
+            'agent_id',
+            'tool_id'
+        );
     }
 
     public static function getModel(): Model

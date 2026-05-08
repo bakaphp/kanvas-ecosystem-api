@@ -25,6 +25,7 @@ type AgentAi {
     agent_model_id: ID
     parent_id: ID
     is_active: Boolean!
+    selectedTools: [NervousSystemTool!]! @belongsToMany(relation: "selectedTools")
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -69,6 +70,7 @@ input AgentAiInput {
     company_task_list_id: Int
     communication_channels: [CommunicationChannelPivot!]
     swarm_ids: [ID!]
+    tool_ids: [ID!]
 }
 
 input CommunicationChannelPivot {
@@ -125,6 +127,14 @@ extend type Mutation @guard {
     aiAgentUserChat(input: UserChatInput!): UserChatResponse!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@userChat"
+        )
+    attachToolToAgent(agent_id: ID!, tool_id: ID!): AgentAi!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@attachTool"
+        )
+    detachToolFromAgent(agent_id: ID!, tool_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@detachTool"
         )
 }
 

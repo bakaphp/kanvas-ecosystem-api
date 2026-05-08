@@ -20,6 +20,8 @@ class CreateAgentTypeAction
             'apps_id' => $this->agentType->app->id,
             'name' => $this->agentType->name,
             'description' => $this->agentType->description,
+            'provider' => $this->agentType->provider,
+            'handler' => $this->agentType->handler,
             'config' => $this->agentType->config,
             'role' => $this->agentType->role,
             'is_active' => $this->agentType->is_active,

@@ -8,8 +8,6 @@ use Kanvas\Apps\Actions\CreateAppsAction;
 use Kanvas\Apps\Repositories\AppsRepository;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
-use Kanvas\Templates\Actions\CreateTemplateAction;
-use Kanvas\Templates\DataTransferObject\TemplateInput;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class AppCompanyMutation
@@ -57,31 +55,5 @@ class AppCompanyMutation
         $app->associateCompany($company)->delete();
 
         return $company;
-    }
-
-    /**
-     * createAppTemplate
-     * @param  null  $_
-     */
-    public function createAppTemplate($_, array $request)
-    {
-        /**
-         * @todo only super admin can do this
-         */
-        $app = AppsRepository::findFirstByKey($request['id']);
-
-        UsersRepository::userOwnsThisApp(auth()->user(), $app);
-
-        $createTemplate = new CreateTemplateAction(
-            new TemplateInput(
-                $app,
-                $request['input']['name'],
-                $request['input']['template'],
-                null,
-                auth()->user()
-            )
-        );
-
-        return $createTemplate->execute();
     }
 }
