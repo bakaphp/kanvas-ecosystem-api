@@ -97,6 +97,13 @@ class OrderExportQuery
             );
         }
 
+        if (isset($args['whereHasProvider'])) {
+            $providerCompanyId = (int) $args['whereHasProvider'];
+            $query->whereHas('providerCompanies', function ($q) use ($providerCompanyId) {
+                $q->where('companies.id', $providerCompanyId);
+            });
+        }
+
         // Apply orderType filter using the handler
         if (isset($args['orderType']) && is_array($args['orderType'])) {
             $handler = new OrderTypeHandler(new SQLOperator());

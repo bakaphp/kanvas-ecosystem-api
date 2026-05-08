@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\WaSender\Actions;
 
 use Baka\Support\Str;
-use Inspector\Configuration;
-use Inspector\Inspector;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Exceptions\ValidationException;
@@ -18,7 +16,6 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use NeuronAI\Chat\Messages\UserMessage;
-use NeuronAI\Observability\InspectorObserver;
 use Override;
 
 class AgentChannelResponderAction extends BaseAgentResponderAction
@@ -87,8 +84,6 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
             throw new ValidationException('No entity found');
         }
 
-        $useInspector = $this->message->app->get('inspector-key') !== null;
-
         $currentAgent = new $this->agent->type->handler();
         //$currentAgent = $this->agent;
 
@@ -97,14 +92,6 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
             $this->message->entity()->people
         );
 
-        if ($useInspector) {
-            $inspector = new Inspector(
-                new Configuration($this->message->app->get('inspector-key'))
-            );
-            $currentAgent->observe(
-                new InspectorObserver($inspector)
-            );
-        }
         $whatsAppMessageService = new MessageService(
             $this->message->app,
             $this->message->company

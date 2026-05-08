@@ -467,7 +467,6 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
             if ($response->isoCode === '00' && $payment->status !== PaymentStatusEnum::PAID->value) {
                 $payment->markAsPaid($responseData);
-                $order->markAsPaid($payment->user);
             }
 
             $payment->addLog('verify_payment', $responseData);
@@ -731,7 +730,6 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
             $payment->number = $response->ticket;
             $payment->markAsPaid($responseData);
-            $order->markAsPaid($payment->user);
 
             $this->persistVaultToken($payment, $response);
 

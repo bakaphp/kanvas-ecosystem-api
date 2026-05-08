@@ -78,8 +78,11 @@ use Kanvas\Connectors\Mailgun\Workflows\AgentChannelResponderActivity as Workflo
 use Kanvas\Connectors\Microsoft\Workflows\Activities\MicrosoftAgentChannelResponderActivity;
 use Kanvas\Connectors\Microsoft\Workflows\Activities\SyncMicrosoftEmailActivity;
 use Kanvas\Connectors\Mindee\Workflows\ProcessVehicleImageActivity as WorkflowsProcessVehicleImageActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\AutoApproveCorporateLeadActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\BulkRechargeTagsActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\CreateVehicleFromOrderActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\PropagateCorporateFieldsToUserActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassRoadsideAssistanceActivity;
@@ -193,6 +196,7 @@ use Kanvas\Intelligence\Workflows\Activities\ContactCheckerActivity;
 use Kanvas\Intelligence\Workflows\LeadAgentFirstMessageOutreachActivity;
 use Kanvas\Intelligence\Workflows\SaveLeadPreferredChannelActivity;
 use Kanvas\Intelligence\Workflows\SendNotificationActivity;
+use Kanvas\NervousSystem\Plan\Activities\ReplyToPlanCommentActivity;
 use Kanvas\Social\Follows\Workflows\SendMessageNotificationToFollowersActivity;
 use Kanvas\Social\Messages\Jobs\CreateMessageFromReceiverJob;
 use Kanvas\Social\Messages\Workflows\Activities\CheckMessageContentActivity;
@@ -340,6 +344,9 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncProductCapacityActivity::class,
             SyncMovipassImpoundActivity::class,
             SyncMovipassRoadsideAssistanceActivity::class,
+            AutoApproveCorporateLeadActivity::class,
+            BulkRechargeTagsActivity::class,
+            PropagateCorporateFieldsToUserActivity::class,
             PushLeadNotesActivity::class,
             PushLeadActivity::class,
             WorkflowPushLeadActivity::class,
@@ -425,6 +432,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncOpenClawAgentWorkspaceActivity::class,
             SyncAgentSwarmContextActivity::class,
             SendChannelMessageToAgentActivity::class,
+            ReplyToPlanCommentActivity::class,
             MicrosoftAgentChannelResponderActivity::class,
             SyncMicrosoftEmailActivity::class,
             SendLeadAdfByEmailActivity::class,

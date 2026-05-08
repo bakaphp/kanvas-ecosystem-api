@@ -4,19 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions;
 
-use Inspector\Configuration;
-use Inspector\Inspector;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Agents\Actions\Chat\RunLaravelAgentChatAction;
+use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
+use Kanvas\Intelligence\Agents\Actions\Chat\RunOpenClawChatAction;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
-use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
+use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Chat\Messages\UserMessage;
-use NeuronAI\Observability\InspectorObserver;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 
 class ProcessAgentChatAction
@@ -36,55 +35,71 @@ class ProcessAgentChatAction
         $startTime = microtime(true);
         $sessionId = $this->session?->uuid ?? '';
 
-        if ($this->agent->type->handler === OpenClawAgentHandler::class) {
-            $handler = new OpenClawAgentHandler();
-            $handler->setAgent($this->agent);
+        $response = $this->runHandler();
 
-            $response = $handler->chat($this->message, $sessionId !== '' ? $sessionId : null);
-            $durationMs = (microtime(true) - $startTime) * 1000.0;
-
-            $this->trackUsage($response, $durationMs, $sessionId);
-            $this->broadcastChatResponse($sessionId, $response);
-
-            return $response;
-        }
-
-        $useInspector = $this->app->get('inspector-key') !== null;
-        $sessionEntity = $this->session?->entity();
-
-        $currentAgent = new $this->agent->type->handler();
-        $currentAgent->setConfiguration(
-            $this->agent,
-            $sessionEntity
-        );
-
-        if ($useInspector) {
-            $inspector = new Inspector(
-                new Configuration($this->app->get('inspector-key'))
-            );
-            $currentAgent->observe(
-                new InspectorObserver($inspector)
-            );
-        }
-
-        $responseContent = $currentAgent instanceof ADKAgent ?
-            $currentAgent->chatSimple(
-                $this->app,
-                $this->agent->company,
-                (string) $this->user->getId(),
-                $sessionId,
-                $this->message
-            ) : $currentAgent->chat(new UserMessage($this->message));
-
-        $response = $currentAgent instanceof ADKAgent
-            ? $responseContent->getContent()
-            : ChatHelper::extractTextFromResponse($responseContent->getContent());
         $durationMs = (microtime(true) - $startTime) * 1000.0;
-
         $this->trackUsage($response, $durationMs, $sessionId);
         $this->broadcastChatResponse($sessionId, $response);
 
         return $response;
+    }
+
+    protected function runHandler(): string
+    {
+        $handlerClass = $this->agent->type?->handler;
+
+        if ($handlerClass === null || $handlerClass === '' || ! class_exists($handlerClass)) {
+            throw new ValidationException(sprintf(
+                'Agent %d cannot run: agent_type %s has no valid handler set (got %s). '
+                . 'Set agent_types.handler to a class implementing the agent runtime contract.',
+                $this->agent->getId(),
+                (string) ($this->agent->agent_type_id ?? 'null'),
+                $handlerClass === null ? 'null' : "'{$handlerClass}'",
+            ));
+        }
+
+        if ($handlerClass === OpenClawAgentHandler::class) {
+            return new RunOpenClawChatAction(
+                agent: $this->agent,
+                session: $this->session,
+                message: $this->message,
+                user: $this->user,
+            )->execute();
+        }
+
+        $handler = new $handlerClass();
+
+        if ($handler instanceof KanvasLaravelAgent) {
+            // Pass the request-scoped app/company so tools get the correct tenant
+            // context even when the agent is global (companies_id = 0 / apps_id = 0).
+            $handler->setConfiguration(
+                agent: $this->agent,
+                entity: $this->session?->entity(),
+                app: $this->app,
+                company: $this->company,
+            );
+
+            return new RunLaravelAgentChatAction(
+                agent: $this->agent,
+                session: $this->session,
+                message: $this->message,
+                app: $this->app,
+                company: $this->company,
+                user: $this->user,
+                handler: $handler,
+            )->execute();
+        }
+
+        $handler->setConfiguration($this->agent, $this->session?->entity());
+
+        return new RunNeuronChatAction(
+            agent: $this->agent,
+            session: $this->session,
+            message: $this->message,
+            app: $this->app,
+            user: $this->user,
+            handler: $handler,
+        )->execute();
     }
 
     protected function trackUsage(string $response, float $durationMs, string $sessionId): void

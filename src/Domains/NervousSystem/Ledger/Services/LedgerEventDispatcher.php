@@ -7,16 +7,17 @@ namespace Kanvas\NervousSystem\Ledger\Services;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Redis;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Ledger\Jobs\AppendToLedgerJob;
+use Throwable;
 
 /**
- * Stateless dispatcher invoked by the EmitsNervousSystemEvents trait's
- * static event closures. Was previously an Eloquent Observer class, but
- * registering observers from a trait boot method caused re-entrant
- * Model boot (static::observe → new static → bootIfNotBooted). Static
- * event closures + this service avoid that.
+ * DO NOT convert this back to an Observer registered from the trait's
+ * boot method — that path triggers re-entrant Model boot (static::observe
+ * → new static → bootIfNotBooted). Static event closures + this stateless
+ * service is the working escape.
  */
 class LedgerEventDispatcher
 {
@@ -62,17 +63,29 @@ class LedgerEventDispatcher
             return;
         }
 
-        $appsId = (int) ($model->apps_id ?? 0);
-        $companiesId = (int) ($model->companies_id ?? 0);
+        if ((int) ($model->apps_id ?? 0) === 0) {
+            return;
+        }
 
-        if ($appsId === 0) {
+        $app = $model->app ?? null;
+        $company = $model->company ?? null;
+
+        if ($app === null || $company === null) {
+            return;
+        }
+
+        if (self::shouldSkipForSampling($model)) {
+            return;
+        }
+
+        if (self::shouldSkipForDedupe($model, $eventType, $payload)) {
             return;
         }
 
         AppendToLedgerJob::dispatch(
             new EventData(
-                appsId: $appsId,
-                companiesId: $companiesId,
+                app: $app,
+                company: $company,
                 sourceDomain: $model->nervousSystemSourceDomain(),
                 eventType: $eventType,
                 status: EventStatusEnum::INFO,
@@ -81,7 +94,9 @@ class LedgerEventDispatcher
                 actorType: self::actorType(),
                 actorId: self::actorId(),
                 payload: $payload,
+                payloadSchemaVersion: 1,
                 correlationId: self::correlationId(),
+                causationId: self::causationId(),
                 occurredAt: Carbon::now(),
             ),
         );
@@ -138,5 +153,79 @@ class LedgerEventDispatcher
         $header = request()->header('X-Correlation-ID');
 
         return is_string($header) ? $header : null;
+    }
+
+    private static function causationId(): ?string
+    {
+        if (! app()->bound('request')) {
+            return null;
+        }
+
+        $header = request()->header('X-Causation-ID');
+
+        return is_string($header) ? $header : null;
+    }
+
+    private static function shouldSkipForSampling(Model $model): bool
+    {
+        if (! method_exists($model, 'nervousSystemSamplingRate')) {
+            return false;
+        }
+
+        $rate = $model->nervousSystemSamplingRate();
+
+        if ($rate >= 1.0) {
+            return false;
+        }
+
+        if ($rate <= 0.0) {
+            return true;
+        }
+
+        return mt_rand() / mt_getrandmax() > $rate;
+    }
+
+    /**
+     * Redis-backed dedupe — when a model declares a dedupe window, identical
+     * event fingerprints (model class + id + event_type + payload hash) within
+     * the window are skipped. The first event wins; subsequent ones increment a
+     * Redis counter and are dropped silently. When the window TTL expires, a
+     * scheduled summary job (PR 1b cron) emits a single `*.deduped` event with
+     * the suppressed count. Failures fall through to "do not skip" — losing
+     * dedupe is preferable to losing the event.
+     */
+    private static function shouldSkipForDedupe(Model $model, string $eventType, array $payload): bool
+    {
+        if (! method_exists($model, 'nervousSystemDedupeWindowSeconds')) {
+            return false;
+        }
+
+        $windowSeconds = $model->nervousSystemDedupeWindowSeconds();
+
+        if ($windowSeconds <= 0) {
+            return false;
+        }
+
+        $fingerprint = sprintf(
+            'ns:dedupe:%s:%s:%s:%s',
+            $model::class,
+            (int) $model->getKey(),
+            $eventType,
+            md5(serialize($payload)),
+        );
+
+        try {
+            $first = Redis::set($fingerprint, '1', 'EX', $windowSeconds, 'NX');
+
+            if ($first) {
+                return false;
+            }
+
+            Redis::incr($fingerprint . ':count');
+
+            return true;
+        } catch (Throwable) {
+            return false;
+        }
     }
 }

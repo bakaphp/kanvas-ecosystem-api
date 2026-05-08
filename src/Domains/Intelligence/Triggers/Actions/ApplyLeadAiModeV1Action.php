@@ -22,12 +22,6 @@ use function Sentry\captureException;
 
 class ApplyLeadAiModeV1Action
 {
-    private const MANUAL_TRIGGERS = [
-        TriggersEnum::MANUAL_OFF->value,
-        TriggersEnum::MANUAL_SUPPORT->value,
-        TriggersEnum::MANUAL_FON->value,
-    ];
-
     public function __construct(
         protected Lead $lead,
         protected int $triggerType,
@@ -37,7 +31,7 @@ class ApplyLeadAiModeV1Action
     public function execute(): array
     {
         if ($this->lead->get('ai_mode') == IntelligenceModeEnum::OFF->value
-            && ! in_array($this->triggerType, self::MANUAL_TRIGGERS)) {
+            && ! in_array($this->triggerType, TriggersEnum::manualTriggerValues(), true)) {
             return [
                 'changed' => false,
                 'message' => 'Currently Lead is in OFF mode',

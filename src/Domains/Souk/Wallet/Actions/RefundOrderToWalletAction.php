@@ -9,6 +9,7 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Models\PaymentLogs;
 use Kanvas\Souk\Wallet\DataTransferObject\WalletRefund;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
+use Kanvas\Souk\Wallet\Enums\TransactionSourceEnum;
 use Kanvas\Souk\Wallet\Traits\HasWalletHolderTrait;
 use Kanvas\Souk\Wallet\Wallet;
 
@@ -18,6 +19,7 @@ class RefundOrderToWalletAction
 
     public function __construct(
         protected readonly WalletRefund $data,
+        protected readonly ?TransactionSourceEnum $source = null,
     ) {
     }
 
@@ -46,14 +48,22 @@ class RefundOrderToWalletAction
         $walletHolder = $this->getWalletHolder($this->data->app, $order->user);
         $wallet = $walletHolder->createAppWallet($this->data->app, ['name' => $this->data->tag]);
 
-        $wallet->depositFloat($refundAmount, [
-            'order_id' => $order->getId(),
-            'order_number' => (string) $order->number,
-            'type' => 'order_refund',
-            'description' => 'Wallet refund for order #' . (string) $order->number,
-            'reason' => $this->data->reason,
-            'refunded_by' => $this->data->user->getId(),
-        ]);
+        $audit = new BuildWalletTransactionMetaAction(
+            source: $this->source ?? TransactionSourceEnum::REFUND_TECHNICAL,
+            actorUserId: $this->data->user->getId(),
+            externalReference: $order->uuid ?? (string) $order->getId(),
+            reason: $this->data->reason,
+            additional: [
+                'service' => $order->orderType?->name,
+                'order_id' => $order->getId(),
+                'order_number' => (string) $order->number,
+                'type' => 'order_refund',
+                'description' => 'Wallet refund for order #' . (string) $order->number,
+                'refunded_by' => $this->data->user->getId(),
+            ],
+        )->execute();
+
+        $wallet->depositFloat($refundAmount, $audit);
 
         $totalRefunded = $previouslyRefunded + $refundAmount;
 

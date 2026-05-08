@@ -6,8 +6,6 @@ namespace Kanvas\Connectors\Twilio\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Cache;
-use Inspector\Configuration;
-use Inspector\Inspector;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentResponderAction;
@@ -16,7 +14,6 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Chat\Messages\UserMessage;
-use NeuronAI\Observability\InspectorObserver;
 use Override;
 
 class AgentChannelResponderAction extends BaseAgentResponderAction
@@ -46,8 +43,6 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
             Cache::forget($batchKey);
         }
 
-        $useInspector = $this->message->app->get('inspector-key') !== null;
-
         $currentAgent = new $this->agent->type->handler();
         //$currentAgent = $this->agent;
 
@@ -55,15 +50,6 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
             $this->agent,
             $this->message->entity()->people
         );
-
-        if ($useInspector) {
-            $inspector = new Inspector(
-                new Configuration($this->message->app->get('inspector-key'))
-            );
-            $currentAgent->observe(
-                new InspectorObserver($inspector)
-            );
-        }
 
         $to = Str::toE164(Str::replace('twilio-', '', $this->channel->slug));
         $to = $this->hijackMessagePhone($to);

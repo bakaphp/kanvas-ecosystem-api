@@ -19,10 +19,12 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\KanvasModules\Models\KanvasModule;
 use Kanvas\Models\BaseModel;
+use Kanvas\NervousSystem\Plan\Models\Plan as NervousSystemPlan;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
@@ -149,6 +151,8 @@ class SystemModules extends BaseModel
             'company' => Companies::class,
             'branch' => CompaniesBranches::class,
             'region' => Regions::class,
+            'nervous_system_plan' => NervousSystemPlan::class,
+            'agent_swarm' => AgentSwarm::class,
         ];
 
         return $internalMapping[strtolower($slug)] ?? throw new InvalidArgumentException('Entity ' . $slug . ' not found');
@@ -168,6 +172,8 @@ class SystemModules extends BaseModel
             CompaniesBranches::class => 'branch',
             Regions::class => 'region',
             Engagement::class => 'engagement',
+            NervousSystemPlan::class => 'nervous_system_plan',
+            AgentSwarm::class => 'agent_swarm',
         ];
 
         return $internalMapping[$namespace] ?? throw new InvalidArgumentException('Namespace ' . $namespace . ' not found');
