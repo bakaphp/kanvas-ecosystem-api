@@ -56,5 +56,6 @@ jobs:
 
             # Scheduler runs Laravel code but doesn't match the /queue/ pattern.
             docker restart laravel-scheduler
+            docker stop rediskanvas-ecosystem
 
             docker exec -i phpkanvas-ecosystem php artisan octane:reload
