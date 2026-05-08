@@ -189,6 +189,11 @@ final class FakePaymentMethodsService
     {
         return $this->recordAndShift('detach', array_merge(['id' => $id], $params ?? []), $options);
     }
+
+    public function update(string $id, ?array $params = null, ?array $options = null): mixed
+    {
+        return $this->recordAndShift('update', array_merge(['id' => $id], $params ?? []), $options);
+    }
 }
 
 /**
