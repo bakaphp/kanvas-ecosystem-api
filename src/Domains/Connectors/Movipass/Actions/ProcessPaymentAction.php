@@ -87,6 +87,8 @@ class ProcessPaymentAction
             return $this->handleReversal($paymentProcessor, $bankTransaction, 'Capture failed: ' . $captureResult['message']);
         }
 
+        $this->order->markAsPaid($this->payment->user);
+
         try {
             new SendPaymentReceiptAction(
                 $this->order,
