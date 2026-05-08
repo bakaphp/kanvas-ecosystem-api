@@ -7,7 +7,7 @@ namespace Kanvas\Inventory\Variants\Actions;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 
-class SyncVariantRatingAction
+class SetVariantSortingRatingFromCategoryAction
 {
     public function __construct(
         protected readonly Variants $variant,

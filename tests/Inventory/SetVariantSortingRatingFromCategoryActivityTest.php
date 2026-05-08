@@ -13,12 +13,12 @@ use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Inventory\Variants\WorkflowActivity\SyncVariantRatingFromCategoryActivity;
+use Kanvas\Inventory\Variants\WorkflowActivity\SetVariantSortingRatingFromCategoryActivity;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\TestCase;
 
-class SyncVariantRatingFromCategoryActivityTest extends TestCase
+class SetVariantSortingRatingFromCategoryActivityTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -73,7 +73,7 @@ class SyncVariantRatingFromCategoryActivityTest extends TestCase
 
         $this->product->categories()->attach($category->id);
 
-        $activity = new SyncVariantRatingFromCategoryActivity(
+        $activity = new SetVariantSortingRatingFromCategoryActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),
@@ -87,7 +87,7 @@ class SyncVariantRatingFromCategoryActivityTest extends TestCase
 
     public function testWrongEntityTypeReturnsSkipped(): void
     {
-        $activity = new SyncVariantRatingFromCategoryActivity(
+        $activity = new SetVariantSortingRatingFromCategoryActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),
@@ -118,7 +118,7 @@ class SyncVariantRatingFromCategoryActivityTest extends TestCase
         $otherApp->save();
 
         // The variant belongs to $this->app; call the activity with a different app
-        $activity = new SyncVariantRatingFromCategoryActivity(
+        $activity = new SetVariantSortingRatingFromCategoryActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),

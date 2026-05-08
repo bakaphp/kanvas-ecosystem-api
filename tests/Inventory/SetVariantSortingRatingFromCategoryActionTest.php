@@ -13,12 +13,12 @@ use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
-use Kanvas\Inventory\Variants\Actions\SyncVariantRatingAction;
+use Kanvas\Inventory\Variants\Actions\SetVariantSortingRatingFromCategoryAction;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
-class SyncVariantRatingActionTest extends TestCase
+class SetVariantSortingRatingFromCategoryActionTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -57,7 +57,7 @@ class SyncVariantRatingActionTest extends TestCase
         $category = $this->createCategory('Alpha', 5);
         $this->product->categories()->attach($category->id);
 
-        $result = new SyncVariantRatingAction($this->variant)->execute();
+        $result = new SetVariantSortingRatingFromCategoryAction($this->variant)->execute();
 
         $this->assertSame('updated', $result['status']);
         $this->assertSame(5.0, $result['rating']);
@@ -74,7 +74,7 @@ class SyncVariantRatingActionTest extends TestCase
 
         $this->product->categories()->attach([$low->id, $high->id, $mid->id]);
 
-        $result = new SyncVariantRatingAction($this->variant)->execute();
+        $result = new SetVariantSortingRatingFromCategoryAction($this->variant)->execute();
 
         $this->assertSame('updated', $result['status']);
         $this->assertSame(9.0, $result['rating']);
@@ -91,7 +91,7 @@ class SyncVariantRatingActionTest extends TestCase
 
         $this->product->categories()->attach([$apple->id, $banana->id, $cherry->id]);
 
-        $result = new SyncVariantRatingAction($this->variant)->execute();
+        $result = new SetVariantSortingRatingFromCategoryAction($this->variant)->execute();
 
         $this->assertSame('updated', $result['status']);
         $this->assertSame(7.0, $result['rating']);
@@ -104,7 +104,7 @@ class SyncVariantRatingActionTest extends TestCase
         $this->variant->save();
 
         // Attach no categories — product has none
-        $result = new SyncVariantRatingAction($this->variant)->execute();
+        $result = new SetVariantSortingRatingFromCategoryAction($this->variant)->execute();
 
         $this->assertSame('updated', $result['status']);
         $this->assertSame(0.0, $result['rating']);
@@ -124,7 +124,7 @@ class SyncVariantRatingActionTest extends TestCase
         $deleted->is_deleted = 1;
         $deleted->save();
 
-        $result = new SyncVariantRatingAction($this->variant)->execute();
+        $result = new SetVariantSortingRatingFromCategoryAction($this->variant)->execute();
 
         $this->assertSame('updated', $result['status']);
         $this->assertSame(5.0, $result['rating']);
@@ -143,7 +143,7 @@ class SyncVariantRatingActionTest extends TestCase
         // Sleep 1 second so any accidental save would bump updated_at
         sleep(1);
 
-        $result = new SyncVariantRatingAction($this->variant)->execute();
+        $result = new SetVariantSortingRatingFromCategoryAction($this->variant)->execute();
 
         $this->assertSame('unchanged', $result['status']);
         $this->assertSame(7.0, $result['rating']);
@@ -161,7 +161,7 @@ class SyncVariantRatingActionTest extends TestCase
         // Reload the variant so its eager-loaded product relation is cleared
         $freshVariant = Variants::find($this->variant->getId());
 
-        $result = new SyncVariantRatingAction($freshVariant)->execute();
+        $result = new SetVariantSortingRatingFromCategoryAction($freshVariant)->execute();
 
         $this->assertSame('skipped', $result['status']);
         $this->assertSame('no_product', $result['reason']);
