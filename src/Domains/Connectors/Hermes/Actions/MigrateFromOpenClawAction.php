@@ -91,6 +91,7 @@ class MigrateFromOpenClawAction
 
         try {
             $this->provisionUser($destClient, $systemUser);
+            $this->ensureSharedImage($destClient);
             $this->extractAndMigrate($destClient, $localTempFile, $remoteArchive, $destDeployment);
             $this->startContainers($destClient, $destDeployment);
 
@@ -245,14 +246,11 @@ class MigrateFromOpenClawAction
     }
 
     /**
-     * Ensure the shared Hermes image exists, rewrite docker-compose.yml with the
-     * destination ports, stop any existing containers, then start fresh.
+     * Build the shared Hermes Docker image on the destination machine if it does not exist yet.
+     * Must be called before any step that runs `docker run` or `docker compose` with the image.
      */
-    private function startContainers(SshClient $client, AgentDeployment $deployment): void
+    private function ensureSharedImage(SshClient $client): void
     {
-        $hermesDir = $deployment->home_directory . '/.hermes';
-        $agent = $deployment->agent;
-
         $builder = new DockerComposeBuilder();
         $imageName = $builder->getSharedImageName($this->app);
         $imageDir = $builder->getSharedImageDir($this->app);
@@ -272,6 +270,18 @@ class MigrateFromOpenClawAction
                 throw new ValidationException('Failed to build shared Hermes image on destination: ' . $buildResult);
             }
         }
+    }
+
+    /**
+     * Rewrite docker-compose.yml with the destination ports, stop any existing
+     * containers, then start fresh. Assumes the shared image is already present.
+     */
+    private function startContainers(SshClient $client, AgentDeployment $deployment): void
+    {
+        $hermesDir = $deployment->home_directory . '/.hermes';
+        $agent = $deployment->agent;
+
+        $builder = new DockerComposeBuilder();
 
         $gatewayToken = $this->company->get(ConfigurationEnum::GATEWAY_TOKEN->value) ?? bin2hex(random_bytes(32));
         $composeContent = $builder->buildDockerCompose($deployment, (string) $gatewayToken, $this->app, $agent);
