@@ -93,7 +93,7 @@ class EnableCorporateModeAction
         if (! empty($this->fields['region_id'])) {
             $region = Regions::getByIdFromCompanyAppOrGlobal(
                 (int) $this->fields['region_id'],
-                $company,
+                $this->user->getCurrentCompany(),
                 $this->app,
             );
             $company->set(CustomFieldEnum::COMPANY_REGION_ID->value, $region->getId());
