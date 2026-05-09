@@ -16,7 +16,9 @@ use Kanvas\Companies\DataTransferObject\Company as CompanyData;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Actions\ValidateCorporateFieldsAction;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
@@ -184,6 +186,13 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
             }
 
             $company->set($key, $value);
+        }
+
+        $regionId = $lead->get('region_id');
+        if (! empty($regionId)) {
+            $company->set(CustomFieldEnum::COMPANY_REGION_ID->value, $regionId);
+        } elseif (app()->bound(Regions::class)) {
+            $company->set(CustomFieldEnum::COMPANY_REGION_ID->value, app(Regions::class)->getId());
         }
     }
 

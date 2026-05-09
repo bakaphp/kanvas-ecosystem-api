@@ -678,6 +678,7 @@ extend type Query @guard {
 
     providerOrders(
         provider_company_id: ID!
+        region_id: ID
         where: _
             @whereConditions(
                 columns: [
