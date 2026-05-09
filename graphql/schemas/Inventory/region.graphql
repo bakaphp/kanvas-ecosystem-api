@@ -70,4 +70,8 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Regions\\Region@delete"
         )
+    setDefaultRegion(region_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Regions\\Region@setDefaultRegion"
+        )
 }
