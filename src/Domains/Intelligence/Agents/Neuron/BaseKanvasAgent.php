@@ -14,7 +14,6 @@ use NeuronAI\Agent\Agent as NeuronAIAgent;
 use NeuronAI\Agent\SystemPrompt;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Providers\Gemini\Gemini;
-use NeuronAI\Tools\Tool;
 use Override;
 
 class BaseKanvasAgent extends NeuronAIAgent
@@ -61,9 +60,9 @@ class BaseKanvasAgent extends NeuronAIAgent
         $role = $this->agent->role;
 
         return new SystemPrompt(
-            background: $role['background'],
-            steps: $role['steps'],
-            output: $role['output'],
+            background: explode('\n', $role['background']),
+            steps: explode('\n', $role['steps']),
+            output: explode('\n', $role['output']),
         )->__toString();
     }
 
@@ -82,18 +81,4 @@ class BaseKanvasAgent extends NeuronAIAgent
     //         limit: 20,
     //     );
     // }
-
-    #[Override]
-    protected function tools(): array
-    {
-        /** @psalm-suppress MixedReturnTypeCoercion */
-        return [
-            Tool::make(
-                'get_current_time',
-                'Retrieve the current time from the system.',
-            )->setCallable(fn () => [
-                'time' => date('Y-m-d H:i:s'),
-            ]),
-        ];
-    }
 }
