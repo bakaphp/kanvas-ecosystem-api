@@ -105,30 +105,31 @@ class AgentChatMutation
 
     public function neuronChat(mixed $root, array $req): string
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $input = $req['input'] ?? [];
+        // $app = app(Apps::class);
+        // $user = auth()->user();
+        // $input = $req['input'] ?? [];
 
-        $entity = SystemModulesRepository::getEntityFromInput(
-            new SystemModuleEntityInput(
-                name: (string) $input['name'],
-                systemModuleUuid: (string) $input['system_modules_uuid'],
-                entityId: (string) $input['entity_id'],
-            ),
-            $user,
-        );
+        // $entity = SystemModulesRepository::getEntityFromInput(
+        //     new SystemModuleEntityInput(
+        //         name: (string) $input['name'],
+        //         systemModuleUuid: (string) $input['system_modules_uuid'],
+        //         entityId: (string) $input['entity_id'],
+        //     ),
+        //     $user,
+        // );
 
-        $neuronAgent = NeuronAgentFactory::fromName(
-            name: (string) $input['name'],
-            app: $app,
-            entity: $entity,
-            user: $user,
-        );
-        $neuronAgent->setThreadId((string) $input['entity_id']);
+        // $neuronAgent = NeuronAgentFactory::fromName(
+        //     name: (string) $input['name'],
+        //     app: $app,
+        //     entity: $entity,
+        //     user: $user,
+        // );
+        // $neuronAgent->setThreadId((string) $input['entity_id']);
 
-        $response = $neuronAgent->chat(new UserMessage((string) $input['message']))->getMessage();
+        // $response = $neuronAgent->chat(new UserMessage((string) $input['message']))->getMessage();
 
-        return (string) $response->getContent();
+        // return (string) $response->getContent();
+        return '';
     }
 
     public function userChat(mixed $root, array $req): array
