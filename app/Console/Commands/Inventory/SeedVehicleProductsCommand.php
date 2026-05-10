@@ -4,25 +4,25 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Inventory;
 
+use Baka\Search\SearchEngineResolver;
 use Baka\Traits\KanvasJobsTrait;
 use Baka\Users\Contracts\UserInterface;
 use Faker\Factory as FakerFactory;
 use Faker\Generator;
 use Faker\Provider\FakeCar;
 use Illuminate\Console\Command;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
-use Baka\Search\SearchEngineResolver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Config;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Apps\Models\Apps as AppsModel;
-use Laravel\Scout\EngineManager;
-use Laravel\Scout\Engines\NullEngine;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Categories\Actions\CreateCategory;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as CategoryDto;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Products\Models\Products;
+use Laravel\Scout\EngineManager;
+use Laravel\Scout\Engines\NullEngine;
 use Throwable;
 
 class SeedVehicleProductsCommand extends Command
