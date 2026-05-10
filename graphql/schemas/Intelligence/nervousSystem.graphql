@@ -9,6 +9,7 @@ type LedgerEvent {
     actor_type: String
     actor_id: Int
     status: String!
+    category: NervousSystemEventCategory
     payload: Mixed
     payload_schema_version: Int!
     result: Mixed
@@ -18,6 +19,15 @@ type LedgerEvent {
     causation_id: String
     occurred_at: DateTime!
     indexed_at: DateTime!
+}
+
+"Pulse-stream classification. Internal events (rollups, wake dispatches) return null."
+enum NervousSystemEventCategory {
+    SIGNAL
+    UNDERSTAND
+    DECIDE
+    ACT
+    WARNING
 }
 
 type NervousSystemHealth {
@@ -32,7 +42,7 @@ type NervousSystemHealth {
     sampled_redis_dedupe_keys: Int!
 }
 
-extend type Query @guardByAdmin {
+extend type Query @guard {
     ledgerEvents(
         where: _
             @whereConditions(
@@ -42,10 +52,12 @@ extend type Query @guardByAdmin {
                     "source_entity_type"
                     "source_entity_id"
                     "status"
+                    "category"
                     "correlation_id"
                     "causation_id"
                     "actor_type"
                     "actor_id"
+                    "occurred_at"
                 ]
             )
         orderBy: _ @orderBy(columns: ["id", "occurred_at", "indexed_at"])

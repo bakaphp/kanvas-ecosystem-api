@@ -2,23 +2,23 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Intelligence;
+namespace App\Console\Commands\NervousSystem;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\NervousSystem\Dashboard\Actions\BackfillDashboardMetricsAction;
+use Kanvas\NervousSystem\Pulse\Actions\BackfillPulseMetricsAction;
 
-class BackfillDashboardMetricsCommand extends Command
+class BackfillPulseMetricsCommand extends Command
 {
-    protected $signature = 'kanvas:backfill-dashboard-metrics
+    protected $signature = 'kanvas:backfill-pulse-metrics
         {--days=30 : Number of trailing days to backfill, ending yesterday}
         {--from= : Override start date (YYYY-MM-DD)}
         {--to= : Override end date (YYYY-MM-DD), defaults to yesterday}
         {--app-id= : Restrict to a single app id}
         {--force : Re-roll dates even when a snapshot already exists}';
 
-    protected $description = 'Populate nervous_system_dashboard_metrics_daily for past dates from existing plan data.';
+    protected $description = 'Populate nervous_system_pulse_metrics_daily for past dates from existing ledger + plan data.';
 
     public function handle(): int
     {
@@ -37,7 +37,7 @@ class BackfillDashboardMetricsCommand extends Command
         }
 
         $this->info(sprintf(
-            'Backfilling dashboard metrics from %s to %s%s%s',
+            'Backfilling pulse metrics from %s to %s%s%s',
             $from->toDateString(),
             $to->toDateString(),
             $this->option('app-id') !== null ? ' (app id ' . $this->option('app-id') . ')' : '',
@@ -54,7 +54,7 @@ class BackfillDashboardMetricsCommand extends Command
             return self::FAILURE;
         }
 
-        $result = new BackfillDashboardMetricsAction(
+        $result = new BackfillPulseMetricsAction(
             from: $from,
             to: $to,
             app: $app,

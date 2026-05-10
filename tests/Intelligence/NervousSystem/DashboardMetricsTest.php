@@ -269,7 +269,7 @@ class DashboardMetricsTest extends TestCase
         $result = new BackfillDashboardMetricsAction(
             from: $day,
             to: $day,
-            appId: $app->getId(),
+            app: $app,
         )->execute();
 
         $this->assertSame(0, $result['rolled_up'], 'Snapshot already exists, must skip');
@@ -304,7 +304,7 @@ class DashboardMetricsTest extends TestCase
         $result = new BackfillDashboardMetricsAction(
             from: $day,
             to: $day,
-            appId: $app->getId(),
+            app: $app,
             force: true,
         )->execute();
 
@@ -391,7 +391,7 @@ class DashboardMetricsTest extends TestCase
         $result = new BackfillDashboardMetricsAction(
             from: $day,
             to: $day,
-            appId: $app->getId(),
+            app: $app,
         )->execute();
 
         $this->assertSame(0, $result['rolled_up'], 'All dates skipped (snapshot already exists)');

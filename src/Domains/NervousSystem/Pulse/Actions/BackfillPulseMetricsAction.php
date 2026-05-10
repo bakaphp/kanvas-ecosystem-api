@@ -2,24 +2,25 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\NervousSystem\Dashboard\Actions;
+namespace Kanvas\NervousSystem\Pulse\Actions;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\NervousSystem\Dashboard\Models\DashboardMetricsDaily;
-use Kanvas\NervousSystem\Dashboard\Support\DashboardMetricsCache;
+use Kanvas\NervousSystem\Pulse\Models\PulseMetricsDaily;
+use Kanvas\NervousSystem\Pulse\Support\PulseMetricsCache;
 
 /**
- * Iterates a date range and a tenant scope, rolling up missing days.
- * Used by the kanvas:backfill-dashboard-metrics command (one-shot
- * historical fill on first deploy, or after a formula version bump).
+ * One-shot historical backfill of pulse metrics. Iterates date × tenant
+ * (only tenants with ledger activity per day), upserts via
+ * RollupPulseMetricsAction. Skips dates with an existing snapshot
+ * unless $force is true.
  *
- * Without $force: skips dates where a snapshot already exists.
- * With $force: re-rolls everything (use after a formula change).
+ * Also flushes the cache for every tenant touched (rolled-up OR
+ * skipped) — see the analogous behavior in BackfillDashboardMetrics.
  */
-class BackfillDashboardMetricsAction
+class BackfillPulseMetricsAction
 {
     public function __construct(
         protected readonly Carbon $from,
@@ -37,12 +38,6 @@ class BackfillDashboardMetricsAction
         $rolledUp = 0;
         $skipped = 0;
         $daysProcessed = 0;
-
-        // Track every tenant tuple this backfill touched (rolled up OR
-        // skipped) so we can flush their cache at the end. Skipped
-        // tenants might still have stale cached responses from before
-        // the backfill — clearing covers that case.
-        // Key: "appId:companyId" → [appId, companyId].
         $tenantsTouched = [];
 
         $cursor = $this->from->copy()->startOfDay();
@@ -54,9 +49,8 @@ class BackfillDashboardMetricsAction
             $end = $cursor->copy()->endOfDay();
 
             $tuples = DB::connection('intelligence')
-                ->table('nervous_system_plans')
-                ->where('is_deleted', 0)
-                ->whereBetween('completed_at', [$start, $end])
+                ->table('nervous_system_events')
+                ->whereBetween('occurred_at', [$start, $end])
                 ->when($this->app !== null, fn ($q) => $q->where('apps_id', $this->app->getId()))
                 ->select('apps_id', 'companies_id')
                 ->distinct()
@@ -81,18 +75,15 @@ class BackfillDashboardMetricsAction
                     continue;
                 }
 
-                new RollupDashboardMetricsAction($app, $company, $cursor)->execute();
+                new RollupPulseMetricsAction($app, $company, $cursor)->execute();
                 $rolledUp++;
             }
 
             $cursor->addDay();
         }
 
-        // Defensive cache flush — covers the case where every date for a
-        // tenant was skipped (no rollup ran) but the operator still
-        // expects the next dashboard read to be fresh.
         foreach ($tenantsTouched as [$appsId, $companiesId]) {
-            DashboardMetricsCache::forget($appsId, $companiesId);
+            PulseMetricsCache::forget($appsId, $companiesId);
         }
 
         return [
@@ -105,7 +96,7 @@ class BackfillDashboardMetricsAction
 
     private function snapshotExists(int $appsId, int $companiesId, Carbon $date): bool
     {
-        return DashboardMetricsDaily::query()
+        return PulseMetricsDaily::query()
             ->where('apps_id', $appsId)
             ->where('companies_id', $companiesId)
             ->whereDate('metric_date', $date->toDateString())
