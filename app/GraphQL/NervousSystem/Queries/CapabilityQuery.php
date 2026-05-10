@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Intelligence\Queries\NervousSystem;
+namespace App\GraphQL\NervousSystem\Queries;
 
 use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;

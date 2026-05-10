@@ -70,6 +70,6 @@ extend type Query @guard {
 
     nervousSystemHealth: NervousSystemHealth!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Queries\\NervousSystem\\NervousSystemHealthQuery@get"
+            resolver: "App\\GraphQL\\NervousSystem\\Queries\\NervousSystemHealthQuery@get"
         )
 }

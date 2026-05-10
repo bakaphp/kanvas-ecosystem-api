@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Intelligence\Mutations\NervousSystem;
+namespace App\GraphQL\NervousSystem\Mutations;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;

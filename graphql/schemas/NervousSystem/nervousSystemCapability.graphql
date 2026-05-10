@@ -142,12 +142,12 @@ extend type Query @guard {
 
     nervousSystemAgentSkills(agent_id: ID!): [NervousSystemAgentSkill!]!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Queries\\NervousSystem\\CapabilityQuery@agentSkills"
+            resolver: "App\\GraphQL\\NervousSystem\\Queries\\CapabilityQuery@agentSkills"
         )
 
     nervousSystemAgentTools(agent_id: ID!): [NervousSystemTool!]!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Queries\\NervousSystem\\CapabilityQuery@agentTools"
+            resolver: "App\\GraphQL\\NervousSystem\\Queries\\CapabilityQuery@agentTools"
         )
 
     nervousSystemAgentCapabilities(
@@ -155,7 +155,7 @@ extend type Query @guard {
         framework: String
     ): NervousSystemAgentCapabilities!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Queries\\NervousSystem\\CapabilityQuery@agentCapabilities"
+            resolver: "App\\GraphQL\\NervousSystem\\Queries\\CapabilityQuery@agentCapabilities"
         )
 }
 
@@ -164,7 +164,7 @@ extend type Mutation @guardByAdmin {
         input: CreateNervousSystemSkillInput!
     ): NervousSystemSkill!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\CapabilityMutation@createSkill"
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@createSkill"
         )
 
     updateNervousSystemSkill(
@@ -172,14 +172,14 @@ extend type Mutation @guardByAdmin {
         input: UpdateNervousSystemSkillInput!
     ): NervousSystemSkill!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\CapabilityMutation@updateSkill"
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@updateSkill"
         )
 
     createNervousSystemTool(
         input: CreateNervousSystemToolInput!
     ): NervousSystemTool!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\CapabilityMutation@createTool"
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@createTool"
         )
 
     updateNervousSystemTool(
@@ -187,7 +187,7 @@ extend type Mutation @guardByAdmin {
         input: UpdateNervousSystemToolInput!
     ): NervousSystemTool!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\CapabilityMutation@updateTool"
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@updateTool"
         )
 
     grantNervousSystemSkill(
@@ -195,7 +195,7 @@ extend type Mutation @guardByAdmin {
         input: GrantNervousSystemCapabilityInput!
     ): NervousSystemAgentSkill!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\CapabilityMutation@grantSkill"
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@grantSkill"
         )
 
     revokeNervousSystemSkill(
@@ -203,7 +203,7 @@ extend type Mutation @guardByAdmin {
         reason: String
     ): NervousSystemAgentSkill!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\CapabilityMutation@revokeSkill"
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@revokeSkill"
         )
 
     attachNervousSystemToolToAgentType(
@@ -211,7 +211,7 @@ extend type Mutation @guardByAdmin {
         agent_type_id: ID!
     ): NervousSystemTool!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\CapabilityMutation@attachToolToAgentType"
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@attachToolToAgentType"
         )
 
     detachNervousSystemToolFromAgentType(
@@ -219,6 +219,6 @@ extend type Mutation @guardByAdmin {
         agent_type_id: ID!
     ): Boolean!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\CapabilityMutation@detachToolFromAgentType"
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@detachToolFromAgentType"
         )
 }

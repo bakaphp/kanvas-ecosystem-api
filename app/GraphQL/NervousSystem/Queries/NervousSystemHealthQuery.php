@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Intelligence\Queries\NervousSystem;
+namespace App\GraphQL\NervousSystem\Queries;
 
 use Kanvas\NervousSystem\Ledger\Services\NervousSystemHealthService;
 
