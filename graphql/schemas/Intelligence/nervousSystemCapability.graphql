@@ -9,6 +9,7 @@ type NervousSystemSkill {
     frameworks: Mixed!
     version: String!
     is_active: Boolean!
+    agents_using_count: Int!
     created_at: DateTime!
     updated_at: DateTime
 }

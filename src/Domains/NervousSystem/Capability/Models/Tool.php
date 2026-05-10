@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
@@ -80,9 +81,9 @@ class Tool extends BaseModel
 
     public function scopeForApp(Builder $query, mixed $appsId = null): Builder
     {
-        $id = $appsId instanceof \Kanvas\Apps\Models\Apps
+        $id = $appsId instanceof Apps
             ? $appsId->getId()
-            : (int) ($appsId ?? app(\Kanvas\Apps\Models\Apps::class)->getId());
+            : (int) ($appsId ?? app(Apps::class)->getId());
 
         return $query->whereIn('apps_id', [0, $id]);
     }

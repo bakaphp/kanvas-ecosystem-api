@@ -11,6 +11,7 @@ type AgentSwarm {
     is_active: Boolean!
     agents: [AgentAi!]! @belongsToMany
     members: [AgentSwarmMember!]! @hasMany(relation: "members")
+    active_mission: NervousSystemPlan @hasOne(relation: "activeMission")
     created_at: DateTime!
     updated_at: DateTime
 }

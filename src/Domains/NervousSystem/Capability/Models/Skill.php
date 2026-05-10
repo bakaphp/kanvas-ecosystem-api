@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
 use Override;
@@ -26,6 +27,7 @@ use Override;
  * @property array $frameworks
  * @property string $version
  * @property bool $is_active
+ * @property int $agents_using_count
  * @property bool $is_deleted
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -49,6 +51,7 @@ class Skill extends BaseModel
             'definition' => Json::class,
             'frameworks' => Json::class,
             'is_active' => 'boolean',
+            'agents_using_count' => 'integer',
             'is_deleted' => 'boolean',
         ];
     }
@@ -68,13 +71,12 @@ class Skill extends BaseModel
         return $query->whereJsonContains('frameworks', $framework);
     }
 
-    /**
-     * Skill catalog rows have apps_id but not companies_id (skills are
-     * app-wide, not per-company). Override fromApp to also include
-     * apps_id=0 (global skills available across the platform).
-     */
-    public function scopeForApp(Builder $query, int $appsId): Builder
+    public function scopeForApp(Builder $query, mixed $appsId = null): Builder
     {
-        return $query->whereIn('apps_id', [0, $appsId]);
+        $id = $appsId instanceof Apps
+            ? $appsId->getId()
+            : (int) ($appsId ?? app(Apps::class)->getId());
+
+        return $query->whereIn('apps_id', [0, $id]);
     }
 }

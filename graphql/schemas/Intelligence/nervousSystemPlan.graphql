@@ -5,6 +5,8 @@ type NervousSystemPlan {
     parent: NervousSystemPlan @belongsTo(relation: "parent")
     children: [NervousSystemPlan!]! @hasMany(relation: "children")
     agent: AgentAi @belongsTo(relation: "agent")
+    swarm: AgentSwarm @belongsTo(relation: "swarm")
+    is_swarm_mission: Boolean!
     user: User @belongsTo(relation: "user")
     entity_namespace: String
     entity_id: Int
@@ -17,6 +19,8 @@ type NervousSystemPlan {
     completion_pct: Int!
     input: Mixed
     output: Mixed
+    impact_summary: String
+    status_pill: String
     confidence_score: Float
     requires_human_approval: Boolean!
     approver: User @belongsTo(relation: "approver")
@@ -72,6 +76,8 @@ input CreateNervousSystemPlanInput {
     agent_id: Int
     users_id: Int
     parent_plan_id: Int
+    swarm_id: Int
+    is_swarm_mission: Boolean
     entity_namespace: String
     entity_id: Int
     description: String
@@ -80,6 +86,8 @@ input CreateNervousSystemPlanInput {
     deadline_at: DateTime
     input: Mixed
     output: Mixed
+    impact_summary: String
+    status_pill: String
     confidence_score: Float
     requires_human_approval: Boolean
     tasks: [NervousSystemTaskInput!]
@@ -94,8 +102,12 @@ input UpdateNervousSystemPlanInput {
     deadline_at: DateTime
     input: Mixed
     output: Mixed
+    impact_summary: String
+    status_pill: String
     confidence_score: Float
     requires_human_approval: Boolean
+    swarm_id: Int
+    is_swarm_mission: Boolean
     files: [FilesystemInputUrl!]
 }
 

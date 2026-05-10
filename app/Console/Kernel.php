@@ -17,6 +17,7 @@ use App\Console\Commands\Souk\CancelStalePaymentsCommand;
 use App\Console\Commands\Souk\OrderFinishExpiredCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use Kanvas\NervousSystem\Dashboard\Jobs\RollupDailyDashboardMetricsJob;
 use Override;
 use Spatie\Health\Commands\DispatchQueueCheckJobsCommand;
 use Spatie\Health\Commands\RunHealthChecksCommand;
@@ -49,6 +50,9 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping();
         $schedule->command(ExpireCapabilitiesCommand::class)
             ->hourly()
+            ->withoutOverlapping();
+        $schedule->job(new RollupDailyDashboardMetricsJob())
+            ->dailyAt('00:30')
             ->withoutOverlapping();
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()
