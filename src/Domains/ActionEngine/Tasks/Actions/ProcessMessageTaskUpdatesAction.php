@@ -231,6 +231,8 @@ class ProcessMessageTaskUpdatesAction
             return null;
         }
 
+        $this->ensureEngagement($taskListItem, $messageData);
+
         $changeStatusAction = new ChangeTaskEngagementItemStatusAction(
             taskListItem: $taskListItem,
             lead: $this->lead,
@@ -247,6 +249,51 @@ class ProcessMessageTaskUpdatesAction
             'status' => $taskStatus,
             'engagement_item_id' => $taskEngagementItem->id,
         ];
+    }
+
+    /**
+     * Ensure an Engagement exists for the (message, companyAction) pair so that
+     * downstream task-engagement bookkeeping can link start/end engagement ids.
+     * Matched by the natural uniqueness keys; everything else falls through as
+     * defaults if a new row is created.
+     */
+    protected function ensureEngagement(TaskListItem $taskListItem, array $messageData): Engagement
+    {
+        $companyAction = $taskListItem->companyAction;
+        $verb = (string) ($messageData['verb'] ?? '');
+        $status = (string) ($messageData['status'] ?? '');
+
+        return Engagement::firstOrCreate(
+            [
+                'message_id' => $this->message->getId(),
+                'companies_actions_id' => $companyAction->getId(),
+                'slug' => $verb,
+            ],
+            [
+                'companies_id' => $this->lead->company->getId(),
+                'apps_id' => $this->lead->app->getId(),
+                'users_id' => $this->user->getId(),
+                'leads_id' => $this->lead->getId(),
+                'people_id' => $this->lead->people->getId(),
+                'entity_uuid' => $this->message->uuid,
+                'pipelines_stages_id' => $this->getStageId($taskListItem, $status),
+            ]
+        );
+    }
+
+    protected function getStageId(TaskListItem $taskListItem, string $status): int
+    {
+        if ($taskListItem->companyAction->pipeline) {
+            $stage = $taskListItem->companyAction->pipeline->stages()
+                ->where('slug', $status)
+                ->first();
+
+            if ($stage) {
+                return $stage->getId();
+            }
+        }
+
+        return 1;
     }
 
     protected function mapMessageStatusToTaskStatus(string $messageStatus): ?string
