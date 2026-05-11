@@ -32,7 +32,6 @@ class LaunchAgentJob implements ShouldQueue
         protected CompanyInterface $company,
         protected AgentDeployment $deployment,
     ) {
-        $this->onQueue('hermes');
     }
 
     public function handle(): void
