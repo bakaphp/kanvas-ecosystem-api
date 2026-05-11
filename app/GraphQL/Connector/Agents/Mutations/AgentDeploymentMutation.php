@@ -17,8 +17,8 @@ class AgentDeploymentMutation
     public function launch(mixed $root, array $args): AgentDeployment
     {
         $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
-        $agent = Agent::getByIdFromCompanyApp((int) $args['input']['agent_id'], $company, $app);
+        $agent = Agent::getById((int) $args['input']['agent_id'], $app);
+        $company = $agent->company;
         $machine = AgentMachine::getByIdFromCompanyApp((int) $args['input']['machine_id'], $company, $app);
         $provider = $args['input']['provider'] ?? 'OPENCLAW';
 
