@@ -9,10 +9,10 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
-use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
@@ -55,6 +55,7 @@ class UpdateOpenClawForUserJob implements ShouldQueue
             $this->setDeploymentStatus(DeploymentStatusEnum::RUNNING);
         } catch (Throwable $e) {
             $this->setDeploymentStatus(DeploymentStatusEnum::FAILED, $e->getMessage());
+
             throw $e;
         } finally {
             $client->disconnect();

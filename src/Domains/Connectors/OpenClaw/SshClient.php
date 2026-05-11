@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\OpenClaw;
 
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
-use Kanvas\Intelligence\AgentRuntime\SshClient as BaseClient;
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
+use Kanvas\Intelligence\AgentRuntime\SshClient as BaseClient;
 use phpseclib3\Crypt\Common\PrivateKey;
 use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Net\SFTP;
@@ -39,13 +39,13 @@ class SshClient extends BaseClient
 
     protected function buildFromCompanyConfig(CompanyInterface $company): void
     {
-        $host       = $company->get(ConfigurationEnum::SSH_HOST->value);
-        $port       = (int) ($company->get(ConfigurationEnum::SSH_PORT->value) ?? 22);
-        $user       = $company->get(ConfigurationEnum::SSH_USER->value);
+        $host = $company->get(ConfigurationEnum::SSH_HOST->value);
+        $port = (int) ($company->get(ConfigurationEnum::SSH_PORT->value) ?? 22);
+        $user = $company->get(ConfigurationEnum::SSH_USER->value);
         $privateKey = $company->get(ConfigurationEnum::SSH_PRIVATE_KEY->value);
 
-        $this->providerHome   = $company->get(ConfigurationEnum::OPENCLAW_HOME->value) ?? '~/.openclaw';
-        $this->cliPath        = $company->get(ConfigurationEnum::CLI_PATH->value) ?? 'openclaw';
+        $this->providerHome = $company->get(ConfigurationEnum::OPENCLAW_HOME->value) ?? '~/.openclaw';
+        $this->cliPath = $company->get(ConfigurationEnum::CLI_PATH->value) ?? 'openclaw';
         $this->configFilename = $company->get(ConfigurationEnum::CONFIG_FILENAME->value) ?? 'openclaw.json';
 
         if (empty($host) || empty($user) || empty($privateKey)) {
