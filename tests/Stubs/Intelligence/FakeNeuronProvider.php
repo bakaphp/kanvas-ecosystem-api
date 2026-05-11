@@ -31,7 +31,7 @@ class FakeNeuronProvider implements AIProviderInterface
 
     public function messageMapper(): MessageMapperInterface
     {
-        return new class implements MessageMapperInterface {
+        return new class () implements MessageMapperInterface {
             public function map(array $messages): array
             {
                 return [];
@@ -41,7 +41,7 @@ class FakeNeuronProvider implements AIProviderInterface
 
     public function toolPayloadMapper(): ToolMapperInterface
     {
-        return new class implements ToolMapperInterface {
+        return new class () implements ToolMapperInterface {
             public function map(array $tools): array
             {
                 return [];
