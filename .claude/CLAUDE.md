@@ -1223,6 +1223,62 @@ Key rules:
 - **Action**: Use `->value` to extract the string when assigning to the model (e.g., `$this->data->status->value`)
 - **Nullable enums**: Use `?EnumClass` in DTO, `isset()` check in mutation, `?->value` in action
 
+### Never Queue a Spatie Data DTO that holds Eloquent Models or Model Interfaces
+
+`Spatie\LaravelData\Data` overrides `__serialize` / `__unserialize`. When a `Data` subclass has a property typed as an Eloquent model (`Apps`, `Companies`, ...) or model interface (`AppInterface`, `CompanyInterface`, ...), the serializer flattens the model to a primitive FK form (e.g. property `app` becomes a camelCased `appsId` entry in the serialized payload). On `__unserialize` in the worker, the primitive does **not** restore back into the typed property — it lands as a **dynamic property** (`$appsId`) and the typed `$app` stays uninitialized. The next read of `$dto->app` fatals with `Typed property X must not be accessed before initialization`. The breadcrumb tell is a `Creation of dynamic property ...::$xxxId is deprecated` warning logged from `CallQueuedHandler` right before the crash.
+
+This is not Laravel's `SerializesModels` — that trait handles **direct** model properties on the **job** correctly via `ModelIdentifier`. The bug only appears when the model is **nested inside a Spatie Data DTO** that the job stores as a property.
+
+**Rule:** for any `ShouldQueue` job, do not store a `Spatie\LaravelData\Data` DTO that contains Eloquent models or model interfaces. Take the models and primitives directly on the job, and rebuild the DTO inside `handle()`:
+
+```php
+// WRONG — DTO with AppInterface/CompanyInterface goes through queue, breaks on unserialize
+class AppendToLedgerJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public function __construct(public readonly EventData $data) {}
+
+    public function handle(): void
+    {
+        new AppendEventAction($this->data)->execute(); // $this->data->app uninitialized
+    }
+}
+
+// CORRECT — Eloquent models + primitives on the job; SerializesModels round-trips them
+class AppendToLedgerJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public function __construct(
+        public readonly Apps $app,
+        public readonly ?Companies $company,
+        public readonly string $sourceDomain,
+        public readonly string $eventType,
+        public readonly EventStatusEnum $status,
+        // ... rest as primitives (string, int, ?array, ?string for Carbon-as-ISO, ...)
+    ) {}
+
+    public function handle(): void
+    {
+        $data = new EventData(
+            app: $this->app,
+            company: $this->company,
+            sourceDomain: $this->sourceDomain,
+            // ... rebuild DTO from fields
+        );
+
+        new AppendEventAction($data)->execute();
+    }
+}
+```
+
+Notes:
+- Use concrete Eloquent classes (`Apps`, `Companies`, `Users`) on the job constructor, not the interfaces — `SerializesModels` resolves them via `ModelIdentifier` which needs the class name.
+- Pass `Carbon` instances as ISO-8601 strings (`Carbon::now()->toIso8601String()`) and re-parse with `Carbon::parse()` in `handle()`. Avoids the same Spatie-Data-style serialization quirk if the DTO has Carbon properties.
+- Synchronous emission paths (e.g. trait helpers like `EmitsLedgerEventsForEntity::emitLedgerEvent`) are unaffected — there's no serialization, so passing the Spatie Data DTO directly to the action is still fine there.
+- This isn't unique to the Ledger domain — apply the rule to **every** queued job that has a Spatie Data DTO in scope.
+
 ### Database Connections
 Each domain has its own database connection defined in the domain's BaseModel:
 - `action_engine` - ActionEngine domain

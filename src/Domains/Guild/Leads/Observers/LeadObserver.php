@@ -12,6 +12,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\DeleteSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\UpdateLeadSessionsAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
@@ -72,7 +73,6 @@ class LeadObserver
 
     public function created(Lead $lead): void
     {
-        //$lead->fireWorkflow(WorkflowEnum::CREATED->value);
         if ($lead->user) {
             (
                 new CreateChannelAction(
@@ -120,11 +120,13 @@ class LeadObserver
 
     public function updated(Lead $lead): void
     {
-        //$lead->fireWorkflow(WorkflowEnum::UPDATED->value);
         //Subscription::broadcast('leadUpdate', $lead, true);
         LeadUpdateEvent::dispatch($lead);
         LeadCompanyUpdateEvent::dispatch($lead);
-        new UpdateLeadSessionsAction($lead)->execute();
+
+        if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
+            new UpdateLeadSessionsAction($lead)->execute();
+        }
 
         if ($lead->wasChanged('leads_status_id')) {
             $leadStatus = $lead->status()->first();
@@ -157,16 +159,22 @@ class LeadObserver
         if ($channel) {
             $channel->delete();
         }
-        new DeleteSessionAction($lead)->execute();
+
+        if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
+            new DeleteSessionAction($lead)->execute();
+        }
     }
 
     public function softDeleted(Lead $lead): void
     {
-        //delete social channel related to this lead
-        $channels = $lead->socialChannels;
-        foreach ($channels as $channel) {
-            $channel->delete();
+        //delete social channels related to this lead
+        $lead->socialChannels()->update([
+            'is_deleted' => 1,
+            'updated_at' => now(),
+        ]);
+
+        if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
+            new DeleteSessionAction($lead)->execute();
         }
-        new DeleteSessionAction($lead)->execute();
     }
 }

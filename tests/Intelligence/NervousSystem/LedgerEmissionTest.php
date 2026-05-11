@@ -95,12 +95,12 @@ class LedgerEmissionTest extends TestCase
 
         Bus::assertDispatched(
             AppendToLedgerJob::class,
-            fn (AppendToLedgerJob $job): bool => $job->data->eventType === 'created'
-                && $job->data->sourceEntityType === Lead::class
-                && $job->data->sourceEntityId === (int) $lead->getId()
-                && (int) $job->data->app->getId() === (int) $lead->apps_id
-                && (int) $job->data->company?->getId() === (int) $lead->companies_id
-                && $job->data->sourceDomain === 'Guild',
+            fn (AppendToLedgerJob $job): bool => $job->eventType === 'created'
+                && $job->sourceEntityType === Lead::class
+                && $job->sourceEntityId === (int) $lead->getId()
+                && (int) $job->app->getId() === (int) $lead->apps_id
+                && (int) $job->company?->getId() === (int) $lead->companies_id
+                && $job->sourceDomain === 'Guild',
         );
     }
 
@@ -117,17 +117,17 @@ class LedgerEmissionTest extends TestCase
         Bus::assertDispatched(
             AppendToLedgerJob::class,
             function (AppendToLedgerJob $job) use ($lead): bool {
-                if ($job->data->eventType !== 'updated') {
+                if ($job->eventType !== 'updated') {
                     return false;
                 }
-                if ($job->data->sourceEntityId !== (int) $lead->getId()) {
+                if ($job->sourceEntityId !== (int) $lead->getId()) {
                     return false;
                 }
-                if (! is_array($job->data->payload) || ! isset($job->data->payload['diff']['title'])) {
+                if (! is_array($job->payload) || ! isset($job->payload['diff']['title'])) {
                     return false;
                 }
 
-                return $job->data->payload['diff']['title'][1] === 'Renamed Lead Title';
+                return $job->payload['diff']['title'][1] === 'Renamed Lead Title';
             },
         );
     }
