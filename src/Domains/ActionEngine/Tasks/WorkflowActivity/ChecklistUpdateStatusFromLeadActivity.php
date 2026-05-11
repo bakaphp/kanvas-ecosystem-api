@@ -7,6 +7,7 @@ namespace Kanvas\ActionEngine\Tasks\WorkflowActivity;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Pipelines\Repositories\PipelineStageRepository;
 use Kanvas\ActionEngine\Tasks\Actions\ChangeTaskEngagementItemStatusAction;
 use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
@@ -132,16 +133,9 @@ class ChecklistUpdateStatusFromLeadActivity extends KanvasActivity
 
     private function getStageId(TaskListItem $taskListItem, string $status): int
     {
-        if ($taskListItem->companyAction->pipeline) {
-            $stage = $taskListItem->companyAction->pipeline->stages()
-                ->where('slug', $status)
-                ->first();
-
-            if ($stage) {
-                return $stage->getId();
-            }
-        }
-
-        return 1;
+        return PipelineStageRepository::getForTaskListItem(
+            $taskListItem,
+            $status
+        )->getId();
     }
 }

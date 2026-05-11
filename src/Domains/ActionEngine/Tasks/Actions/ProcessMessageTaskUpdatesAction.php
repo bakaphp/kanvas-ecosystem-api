@@ -9,6 +9,7 @@ use InvalidArgumentException;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Pipelines\Repositories\PipelineStageRepository;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
@@ -283,17 +284,10 @@ class ProcessMessageTaskUpdatesAction
 
     protected function getStageId(TaskListItem $taskListItem, string $status): int
     {
-        if ($taskListItem->companyAction->pipeline) {
-            $stage = $taskListItem->companyAction->pipeline->stages()
-                ->where('slug', $status)
-                ->first();
-
-            if ($stage) {
-                return $stage->getId();
-            }
-        }
-
-        return 1;
+        return PipelineStageRepository::getForTaskListItem(
+            $taskListItem,
+            $status
+        )->getId();
     }
 
     protected function mapMessageStatusToTaskStatus(string $messageStatus): ?string
