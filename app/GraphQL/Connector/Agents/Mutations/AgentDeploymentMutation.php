@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\GraphQL\Connector\Agents\Mutations;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Hermes\Actions\DispatchAgentDeploymentAction as HermesDispatchAgentDeploymentAction;
 use Kanvas\Connectors\OpenClaw\Actions\DispatchAgentDeploymentAction as OpenClawDispatchAgentDeploymentAction;
 use Kanvas\Exceptions\ValidationException;
@@ -17,10 +16,10 @@ class AgentDeploymentMutation
 {
     public function launch(mixed $root, array $args): AgentDeployment
     {
-        $agent = Agent::getById($args['input']['agent_id']);
-        $machine = AgentMachine::getById($args['input']['machine_id']);
         $app = app(Apps::class);
-        $company = app(Companies::class);
+        $company = auth()->user()->getCurrentCompany();
+        $agent = Agent::getByIdFromCompanyApp((int) $args['input']['agent_id'], $company, $app);
+        $machine = AgentMachine::getByIdFromCompanyApp((int) $args['input']['machine_id'], $company, $app);
         $provider = $args['input']['provider'] ?? 'OPENCLAW';
 
         if ($provider === 'HERMES') {
