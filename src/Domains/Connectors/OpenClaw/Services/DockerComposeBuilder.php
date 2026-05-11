@@ -115,7 +115,7 @@ class DockerComposeBuilder
         if ($geminiApiKey !== '') {
             $authProfiles['google:default'] = [
                 'provider' => 'google',
-                'mode'     => 'api_key',
+                'mode' => 'api_key',
             ];
         }
 
@@ -143,9 +143,9 @@ class DockerComposeBuilder
                         ],
                     ],
                     'models' => [
-                        'google/gemini-2.5-pro'               => (object) [],
+                        'google/gemini-2.5-pro' => (object) [],
                         'google/gemini-3.1-flash-lite-preview' => (object) [],
-                        'google/gemini-3.1-pro-preview'        => (object) [],
+                        'google/gemini-3.1-pro-preview' => (object) [],
                     ],
                     'workspace' => '/home/node/.openclaw/workspace',
                 ],
@@ -314,12 +314,14 @@ class DockerComposeBuilder
         $slackAppToken = $agent->get(CustomFieldEnum::SLACK_APP_TOKEN->value);
 
         if (! empty($slackBotToken) && ! empty($slackAppToken)) {
+            // OpenClaw 2026.5.7+ tightened channels.slack: `streaming` is now an object (was a
+            // string), `additionalProperties` is false. We drop the kanvas-specific keys
+            // (`allowBots`, `streaming`, `nativeStreaming`) that were added to defend against
+            // earlier-version defaults — the new gateway applies its own defaults for these.
+            // Re-introduce a proper object-shape `streaming` once the schema is confirmed.
             $channels['slack'] = [
                 'enabled' => true,
                 'mode' => 'socket',
-                'allowBots' => true,
-                'streaming' => 'partial',
-                'nativeStreaming' => true,
                 'botToken' => (string) $slackBotToken,
                 'appToken' => (string) $slackAppToken,
                 'dmPolicy' => 'open',
@@ -335,12 +337,12 @@ class DockerComposeBuilder
         $telegramBotToken = $agent->get(CustomFieldEnum::TELEGRAM_BOT_TOKEN->value);
 
         if (! empty($telegramBotToken)) {
+            // See note above on `channels.slack.streaming` — same applies to telegram.
             $channels['telegram'] = [
                 'enabled' => true,
                 'botToken' => (string) $telegramBotToken,
                 'dmPolicy' => 'pairing',
                 'groupPolicy' => 'allowlist',
-                'streaming' => 'partial',
             ];
         }
 
