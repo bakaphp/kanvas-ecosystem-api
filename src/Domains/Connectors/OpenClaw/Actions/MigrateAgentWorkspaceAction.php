@@ -7,11 +7,11 @@ namespace Kanvas\Connectors\OpenClaw\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
-use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\Services\DockerComposeBuilder;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
@@ -212,10 +212,10 @@ class MigrateAgentWorkspaceAction
         $agent = $deployment->agent;
 
         // Build the shared image on the destination if it doesn't exist yet.
-        $builder   = new DockerComposeBuilder();
+        $builder = new DockerComposeBuilder();
         $imageName = $builder->getSharedImageName($this->app);
-        $imageDir  = $builder->getSharedImageDir($this->app);
-        $exists    = $client->exec('docker image inspect ' . escapeshellarg($imageName) . ' &>/dev/null && echo "EXISTS" || echo "MISSING"');
+        $imageDir = $builder->getSharedImageDir($this->app);
+        $exists = $client->exec('docker image inspect ' . escapeshellarg($imageName) . ' &>/dev/null && echo "EXISTS" || echo "MISSING"');
         if (str_contains($exists, 'MISSING')) {
             $buildResult = $client->exec(
                 'sudo docker build --no-cache -t ' . escapeshellarg($imageName) . ' ' . escapeshellarg($imageDir) . ' 2>&1; echo "EXIT_CODE:$?"',

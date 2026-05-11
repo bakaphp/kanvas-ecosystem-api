@@ -8,12 +8,12 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
 use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilder;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -67,9 +67,9 @@ abstract class BaseLaunchAgentOnMachineAction
             throw new ValidationException('Machine ' . $this->machine->name . ' has reached maximum agent capacity');
         }
 
-        $deployment   = $this->deployment;
+        $deployment = $this->deployment;
         $gatewayToken = $this->resolveGatewayToken();
-        $client       = $this->createSshClient();
+        $client = $this->createSshClient();
 
         try {
             $this->ensureSharedImage($client);
@@ -77,7 +77,7 @@ abstract class BaseLaunchAgentOnMachineAction
             $this->writeDeploymentFiles($client, $deployment, $gatewayToken);
             $this->buildAndStart($client, $deployment, $gatewayToken);
 
-            $deployment->status      = DeploymentStatusEnum::RUNNING->value;
+            $deployment->status = DeploymentStatusEnum::RUNNING->value;
             $deployment->launched_at = now();
             $deployment->saveOrFail();
             $deployment->set($this->getGatewayTokenCustomFieldKey(), $gatewayToken);
@@ -85,7 +85,7 @@ abstract class BaseLaunchAgentOnMachineAction
             $this->agent->update(['deployment_status' => 'deployed']);
             $this->agent->set($this->getDeploymentIdCustomFieldKey(), $deployment->getId());
         } catch (Throwable $e) {
-            $deployment->status        = DeploymentStatusEnum::FAILED->value;
+            $deployment->status = DeploymentStatusEnum::FAILED->value;
             $deployment->error_message = $e->getMessage();
             $deployment->saveOrFail();
 
@@ -101,9 +101,9 @@ abstract class BaseLaunchAgentOnMachineAction
 
     private function provisionLinuxUser(SshClient $client, AgentDeployment $deployment): void
     {
-        $user    = $deployment->system_user;
+        $user = $deployment->system_user;
         $homeDir = $deployment->home_directory;
-        $dotDir  = $this->getProviderConfig()->dotDir;
+        $dotDir = $this->getProviderConfig()->dotDir;
 
         $client->exec('id ' . escapeshellarg($user) . ' &>/dev/null || sudo useradd -m -s /bin/bash ' . escapeshellarg($user));
         $client->exec('sudo usermod -aG docker ' . escapeshellarg($user));
@@ -113,9 +113,9 @@ abstract class BaseLaunchAgentOnMachineAction
 
     private function ensureSharedImage(SshClient $client): void
     {
-        $builder   = $this->getDockerComposeBuilder();
+        $builder = $this->getDockerComposeBuilder();
         $imageName = $builder->getSharedImageName($this->app);
-        $imageDir  = $builder->getSharedImageDir($this->app);
+        $imageDir = $builder->getSharedImageDir($this->app);
 
         $exists = $client->exec('docker image inspect ' . escapeshellarg($imageName) . ' &>/dev/null && echo "EXISTS" || echo "MISSING"');
 
@@ -144,10 +144,10 @@ abstract class BaseLaunchAgentOnMachineAction
 
     private function writeDeploymentFiles(SshClient $client, AgentDeployment $deployment, string $gatewayToken): void
     {
-        $dotDir     = $this->getProviderConfig()->dotDir;
+        $dotDir = $this->getProviderConfig()->dotDir;
         $providerDir = $deployment->home_directory . '/.' . $dotDir;
-        $systemUser  = $deployment->system_user;
-        $builder     = $this->getDockerComposeBuilder();
+        $systemUser = $deployment->system_user;
+        $builder = $this->getDockerComposeBuilder();
 
         $this->writeDockerComposeFile($client, $deployment, $gatewayToken);
 
@@ -182,7 +182,7 @@ abstract class BaseLaunchAgentOnMachineAction
 
     private function writeDockerComposeFile(SshClient $client, AgentDeployment $deployment, string $gatewayToken): void
     {
-        $dotDir      = $this->getProviderConfig()->dotDir;
+        $dotDir = $this->getProviderConfig()->dotDir;
         $providerDir = $deployment->home_directory . '/.' . $dotDir;
 
         $client->writeFileAsUser(
@@ -205,7 +205,7 @@ abstract class BaseLaunchAgentOnMachineAction
 
     private function buildAndStart(SshClient $client, AgentDeployment $deployment, string $gatewayToken): void
     {
-        $dotDir      = $this->getProviderConfig()->dotDir;
+        $dotDir = $this->getProviderConfig()->dotDir;
         $providerDir = $deployment->home_directory . '/.' . $dotDir;
         $providerName = $this->getProviderConfig()->providerName;
         $maxAttempts = 10;
@@ -238,11 +238,11 @@ abstract class BaseLaunchAgentOnMachineAction
             if ($this->hasPortBindError($result) && $attempt < $maxAttempts) {
                 Log::warning(ucfirst($providerName) . ' deployment hit Docker port bind conflict during launch', [
                     'deployment_id' => $deployment->getId(),
-                    'machine_id'    => $this->machine->getId(),
-                    'machine_name'  => $this->machine->name,
-                    'attempt'       => $attempt,
-                    'gateway_port'  => $deployment->gateway_port,
-                    'proxy_port'    => $deployment->proxy_port,
+                    'machine_id' => $this->machine->getId(),
+                    'machine_name' => $this->machine->name,
+                    'attempt' => $attempt,
+                    'gateway_port' => $deployment->gateway_port,
+                    'proxy_port' => $deployment->proxy_port,
                 ]);
 
                 $this->stopPartialDeployment($client, $deployment, $providerDir);
@@ -317,25 +317,25 @@ abstract class BaseLaunchAgentOnMachineAction
         string $gatewayToken,
     ): void {
         $previousGatewayPort = $deployment->gateway_port;
-        $previousProxyPort   = $deployment->proxy_port;
-        $ports               = $this->findAvailablePortPair($deployment, $listeningPorts);
+        $previousProxyPort = $deployment->proxy_port;
+        $ports = $this->findAvailablePortPair($deployment, $listeningPorts);
 
         $deployment->gateway_port = $ports['gateway_port'];
-        $deployment->proxy_port   = $ports['proxy_port'];
+        $deployment->proxy_port = $ports['proxy_port'];
         $deployment->saveOrFail();
 
         $this->writeDockerComposeFile($client, $deployment, $gatewayToken);
 
         Log::info('Reassigned ' . $this->getProviderConfig()->providerName . ' deployment ports after conflict detection', [
-            'deployment_id'        => $deployment->getId(),
-            'machine_id'           => $this->machine->getId(),
-            'machine_name'         => $this->machine->name,
-            'attempt'              => $attempt,
-            'reason'               => $reason,
+            'deployment_id' => $deployment->getId(),
+            'machine_id' => $this->machine->getId(),
+            'machine_name' => $this->machine->name,
+            'attempt' => $attempt,
+            'reason' => $reason,
             'previous_gateway_port' => $previousGatewayPort,
-            'previous_proxy_port'  => $previousProxyPort,
-            'gateway_port'         => $deployment->gateway_port,
-            'proxy_port'           => $deployment->proxy_port,
+            'previous_proxy_port' => $previousProxyPort,
+            'gateway_port' => $deployment->gateway_port,
+            'proxy_port' => $deployment->proxy_port,
         ]);
     }
 

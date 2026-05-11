@@ -56,13 +56,13 @@ class WorkspaceFileBuilder
 
     public static function buildIdentityMd(Agent $agent): string
     {
-        $identity  = $agent->identity ?? [];
-        $name      = $identity['name'] ?? $agent->name;
-        $emoji     = $identity['emoji'] ?? '';
-        $vibe      = $identity['vibe'] ?? '';
-        $creature  = $identity['creature'] ?? 'AI assistant';
+        $identity = $agent->identity ?? [];
+        $name = $identity['name'] ?? $agent->name;
+        $emoji = $identity['emoji'] ?? '';
+        $vibe = $identity['vibe'] ?? '';
+        $creature = $identity['creature'] ?? 'AI assistant';
 
-        $content  = "# IDENTITY\n\n";
+        $content = "# IDENTITY\n\n";
         $content .= "**Name:** {$name}\n";
         $content .= "**Creature:** {$creature}\n";
         $content .= "**Vibe:** {$vibe}\n";
@@ -99,8 +99,8 @@ class WorkspaceFileBuilder
     public static function buildAll(Agent $agent): array
     {
         $files = [
-            'SOUL.md'     => self::buildSoulMd($agent),
-            'AGENTS.md'   => self::buildAgentsMd($agent),
+            'SOUL.md' => self::buildSoulMd($agent),
+            'AGENTS.md' => self::buildAgentsMd($agent),
             'IDENTITY.md' => self::buildIdentityMd($agent),
         ];
 

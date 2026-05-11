@@ -85,7 +85,7 @@ abstract class BaseDockerComposeBuilder
         AppInterface $app,
         Agent $agent,
     ): string {
-        $config  = $this->getProviderConfig();
+        $config = $this->getProviderConfig();
         $envVars = $this->buildDefaultEnvironment($app);
         $envVars['NODE_ENV'] = $envVars['NODE_ENV'] ?? 'production';
         $envVars['KANVAS_DEPLOYMENT_ID'] = (string) $deployment->getId();
@@ -108,7 +108,7 @@ abstract class BaseDockerComposeBuilder
             $envLines .= "      - {$key}={$value}\n";
         }
 
-        $template  = (string) file_get_contents(static::getTemplatesDir() . '/docker-compose.yml');
+        $template = (string) file_get_contents(static::getTemplatesDir() . '/docker-compose.yml');
         $imageName = $this->getSharedImageName($app);
 
         return str_replace(
@@ -137,38 +137,38 @@ abstract class BaseDockerComposeBuilder
         AppInterface $app,
         array $channelConfig = [],
     ): string {
-        $config        = $this->getProviderConfig();
-        $slug          = $agent->slug;
-        $homeDir       = $config->containerHomeDotDir;
-        $model         = $app->get($this->getDefaultModelConfigKey()) ?? 'google/gemini-3.1-pro-preview';
-        $geminiApiKey  = (string) ($app->get($this->getGeminiApiKeyConfigKey())
+        $config = $this->getProviderConfig();
+        $slug = $agent->slug;
+        $homeDir = $config->containerHomeDotDir;
+        $model = $app->get($this->getDefaultModelConfigKey()) ?? 'google/gemini-3.1-pro-preview';
+        $geminiApiKey = (string) ($app->get($this->getGeminiApiKeyConfigKey())
             ?? $app->get($this->getGoogleApiKeyConfigKey())
             ?? '');
 
         $authProfiles = [
             'openai-codex:default' => [
                 'provider' => 'openai-codex',
-                'mode'     => 'oauth',
+                'mode' => 'oauth',
             ],
         ];
 
         if ($geminiApiKey !== '') {
             $authProfiles['google:default'] = [
                 'provider' => 'google',
-                'mode'     => 'api_key',
+                'mode' => 'api_key',
             ];
         }
 
         $runtimeConfig = [
             'meta' => [
                 'lastTouchedVersion' => self::RUNTIME_VERSION,
-                'lastTouchedAt'      => now()->toISOString(),
+                'lastTouchedAt' => now()->toISOString(),
             ],
             'wizard' => [
-                'lastRunAt'      => now()->toISOString(),
+                'lastRunAt' => now()->toISOString(),
                 'lastRunVersion' => self::RUNTIME_VERSION,
                 'lastRunCommand' => 'onboard',
-                'lastRunMode'    => 'local',
+                'lastRunMode' => 'local',
             ],
             'auth' => [
                 'profiles' => $authProfiles,
@@ -176,52 +176,52 @@ abstract class BaseDockerComposeBuilder
             'agents' => [
                 'defaults' => [
                     'model' => [
-                        'primary'   => $model,
+                        'primary' => $model,
                         'fallbacks' => [
                             'google/gemini-3.1-flash-lite-preview',
                             'google/gemini-3.1-pro-preview',
                         ],
                     ],
                     'models' => [
-                        'google/gemini-2.5-pro'                => (object) [],
+                        'google/gemini-2.5-pro' => (object) [],
                         'google/gemini-3.1-flash-lite-preview' => (object) [],
-                        'google/gemini-3.1-pro-preview'        => (object) [],
+                        'google/gemini-3.1-pro-preview' => (object) [],
                     ],
                     'workspace' => $homeDir . '/workspace',
                 ],
                 'list' => [
                     [
-                        'id'        => $slug,
-                        'name'      => $agent->name,
+                        'id' => $slug,
+                        'name' => $agent->name,
                         'workspace' => $homeDir . '/workspace',
-                        'agentDir'  => $homeDir . '/agents/' . $slug . '/agent',
-                        'model'     => $model,
+                        'agentDir' => $homeDir . '/agents/' . $slug . '/agent',
+                        'model' => $model,
                     ],
                 ],
             ],
             'tools' => [
                 'profile' => 'full',
-                'exec'    => ['security' => 'full'],
+                'exec' => ['security' => 'full'],
                 'elevated' => [
-                    'enabled'   => true,
+                    'enabled' => true,
                     'allowFrom' => [
-                        'slack'    => ['*'],
+                        'slack' => ['*'],
                         'telegram' => ['*'],
                     ],
                 ],
             ],
             'commands' => [
-                'native'       => 'auto',
+                'native' => 'auto',
                 'nativeSkills' => 'auto',
-                'restart'      => true,
+                'restart' => true,
                 'ownerDisplay' => 'raw',
             ],
             'session' => ['dmScope' => 'per-channel-peer'],
-            'hooks'   => [
+            'hooks' => [
                 'internal' => [
                     'enabled' => true,
                     'entries' => [
-                        'boot-md'        => ['enabled' => true],
+                        'boot-md' => ['enabled' => true],
                         'session-memory' => ['enabled' => true],
                     ],
                 ],
@@ -231,21 +231,21 @@ abstract class BaseDockerComposeBuilder
                 'mode' => 'local',
                 'bind' => 'loopback',
                 'auth' => [
-                    'mode'  => 'token',
+                    'mode' => 'token',
                     'token' => $gatewayToken,
                 ],
                 'http' => [
                     'endpoints' => ['responses' => ['enabled' => true]],
                 ],
                 'tailscale' => ['mode' => 'off', 'resetOnExit' => false],
-                'nodes'     => [
+                'nodes' => [
                     'denyCommands' => [
                         'camera.snap', 'camera.clip', 'screen.record',
                         'contacts.add', 'calendar.add', 'reminders.add', 'sms.send',
                     ],
                 ],
             ],
-            'skills'  => ['entries' => (object) []],
+            'skills' => ['entries' => (object) []],
             'plugins' => ['entries' => []],
         ];
 
@@ -254,11 +254,11 @@ abstract class BaseDockerComposeBuilder
         if (! empty($geminiApiKey)) {
             $pluginEntries['web-search'] = [
                 'enabled' => true,
-                'config'  => [
+                'config' => [
                     'webSearch' => [
-                        'enabled'  => true,
+                        'enabled' => true,
                         'provider' => 'gemini',
-                        'gemini'   => ['apiKey' => $geminiApiKey],
+                        'gemini' => ['apiKey' => $geminiApiKey],
                     ],
                 ],
             ];
@@ -291,9 +291,9 @@ abstract class BaseDockerComposeBuilder
             ?? $app->get($this->getGeminiApiKeyConfigKey());
         if (! empty($googleApiKey)) {
             $profiles['google:default'] = [
-                'type'     => 'api_key',
+                'type' => 'api_key',
                 'provider' => 'google',
-                'key'      => (string) $googleApiKey,
+                'key' => (string) $googleApiKey,
             ];
             $lastGood['google'] = 'google:default';
         }
@@ -301,17 +301,17 @@ abstract class BaseDockerComposeBuilder
         $anthropicApiKey = $app->get($this->getAnthropicApiKeyConfigKey());
         if (! empty($anthropicApiKey)) {
             $profiles['anthropic:default'] = [
-                'type'     => 'api_key',
+                'type' => 'api_key',
                 'provider' => 'anthropic',
-                'key'      => (string) $anthropicApiKey,
+                'key' => (string) $anthropicApiKey,
             ];
             $lastGood['anthropic'] = 'anthropic:default';
         }
 
         $config = [
-            'version'    => 1,
-            'profiles'   => ! empty($profiles) ? $profiles : (object) [],
-            'lastGood'   => ! empty($lastGood) ? $lastGood : (object) [],
+            'version' => 1,
+            'profiles' => ! empty($profiles) ? $profiles : (object) [],
+            'lastGood' => ! empty($lastGood) ? $lastGood : (object) [],
             'usageStats' => (object) [],
         ];
 
@@ -330,20 +330,20 @@ abstract class BaseDockerComposeBuilder
 
         if (! empty($slackBotToken) && ! empty($slackAppToken)) {
             $channels['slack'] = [
-                'enabled'         => true,
-                'mode'            => 'socket',
-                'allowBots'       => true,
-                'streaming'       => 'partial',
-                'nativeStreaming'  => true,
-                'botToken'        => (string) $slackBotToken,
-                'appToken'        => (string) $slackAppToken,
-                'dmPolicy'        => 'open',
-                'dm'              => [
-                    'enabled'      => true,
-                    'allowFrom'    => ['*'],
+                'enabled' => true,
+                'mode' => 'socket',
+                'allowBots' => true,
+                'streaming' => 'partial',
+                'nativeStreaming' => true,
+                'botToken' => (string) $slackBotToken,
+                'appToken' => (string) $slackAppToken,
+                'dmPolicy' => 'open',
+                'dm' => [
+                    'enabled' => true,
+                    'allowFrom' => ['*'],
                     'groupEnabled' => true,
                 ],
-                'groupPolicy'     => 'open',
+                'groupPolicy' => 'open',
             ];
         }
 
@@ -351,11 +351,11 @@ abstract class BaseDockerComposeBuilder
 
         if (! empty($telegramBotToken)) {
             $channels['telegram'] = [
-                'enabled'     => true,
-                'botToken'    => (string) $telegramBotToken,
-                'dmPolicy'    => 'pairing',
+                'enabled' => true,
+                'botToken' => (string) $telegramBotToken,
+                'dmPolicy' => 'pairing',
                 'groupPolicy' => 'allowlist',
-                'streaming'   => 'partial',
+                'streaming' => 'partial',
             ];
         }
 

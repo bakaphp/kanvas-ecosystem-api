@@ -6,8 +6,8 @@ namespace Kanvas\Intelligence\AgentRuntime;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use phpseclib3\Crypt\Common\PrivateKey;
 use phpseclib3\Crypt\PublicKeyLoader;
@@ -79,9 +79,9 @@ abstract class SshClient
         }
 
         $config = $instance->providerConfig;
-        $instance->providerHome     = '~/.' . $config->dotDir;
-        $instance->cliPath          = $config->cliAlias;
-        $instance->configFilename   = $config->configFilename;
+        $instance->providerHome = '~/.' . $config->dotDir;
+        $instance->cliPath = $config->cliAlias;
+        $instance->configFilename = $config->configFilename;
 
         return $instance;
     }
@@ -289,7 +289,7 @@ abstract class SshClient
      */
     public function getAllTelemetryForContainer(string $containerName): array
     {
-        $c   = escapeshellarg($containerName);
+        $c = escapeshellarg($containerName);
         $cli = $this->providerConfig->mjsPath;
 
         $script = implode('; ', [
@@ -306,7 +306,7 @@ abstract class SshClient
         $raw = $this->exec($script, 70);
 
         $sections = ['health' => '', 'version' => '', 'gateway' => '', 'memory' => ''];
-        $current  = null;
+        $current = null;
 
         foreach (explode("\n", $raw) as $line) {
             if (str_starts_with($line, '__SECTION__')) {
@@ -329,7 +329,7 @@ abstract class SshClient
      */
     public function getAllTelemetry(): array
     {
-        $alias  = $this->providerConfig->cliAlias;
+        $alias = $this->providerConfig->cliAlias;
         $script = implode('; ', [
             "echo '__SECTION__health'",
             "timeout 10 {$alias} health --json 2>&1",
@@ -341,9 +341,9 @@ abstract class SshClient
             "timeout 15 {$alias} memory status 2>&1",
         ]);
 
-        $raw      = $this->exec($script, 70);
+        $raw = $this->exec($script, 70);
         $sections = ['health' => '', 'version' => '', 'gateway' => '', 'memory' => ''];
-        $current  = null;
+        $current = null;
 
         foreach (explode("\n", $raw) as $line) {
             if (str_starts_with($line, '__SECTION__')) {
@@ -370,7 +370,7 @@ abstract class SshClient
         $sessionsDir = $this->providerConfig->containerHomeDotDir . '/agents/' . $agentSlug . '/sessions';
 
         $inner = 'find ' . escapeshellarg($sessionsDir) . ' -name "*.jsonl" 2>/dev/null | xargs -r cat 2>/dev/null';
-        $raw   = $this->exec(
+        $raw = $this->exec(
             'docker exec ' . escapeshellarg($containerName) . ' bash -c ' . escapeshellarg($inner),
             15
         );
@@ -408,14 +408,14 @@ abstract class SshClient
             }
         }
 
-        $mjsPath   = $this->providerConfig->mjsPath;
+        $mjsPath = $this->providerConfig->mjsPath;
         $skillsRaw = $this->exec(
             'docker exec ' . escapeshellarg($containerName) . ' timeout 5 ' . $mjsPath . ' skills list --json 2>/dev/null',
             10
         );
 
         $start = strpos($skillsRaw, '{');
-        $end   = strrpos($skillsRaw, '}');
+        $end = strrpos($skillsRaw, '}');
 
         if ($start !== false && $end !== false && $end > $start) {
             /** @var array<string, mixed>|null $data */
@@ -476,69 +476,69 @@ abstract class SshClient
                 continue;
             }
 
-            $ts   = (string) ($event['timestamp'] ?? '');
+            $ts = (string) ($event['timestamp'] ?? '');
             $type = (string) ($event['type'] ?? '');
 
             switch ($type) {
                 case 'session':
                     $entries[] = [
-                        'ts'    => $ts,
+                        'ts' => $ts,
                         'level' => 'info',
-                        'msg'   => 'Session started',
-                        'meta'  => isset($event['id']) ? json_encode(['session' => $event['id'], 'cwd' => $event['cwd'] ?? null]) : null,
+                        'msg' => 'Session started',
+                        'meta' => isset($event['id']) ? json_encode(['session' => $event['id'], 'cwd' => $event['cwd'] ?? null]) : null,
                     ];
-                    break;
 
+                    break;
                 case 'message':
                     /** @var array<string, mixed> $msg */
-                    $msg  = $event['message'] ?? [];
+                    $msg = $event['message'] ?? [];
                     $role = (string) ($msg['role'] ?? '');
 
                     if ($role === 'user') {
-                        $text      = $this->extractTextContent($msg['content'] ?? []);
+                        $text = $this->extractTextContent($msg['content'] ?? []);
                         $entries[] = [
-                            'ts'    => $ts,
+                            'ts' => $ts,
                             'level' => 'info',
-                            'msg'   => 'User: ' . $this->truncate($text, 120),
-                            'meta'  => null,
+                            'msg' => 'User: ' . $this->truncate($text, 120),
+                            'meta' => null,
                         ];
                     } elseif ($role === 'assistant') {
-                        $text      = $this->extractTextContent($msg['content'] ?? []);
+                        $text = $this->extractTextContent($msg['content'] ?? []);
                         $toolNames = $this->extractToolNames($msg['content'] ?? []);
-                        $usage     = $msg['usage'] ?? null;
+                        $usage = $msg['usage'] ?? null;
                         $entries[] = [
-                            'ts'    => $ts,
+                            'ts' => $ts,
                             'level' => 'info',
-                            'msg'   => $toolNames
+                            'msg' => $toolNames
                                 ? 'Agent called: ' . implode(', ', $toolNames)
                                 : 'Agent: ' . $this->truncate($text, 120),
-                            'meta'  => $usage !== null ? json_encode([
-                                'model'  => $msg['model'] ?? null,
+                            'meta' => $usage !== null ? json_encode([
+                                'model' => $msg['model'] ?? null,
                                 'tokens' => ($usage['totalTokens'] ?? null),
-                                'cost'   => isset($usage['cost']['total']) ? round((float) $usage['cost']['total'], 5) : null,
+                                'cost' => isset($usage['cost']['total']) ? round((float) $usage['cost']['total'], 5) : null,
                             ]) : null,
                         ];
                     } elseif ($role === 'toolResult') {
-                        $toolName  = (string) ($msg['toolName'] ?? 'tool');
-                        $isError   = (bool) ($msg['isError'] ?? false);
+                        $toolName = (string) ($msg['toolName'] ?? 'tool');
+                        $isError = (bool) ($msg['isError'] ?? false);
                         $entries[] = [
-                            'ts'    => $ts,
+                            'ts' => $ts,
                             'level' => $isError ? 'error' : 'debug',
-                            'msg'   => 'Tool result: ' . $toolName . ($isError ? ' (error)' : ''),
-                            'meta'  => null,
+                            'msg' => 'Tool result: ' . $toolName . ($isError ? ' (error)' : ''),
+                            'meta' => null,
                         ];
                     }
-                    break;
 
+                    break;
                 case 'model_change':
                     $entries[] = [
-                        'ts'    => $ts,
+                        'ts' => $ts,
                         'level' => 'debug',
-                        'msg'   => 'Model changed to ' . ($event['modelId'] ?? 'unknown'),
-                        'meta'  => null,
+                        'msg' => 'Model changed to ' . ($event['modelId'] ?? 'unknown'),
+                        'meta' => null,
                     ];
-                    break;
 
+                    break;
                 default:
                     break;
             }
@@ -561,8 +561,8 @@ abstract class SshClient
             }
 
             if (($block['type'] ?? '') === 'text' && isset($block['text'])) {
-                $text    = (string) $block['text'];
-                $text    = preg_replace('/<final>|<\/final>|\[\[reply_to_current\]\]/i', '', $text) ?? $text;
+                $text = (string) $block['text'];
+                $text = preg_replace('/<final>|<\/final>|\[\[reply_to_current\]\]/i', '', $text) ?? $text;
                 $parts[] = trim($text);
             }
         }

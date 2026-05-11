@@ -42,9 +42,9 @@ abstract class BaseDispatchAgentDeploymentAction
 
     public function execute(): AgentDeployment
     {
-        $config     = $this->getProviderConfig();
+        $config = $this->getProviderConfig();
         $systemUser = 'agent-' . $this->agent->slug;
-        $ports      = $this->machine->allocatePortPair();
+        $ports = $this->machine->allocatePortPair();
 
         $deployment = AgentDeployment::where('agent_machine_id', $this->machine->getId())
             ->where('system_user', $systemUser)
@@ -52,24 +52,24 @@ abstract class BaseDispatchAgentDeploymentAction
             ->first();
 
         if ($deployment) {
-            $deployment->status        = 'provisioning';
+            $deployment->status = 'provisioning';
             $deployment->error_message = null;
-            $deployment->gateway_port  = $ports['gateway_port'];
-            $deployment->proxy_port    = $ports['proxy_port'];
+            $deployment->gateway_port = $ports['gateway_port'];
+            $deployment->proxy_port = $ports['proxy_port'];
             $deployment->saveOrFail();
         } else {
-            $deployment                    = new AgentDeployment();
-            $deployment->apps_id           = $this->app->getId();
-            $deployment->companies_id      = $this->company->getId();
-            $deployment->agent_id          = $this->agent->getId();
-            $deployment->agent_machine_id  = $this->machine->getId();
-            $deployment->system_user       = $systemUser;
-            $deployment->home_directory    = '/home/' . $systemUser;
-            $deployment->gateway_port      = $ports['gateway_port'];
-            $deployment->proxy_port        = $ports['proxy_port'];
-            $deployment->container_name    = $config->containerPrefix . $this->agent->slug;
-            $deployment->provider          = $config->providerName;
-            $deployment->status            = 'provisioning';
+            $deployment = new AgentDeployment();
+            $deployment->apps_id = $this->app->getId();
+            $deployment->companies_id = $this->company->getId();
+            $deployment->agent_id = $this->agent->getId();
+            $deployment->agent_machine_id = $this->machine->getId();
+            $deployment->system_user = $systemUser;
+            $deployment->home_directory = '/home/' . $systemUser;
+            $deployment->gateway_port = $ports['gateway_port'];
+            $deployment->proxy_port = $ports['proxy_port'];
+            $deployment->container_name = $config->containerPrefix . $this->agent->slug;
+            $deployment->provider = $config->providerName;
+            $deployment->status = 'provisioning';
             $deployment->saveOrFail();
         }
 

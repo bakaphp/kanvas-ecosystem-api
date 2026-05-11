@@ -6,14 +6,14 @@ namespace Kanvas\Connectors\Hermes\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
-use Kanvas\Intelligence\AgentRuntime\SshClient as BaseClient;
 use Kanvas\Connectors\Hermes\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Hermes\Services\DockerComposeBuilder;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Connectors\OpenClaw\SshClient as OpenClawSshClient;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\SshClient as BaseClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
@@ -173,6 +173,7 @@ class MigrateFromOpenClawAction
 
             // Stop OpenClaw containers on the source machine now that Hermes is running.
             $sourceClient = OpenClawSshClient::fromMachine($this->sourceDeployment->machine);
+
             try {
                 $this->terminateSourceDeployment($sourceClient);
             } finally {
