@@ -9,33 +9,18 @@ services:
     restart: unless-stopped
     stdin_open: true
     tty: true
+    entrypoint: ["/opt/hermes/docker/entrypoint.sh"]
+    command: ["gateway", "run", "--accept-hooks"]
     volumes:
-      - {{HERMES_DIR}}:/home/node/.hermes
-      - {{HERMES_DIR}}/workspace:/home/node/.hermes/workspace
+      - {{HERMES_DIR}}:/opt/data
     ports:
       - "{{GATEWAY_PORT}}:18789"
       - "{{PROXY_PORT}}:18790"
     environment:
 {{ENV_LINES}}
-    command: ["gateway"]
-
   socat-proxy:
     image: alpine/socat
     container_name: socat-proxy-{{CONTAINER_NAME}}
     restart: unless-stopped
     network_mode: "service:hermes-gateway"
     command: "TCP-LISTEN:18790,fork,bind=0.0.0.0,reuseaddr TCP:127.0.0.1:18789"
-
-  hermes-cli:
-    image: nousresearch/hermes-agent:latest
-    container_name: {{CONTAINER_NAME}}-cli
-    stdin_open: true
-    tty: true
-    volumes:
-      - {{HERMES_DIR}}:/home/node/.hermes
-      - {{HERMES_DIR}}/workspace:/home/node/.hermes/workspace
-    environment:
-      - NODE_ENV=production
-    entrypoint: ["node", "/app/hermes.mjs"]
-    profiles:
-      - cli
