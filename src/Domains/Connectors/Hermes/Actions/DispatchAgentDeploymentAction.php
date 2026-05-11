@@ -6,61 +6,39 @@ namespace Kanvas\Connectors\Hermes\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Connectors\AgentRuntime\Actions\BaseDispatchAgentDeploymentAction;
+use Kanvas\Connectors\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Connectors\Hermes\Jobs\LaunchAgentJob;
+use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
-class DispatchAgentDeploymentAction
+/**
+ * Hermes-specific dispatch — thin subclass that wires the provider config and launch job.
+ *
+ * All deployment-record logic lives in BaseDispatchAgentDeploymentAction.
+ */
+class DispatchAgentDeploymentAction extends BaseDispatchAgentDeploymentAction
 {
-    public function __construct(
-        protected Agent $agent,
-        protected AgentMachine $machine,
-        protected AppInterface $app,
-        protected CompanyInterface $company,
-    ) {
+    protected function getProviderConfig(): ProviderConfig
+    {
+        return SshClient::makeProviderConfig();
     }
 
-    public function execute(): AgentDeployment
-    {
-        $systemUser = 'agent-' . $this->agent->slug;
-        $ports = $this->machine->allocatePortPair();
-
-        $deployment = AgentDeployment::where('agent_machine_id', $this->machine->getId())
-            ->where('system_user', $systemUser)
-            ->where('is_deleted', 0)
-            ->first();
-
-        if ($deployment) {
-            $deployment->status = 'provisioning';
-            $deployment->error_message = null;
-            $deployment->gateway_port = $ports['gateway_port'];
-            $deployment->proxy_port = $ports['proxy_port'];
-            $deployment->saveOrFail();
-        } else {
-            $deployment = new AgentDeployment();
-            $deployment->apps_id = $this->app->getId();
-            $deployment->companies_id = $this->company->getId();
-            $deployment->agent_id = $this->agent->getId();
-            $deployment->agent_machine_id = $this->machine->getId();
-            $deployment->system_user = $systemUser;
-            $deployment->home_directory = '/home/' . $systemUser;
-            $deployment->gateway_port = $ports['gateway_port'];
-            $deployment->proxy_port = $ports['proxy_port'];
-            $deployment->container_name = 'hermes-' . $this->agent->slug;
-            $deployment->provider = 'hermes';
-            $deployment->status = 'provisioning';
-            $deployment->saveOrFail();
-        }
-
+    protected function dispatchLaunchJob(
+        Agent $agent,
+        AgentMachine $machine,
+        AppInterface $app,
+        CompanyInterface $company,
+        AgentDeployment $deployment,
+    ): void {
         LaunchAgentJob::dispatch(
-            $this->agent,
-            $this->machine,
-            $this->app,
-            $this->company,
+            $agent,
+            $machine,
+            $app,
+            $company,
             $deployment,
         );
-
-        return $deployment;
     }
 }

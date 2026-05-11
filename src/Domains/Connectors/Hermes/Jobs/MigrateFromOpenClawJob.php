@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\OpenClaw\Jobs;
+namespace Kanvas\Connectors\Hermes\Jobs;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
@@ -12,12 +12,12 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Connectors\AgentRuntime\Events\AgentDeploymentStatusChanged;
-use Kanvas\Connectors\OpenClaw\Actions\MigrateAgentWorkspaceAction;
+use Kanvas\Connectors\Hermes\Actions\MigrateFromOpenClawAction;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
 
-class MigrateAgentWorkspaceJob implements ShouldQueue
+class MigrateFromOpenClawJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -44,7 +44,7 @@ class MigrateAgentWorkspaceJob implements ShouldQueue
         $sourceDeployment = AgentDeployment::findOrFail($this->sourceDeployment->id);
 
         try {
-            $destDeployment = new MigrateAgentWorkspaceAction(
+            $destDeployment = new MigrateFromOpenClawAction(
                 $sourceDeployment,
                 $this->destinationMachine,
                 $this->app,

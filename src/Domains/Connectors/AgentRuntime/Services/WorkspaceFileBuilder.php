@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Hermes\Services;
+namespace Kanvas\Connectors\AgentRuntime\Services;
 
 use Kanvas\Intelligence\Agents\Models\Agent;
 
 /**
  * Builds the workspace markdown files that define an agent's personality and behavior.
  *
- * These files are written to ~/.hermes/workspace/ inside the agent's container.
- * Hermes reads them at runtime to configure the agent's persona, instructions, and tools.
+ * These files are written to {provider-home}/workspace/ inside the agent's container.
+ * The runtime reads them to configure the agent's persona, instructions, and tools.
  *
  * Files generated:
  *  - SOUL.md     — core personality + output format (from Agent::soul / Agent::role['background'])
@@ -18,6 +18,9 @@ use Kanvas\Intelligence\Agents\Models\Agent;
  *  - IDENTITY.md — name, emoji, vibe, creature, avatar
  *  - USER.md     — optional user context (only if Agent::user_context is set)
  *  - TOOLS.md    — optional tool configuration (only if Agent::tools_config is set)
+ *
+ * Replaces the per-provider copies (OpenClaw\Services\WorkspaceFileBuilder,
+ * Hermes\Services\WorkspaceFileBuilder) which were byte-for-byte identical.
  */
 class WorkspaceFileBuilder
 {
@@ -53,13 +56,13 @@ class WorkspaceFileBuilder
 
     public static function buildIdentityMd(Agent $agent): string
     {
-        $identity = $agent->identity ?? [];
-        $name = $identity['name'] ?? $agent->name;
-        $emoji = $identity['emoji'] ?? '';
-        $vibe = $identity['vibe'] ?? '';
-        $creature = $identity['creature'] ?? 'AI assistant';
+        $identity  = $agent->identity ?? [];
+        $name      = $identity['name'] ?? $agent->name;
+        $emoji     = $identity['emoji'] ?? '';
+        $vibe      = $identity['vibe'] ?? '';
+        $creature  = $identity['creature'] ?? 'AI assistant';
 
-        $content = "# IDENTITY\n\n";
+        $content  = "# IDENTITY\n\n";
         $content .= "**Name:** {$name}\n";
         $content .= "**Creature:** {$creature}\n";
         $content .= "**Vibe:** {$vibe}\n";
@@ -96,8 +99,8 @@ class WorkspaceFileBuilder
     public static function buildAll(Agent $agent): array
     {
         $files = [
-            'SOUL.md' => self::buildSoulMd($agent),
-            'AGENTS.md' => self::buildAgentsMd($agent),
+            'SOUL.md'     => self::buildSoulMd($agent),
+            'AGENTS.md'   => self::buildAgentsMd($agent),
             'IDENTITY.md' => self::buildIdentityMd($agent),
         ];
 

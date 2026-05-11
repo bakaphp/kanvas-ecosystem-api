@@ -1,3 +1,2 @@
 #!/bin/sh
-sudo service cron start
-exec node /app/hermes.mjs "$@"
+exec /opt/hermes/docker/entrypoint.sh "$@"

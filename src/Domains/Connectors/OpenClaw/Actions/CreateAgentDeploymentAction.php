@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\OpenClaw\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Connectors\OpenClaw\Enums\DeploymentStatusEnum;
+use Kanvas\Connectors\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
