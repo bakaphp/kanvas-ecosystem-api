@@ -29,8 +29,6 @@ use Kanvas\Intelligence\Agents\Models\AgentMachine;
  */
 class ChatWithAgentAction
 {
-    private const string DEFAULT_MODEL = 'gpt-5.4';
-
     public function __construct(
         protected Agent $agent,
         protected string $message,
@@ -100,7 +98,7 @@ class ChatWithAgentAction
     private function sendRequest(AgentDeployment $deployment, string $token, string $sessionKey): string
     {
         $payload = json_encode([
-            'model' => self::DEFAULT_MODEL,
+            'model' => 'openclaw/' . $this->agent->slug,
             'input' => $this->message,
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
