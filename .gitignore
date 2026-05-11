@@ -44,3 +44,4 @@ src/Baka/Search/
 .ai-workflow-template/
 docs/
 .claude/skills/Intelligence/
+app/Console/Commands/Inventory/SeedVehicleProductsCommand.php

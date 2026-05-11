@@ -49,10 +49,6 @@ class CompanyWorkHoursTool implements ContextToolInterface
         $status = $this->getStatus($this->now, $opensAt, $closesAt, $holidayInfo);
         $nextOpen = $this->getNextOpenDateTime($this->now, $opensAt, $closesAt);
 
-        log($status);
-        log($this->entity->company->get(ConfigurationEnum::WORKING_DAYS->value));
-        log($this->entity->company->id);
-
         return [
             'status' => $status,
             'weekday' => $this->now->englishDayOfWeek,
@@ -124,16 +120,11 @@ class CompanyWorkHoursTool implements ContextToolInterface
         if ($this->simpleHours) {
             $open = $this->makeTime($ref, $this->simpleHours['opens_at_local'] ?? '09:00:00');
             $close = $this->makeTime($ref, $this->simpleHours['closes_at_local'] ?? '21:00:00');
-            log('simple hours');
-            log($open->toDateString());
 
             return [$open, $close];
         }
 
         if ($this->weeklyHours) {
-            log('wekkly');
-            log($ref);
-
             return $this->getOpenCloseForDayName($ref->englishDayOfWeek, $ref);
         }
 
@@ -144,7 +135,6 @@ class CompanyWorkHoursTool implements ContextToolInterface
     {
         $key = $this->normalizeDayName($dayName);
         $hours = $this->weeklyHours[$key] ?? null;
-        log('Key ' . $key);
         if (! $hours || trim($hours) === '' || stripos($hours, '-') === false) {
             return [null, null];
         }
