@@ -26,11 +26,10 @@ class AppTemplateMutation
 
         $createTemplate = new CreateTemplateAction(
             new TemplateInput(
-                $app,
-                $request['input']['name'],
-                $request['input']['template'],
-                null,
-                auth()->user()
+                app: $app,
+                name: $request['input']['name'],
+                template: $request['input']['template'],
+                user: auth()->user(),
             )
         );
 

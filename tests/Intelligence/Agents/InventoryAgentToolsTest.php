@@ -70,18 +70,18 @@ class InventoryAgentToolsTest extends TestCase
             $this->user
         )->execute();
 
-        $result = (new InventorySearchTool())->handle(
-            new Request(['product_name' => $uniqueName])
-        );
+        $result = (new InventorySearchTool())
+            ->withContext($this->kanvasApp, $company)
+            ->handle(new Request(['product_name' => $uniqueName]));
 
         $this->assertStringContainsString($product->name, (string) $result);
     }
 
     public function testInventorySearchToolReturnsNotFoundMessage(): void
     {
-        $result = (new InventorySearchTool())->handle(
-            new Request(['product_name' => 'zzz-nonexistent-xyz-' . uniqid()])
-        );
+        $result = (new InventorySearchTool())
+            ->withContext($this->kanvasApp, $this->user->getCurrentCompany())
+            ->handle(new Request(['product_name' => 'zzz-nonexistent-xyz-' . uniqid()]));
 
         $this->assertStringContainsString('No products found', (string) $result);
     }
@@ -102,9 +102,9 @@ class InventoryAgentToolsTest extends TestCase
             $this->user
         )->execute();
 
-        $result = (new ListAvailableProductsTool())->handle(
-            new Request(['is_published' => true, 'only_in_stock' => false, 'limit' => 10])
-        );
+        $result = (new ListAvailableProductsTool())
+            ->withContext($this->kanvasApp, $company)
+            ->handle(new Request(['is_published' => true, 'only_in_stock' => false, 'limit' => 10]));
 
         $data = json_decode((string) $result, true);
         $this->assertIsArray($data);
@@ -130,9 +130,9 @@ class InventoryAgentToolsTest extends TestCase
             $this->user
         )->execute();
 
-        $result = (new ListAvailableProductsTool())->handle(
-            new Request(['is_published' => true, 'only_in_stock' => true, 'limit' => 10])
-        );
+        $result = (new ListAvailableProductsTool())
+            ->withContext($this->kanvasApp, $company)
+            ->handle(new Request(['is_published' => true, 'only_in_stock' => true, 'limit' => 10]));
 
         $decoded = json_decode((string) $result, true);
 
@@ -158,9 +158,9 @@ class InventoryAgentToolsTest extends TestCase
             'slug' => strtolower($uniqueKey),
         ]);
 
-        $result = (new AttributeSearchTool())->handle(
-            new Request(['keyword' => ''])
-        );
+        $result = (new AttributeSearchTool())
+            ->withContext($this->kanvasApp, $company)
+            ->handle(new Request(['keyword' => '']));
 
         $data = json_decode((string) $result, true);
         $this->assertIsArray($data);
@@ -180,9 +180,9 @@ class InventoryAgentToolsTest extends TestCase
             'slug' => strtolower($uniqueKey),
         ]);
 
-        $result = (new AttributeSearchTool())->handle(
-            new Request(['keyword' => $uniqueKey])
-        );
+        $result = (new AttributeSearchTool())
+            ->withContext($this->kanvasApp, $company)
+            ->handle(new Request(['keyword' => $uniqueKey]));
 
         $data = json_decode((string) $result, true);
         $this->assertIsArray($data);
@@ -192,9 +192,9 @@ class InventoryAgentToolsTest extends TestCase
 
     public function testAttributeSearchToolReturnsNotFoundForUnknownKeyword(): void
     {
-        $result = (new AttributeSearchTool())->handle(
-            new Request(['keyword' => 'zzz-nonexistent-' . uniqid()])
-        );
+        $result = (new AttributeSearchTool())
+            ->withContext($this->kanvasApp, $this->user->getCurrentCompany())
+            ->handle(new Request(['keyword' => 'zzz-nonexistent-' . uniqid()]));
 
         $this->assertStringContainsString('No attributes found', (string) $result);
     }
@@ -212,9 +212,9 @@ class InventoryAgentToolsTest extends TestCase
             'slug' => strtolower($uniqueName),
         ]);
 
-        $result = (new CategorySearchTool())->handle(
-            new Request(['keyword' => ''])
-        );
+        $result = (new CategorySearchTool())
+            ->withContext($this->kanvasApp, $company)
+            ->handle(new Request(['keyword' => '']));
 
         $data = json_decode((string) $result, true);
         $this->assertIsArray($data);
@@ -234,9 +234,9 @@ class InventoryAgentToolsTest extends TestCase
             'slug' => strtolower($uniqueName),
         ]);
 
-        $result = (new CategorySearchTool())->handle(
-            new Request(['keyword' => $uniqueName])
-        );
+        $result = (new CategorySearchTool())
+            ->withContext($this->kanvasApp, $company)
+            ->handle(new Request(['keyword' => $uniqueName]));
 
         $data = json_decode((string) $result, true);
         $this->assertIsArray($data);
@@ -261,9 +261,9 @@ class InventoryAgentToolsTest extends TestCase
             $this->user
         )->execute();
 
-        $result = (new VariantSearchTool())->handle(
-            new Request(['keyword' => $uniqueName])
-        );
+        $result = (new VariantSearchTool())
+            ->withContext($this->kanvasApp, $company)
+            ->handle(new Request(['keyword' => $uniqueName]));
 
         $data = json_decode((string) $result, true);
         $this->assertIsArray($data);
@@ -273,9 +273,9 @@ class InventoryAgentToolsTest extends TestCase
 
     public function testVariantSearchToolRequiresKeyword(): void
     {
-        $result = (new VariantSearchTool())->handle(
-            new Request(['keyword' => ''])
-        );
+        $result = (new VariantSearchTool())
+            ->withContext($this->kanvasApp, $this->user->getCurrentCompany())
+            ->handle(new Request(['keyword' => '']));
 
         $this->assertStringContainsString('Please provide a keyword', (string) $result);
     }

@@ -7,7 +7,8 @@ namespace Kanvas\NervousSystem\Capability\Models;
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
 use Override;
@@ -57,9 +58,14 @@ class Tool extends BaseModel
         ];
     }
 
-    public function agentGrants(): HasMany
+    public function agentTypes(): BelongsToMany
     {
-        return $this->hasMany(AgentTool::class, 'tool_id', 'id');
+        return $this->belongsToMany(
+            AgentType::class,
+            'nervous_system_tool_agent_types',
+            'tool_id',
+            'agent_type_id'
+        );
     }
 
     public function scopeActive(Builder $query): Builder
@@ -72,8 +78,12 @@ class Tool extends BaseModel
         return $query->whereJsonContains('frameworks', $framework);
     }
 
-    public function scopeForApp(Builder $query, int $appsId): Builder
+    public function scopeForApp(Builder $query, mixed $appsId = null): Builder
     {
-        return $query->whereIn('apps_id', [0, $appsId]);
+        $id = $appsId instanceof \Kanvas\Apps\Models\Apps
+            ? $appsId->getId()
+            : (int) ($appsId ?? app(\Kanvas\Apps\Models\Apps::class)->getId());
+
+        return $query->whereIn('apps_id', [0, $id]);
     }
 }

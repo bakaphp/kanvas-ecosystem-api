@@ -33,7 +33,7 @@ class UpdateTaskStatusAction
                 $this->task->started_at = Carbon::now();
             }
 
-            if (in_array($newStatus, ['done', 'skipped', 'blocked'], true)
+            if (in_array($this->newStatus, TaskStatusEnum::completedStatuses(), true)
                 && $this->task->completed_at === null
             ) {
                 $this->task->completed_at = Carbon::now();

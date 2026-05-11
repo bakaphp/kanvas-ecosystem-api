@@ -5,17 +5,19 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
+use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
-use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
 use Throwable;
 
-class InventorySearchTool implements Tool
+class InventorySearchTool implements KanvasToolInterface
 {
+    use HasKanvasContext;
+
     #[Override]
     public function description(): Stringable|string
     {
@@ -26,16 +28,16 @@ class InventorySearchTool implements Tool
     public function handle(Request $request): Stringable|string
     {
         $query = $request->string('product_name');
-        $allowCrossCompany = (bool) app(Apps::class)->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
+        $allowCrossCompany = (bool) $this->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
 
-        $builder = Products::fromApp()
+        $builder = Products::fromApp($this->app)
             ->notDeleted()
             ->where('name', 'like', '%' . $query . '%')
             ->with('variants')
             ->limit(10);
 
         if (! $allowCrossCompany) {
-            $builder->fromCompany();
+            $builder->fromCompany($this->company);
         }
 
         $products = $builder->get();

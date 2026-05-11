@@ -9,13 +9,17 @@ use Baka\Support\IPInfo;
 use Bavix\Wallet\Models\Purchase as WalletPurchase;
 use Bavix\Wallet\WalletConfigure;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
+use Kanvas\Intelligence\Services\KanvasGeminiGateway;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
+use Laravel\Ai\AiManager;
 use Laravel\Ai\Contracts\ConversationStore;
+use Laravel\Ai\Providers\GeminiProvider;
 use Laravel\Cashier\Cashier;
 use Laravel\Sanctum\Sanctum;
 use Override;
@@ -40,6 +44,16 @@ class AppServiceProvider extends ServiceProvider
             WalletPurchase::class,
             fn (WalletPurchase $purchase): WalletPurchase => $purchase->setConnection(config('wallet.database.connection'))
         );
+
+        $this->app->resolving(AiManager::class, function (AiManager $manager, $app) {
+            $manager->extend('gemini', function ($instanceApp, $config) {
+                return new GeminiProvider(
+                    new KanvasGeminiGateway($instanceApp['events']),
+                    $config,
+                    $instanceApp->make(Dispatcher::class),
+                );
+            });
+        });
     }
 
     /**

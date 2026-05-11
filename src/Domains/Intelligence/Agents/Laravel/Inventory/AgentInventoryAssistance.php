@@ -46,7 +46,7 @@ class AgentInventoryAssistance extends KanvasLaravelAgent
      * @return Tool[]
      */
     #[Override]
-    public function tools(): iterable
+    public function agentTools(): iterable
     {
         return [
             new InventorySearchTool(),

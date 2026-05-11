@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Laravel;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentRecord;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
 use Laravel\Ai\Contracts\Agent;
@@ -33,11 +34,15 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
         AgentRecord $agent,
         ?Model $entity = null,
         ?string $externalReferenceId = null,
+        ?Apps $app = null,
+        ?Companies $company = null,
     ): void {
         $this->agentRecord = $agent;
         $this->entity = $entity;
-        $this->app = $agent->app;
-        $this->company = $agent->company;
+        // Request-scoped app/company take precedence over the agent's own values,
+        // which may be null or id=0 for global agents.
+        $this->app = $app ?? $agent->app;
+        $this->company = $company ?? $agent->company;
         $this->externalReferenceId = $externalReferenceId;
     }
 
@@ -110,8 +115,22 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
     }
 
     #[Override]
-    abstract public function instructions(): Stringable|string;
+    final public function tools(): iterable
+    {
+        $tools = [];
+
+        foreach ($this->agentTools() as $tool) {
+            if ($tool instanceof KanvasToolInterface && $this->app && $this->company) {
+                $tool->withContext($this->app, $this->company);
+            }
+            $tools[] = $tool;
+        }
+
+        return $tools;
+    }
 
     #[Override]
-    abstract public function tools(): iterable;
+    abstract public function instructions(): Stringable|string;
+
+    abstract public function agentTools(): iterable;
 }

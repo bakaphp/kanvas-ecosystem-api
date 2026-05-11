@@ -13,6 +13,7 @@ use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
+use Stripe\EphemeralKey;
 use Stripe\PaymentIntent;
 use Stripe\Stripe;
 
@@ -149,10 +150,25 @@ class PaymentManagementMutation
                 'customer' => $customer->id,
             ]);
 
+            // Mobile SDK PaymentSheet expects an ephemeral key matching the SDK's API version.
+            // Only generate when the FE explicitly passes the version — hardcoding a default
+            // would risk handing back a key the SDK rejects, which is worse than no key.
+            $stripeVersion = $request['stripeVersion'] ?? null;
+            $ephemeralKeySecret = null;
+            if (! empty($stripeVersion)) {
+                $ephemeralKey = EphemeralKey::create(
+                    ['customer' => $customer->id],
+                    ['stripe_version' => $stripeVersion]
+                );
+                $ephemeralKeySecret = $ephemeralKey->secret;
+            }
+
             return [
                 'status' => 'success',
                 'id' => $intent->id,
                 'client_secret' => $intent->client_secret,
+                'customer' => $customer->id,
+                'ephemeral_key' => $ephemeralKeySecret,
                 'message' => [
                     'message' => 'Payment intent generated successfully',
                     'amount' => $amount,

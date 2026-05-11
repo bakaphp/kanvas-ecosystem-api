@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
+use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
-use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
 
-class VariantSearchTool implements Tool
+class VariantSearchTool implements KanvasToolInterface
 {
+    use HasKanvasContext;
+
     #[Override]
     public function description(): Stringable|string
     {
@@ -30,22 +31,16 @@ class VariantSearchTool implements Tool
             return 'Please provide a keyword (name or SKU) to search for variants.';
         }
 
-        $allowCrossCompany = (bool) app(Apps::class)->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
-
-        $builder = Variants::fromApp()
+        $variants = Variants::fromApp($this->app)
+            ->fromCompany($this->company)
             ->notDeleted()
             ->where(function ($q) use ($keyword) {
                 $q->where('name', 'like', '%' . $keyword . '%')
                     ->orWhere('sku', 'like', '%' . $keyword . '%');
             })
             ->with('product')
-            ->limit(20);
-
-        if (! $allowCrossCompany) {
-            $builder->fromCompany();
-        }
-
-        $variants = $builder->get();
+            ->limit(20)
+            ->get();
 
         if ($variants->isEmpty()) {
             return "No variants found matching '{$keyword}'.";

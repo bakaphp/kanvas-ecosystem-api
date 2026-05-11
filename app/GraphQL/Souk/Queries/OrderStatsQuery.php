@@ -152,6 +152,7 @@ class OrderStatsQuery
             fieldMapper: isset($input['fieldMapper']) ? (array) $input['fieldMapper'] : null,
             language: $input['language'] ?? 'en',
             userEmail: $input['user_email'] ?? null,
+            providerCompanyIds: array_map('intval', $input['provider_company_id'] ?? []),
         )->execute();
     }
 }

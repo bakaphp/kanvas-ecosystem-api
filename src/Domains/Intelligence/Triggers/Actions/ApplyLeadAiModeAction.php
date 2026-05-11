@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Triggers\Actions;
 
+use Exception;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
+use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+
+use function Sentry\captureException;
 
 class ApplyLeadAiModeAction
 {
@@ -115,6 +119,14 @@ class ApplyLeadAiModeAction
         $this->lead->set(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value, true);
         $this->setMode(IntelligenceModeEnum::FULL_ON->value);
         $this->setFollowUp(FollowUpValueEnum::ON());
+
+        try {
+            foreach ($this->lead->socialChannels as $channel) {
+                UnrespondedLeadAgentMessageCache::clear($this->lead, $channel);
+            }
+        } catch (Exception $e) {
+            captureException($e);
+        }
     }
 
     protected function setMode(string $aiMode): void
