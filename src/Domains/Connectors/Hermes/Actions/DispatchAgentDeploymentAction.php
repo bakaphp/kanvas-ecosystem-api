@@ -6,8 +6,8 @@ namespace Kanvas\Connectors\Hermes\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Connectors\AgentRuntime\Actions\BaseDispatchAgentDeploymentAction;
-use Kanvas\Connectors\AgentRuntime\Contracts\ProviderConfig;
+use Kanvas\Intelligence\AgentRuntime\Actions\BaseDispatchAgentDeploymentAction;
+use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Connectors\Hermes\Jobs\LaunchAgentJob;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Intelligence\Agents\Models\Agent;

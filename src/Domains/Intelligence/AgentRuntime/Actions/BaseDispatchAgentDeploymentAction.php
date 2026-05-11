@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\AgentRuntime\Actions;
+namespace Kanvas\Intelligence\AgentRuntime\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Connectors\AgentRuntime\Contracts\ProviderConfig;
+use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;

@@ -6,7 +6,7 @@ namespace Kanvas\Intelligence\Agents\Enums;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Connectors\AgentRuntime\Actions\BaseDispatchAgentDeploymentAction;
+use Kanvas\Intelligence\AgentRuntime\Actions\BaseDispatchAgentDeploymentAction;
 use Kanvas\Connectors\Hermes\Actions\DispatchAgentDeploymentAction as HermesDispatchAction;
 use Kanvas\Connectors\OpenClaw\Actions\DispatchAgentDeploymentAction as OpenClawDispatchAction;
 use Kanvas\Intelligence\Agents\Models\Agent;

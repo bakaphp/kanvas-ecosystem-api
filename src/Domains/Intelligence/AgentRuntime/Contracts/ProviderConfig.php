@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\AgentRuntime\Contracts;
+namespace Kanvas\Intelligence\AgentRuntime\Contracts;
 
 /**
  * Immutable value object capturing all variation points between agent runtime providers.

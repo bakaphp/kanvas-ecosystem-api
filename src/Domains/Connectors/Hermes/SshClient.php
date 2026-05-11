@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Hermes;
 
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Connectors\AgentRuntime\Contracts\ProviderConfig;
-use Kanvas\Connectors\AgentRuntime\SshClient as BaseClient;
+use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
+use Kanvas\Intelligence\AgentRuntime\SshClient as BaseClient;
 use Kanvas\Connectors\Hermes\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use phpseclib3\Crypt\Common\PrivateKey;

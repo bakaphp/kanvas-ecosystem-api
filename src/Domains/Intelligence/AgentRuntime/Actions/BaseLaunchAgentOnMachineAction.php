@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\AgentRuntime\Actions;
+namespace Kanvas\Intelligence\AgentRuntime\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
-use Kanvas\Connectors\AgentRuntime\Contracts\ProviderConfig;
-use Kanvas\Connectors\AgentRuntime\Enums\DeploymentStatusEnum;
-use Kanvas\Connectors\AgentRuntime\Services\BaseDockerComposeBuilder;
-use Kanvas\Connectors\AgentRuntime\Services\WorkspaceFileBuilder;
-use Kanvas\Connectors\AgentRuntime\SshClient;
+use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
+use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
+use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilder;
+use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;

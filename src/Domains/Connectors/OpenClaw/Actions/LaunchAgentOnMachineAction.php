@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenClaw\Actions;
 
-use Kanvas\Connectors\AgentRuntime\Actions\BaseLaunchAgentOnMachineAction;
-use Kanvas\Connectors\AgentRuntime\Contracts\ProviderConfig;
-use Kanvas\Connectors\AgentRuntime\Services\BaseDockerComposeBuilder;
-use Kanvas\Connectors\AgentRuntime\SshClient as BaseClient;
+use Kanvas\Intelligence\AgentRuntime\Actions\BaseLaunchAgentOnMachineAction;
+use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
+use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
+use Kanvas\Intelligence\AgentRuntime\SshClient as BaseClient;
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\Services\DockerComposeBuilder;

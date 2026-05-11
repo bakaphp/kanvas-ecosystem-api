@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\AgentRuntime;
+namespace Kanvas\Intelligence\AgentRuntime;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Connectors\AgentRuntime\Contracts\ProviderConfig;
+use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use phpseclib3\Crypt\Common\PrivateKey;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\AgentRuntime\Enums;
+namespace Kanvas\Intelligence\AgentRuntime\Enums;
 
 /**
  * Canonical deployment lifecycle states shared by all agent runtime providers.

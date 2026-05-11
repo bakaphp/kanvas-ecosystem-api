@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\AgentRuntime\Services;
+namespace Kanvas\Intelligence\AgentRuntime\Services;
 
 use Kanvas\Intelligence\Agents\Models\Agent;
 
