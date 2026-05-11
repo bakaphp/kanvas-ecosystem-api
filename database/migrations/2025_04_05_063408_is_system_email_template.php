@@ -11,7 +11,6 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('email_templates', function (Blueprint $table) {
-
             $table->boolean('is_system')->default(false)->after('template');
             $table->index(['is_system']);
         });
@@ -23,7 +22,6 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('email_templates', function (Blueprint $table) {
-
             $table->dropColumn('is_system');
         });
     }
