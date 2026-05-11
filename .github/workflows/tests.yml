@@ -169,6 +169,9 @@ jobs:
           - Event
           - ActionEngine
           - Unit
+        include:
+          - testsuite: Inventory
+            processes: 1
     services:
       mysql:
         image: mysql:8.0
@@ -284,12 +287,8 @@ jobs:
         run: echo '' > .env
 
       - name: Run Tests
-        if: success() && matrix.testsuite != 'Inventory'
-        run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=4
-
-      - name: Run Inventory Tests (single process)
-        if: success() && matrix.testsuite == 'Inventory'
-        run: vendor/bin/phpunit --testsuite=Inventory
+        if: success()
+        run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=${{ matrix.processes || '4' }}
 
       - name: Run Filesystem Tests (single process)
         if: success() && matrix.testsuite == 'GraphQL-Ecosystem'
