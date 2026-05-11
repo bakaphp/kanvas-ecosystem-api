@@ -284,8 +284,12 @@ jobs:
         run: echo '' > .env
 
       - name: Run Tests
-        if: success()
+        if: success() && matrix.testsuite != 'Inventory'
         run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=4
+
+      - name: Run Inventory Tests (single process)
+        if: success() && matrix.testsuite == 'Inventory'
+        run: vendor/bin/phpunit --testsuite=Inventory
 
       - name: Run Filesystem Tests (single process)
         if: success() && matrix.testsuite == 'GraphQL-Ecosystem'
