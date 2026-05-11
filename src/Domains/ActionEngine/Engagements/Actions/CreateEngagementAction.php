@@ -235,16 +235,30 @@ class CreateEngagementAction
     protected function generateNewEngagementUrl(Engagement $engagement): ?string
     {
         $checkoutActions = $this->app->get('new-action-checkout-link') ?? [];
-        $newActionPageV4 = $this->app->get('new-action-page-v4') ?? $engagement->company->get('new-action-page-v4') ?? [];
+        $newActionPageV4 = $this->app->get('new_action_page_v4_config') ?? $engagement->company->get('new_action_page_v4_config') ?? [];
         $isCheckoutAction = is_array($checkoutActions) && in_array($this->actionSlug, $checkoutActions);
-        $isNewActionPage = is_array($newActionPageV4) && in_array($this->actionSlug, $newActionPageV4);
+
+        $isNewActionPage = false;
+        $actionPathV4 = null;
+
+        if (is_array($newActionPageV4)) {
+            if (array_key_exists($this->actionSlug, $newActionPageV4)) {
+                $isNewActionPage = true;
+                $actionPathV4 = $newActionPageV4[$this->actionSlug];
+            } elseif (in_array($this->actionSlug, $newActionPageV4)) {
+                $isNewActionPage = true;
+            }
+        }
 
         if ($isCheckoutAction) {
             return (string) $this->app->get('NEW_CHECKOUT_PAGE') . '/' . $engagement->uuid;
         }
 
         if ($isNewActionPage) {
-            return (string) $this->app->get('NEW_ACTION_PAGE_V4') . '/' . $engagement->uuid;
+            $baseDomain = rtrim((string) $this->app->get('NEW_ACTION_PAGE_V4'), '/');
+            $actionPath = $actionPathV4 ?: 'form';
+
+            return $baseDomain . '/' . ltrim((string) $actionPath, '/') . '/' . $engagement->uuid;
         }
 
         $landingPageActions = $this->app->get('new-action-slug-v3') ?? [];
