@@ -52,9 +52,24 @@ class LaunchAgentJob implements ShouldQueue
             AgentDeploymentStatusChanged::dispatch($deployment, 'provisioning');
         } catch (Throwable $e) {
             report($e);
-            AgentDeploymentStatusChanged::dispatch($deployment, 'provisioning');
+            AgentDeploymentStatusChanged::dispatch($deployment->fresh(), 'provisioning');
 
             throw $e;
         }
+    }
+
+    public function failed(Throwable $e): void
+    {
+        $deployment = AgentDeployment::find($this->deployment->id);
+
+        if (! $deployment) {
+            return;
+        }
+
+        $deployment->status = 'failed';
+        $deployment->error_message = $e->getMessage();
+        $deployment->save();
+
+        AgentDeploymentStatusChanged::dispatch($deployment, 'provisioning');
     }
 }

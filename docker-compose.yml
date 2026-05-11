@@ -65,6 +65,13 @@ services:
             - "sh"
             - "-c"
             - "php artisan config:cache && php artisan queue:work --queue=openclaw --tries=3 --timeout=3750"
+    hermes-queue:
+        <<: *common-queue-settings
+        container_name: hermes-queue
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && php artisan queue:work --queue=hermes --tries=3 --timeout=3750"
     ledger-queue:
         <<: *common-queue-settings
         container_name: ledger-queue
