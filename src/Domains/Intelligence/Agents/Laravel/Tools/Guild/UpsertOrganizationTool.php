@@ -5,21 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Guild;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
-use Kanvas\Guild\Organizations\Actions\UpdateOrganizationAction;
-use Kanvas\Guild\Organizations\DataTransferObject\Organization as OrganizationData;
-use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Guild\Organizations\Models\OrganizationType;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Tools\Traits\Guild\UpsertOrganizationTrait;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
-use Throwable;
 
 class UpsertOrganizationTool implements KanvasToolInterface
 {
     use HasKanvasContext;
+    use UpsertOrganizationTrait;
 
     #[Override]
     public function description(): Stringable|string
@@ -30,14 +26,13 @@ class UpsertOrganizationTool implements KanvasToolInterface
     #[Override]
     public function handle(Request $request): Stringable|string
     {
-        $organizationId = $request->integer('organization_id') ?: null;
-        $name = (string) $request->string('name');
-
-        $orgData = new OrganizationData(
+        $result = $this->upsertOrganization(
+            app: $this->app,
             company: $this->company,
             user: auth()->user(),
-            app: $this->app,
-            name: $name,
+            name: (string) $request->string('name'),
+            organizationId: $request->integer('organization_id') ?: null,
+            organizationTypeId: $request->integer('organization_type_id') ?: null,
             email: filled($request->string('email')) ? (string) $request->string('email') : null,
             phone: filled($request->string('phone')) ? (string) $request->string('phone') : null,
             address: filled($request->string('address')) ? (string) $request->string('address') : null,
@@ -46,33 +41,11 @@ class UpsertOrganizationTool implements KanvasToolInterface
             zip: filled($request->string('zip')) ? (string) $request->string('zip') : null,
         );
 
-        $organizationTypeId = $request->integer('organization_type_id') ?: null;
-
-        try {
-            if ($organizationId !== null) {
-                $organization = Organization::getByIdFromCompanyApp($organizationId, $this->company, $this->app);
-                $organization = new UpdateOrganizationAction($organization, $orgData)->execute();
-                $action = 'updated';
-            } else {
-                $organization = new CreateOrganizationAction($orgData)->execute();
-                $action = 'created';
-
-                if ($organizationTypeId !== null) {
-                    $organizationType = OrganizationType::getByIdFromCompanyApp($organizationTypeId, $this->company, $this->app);
-                    $organization->organization_type_id = $organizationType->getId();
-                    $organization->save();
-                }
-            }
-        } catch (Throwable $e) {
-            return "Failed to upsert organization: {$e->getMessage()}";
+        if (isset($result['error'])) {
+            return $result['error'];
         }
 
-        return json_encode([
-            'organization_id' => $organization->getId(),
-            'name' => $organization->name,
-            'organization_type_id' => $organization->organization_type_id,
-            'action' => $action,
-        ], JSON_PRETTY_PRINT);
+        return json_encode($result, JSON_PRETTY_PRINT);
     }
 
     #[Override]

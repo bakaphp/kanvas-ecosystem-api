@@ -5,21 +5,16 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Guild;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Kanvas\Guild\Customers\DataTransferObject\Address;
-use Kanvas\Guild\Customers\DataTransferObject\Contact;
-use Kanvas\Guild\Customers\DataTransferObject\People;
-use Kanvas\Guild\Leads\Actions\CreateLeadAction;
-use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadData;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Tools\Traits\Guild\CreatesLeadTrait;
 use Laravel\Ai\Tools\Request;
 use Override;
-use Spatie\LaravelData\DataCollection;
 use Stringable;
-use Throwable;
 
 class CreateLeadTool implements KanvasToolInterface
 {
+    use CreatesLeadTrait;
     use HasKanvasContext;
 
     #[Override]
@@ -31,69 +26,26 @@ class CreateLeadTool implements KanvasToolInterface
     #[Override]
     public function handle(Request $request): Stringable|string
     {
-        $user = auth()->user();
-        $branch = $this->company->defaultBranch;
-
-        $contacts = [];
-
-        if (filled($request->string('email'))) {
-            $contacts[] = new Contact(value: (string) $request->string('email'));
-        }
-
-        if (filled($request->string('phone'))) {
-            $contacts[] = new Contact(value: (string) $request->string('phone'));
-        }
-
-        $firstname = (string) $request->string('firstname');
-        $lastname = (string) $request->string('lastname');
-        $title = (string) $request->string('title');
-        $description = filled($request->string('description'))
-            ? (string) $request->string('description')
-            : null;
-
-        $people = new People(
+        $result = $this->createLead(
             app: $this->app,
-            branch: $branch,
-            user: $user,
-            firstname: $firstname,
-            contacts: Contact::collect($contacts, DataCollection::class),
-            address: Address::collect([], DataCollection::class),
-            lastname: $lastname ?: null,
+            company: $this->company,
+            user: auth()->user(),
+            title: (string) $request->string('title'),
+            firstname: (string) $request->string('firstname'),
+            lastname: filled($request->string('lastname')) ? (string) $request->string('lastname') : null,
+            email: filled($request->string('email')) ? (string) $request->string('email') : null,
+            phone: filled($request->string('phone')) ? (string) $request->string('phone') : null,
+            description: filled($request->string('description')) ? (string) $request->string('description') : null,
+            leadTypeId: $request->integer('lead_type_id') ?: 0,
+            leadSourceId: $request->integer('lead_source_id') ?: 0,
+            organizationId: $request->integer('organization_id') ?: null,
         );
 
-        $leadTypeId = $request->integer('lead_type_id') ?: 0;
-        $leadSourceId = $request->integer('lead_source_id') ?: 0;
-        $organizationId = $request->integer('organization_id') ?: null;
-
-        $leadData = new LeadData(
-            app: $this->app,
-            branch: $branch,
-            user: $user,
-            title: $title,
-            pipeline_stage_id: (int) $this->company->get('agent_lead_pipeline_stage_id', 0),
-            people: $people,
-            description: $description,
-            type_id: $leadTypeId,
-            source_id: $leadSourceId,
-        );
-
-        try {
-            $lead = new CreateLeadAction($leadData)->execute();
-
-            if ($organizationId !== null) {
-                $lead->organization_id = $organizationId;
-                $lead->save();
-            }
-        } catch (Throwable $e) {
-            return "Failed to create lead: {$e->getMessage()}";
+        if (isset($result['error'])) {
+            return $result['error'];
         }
 
-        return json_encode([
-            'lead_id' => $lead->getId(),
-            'title' => $lead->title,
-            'organization_id' => $lead->organization_id,
-            'message' => "Lead '{$lead->title}' created successfully.",
-        ], JSON_PRETTY_PRINT);
+        return json_encode($result, JSON_PRETTY_PRINT);
     }
 
     #[Override]
