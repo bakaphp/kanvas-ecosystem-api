@@ -12,6 +12,7 @@ use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Override;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * Hermes-specific DockerComposeBuilder — thin subclass that wires provider config keys.
@@ -23,6 +24,10 @@ use Override;
 class DockerComposeBuilder extends BaseDockerComposeBuilder
 {
     private const string TEMPLATES_DIR = __DIR__ . '/../Templates';
+
+    private const array DEFAULT_SLACK_CONFIG = [
+           'reply_in_thread' => false,
+       ];
 
     // Compile-time fallback pin — used when the app-level `hermes_base_image` config is unset.
     //
@@ -139,31 +144,6 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
         return 'hermes-kanvas';
     }
 
-    /**
-     * Hermes uses a flat YAML config at `/opt/data/config.yaml` (NOT the nested JSON shape
-     * OpenClaw uses). Documented at https://hermes-agent.nousresearch.com/docs/user-guide/configuration
-     * and https://hermes-agent.nousresearch.com/docs/guides/google-gemini.
-     *
-     * Hermes resolves API keys purely from env vars (we emit those in buildDockerCompose),
-     * so there's no `auth.profiles` section — just `model`. The model name MUST be the
-     * native form when `provider: gemini` (e.g. `gemini-3.1-pro-preview`), not the
-     * OpenRouter-style `google/gemini-3.1-pro-preview` — the docs explicitly warn against
-     * the prefixed form with the native gemini provider. We strip any provider prefix
-     * for callers who use the OpenRouter-style strings.
-     *
-     * Provider routing is derived from the configured model name:
-     *  - `anthropic/*` or `claude-*` → provider=anthropic, api.anthropic.com
-     *  - `openrouter/*`              → provider=openrouter, openrouter.ai/api/v1
-     *  - anything else (including `google/*`, `gemini-*`) → provider=gemini, Google's v1beta
-     *
-     * Hermes's entrypoint copies a default config.yaml if none exists; ours overwrites
-     * that default. If we ever need finer-grained config (channels.slack.dmPolicy, hooks,
-     * etc.) it gets added here as additional YAML sections.
-     *
-     * @param array<string, mixed> $channelConfig unused for Hermes — channels are configured
-     *                                            via env vars (SLACK_BOT_TOKEN etc.) which
-     *                                            buildDockerCompose already emits.
-     */
     #[Override]
     public function buildRuntimeConfig(
         Agent $agent,
@@ -176,13 +156,40 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
         $model = $this->normalizeModelName($rawModel, $provider);
         $baseUrl = $this->providerBaseUrl($provider);
 
-        return <<<YAML
-            model:
-              default: {$model}
-              provider: {$provider}
-              base_url: {$baseUrl}
+        $config = [
+            'model' => [
+                'default' => $model,
+                'provider' => $provider,
+                'base_url' => $baseUrl,
+            ],
+            'platforms' => [
+                'slack' => $this->resolveSlackConfig($app),
+            ],
+        ];
 
-            YAML;
+        // inline=4 keeps the top-three levels (root → model/platforms → platforms.slack → fields)
+        // expanded as a block mapping, which matches the docs' examples. indent=2 mirrors the
+        // YAML the user has been editing by hand in /opt/data/config.yaml.
+        return Yaml::dump($config, 4, 2);
+    }
+
+    /**
+     * Merge `platforms.slack` defaults with the per-app override (if any). Per-app values
+     * take precedence so admins can flip individual fields without re-specifying the
+     * compile-time defaults.
+     *
+     * @return array<string, mixed>
+     */
+    private function resolveSlackConfig(AppInterface $app): array
+    {
+        $override = $app->get(ConfigurationEnum::SLACK_CONFIG->value);
+
+        if (! is_array($override)) {
+            return self::DEFAULT_SLACK_CONFIG;
+        }
+
+        /** @var array<string, mixed> $override */
+        return array_replace(self::DEFAULT_SLACK_CONFIG, $override);
     }
 
     /**
