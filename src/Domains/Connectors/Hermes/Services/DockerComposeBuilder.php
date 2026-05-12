@@ -25,9 +25,25 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
 {
     private const string TEMPLATES_DIR = __DIR__ . '/../Templates';
 
+    /**
+     * Compile-time defaults that land under `platforms.slack.extra` in the rendered YAML.
+     *
+     * Important: Hermes ignores fields placed directly under `platforms.slack` — they MUST
+     * sit under the `extra` block to take effect. We confirmed this empirically when the
+     * agent itself reported the previous direct-under-slack placement was silently dropped
+     * and it kept threading replies despite our `reply_in_thread: false`.
+     *
+     * `reply_in_thread: false` flips Hermes's documented default (true) so bot replies land
+     * in the main channel rather than starting a new thread.
+     *
+     * Per-app override (specify only the fields you want to flip — others keep these defaults):
+     *     $app->set('hermes_slack_config', ['reply_in_thread' => true, 'require_mention' => false]);
+     *
+     * @var array<string, mixed>
+     */
     private const array DEFAULT_SLACK_CONFIG = [
-           'reply_in_thread' => false,
-       ];
+        'reply_in_thread' => false,
+    ];
 
     // Compile-time fallback pin — used when the app-level `hermes_base_image` config is unset.
     //
@@ -174,22 +190,25 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
     }
 
     /**
-     * Merge `platforms.slack` defaults with the per-app override (if any). Per-app values
-     * take precedence so admins can flip individual fields without re-specifying the
-     * compile-time defaults.
+     * Merge per-app overrides with the compile-time defaults, then wrap the whole set in
+     * an `extra:` block — that's the level Hermes actually reads platform customizations
+     * from (fields placed directly under `platforms.slack` are silently ignored).
      *
-     * @return array<string, mixed>
+     * The app config (`hermes_slack_config`) is the flat field map the user cares about;
+     * the `extra` wrapping is a Hermes-side implementation detail we handle here so admins
+     * don't need to know about it.
+     *
+     * @return array<string, mixed>  shaped `{extra: {...fields}}` ready for emission under `platforms.slack:`
      */
     private function resolveSlackConfig(AppInterface $app): array
     {
         $override = $app->get(ConfigurationEnum::SLACK_CONFIG->value);
 
-        if (! is_array($override)) {
-            return self::DEFAULT_SLACK_CONFIG;
-        }
+        $fields = is_array($override)
+            ? array_replace(self::DEFAULT_SLACK_CONFIG, $override)
+            : self::DEFAULT_SLACK_CONFIG;
 
-        /** @var array<string, mixed> $override */
-        return array_replace(self::DEFAULT_SLACK_CONFIG, $override);
+        return ['extra' => $fields];
     }
 
     /**
