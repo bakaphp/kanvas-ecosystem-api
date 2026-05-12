@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Types;
 
-use Kanvas\Connectors\OpenClaw\Actions\ChatWithAgentAction;
+use Kanvas\Connectors\AgentRuntime\Actions\ChatWithAgentAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;

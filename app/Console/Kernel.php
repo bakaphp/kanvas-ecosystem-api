@@ -10,7 +10,7 @@ use App\Console\Commands\ImportPromptsFromDocsCommand;
 use App\Console\Commands\NervousSystem\ArchiveOldLedgerEventsCommand;
 use App\Console\Commands\NervousSystem\DetectStalledPlanTasksCommand;
 use App\Console\Commands\NervousSystem\ExpireCapabilitiesCommand;
-use App\Console\Commands\OpenClaw\CollectAgentTelemetryCommand;
+use App\Console\Commands\AgentRuntime\CollectAgentTelemetryCommand;
 use App\Console\Commands\Social\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
 use App\Console\Commands\Souk\CancelStalePaymentsCommand;

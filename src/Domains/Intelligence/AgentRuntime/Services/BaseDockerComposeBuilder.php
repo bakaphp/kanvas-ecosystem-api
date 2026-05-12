@@ -18,7 +18,7 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
  *  - {provider}.json   — agent config: models, channels, gateway auth, tools, hooks
  *  - auth-profiles.json — LLM provider API keys (Google, Anthropic)
  *
- * Concrete subclasses (OpenClaw\Services\DockerComposeBuilder, Hermes\Services\DockerComposeBuilder)
+ * Concrete subclasses (AgentRuntime\Services\DockerComposeBuilder, Hermes\Services\DockerComposeBuilder)
  * implement the abstract getters that return their provider-specific ConfigurationEnum key strings
  * and CustomFieldEnum key strings.
  */

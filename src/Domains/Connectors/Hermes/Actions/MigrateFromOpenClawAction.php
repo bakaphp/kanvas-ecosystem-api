@@ -10,7 +10,7 @@ use Kanvas\Connectors\Hermes\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Hermes\Services\DockerComposeBuilder;
 use Kanvas\Connectors\Hermes\SshClient;
-use Kanvas\Connectors\OpenClaw\SshClient as OpenClawSshClient;
+use Kanvas\Connectors\AgentRuntime\SshClient as OpenClawSshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\SshClient as BaseClient;
