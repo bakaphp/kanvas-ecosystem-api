@@ -52,10 +52,17 @@ abstract class BaseDispatchAgentDeploymentAction
             ->first();
 
         if ($deployment) {
+            // Provider can legitimately change when an agent is re-launched against a different
+            // runtime (e.g. migrate from OpenClaw → Hermes). The reuse path must rewrite
+            // `provider` and `container_name` to match the current provider config, otherwise
+            // the row gets stuck claiming the original runtime and downstream routing
+            // (terminate, update, observability) targets the wrong implementation.
             $deployment->status = 'provisioning';
             $deployment->error_message = null;
             $deployment->gateway_port = $ports['gateway_port'];
             $deployment->proxy_port = $ports['proxy_port'];
+            $deployment->container_name = $config->containerPrefix . $this->agent->slug;
+            $deployment->provider = $config->providerName;
             $deployment->saveOrFail();
         } else {
             $deployment = new AgentDeployment();
