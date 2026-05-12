@@ -173,7 +173,7 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
     ): string {
         $rawModel = (string) ($app->get($this->getDefaultModelConfigKey()) ?? 'gemini-3.1-pro-preview');
         $provider = $this->detectProvider($rawModel);
-        $model = $this->normalizeModelName($rawModel);
+        $model = $this->normalizeModelName($rawModel, $provider);
         $baseUrl = $this->providerBaseUrl($provider);
 
         return <<<YAML
@@ -186,24 +186,50 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
     }
 
     /**
-     * Strip any leading `<provider>/` prefix so the model field matches what Hermes's
-     * native adapters expect.
+     * Provider-aware prefix stripping. Hermes's native adapters (gemini, anthropic) want
+     * the bare model name (`gemini-3.1-pro-preview`, `claude-opus-4`) — the docs explicitly
+     * warn against the prefixed form there. OpenRouter is the exception: it uses the full
+     * `<actual-provider>/<model>` string (e.g. `anthropic/claude-opus-4`) because that's
+     * how OpenRouter routes to the upstream backend. So we strip only when the prefix
+     * matches the resolved native provider; openrouter keeps the full string.
      */
-    private function normalizeModelName(string $model): string
+    private function normalizeModelName(string $model, string $provider): string
     {
-        $slashPos = strpos($model, '/');
-
-        return $slashPos === false ? $model : substr($model, $slashPos + 1);
-    }
-
-    private function detectProvider(string $model): string
-    {
-        if (str_starts_with($model, 'anthropic/') || str_starts_with($model, 'claude-')) {
-            return 'anthropic';
+        if ($provider === 'openrouter') {
+            // OpenRouter routing requires the full <upstream>/<model> string. If the user
+            // wrote `openrouter/foo/bar` explicitly, drop the redundant `openrouter/` so
+            // we don't end up with a double-prefix.
+            return str_starts_with($model, 'openrouter/') ? substr($model, strlen('openrouter/')) : $model;
         }
 
+        $expectedPrefixes = match ($provider) {
+            'gemini' => ['google/', 'gemini/'],
+            'anthropic' => ['anthropic/'],
+            default => [],
+        };
+
+        foreach ($expectedPrefixes as $prefix) {
+            if (str_starts_with($model, $prefix)) {
+                return substr($model, strlen($prefix));
+            }
+        }
+
+        return $model;
+    }
+
+    /**
+     * Pick the runtime provider from the model string. `openrouter/*` is explicit
+     * opt-in to OpenRouter routing; otherwise we infer from prefix or model family.
+     * If you want OpenRouter to handle a Claude model, prefix the name with `openrouter/`.
+     */
+    private function detectProvider(string $model): string
+    {
         if (str_starts_with($model, 'openrouter/')) {
             return 'openrouter';
+        }
+
+        if (str_starts_with($model, 'anthropic/') || str_starts_with($model, 'claude-')) {
+            return 'anthropic';
         }
 
         // google/*, gemini-*, gemma-*, or any unprefixed name we don't recognize — default
@@ -218,5 +244,27 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
             'openrouter' => 'https://openrouter.ai/api/v1',
             default => 'https://generativelanguage.googleapis.com/v1beta',
         };
+    }
+
+    /**
+     * Hermes uses env vars for API keys — there's no auth-profiles.json equivalent.
+     * Return null so the action skips the file entirely.
+     */
+    #[Override]
+    public function getAuthProfilesTargetPath(string $providerDir, string $agentSlug): ?string
+    {
+        return null;
+    }
+
+    /**
+     * SOUL.md lives at the root of `/opt/data` per the Hermes docs file tree
+     * (`~/.hermes/SOUL.md`). Other workspace files (AGENTS.md, IDENTITY.md, USER.md,
+     * TOOLS.md) are OpenClaw conventions with no documented Hermes home — skipping them
+     * keeps `/opt/data` clean and avoids confusing the gateway.
+     */
+    #[Override]
+    public function getWorkspaceFileTargetPath(string $providerDir, string $filename): ?string
+    {
+        return $filename === 'SOUL.md' ? $providerDir . '/' . $filename : null;
     }
 }

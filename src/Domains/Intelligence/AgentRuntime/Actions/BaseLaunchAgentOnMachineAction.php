@@ -153,18 +153,29 @@ abstract class BaseLaunchAgentOnMachineAction
             $systemUser,
         );
 
-        $agentDir = $providerDir . '/agents/' . $this->agent->slug . '/agent';
-        $client->exec('sudo mkdir -p ' . escapeshellarg($agentDir));
+        // auth-profiles.json is OpenClaw's auth shape — Hermes returns null here because
+        // it sources API keys from env vars instead.
+        $authPath = $builder->getAuthProfilesTargetPath($providerDir, $this->agent->slug);
+        if ($authPath !== null) {
+            $client->exec('sudo mkdir -p ' . escapeshellarg(dirname($authPath)));
+            $client->writeFileAsUser(
+                $authPath,
+                $builder->buildAuthProfiles($this->app),
+                $systemUser,
+            );
+        }
 
-        $client->writeFileAsUser(
-            $agentDir . '/auth-profiles.json',
-            $builder->buildAuthProfiles($this->app),
-            $systemUser,
-        );
-
+        // Workspace markdown files. The builder decides where each file goes (and may skip
+        // some): OpenClaw puts them all in $providerDir/workspace/, Hermes only writes
+        // SOUL.md at the root of $providerDir.
         $files = WorkspaceFileBuilder::buildAll($this->agent);
         foreach ($files as $filename => $content) {
-            $client->writeFileAsUser($providerDir . '/workspace/' . $filename, $content, $systemUser);
+            $target = $builder->getWorkspaceFileTargetPath($providerDir, $filename);
+            if ($target === null) {
+                continue;
+            }
+            $client->exec('sudo mkdir -p ' . escapeshellarg(dirname($target)));
+            $client->writeFileAsUser($target, $content, $systemUser);
         }
 
         $client->exec('sudo chown -R 1000:' . escapeshellarg($systemUser) . ' ' . escapeshellarg($providerDir));
