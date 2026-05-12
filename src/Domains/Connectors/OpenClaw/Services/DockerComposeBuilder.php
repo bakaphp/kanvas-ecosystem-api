@@ -27,7 +27,9 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 class DockerComposeBuilder
 {
     private const string TEMPLATES_DIR = __DIR__ . '/../Templates';
-    private const string OPENCLAW_VERSION = '2026.3.12';
+    private const string OPENCLAW_VERSION = '2026.5.3-1';
+
+    private const string OPENCLAW_BASE_IMAGE = 'ghcr.io/phioranex/openclaw-docker:20260504';
 
     public static function buildDockerfile(AppInterface $app): string
     {
@@ -37,7 +39,28 @@ class DockerComposeBuilder
             return (string) $template;
         }
 
-        return rtrim((string) file_get_contents(self::TEMPLATES_DIR . '/Dockerfile'));
+        $raw = (string) file_get_contents(self::TEMPLATES_DIR . '/Dockerfile');
+
+        return rtrim(str_replace('{{BASE_IMAGE}}', self::OPENCLAW_BASE_IMAGE, $raw));
+    }
+
+    public static function getBaseImage(): string
+    {
+        return self::OPENCLAW_BASE_IMAGE;
+    }
+
+    /**
+     * Tag portion of OPENCLAW_BASE_IMAGE (everything after the last `:`).
+     * Used as the local image tag so each pin yields a distinct, content-addressable
+     * `openclaw-kanvas:<tag>` — making "is the right version already built?" a
+     * trivial `docker image inspect` check and preventing the silent-reuse-of-stale-base
+     * bug that comes with the `:latest` tag.
+     */
+    public static function getBaseImageTag(): string
+    {
+        $colonPos = strrpos(self::OPENCLAW_BASE_IMAGE, ':');
+
+        return $colonPos === false ? 'latest' : substr(self::OPENCLAW_BASE_IMAGE, $colonPos + 1);
     }
 
     public static function buildEntrypoint(): string
@@ -74,7 +97,16 @@ class DockerComposeBuilder
         $imageName = self::getSharedImageName($app);
 
         return str_replace(
-            ['{{CONTAINER_NAME}}', '{{OPENCLAW_DIR}}', '{{GATEWAY_PORT}}', '{{PROXY_PORT}}', '{{ENV_LINES}}', '{{IMAGE_NAME}}', '{{IMAGE_DIR}}'],
+            [
+                '{{CONTAINER_NAME}}',
+                '{{OPENCLAW_DIR}}',
+                '{{GATEWAY_PORT}}',
+                '{{PROXY_PORT}}',
+                '{{ENV_LINES}}',
+                '{{IMAGE_NAME}}',
+                '{{IMAGE_DIR}}',
+                '{{BASE_IMAGE}}',
+            ],
             [
                 $deployment->container_name,
                 $deployment->home_directory . '/.openclaw',
@@ -83,6 +115,7 @@ class DockerComposeBuilder
                 $envLines,
                 $imageName,
                 self::getSharedImageDir($app),
+                self::OPENCLAW_BASE_IMAGE,
             ],
             $template,
         );
@@ -351,7 +384,15 @@ class DockerComposeBuilder
 
     public static function getSharedImageName(AppInterface $app): string
     {
-        return (string) ($app->get(ConfigurationEnum::SHARED_IMAGE_NAME->value) ?? 'openclaw-kanvas:latest');
+        // Default to a version-tagged ref (`openclaw-kanvas:<pinned-tag>`) so the image tag
+        // encodes which upstream base it was built from. A per-app override is honoured as-is
+        // — admins setting SHARED_IMAGE_NAME are responsible for including a stable tag.
+        $override = $app->get(ConfigurationEnum::SHARED_IMAGE_NAME->value);
+        if (! empty($override)) {
+            return (string) $override;
+        }
+
+        return 'openclaw-kanvas:' . self::getBaseImageTag();
     }
 
     public static function getSharedImageDir(AppInterface $app): string
