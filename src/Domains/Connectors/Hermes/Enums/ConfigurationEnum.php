@@ -31,4 +31,11 @@ enum ConfigurationEnum: string
     // bump the pin from app config without redeploying — set the new ref, then
     // re-launch (or in the future, update) the affected agents.
     case BASE_IMAGE = 'hermes_base_image';
+
+    // Slack platform config — merged into `platforms.slack:` in the agent's config.yaml.
+    // Per https://hermes-agent.nousresearch.com/docs/user-guide/messaging/slack, this controls
+    // thread/channel reply behavior, mention requirements, per-channel prompts, etc.
+    // Stored as an associative array (e.g. ['reply_in_thread' => false, 'require_mention' => true]).
+    // Defaults applied when unset live in DockerComposeBuilder::DEFAULT_SLACK_CONFIG.
+    case SLACK_CONFIG = 'hermes_slack_config';
 }
