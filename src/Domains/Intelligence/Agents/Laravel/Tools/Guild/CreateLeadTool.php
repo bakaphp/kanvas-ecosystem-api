@@ -61,6 +61,10 @@ class CreateLeadTool implements KanvasToolInterface
             lastname: $lastname ?: null,
         );
 
+        $leadTypeId = $request->integer('lead_type_id') ?: 0;
+        $leadSourceId = $request->integer('lead_source_id') ?: 0;
+        $organizationId = $request->integer('organization_id') ?: null;
+
         $leadData = new LeadData(
             app: $this->app,
             branch: $branch,
@@ -69,10 +73,17 @@ class CreateLeadTool implements KanvasToolInterface
             pipeline_stage_id: (int) $this->company->get('agent_lead_pipeline_stage_id', 0),
             people: $people,
             description: $description,
+            type_id: $leadTypeId,
+            source_id: $leadSourceId,
         );
 
         try {
             $lead = new CreateLeadAction($leadData)->execute();
+
+            if ($organizationId !== null) {
+                $lead->organization_id = $organizationId;
+                $lead->save();
+            }
         } catch (Throwable $e) {
             return "Failed to create lead: {$e->getMessage()}";
         }
@@ -80,6 +91,7 @@ class CreateLeadTool implements KanvasToolInterface
         return json_encode([
             'lead_id' => $lead->getId(),
             'title' => $lead->title,
+            'organization_id' => $lead->organization_id,
             'message' => "Lead '{$lead->title}' created successfully.",
         ], JSON_PRETTY_PRINT);
     }
@@ -108,6 +120,15 @@ class CreateLeadTool implements KanvasToolInterface
             'description' => $schema
                 ->string()
                 ->description('Full context or notes about this lead.'),
+            'lead_type_id' => $schema
+                ->integer()
+                ->description('ID returned by upsert_lead_type. Classifies the lead by event category.'),
+            'lead_source_id' => $schema
+                ->integer()
+                ->description('ID returned by upsert_lead_source. Indicates where the information came from.'),
+            'organization_id' => $schema
+                ->integer()
+                ->description('ID returned by upsert_organization. Links the lead to the company being analyzed.'),
         ];
     }
 }
