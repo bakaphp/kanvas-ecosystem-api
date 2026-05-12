@@ -27,9 +27,9 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 class DockerComposeBuilder
 {
     private const string TEMPLATES_DIR = __DIR__ . '/../Templates';
-    private const string OPENCLAW_VERSION = '2026.5.3-1';
 
-    private const string OPENCLAW_BASE_IMAGE = 'ghcr.io/phioranex/openclaw-docker:20260504';
+    private const string OPENCLAW_VERSION = '2026.3.12';
+    private const string OPENCLAW_BASE_IMAGE = 'ghcr.io/phioranex/openclaw-docker:20260312';
 
     public static function buildDockerfile(AppInterface $app): string
     {
@@ -41,26 +41,44 @@ class DockerComposeBuilder
 
         $raw = (string) file_get_contents(self::TEMPLATES_DIR . '/Dockerfile');
 
-        return rtrim(str_replace('{{BASE_IMAGE}}', self::OPENCLAW_BASE_IMAGE, $raw));
+        return rtrim(str_replace('{{BASE_IMAGE}}', self::getBaseImage($app), $raw));
     }
 
-    public static function getBaseImage(): string
+    /**
+     * Resolve the upstream Docker image ref for new builds.
+     *
+     * Reads `openclaw_base_image` from the app config first, falls back to the compile-time
+     * constant. The app-config path is the supported way to test a new upstream version or
+     * roll forward without a code deploy.
+     *
+     * Accepts a nullable AppInterface so callers that have no app context (e.g. a CLI ad-hoc
+     * inspect) still get the safe default — production call sites always pass `$app`.
+     */
+    public static function getBaseImage(?AppInterface $app = null): string
     {
+        if ($app !== null) {
+            $override = $app->get(ConfigurationEnum::BASE_IMAGE->value);
+            if (! empty($override)) {
+                return (string) $override;
+            }
+        }
+
         return self::OPENCLAW_BASE_IMAGE;
     }
 
     /**
-     * Tag portion of OPENCLAW_BASE_IMAGE (everything after the last `:`).
+     * Tag portion of the resolved base image (everything after the last `:`).
      * Used as the local image tag so each pin yields a distinct, content-addressable
      * `openclaw-kanvas:<tag>` — making "is the right version already built?" a
      * trivial `docker image inspect` check and preventing the silent-reuse-of-stale-base
      * bug that comes with the `:latest` tag.
      */
-    public static function getBaseImageTag(): string
+    public static function getBaseImageTag(?AppInterface $app = null): string
     {
-        $colonPos = strrpos(self::OPENCLAW_BASE_IMAGE, ':');
+        $image = self::getBaseImage($app);
+        $colonPos = strrpos($image, ':');
 
-        return $colonPos === false ? 'latest' : substr(self::OPENCLAW_BASE_IMAGE, $colonPos + 1);
+        return $colonPos === false ? 'latest' : substr($image, $colonPos + 1);
     }
 
     public static function buildEntrypoint(): string
@@ -115,7 +133,7 @@ class DockerComposeBuilder
                 $envLines,
                 $imageName,
                 self::getSharedImageDir($app),
-                self::OPENCLAW_BASE_IMAGE,
+                self::getBaseImage($app),
             ],
             $template,
         );
@@ -392,7 +410,7 @@ class DockerComposeBuilder
             return (string) $override;
         }
 
-        return 'openclaw-kanvas:' . self::getBaseImageTag();
+        return 'openclaw-kanvas:' . self::getBaseImageTag($app);
     }
 
     public static function getSharedImageDir(AppInterface $app): string
