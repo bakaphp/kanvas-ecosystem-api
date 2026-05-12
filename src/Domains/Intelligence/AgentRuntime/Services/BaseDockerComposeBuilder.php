@@ -160,6 +160,26 @@ abstract class BaseDockerComposeBuilder
             $envVars[$key] = $envVars[$key] ?? $default;
         }
 
+        // Emit LLM API keys as container env vars. OpenClaw also reads them from
+        // {provider}.json's auth.profiles (still written by buildRuntimeConfig), so for
+        // OpenClaw these env vars are belt-and-suspenders. Hermes's runtime *requires*
+        // them in ~/.hermes/.env — without this its gateway logs:
+        //   "No inference provider configured. ... set an API key in ~/.hermes/.env"
+        // Additional keys (OPENROUTER_API_KEY, OPENAI_API_KEY, etc.) can be added per-app
+        // via `<provider>_default_environment` — those flow through buildDefaultEnvironment().
+        $geminiApiKey = $app->get($this->getGeminiApiKeyConfigKey());
+        $googleApiKey = $app->get($this->getGoogleApiKeyConfigKey());
+        $anthropicApiKey = $app->get($this->getAnthropicApiKeyConfigKey());
+        if (! empty($geminiApiKey)) {
+            $envVars['GEMINI_API_KEY'] = (string) $geminiApiKey;
+        }
+        if (! empty($googleApiKey)) {
+            $envVars['GOOGLE_API_KEY'] = (string) $googleApiKey;
+        }
+        if (! empty($anthropicApiKey)) {
+            $envVars['ANTHROPIC_API_KEY'] = (string) $anthropicApiKey;
+        }
+
         $slackBotToken = $agent->get($this->getSlackBotTokenCustomFieldKey());
         $slackAppToken = $agent->get($this->getSlackAppTokenCustomFieldKey());
         if (! empty($slackBotToken)) {
@@ -472,10 +492,6 @@ abstract class BaseDockerComposeBuilder
     {
         $stored = $app->get($this->getDefaultEnvironmentConfigKey());
 
-        // App-config returns the stored type as-is (Json cast preserves arrays). If the caller
-        // stored an array of env vars, we get an array back. Anything else means the config
-        // was mis-stored (e.g. someone passed a JSON-encoded string) — treat as empty rather
-        // than silently parsing it, so the mistake surfaces during testing.
         if (! is_array($stored)) {
             return [];
         }
