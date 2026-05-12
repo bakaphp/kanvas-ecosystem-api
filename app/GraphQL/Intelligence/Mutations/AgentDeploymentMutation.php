@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
+use ValueError;
 
 /**
  * Provider-agnostic agent deployment mutations.
@@ -64,5 +65,71 @@ class AgentDeploymentMutation
         $provider->dispatchTermination($deployment);
 
         return true;
+    }
+
+    /**
+     * Set Slack channel tokens for an agent. If `provider` is given, writes only that
+     * provider's custom fields; if omitted, writes to ALL supported providers so the
+     * agent can be redeployed across runtimes without re-entering credentials.
+     */
+    public function setSlackTokens(mixed $root, array $request): bool
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var Agent $agent */
+        $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
+
+        $botToken = (string) $request['slack_bot_token'];
+        $appToken = (string) $request['slack_app_token'];
+
+        foreach ($this->resolveTargetProviders($request) as $provider) {
+            $provider->dispatchSetSlackTokens($agent, $botToken, $appToken);
+        }
+
+        return true;
+    }
+
+    /**
+     * Set the Telegram bot token for an agent. Same provider-targeting semantics as
+     * setSlackTokens — omit `provider` to write to every runtime's custom field.
+     */
+    public function setTelegramToken(mixed $root, array $request): bool
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var Agent $agent */
+        $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
+
+        $botToken = (string) $request['telegram_bot_token'];
+
+        foreach ($this->resolveTargetProviders($request) as $provider) {
+            $provider->dispatchSetTelegramToken($agent, $botToken);
+        }
+
+        return true;
+    }
+
+    /**
+     * If `provider` was supplied on the request, return just that one. Otherwise return every
+     * runtime-capable provider — so the caller's tokens land in all providers' custom field
+     * sets, letting an agent freely swap between OpenClaw and Hermes without losing creds.
+     *
+     * @return list<AgentProviderEnum>
+     */
+    private function resolveTargetProviders(array $request): array
+    {
+        if (! empty($request['provider'])) {
+            try {
+                return [AgentProviderEnum::from(strtolower((string) $request['provider']))];
+            } catch (ValueError) {
+                throw new ValidationException(
+                    'Unknown provider: ' . (string) $request['provider']
+                );
+            }
+        }
+
+        return [AgentProviderEnum::OPENCLAW, AgentProviderEnum::HERMES];
     }
 }
