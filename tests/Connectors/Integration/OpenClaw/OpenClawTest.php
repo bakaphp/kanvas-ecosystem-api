@@ -13,7 +13,7 @@ use Kanvas\Connectors\OpenClaw\Actions\ListAgentsAction;
 use Kanvas\Connectors\OpenClaw\Actions\RemoveAgentAction;
 use Kanvas\Connectors\OpenClaw\Actions\UpdateAgentDeploymentAction;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
-use Kanvas\Connectors\OpenClaw\Services\WorkspaceFileBuilder;
+use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Tests\Connectors\Traits\HasOpenClawConfiguration;
 use Tests\TestCase;
