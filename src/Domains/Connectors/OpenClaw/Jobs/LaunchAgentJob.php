@@ -32,7 +32,7 @@ class LaunchAgentJob implements ShouldQueue
         protected CompanyInterface $company,
         protected AgentDeployment $deployment,
     ) {
-        $this->onQueue('openclaw');
+        $this->onQueue('agent-runtime');
     }
 
     public function handle(): void

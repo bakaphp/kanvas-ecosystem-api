@@ -24,7 +24,7 @@ class TerminateAgentJob implements ShouldQueue
     public function __construct(
         protected AgentDeployment $deployment,
     ) {
-        $this->onQueue('openclaw');
+        $this->onQueue('agent-runtime');
     }
 
     public function handle(): void
