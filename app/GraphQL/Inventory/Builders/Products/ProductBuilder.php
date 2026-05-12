@@ -34,6 +34,16 @@ class ProductBuilder
         }
         $query = Products::query();
 
+        if (! empty($args['search'])) {
+            $ids = Products::search($args['search'])->take(10000)->keys()->all();
+            if (empty($ids)) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn('id', $ids)
+                    ->orderByRaw('FIELD(id, ' . implode(',', $ids) . ')');
+            }
+        }
+
         if (! empty($args['variantAttributeValue'])) {
             $query->filterByVariantAttributeValue($args['variantAttributeValue']);
         }

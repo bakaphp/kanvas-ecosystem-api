@@ -25,4 +25,10 @@ enum ConfigurationEnum: string
     case ALERT_EMAIL = 'hermes_alert_email';
     case SHARED_IMAGE_NAME = 'hermes_shared_image_name';
     case SHARED_IMAGE_DIR = 'hermes_shared_image_dir';
+
+    // Full upstream image ref, e.g. `nousresearch/hermes-agent:2026.4.1`.
+    // When set, overrides the compile-time pin in DockerComposeBuilder. Lets us
+    // bump the pin from app config without redeploying — set the new ref, then
+    // re-launch (or in the future, update) the affected agents.
+    case BASE_IMAGE = 'hermes_base_image';
 }

@@ -13,6 +13,7 @@ use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
+use Override;
 
 /**
  * OpenClaw-specific dispatch — thin subclass that wires the provider config and launch job.
@@ -21,11 +22,13 @@ use Kanvas\Intelligence\Agents\Models\AgentMachine;
  */
 class DispatchAgentDeploymentAction extends BaseDispatchAgentDeploymentAction
 {
+    #[Override]
     protected function getProviderConfig(): ProviderConfig
     {
         return SshClient::makeProviderConfig();
     }
 
+    #[Override]
     protected function dispatchLaunchJob(
         Agent $agent,
         AgentMachine $machine,
