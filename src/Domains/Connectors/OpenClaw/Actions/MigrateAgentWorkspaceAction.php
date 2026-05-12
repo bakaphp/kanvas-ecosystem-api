@@ -8,10 +8,10 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
-use Kanvas\Connectors\OpenClaw\Enums\DeploymentStatusEnum;
 use Kanvas\Connectors\OpenClaw\Services\DockerComposeBuilder;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
@@ -212,8 +212,9 @@ class MigrateAgentWorkspaceAction
         $agent = $deployment->agent;
 
         // Build the shared image on the destination if it doesn't exist yet.
-        $imageName = DockerComposeBuilder::getSharedImageName($this->app);
-        $imageDir = DockerComposeBuilder::getSharedImageDir($this->app);
+        $builder = new DockerComposeBuilder();
+        $imageName = $builder->getSharedImageName($this->app);
+        $imageDir = $builder->getSharedImageDir($this->app);
         $exists = $client->exec('docker image inspect ' . escapeshellarg($imageName) . ' &>/dev/null && echo "EXISTS" || echo "MISSING"');
         if (str_contains($exists, 'MISSING')) {
             $buildResult = $client->exec(
@@ -227,7 +228,7 @@ class MigrateAgentWorkspaceAction
 
         // Rewrite docker-compose.yml with the destination machine's allocated ports.
         $gatewayToken = $this->company->get(ConfigurationEnum::GATEWAY_TOKEN->value) ?? bin2hex(random_bytes(32));
-        $composeContent = DockerComposeBuilder::buildDockerCompose($deployment, (string) $gatewayToken, $this->app, $agent);
+        $composeContent = $builder->buildDockerCompose($deployment, (string) $gatewayToken, $this->app, $agent);
         $client->writeFileAsUser($openclawDir . '/docker-compose.yml', $composeContent, $deployment->system_user);
 
         // Stop existing containers if any, then start fresh.
