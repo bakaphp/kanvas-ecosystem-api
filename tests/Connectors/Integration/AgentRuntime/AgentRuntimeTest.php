@@ -13,7 +13,7 @@ use Kanvas\Connectors\AgentRuntime\Actions\ListAgentsAction;
 use Kanvas\Connectors\AgentRuntime\Actions\RemoveAgentAction;
 use Kanvas\Connectors\AgentRuntime\Actions\UpdateAgentDeploymentAction;
 use Kanvas\Connectors\AgentRuntime\Enums\CustomFieldEnum;
-use Kanvas\Connectors\AgentRuntime\Services\WorkspaceFileBuilder;
+use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Tests\Connectors\Traits\HasAgentRuntimeConfiguration;
 use Tests\TestCase;
