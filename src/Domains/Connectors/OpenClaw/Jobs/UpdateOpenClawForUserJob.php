@@ -11,6 +11,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Connectors\OpenClaw\Enums\DeploymentStatusEnum;
 use Kanvas\Connectors\OpenClaw\Events\AgentDeploymentStatusChanged;
+use Kanvas\Connectors\OpenClaw\Services\DockerComposeBuilder;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
@@ -55,6 +56,7 @@ class UpdateOpenClawForUserJob implements ShouldQueue
             $this->setDeploymentStatus(DeploymentStatusEnum::RUNNING);
         } catch (Throwable $e) {
             $this->setDeploymentStatus(DeploymentStatusEnum::FAILED, $e->getMessage());
+
             throw $e;
         } finally {
             $client->disconnect();
@@ -63,9 +65,14 @@ class UpdateOpenClawForUserJob implements ShouldQueue
 
     private function runUpdate(SshClient $client, string $composeFile): void
     {
+        // Pulls the pinned base image (DockerComposeBuilder::OPENCLAW_BASE_IMAGE) — NOT `:latest`.
+        // This job is only triggered manually via the agentMachineUpdate mutation, so running it
+        // is an explicit operator decision to bring this machine to the currently pinned version.
+        $baseImage = DockerComposeBuilder::getBaseImage();
+
         $script = implode(' && ', [
             'docker pull alpine/socat 2>&1',
-            'docker pull ghcr.io/phioranex/openclaw-docker:latest 2>&1',
+            'docker pull ' . escapeshellarg($baseImage) . ' 2>&1',
             'docker build --no-cache -t openclaw-kanvas:latest /opt/openclaw-image 2>&1',
             'docker compose -f ' . escapeshellarg($composeFile)
                 . ' up -d --force-recreate 2>&1',

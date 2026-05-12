@@ -27,7 +27,9 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 class DockerComposeBuilder
 {
     private const string TEMPLATES_DIR = __DIR__ . '/../Templates';
-    private const string OPENCLAW_VERSION = '2026.3.12';
+    private const string OPENCLAW_VERSION = '2026.5.3-1';
+
+    private const string OPENCLAW_BASE_IMAGE = 'ghcr.io/phioranex/openclaw-docker:20260504';
 
     public static function buildDockerfile(AppInterface $app): string
     {
@@ -37,7 +39,14 @@ class DockerComposeBuilder
             return (string) $template;
         }
 
-        return rtrim((string) file_get_contents(self::TEMPLATES_DIR . '/Dockerfile'));
+        $raw = (string) file_get_contents(self::TEMPLATES_DIR . '/Dockerfile');
+
+        return rtrim(str_replace('{{BASE_IMAGE}}', self::OPENCLAW_BASE_IMAGE, $raw));
+    }
+
+    public static function getBaseImage(): string
+    {
+        return self::OPENCLAW_BASE_IMAGE;
     }
 
     public static function buildEntrypoint(): string
@@ -74,7 +83,16 @@ class DockerComposeBuilder
         $imageName = self::getSharedImageName($app);
 
         return str_replace(
-            ['{{CONTAINER_NAME}}', '{{OPENCLAW_DIR}}', '{{GATEWAY_PORT}}', '{{PROXY_PORT}}', '{{ENV_LINES}}', '{{IMAGE_NAME}}', '{{IMAGE_DIR}}'],
+            [
+                '{{CONTAINER_NAME}}',
+                '{{OPENCLAW_DIR}}',
+                '{{GATEWAY_PORT}}',
+                '{{PROXY_PORT}}',
+                '{{ENV_LINES}}',
+                '{{IMAGE_NAME}}',
+                '{{IMAGE_DIR}}',
+                '{{BASE_IMAGE}}',
+            ],
             [
                 $deployment->container_name,
                 $deployment->home_directory . '/.openclaw',
@@ -83,6 +101,7 @@ class DockerComposeBuilder
                 $envLines,
                 $imageName,
                 self::getSharedImageDir($app),
+                self::OPENCLAW_BASE_IMAGE,
             ],
             $template,
         );
