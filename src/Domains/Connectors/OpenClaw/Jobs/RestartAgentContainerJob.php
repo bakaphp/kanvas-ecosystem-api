@@ -10,7 +10,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Connectors\OpenClaw\Actions\RestartAgentContainerAction;
-use Kanvas\Connectors\OpenClaw\Events\AgentDeploymentStatusChanged;
+use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Throwable;
 
@@ -24,7 +24,7 @@ class RestartAgentContainerJob implements ShouldQueue
     public function __construct(
         protected AgentDeployment $deployment,
     ) {
-        $this->onQueue('openclaw');
+        $this->onQueue('agent-runtime');
     }
 
     public function handle(): void

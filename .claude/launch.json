@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "kanvas-admin",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "/Users/mcwhite/Documents/docker_projects/kanvas/kanvas-core-admin-v2", "dev"],
+      "port": 3000
+    }
+  ]
+}

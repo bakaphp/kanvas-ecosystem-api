@@ -275,13 +275,13 @@ services:
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=workflow
         --tries=3  --timeout=3750"
-  openclaw-queue:
+  agent-runtime-queue:
     <<: *common-queue-settings
-    container_name: openclaw-queue
+    container_name: agent-runtime-queue
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=openclaw
+      - "php artisan config:cache && php artisan queue:work --queue=agent-runtime
         --tries=3 --timeout=3750"
   ledger-queue:
     <<: *common-queue-settings
