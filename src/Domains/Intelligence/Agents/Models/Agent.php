@@ -261,7 +261,7 @@ class Agent extends BaseModel
     public function toSearchableArray(): array
     {
         return [
-            'id' => $this->id,
+            'id' => (string) $this->id,
             'apps_id' => $this->apps_id,
             'companies_id' => $this->companies_id,
             'name' => $this->name,
@@ -276,6 +276,23 @@ class Agent extends BaseModel
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted();
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                ['name' => 'id', 'type' => 'string'],
+                ['name' => 'apps_id', 'type' => 'int64'],
+                ['name' => 'companies_id', 'type' => 'int64'],
+                ['name' => 'name', 'type' => 'string', 'optional' => true],
+                ['name' => 'slug', 'type' => 'string', 'optional' => true],
+                ['name' => 'description', 'type' => 'string', 'optional' => true],
+                ['name' => 'deployment_status', 'type' => 'string', 'optional' => true],
+                ['name' => 'is_active', 'type' => 'bool', 'optional' => true],
+            ],
+        ];
     }
 
     public static function search($query = '', $callback = null)

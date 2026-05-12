@@ -10,7 +10,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Connectors\OpenClaw\Actions\TerminateAgentOnMachineAction;
-use Kanvas\Connectors\OpenClaw\Events\AgentDeploymentStatusChanged;
+use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Throwable;
 

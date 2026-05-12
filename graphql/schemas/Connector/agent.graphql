@@ -1,0 +1,11 @@
+enum AgentProvider {
+    OPENCLAW
+    HERMES
+}
+
+extend type Mutation @guard {
+    launchAgent(input: LaunchAgentInput!): AgentDeploymentType!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Agents\\Mutations\\AgentDeploymentMutation@launch"
+        )
+}

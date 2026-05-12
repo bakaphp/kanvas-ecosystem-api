@@ -118,6 +118,42 @@ class CompaniesBranches extends BaseModel
         return (int) $this->get('total_users');
     }
 
+    public function searchableAs(): string
+    {
+        return config('scout.prefix') . 'company_branches';
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => (string) $this->id,
+            'companies_id' => $this->companies_id,
+            'users_id' => $this->users_id,
+            'name' => $this->name ?? '',
+            'email' => $this->email ?? '',
+            'phone' => $this->phone ?? '',
+            'is_default' => (int) $this->is_default,
+            'is_active' => (int) $this->is_active,
+        ];
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                ['name' => 'id', 'type' => 'string'],
+                ['name' => 'companies_id', 'type' => 'int64'],
+                ['name' => 'users_id', 'type' => 'int64'],
+                ['name' => 'name', 'type' => 'string', 'optional' => true],
+                ['name' => 'email', 'type' => 'string', 'optional' => true],
+                ['name' => 'phone', 'type' => 'string', 'optional' => true],
+                ['name' => 'is_default', 'type' => 'int32', 'optional' => true],
+                ['name' => 'is_active', 'type' => 'int32', 'optional' => true],
+            ],
+        ];
+    }
+
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted();

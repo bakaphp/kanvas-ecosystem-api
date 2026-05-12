@@ -44,6 +44,8 @@ trait HandlesSupportModeDelayedResponseTrait
         $supportMode = $lead->get($configService->getAiModeKey($lead)) == IntelligenceModeEnum::SUPPORT->value;
 
         if (! $supportMode) {
+            UnrespondedLeadAgentMessageCache::clear($lead, $channel);
+
             return null;
         }
 

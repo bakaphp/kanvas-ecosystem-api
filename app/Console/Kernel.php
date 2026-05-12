@@ -62,7 +62,6 @@ class Kernel extends ConsoleKernel
                     ->everyMinute()
                     ->withoutOverlapping(5)
                     ->runInBackground(); */
-
         //$schedule->command(SendBookingRemindersCommand::class)->everyFiveMinutes();
         #$schedule->command(ScoutMessageReindexCommand::class, [env('MESSAGE_REINDEX_SCOUT_APP_ID', '13'), env('MESSAGE_REINDEX_SCOUT_MESSAGE_TYPES_ID', '572')])->everyTenMinutes();
         #$schedule->command(MailunregisteredUsersCampaignCommand::class)->weeklyOn(2, '2:30'); //@todo move this to normal cron

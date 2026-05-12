@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenClaw\Actions;
 
-use Kanvas\Connectors\OpenClaw\Enums\DeploymentStatusEnum;
 use Kanvas\Connectors\OpenClaw\SshClient;
+use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
 /**
@@ -76,8 +76,8 @@ class GetAgentContainerStatusAction
 
             $this->deployment->status = match (true) {
                 $state === 'running' => DeploymentStatusEnum::RUNNING->value,
-                $state === 'exited'  => DeploymentStatusEnum::STOPPED->value,
-                default              => $this->deployment->status,
+                $state === 'exited' => DeploymentStatusEnum::STOPPED->value,
+                default => $this->deployment->status,
             };
 
             return;

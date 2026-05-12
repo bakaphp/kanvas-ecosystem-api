@@ -48,6 +48,7 @@ class AgentDeployment extends BaseModel
         'gateway_port',
         'proxy_port',
         'container_name',
+        'provider',
         'status',
         'launched_at',
         'terminated_at',

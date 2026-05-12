@@ -90,7 +90,7 @@ class ProcessAgentChatAction
             )->execute();
         }
 
-        $handler->setConfiguration($this->agent, $this->session?->entity());
+        $handler->setConfiguration($this->agent, $this->session?->entity(), null, $this->user);
 
         return new RunNeuronChatAction(
             agent: $this->agent,
