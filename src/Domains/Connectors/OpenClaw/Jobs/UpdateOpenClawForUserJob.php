@@ -78,7 +78,7 @@ class UpdateOpenClawForUserJob implements ShouldQueue
         //     force-recreate. Other agents on the same machine keep their old compose +
         //     keep running their old image — old ones stay put until you update them.
         $app = $this->machine->app;
-        $baseImage = DockerComposeBuilder::getBaseImage();
+        $baseImage = DockerComposeBuilder::getBaseImage($app);
         $sharedImageRef = DockerComposeBuilder::getSharedImageName($app);
         $imageDir = DockerComposeBuilder::getSharedImageDir($app);
 
