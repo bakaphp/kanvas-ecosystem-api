@@ -226,7 +226,7 @@ extend type Mutation @guard {
 
 extend type Query @guard {
     products(
-        search: String @search
+        search: String
         variantAttributeValue: String
         variantAttributeOrderBy: ProductAttributeOrderBy
         attributeOrderBy: ProductAttributeOrderBy

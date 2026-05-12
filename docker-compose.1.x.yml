@@ -265,6 +265,27 @@ services:
       - "sh"
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=ledger --tries=3 --timeout=3750"
+  reverb:
+    container_name: reverb
+    restart: always
+    image: php-app-image
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan reverb:start --host=0.0.0.0 --port=9000"
+    environment:
+      WWWUSER: "${WWWUSER}"
+      LARAVEL_SAIL: 1
+    ports:
+      - "9000:9000"
+    volumes:
+      - ".:/var/www/html"
+      - ./docker/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
+      - ./docker/php.ini:/usr/local/etc/php/conf.d/xz-custom.ini
+    networks:
+      - sail
   laravel-scheduler:
     container_name: laravel-scheduler
     restart: always

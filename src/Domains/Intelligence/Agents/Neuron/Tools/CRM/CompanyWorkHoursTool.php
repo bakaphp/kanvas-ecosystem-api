@@ -2,18 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Tools;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Enums\ConfigurationEnum;
-use Kanvas\Intelligence\Contracts\ContextToolInterface;
-use Override;
+use Kanvas\Companies\Models\Companies;
+use NeuronAI\Tools\PropertyType as ToolsPropertyType;
+use NeuronAI\Tools\Tool;
+use NeuronAI\Tools\ToolProperty;
 use Yasumi\Yasumi;
 
-use function Illuminate\Log\log;
-
-class CompanyWorkHoursTool implements ContextToolInterface
+class CompanyWorkHoursTool extends Tool
 {
     protected Carbon $now;
     protected ?array $weeklyHours = null;
@@ -21,28 +20,44 @@ class CompanyWorkHoursTool implements ContextToolInterface
     protected ?array $workingDays = null;
     protected array $companyObservedHolidays = [];
 
-    public function __construct(
-        protected Model $entity
-    ) {
-        $tz = $this->entity->company->timezone ?? 'UTC';
-        log($tz);
+    public function __construct()
+    {
+        parent::__construct(
+            name: 'get_company_work_hours',
+            description: 'Get the current company work hours status (work_hours or after_hours), schedule, current time based on company timezone, company timezone, and next open time.',
+        );
+    }
+
+    protected function properties(): array
+    {
+        return [
+            new ToolProperty(
+                name: 'companies_id',
+                type: ToolsPropertyType::INTEGER,
+                description: 'The ID of the company to check work hours for.',
+                required: true,
+            ),
+        ];
+    }
+
+    public function __invoke(int $companies_id): array
+    {
+        $company = Companies::getById($companies_id);
+
+        $tz = $company->timezone ?? 'UTC';
         $this->now = Carbon::now($tz);
 
-        $this->simpleHours = $this->entity->company->get(ConfigurationEnum::WORKING_HOURS->value) ?? null;
+        $this->simpleHours = $company->get(ConfigurationEnum::WORKING_HOURS->value) ?? null;
         $this->workingDays = $this->normalizeDays(
-            $this->entity->company->get(ConfigurationEnum::WORKING_DAYS->value) ?? []
+            $company->get(ConfigurationEnum::WORKING_DAYS->value) ?? []
         );
-        $this->companyObservedHolidays = $this->entity->company->get(ConfigurationEnum::WORKING_HOLIDAY_DAYS->value) ?? [];
+        $this->companyObservedHolidays = $company->get(ConfigurationEnum::WORKING_HOLIDAY_DAYS->value) ?? [];
 
         if ($this->looksLikeWeeklyMap($this->simpleHours ?? [])) {
             $this->weeklyHours = $this->simpleHours;
             $this->simpleHours = null;
         }
-    }
 
-    #[Override]
-    public function execute(array $params = []): array
-    {
         [$opensAt, $closesAt] = $this->getTodayOpenClose($this->now);
 
         $holidayInfo = $this->getHolidayInfo($this->now);
@@ -51,14 +66,13 @@ class CompanyWorkHoursTool implements ContextToolInterface
 
         return [
             'status' => $status,
-            'weekday' => $this->now->englishDayOfWeek,
+            'weekday' => $this->now->dayName,
             'opens_at_local' => $opensAt?->format('H:i') ?? '',
             'closes_at_local' => $closesAt?->format('H:i') ?? '',
             'next_open_iso' => $nextOpen->toIso8601String(),
             'next_open_human' => $nextOpen->format('l jS \\a\\t h:i A'),
             'current_time' => $this->now->format('Y-m-d H:i:s'),
-            //'is_holiday' => $holidayInfo['is_observed_holiday'],
-            //'holiday_name' => $holidayInfo['holiday_name'],
+            'company_timezone' => $company->timezone,
         ];
     }
 
@@ -69,20 +83,14 @@ class CompanyWorkHoursTool implements ContextToolInterface
         array $holidayInfo
     ): string {
         if ($holidayInfo['is_observed_holiday']) {
-            log('holyday');
-
             return 'after_hours';
         }
 
         if (! $this->isWorkingDay($now)) {
-            log('working day');
-
             return 'after_hours';
         }
 
         if (! $opensAt || ! $closesAt) {
-            log('open ast');
-
             return 'after_hours';
         }
 
@@ -125,7 +133,7 @@ class CompanyWorkHoursTool implements ContextToolInterface
         }
 
         if ($this->weeklyHours) {
-            return $this->getOpenCloseForDayName($ref->englishDayOfWeek, $ref);
+            return $this->getOpenCloseForDayName($ref->dayName, $ref);
         }
 
         return [null, null];
@@ -135,6 +143,7 @@ class CompanyWorkHoursTool implements ContextToolInterface
     {
         $key = $this->normalizeDayName($dayName);
         $hours = $this->weeklyHours[$key] ?? null;
+
         if (! $hours || trim($hours) === '' || stripos($hours, '-') === false) {
             return [null, null];
         }
@@ -153,7 +162,7 @@ class CompanyWorkHoursTool implements ContextToolInterface
         for ($i = 0; $i < 14; $i++) {
             $holidayInfo = $this->getHolidayInfo($cursor);
             if (! $holidayInfo['is_observed_holiday'] && $this->isWorkingDay($cursor)) {
-                [$open, $close] = $this->getOpenCloseForDayName($cursor->englishDayOfWeek, $cursor);
+                [$open, $close] = $this->getOpenCloseForDayName($cursor->dayName, $cursor);
                 if ($open && $close) {
                     return $open->copy();
                 }
@@ -169,7 +178,7 @@ class CompanyWorkHoursTool implements ContextToolInterface
         if (empty($this->workingDays)) {
             return true;
         }
-        $name = $this->normalizeDayName($date->englishDayOfWeek);
+        $name = $this->normalizeDayName($date->dayName);
 
         return in_array($name, $this->workingDays, true);
     }
