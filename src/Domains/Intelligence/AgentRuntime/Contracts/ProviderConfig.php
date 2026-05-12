@@ -18,7 +18,7 @@ final readonly class ProviderConfig
         public string $providerName,
         /** Prefix for container_name field ('openclaw-' | 'hermes-') */
         public string $containerPrefix,
-        /** Laravel queue name for this provider's jobs ('openclaw' | 'hermes') */
+        /** Laravel queue name for this provider's jobs. Both providers currently share 'agent-runtime' — split when a provider's job volume warrants its own worker fleet. */
         public string $queueName,
         /** Hidden dot-directory name on the host ('..openclaw' | '.hermes') */
         public string $dotDir,

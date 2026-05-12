@@ -27,7 +27,7 @@ class ExecDeploymentCommandJob implements ShouldQueue
         protected string $command,
         protected string $sessionId,
     ) {
-        $this->onQueue('openclaw');
+        $this->onQueue('agent-runtime');
     }
 
     /**
