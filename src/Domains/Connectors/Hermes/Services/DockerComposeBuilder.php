@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Hermes\Services;
 
+use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\Hermes\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Override;
 
 /**
@@ -135,5 +137,86 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
     public function getLocalImageNamePrefix(): string
     {
         return 'hermes-kanvas';
+    }
+
+    /**
+     * Hermes uses a flat YAML config at `/opt/data/config.yaml` (NOT the nested JSON shape
+     * OpenClaw uses). Documented at https://hermes-agent.nousresearch.com/docs/user-guide/configuration
+     * and https://hermes-agent.nousresearch.com/docs/guides/google-gemini.
+     *
+     * Hermes resolves API keys purely from env vars (we emit those in buildDockerCompose),
+     * so there's no `auth.profiles` section — just `model`. The model name MUST be the
+     * native form when `provider: gemini` (e.g. `gemini-3.1-pro-preview`), not the
+     * OpenRouter-style `google/gemini-3.1-pro-preview` — the docs explicitly warn against
+     * the prefixed form with the native gemini provider. We strip any provider prefix
+     * for callers who use the OpenRouter-style strings.
+     *
+     * Provider routing is derived from the configured model name:
+     *  - `anthropic/*` or `claude-*` → provider=anthropic, api.anthropic.com
+     *  - `openrouter/*`              → provider=openrouter, openrouter.ai/api/v1
+     *  - anything else (including `google/*`, `gemini-*`) → provider=gemini, Google's v1beta
+     *
+     * Hermes's entrypoint copies a default config.yaml if none exists; ours overwrites
+     * that default. If we ever need finer-grained config (channels.slack.dmPolicy, hooks,
+     * etc.) it gets added here as additional YAML sections.
+     *
+     * @param array<string, mixed> $channelConfig unused for Hermes — channels are configured
+     *                                            via env vars (SLACK_BOT_TOKEN etc.) which
+     *                                            buildDockerCompose already emits.
+     */
+    #[Override]
+    public function buildRuntimeConfig(
+        Agent $agent,
+        string $gatewayToken,
+        AppInterface $app,
+        array $channelConfig = [],
+    ): string {
+        $rawModel = (string) ($app->get($this->getDefaultModelConfigKey()) ?? 'gemini-3.1-pro-preview');
+        $provider = $this->detectProvider($rawModel);
+        $model = $this->normalizeModelName($rawModel);
+        $baseUrl = $this->providerBaseUrl($provider);
+
+        return <<<YAML
+            model:
+              default: {$model}
+              provider: {$provider}
+              base_url: {$baseUrl}
+
+            YAML;
+    }
+
+    /**
+     * Strip any leading `<provider>/` prefix so the model field matches what Hermes's
+     * native adapters expect.
+     */
+    private function normalizeModelName(string $model): string
+    {
+        $slashPos = strpos($model, '/');
+
+        return $slashPos === false ? $model : substr($model, $slashPos + 1);
+    }
+
+    private function detectProvider(string $model): string
+    {
+        if (str_starts_with($model, 'anthropic/') || str_starts_with($model, 'claude-')) {
+            return 'anthropic';
+        }
+
+        if (str_starts_with($model, 'openrouter/')) {
+            return 'openrouter';
+        }
+
+        // google/*, gemini-*, gemma-*, or any unprefixed name we don't recognize — default
+        // to gemini since that's the most common Hermes pairing.
+        return 'gemini';
+    }
+
+    private function providerBaseUrl(string $provider): string
+    {
+        return match ($provider) {
+            'anthropic' => 'https://api.anthropic.com',
+            'openrouter' => 'https://openrouter.ai/api/v1',
+            default => 'https://generativelanguage.googleapis.com/v1beta',
+        };
     }
 }
