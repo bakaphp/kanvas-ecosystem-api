@@ -37,6 +37,7 @@ class IntelligenceCRM extends BaseKanvasAgent
     //     );
     // }
 
+    #[Override]
     protected function chatHistory(): AbstractChatHistory
     {
         if ($this->entity === null || $this->user === null) {

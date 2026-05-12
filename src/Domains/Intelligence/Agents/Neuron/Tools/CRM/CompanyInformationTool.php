@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use Override;
 use Yasumi\Yasumi;
 
 class CompanyInformationTool extends Tool
@@ -22,6 +23,7 @@ class CompanyInformationTool extends Tool
         );
     }
 
+    #[Override]
     protected function properties(): array
     {
         return [

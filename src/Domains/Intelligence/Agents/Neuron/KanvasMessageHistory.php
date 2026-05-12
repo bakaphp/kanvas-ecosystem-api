@@ -18,6 +18,7 @@ use NeuronAI\Chat\History\ChatHistoryInterface;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\UserMessage;
+use Override;
 
 class KanvasMessageHistory extends AbstractChatHistory
 {
@@ -120,6 +121,7 @@ class KanvasMessageHistory extends AbstractChatHistory
         }
     }
 
+    #[Override]
     public function addMessage(Message $message): ChatHistoryInterface
     {
         $last = end($this->history) ?: null;
@@ -147,6 +149,7 @@ class KanvasMessageHistory extends AbstractChatHistory
         return class_basename($this->entity) . ':' . $this->entity->getKey();
     }
 
+    #[Override]
     protected function onNewMessage(Message $message): void
     {
         $role = $message->getRole();

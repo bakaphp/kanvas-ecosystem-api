@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use Override;
 use Yasumi\Yasumi;
 
 class CompanyWorkHoursTool extends Tool
@@ -28,6 +29,7 @@ class CompanyWorkHoursTool extends Tool
         );
     }
 
+    #[Override]
     protected function properties(): array
     {
         return [

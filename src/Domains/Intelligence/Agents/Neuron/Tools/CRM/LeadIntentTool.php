@@ -8,6 +8,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use Override;
 
 class LeadIntentTool extends Tool
 {
@@ -19,6 +20,7 @@ class LeadIntentTool extends Tool
         );
     }
 
+    #[Override]
     protected function properties(): array
     {
         return [
