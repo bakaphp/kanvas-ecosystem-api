@@ -470,17 +470,17 @@ abstract class BaseDockerComposeBuilder
      */
     public function buildDefaultEnvironment(AppInterface $app): array
     {
-        $envJson = $app->get($this->getDefaultEnvironmentConfigKey());
+        $stored = $app->get($this->getDefaultEnvironmentConfigKey());
 
-        if (! empty($envJson)) {
-            $decoded = json_decode((string) $envJson, true);
-
-            if (is_array($decoded)) {
-                /** @var array<string, string> $decoded */
-                return $decoded;
-            }
+        // App-config returns the stored type as-is (Json cast preserves arrays). If the caller
+        // stored an array of env vars, we get an array back. Anything else means the config
+        // was mis-stored (e.g. someone passed a JSON-encoded string) — treat as empty rather
+        // than silently parsing it, so the mistake surfaces during testing.
+        if (! is_array($stored)) {
+            return [];
         }
 
-        return [];
+        /** @var array<string, string> $stored */
+        return $stored;
     }
 }
