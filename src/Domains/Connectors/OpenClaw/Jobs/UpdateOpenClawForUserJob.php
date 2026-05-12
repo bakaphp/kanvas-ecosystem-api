@@ -65,15 +65,38 @@ class UpdateOpenClawForUserJob implements ShouldQueue
 
     private function runUpdate(SshClient $client, string $composeFile): void
     {
-        // Pulls the pinned base image (DockerComposeBuilder::OPENCLAW_BASE_IMAGE) — NOT `:latest`.
-        // This job is only triggered manually via the agentMachineUpdate mutation, so running it
-        // is an explicit operator decision to bring this machine to the currently pinned version.
+        // Triggered manually via the agentMachineUpdate mutation — running it is an explicit
+        // operator decision to bring this machine to the currently pinned version.
+        //
+        // Four steps:
+        //  1. Rewrite the on-disk Dockerfile from the (now-pinned) template so `docker build`
+        //     uses the current FROM, not whatever stale `:latest` line was deployed originally.
+        //  2. Pull the pinned base.
+        //  3. Build the local image with a version-tagged ref (e.g. openclaw-kanvas:20260504)
+        //     so the tag itself records which upstream the local image was built from.
+        //  4. Patch the agent's compose file `image:` line to the new versioned ref, then
+        //     force-recreate. Other agents on the same machine keep their old compose +
+        //     keep running their old image — old ones stay put until you update them.
+        $app = $this->machine->app;
         $baseImage = DockerComposeBuilder::getBaseImage();
+        $sharedImageRef = DockerComposeBuilder::getSharedImageName($app);
+        $imageDir = DockerComposeBuilder::getSharedImageDir($app);
+
+        $client->writeFileAsUser(
+            $imageDir . '/Dockerfile',
+            DockerComposeBuilder::buildDockerfile($app),
+            'root',
+        );
 
         $script = implode(' && ', [
             'docker pull alpine/socat 2>&1',
             'docker pull ' . escapeshellarg($baseImage) . ' 2>&1',
-            'docker build --no-cache -t openclaw-kanvas:latest /opt/openclaw-image 2>&1',
+            'cd ' . escapeshellarg($imageDir)
+                . ' && docker build --no-cache -t ' . escapeshellarg($sharedImageRef) . ' . 2>&1',
+            // Point this agent's compose at the freshly-built versioned tag. Match any
+            // existing `image: openclaw-kanvas:<anything>` line so we tolerate upgrades
+            // from both legacy `:latest` and previous pinned versions.
+            "sed -i 's|image: openclaw-kanvas:[^[:space:]]*|image: " . $sharedImageRef . "|g' " . escapeshellarg($composeFile),
             'docker compose -f ' . escapeshellarg($composeFile)
                 . ' up -d --force-recreate 2>&1',
         ]);
