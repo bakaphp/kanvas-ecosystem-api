@@ -24,7 +24,7 @@ use Symfony\Component\Yaml\Yaml;
 class DockerComposeBuilder extends BaseDockerComposeBuilder
 {
     private const string TEMPLATES_DIR = __DIR__ . '/../Templates';
-    
+
     private const array DEFAULT_SLACK_CONFIG = [
            'reply_in_thread' => false,
        ];
