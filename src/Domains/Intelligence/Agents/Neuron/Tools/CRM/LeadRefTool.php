@@ -49,6 +49,7 @@ class LeadRefTool extends Tool
         return json_encode([
             'lead_id' => $lead->id,
             'lead_uuid' => $lead->uuid,
+            'apps_id' => $lead->app->getId(),
             'title' => $lead->title,
             'firstname' => $lead->firstname,
             'lastname' => $lead->lastname,
@@ -61,7 +62,6 @@ class LeadRefTool extends Tool
             'pipeline' => $lead->pipeline()->first()?->name,
             'stage' => $lead->stage()->first()?->name,
             'is_handed_off' => (bool) ($lead->get(ConfigurationEnum::AGENT_HAND_OFF->value) ?? false),
-
             'owner' => $lead->owner ? [
                 'id' => $lead->owner->id,
                 'name' => trim($lead->owner->firstname . ' ' . $lead->owner->lastname),

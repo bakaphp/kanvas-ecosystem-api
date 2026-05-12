@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -19,7 +16,7 @@ class InventorySearchTool extends Tool
     {
         parent::__construct(
             name: 'inventory_search',
-            description: 'Search for products in the inventory by name and check their availability and stock levels.',
+            description: 'Search for products in the inventory using the search engine (Typesense/Algolia) over name, description and translations. Accepts free-form natural-language queries (e.g. "toyota azul 5 puertas"); the search engine ranks results by relevance even when not all terms map to indexed fields. Returns availability and stock levels.',
         );
     }
 
@@ -29,45 +26,25 @@ class InventorySearchTool extends Tool
             new ToolProperty(
                 name: 'product_name',
                 type: ToolsPropertyType::STRING,
-                description: 'The product name or keyword to search for in the inventory.',
-                required: true,
-            ),
-            new ToolProperty(
-                name: 'companies_id',
-                type: ToolsPropertyType::INTEGER,
-                description: 'The ID of the company to search within.',
-                required: true,
-            ),
-            new ToolProperty(
-                name: 'apps_id',
-                type: ToolsPropertyType::INTEGER,
-                description: 'The ID of the app context.',
+                description: 'The free-form search query. Can be a product name, keywords, or a natural-language phrase. The search engine matches across name, description and translations.',
                 required: true,
             ),
         ];
     }
 
-    public function __invoke(string $product_name, int $companies_id, int $apps_id): array
+    public function __invoke(string $product_name): array
     {
-        $app = Apps::getById($apps_id);
-        $company = Companies::getById($companies_id);
-        $allowCrossCompany = (bool) $app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
-
-        $builder = Products::fromApp($app)
-            ->notDeleted()
-            ->where('name', 'like', '%' . $product_name . '%')
-            ->with('variants')
-            ->limit(10);
-
-        if (! $allowCrossCompany) {
-            $builder->fromCompany($company);
+        try {
+            $products = Products::search($product_name)->take(10)->get();
+        } catch (Throwable $e) {
+            return ['message' => "Search failed: {$e->getMessage()}"];
         }
-
-        $products = $builder->get();
 
         if ($products->isEmpty()) {
             return ['message' => "No products found matching '{$product_name}'."];
         }
+
+        $products->load('variants');
 
         return $products->map(function (Products $product) {
             $variants = $product->variants;
@@ -89,6 +66,7 @@ class InventorySearchTool extends Tool
                     }
 
                     return [
+                        'id' => $variant->getId(),
                         'name' => $variant->name,
                         'sku' => $variant->sku,
                         'stock' => $variant->getTotalQuantity(),
