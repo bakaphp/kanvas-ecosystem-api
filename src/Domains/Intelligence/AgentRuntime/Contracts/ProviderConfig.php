@@ -36,6 +36,12 @@ final readonly class ProviderConfig
         public string $defaultSharedImageDir,
         /** docker-compose.yml placeholder for the agent's home dot-dir ('{{OPENCLAW_DIR}}' | '{{HERMES_DIR}}') */
         public string $dirPlaceholder,
+        /** AgentDeployment custom-field key for the gateway token ('OPENCLAW_GATEWAY_TOKEN' | 'HERMES_GATEWAY_TOKEN') */
+        public string $gatewayTokenCustomFieldKey,
+        /** Agent custom-field key for the deployment id ('OPENCLAW_DEPLOYMENT_ID' | 'HERMES_DEPLOYMENT_ID') */
+        public string $deploymentIdCustomFieldKey,
+        /** Company config key for a pre-set gateway token ('openclaw_gateway_token' | 'hermes_gateway_token') */
+        public string $gatewayTokenConfigKey,
     ) {
     }
 }

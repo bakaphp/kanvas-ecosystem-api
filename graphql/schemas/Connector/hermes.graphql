@@ -24,4 +24,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Connector\\Hermes\\Mutations\\AgentDeploymentMutation@migrateFromOpenclaw"
         )
+
+    "Force an upgrade of every Hermes container on the given machine to the currently pinned version."
+    hermesUpdateMachineContainers(machine_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Hermes\\Mutations\\AgentMachineMutation@updateContainers"
+        )
 }

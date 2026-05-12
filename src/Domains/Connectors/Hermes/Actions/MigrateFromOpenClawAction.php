@@ -368,16 +368,32 @@ class MigrateFromOpenClawAction
             'docker image inspect ' . escapeshellarg($imageName) . ' &>/dev/null && echo "EXISTS" || echo "MISSING"'
         );
 
-        if (str_contains($exists, 'MISSING')) {
-            $buildResult = $client->exec(
-                'sudo docker build --no-cache -t ' . escapeshellarg($imageName)
-                . ' ' . escapeshellarg($imageDir) . ' 2>&1; echo "EXIT_CODE:$?"',
-                900
-            );
+        if (str_contains($exists, 'EXISTS')) {
+            return;
+        }
 
-            if (! str_contains($buildResult, 'EXIT_CODE:0')) {
-                throw new ValidationException('Failed to build shared Hermes image on destination: ' . $buildResult);
-            }
+        // Stage the pinned Dockerfile + entrypoint before building. Without this, the build
+        // would either fail (no Dockerfile on a fresh machine) or silently use a stale Dockerfile
+        // — the exact bug pattern UpdateOpenClawForUserJob had to fix on the OpenClaw side.
+        $mkdirResult = $client->exec(
+            'sudo mkdir -p ' . escapeshellarg($imageDir) . ' 2>&1; echo "EXIT_CODE:$?"'
+        );
+        if (! str_contains($mkdirResult, 'EXIT_CODE:0')) {
+            throw new ValidationException('Failed to create shared image directory ' . $imageDir . ': ' . $mkdirResult);
+        }
+
+        $client->writeFileAsUser($imageDir . '/Dockerfile', $builder->buildDockerfile($this->app), 'root');
+        $client->writeFileAsUser($imageDir . '/entrypoint.sh', $builder->buildEntrypoint(), 'root');
+        $client->exec('sudo chmod +x ' . escapeshellarg($imageDir . '/entrypoint.sh'));
+
+        $buildResult = $client->exec(
+            'cd ' . escapeshellarg($imageDir)
+            . ' && sudo docker build --no-cache -t ' . escapeshellarg($imageName) . ' . 2>&1; echo "EXIT_CODE:$?"',
+            900
+        );
+
+        if (! str_contains($buildResult, 'EXIT_CODE:0')) {
+            throw new ValidationException('Failed to build shared Hermes image on destination: ' . $buildResult);
         }
     }
 

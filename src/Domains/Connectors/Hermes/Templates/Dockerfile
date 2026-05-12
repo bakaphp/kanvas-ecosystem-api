@@ -1,1 +1,1 @@
-FROM nousresearch/hermes-agent:latest
+FROM {{BASE_IMAGE}}

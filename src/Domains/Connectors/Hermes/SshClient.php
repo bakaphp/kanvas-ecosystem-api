@@ -9,6 +9,7 @@ use Kanvas\Connectors\Hermes\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\SshClient as BaseClient;
+use Override;
 use phpseclib3\Crypt\Common\PrivateKey;
 use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Net\SFTP;
@@ -20,6 +21,7 @@ use phpseclib3\Net\SFTP;
  */
 class SshClient extends BaseClient
 {
+    #[Override]
     public static function makeProviderConfig(): ProviderConfig
     {
         return new ProviderConfig(
@@ -34,9 +36,13 @@ class SshClient extends BaseClient
             defaultSharedImageName: 'hermes-kanvas:latest',
             defaultSharedImageDir: '/opt/hermes-image',
             dirPlaceholder: '{{HERMES_DIR}}',
+            gatewayTokenCustomFieldKey: 'HERMES_GATEWAY_TOKEN',
+            deploymentIdCustomFieldKey: 'HERMES_DEPLOYMENT_ID',
+            gatewayTokenConfigKey: ConfigurationEnum::GATEWAY_TOKEN->value,
         );
     }
 
+    #[Override]
     protected function buildFromCompanyConfig(CompanyInterface $company): void
     {
         $host = $company->get(ConfigurationEnum::SSH_HOST->value);

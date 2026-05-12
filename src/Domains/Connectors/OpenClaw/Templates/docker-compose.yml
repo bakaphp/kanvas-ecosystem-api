@@ -27,7 +27,7 @@ services:
     command: "TCP-LISTEN:18790,fork,bind=0.0.0.0,reuseaddr TCP:127.0.0.1:18789"
 
   openclaw-cli:
-    image: ghcr.io/phioranex/openclaw-docker:latest
+    image: {{BASE_IMAGE}}
     container_name: {{CONTAINER_NAME}}-cli
     stdin_open: true
     tty: true

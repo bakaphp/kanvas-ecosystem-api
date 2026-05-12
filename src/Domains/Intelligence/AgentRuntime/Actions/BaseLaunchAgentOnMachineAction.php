@@ -52,15 +52,6 @@ abstract class BaseLaunchAgentOnMachineAction
     /** Returns the concrete DockerComposeBuilder for this provider. */
     abstract protected function getDockerComposeBuilder(): BaseDockerComposeBuilder;
 
-    /** Custom field key that stores the gateway token on the deployment (e.g. 'OPENCLAW_GATEWAY_TOKEN'). */
-    abstract protected function getGatewayTokenCustomFieldKey(): string;
-
-    /** Custom field key that stores the deployment ID on the agent (e.g. 'OPENCLAW_DEPLOYMENT_ID'). */
-    abstract protected function getDeploymentIdCustomFieldKey(): string;
-
-    /** Returns the company-configured gateway token, or null to auto-generate. */
-    abstract protected function getGatewayTokenConfigValue(): ?string;
-
     public function execute(): AgentDeployment
     {
         if (! $this->machine->hasCapacity()) {
@@ -80,10 +71,10 @@ abstract class BaseLaunchAgentOnMachineAction
             $deployment->status = DeploymentStatusEnum::RUNNING->value;
             $deployment->launched_at = now();
             $deployment->saveOrFail();
-            $deployment->set($this->getGatewayTokenCustomFieldKey(), $gatewayToken);
+            $deployment->set($this->getProviderConfig()->gatewayTokenCustomFieldKey, $gatewayToken);
 
             $this->agent->update(['deployment_status' => 'deployed']);
-            $this->agent->set($this->getDeploymentIdCustomFieldKey(), $deployment->getId());
+            $this->agent->set($this->getProviderConfig()->deploymentIdCustomFieldKey, $deployment->getId());
         } catch (Throwable $e) {
             $deployment->status = DeploymentStatusEnum::FAILED->value;
             $deployment->error_message = $e->getMessage();
@@ -194,7 +185,7 @@ abstract class BaseLaunchAgentOnMachineAction
 
     private function resolveGatewayToken(): string
     {
-        $configured = $this->getGatewayTokenConfigValue();
+        $configured = $this->company->get($this->getProviderConfig()->gatewayTokenConfigKey);
 
         if (is_string($configured) && $configured !== '') {
             return $configured;

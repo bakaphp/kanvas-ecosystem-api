@@ -6,7 +6,7 @@ type SystemModule {
     model_name: String!
     browse_fields: Mixed
     fields: Mixed
-    app: App! @belongsTo 
+    app: App! @belongsTo
     parent: SystemModule @belongsTo
     menu_order: Int
     show: Int!
@@ -31,6 +31,7 @@ extend type Query @guard {
                     "parents_id"
                     "created_at"
                     "updated_at"
+                    "model_name"
                     "is_deleted"
                 ]
             )
@@ -48,6 +49,7 @@ extend type Query @guard {
                     "uuid"
                     "slug"
                     "parents_id"
+                    "model_name"
                     "use_import"
                     "created_at"
                     "updated_at"

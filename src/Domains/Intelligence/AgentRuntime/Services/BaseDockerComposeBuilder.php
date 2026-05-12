@@ -52,6 +52,31 @@ abstract class BaseDockerComposeBuilder
 
     abstract protected function getTelegramBotTokenCustomFieldKey(): string;
 
+    /**
+     * Provider-specific fallback for the upstream Docker base image when no app-level override
+     * is set. e.g. `ghcr.io/phioranex/openclaw-docker:20260312` or `nousresearch/hermes-agent:latest`.
+     * Used by getBaseImage() as the last resort.
+     */
+    abstract protected static function getDefaultBaseImage(): string;
+
+    /**
+     * App-config key for overriding the base image at runtime, or null if the provider doesn't
+     * support per-app overrides. e.g. `'openclaw_base_image'`. Returning null means
+     * getBaseImage() always returns getDefaultBaseImage() regardless of app config.
+     */
+    abstract protected function getBaseImageConfigKey(): ?string;
+
+    /**
+     * Prefix for the local image tag — combined with the base image's tag suffix to produce
+     * `<prefix>:<tag>` (e.g. `openclaw-kanvas:20260312`). Makes the local image tag encode
+     * which upstream it was built from so `ensureSharedImage()`'s existence check is
+     * version-aware. e.g. `'openclaw-kanvas'`, `'hermes-kanvas'`.
+     *
+     * Public so update jobs can build provider-aware sed patterns when rewriting compose
+     * `image:` lines (e.g. `image: openclaw-kanvas:*` → `image: openclaw-kanvas:<newTag>`).
+     */
+    abstract public function getLocalImageNamePrefix(): string;
+
     public function buildDockerfile(AppInterface $app): string
     {
         $template = $app->get($this->getDockerfileTemplateConfigKey());
@@ -60,7 +85,48 @@ abstract class BaseDockerComposeBuilder
             return (string) $template;
         }
 
-        return rtrim((string) file_get_contents(static::getTemplatesDir() . '/Dockerfile'));
+        $raw = (string) file_get_contents(static::getTemplatesDir() . '/Dockerfile');
+
+        // Substitute `{{BASE_IMAGE}}` if the template uses it (pinned providers); raw passthrough
+        // otherwise (providers that haven't adopted the placeholder yet).
+        return rtrim(str_replace('{{BASE_IMAGE}}', $this->getBaseImage($app), $raw));
+    }
+
+    /**
+     * Resolve the upstream Docker image ref for new builds.
+     *
+     * Reads getBaseImageConfigKey() from the app config first, falls back to
+     * getDefaultBaseImage(). The app-config path is the supported way to test a new upstream
+     * version or roll forward without a code deploy.
+     *
+     * Nullable $app so ad-hoc inspect calls (CLI, tinker) without an app context still resolve
+     * the safe default — production call sites always pass `$app`.
+     */
+    public function getBaseImage(?AppInterface $app = null): string
+    {
+        $key = $this->getBaseImageConfigKey();
+        if ($app !== null && $key !== null) {
+            $override = $app->get($key);
+            if (! empty($override)) {
+                return (string) $override;
+            }
+        }
+
+        return static::getDefaultBaseImage();
+    }
+
+    /**
+     * Tag portion of the resolved base image (everything after the last `:`).
+     * Used by getSharedImageName() to build a version-tagged local ref, so the local
+     * image tag records which upstream it was built from. Prevents the silent
+     * reuse-of-stale-base bug that bites the `:latest` antipattern.
+     */
+    public function getBaseImageTag(?AppInterface $app = null): string
+    {
+        $image = $this->getBaseImage($app);
+        $colonPos = strrpos($image, ':');
+
+        return $colonPos === false ? 'latest' : substr($image, $colonPos + 1);
     }
 
     public function buildEntrypoint(): string
@@ -362,9 +428,21 @@ abstract class BaseDockerComposeBuilder
         return $channels;
     }
 
+    /**
+     * Local Docker image ref for the per-machine shared image. Honours per-app overrides
+     * (SHARED_IMAGE_NAME) for admins who want a custom local ref; otherwise derives a
+     * version-tagged ref from the base image: `<localPrefix>:<baseImageTag>`.
+     * The version-tagged shape is the key to "ensureSharedImage" being version-aware —
+     * bumping the pin yields a new tag, which triggers an automatic rebuild.
+     */
     public function getSharedImageName(AppInterface $app): string
     {
-        return (string) ($app->get($this->getSharedImageNameConfigKey()) ?? $this->getProviderConfig()->defaultSharedImageName);
+        $override = $app->get($this->getSharedImageNameConfigKey());
+        if (! empty($override)) {
+            return (string) $override;
+        }
+
+        return $this->getLocalImageNamePrefix() . ':' . $this->getBaseImageTag($app);
     }
 
     public function getSharedImageDir(AppInterface $app): string
