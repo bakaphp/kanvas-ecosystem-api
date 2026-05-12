@@ -49,6 +49,20 @@ class DockerComposeBuilder
         return self::OPENCLAW_BASE_IMAGE;
     }
 
+    /**
+     * Tag portion of OPENCLAW_BASE_IMAGE (everything after the last `:`).
+     * Used as the local image tag so each pin yields a distinct, content-addressable
+     * `openclaw-kanvas:<tag>` — making "is the right version already built?" a
+     * trivial `docker image inspect` check and preventing the silent-reuse-of-stale-base
+     * bug that comes with the `:latest` tag.
+     */
+    public static function getBaseImageTag(): string
+    {
+        $colonPos = strrpos(self::OPENCLAW_BASE_IMAGE, ':');
+
+        return $colonPos === false ? 'latest' : substr(self::OPENCLAW_BASE_IMAGE, $colonPos + 1);
+    }
+
     public static function buildEntrypoint(): string
     {
         return rtrim((string) file_get_contents(self::TEMPLATES_DIR . '/entrypoint.sh'));
@@ -370,7 +384,15 @@ class DockerComposeBuilder
 
     public static function getSharedImageName(AppInterface $app): string
     {
-        return (string) ($app->get(ConfigurationEnum::SHARED_IMAGE_NAME->value) ?? 'openclaw-kanvas:latest');
+        // Default to a version-tagged ref (`openclaw-kanvas:<pinned-tag>`) so the image tag
+        // encodes which upstream base it was built from. A per-app override is honoured as-is
+        // — admins setting SHARED_IMAGE_NAME are responsible for including a stable tag.
+        $override = $app->get(ConfigurationEnum::SHARED_IMAGE_NAME->value);
+        if (! empty($override)) {
+            return (string) $override;
+        }
+
+        return 'openclaw-kanvas:' . self::getBaseImageTag();
     }
 
     public static function getSharedImageDir(AppInterface $app): string
