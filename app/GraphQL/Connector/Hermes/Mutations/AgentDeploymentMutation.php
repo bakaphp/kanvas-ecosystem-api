@@ -7,6 +7,7 @@ namespace App\GraphQL\Connector\Hermes\Mutations;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Hermes\Actions\DispatchAgentDeploymentAction;
 use Kanvas\Connectors\Hermes\Jobs\MigrateFromOpenClawJob;
+use Kanvas\Connectors\Hermes\Jobs\TerminateAgentJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -64,5 +65,18 @@ class AgentDeploymentMutation
         );
 
         return $sourceDeployment;
+    }
+
+    public function terminate(mixed $root, array $request): bool
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var AgentDeployment $deployment */
+        $deployment = AgentDeployment::getByIdFromCompanyApp((int) $request['deployment_id'], $company, $app);
+
+        TerminateAgentJob::dispatch($deployment);
+
+        return true;
     }
 }

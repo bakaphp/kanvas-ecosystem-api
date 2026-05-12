@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\OpenClaw\Actions;
+namespace Kanvas\Connectors\Hermes\Actions;
 
-use Kanvas\Connectors\OpenClaw\SshClient;
+use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Intelligence\AgentRuntime\Actions\BaseTerminateAgentOnMachineAction;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\SshClient as BaseSshClient;
 use Override;
 
 /**
- * OpenClaw-specific terminate — thin subclass that wires the OpenClaw provider classes.
+ * Hermes-specific terminate — thin subclass that wires the Hermes provider classes.
  * All termination logic (including idempotent dir handling) lives in BaseTerminateAgentOnMachineAction.
  */
 class TerminateAgentOnMachineAction extends BaseTerminateAgentOnMachineAction
