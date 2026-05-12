@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Movipass\Jobs;
+namespace Kanvas\Souk\Orders\Jobs;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Bus\Queueable;
@@ -16,7 +16,7 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 
-class GeneratePdfVoucherJob implements ShouldQueue
+class GenerateOrderReceiptPdfJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -31,6 +31,7 @@ class GeneratePdfVoucherJob implements ShouldQueue
         public string $html = '',
         public string $filename = '',
         public array $data = [],
+        public ?string $activityLogMessage = null,
     ) {
     }
 
@@ -51,28 +52,29 @@ class GeneratePdfVoucherJob implements ShouldQueue
         );
 
         $this->entity->addFile($pdfFile, $this->filename);
-        $this->entity->set("voucher_url", $pdfFile->url);
+
+        $logMessage = $this->activityLogMessage ?? 'ORDER_RECEIPT_GENERATED';
 
         activity()
-        ->causedBy($this->user)
-        ->performedOn($this->entity)
-        ->withProperties([
-            'order_id' => $this->entity->id,
-            'order_number' => $this->entity->order_number,
-            'user_id' => $this->user->id,
-            'timestamp' => now(),
-            'file_id' => $pdfFile->id,
-            'file_url' =>  $pdfFile->url,
-            'file_path' => $pdfFile->path
-        ])
-        ->log('COMPROBANTE_DESPACHO_GENERADO');
+            ->causedBy($this->user)
+            ->performedOn($this->entity)
+            ->withProperties([
+                'order_id' => $this->entity->id,
+                'order_number' => $this->entity->order_number,
+                'user_id' => $this->user->id,
+                'timestamp' => now(),
+                'file_id' => $pdfFile->id,
+                'file_url' => $pdfFile->url,
+                'file_path' => $pdfFile->path,
+            ])
+            ->log($logMessage);
     }
 
     public function resolveVoucherData(Order $order): array
     {
         $payment = $order->payments
             ->whereIn('status', [
-                PaymentStatusEnum::PAID->value
+                PaymentStatusEnum::PAID->value,
             ])
             ->first();
 

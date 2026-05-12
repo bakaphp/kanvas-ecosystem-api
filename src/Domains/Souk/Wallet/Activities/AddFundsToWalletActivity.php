@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Wallet\Activities;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Souk\Orders\Actions\DispatchOrderReceiptAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Actions\AddFundsToCompanyWalletAction;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
@@ -63,6 +64,21 @@ class AddFundsToWalletActivity extends KanvasActivity
                     order: $order,
                     source: TransactionSourceEnum::RECHARGE_MANUAL,
                 )->execute();
+
+                new DispatchOrderReceiptAction(
+                    $order,
+                    [
+                        'template' => 'wallet-recharge-receipt',
+                        'filename_pattern' => '{order_number}_recharge',
+                        'activity_log' => 'WALLET_RECHARGE_RECEIPT_GENERATED',
+                    ],
+                    sync: true,
+                )->execute();
+
+                // @todo wire WalletRechargeConfirmedNotification for company-wallet path once a
+                // clean "company contact user" surface is available. Companies::user() returns the
+                // owner but the notification needs a notifiable Users instance; skip for now to
+                // avoid guessing the intended recipient.
 
                 return [
                     'result' => true,

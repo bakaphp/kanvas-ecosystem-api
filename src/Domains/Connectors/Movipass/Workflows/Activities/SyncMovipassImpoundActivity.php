@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
-use Kanvas\Connectors\Movipass\Jobs\GeneratePdfVoucherJob;
 use Kanvas\Souk\Orders\Actions\CalculateOrderCommissionAction;
+use Kanvas\Souk\Orders\Actions\DispatchOrderReceiptAction;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -133,20 +133,18 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
 
     private function generatePdfVoucher(Order $order, string $filename, array $metaData = []): array
     {
-        GeneratePdfVoucherJob::dispatch(
+        $result = new DispatchOrderReceiptAction(
             $order,
-            $order->user,
-            'order-release-voucher',
-            $filename,
-            []
-        );
+            [
+                'template' => 'order-release-voucher',
+                'filename_pattern' => $filename,
+                'activity_log' => 'COMPROBANTE_DESPACHO_GENERADO',
+            ],
+            sync: true,
+        )->execute();
 
-        return [
-            'status' => 'processing',
-            'download_url' => null,
-            'file_name' => "{$filename}.pdf",
-            'file_path' => null,
-            'message' => 'PDF generation started. You will receive an email with the download link when ready.',
-        ];
+        $order->set('voucher_url', $order->files()->latest()->first()?->url ?? '');
+
+        return $result;
     }
 }

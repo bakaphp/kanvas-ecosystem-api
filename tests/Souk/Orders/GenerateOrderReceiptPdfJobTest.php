@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Movipass;
+namespace Tests\Souk\Orders;
 
 use Illuminate\Support\Collection;
-use Kanvas\Connectors\Movipass\Jobs\GeneratePdfVoucherJob;
 use Kanvas\Payments\Models\PaymentMethods;
+use Kanvas\Souk\Orders\Jobs\GenerateOrderReceiptPdfJob;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
-final class GeneratePdfVoucherJobTest extends TestCase
+final class GenerateOrderReceiptPdfJobTest extends TestCase
 {
     public function testResolverUsesSnapshotColumnsWhenPresent(): void
     {
@@ -145,9 +145,9 @@ final class GeneratePdfVoucherJobTest extends TestCase
         $order->setRelation('payments', new Collection($payments));
     }
 
-    private function makeJob(Order $order): GeneratePdfVoucherJob
+    private function makeJob(Order $order): GenerateOrderReceiptPdfJob
     {
-        return new GeneratePdfVoucherJob(
+        return new GenerateOrderReceiptPdfJob(
             $order,
             new Users(),
             'order-release-voucher',

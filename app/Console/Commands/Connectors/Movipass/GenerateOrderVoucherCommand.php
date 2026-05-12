@@ -7,7 +7,7 @@ namespace App\Console\Commands\Connectors\Movipass;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Movipass\Jobs\GeneratePdfVoucherJob;
+use Kanvas\Souk\Orders\Jobs\GenerateOrderReceiptPdfJob;
 use Kanvas\Souk\Orders\Models\Order;
 
 class GenerateOrderVoucherCommand extends Command
@@ -68,16 +68,17 @@ class GenerateOrderVoucherCommand extends Command
 
         $filename = "{$order->order_number}_{$serviceName}_{$vehiclePlate}_{$vehicleBrand}";
 
-        GeneratePdfVoucherJob::dispatchSync(
+        GenerateOrderReceiptPdfJob::dispatchSync(
             $order,
             $order->user,
             'order-release-voucher',
             $filename,
-            []
+            [],
+            'COMPROBANTE_DESPACHO_GENERADO',
         );
 
-        sleep(5);
-        $voucherUrl = $order->get("voucher_url") ?? '';
+        $order->set('voucher_url', $order->files()->latest()->first()?->url ?? '');
+        $voucherUrl = $order->get('voucher_url') ?? '';
         $this->info("Voucher generated for order({$order->id}) {$order->order_number} and vehicle plate {$vehiclePlate} : {$voucherUrl}");
     }
 }

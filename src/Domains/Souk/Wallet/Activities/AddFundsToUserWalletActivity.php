@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Wallet\Activities;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Souk\Orders\Actions\DispatchOrderReceiptAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Actions\AddFundsToUserWalletAction;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Souk\Wallet\Enums\TransactionSourceEnum;
+use Kanvas\Souk\Wallet\Notifications\WalletRechargeConfirmedNotification;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -61,6 +63,23 @@ class AddFundsToUserWalletActivity extends KanvasActivity
                     order: $order,
                     source: TransactionSourceEnum::RECHARGE_MANUAL,
                 )->execute($params['processTransactionsByWalletType'] ?? false);
+
+                new DispatchOrderReceiptAction(
+                    $order,
+                    [
+                        'template' => 'wallet-recharge-receipt',
+                        'filename_pattern' => '{order_number}_recharge',
+                        'activity_log' => 'WALLET_RECHARGE_RECEIPT_GENERATED',
+                    ],
+                    sync: true,
+                )->execute();
+
+                $order->user->notify(new WalletRechargeConfirmedNotification(
+                    order: $order,
+                    transaction: $transaction,
+                    app: $app,
+                    company: $order->company,
+                ));
 
                 return [
                     'result' => true,
