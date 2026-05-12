@@ -1,4 +1,4 @@
-FROM ghcr.io/phioranex/openclaw-docker:latest
+FROM {{BASE_IMAGE}}
 
 USER root
 

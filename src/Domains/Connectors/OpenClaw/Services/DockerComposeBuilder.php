@@ -27,7 +27,9 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 class DockerComposeBuilder
 {
     private const string TEMPLATES_DIR = __DIR__ . '/../Templates';
-    private const string OPENCLAW_VERSION = '2026.3.12';
+    private const string OPENCLAW_VERSION = '2026.5.3-1';
+
+    private const string OPENCLAW_BASE_IMAGE = 'ghcr.io/phioranex/openclaw-docker:20260504';
 
     public static function buildDockerfile(AppInterface $app): string
     {
@@ -37,7 +39,14 @@ class DockerComposeBuilder
             return (string) $template;
         }
 
-        return rtrim((string) file_get_contents(self::TEMPLATES_DIR . '/Dockerfile'));
+        $raw = (string) file_get_contents(self::TEMPLATES_DIR . '/Dockerfile');
+
+        return rtrim(str_replace('{{BASE_IMAGE}}', self::OPENCLAW_BASE_IMAGE, $raw));
+    }
+
+    public static function getBaseImage(): string
+    {
+        return self::OPENCLAW_BASE_IMAGE;
     }
 
     public static function buildEntrypoint(): string
@@ -74,7 +83,16 @@ class DockerComposeBuilder
         $imageName = self::getSharedImageName($app);
 
         return str_replace(
-            ['{{CONTAINER_NAME}}', '{{OPENCLAW_DIR}}', '{{GATEWAY_PORT}}', '{{PROXY_PORT}}', '{{ENV_LINES}}', '{{IMAGE_NAME}}', '{{IMAGE_DIR}}'],
+            [
+                '{{CONTAINER_NAME}}',
+                '{{OPENCLAW_DIR}}',
+                '{{GATEWAY_PORT}}',
+                '{{PROXY_PORT}}',
+                '{{ENV_LINES}}',
+                '{{IMAGE_NAME}}',
+                '{{IMAGE_DIR}}',
+                '{{BASE_IMAGE}}',
+            ],
             [
                 $deployment->container_name,
                 $deployment->home_directory . '/.openclaw',
@@ -83,6 +101,7 @@ class DockerComposeBuilder
                 $envLines,
                 $imageName,
                 self::getSharedImageDir($app),
+                self::OPENCLAW_BASE_IMAGE,
             ],
             $template,
         );
@@ -115,7 +134,7 @@ class DockerComposeBuilder
         if ($geminiApiKey !== '') {
             $authProfiles['google:default'] = [
                 'provider' => 'google',
-                'mode'     => 'api_key',
+                'mode' => 'api_key',
             ];
         }
 
@@ -143,9 +162,9 @@ class DockerComposeBuilder
                         ],
                     ],
                     'models' => [
-                        'google/gemini-2.5-pro'               => (object) [],
+                        'google/gemini-2.5-pro' => (object) [],
                         'google/gemini-3.1-flash-lite-preview' => (object) [],
-                        'google/gemini-3.1-pro-preview'        => (object) [],
+                        'google/gemini-3.1-pro-preview' => (object) [],
                     ],
                     'workspace' => '/home/node/.openclaw/workspace',
                 ],
@@ -314,12 +333,14 @@ class DockerComposeBuilder
         $slackAppToken = $agent->get(CustomFieldEnum::SLACK_APP_TOKEN->value);
 
         if (! empty($slackBotToken) && ! empty($slackAppToken)) {
+            // OpenClaw 2026.5.7+ tightened channels.slack: `streaming` is now an object (was a
+            // string), `additionalProperties` is false. We drop the kanvas-specific keys
+            // (`allowBots`, `streaming`, `nativeStreaming`) that were added to defend against
+            // earlier-version defaults — the new gateway applies its own defaults for these.
+            // Re-introduce a proper object-shape `streaming` once the schema is confirmed.
             $channels['slack'] = [
                 'enabled' => true,
                 'mode' => 'socket',
-                'allowBots' => true,
-                'streaming' => 'partial',
-                'nativeStreaming' => true,
                 'botToken' => (string) $slackBotToken,
                 'appToken' => (string) $slackAppToken,
                 'dmPolicy' => 'open',
@@ -335,12 +356,12 @@ class DockerComposeBuilder
         $telegramBotToken = $agent->get(CustomFieldEnum::TELEGRAM_BOT_TOKEN->value);
 
         if (! empty($telegramBotToken)) {
+            // See note above on `channels.slack.streaming` — same applies to telegram.
             $channels['telegram'] = [
                 'enabled' => true,
                 'botToken' => (string) $telegramBotToken,
                 'dmPolicy' => 'pairing',
                 'groupPolicy' => 'allowlist',
-                'streaming' => 'partial',
             ];
         }
 
