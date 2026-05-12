@@ -11,6 +11,7 @@ use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use Override;
 use Throwable;
 
 class InventorySearchTool extends Tool
@@ -23,6 +24,7 @@ class InventorySearchTool extends Tool
         );
     }
 
+    #[Override]
     protected function properties(): array
     {
         return [

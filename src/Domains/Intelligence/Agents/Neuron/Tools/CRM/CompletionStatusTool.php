@@ -13,6 +13,7 @@ use Laravel\Ai\Responses\StructuredAgentResponse;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use Override;
 
 use function Laravel\Ai\agent;
 
@@ -26,6 +27,7 @@ class CompletionStatusTool extends Tool
         );
     }
 
+    #[Override]
     protected function properties(): array
     {
         return [

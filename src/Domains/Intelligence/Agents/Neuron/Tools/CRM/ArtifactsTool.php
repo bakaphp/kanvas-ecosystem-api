@@ -9,6 +9,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use Override;
 
 class ArtifactsTool extends Tool
 {
@@ -20,6 +21,7 @@ class ArtifactsTool extends Tool
         );
     }
 
+    #[Override]
     protected function properties(): array
     {
         return [

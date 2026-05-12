@@ -9,6 +9,7 @@ use Kanvas\Intelligence\Actions\HandOffAction;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use Override;
 
 class HandOffTool extends Tool
 {
@@ -20,6 +21,7 @@ class HandOffTool extends Tool
         );
     }
 
+    #[Override]
     protected function properties(): array
     {
         return [

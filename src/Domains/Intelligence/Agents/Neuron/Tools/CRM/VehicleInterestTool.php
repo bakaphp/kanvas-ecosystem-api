@@ -10,6 +10,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use Override;
 
 class VehicleInterestTool extends Tool
 {
@@ -21,6 +22,7 @@ class VehicleInterestTool extends Tool
         );
     }
 
+    #[Override]
     protected function properties(): array
     {
         return [

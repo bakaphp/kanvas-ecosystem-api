@@ -9,6 +9,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use Override;
 
 class CommunicationChannelTool extends Tool
 {
@@ -20,6 +21,7 @@ class CommunicationChannelTool extends Tool
         );
     }
 
+    #[Override]
     protected function properties(): array
     {
         return [

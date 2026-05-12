@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use Override;
 
 class LeadRefTool extends Tool
 {
@@ -25,6 +26,7 @@ class LeadRefTool extends Tool
         // $this->setMaxRuns(1);
     }
 
+    #[Override]
     protected function properties(): array
     {
         return [
