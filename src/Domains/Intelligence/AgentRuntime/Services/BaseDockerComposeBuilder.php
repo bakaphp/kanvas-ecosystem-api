@@ -177,8 +177,22 @@ abstract class BaseDockerComposeBuilder
         $template = (string) file_get_contents(static::getTemplatesDir() . '/docker-compose.yml');
         $imageName = $this->getSharedImageName($app);
 
+        // `{{BASE_IMAGE}}` is substituted here as well as in buildDockerfile() — some compose
+        // templates reference the upstream image directly (e.g. OpenClaw's cli profile). Without
+        // this, the literal `{{BASE_IMAGE}}` leaks into the rendered YAML and Docker's YAML
+        // parser rejects the file with "cannot use 'map[string]interface{} {BASE_IMAGE:nil}' as
+        // a map key" — flow-style mapping key from the unsubstituted braces. (Sentry: KANVAS-ECOSYSTEM-5JW.)
         return str_replace(
-            ['{{CONTAINER_NAME}}', $config->dirPlaceholder, '{{GATEWAY_PORT}}', '{{PROXY_PORT}}', '{{ENV_LINES}}', '{{IMAGE_NAME}}', '{{IMAGE_DIR}}'],
+            [
+                '{{CONTAINER_NAME}}',
+                $config->dirPlaceholder,
+                '{{GATEWAY_PORT}}',
+                '{{PROXY_PORT}}',
+                '{{ENV_LINES}}',
+                '{{IMAGE_NAME}}',
+                '{{IMAGE_DIR}}',
+                '{{BASE_IMAGE}}',
+            ],
             [
                 $deployment->container_name,
                 $deployment->home_directory . '/.' . $config->dotDir,
@@ -187,6 +201,7 @@ abstract class BaseDockerComposeBuilder
                 $envLines,
                 $imageName,
                 $this->getSharedImageDir($app),
+                $this->getBaseImage($app),
             ],
             $template,
         );
