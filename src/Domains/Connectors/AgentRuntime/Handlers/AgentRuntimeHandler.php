@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\AgentRuntime\Handlers;
 
-use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\AgentRuntime\Enums\ConfigurationEnum;
 use Kanvas\Connectors\AgentRuntime\SshClient;
+use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentMachineAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\AgentMachine as AgentMachineData;
