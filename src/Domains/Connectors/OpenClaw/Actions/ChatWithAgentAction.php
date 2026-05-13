@@ -33,6 +33,7 @@ class ChatWithAgentAction
         protected Agent $agent,
         protected string $message,
         protected ?string $sessionKey = null,
+        protected array $images = [],
     ) {
     }
 
@@ -99,7 +100,7 @@ class ChatWithAgentAction
     {
         $payload = json_encode([
             'model' => 'openclaw/' . $this->agent->slug,
-            'input' => $this->message,
+            'input' => $this->buildInput(),
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         if ($payload === false) {
@@ -125,6 +126,21 @@ class ChatWithAgentAction
         }
 
         return $this->parseResponse($response);
+    }
+
+    private function buildInput(): string|array
+    {
+        if ($this->images === []) {
+            return $this->message;
+        }
+
+        $content = [['type' => 'input_text', 'text' => $this->message]];
+
+        foreach ($this->images as $imageUrl) {
+            $content[] = ['type' => 'input_image', 'image_url' => $imageUrl];
+        }
+
+        return [['role' => 'user', 'content' => $content]];
     }
 
     private function parseResponse(string $response): string
