@@ -42,6 +42,7 @@ class AgentChatMutation
             app: $app,
             company: $company,
             user: $user,
+            images: $this->normalizeImages($input['images'] ?? null),
         )->execute();
     }
 
@@ -172,11 +173,28 @@ class AgentChatMutation
             app: $app,
             company: $company,
             user: $user,
+            images: $this->normalizeImages($input['images'] ?? null),
         )->execute();
 
         return [
             'response' => $response,
             'session_id' => $session->uuid,
         ];
+    }
+
+    /**
+     * Coerce the GraphQL `images` field (nullable `[String!]`) into a clean `list<string>`.
+     * Null / missing → empty list. Anything non-string in the array is dropped so a typo'd
+     * input doesn't blow up the downstream payload builder.
+     *
+     * @return list<string>
+     */
+    private function normalizeImages(mixed $raw): array
+    {
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        return array_values(array_filter($raw, 'is_string'));
     }
 }
