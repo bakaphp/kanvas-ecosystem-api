@@ -10,6 +10,7 @@ use Kanvas\Inventory\Categories\Actions\CreateCategory;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as CategoriesDto;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Users\Models\Users;
@@ -80,6 +81,10 @@ class BackfillVariantRatingCommandTest extends TestCase
         $variants = Variants::fromApp($this->kanvasApp)->where('is_deleted', 0)->get();
         foreach ($variants as $variant) {
             $this->assertSame(8.0, (float) $variant->rating);
+
+            // Verify rating was propagated to the product
+            $product = Products::find($variant->products_id);
+            $this->assertSame(8.0, (float) $product->rating, "Product {$product->id} rating should match variant rating");
         }
     }
 
