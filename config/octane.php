@@ -33,7 +33,7 @@ return [
             'enable_coroutine' => true,
             'max_coroutine' => 100000,
             'max_request' => 500,
-            'package_max_length' => 100 * 1024 * 1024,
+            'package_max_length' => 512 * 1024 * 1024,
             'buffer_output_size' => 32 * 1024 * 1024,
             'http_parse_post' => true,
             'http_parse_files' => true,
