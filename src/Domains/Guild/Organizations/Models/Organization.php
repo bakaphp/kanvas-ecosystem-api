@@ -9,12 +9,15 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Observers\OrganizationObserver;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
@@ -47,6 +50,16 @@ class Organization extends BaseModel
     public function getGraphTypeName(): string
     {
         return 'Organization';
+    }
+
+    public function leads(): HasMany
+    {
+        return $this->hasMany(Lead::class, 'organization_id');
+    }
+
+    public function organizationType(): BelongsTo
+    {
+        return $this->belongsTo(OrganizationType::class, 'organization_type_id');
     }
 
     public function peoples(): HasManyThrough

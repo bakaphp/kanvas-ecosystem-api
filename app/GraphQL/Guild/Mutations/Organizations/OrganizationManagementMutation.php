@@ -29,9 +29,14 @@ class OrganizationManagementMutation
             $data['address'] ?? null
         );
 
-        $createOrganization = new CreateOrganizationAction($organizationData);
+        $organization = new CreateOrganizationAction($organizationData)->execute();
 
-        return $createOrganization->execute();
+        if (isset($data['organization_type_id'])) {
+            $organization->organization_type_id = (int) $data['organization_type_id'];
+            $organization->save();
+        }
+
+        return $organization;
     }
 
     public function update(mixed $root, array $req): Organization

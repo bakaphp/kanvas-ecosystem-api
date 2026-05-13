@@ -5,6 +5,12 @@ type Organization {
     user: User! @belongsTo(relation: "user")
     name: String!
     address: String
+    organization_type: OrganizationType @belongsTo(relation: "organizationType")
+    leads: [Lead!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Guild\\Queries\\Organizations\\OrganizationLeadsQuery@getLeadsBuilder"
+        )
     total_employees: Int!
     created_at: DateTime!
     updated_at: DateTime
@@ -29,6 +35,7 @@ input OrganizationInput {
     city: String
     state: String
     zip: String
+    organization_type_id: ID
 }
 
 input OrganizationPeopleInput {

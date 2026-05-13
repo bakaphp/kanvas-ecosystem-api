@@ -41,7 +41,7 @@ class CollectMachineTelemetryJob implements ShouldQueue, ShouldBeUnique
 
     public function __construct(public readonly int $machineId)
     {
-        $this->onQueue('openclaw');
+        $this->onQueue('agent-runtime');
     }
 
     public function uniqueId(): string
