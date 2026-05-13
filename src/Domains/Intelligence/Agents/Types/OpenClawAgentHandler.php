@@ -18,13 +18,11 @@ class OpenClawAgentHandler
         $this->agent = $agent;
     }
 
-    /**
-     * @param list<string> $images URLs (https://… or data:image/…;base64,…) passed straight through
-     *                             to the gateway as multimodal `input_image` items. See
-     *                             ChatWithAgentAction::buildInput for the payload shape.
-     */
-    public function chat(string $message, ?string $sessionKey = null, array $images = []): string
-    {
+    public function chat(
+        string $message,
+        ?string $sessionKey = null,
+        array $images = []
+    ): string {
         $activeDeployment = $this->agent->activeDeployment;
 
         if (! $activeDeployment instanceof AgentDeployment || ! $activeDeployment->isRunning()) {
