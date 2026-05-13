@@ -12,11 +12,15 @@ use Kanvas\Users\Models\Users;
 
 class RunOpenClawChatAction
 {
+    /**
+     * @param list<string> $images URLs to forward as multimodal `input_image` items.
+     */
     public function __construct(
         protected readonly Agent $agent,
         protected readonly ?Session $session,
         protected readonly string $message,
         protected readonly Users $user,
+        protected readonly array $images = [],
     ) {
     }
 
@@ -29,7 +33,8 @@ class RunOpenClawChatAction
 
         $response = $handler->chat(
             $this->message,
-            $sessionId !== '' ? $sessionId : null
+            $sessionId !== '' ? $sessionId : null,
+            $this->images,
         );
 
         new KanvasConversationStore()->logTurn(

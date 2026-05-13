@@ -383,6 +383,32 @@ abstract class BaseDockerComposeBuilder
         return (string) json_encode($runtimeConfig, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     }
 
+    /**
+     * Absolute path where `auth-profiles.json` is written, or null to skip the file entirely.
+     *
+     * Default targets OpenClaw's per-agent layout (`agents/<slug>/agent/auth-profiles.json`).
+     * Hermes overrides to return null — it sources API keys exclusively from env vars,
+     * so writing the file would just clutter `/opt/data` with unread bytes.
+     */
+    public function getAuthProfilesTargetPath(string $providerDir, string $agentSlug): ?string
+    {
+        return $providerDir . '/agents/' . $agentSlug . '/agent/auth-profiles.json';
+    }
+
+    /**
+     * Absolute path where a single workspace file (SOUL.md, AGENTS.md, …) is written,
+     * or null to skip that file. Default puts them in `$providerDir/workspace/$filename`
+     * (OpenClaw's layout — referenced by its `agents.defaults.workspace` config field).
+     *
+     * Hermes overrides to put `SOUL.md` at the root of `$providerDir` (= `/opt/data` inside
+     * the container, per the docs file tree) and skip the others, which have no documented
+     * home in Hermes's data layout.
+     */
+    public function getWorkspaceFileTargetPath(string $providerDir, string $filename): ?string
+    {
+        return $providerDir . '/workspace/' . $filename;
+    }
+
     public function buildAuthProfiles(AppInterface $app): string
     {
         $profiles = [];

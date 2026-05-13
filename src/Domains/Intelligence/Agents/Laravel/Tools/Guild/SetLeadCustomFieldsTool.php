@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Guild;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Tools\Traits\Guild\SetsLeadCustomFieldsTrait;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
-use Throwable;
 
 class SetLeadCustomFieldsTool implements KanvasToolInterface
 {
     use HasKanvasContext;
+    use SetsLeadCustomFieldsTrait;
 
     #[Override]
     public function description(): Stringable|string
@@ -33,26 +33,18 @@ class SetLeadCustomFieldsTool implements KanvasToolInterface
             ? $rawFields
             : (is_string($rawFields) ? (json_decode($rawFields, true) ?? []) : []);
 
-        if (empty($fields)) {
-            return 'No fields provided. Pass a "fields" JSON string with key/value pairs.';
+        $result = $this->setLeadCustomFields(
+            app: $this->app,
+            company: $this->company,
+            leadId: $leadId,
+            fields: $fields,
+        );
+
+        if (isset($result['error'])) {
+            return $result['error'];
         }
 
-        try {
-            /** @var Lead $lead */
-            $lead = Lead::getByIdFromCompanyApp($leadId, $this->company, $this->app);
-        } catch (Throwable $e) {
-            return "Lead {$leadId} not found: {$e->getMessage()}";
-        }
-
-        foreach ($fields as $key => $value) {
-            $lead->set((string) $key, $value);
-        }
-
-        return json_encode([
-            'success' => true,
-            'lead_id' => $leadId,
-            'fields_set' => count($fields),
-        ], JSON_PRETTY_PRINT);
+        return json_encode($result, JSON_PRETTY_PRINT);
     }
 
     #[Override]

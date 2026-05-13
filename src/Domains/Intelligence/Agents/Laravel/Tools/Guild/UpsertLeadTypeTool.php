@@ -5,19 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Guild;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Kanvas\Guild\Leads\Actions\CreateLeadTypeAction;
-use Kanvas\Guild\Leads\DataTransferObject\LeadType as LeadTypeData;
-use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Tools\Traits\Guild\UpsertLeadTypeTrait;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
-use Throwable;
 
 class UpsertLeadTypeTool implements KanvasToolInterface
 {
     use HasKanvasContext;
+    use UpsertLeadTypeTrait;
 
     #[Override]
     public function description(): Stringable|string
@@ -28,43 +26,18 @@ class UpsertLeadTypeTool implements KanvasToolInterface
     #[Override]
     public function handle(Request $request): Stringable|string
     {
-        $name = (string) $request->string('name');
-        $description = filled($request->string('description')) ? (string) $request->string('description') : $name;
+        $result = $this->upsertLeadType(
+            app: $this->app,
+            company: $this->company,
+            name: (string) $request->string('name'),
+            description: filled($request->string('description')) ? (string) $request->string('description') : null,
+        );
 
-        try {
-            $existing = LeadType::query()
-                ->where('apps_id', $this->app->getId())
-                ->where('companies_id', $this->company->getId())
-                ->where('name', $name)
-                ->where('is_deleted', 0)
-                ->first();
-
-            if ($existing) {
-                return json_encode([
-                    'lead_type_id' => $existing->getId(),
-                    'name' => $existing->name,
-                    'action' => 'found',
-                ], JSON_PRETTY_PRINT);
-            }
-
-            $leadType = new CreateLeadTypeAction(
-                new LeadTypeData(
-                    apps: $this->app,
-                    companies: $this->company,
-                    name: $name,
-                    description: $description,
-                    is_active: 1,
-                ),
-            )->execute();
-        } catch (Throwable $e) {
-            return "Failed to upsert lead type: {$e->getMessage()}";
+        if (isset($result['error'])) {
+            return $result['error'];
         }
 
-        return json_encode([
-            'lead_type_id' => $leadType->getId(),
-            'name' => $leadType->name,
-            'action' => 'created',
-        ], JSON_PRETTY_PRINT);
+        return json_encode($result, JSON_PRETTY_PRINT);
     }
 
     #[Override]

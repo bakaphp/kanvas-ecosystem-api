@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Guild;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Kanvas\Guild\Leads\Models\LeadSource;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Tools\Traits\Guild\UpsertLeadSourceTrait;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
-use Throwable;
 
 class UpsertLeadSourceTool implements KanvasToolInterface
 {
     use HasKanvasContext;
+    use UpsertLeadSourceTrait;
 
     #[Override]
     public function description(): Stringable|string
@@ -26,41 +26,18 @@ class UpsertLeadSourceTool implements KanvasToolInterface
     #[Override]
     public function handle(Request $request): Stringable|string
     {
-        $name = (string) $request->string('name');
-        $description = filled($request->string('description')) ? (string) $request->string('description') : $name;
+        $result = $this->upsertLeadSource(
+            app: $this->app,
+            company: $this->company,
+            name: (string) $request->string('name'),
+            description: filled($request->string('description')) ? (string) $request->string('description') : null,
+        );
 
-        try {
-            $existing = LeadSource::query()
-                ->where('apps_id', $this->app->getId())
-                ->where('companies_id', $this->company->getId())
-                ->where('name', $name)
-                ->where('is_deleted', 0)
-                ->first();
-
-            if ($existing) {
-                return json_encode([
-                    'lead_source_id' => $existing->getId(),
-                    'name' => $existing->name,
-                    'action' => 'found',
-                ], JSON_PRETTY_PRINT);
-            }
-
-            $leadSource = new LeadSource();
-            $leadSource->apps_id = $this->app->getId();
-            $leadSource->companies_id = $this->company->getId();
-            $leadSource->name = $name;
-            $leadSource->description = $description;
-            $leadSource->is_active = 1;
-            $leadSource->saveOrFail();
-        } catch (Throwable $e) {
-            return "Failed to upsert lead source: {$e->getMessage()}";
+        if (isset($result['error'])) {
+            return $result['error'];
         }
 
-        return json_encode([
-            'lead_source_id' => $leadSource->getId(),
-            'name' => $leadSource->name,
-            'action' => 'created',
-        ], JSON_PRETTY_PRINT);
+        return json_encode($result, JSON_PRETTY_PRINT);
     }
 
     #[Override]

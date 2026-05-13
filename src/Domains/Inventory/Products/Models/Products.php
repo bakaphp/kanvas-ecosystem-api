@@ -112,6 +112,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     protected $casts = [
         'is_published' => 'boolean',
         'is_deleted' => 'boolean',
+        'rating' => 'float',
     ];
 
     public $translatable = ['name', 'description', 'short_description', 'html_description', 'warranty_terms'];
@@ -549,6 +550,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'product_type_slug' => $this->productsType?->slug ?? null,
             'attributes' => [],
             'weight' => (int) ($this->weight ?? 0),
+            'rating' => (float) ($this->rating ?? 0),
             'translations' => [
                 'name' => $this->getAllTranslationsAsString('name'),
                 'description' => $this->getAllTranslationsAsString('description'),
@@ -913,6 +915,12 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 ],
                 [
                     'name' => 'weight',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'rating',
                     'type' => 'float',
                     'optional' => true,
                     'sort' => true,
