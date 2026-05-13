@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\OpenClaw\Actions;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Social\Channels\Models\Channel;
@@ -46,12 +47,39 @@ class SendChannelMessageToAgentAction
         $handler = new OpenClawAgentHandler();
         $handler->setAgent($this->agent);
 
-        $reply = $handler->chat($content, $sessionKey);
+        $reply = $handler->chat(
+            $content,
+            $sessionKey,
+            $this->extractImageUrls()
+        );
 
         $replyMessage = $this->createReplyMessage($reply);
         $this->channel->addMessage($replyMessage, $this->agent->user);
 
         return $replyMessage;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function extractImageUrls(): array
+    {
+        $urls = [];
+
+        foreach ($this->message->files as $file) {
+            $url = (string) ($file->url ?? '');
+            if ($url === '') {
+                continue;
+            }
+
+            if (! MediaTypeEnum::fromExtension((string) ($file->file_type ?? ''))->isImage()) {
+                continue;
+            }
+
+            $urls[] = $url;
+        }
+
+        return $urls;
     }
 
     private function createReplyMessage(string $reply): Message
