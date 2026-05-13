@@ -41,6 +41,12 @@ class SetVariantSortingRatingFromCategoryAction
         // standard Eloquent saved event, which saveQuietly() suppresses.
         $this->variant->save();
 
+        // Propagate rating to the product so it lands in the product search index
+        if ($product->rating !== $newRating) {
+            $product->rating = $newRating;
+            $product->save();
+        }
+
         return [
             'status' => 'updated',
             'rating' => $newRating,
