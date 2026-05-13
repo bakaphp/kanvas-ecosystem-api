@@ -61,6 +61,7 @@ class AddLeadTagsTool implements KanvasToolInterface
                 ->required(),
             'tags' => $schema
                 ->array()
+                ->items($schema->string())
                 ->description('List of tag names to add to the lead. Tags are created if they do not exist.')
                 ->required(),
         ];

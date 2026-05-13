@@ -20,6 +20,8 @@ class BackfillVariantRatingCommandTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected array $connectionsToTransact = ['mysql', 'ecosystem', 'inventory'];
+
     protected Apps $kanvasApp;
     protected Users $user;
 
