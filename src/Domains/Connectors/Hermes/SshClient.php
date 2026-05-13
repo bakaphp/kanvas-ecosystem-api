@@ -27,9 +27,9 @@ class SshClient extends BaseClient
         return new ProviderConfig(
             providerName: 'hermes',
             containerPrefix: 'hermes-',
-            queueName: 'hermes',
+            queueName: 'agent-runtime',
             dotDir: 'hermes',
-            configFilename: 'hermes.json',
+            configFilename: 'config.yaml',
             containerHomeDotDir: '/home/node/.hermes',
             mjsPath: 'node /app/hermes.mjs',
             cliAlias: 'hermes',

@@ -160,6 +160,26 @@ abstract class BaseDockerComposeBuilder
             $envVars[$key] = $envVars[$key] ?? $default;
         }
 
+        // Emit LLM API keys as container env vars. OpenClaw also reads them from
+        // {provider}.json's auth.profiles (still written by buildRuntimeConfig), so for
+        // OpenClaw these env vars are belt-and-suspenders. Hermes's runtime *requires*
+        // them in ~/.hermes/.env — without this its gateway logs:
+        //   "No inference provider configured. ... set an API key in ~/.hermes/.env"
+        // Additional keys (OPENROUTER_API_KEY, OPENAI_API_KEY, etc.) can be added per-app
+        // via `<provider>_default_environment` — those flow through buildDefaultEnvironment().
+        $geminiApiKey = $app->get($this->getGeminiApiKeyConfigKey());
+        $googleApiKey = $app->get($this->getGoogleApiKeyConfigKey());
+        $anthropicApiKey = $app->get($this->getAnthropicApiKeyConfigKey());
+        if (! empty($geminiApiKey)) {
+            $envVars['GEMINI_API_KEY'] = (string) $geminiApiKey;
+        }
+        if (! empty($googleApiKey)) {
+            $envVars['GOOGLE_API_KEY'] = (string) $googleApiKey;
+        }
+        if (! empty($anthropicApiKey)) {
+            $envVars['ANTHROPIC_API_KEY'] = (string) $anthropicApiKey;
+        }
+
         $slackBotToken = $agent->get($this->getSlackBotTokenCustomFieldKey());
         $slackAppToken = $agent->get($this->getSlackAppTokenCustomFieldKey());
         if (! empty($slackBotToken)) {
@@ -363,6 +383,32 @@ abstract class BaseDockerComposeBuilder
         return (string) json_encode($runtimeConfig, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     }
 
+    /**
+     * Absolute path where `auth-profiles.json` is written, or null to skip the file entirely.
+     *
+     * Default targets OpenClaw's per-agent layout (`agents/<slug>/agent/auth-profiles.json`).
+     * Hermes overrides to return null — it sources API keys exclusively from env vars,
+     * so writing the file would just clutter `/opt/data` with unread bytes.
+     */
+    public function getAuthProfilesTargetPath(string $providerDir, string $agentSlug): ?string
+    {
+        return $providerDir . '/agents/' . $agentSlug . '/agent/auth-profiles.json';
+    }
+
+    /**
+     * Absolute path where a single workspace file (SOUL.md, AGENTS.md, …) is written,
+     * or null to skip that file. Default puts them in `$providerDir/workspace/$filename`
+     * (OpenClaw's layout — referenced by its `agents.defaults.workspace` config field).
+     *
+     * Hermes overrides to put `SOUL.md` at the root of `$providerDir` (= `/opt/data` inside
+     * the container, per the docs file tree) and skip the others, which have no documented
+     * home in Hermes's data layout.
+     */
+    public function getWorkspaceFileTargetPath(string $providerDir, string $filename): ?string
+    {
+        return $providerDir . '/workspace/' . $filename;
+    }
+
     public function buildAuthProfiles(AppInterface $app): string
     {
         $profiles = [];
@@ -470,17 +516,13 @@ abstract class BaseDockerComposeBuilder
      */
     public function buildDefaultEnvironment(AppInterface $app): array
     {
-        $envJson = $app->get($this->getDefaultEnvironmentConfigKey());
+        $stored = $app->get($this->getDefaultEnvironmentConfigKey());
 
-        if (! empty($envJson)) {
-            $decoded = json_decode((string) $envJson, true);
-
-            if (is_array($decoded)) {
-                /** @var array<string, string> $decoded */
-                return $decoded;
-            }
+        if (! is_array($stored)) {
+            return [];
         }
 
-        return [];
+        /** @var array<string, string> $stored */
+        return $stored;
     }
 }

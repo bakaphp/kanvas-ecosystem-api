@@ -1,33 +1,22 @@
 input MigrateAgentWorkspaceInput {
     source_deployment_id: ID!
     destination_machine_id: ID!
-    "Full path to the workspace directory on the source server (defaults to ~/.openclaw)"
     source_path: String
-    "Parent directory to extract into on the destination server (defaults to agent home directory)"
     destination_path: String
 }
 
 type AgentDeploymentEvent {
-    "Auto-increment primary key"
     id: ID!
-    "ID of the AgentDeployment this event belongs to"
     deployment_id: ID!
-    "One of: gateway_down | gateway_up | health_fail | health_recover | session_started | agent_unreachable"
     event_type: String!
-    "JSON-encoded map of contextual values that triggered the event (previous/current states, counts, errors)"
     payload: String
-    "ISO-8601 timestamp when the event occurred"
     occurred_at: String!
 }
 
 type AgentLogEntry {
-    "ISO-8601 timestamp from the log line, empty string when unavailable"
     ts: String!
-    "Log level: debug | info | warn | error"
     level: String!
-    "Human-readable log message"
     msg: String!
-    "JSON-encoded map of any extra structured fields present in the log line"
     meta: String
 }
 
@@ -70,7 +59,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentMachineMutation@create"
         )
-    openclawUpdateMachine(id: ID!, input: UpdateAgentMachineInput!): AgentMachineType!
+    openclawUpdateMachine(
+        id: ID!
+        input: UpdateAgentMachineInput!
+    ): AgentMachineType!
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentMachineMutation@update"
         )
@@ -87,7 +79,10 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentMachineMutation@ping"
         )
 
-    openclawBackupAgent(deployment_id: ID!, include_workspace: Boolean): AgentBackupType!
+    openclawBackupAgent(
+        deployment_id: ID!
+        include_workspace: Boolean
+    ): AgentBackupType!
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@backup"
         )
@@ -117,24 +112,37 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@collectUsage"
         )
 
-    openclawSetSlackTokens(agent_id: ID!, slack_bot_token: String!, slack_app_token: String!): Boolean!
+    openclawSetSlackTokens(
+        agent_id: ID!
+        slack_bot_token: String!
+        slack_app_token: String!
+    ): Boolean!
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@setSlackTokens"
         )
 
-    openclawSetTelegramToken(agent_id: ID!, telegram_bot_token: String!): Boolean!
+    openclawSetTelegramToken(
+        agent_id: ID!
+        telegram_bot_token: String!
+    ): Boolean!
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@setTelegramToken"
         )
 
-    openclawMigrateAgentWorkspace(input: MigrateAgentWorkspaceInput!): AgentDeploymentType!
+    openclawMigrateAgentWorkspace(
+        input: MigrateAgentWorkspaceInput!
+    ): AgentDeploymentType!
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@migrateWorkspace"
         )
 }
 
 extend type Mutation @guardByAppKey {
-    openclawExecCommand(deployment_id: ID!, command: String!, session_id: String!): Boolean!
+    openclawExecCommand(
+        deployment_id: ID!
+        command: String!
+        session_id: String!
+    ): Boolean!
         @field(
             resolver: "App\\GraphQL\\Connector\\OpenClaw\\Mutations\\AgentDeploymentMutation@execCommand"
         )

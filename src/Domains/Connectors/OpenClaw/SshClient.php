@@ -27,7 +27,7 @@ class SshClient extends BaseClient
         return new ProviderConfig(
             providerName: 'openclaw',
             containerPrefix: 'openclaw-',
-            queueName: 'openclaw',
+            queueName: 'agent-runtime',
             dotDir: 'openclaw',
             configFilename: 'openclaw.json',
             containerHomeDotDir: '/home/node/.openclaw',

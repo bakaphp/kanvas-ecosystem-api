@@ -20,14 +20,20 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Connector\\Hermes\\Mutations\\AgentDeploymentMutation@launch"
         )
 
-    hermesMigrateFromOpenclaw(input: HermesMigrateFromOpenClawInput!): AgentDeploymentType!
+    hermesMigrateFromOpenclaw(
+        input: HermesMigrateFromOpenClawInput!
+    ): AgentDeploymentType!
         @field(
             resolver: "App\\GraphQL\\Connector\\Hermes\\Mutations\\AgentDeploymentMutation@migrateFromOpenclaw"
         )
 
-    "Force an upgrade of every Hermes container on the given machine to the currently pinned version."
     hermesUpdateMachineContainers(machine_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Connector\\Hermes\\Mutations\\AgentMachineMutation@updateContainers"
+        )
+
+    hermesTerminateAgent(deployment_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Hermes\\Mutations\\AgentDeploymentMutation@terminate"
         )
 }

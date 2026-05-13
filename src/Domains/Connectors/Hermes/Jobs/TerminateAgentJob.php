@@ -2,19 +2,22 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\OpenClaw\Jobs;
+namespace Kanvas\Connectors\Hermes\Jobs;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Connectors\OpenClaw\Actions\RestartAgentContainerAction;
+use Kanvas\Connectors\Hermes\Actions\TerminateAgentOnMachineAction;
 use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Throwable;
 
-class RestartAgentContainerJob implements ShouldQueue
+/**
+ * Mirrors OpenClaw\Jobs\TerminateAgentJob — lift to a shared base if a third provider arrives.
+ */
+class TerminateAgentJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -32,9 +35,9 @@ class RestartAgentContainerJob implements ShouldQueue
         $previousStatus = $this->deployment->status;
 
         try {
-            $deployment = new RestartAgentContainerAction($this->deployment)->execute();
+            new TerminateAgentOnMachineAction($this->deployment)->execute();
 
-            AgentDeploymentStatusChanged::dispatch($deployment, $previousStatus);
+            AgentDeploymentStatusChanged::dispatch($this->deployment->fresh(), $previousStatus);
         } catch (Throwable $e) {
             report($e);
 

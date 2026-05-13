@@ -5,20 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Guild;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Kanvas\Guild\Organizations\Actions\CreateOrganizationTypeAction;
-use Kanvas\Guild\Organizations\Actions\UpdateOrganizationTypeAction;
-use Kanvas\Guild\Organizations\DataTransferObject\OrganizationType as OrganizationTypeData;
-use Kanvas\Guild\Organizations\Models\OrganizationType;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Tools\Traits\Guild\UpsertOrganizationTypeTrait;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
-use Throwable;
 
 class UpsertOrganizationTypeTool implements KanvasToolInterface
 {
     use HasKanvasContext;
+    use UpsertOrganizationTypeTrait;
 
     #[Override]
     public function description(): Stringable|string
@@ -29,39 +26,22 @@ class UpsertOrganizationTypeTool implements KanvasToolInterface
     #[Override]
     public function handle(Request $request): Stringable|string
     {
-        $organizationTypeId = $request->integer('organization_type_id') ?: null;
-        $name = (string) $request->string('name');
-
-        $data = new OrganizationTypeData(
-            apps: $this->app,
-            companies: $this->company,
+        $result = $this->upsertOrganizationType(
+            app: $this->app,
+            company: $this->company,
             user: auth()->user(),
-            name: $name,
+            name: (string) $request->string('name'),
+            organizationTypeId: $request->integer('organization_type_id') ?: null,
             description: filled($request->string('description')) ? (string) $request->string('description') : null,
-            is_active: (bool) ($request->all()['is_active'] ?? true),
-            is_default: (bool) ($request->all()['is_default'] ?? false),
+            isActive: (bool) ($request->all()['is_active'] ?? true),
+            isDefault: (bool) ($request->all()['is_default'] ?? false),
         );
 
-        try {
-            if ($organizationTypeId !== null) {
-                $organizationType = OrganizationType::getByIdFromCompanyApp($organizationTypeId, $this->company, $this->app);
-                $organizationType = new UpdateOrganizationTypeAction($organizationType, $data)->execute();
-                $action = 'updated';
-            } else {
-                $organizationType = new CreateOrganizationTypeAction($data)->execute();
-                $action = 'created';
-            }
-        } catch (Throwable $e) {
-            return "Failed to upsert organization type: {$e->getMessage()}";
+        if (isset($result['error'])) {
+            return $result['error'];
         }
 
-        return json_encode([
-            'organization_type_id' => $organizationType->getId(),
-            'name' => $organizationType->name,
-            'slug' => $organizationType->slug,
-            'is_active' => (bool) $organizationType->is_active,
-            'action' => $action,
-        ], JSON_PRETTY_PRINT);
+        return json_encode($result, JSON_PRETTY_PRINT);
     }
 
     #[Override]
