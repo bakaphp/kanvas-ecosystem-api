@@ -29,13 +29,6 @@ use Kanvas\Intelligence\Agents\Models\AgentMachine;
  */
 class ChatWithAgentAction
 {
-    /**
-     * @param list<string> $images URLs (https://… or data:image/…;base64,…) of images to send
-     *                             alongside the text message. Each becomes an `input_image` item
-     *                             in the gateway's multimodal payload (see sendRequest()). Requires
-     *                             the configured model to be vision-capable — text-only models will
-     *                             either ignore the images or 400 at the gateway.
-     */
     public function __construct(
         protected Agent $agent,
         protected string $message,
@@ -135,22 +128,6 @@ class ChatWithAgentAction
         return $this->parseResponse($response);
     }
 
-    /**
-     * Build the `input` field for the gateway's /v1/responses call.
-     *
-     * Text-only callers (the common case): returns the plain string we've always sent, so the
-     * payload shape is unchanged for existing consumers and we don't introduce any wire-format
-     * change for them.
-     *
-     * When images are present: switches to the OpenAI Responses multimodal array shape
-     * — a single user-role message with `input_text` + `input_image` content items. Each
-     * image URL passes through as `image_url`, which the gateway accepts as either an
-     * HTTP(S) URL or a `data:image/...;base64,...` data URL.
-     *
-     * Reference: https://platform.openai.com/docs/api-reference/responses
-     *
-     * @return string|list<array{role: string, content: list<array<string, string>>}>
-     */
     private function buildInput(): string|array
     {
         if ($this->images === []) {

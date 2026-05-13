@@ -20,13 +20,6 @@ use Nuwave\Lighthouse\Execution\Utils\Subscription;
 
 class ProcessAgentChatAction
 {
-    /**
-     * @param list<string> $images URLs of images to send alongside the text message. Currently
-     *                             only the OpenClaw handler honours them — other handlers
-     *                             (Laravel, ADK, neuron, etc.) silently ignore until they
-     *                             gain vision support. Pass `data:image/…;base64,…` URLs for
-     *                             inline content.
-     */
     public function __construct(
         protected readonly Agent $agent,
         protected readonly ?Session $session,

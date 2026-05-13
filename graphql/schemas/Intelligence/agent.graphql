@@ -83,13 +83,6 @@ input ChatSimpleInput {
     agent_id: ID!
     session_id: String!
     message: String!
-    """
-    Optional list of image URLs to send alongside the text. Each URL becomes an `input_image`
-    item in the multimodal payload to the agent gateway. Accepts:
-      - HTTPS URLs (Kanvas filesystem signed URLs, public CDN, etc.)
-      - `data:image/<type>;base64,<payload>` data URLs for inline content
-    Requires the agent's configured model to be vision-capable; text-only models will ignore.
-    """
     images: [String!]
 }
 
@@ -104,7 +97,6 @@ input UserChatInput {
     message: String!
     session_id: String
     lead_id: ID
-    "Optional list of image URLs (https or data:base64). See ChatSimpleInput.images for details."
     images: [String!]
 }
 
