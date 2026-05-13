@@ -100,6 +100,7 @@ class IntelligenceCRM extends BaseKanvasAgent
             new ListAvailableProductsTool(),
             new VariantSearchTool(),
             new VariantDetailTool(),
+            new GoogleCalendarTool(),
         ];
 
         if ($this->entity instanceof Message) {
