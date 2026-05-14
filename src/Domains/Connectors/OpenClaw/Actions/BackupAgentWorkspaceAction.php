@@ -11,14 +11,6 @@ use Kanvas\Intelligence\AgentRuntime\SshClient as BaseSshClient;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Override;
 
-/**
- * OpenClaw concrete — invokes `openclaw backup create --output /tmp` inside the container.
- *
- * The OpenClaw CLI picks the archive filename (e.g. `openclaw_state_2026-04-23T12:00:00.tar.gz`)
- * and writes it under the supplied output directory. We parse the filename out of the CLI's
- * stdout rather than predicting it — leaves the door open for the CLI to change its naming
- * scheme without breaking us.
- */
 class BackupAgentWorkspaceAction extends BaseBackupAgentWorkspaceAction
 {
     #[Override]

@@ -13,7 +13,6 @@ use Kanvas\Connectors\Hermes\Actions\GetAgentContainerLogsAction;
 use Kanvas\Connectors\Hermes\Actions\GetAgentContainerStatusAction;
 use Kanvas\Connectors\Hermes\Actions\GetDeploymentConfigAction;
 use Kanvas\Connectors\Hermes\Actions\UpdateDeploymentConfigAction;
-use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Hermes\Jobs\BackupAgentWorkspaceJob;
 use Kanvas\Connectors\Hermes\Jobs\MigrateAgentWorkspaceJob;
 use Kanvas\Connectors\Hermes\Jobs\MigrateFromOpenClawJob;
@@ -185,18 +184,5 @@ class HermesProvider extends AbstractAgentRuntimeProvider
         } finally {
             $ssh->disconnect();
         }
-    }
-
-    #[Override]
-    public function setSlackTokens(Agent $agent, string $botToken, string $appToken): void
-    {
-        $agent->set(CustomFieldEnum::SLACK_BOT_TOKEN->value, $botToken);
-        $agent->set(CustomFieldEnum::SLACK_APP_TOKEN->value, $appToken);
-    }
-
-    #[Override]
-    public function setTelegramToken(Agent $agent, string $botToken): void
-    {
-        $agent->set(CustomFieldEnum::TELEGRAM_BOT_TOKEN->value, $botToken);
     }
 }

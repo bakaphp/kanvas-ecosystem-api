@@ -10,9 +10,6 @@ use Kanvas\Intelligence\AgentRuntime\SshClient as BaseSshClient;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Override;
 
-/**
- * Hermes concrete — supplies its SshClient subclass; lifecycle lives on the base.
- */
 class GetAgentContainerLogsAction extends BaseGetAgentContainerLogsAction
 {
     #[Override]

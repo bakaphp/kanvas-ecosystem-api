@@ -11,25 +11,13 @@ use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
 
-/**
- * Migrate an agent's workspace between two same-runtime machines.
- *
- * Lifecycle:
- *   1. tar.gz the source's `~/.<dotDir>` directory
- *   2. Download the archive locally via SFTP, upload to the destination
- *   3. Provision the agent's Linux user on the destination
- *   4. Extract the archive, fix ownership/permissions for the container's UID 1000
- *   5. Rebuild docker-compose.yml with the destination machine's allocated ports
- *   6. `docker compose down && up -d` to start the relocated stack
- *
- * Cross-runtime migration (OpenClaw → Hermes etc.) is handled by
- * {@see AgentRuntimeProvider::dispatchAdoptForeignDeployment} on the TARGET provider —
- * not by this action.
- */
+// Same-runtime workspace move (e.g. OpenClaw on machine A → OpenClaw on machine B).
+// Cross-runtime is a different operation — see AgentRuntimeProvider::dispatchAdoptForeignDeployment.
 abstract class BaseMigrateAgentWorkspaceAction
 {
     public function __construct(
@@ -104,11 +92,8 @@ abstract class BaseMigrateAgentWorkspaceAction
         return $destDeployment;
     }
 
-    /**
-     * tar.gz the source workspace and SFTP it down to a local temp file. Mirrors the
-     * bash idiom of splitting source into parent (-C) and basename so the archive root
-     * contains only the workspace directory, not the absolute path.
-     */
+    // Split into parent (-C) + basename so the archive root contains only the dir itself,
+    // not the absolute path under it.
     private function packWorkspace(
         SshClient $client,
         ProviderConfig $providerConfig,
@@ -140,13 +125,8 @@ abstract class BaseMigrateAgentWorkspaceAction
         }
     }
 
-    /**
-     * If a deployment row already exists for this agent on the destination machine, reset
-     * it to PROVISIONING and update the ports. Otherwise create a fresh row. Same-row reuse
-     * keeps the AgentDeployment id stable across re-migrations.
-     *
-     * @param  array{gateway_port:int,proxy_port:int}  $ports
-     */
+    // Reuse the same destination row across re-migrations so the AgentDeployment id stays stable.
+    /** @param  array{gateway_port:int,proxy_port:int}  $ports */
     private function resolveDestinationDeployment(
         ProviderConfig $providerConfig,
         string $systemUser,
@@ -187,9 +167,6 @@ abstract class BaseMigrateAgentWorkspaceAction
         return $deployment;
     }
 
-    /**
-     * Ensure the agent's Linux user exists on the destination and is in the docker group.
-     */
     private function provisionUser(SshClient $client, string $systemUser): void
     {
         $client->exec(
@@ -199,12 +176,9 @@ abstract class BaseMigrateAgentWorkspaceAction
         $client->exec('sudo usermod -aG docker ' . escapeshellarg($systemUser));
     }
 
-    /**
-     * Stream the local archive to the destination via SFTP, extract it, and fix ownership
-     * so Docker's `node` user (UID 1000) can read/write workspace files. The container
-     * runs as UID 1000 inside; on the host we keep group ownership matched to the agent's
-     * system user so SSH commands can still inspect/modify the directory.
-     */
+    // Container runs as `node` (UID 1000) — match host ownership so it can read/write the
+    // mounted workspace. Group stays as the agent's system user so SSH-side commands can
+    // still inspect the directory.
     private function extractWorkspace(
         SshClient $client,
         ProviderConfig $providerConfig,
@@ -245,17 +219,11 @@ abstract class BaseMigrateAgentWorkspaceAction
         $client->exec('rm -f ' . escapeshellarg($remoteArchive));
     }
 
-    /**
-     * Ensure the runtime's shared Docker image is built on the destination, rewrite
-     * docker-compose.yml with the destination's allocated ports, then `docker compose
-     * down` (in case stale containers exist) and `up -d` to bring the relocated agent
-     * online.
-     */
     private function startContainers(
         SshClient $client,
         ProviderConfig $providerConfig,
         AgentDeployment $deployment,
-        \Kanvas\Intelligence\Agents\Models\Agent $agent,
+        Agent $agent,
     ): void {
         $providerDir = $deployment->home_directory . '/.' . $providerConfig->dotDir;
 

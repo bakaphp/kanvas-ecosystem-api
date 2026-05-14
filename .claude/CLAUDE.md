@@ -733,6 +733,8 @@ OpenClaw, Hermes (and future Nano) live under `src/Domains/Connectors/`, but **`
 
 **Per-runtime variation belongs on [`ProviderConfig`](../src/Domains/Intelligence/AgentRuntime/Contracts/ProviderConfig.php), not in `Base*Action` bodies.** If a new variation point shows up (directory name, CLI alias, config filename, image name, custom-field key) add a field to `ProviderConfig` and populate it in every connector's `SshClient::makeProviderConfig()`. The cost of hardcoding the OpenClaw spelling in a base action is silent breakage on Hermes; the same applies the other direction.
 
+**Per-agent credentials that aren't runtime-specific (Slack tokens, Telegram tokens, future channel API keys) live on the primary domain under [`AgentChannelTokenEnum`](../src/Domains/Intelligence/AgentRuntime/Enums/AgentChannelTokenEnum.php) — one shared key per credential, NOT `OPENCLAW_SLACK_BOT_TOKEN` + `HERMES_SLACK_BOT_TOKEN`.** A Slack token's value doesn't change based on which runtime reads it; the runtime's `DockerComposeBuilder` picks up the shared key and injects the canonical container env var (`SLACK_BOT_TOKEN`). If you find yourself adding `<PROVIDER>_<CREDENTIAL>` to a connector's `CustomFieldEnum`, ask first whether the credential is genuinely runtime-specific. Things that ARE runtime-specific and DO belong on the per-connector enum: gateway tokens (each runtime issues its own), deployment ids (each runtime gets its own deployment row), workspace paths.
+
 **Cross-runtime migration is "target adopts source", not "source pushes to target".** `AgentRuntimeProvider::dispatchAdoptForeignDeployment` is implemented on the **destination** runtime (today: Hermes consumes OpenClaw deployments) — not on the source. The single mutation is `agentRuntimeMigrateAgentToProvider` with a `target_provider` field. Don't add a `hermesMigrateFromOpenclaw` (we deleted that one).
 
 ## Adding @search to GraphQL Queries
@@ -1593,6 +1595,9 @@ Same rule for `@belongsTo(relation: "company")`, `@hasOne(relation: "primaryAddr
 
 ### Code Style
 - **No section separator comments** — do not add `// --- SectionName ---`, `# --- SectionName ---`, or similar decorative dividers in code, tests, or schema files. Test methods and code sections are self-documenting by their names. If a file grows too large, split it into separate files instead.
+- **Comment why, not what.** Class/method docblocks and inline comments exist to capture decisions a reader can't recover from the code itself — gotchas, "why this weird approach", invariants, external constraints. Code that's self-evident from the names + body should carry no doc. If you find yourself paraphrasing the signature ("Fetch the X from Y" on a method called `fetchXFromY`), delete the comment and let the names do the work. The first design instinct should be to make the code clear enough not to need a comment; reach for the comment only when the design can't be simplified further.
+  - **Keep** comments that explain: non-obvious ordering ("OpenClaw rows first so OpenClaw wins on tie"), external-system quirks ("Node prints warnings ahead of JSON, strip before decode"), cache TTL rationale, the "why" behind an interface (cross-runtime adoption is on the *target* not the source), schema/input shapes contributors must conform to.
+  - **Delete** comments that restate code: `// Loop over the items`, `// Set the status to running`, `// Fetch logs via SSH`, class docblocks that describe what the class name already says, method docblocks that paraphrase the signature.
 
 ## Queue Workers
 

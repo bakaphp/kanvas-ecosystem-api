@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider;
+use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
+use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -44,6 +46,17 @@ class AgentDeploymentMutation
         AgentRuntimeProviderFactory::forDeployment($deployment)->dispatchTermination($deployment);
 
         return true;
+    }
+
+    public function delete(mixed $root, array $request): bool
+    {
+        $deployment = $this->loadDeployment((int) $request['deployment_id']);
+
+        if ($deployment->status !== DeploymentStatusEnum::TERMINATED->value) {
+            AgentRuntimeProviderFactory::forDeployment($deployment)->dispatchTermination($deployment);
+        }
+
+        return (bool) $deployment->delete();
     }
 
     public function restart(mixed $root, array $request): bool
@@ -103,9 +116,8 @@ class AgentDeploymentMutation
         $botToken = (string) $request['slack_bot_token'];
         $appToken = (string) $request['slack_app_token'];
 
-        foreach ($this->resolveTargetProviders($request) as $provider) {
-            $provider->setSlackTokens($agent, $botToken, $appToken);
-        }
+        $agent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, $botToken);
+        $agent->set(AgentChannelTokenEnum::SLACK_APP_TOKEN->value, $appToken);
 
         return true;
     }
@@ -118,11 +130,7 @@ class AgentDeploymentMutation
         /** @var Agent $agent */
         $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
 
-        $botToken = (string) $request['telegram_bot_token'];
-
-        foreach ($this->resolveTargetProviders($request) as $provider) {
-            $provider->setTelegramToken($agent, $botToken);
-        }
+        $agent->set(AgentChannelTokenEnum::TELEGRAM_BOT_TOKEN->value, (string) $request['telegram_bot_token']);
 
         return true;
     }
@@ -280,27 +288,5 @@ class AgentDeploymentMutation
         }
 
         return AgentRuntimeProviderFactory::forAgent($agent);
-    }
-
-    /**
-     * If `provider` was supplied on the request, return just that one. Otherwise return every
-     * runtime-capable provider — so the caller's tokens land in all providers' custom field
-     * sets, letting an agent freely swap between OpenClaw and Hermes without losing creds.
-     *
-     * @return list<AgentRuntimeProvider>
-     */
-    private function resolveTargetProviders(array $request): array
-    {
-        if (! empty($request['provider'])) {
-            try {
-                $enum = AgentProviderEnum::from(strtolower((string) $request['provider']));
-            } catch (ValueError) {
-                throw new ValidationException('Unknown provider: ' . (string) $request['provider']);
-            }
-
-            return [AgentRuntimeProviderFactory::forProvider($enum)];
-        }
-
-        return AgentRuntimeProviderFactory::runtimeProviders();
     }
 }

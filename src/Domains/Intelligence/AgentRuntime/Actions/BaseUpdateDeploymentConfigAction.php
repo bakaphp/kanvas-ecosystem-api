@@ -9,14 +9,8 @@ use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
-/**
- * Deep-merge a partial config patch into the deployment's runtime config file, then restart.
- *
- * The caller sends only the keys they want to change; unchanged keys (gateway, auth, tools,
- * model selection, etc.) are preserved via recursive merge. The serialization format (JSON for
- * OpenClaw, YAML for Hermes) is delegated to {@see decodeConfig} / {@see encodeConfig} so each
- * provider drops its own codec into the abstract slot — the merge logic stays runtime-agnostic.
- */
+// Patch is a partial config; missing keys are preserved via recursive merge. Serialization
+// format (JSON vs YAML) is delegated to decodeConfig/encodeConfig on subclasses.
 abstract class BaseUpdateDeploymentConfigAction
 {
     public function __construct(

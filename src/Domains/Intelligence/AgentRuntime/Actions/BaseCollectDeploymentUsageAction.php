@@ -11,22 +11,11 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Kanvas\Intelligence\Agents\Models\AgentUsageSnapshot;
 
-/**
- * Pull a usage snapshot (token counts, cost, model utilization) from a deployment and
- * upsert into AgentUsageSnapshot.
- *
- * The runtime-specific bits — which CLI subcommand to invoke and how to parse its output —
- * live on the subclasses. Everything else (SSH wiring, snapshot persistence, source tagging)
- * is shared.
- *
- * Subclasses return a normalized payload from {@see parseUsageOutput} with these keys:
- *  - `totals` => array{ input_tokens, output_tokens, cache_read, cache_write, total_tokens }
- *  - `sessions` => array<int, array<string, mixed>>  (each session: model, tokens, percent_used)
- *  - `total_sessions` => int
- *  - `provider` => ?string (e.g. "anthropic", "google")
- *  - `model` => ?string  (primary/most-used model)
- *  - any other diagnostic keys are persisted as `parsed_data`
- */
+// Subclasses' parseUsageOutput() must return the normalized shape:
+//   totals: array{input_tokens,output_tokens,cache_read,cache_write,total_tokens},
+//   sessions: array<int, array{...per-session fields}>,
+//   total_sessions: int, provider: ?string, model: ?string,
+//   ...any other keys are persisted under `parsed_data`.
 abstract class BaseCollectDeploymentUsageAction
 {
     public function __construct(
@@ -39,16 +28,9 @@ abstract class BaseCollectDeploymentUsageAction
 
     abstract protected function createSshClient(AgentMachine $machine): SshClient;
 
-    /**
-     * Fetch the runtime's usage output (typically `docker exec <container> <runtime> status|insights --json`).
-     */
     abstract protected function fetchRawUsage(SshClient $client): string;
 
-    /**
-     * Normalize the runtime's output into the common shape documented on the class.
-     *
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     abstract protected function parseUsageOutput(string $rawOutput): array;
 
     public function execute(): AgentUsageSnapshot
@@ -92,10 +74,6 @@ abstract class BaseCollectDeploymentUsageAction
         );
     }
 
-    /**
-     * Infer the LLM provider from a model name (e.g. "gemini-3.1-pro" → "google").
-     * Available to subclasses since both runtimes report opaque model strings in similar shapes.
-     */
     protected static function inferLlmProvider(string $model): ?string
     {
         if ($model === '') {
@@ -116,10 +94,8 @@ abstract class BaseCollectDeploymentUsageAction
         };
     }
 
-    /**
-     * Node.js emits deprecation warnings on stderr (which get merged into stdout via 2>&1)
-     * BEFORE the JSON payload. Strip them so json_decode doesn't choke.
-     */
+    // Node.js prints deprecation warnings on stderr which get merged into our captured stdout
+    // via `2>&1`, ahead of the JSON. Strip everything before the first `{` so json_decode works.
     protected function stripNodeWarnings(string $output): string
     {
         $lines = explode("\n", $output);

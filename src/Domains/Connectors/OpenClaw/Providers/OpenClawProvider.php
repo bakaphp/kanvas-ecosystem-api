@@ -14,7 +14,6 @@ use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerLogsAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerStatusAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetDeploymentConfigAction;
 use Kanvas\Connectors\OpenClaw\Actions\UpdateDeploymentConfigAction;
-use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\Jobs\BackupAgentWorkspaceJob;
 use Kanvas\Connectors\OpenClaw\Jobs\MigrateAgentWorkspaceJob;
 use Kanvas\Connectors\OpenClaw\Jobs\RestartAgentContainerJob;
@@ -159,18 +158,5 @@ class OpenClawProvider extends AbstractAgentRuntimeProvider
     public function dispatchUpdateMachineContainers(AgentMachine $machine): void
     {
         UpdateOpenClawOnMachineJob::dispatch($machine);
-    }
-
-    #[Override]
-    public function setSlackTokens(Agent $agent, string $botToken, string $appToken): void
-    {
-        $agent->set(CustomFieldEnum::SLACK_BOT_TOKEN->value, $botToken);
-        $agent->set(CustomFieldEnum::SLACK_APP_TOKEN->value, $appToken);
-    }
-
-    #[Override]
-    public function setTelegramToken(Agent $agent, string $botToken): void
-    {
-        $agent->set(CustomFieldEnum::TELEGRAM_BOT_TOKEN->value, $botToken);
     }
 }

@@ -11,9 +11,6 @@ use Kanvas\Intelligence\AgentRuntime\SshClient as BaseSshClient;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Override;
 
-/**
- * OpenClaw concrete — uses the JSON codec (openclaw.json).
- */
 class UpdateDeploymentConfigAction extends BaseUpdateDeploymentConfigAction
 {
     #[Override]

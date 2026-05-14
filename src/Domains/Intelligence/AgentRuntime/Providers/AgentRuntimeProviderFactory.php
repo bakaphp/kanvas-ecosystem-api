@@ -28,12 +28,8 @@ final class AgentRuntimeProviderFactory
         return self::forProvider(AgentProviderEnum::forDeployment($deployment));
     }
 
-    /**
-     * Pick the provider for an agent that hasn't been deployed yet. Reads from
-     * `agent_types.provider` (the agent type is the source of truth — an agent inherits its
-     * runtime from its type). Falls back to OPENCLAW when the type predates the provider
-     * column or carries an unrecognized value, so legacy agents stay launchable.
-     */
+    // Used at launch time when no deployment row exists yet. Falls back to OPENCLAW for
+    // legacy agent types that pre-date the `agent_types.provider` column.
     public static function forAgent(Agent $agent): AgentRuntimeProvider
     {
         $raw = $agent->agentType?->provider;
@@ -49,18 +45,12 @@ final class AgentRuntimeProviderFactory
         }
     }
 
-    /**
-     * Every runtime-capable provider — used when an operation has to fan out across runtimes
-     * (writing channel tokens to every provider's custom-field set, rebuilding container
-     * images on a machine that hosts multiple runtimes, etc.).
-     *
-     * @return list<AgentRuntimeProvider>
-     */
+    /** @return list<AgentRuntimeProvider> */
     public static function runtimeProviders(): array
     {
-        return array_map(
+        return array_values(array_map(
             self::forProvider(...),
             AgentProviderEnum::runtimeProviders(),
-        );
+        ));
     }
 }

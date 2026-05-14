@@ -9,13 +9,6 @@ use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
-/**
- * Probe an agent's container via `docker compose ps --format json` and sync the result
- * back to the AgentDeployment row.
- *
- * The compose stack typically contains multiple services (gateway + socat-proxy on OpenClaw,
- * similar on Hermes), so we match by `container_name` instead of taking the first NDJSON line.
- */
 abstract class BaseGetAgentContainerStatusAction
 {
     public function __construct(

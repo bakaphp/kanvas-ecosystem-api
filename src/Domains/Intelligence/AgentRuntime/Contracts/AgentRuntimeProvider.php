@@ -13,17 +13,10 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Kanvas\Intelligence\Agents\Models\AgentUsageSnapshot;
 
-/**
- * Per-runtime strategy for the AgentRuntime primary domain.
- *
- * One implementation per runtime backend (OpenClaw, Hermes, future Nano). Resolvers and
- * services look the concrete up via {@see \Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory}
- * — a stateless static match — so they never import provider-specific code directly.
- *
- * Implementations that don't yet support a given operation should extend
- * {@see \Kanvas\Intelligence\AgentRuntime\Providers\AbstractAgentRuntimeProvider}
- * and let its default-throwing methods stand in until the connector catches up.
- */
+// One implementation per runtime backend (OpenClaw, Hermes, future Nano). Resolvers and
+// services look the concrete up via AgentRuntimeProviderFactory. Partial implementations
+// extend AbstractAgentRuntimeProvider and inherit default-throws for anything they don't
+// support yet.
 interface AgentRuntimeProvider
 {
     public function name(): AgentProviderEnum;
@@ -41,24 +34,13 @@ interface AgentRuntimeProvider
 
     public function fetchContainerLogs(AgentDeployment $deployment, int $lines): string;
 
-    /**
-     * Fetch structured (parsed) log entries from the deployment — distinct from
-     * `fetchContainerLogs`, which returns the raw stdout/stderr dump. Each returned
-     * entry has at minimum `ts`, `level`, `msg`, and optionally `meta` (JSON-encoded).
-     *
-     * @return array<int, array{ts:string,level:string,msg:string,meta:string|null}>
-     */
+    // Parsed log entries — distinct from fetchContainerLogs, which returns the raw stdout dump.
+    /** @return array<int, array{ts:string,level:string,msg:string,meta:string|null}> */
     public function fetchDeploymentLogs(AgentDeployment $deployment, int $limit): array;
 
-    /**
-     * Read the latest telemetry snapshot the background collector wrote for this deployment.
-     * Returns null when no snapshot exists yet (deployment too new, collector not running).
-     *
-     * Cache key shape and write cadence are provider-internal — the resolver only needs the
-     * decoded payload.
-     *
-     * @return array<string, mixed>|null
-     */
+    // Latest snapshot the background collector wrote, or null if none yet.
+    // Cache key shape is provider-internal.
+    /** @return array<string, mixed>|null */
     public function fetchTelemetrySnapshot(AgentDeployment $deployment): ?array;
 
     public function fetchContainerStatus(AgentDeployment $deployment): AgentDeployment;
@@ -86,11 +68,8 @@ interface AgentRuntimeProvider
         ?string $destinationPath,
     ): void;
 
-    /**
-     * Cross-runtime migration: the THIS provider adopts the `$sourceDeployment` (which lives
-     * on a different runtime today) onto `$destinationMachine`. Implementations decide whether
-     * they support being a migration target — Hermes does today; OpenClaw does not.
-     */
+    // Cross-runtime adoption: THIS provider takes over a deployment currently running under
+    // a different runtime. Today only Hermes implements being a target (adopts OpenClaw).
     public function dispatchAdoptForeignDeployment(
         AgentDeployment $sourceDeployment,
         AgentMachine $destinationMachine,
@@ -101,8 +80,4 @@ interface AgentRuntimeProvider
     ): void;
 
     public function dispatchUpdateMachineContainers(AgentMachine $machine): void;
-
-    public function setSlackTokens(Agent $agent, string $botToken, string $appToken): void;
-
-    public function setTelegramToken(Agent $agent, string $botToken): void;
 }
