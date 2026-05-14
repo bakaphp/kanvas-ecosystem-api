@@ -31,7 +31,7 @@ return new class () extends Migration {
                 continue;
             }
 
-            $exists = DB::table('templates')
+            $exists = DB::table('email_templates')
                 ->where('name', $name)
                 ->where('apps_id', 0)
                 ->where('companies_id', 0)
@@ -42,7 +42,7 @@ return new class () extends Migration {
                 continue;
             }
 
-            DB::table('templates')->insert([
+            DB::table('email_templates')->insert([
                 'apps_id' => 0,
                 'users_id' => 1,
                 'companies_id' => 0,
@@ -57,7 +57,7 @@ return new class () extends Migration {
 
     public function down(): void
     {
-        DB::table('templates')
+        DB::table('email_templates')
             ->whereIn('name', self::TEMPLATES)
             ->where('apps_id', 0)
             ->where('companies_id', 0)
