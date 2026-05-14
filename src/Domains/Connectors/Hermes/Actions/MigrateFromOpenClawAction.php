@@ -6,11 +6,11 @@ namespace Kanvas\Connectors\Hermes\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Connectors\AgentRuntime\SshClient as OpenClawSshClient;
 use Kanvas\Connectors\Hermes\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Hermes\Services\DockerComposeBuilder;
 use Kanvas\Connectors\Hermes\SshClient;
-use Kanvas\Connectors\OpenClaw\SshClient as OpenClawSshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\SshClient as BaseClient;
@@ -56,6 +56,7 @@ class MigrateFromOpenClawAction
 
         $destDeployment = AgentDeployment::where('agent_machine_id', $this->destinationMachine->getId())
             ->where('system_user', $systemUser)
+            ->where('provider', 'hermes')
             ->where('is_deleted', 0)
             ->first();
 
@@ -76,6 +77,7 @@ class MigrateFromOpenClawAction
             $destDeployment->gateway_port = $ports['gateway_port'];
             $destDeployment->proxy_port = $ports['proxy_port'];
             $destDeployment->container_name = 'hermes-' . $agent->slug;
+            $destDeployment->provider = 'hermes';
             $destDeployment->status = DeploymentStatusEnum::PROVISIONING->value;
             $destDeployment->saveOrFail();
         }
@@ -115,6 +117,11 @@ class MigrateFromOpenClawAction
             );
 
             $this->runMigrateCommand($client, $stagingDir, $destDeployment);
+
+            // Stop OpenClaw containers before starting Hermes — on the same machine they
+            // share the same container name prefix, so the old container must be removed first.
+            $this->terminateSourceDeployment($client);
+
             $this->startContainers($client, $destDeployment);
 
             $destDeployment->status = DeploymentStatusEnum::RUNNING->value;
@@ -122,10 +129,6 @@ class MigrateFromOpenClawAction
             $destDeployment->saveOrFail();
 
             $agent->set(CustomFieldEnum::HERMES_DEPLOYMENT_ID->value, $destDeployment->getId());
-
-            // Stop OpenClaw containers — same machine, reuse the open connection.
-            // We do NOT userdel since the user/home directory is shared with Hermes.
-            $this->terminateSourceDeployment($client);
         } catch (Throwable $e) {
             $destDeployment->status = DeploymentStatusEnum::FAILED->value;
             $destDeployment->error_message = $e->getMessage();
@@ -412,17 +415,18 @@ class MigrateFromOpenClawAction
         $composeContent = $builder->buildDockerCompose($deployment, (string) $gatewayToken, $this->app, $agent);
         $client->writeFileAsUser($hermesDir . '/docker-compose.yml', $composeContent, $deployment->system_user);
 
-        $client->exec(
-            'sudo -u ' . escapeshellarg($deployment->system_user)
-            . ' bash -c ' . escapeshellarg('cd ' . $hermesDir . ' && docker compose down 2>&1 || true'),
-            60
-        );
+        // Run down + port cleanup + up as a single exec to avoid phpseclib channel reuse errors.
+        $downCmd = 'cd ' . escapeshellarg($hermesDir) . ' && docker compose down 2>&1 || true';
+        $cleanupCmd = 'docker ps -q --filter publish=' . $deployment->gateway_port . ' | xargs -r docker rm -f 2>&1 || true'
+            . ' ; docker ps -q --filter publish=' . $deployment->proxy_port . ' | xargs -r docker rm -f 2>&1 || true';
+        $upCmd = 'cd ' . escapeshellarg($hermesDir) . ' && docker compose up -d 2>&1';
 
         $result = $client->exec(
-            'sudo -u ' . escapeshellarg($deployment->system_user)
-            . ' bash -c ' . escapeshellarg('cd ' . $hermesDir . ' && docker compose up -d 2>&1')
-            . '; echo "EXIT_CODE:$?"',
-            120
+            'sudo -u ' . escapeshellarg($deployment->system_user) . ' bash -c ' . escapeshellarg($downCmd)
+            . ' ; ' . $cleanupCmd
+            . ' ; sudo -u ' . escapeshellarg($deployment->system_user) . ' bash -c ' . escapeshellarg($upCmd)
+            . ' ; echo "EXIT_CODE:$?"',
+            180
         );
 
         if (

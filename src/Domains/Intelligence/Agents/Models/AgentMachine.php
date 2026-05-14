@@ -8,7 +8,7 @@ use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Kanvas\Connectors\OpenClaw\SshClient;
+use Kanvas\Connectors\AgentRuntime\SshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Models\BaseModel;
 

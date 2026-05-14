@@ -49,7 +49,7 @@ enum IntegrationsEnum: string
     case CALENDLY = 'calendly';
     case CARDNET = 'cardnet';
     case CONTACT_CHECKER = 'contact_checker';
-    case OPENCLAW = 'openclaw';
+    case AGENTRUNTIME = 'agentruntime';
     case HERMES = 'hermes';
     case MICROSOFT = 'microsoft';
     case INTRAS = 'intras';

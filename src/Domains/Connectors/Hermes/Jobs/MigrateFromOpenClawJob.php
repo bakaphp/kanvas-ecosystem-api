@@ -55,9 +55,21 @@ class MigrateFromOpenClawJob implements ShouldQueue
 
             AgentDeploymentStatusChanged::dispatch($destDeployment, 'provisioning');
         } catch (Throwable $e) {
+            report($e);
             AgentDeploymentStatusChanged::dispatch($sourceDeployment->fresh(), 'provisioning');
 
             throw $e;
         }
+    }
+
+    public function failed(Throwable $e): void
+    {
+        $sourceDeployment = AgentDeployment::find($this->sourceDeployment->id);
+
+        if (! $sourceDeployment) {
+            return;
+        }
+
+        AgentDeploymentStatusChanged::dispatch($sourceDeployment, 'provisioning');
     }
 }

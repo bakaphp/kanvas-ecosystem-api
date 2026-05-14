@@ -1,0 +1,231 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\GraphQL\Connector\AgentRuntime\Mutations;
+
+use Illuminate\Support\Facades\Cache;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\AgentRuntime\Actions\CollectDeploymentUsageAction;
+use Kanvas\Connectors\AgentRuntime\Actions\DispatchAgentDeploymentAction;
+use Kanvas\Connectors\AgentRuntime\Actions\ExecDeploymentCommandAction;
+use Kanvas\Connectors\AgentRuntime\Actions\GetAgentContainerLogsAction;
+use Kanvas\Connectors\AgentRuntime\Actions\GetAgentContainerStatusAction;
+use Kanvas\Connectors\AgentRuntime\Actions\GetDeploymentConfigAction;
+use Kanvas\Connectors\AgentRuntime\Actions\UpdateDeploymentConfigAction;
+use Kanvas\Connectors\AgentRuntime\Enums\CustomFieldEnum;
+use Kanvas\Connectors\AgentRuntime\Jobs\BackupAgentWorkspaceJob;
+use Kanvas\Connectors\AgentRuntime\Jobs\MigrateAgentWorkspaceJob;
+use Kanvas\Connectors\AgentRuntime\Jobs\RestartAgentContainerJob;
+use Kanvas\Connectors\AgentRuntime\Jobs\TerminateAgentJob;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentBackup;
+use Kanvas\Intelligence\Agents\Models\AgentDeployment;
+use Kanvas\Intelligence\Agents\Models\AgentMachine;
+use Kanvas\Intelligence\Agents\Models\AgentUsageSnapshot;
+
+class AgentDeploymentMutation
+{
+    public function launch(mixed $root, array $request): AgentDeployment
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $input = $request['input'];
+
+        /** @var Agent $agent */
+        $agent = Agent::getByIdFromCompanyApp((int) $input['agent_id'], $company, $app);
+
+        /** @var AgentMachine $machine */
+        $machine = AgentMachine::getByIdFromCompanyApp((int) $input['machine_id'], $company, $app);
+
+        return new DispatchAgentDeploymentAction(
+            $agent,
+            $machine,
+            $app,
+            $company,
+        )->execute();
+    }
+
+    public function terminate(mixed $root, array $request): bool
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var AgentDeployment $deployment */
+        $deployment = AgentDeployment::getByIdFromCompanyApp((int) $request['deployment_id'], $company, $app);
+
+        TerminateAgentJob::dispatch($deployment);
+
+        return true;
+    }
+
+    public function restart(mixed $root, array $request): bool
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var AgentDeployment $deployment */
+        $deployment = AgentDeployment::getByIdFromCompanyApp((int) $request['deployment_id'], $company, $app);
+
+        RestartAgentContainerJob::dispatch($deployment);
+
+        return true;
+    }
+
+    public function logs(mixed $root, array $request): string
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $lines = (int) ($request['lines'] ?? 100);
+
+        /** @var AgentDeployment $deployment */
+        $deployment = AgentDeployment::getByIdFromCompanyApp((int) $request['deployment_id'], $company, $app);
+
+        $cacheKey = 'openclaw:container-logs:' . $deployment->id . ':' . $lines;
+
+        return Cache::remember($cacheKey, 30, fn () => new GetAgentContainerLogsAction($deployment, $lines)->execute());
+    }
+
+    public function status(mixed $root, array $request): AgentDeployment
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var AgentDeployment $deployment */
+        $deployment = AgentDeployment::getByIdFromCompanyApp((int) $request['deployment_id'], $company, $app);
+
+        $cacheKey = 'openclaw:container-status:' . $deployment->id;
+
+        // Return cached status if fresh (30s). The background telemetry job also updates
+        // the deployment record, so the UI gets a live-enough view without an SSH call
+        // on every poll.
+        return Cache::remember($cacheKey, 30, fn () => new GetAgentContainerStatusAction($deployment)->execute());
+    }
+
+    public function collectUsage(mixed $root, array $request): AgentUsageSnapshot
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var AgentDeployment $deployment */
+        $deployment = AgentDeployment::getByIdFromCompanyApp((int) $request['deployment_id'], $company, $app);
+
+        return new CollectDeploymentUsageAction(
+            $deployment,
+            $app,
+            $company,
+        )->execute();
+    }
+
+    public function setSlackTokens(mixed $root, array $request): bool
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var Agent $agent */
+        $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
+
+        $agent->set(CustomFieldEnum::SLACK_BOT_TOKEN->value, $request['slack_bot_token']);
+        $agent->set(CustomFieldEnum::SLACK_APP_TOKEN->value, $request['slack_app_token']);
+
+        return true;
+    }
+
+    public function setTelegramToken(mixed $root, array $request): bool
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var Agent $agent */
+        $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
+
+        $agent->set(CustomFieldEnum::TELEGRAM_BOT_TOKEN->value, $request['telegram_bot_token']);
+
+        return true;
+    }
+
+    public function execCommand(mixed $root, array $request): bool
+    {
+        $app = app(Apps::class);
+
+        /** @var AgentDeployment $deployment */
+        $deployment = AgentDeployment::getById((int) $request['deployment_id'], $app);
+
+        return new ExecDeploymentCommandAction(
+            $deployment,
+            (string) $request['command'],
+            (string) $request['session_id'],
+        )->execute();
+    }
+
+    public function getConfig(mixed $root, array $request): string
+    {
+        $app = app(Apps::class);
+
+        /** @var AgentDeployment $deployment */
+        $deployment = AgentDeployment::getById((int) $request['deployment_id'], $app);
+
+        return new GetDeploymentConfigAction($deployment)->execute();
+    }
+
+    public function updateConfig(mixed $root, array $request): bool
+    {
+        $app = app(Apps::class);
+
+        /** @var AgentDeployment $deployment */
+        $deployment = AgentDeployment::getById((int) $request['deployment_id'], $app);
+
+        return new UpdateDeploymentConfigAction(
+            $deployment,
+            (string) $request['config'],
+        )->execute();
+    }
+
+    public function backup(mixed $root, array $request): AgentBackup
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        /** @var AgentDeployment $deployment */
+        $deployment = AgentDeployment::getByIdFromCompanyApp((int) $request['deployment_id'], $company, $app);
+
+        $includeWorkspace = $request['include_workspace'] ?? true;
+
+        // Create the record immediately so the caller gets an ID to poll
+        $backup = new AgentBackup();
+        $backup->apps_id = $app->getId();
+        $backup->companies_id = $company->getId();
+        $backup->agent_deployment_id = $deployment->getId();
+        $backup->status = 'pending';
+        $backup->saveOrFail();
+
+        BackupAgentWorkspaceJob::dispatch($deployment, $backup, $includeWorkspace);
+
+        return $backup;
+    }
+
+    public function migrateWorkspace(mixed $root, array $request): AgentDeployment
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $input = $request['input'];
+
+        /** @var AgentDeployment $sourceDeployment */
+        $sourceDeployment = AgentDeployment::getByIdFromCompanyApp((int) $input['source_deployment_id'], $company, $app);
+
+        /** @var AgentMachine $destinationMachine */
+        $destinationMachine = AgentMachine::getByIdFromCompanyApp((int) $input['destination_machine_id'], $company, $app);
+
+        MigrateAgentWorkspaceJob::dispatch(
+            $sourceDeployment,
+            $destinationMachine,
+            $app,
+            $company,
+            $input['source_path'] ?? null,
+            $input['destination_path'] ?? null,
+        );
+
+        return $sourceDeployment;
+    }
+}
