@@ -1,0 +1,302 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Intelligence\AgentRuntime\Actions;
+
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
+use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
+use Kanvas\Intelligence\AgentRuntime\SshClient;
+use Kanvas\Intelligence\Agents\Models\AgentDeployment;
+use Kanvas\Intelligence\Agents\Models\AgentMachine;
+use Throwable;
+
+/**
+ * Migrate an agent's workspace between two same-runtime machines.
+ *
+ * Lifecycle:
+ *   1. tar.gz the source's `~/.<dotDir>` directory
+ *   2. Download the archive locally via SFTP, upload to the destination
+ *   3. Provision the agent's Linux user on the destination
+ *   4. Extract the archive, fix ownership/permissions for the container's UID 1000
+ *   5. Rebuild docker-compose.yml with the destination machine's allocated ports
+ *   6. `docker compose down && up -d` to start the relocated stack
+ *
+ * Cross-runtime migration (OpenClaw → Hermes etc.) is handled by
+ * {@see AgentRuntimeProvider::dispatchAdoptForeignDeployment} on the TARGET provider —
+ * not by this action.
+ */
+abstract class BaseMigrateAgentWorkspaceAction
+{
+    public function __construct(
+        protected AgentDeployment $sourceDeployment,
+        protected AgentMachine $destinationMachine,
+        protected AppInterface $app,
+        protected CompanyInterface $company,
+        protected ?string $sourcePath = null,
+        protected ?string $destinationPath = null,
+    ) {
+    }
+
+    abstract protected function createSshClient(AgentMachine $machine): SshClient;
+
+    abstract protected function getDockerComposeBuilder(): BaseDockerComposeBuilder;
+
+    public function execute(): AgentDeployment
+    {
+        $agent = $this->sourceDeployment->agent;
+        $sourceClient = $this->createSshClient($this->sourceDeployment->machine);
+        $providerConfig = $sourceClient::makeProviderConfig();
+
+        $timestamp = date('Ymd_His');
+        $archiveName = $providerConfig->providerName . '_agents_' . $timestamp . '.tar.gz';
+        $remoteArchive = '/tmp/' . $archiveName;
+        $localTempFile = sys_get_temp_dir() . '/' . $archiveName;
+
+        try {
+            $this->packWorkspace($sourceClient, $providerConfig, $remoteArchive, $localTempFile);
+        } finally {
+            $sourceClient->disconnect();
+        }
+
+        $agentSlug = (string) $agent->slug;
+        $systemUser = 'agent-' . $agentSlug;
+        $ports = $this->destinationMachine->allocatePortPair();
+
+        $destDeployment = $this->resolveDestinationDeployment(
+            $providerConfig,
+            $systemUser,
+            $ports,
+            $agentSlug,
+            $agent->getId(),
+        );
+
+        $destClient = $this->createSshClient($this->destinationMachine);
+
+        try {
+            $this->provisionUser($destClient, $systemUser);
+            $this->extractWorkspace($destClient, $providerConfig, $localTempFile, $remoteArchive, $destDeployment);
+            $this->startContainers($destClient, $providerConfig, $destDeployment, $agent);
+
+            $destDeployment->status = DeploymentStatusEnum::RUNNING->value;
+            $destDeployment->launched_at = now();
+            $destDeployment->saveOrFail();
+
+            $agent->set($providerConfig->deploymentIdCustomFieldKey, $destDeployment->getId());
+        } catch (Throwable $e) {
+            $destDeployment->status = DeploymentStatusEnum::FAILED->value;
+            $destDeployment->error_message = $e->getMessage();
+            $destDeployment->saveOrFail();
+
+            throw $e;
+        } finally {
+            $destClient->disconnect();
+
+            if (file_exists($localTempFile)) {
+                unlink($localTempFile);
+            }
+        }
+
+        return $destDeployment;
+    }
+
+    /**
+     * tar.gz the source workspace and SFTP it down to a local temp file. Mirrors the
+     * bash idiom of splitting source into parent (-C) and basename so the archive root
+     * contains only the workspace directory, not the absolute path.
+     */
+    private function packWorkspace(
+        SshClient $client,
+        ProviderConfig $providerConfig,
+        string $remoteArchive,
+        string $localTempFile,
+    ): void {
+        $sourceDir = $this->sourcePath ?? ($this->sourceDeployment->home_directory . '/.' . $providerConfig->dotDir);
+        $parentDir = dirname($sourceDir);
+        $dirName = basename($sourceDir);
+
+        $result = $client->exec(
+            'sudo tar -czf ' . escapeshellarg($remoteArchive)
+            . ' -C ' . escapeshellarg($parentDir)
+            . ' ' . escapeshellarg($dirName) . ' 2>&1'
+            . '; echo "EXIT_CODE:$?"',
+            300
+        );
+
+        if (str_contains($result, 'EXIT_CODE:1')) {
+            throw new ValidationException('Failed to create workspace archive on source: ' . $result);
+        }
+
+        try {
+            if (! $client->downloadToFile($remoteArchive, $localTempFile)) {
+                throw new ValidationException('Failed to download workspace archive from source');
+            }
+        } finally {
+            $client->exec('rm -f ' . escapeshellarg($remoteArchive));
+        }
+    }
+
+    /**
+     * If a deployment row already exists for this agent on the destination machine, reset
+     * it to PROVISIONING and update the ports. Otherwise create a fresh row. Same-row reuse
+     * keeps the AgentDeployment id stable across re-migrations.
+     *
+     * @param  array{gateway_port:int,proxy_port:int}  $ports
+     */
+    private function resolveDestinationDeployment(
+        ProviderConfig $providerConfig,
+        string $systemUser,
+        array $ports,
+        string $agentSlug,
+        int $agentId,
+    ): AgentDeployment {
+        /** @var AgentDeployment|null $deployment */
+        $deployment = AgentDeployment::where('agent_machine_id', $this->destinationMachine->getId())
+            ->where('system_user', $systemUser)
+            ->where('is_deleted', 0)
+            ->first();
+
+        if ($deployment !== null) {
+            $deployment->status = DeploymentStatusEnum::PROVISIONING->value;
+            $deployment->error_message = null;
+            $deployment->gateway_port = $ports['gateway_port'];
+            $deployment->proxy_port = $ports['proxy_port'];
+            $deployment->saveOrFail();
+
+            return $deployment;
+        }
+
+        $deployment = new AgentDeployment();
+        $deployment->apps_id = $this->app->getId();
+        $deployment->companies_id = $this->company->getId();
+        $deployment->agent_id = $agentId;
+        $deployment->agent_machine_id = $this->destinationMachine->getId();
+        $deployment->system_user = $systemUser;
+        $deployment->home_directory = '/home/' . $systemUser;
+        $deployment->gateway_port = $ports['gateway_port'];
+        $deployment->proxy_port = $ports['proxy_port'];
+        $deployment->container_name = $providerConfig->containerPrefix . $agentSlug;
+        $deployment->provider = $providerConfig->providerName;
+        $deployment->status = DeploymentStatusEnum::PROVISIONING->value;
+        $deployment->saveOrFail();
+
+        return $deployment;
+    }
+
+    /**
+     * Ensure the agent's Linux user exists on the destination and is in the docker group.
+     */
+    private function provisionUser(SshClient $client, string $systemUser): void
+    {
+        $client->exec(
+            'id ' . escapeshellarg($systemUser) . ' &>/dev/null'
+            . ' || sudo useradd -m -s /bin/bash ' . escapeshellarg($systemUser)
+        );
+        $client->exec('sudo usermod -aG docker ' . escapeshellarg($systemUser));
+    }
+
+    /**
+     * Stream the local archive to the destination via SFTP, extract it, and fix ownership
+     * so Docker's `node` user (UID 1000) can read/write workspace files. The container
+     * runs as UID 1000 inside; on the host we keep group ownership matched to the agent's
+     * system user so SSH commands can still inspect/modify the directory.
+     */
+    private function extractWorkspace(
+        SshClient $client,
+        ProviderConfig $providerConfig,
+        string $localTempFile,
+        string $remoteArchive,
+        AgentDeployment $deployment,
+    ): void {
+        $extractRoot = $this->destinationPath ?? $deployment->home_directory;
+        $providerDir = $extractRoot . '/.' . $providerConfig->dotDir;
+
+        if (! $client->uploadFromFile($remoteArchive, $localTempFile)) {
+            throw new ValidationException('Failed to upload workspace archive to destination');
+        }
+
+        $result = $client->exec(
+            'sudo tar -xzf ' . escapeshellarg($remoteArchive)
+            . ' -C ' . escapeshellarg($extractRoot) . ' 2>&1'
+            . '; echo "EXIT_CODE:$?"',
+            60
+        );
+
+        if (str_contains($result, 'EXIT_CODE:1')) {
+            throw new ValidationException('Failed to extract workspace archive on destination: ' . $result);
+        }
+
+        $client->exec(
+            'sudo chown -R ' . escapeshellarg($deployment->system_user . ':' . $deployment->system_user)
+            . ' ' . escapeshellarg($extractRoot)
+        );
+        $client->exec(
+            'sudo chown -R 1000:' . escapeshellarg($deployment->system_user)
+            . ' ' . escapeshellarg($providerDir)
+        );
+        $client->exec(
+            'sudo chmod -R g+rwx ' . escapeshellarg($providerDir)
+        );
+
+        $client->exec('rm -f ' . escapeshellarg($remoteArchive));
+    }
+
+    /**
+     * Ensure the runtime's shared Docker image is built on the destination, rewrite
+     * docker-compose.yml with the destination's allocated ports, then `docker compose
+     * down` (in case stale containers exist) and `up -d` to bring the relocated agent
+     * online.
+     */
+    private function startContainers(
+        SshClient $client,
+        ProviderConfig $providerConfig,
+        AgentDeployment $deployment,
+        \Kanvas\Intelligence\Agents\Models\Agent $agent,
+    ): void {
+        $providerDir = $deployment->home_directory . '/.' . $providerConfig->dotDir;
+
+        $builder = $this->getDockerComposeBuilder();
+        $imageName = $builder->getSharedImageName($this->app);
+        $imageDir = $builder->getSharedImageDir($this->app);
+
+        $exists = $client->exec('docker image inspect ' . escapeshellarg($imageName) . ' &>/dev/null && echo "EXISTS" || echo "MISSING"');
+        if (str_contains($exists, 'MISSING')) {
+            $buildResult = $client->exec(
+                'sudo docker build --no-cache -t ' . escapeshellarg($imageName) . ' ' . escapeshellarg($imageDir) . ' 2>&1; echo "EXIT_CODE:$?"',
+                900
+            );
+            if (! str_contains($buildResult, 'EXIT_CODE:0')) {
+                throw new ValidationException('Failed to build shared image on destination: ' . $buildResult);
+            }
+        }
+
+        $storedToken = $this->company->get($providerConfig->gatewayTokenConfigKey);
+        $gatewayToken = is_string($storedToken) && $storedToken !== '' ? $storedToken : bin2hex(random_bytes(32));
+        $composeContent = $builder->buildDockerCompose($deployment, $gatewayToken, $this->app, $agent);
+        $client->writeFileAsUser($providerDir . '/docker-compose.yml', $composeContent, $deployment->system_user);
+
+        $client->exec(
+            'sudo -u ' . escapeshellarg($deployment->system_user)
+            . ' bash -c ' . escapeshellarg('cd ' . $providerDir . ' && docker compose down 2>&1 || true'),
+            60
+        );
+
+        $result = $client->exec(
+            'sudo -u ' . escapeshellarg($deployment->system_user)
+            . ' bash -c ' . escapeshellarg('cd ' . $providerDir . ' && docker compose up -d 2>&1')
+            . '; echo "EXIT_CODE:$?"',
+            120
+        );
+
+        if (
+            str_contains($result, 'EXIT_CODE:1')
+            || str_contains($result, 'Error response from daemon')
+        ) {
+            throw new ValidationException('Docker start failed on destination: ' . $result);
+        }
+    }
+}

@@ -43,7 +43,7 @@ abstract class BaseDispatchAgentDeploymentAction
     public function execute(): AgentDeployment
     {
         $config = $this->getProviderConfig();
-        $systemUser = 'agent-' . $this->agent->slug;
+        $systemUser = substr('agent-' . $this->agent->slug, 0, 32);
         $ports = $this->machine->allocatePortPair();
 
         $deployment = AgentDeployment::where('agent_machine_id', $this->machine->getId())

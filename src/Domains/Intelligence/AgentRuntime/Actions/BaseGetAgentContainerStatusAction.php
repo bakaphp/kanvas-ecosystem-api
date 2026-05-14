@@ -1,0 +1,91 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Intelligence\AgentRuntime\Actions;
+
+use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\SshClient;
+use Kanvas\Intelligence\Agents\Models\AgentDeployment;
+use Kanvas\Intelligence\Agents\Models\AgentMachine;
+
+/**
+ * Probe an agent's container via `docker compose ps --format json` and sync the result
+ * back to the AgentDeployment row.
+ *
+ * The compose stack typically contains multiple services (gateway + socat-proxy on OpenClaw,
+ * similar on Hermes), so we match by `container_name` instead of taking the first NDJSON line.
+ */
+abstract class BaseGetAgentContainerStatusAction
+{
+    public function __construct(
+        protected AgentDeployment $deployment,
+    ) {
+    }
+
+    abstract protected function createSshClient(AgentMachine $machine): SshClient;
+
+    public function execute(): AgentDeployment
+    {
+        $client = $this->createSshClient($this->deployment->machine);
+
+        try {
+            $providerDir = $this->deployment->home_directory . '/.' . $client::makeProviderConfig()->dotDir;
+            $result = $client->exec(
+                'sudo -u ' . escapeshellarg($this->deployment->system_user)
+                . ' bash -c ' . escapeshellarg('cd ' . $providerDir . ' && docker compose ps --format json 2>&1')
+            );
+
+            $this->syncStatusFromOutput($result);
+            $this->deployment->last_health_check = now();
+            $this->deployment->saveOrFail();
+        } finally {
+            $client->disconnect();
+        }
+
+        return $this->deployment;
+    }
+
+    private function syncStatusFromOutput(string $output): void
+    {
+        if (empty(trim($output))) {
+            $this->deployment->status = DeploymentStatusEnum::STOPPED->value;
+
+            return;
+        }
+
+        // Docker Compose v2 outputs NDJSON — one JSON object per line.
+        foreach (explode("\n", trim($output)) as $line) {
+            $line = trim($line);
+
+            if ($line === '') {
+                continue;
+            }
+
+            $decoded = json_decode($line, true);
+
+            if (! is_array($decoded)) {
+                continue;
+            }
+
+            $name = $decoded['Name'] ?? $decoded['name'] ?? '';
+
+            if ($name !== '' && $name !== $this->deployment->container_name) {
+                continue;
+            }
+
+            $state = $decoded['State'] ?? $decoded['state'] ?? '';
+
+            $this->deployment->status = match (true) {
+                $state === 'running' => DeploymentStatusEnum::RUNNING->value,
+                $state === 'exited' => DeploymentStatusEnum::STOPPED->value,
+                default => $this->deployment->status,
+            };
+
+            return;
+        }
+
+        // No line matched the deployment's container — mark as stopped.
+        $this->deployment->status = DeploymentStatusEnum::STOPPED->value;
+    }
+}

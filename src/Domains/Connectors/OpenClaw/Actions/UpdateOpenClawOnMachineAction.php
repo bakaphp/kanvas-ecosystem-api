@@ -9,7 +9,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
 /**
- * Scan a machine for active OpenClaw installations and return the list of
+ * Scan a machine for active AgentRuntime installations and return the list of
  * Linux usernames that have a valid .openclaw/docker-compose.yml.
  *
  * The actual per-user update is handled by UpdateOpenClawForUserJob so each

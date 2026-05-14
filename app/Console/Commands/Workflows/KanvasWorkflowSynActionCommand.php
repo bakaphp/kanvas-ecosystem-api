@@ -100,7 +100,7 @@ use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
 use Kanvas\Connectors\OpenClaw\Activities\SendChannelMessageToAgentActivity;
 use Kanvas\Connectors\OpenClaw\Activities\SyncAgentSwarmContextActivity;
-use Kanvas\Connectors\OpenClaw\Activities\SyncOpenClawAgentWorkspaceActivity;
+use Kanvas\Connectors\OpenClaw\Activities\SyncOpenClawWorkspaceActivity;
 use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
 use Kanvas\Connectors\PlateRecognizer\Workflows\ProcessVehicleImageActivity;
 use Kanvas\Connectors\PromptMine\Webhooks\ModelWizardReceiverJob;
@@ -431,7 +431,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SendNotificationActivity::class,
             SaveLeadPreferredChannelActivity::class,
             ContactCheckerActivity::class,
-            SyncOpenClawAgentWorkspaceActivity::class,
+            SyncOpenClawWorkspaceActivity::class,
             SyncAgentSwarmContextActivity::class,
             SendChannelMessageToAgentActivity::class,
             ReplyToPlanCommentActivity::class,
