@@ -46,6 +46,7 @@ class AgentChatMutation
             app: $app,
             company: $company,
             user: $user,
+            images: $input['images'] ?? [],
         )->execute();
     }
 
@@ -205,6 +206,7 @@ class AgentChatMutation
             app: $app,
             company: $company,
             user: $user,
+            images: $input['images'] ?? [],
         )->execute();
 
         return [

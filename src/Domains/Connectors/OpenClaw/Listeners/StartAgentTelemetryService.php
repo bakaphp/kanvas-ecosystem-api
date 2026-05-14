@@ -15,8 +15,8 @@ class StartAgentTelemetryService
      * TTL slightly longer than the retry interval so the lock is always held
      * by the active worker, but expires quickly after an unclean shutdown.
      */
-    private const LOCK_TTL    = 70;   // slightly above the 65s collect() lock TTL
-    private const RETRY_MS    = 5_000;
+    private const LOCK_TTL = 70;   // slightly above the 65s collect() lock TTL
+    private const RETRY_MS = 5_000;
 
     public function handle(WorkerStarting $event): void
     {
