@@ -17,16 +17,6 @@ use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Kanvas\Intelligence\Agents\Models\AgentUsageSnapshot;
 use ValueError;
 
-/**
- * AgentRuntime deployment mutations — single GraphQL entry point for every runtime backend.
- *
- * Provider routing is driven by the agent's own data:
- *   - For `launch` (no deployment yet) the runtime comes from `agent.agentType.provider`.
- *   - For every operation against an existing deployment, `agent_deployments.provider` decides.
- *
- * In both cases the resolver hands off to {@see AgentRuntimeProviderFactory} and never imports
- * OpenClaw / Hermes code directly — adding a new runtime is one `match` arm on the factory.
- */
 class AgentDeploymentMutation
 {
     public function launch(mixed $root, array $request): AgentDeployment
