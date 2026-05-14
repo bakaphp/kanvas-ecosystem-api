@@ -725,6 +725,16 @@ Building an SDK client is almost always cheap (string assignments, no network ha
 
 The same Octane risk applies to **any mutable static state on connector classes** (e.g. `protected static string $environment` mutated via `setEnvironment()`). Those mutations persist across requests on the same worker and cause cross-tenant state bleed. Keep environment/region per-instance, or pass at call time.
 
+### AgentRuntime is a primary domain, not a connector (foot-guns)
+
+OpenClaw, Hermes (and future Nano) live under `src/Domains/Connectors/`, but **`AgentRuntime` itself is a primary domain** at `src/Domains/Intelligence/AgentRuntime/`. The connector folders only hold per-runtime implementations of the shared `AgentRuntimeProvider` contract — they don't own GraphQL, dispatch, or the public surface. If you see `app/GraphQL/Connector/AgentRuntime/`, `graphql/schemas/Connector/agentruntime.graphql`, `hermesLaunchAgent`, `openclawTerminateAgent`, or any per-runtime mutation, that's the wrong shape — delete it. The whole graph is `agentRuntime*` and routes by `agent_deployments.provider`.
+
+**Provider source of truth:** `agent.agentType.provider` pre-launch (no deployment yet) and `agent_deployments.provider` post-launch. There is **no `agents.agent_provider`** column — don't read or add one. Resolvers always go through [`AgentRuntimeProviderFactory`](../src/Domains/Intelligence/AgentRuntime/Providers/AgentRuntimeProviderFactory.php) (`forAgent` / `forDeployment` / `forProvider`); never inject a DI container or instantiate a concrete provider. We tried a service-provider + registry once and deleted it — providers are stateless and the set is closed, so a static `match` is the right answer; don't rebuild the registry.
+
+**Per-runtime variation belongs on [`ProviderConfig`](../src/Domains/Intelligence/AgentRuntime/Contracts/ProviderConfig.php), not in `Base*Action` bodies.** If a new variation point shows up (directory name, CLI alias, config filename, image name, custom-field key) add a field to `ProviderConfig` and populate it in every connector's `SshClient::makeProviderConfig()`. The cost of hardcoding the OpenClaw spelling in a base action is silent breakage on Hermes; the same applies the other direction.
+
+**Cross-runtime migration is "target adopts source", not "source pushes to target".** `AgentRuntimeProvider::dispatchAdoptForeignDeployment` is implemented on the **destination** runtime (today: Hermes consumes OpenClaw deployments) — not on the source. The single mutation is `agentRuntimeMigrateAgentToProvider` with a `target_provider` field. Don't add a `hermesMigrateFromOpenclaw` (we deleted that one).
+
 ## Adding @search to GraphQL Queries
 
 All list queries should support the `@search` directive for text search. This requires two things:

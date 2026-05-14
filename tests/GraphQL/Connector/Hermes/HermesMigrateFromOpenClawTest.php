@@ -95,8 +95,8 @@ class HermesMigrateFromOpenClawTest extends TestCase
         $sourceDeployment = $this->createTestDeployment($machine);
 
         $response = $this->graphQL('
-            mutation($input: HermesMigrateFromOpenClawInput!) {
-                hermesMigrateFromOpenclaw(input: $input) {
+            mutation($input: MigrateAgentToProviderInput!) {
+                agentRuntimeMigrateAgentToProvider(input: $input) {
                     id
                 }
             }
@@ -104,13 +104,14 @@ class HermesMigrateFromOpenClawTest extends TestCase
             'input' => [
                 'source_deployment_id' => (string) $sourceDeployment->getId(),
                 'destination_machine_id' => (string) $machine->getId(),
+                'target_provider' => 'HERMES',
             ],
         ]);
 
         $response->assertSuccessful();
         $response->assertJson([
             'data' => [
-                'hermesMigrateFromOpenclaw' => [
+                'agentRuntimeMigrateAgentToProvider' => [
                     'id' => (string) $sourceDeployment->getId(),
                 ],
             ],
@@ -122,8 +123,8 @@ class HermesMigrateFromOpenClawTest extends TestCase
     public function testHermesMigrateFromOpenclawRequiresValidSourceDeployment(): void
     {
         $response = $this->graphQL('
-            mutation($input: HermesMigrateFromOpenClawInput!) {
-                hermesMigrateFromOpenclaw(input: $input) {
+            mutation($input: MigrateAgentToProviderInput!) {
+                agentRuntimeMigrateAgentToProvider(input: $input) {
                     id
                 }
             }
@@ -131,6 +132,7 @@ class HermesMigrateFromOpenClawTest extends TestCase
             'input' => [
                 'source_deployment_id' => '999999999',
                 'destination_machine_id' => '999999999',
+                'target_provider' => 'HERMES',
             ],
         ]);
 

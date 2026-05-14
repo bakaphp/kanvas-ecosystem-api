@@ -10,9 +10,6 @@ use Kanvas\ActionEngine\Tasks\WorkflowActivity\ChecklistUpdateStatusFromMessageA
 use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaB2BSubscriptionActivity;
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaSubscriptionActivity;
-use Kanvas\Connectors\AgentRuntime\Activities\SendChannelMessageToAgentActivity;
-use Kanvas\Connectors\AgentRuntime\Activities\SyncAgentRuntimeWorkspaceActivity;
-use Kanvas\Connectors\AgentRuntime\Activities\SyncAgentSwarmContextActivity;
 use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
 use Kanvas\Connectors\Azul\Webhook\AzulMethodNotificationWebhookJob;
@@ -101,6 +98,9 @@ use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\Ofac\Activities\OfacScreeningActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
+use Kanvas\Connectors\OpenClaw\Activities\SendChannelMessageToAgentActivity;
+use Kanvas\Connectors\OpenClaw\Activities\SyncAgentSwarmContextActivity;
+use Kanvas\Connectors\OpenClaw\Activities\SyncOpenClawWorkspaceActivity;
 use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
 use Kanvas\Connectors\PlateRecognizer\Workflows\ProcessVehicleImageActivity;
 use Kanvas\Connectors\PromptMine\Webhooks\ModelWizardReceiverJob;
@@ -431,7 +431,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SendNotificationActivity::class,
             SaveLeadPreferredChannelActivity::class,
             ContactCheckerActivity::class,
-            SyncAgentRuntimeWorkspaceActivity::class,
+            SyncOpenClawWorkspaceActivity::class,
             SyncAgentSwarmContextActivity::class,
             SendChannelMessageToAgentActivity::class,
             ReplyToPlanCommentActivity::class,
