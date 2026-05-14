@@ -11,6 +11,7 @@ use Kanvas\Connectors\DealerAppCenter\Services\InventorySftpClient;
 use Kanvas\Connectors\DealerAppCenter\Webhooks\ProcessDealerAppCenterCloudSyncWebhookJob;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
+use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Kanvas\Workflow\Models\WorkflowAction;
 use Override;
 use Tests\TestCase;
@@ -189,6 +190,27 @@ class CloudSyncReceiverTest extends TestCase
         $this->assertSame('', $row[$yearIdx]);
     }
 
+    public function testPreservesCaseOfRooftopIdEchoButMatchesFilenameCaseInsensitively(): void
+    {
+        // Consumer sends uppercase; file on FTP is lowercase. We must:
+        //   - resolve `aisj_inventory.csv` despite case difference (filename lookup)
+        //   - echo "AISJ" verbatim in every row's Rooftop ID column (no normalization)
+        // The consumer's `Rooftops::getByExternalId()` may be case-sensitive against
+        // a DB row stored uppercase, so case normalization on our side would break it.
+        $result = $this->dispatchJob(
+            files: ['aisj_inventory.csv' => $this->sampleCsv()],
+            payload: $this->authenticatedPayload(['AISJ']),
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame('Inventory loaded for AISJ.', $result['message']);
+
+        $rooftopColumn = array_search('Rooftop ID', $result['data']['fileHeaders'], true);
+        foreach ($result['data']['fileValues'] as $row) {
+            $this->assertSame('AISJ', $row[$rooftopColumn]);
+        }
+    }
+
     public function testReturnsErrorOnEmptyCsv(): void
     {
         $result = $this->dispatchJob(
@@ -241,7 +263,7 @@ class CloudSyncReceiverTest extends TestCase
             /**
              * @param array<string,string> $files
              */
-            public function __construct($webhookRequest, private readonly array $files)
+            public function __construct(ReceiverWebhookCall $webhookRequest, private readonly array $files)
             {
                 parent::__construct($webhookRequest);
             }

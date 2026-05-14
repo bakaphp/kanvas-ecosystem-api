@@ -158,7 +158,7 @@ class ProcessDealerAppCenterCloudSyncWebhookJob extends ProcessWebhookJob
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param array<array-key,mixed> $payload
      *
      * @return list<string>
      */
@@ -170,9 +170,13 @@ class ProcessDealerAppCenterCloudSyncWebhookJob extends ProcessWebhookJob
             return [];
         }
 
+        // Preserve the case the consumer sent — we echo this value back in every
+        // row's `Rooftop ID` column, and the consumer's `Rooftops::getByExternalId()`
+        // lookup may be case-sensitive (depends on DB collation). Filename matching
+        // against the FTP listing is still case-insensitive (see matchFilename).
         $ids = [];
         foreach ($raw as $value) {
-            $clean = strtolower(trim((string) $value));
+            $clean = trim((string) $value);
             if ($clean !== '') {
                 $ids[] = $clean;
             }
