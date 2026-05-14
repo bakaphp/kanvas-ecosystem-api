@@ -12,15 +12,9 @@ use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Override;
 
 /**
- * Hermes concrete — invokes `hermes backup --quick -o /tmp/<name>.zip` inside the container.
- *
- * Per docs (`hermes backup [--quick] [-o PATH]`): `-o` takes the FULL archive path (not just
- * a directory), so we pre-compute a timestamped filename and tell the CLI to write there.
- * That's a small win over OpenClaw's "let the CLI pick a name and parse it out of stdout"
- * dance — no regex needed, no failure mode if the CLI's naming convention changes.
- *
- * `--quick` is used when the caller opts OUT of the workspace (state-only backup, what
- * Hermes calls "quick"). When the workspace IS included we drop the flag for a full backup.
+ * `hermes backup` accepts `-o /full/path.zip` — unlike OpenClaw which takes `--output /dir`
+ * and picks the filename itself. We use the full-path form so we know the archive name
+ * up front without parsing CLI output. `--quick` is documented as "state only, skip workspace".
  */
 class BackupAgentWorkspaceAction extends BaseBackupAgentWorkspaceAction
 {

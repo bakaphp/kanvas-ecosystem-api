@@ -12,18 +12,9 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
 
-/**
- * Orchestrate a "run the runtime's native `<runtime> backup` CLI inside the container,
- * copy the archive out, upload to S3" workflow.
- *
- * The base owns the orchestration; subclasses only:
- *   - choose the SshClient subclass,
- *   - shape the backup-CLI invocation + tell us what archive filename it produced.
- *
- * The OpenClaw runtime emits `*.tar.gz`; the Hermes runtime emits `*.zip`. The on-disk
- * extension and the CLI flag differ, but everything downstream (docker cp → SFTP → S3)
- * is identical.
- */
+// Subclasses' runBackupCli() runs the runtime's `<runtime> backup` CLI inside the container
+// and returns the resulting archive filename (just the basename, written under /tmp on the
+// container's filesystem). Everything downstream — docker cp, SFTP, S3 upload — is shared.
 abstract class BaseBackupAgentWorkspaceAction
 {
     public function __construct(

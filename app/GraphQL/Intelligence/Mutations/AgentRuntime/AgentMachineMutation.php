@@ -79,7 +79,7 @@ class AgentMachineMutation
             throw new ValidationException('Cannot delete machine with active deployments. Terminate all deployments first.');
         }
 
-        return $machine->softDelete();
+        return (bool) $machine->delete();
     }
 
     public function updateContainers(mixed $root, array $request): bool

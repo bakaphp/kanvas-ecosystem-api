@@ -14,19 +14,10 @@ use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 use Throwable;
 
-/**
- * Hermes concrete — uses the YAML codec (config.yaml).
- *
- * Hermes' config is structured YAML (nested maps for gateway/auth/tools/etc.). We accept
- * either YAML or JSON as the payload format: JSON is a strict subset of YAML 1.2 so
- * clients that send JSON still parse cleanly.
- */
+// JSON is a valid YAML 1.2 subset, so callers can send either format — Yaml::parse handles both.
 class UpdateDeploymentConfigAction extends BaseUpdateDeploymentConfigAction
 {
-    /**
-     * Use enough nesting depth for Hermes' deeply nested config (skills, model arrays,
-     * provider profiles). 8 levels covers the documented structure with room to spare.
-     */
+    // 8 levels of block-nesting covers Hermes' deepest documented config branch (skills → tools → providers).
     private const int YAML_INLINE_DEPTH = 8;
     private const int YAML_INDENT = 2;
 

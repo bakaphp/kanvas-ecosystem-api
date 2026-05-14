@@ -104,6 +104,12 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@terminate"
         )
+
+    agentRuntimeDeleteDeployment(deployment_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@delete"
+        )
+
     agentRuntimeRestartContainer(deployment_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@restart"

@@ -15,16 +15,10 @@ use Kanvas\Intelligence\Agents\Models\AgentUsageSnapshot;
 use LogicException;
 use Override;
 
-/**
- * Default-throws implementation of every {@see AgentRuntimeProvider} method.
- *
- * Concrete providers extend this and override only the operations they actually support.
- * Anything they leave unoverridden surfaces as a clear `LogicException` instead of a
- * silent crash deep inside a hardcoded connector call.
- *
- * Add a new lifecycle method to the interface → add the default-throws stub here →
- * existing providers stay compilable, only the ones that support it have to be updated.
- */
+// Every interface method default-throws here. Concrete providers override only the ops they
+// support; calls into a missing op surface a clear LogicException at the resolver instead of
+// crashing deep inside a connector. Add a new interface method → add a stub here → partial
+// connectors stay compilable.
 abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
 {
     #[Override]
@@ -137,18 +131,6 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
     public function dispatchUpdateMachineContainers(AgentMachine $machine): void
     {
         throw $this->unsupported('machine container updates');
-    }
-
-    #[Override]
-    public function setSlackTokens(Agent $agent, string $botToken, string $appToken): void
-    {
-        throw $this->unsupported('Slack tokens');
-    }
-
-    #[Override]
-    public function setTelegramToken(Agent $agent, string $botToken): void
-    {
-        throw $this->unsupported('Telegram tokens');
     }
 
     protected function unsupported(string $operation): LogicException

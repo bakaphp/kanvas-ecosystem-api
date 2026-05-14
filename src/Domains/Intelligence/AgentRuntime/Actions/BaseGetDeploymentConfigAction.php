@@ -9,12 +9,7 @@ use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
-/**
- * Read the deployment's runtime config file (openclaw.json / config.yaml / ...) over SFTP.
- *
- * Returns the raw file contents — callers are responsible for decoding. The path is composed
- * from ProviderConfig's `dotDir` + `configFilename`, so each runtime points at the right file.
- */
+// Returns the raw file contents; callers decode (OpenClaw → JSON, Hermes → YAML).
 abstract class BaseGetDeploymentConfigAction
 {
     public function __construct(

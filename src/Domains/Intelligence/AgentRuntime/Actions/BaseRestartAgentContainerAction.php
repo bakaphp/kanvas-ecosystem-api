@@ -10,11 +10,6 @@ use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
-/**
- * Restart the agent's Docker stack via `docker compose restart` inside its provider dir.
- * Only valid when the deployment is currently running — otherwise we'd silently no-op
- * and leave callers with a misleading "success" response.
- */
 abstract class BaseRestartAgentContainerAction
 {
     public function __construct(

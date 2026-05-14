@@ -8,13 +8,6 @@ use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
-/**
- * Fetch the tail of an agent's Docker container logs via `docker compose logs`.
- *
- * Provider-agnostic — the deployment directory is computed from the SshClient's
- * {@see \Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig::dotDir} so
- * OpenClaw resolves to `~/.openclaw`, Hermes to `~/.hermes`, etc.
- */
 abstract class BaseGetAgentContainerLogsAction
 {
     public function __construct(

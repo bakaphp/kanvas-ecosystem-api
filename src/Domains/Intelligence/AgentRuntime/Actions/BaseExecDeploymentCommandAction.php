@@ -7,13 +7,6 @@ namespace Kanvas\Intelligence\AgentRuntime\Actions;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
-/**
- * Validate + sanitize an exec request, then dispatch the provider's queued worker that
- * runs it inside the container and streams output back over WebSockets.
- *
- * The base owns input validation; subclasses only choose which Job class to dispatch
- * (one per runtime).
- */
 abstract class BaseExecDeploymentCommandAction
 {
     public function __construct(

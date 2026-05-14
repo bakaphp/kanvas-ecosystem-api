@@ -136,7 +136,11 @@ class HermesMigrateFromOpenClawTest extends TestCase
             ],
         ]);
 
-        $response->assertGraphQLErrorMessage('No Kanvas\Intelligence\Agents\Models\AgentDeployment record found with ID 999999999');
+        // company-scoped lookup tacks on " for Company ID <id>" — match the full string.
+        $response->assertGraphQLErrorMessage(
+            'No Kanvas\Intelligence\Agents\Models\AgentDeployment record found with ID 999999999 for Company ID '
+            . auth()->user()->getCurrentCompany()->getId()
+        );
     }
 
     public function testMigrateFromOpenClawJobFailedHookDispatchesEvent(): void
