@@ -20,6 +20,7 @@ use Kanvas\Connectors\Calendly\Jobs\ProcessCalendlyWebhookJob;
 use Kanvas\Connectors\ChromeData\Activities\AddStockImageToProductActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
+use Kanvas\Connectors\DealerAppCenter\Webhooks\ProcessDealerAppCenterCloudSyncWebhookJob;
 use Kanvas\Connectors\DealerSocket\Activities\AddLeadCommentFromAgentMessageActivity as ActivitiesAddLeadCommentFromAgentMessageActivity;
 use Kanvas\Connectors\DealerSocket\Activities\AddLeadKanvasChatLinkNoteActivity;
 use Kanvas\Connectors\DealerSocket\Activities\PushLeadActivity as ActivitiesPushLeadActivity;
@@ -281,6 +282,7 @@ class KanvasWorkflowSynActionCommand extends Command
             LinkMessageToOrderActivity::class,
             GenerateStripeSignupLinkForUserActivity::class,
             CreateCreditScoreFromLeadActivity::class,
+            ProcessDealerAppCenterCloudSyncWebhookJob::class,
             GeneratePdfActivity::class,
             SoftPullFromLeadActivity::class,
             SendMessageNotificationToFollowersActivity::class,
