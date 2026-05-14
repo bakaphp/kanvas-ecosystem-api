@@ -45,6 +45,8 @@ jobs:
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:cache
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:clear-cache all
             docker exec -i phpkanvas-ecosystem php artisan config:cache
+
+            docker stop rediskanvas-ecosystem
             docker restart queue-scrapper
             docker stop queue-scrapper-worker-{1..4}
             docker restart queue
@@ -60,7 +62,8 @@ jobs:
             docker restart queue-workflow-{1..2}
             docker stop queue-workflow-3
             docker stop batch-logger-queue
-            docker restart openclaw-queue
+            docker restart agent-runtime-queue
+            docker restart ledger-queue
             docker stop queue-user-interactions
 
             if [ "${{ github.ref_name }}" == "1.x" ]; then

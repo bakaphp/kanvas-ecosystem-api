@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenClaw\Services;
 
-use App\GraphQL\Connector\OpenClaw\Subscriptions\AgentTelemetrySubscription;
+use App\GraphQL\Intelligence\Subscriptions\AgentRuntime\AgentTelemetrySubscription;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;

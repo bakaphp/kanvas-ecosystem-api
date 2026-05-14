@@ -18,8 +18,11 @@ class OpenClawAgentHandler
         $this->agent = $agent;
     }
 
-    public function chat(string $message, ?string $sessionKey = null): string
-    {
+    public function chat(
+        string $message,
+        ?string $sessionKey = null,
+        array $images = []
+    ): string {
         $activeDeployment = $this->agent->activeDeployment;
 
         if (! $activeDeployment instanceof AgentDeployment || ! $activeDeployment->isRunning()) {
@@ -30,6 +33,7 @@ class OpenClawAgentHandler
             $this->agent,
             $message,
             $sessionKey,
+            $images,
         )->execute();
     }
 }

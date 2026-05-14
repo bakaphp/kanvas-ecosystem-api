@@ -35,7 +35,7 @@ class CollectDeploymentUsageJob implements ShouldQueue
         protected CompanyInterface $company,
         protected ?string $date = null,
     ) {
-        $this->onQueue('openclaw');
+        $this->onQueue('agent-runtime');
     }
 
     public function handle(): void

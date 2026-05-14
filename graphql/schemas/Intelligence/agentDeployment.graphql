@@ -80,6 +80,7 @@ type AgentDeploymentType {
     gateway_port: Int!
     proxy_port: Int!
     container_name: String!
+    provider: String!
     status: String!
     launched_at: DateTime
     terminated_at: DateTime
@@ -116,16 +117,40 @@ input UpdateAgentMachineInput {
     is_active: Boolean
 }
 
+enum AgentProvider {
+    OPENCLAW
+    HERMES
+}
+
 input LaunchAgentInput {
     agent_id: ID!
     machine_id: ID!
+    provider: AgentProvider = OPENCLAW
 }
+
+# Lifecycle mutations live in graphql/schemas/Intelligence/agentRuntime.graphql as the
+# unified `agentRuntime*` set — dispatching by provider via AgentRuntimeProviderRegistry.
+# The old `launchAgent` / `terminateAgent` / `setAgentSlackTokens` / `setAgentTelegramToken`
+# fields were removed in favour of `agentRuntimeLaunchAgent` etc.
 
 extend type Query @guard {
     agentUsageSnapshots(
         search: String @search
-        where: _ @whereConditions(columns: ["id", "agent_deployment_id", "snapshot_date", "source", "provider", "model"])
-        orderBy: _ @orderBy(columns: ["id", "snapshot_date", "total_tokens", "created_at"])
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "agent_deployment_id"
+                    "snapshot_date"
+                    "source"
+                    "provider"
+                    "model"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: ["id", "snapshot_date", "total_tokens", "created_at"]
+            )
     ): [AgentUsageSnapshot!]!
         @paginate(
             model: "Kanvas\\Intelligence\\Agents\\Models\\AgentUsageSnapshot"
@@ -137,7 +162,10 @@ extend type Query @guard {
 extend type Query @guardByAdmin {
     agentMachines(
         search: String @search
-        where: _ @whereConditions(columns: ["id", "name", "slug", "region", "is_active"])
+        where: _
+            @whereConditions(
+                columns: ["id", "name", "slug", "region", "is_active"]
+            )
         orderBy: _ @orderBy(columns: ["id", "created_at", "name"])
     ): [AgentMachineType!]!
         @paginate(
@@ -148,7 +176,10 @@ extend type Query @guardByAdmin {
 
     agentDeployments(
         search: String @search
-        where: _ @whereConditions(columns: ["id", "agent_id", "agent_machine_id", "status"])
+        where: _
+            @whereConditions(
+                columns: ["id", "agent_id", "agent_machine_id", "status"]
+            )
         orderBy: _ @orderBy(columns: ["id", "created_at", "launched_at"])
     ): [AgentDeploymentType!]!
         @paginate(
@@ -158,7 +189,8 @@ extend type Query @guardByAdmin {
         )
 
     agentBackups(
-        where: _ @whereConditions(columns: ["id", "agent_deployment_id", "status"])
+        where: _
+            @whereConditions(columns: ["id", "agent_deployment_id", "status"])
         orderBy: _ @orderBy(columns: ["id", "created_at", "completed_at"])
     ): [AgentBackupType!]!
         @paginate(

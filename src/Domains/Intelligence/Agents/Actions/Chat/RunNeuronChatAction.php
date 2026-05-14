@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Agent\AgentHandler;
 use NeuronAI\Chat\Messages\UserMessage;
 
 class RunNeuronChatAction
@@ -39,9 +40,13 @@ class RunNeuronChatAction
             )
             : $this->handler->chat(new UserMessage($this->message));
 
-        $response = $this->handler instanceof ADKAgent
-            ? $responseContent->getContent()
-            : ChatHelper::extractTextFromResponse($responseContent->getContent());
+        if ($this->handler instanceof ADKAgent) {
+            $response = $responseContent->getContent();
+        } elseif ($responseContent instanceof AgentHandler) {
+            $response = ChatHelper::extractTextFromResponse($responseContent->getMessage()->getContent());
+        } else {
+            $response = ChatHelper::extractTextFromResponse($responseContent->getContent());
+        }
 
         new KanvasConversationStore()->logTurn(
             userId: $this->user->getId(),

@@ -25,7 +25,8 @@ type AgentAi {
     agent_model_id: ID
     parent_id: ID
     is_active: Boolean!
-    selectedTools: [NervousSystemTool!]! @belongsToMany(relation: "selectedTools")
+    selectedTools: [NervousSystemTool!]!
+        @belongsToMany(relation: "selectedTools")
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -83,6 +84,7 @@ input ChatSimpleInput {
     agent_id: ID!
     session_id: String!
     message: String!
+    images: [String!]
 }
 
 input AgentSessionInput {
@@ -96,6 +98,15 @@ input UserChatInput {
     message: String!
     session_id: String
     lead_id: ID
+    images: [String!]
+}
+
+input NeuronChatInput {
+    name: String!
+    system_modules_uuid: String!
+    entity_id: String!
+    thread_id: String!
+    message: String!
 }
 
 type UserChatResponse {
@@ -135,6 +146,10 @@ extend type Mutation @guard {
     detachToolFromAgent(agent_id: ID!, tool_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@detachTool"
+        )
+    aiAgentNeuronChat(input: NeuronChatInput!): String!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@neuronChat"
         )
 }
 

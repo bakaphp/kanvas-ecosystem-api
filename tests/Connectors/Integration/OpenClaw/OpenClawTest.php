@@ -13,7 +13,7 @@ use Kanvas\Connectors\OpenClaw\Actions\ListAgentsAction;
 use Kanvas\Connectors\OpenClaw\Actions\RemoveAgentAction;
 use Kanvas\Connectors\OpenClaw\Actions\UpdateAgentDeploymentAction;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
-use Kanvas\Connectors\OpenClaw\Services\WorkspaceFileBuilder;
+use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Tests\Connectors\Traits\HasOpenClawConfiguration;
 use Tests\TestCase;
@@ -27,10 +27,10 @@ class OpenClawTest extends TestCase
 
     protected function tearDown(): void
     {
-        if (! empty($this->deployedAgents) && $this->hasOpenClawCredentials()) {
+        if (! empty($this->deployedAgents) && $this->hasAgentRuntimeCredentials()) {
             $app = app(Apps::class);
             $company = auth()->user()->getCurrentCompany();
-            $this->setupOpenClawConfiguration($company);
+            $this->setupAgentRuntimeConfiguration($company);
 
             foreach ($this->deployedAgents as $agent) {
                 try {
@@ -161,13 +161,13 @@ class OpenClawTest extends TestCase
 
     public function testDeployUpdateAndRemoveAgent()
     {
-        if (! $this->hasOpenClawCredentials()) {
+        if (! $this->hasAgentRuntimeCredentials()) {
             $this->markTestSkipped('OpenClaw SSH credentials not configured');
         }
 
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
-        $this->setupOpenClawConfiguration($company);
+        $this->setupAgentRuntimeConfiguration($company);
 
         $agent = $this->createTestAgent();
         $this->deployedAgents[] = $agent;
@@ -192,13 +192,13 @@ class OpenClawTest extends TestCase
 
     public function testGatewayOperations()
     {
-        if (! $this->hasOpenClawCredentials()) {
+        if (! $this->hasAgentRuntimeCredentials()) {
             $this->markTestSkipped('OpenClaw SSH credentials not configured');
         }
 
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
-        $this->setupOpenClawConfiguration($company);
+        $this->setupAgentRuntimeConfiguration($company);
 
         $logs = new GetGatewayLogsAction($app, $company, 10)->execute();
         $this->assertIsString($logs);

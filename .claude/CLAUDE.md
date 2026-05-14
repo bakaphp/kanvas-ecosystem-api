@@ -725,6 +725,18 @@ Building an SDK client is almost always cheap (string assignments, no network ha
 
 The same Octane risk applies to **any mutable static state on connector classes** (e.g. `protected static string $environment` mutated via `setEnvironment()`). Those mutations persist across requests on the same worker and cause cross-tenant state bleed. Keep environment/region per-instance, or pass at call time.
 
+### AgentRuntime is a primary domain, not a connector (foot-guns)
+
+OpenClaw, Hermes (and future Nano) live under `src/Domains/Connectors/`, but **`AgentRuntime` itself is a primary domain** at `src/Domains/Intelligence/AgentRuntime/`. The connector folders only hold per-runtime implementations of the shared `AgentRuntimeProvider` contract — they don't own GraphQL, dispatch, or the public surface. If you see `app/GraphQL/Connector/AgentRuntime/`, `graphql/schemas/Connector/agentruntime.graphql`, `hermesLaunchAgent`, `openclawTerminateAgent`, or any per-runtime mutation, that's the wrong shape — delete it. The whole graph is `agentRuntime*` and routes by `agent_deployments.provider`.
+
+**Provider source of truth:** `agent.agentType.provider` pre-launch (no deployment yet) and `agent_deployments.provider` post-launch. There is **no `agents.agent_provider`** column — don't read or add one. Resolvers always go through [`AgentRuntimeProviderFactory`](../src/Domains/Intelligence/AgentRuntime/Providers/AgentRuntimeProviderFactory.php) (`forAgent` / `forDeployment` / `forProvider`); never inject a DI container or instantiate a concrete provider. We tried a service-provider + registry once and deleted it — providers are stateless and the set is closed, so a static `match` is the right answer; don't rebuild the registry.
+
+**Per-runtime variation belongs on [`ProviderConfig`](../src/Domains/Intelligence/AgentRuntime/Contracts/ProviderConfig.php), not in `Base*Action` bodies.** If a new variation point shows up (directory name, CLI alias, config filename, image name, custom-field key) add a field to `ProviderConfig` and populate it in every connector's `SshClient::makeProviderConfig()`. The cost of hardcoding the OpenClaw spelling in a base action is silent breakage on Hermes; the same applies the other direction.
+
+**Per-agent credentials that aren't runtime-specific (Slack tokens, Telegram tokens, future channel API keys) live on the primary domain under [`AgentChannelTokenEnum`](../src/Domains/Intelligence/AgentRuntime/Enums/AgentChannelTokenEnum.php) — one shared key per credential, NOT `OPENCLAW_SLACK_BOT_TOKEN` + `HERMES_SLACK_BOT_TOKEN`.** A Slack token's value doesn't change based on which runtime reads it; the runtime's `DockerComposeBuilder` picks up the shared key and injects the canonical container env var (`SLACK_BOT_TOKEN`). If you find yourself adding `<PROVIDER>_<CREDENTIAL>` to a connector's `CustomFieldEnum`, ask first whether the credential is genuinely runtime-specific. Things that ARE runtime-specific and DO belong on the per-connector enum: gateway tokens (each runtime issues its own), deployment ids (each runtime gets its own deployment row), workspace paths.
+
+**Cross-runtime migration is "target adopts source", not "source pushes to target".** `AgentRuntimeProvider::dispatchAdoptForeignDeployment` is implemented on the **destination** runtime (today: Hermes consumes OpenClaw deployments) — not on the source. The single mutation is `agentRuntimeMigrateAgentToProvider` with a `target_provider` field. Don't add a `hermesMigrateFromOpenclaw` (we deleted that one).
+
 ## Adding @search to GraphQL Queries
 
 All list queries should support the `@search` directive for text search. This requires two things:
@@ -1223,6 +1235,62 @@ Key rules:
 - **Action**: Use `->value` to extract the string when assigning to the model (e.g., `$this->data->status->value`)
 - **Nullable enums**: Use `?EnumClass` in DTO, `isset()` check in mutation, `?->value` in action
 
+### Never Queue a Spatie Data DTO that holds Eloquent Models or Model Interfaces
+
+`Spatie\LaravelData\Data` overrides `__serialize` / `__unserialize`. When a `Data` subclass has a property typed as an Eloquent model (`Apps`, `Companies`, ...) or model interface (`AppInterface`, `CompanyInterface`, ...), the serializer flattens the model to a primitive FK form (e.g. property `app` becomes a camelCased `appsId` entry in the serialized payload). On `__unserialize` in the worker, the primitive does **not** restore back into the typed property — it lands as a **dynamic property** (`$appsId`) and the typed `$app` stays uninitialized. The next read of `$dto->app` fatals with `Typed property X must not be accessed before initialization`. The breadcrumb tell is a `Creation of dynamic property ...::$xxxId is deprecated` warning logged from `CallQueuedHandler` right before the crash.
+
+This is not Laravel's `SerializesModels` — that trait handles **direct** model properties on the **job** correctly via `ModelIdentifier`. The bug only appears when the model is **nested inside a Spatie Data DTO** that the job stores as a property.
+
+**Rule:** for any `ShouldQueue` job, do not store a `Spatie\LaravelData\Data` DTO that contains Eloquent models or model interfaces. Take the models and primitives directly on the job, and rebuild the DTO inside `handle()`:
+
+```php
+// WRONG — DTO with AppInterface/CompanyInterface goes through queue, breaks on unserialize
+class AppendToLedgerJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public function __construct(public readonly EventData $data) {}
+
+    public function handle(): void
+    {
+        new AppendEventAction($this->data)->execute(); // $this->data->app uninitialized
+    }
+}
+
+// CORRECT — Eloquent models + primitives on the job; SerializesModels round-trips them
+class AppendToLedgerJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public function __construct(
+        public readonly Apps $app,
+        public readonly ?Companies $company,
+        public readonly string $sourceDomain,
+        public readonly string $eventType,
+        public readonly EventStatusEnum $status,
+        // ... rest as primitives (string, int, ?array, ?string for Carbon-as-ISO, ...)
+    ) {}
+
+    public function handle(): void
+    {
+        $data = new EventData(
+            app: $this->app,
+            company: $this->company,
+            sourceDomain: $this->sourceDomain,
+            // ... rebuild DTO from fields
+        );
+
+        new AppendEventAction($data)->execute();
+    }
+}
+```
+
+Notes:
+- Use concrete Eloquent classes (`Apps`, `Companies`, `Users`) on the job constructor, not the interfaces — `SerializesModels` resolves them via `ModelIdentifier` which needs the class name.
+- Pass `Carbon` instances as ISO-8601 strings (`Carbon::now()->toIso8601String()`) and re-parse with `Carbon::parse()` in `handle()`. Avoids the same Spatie-Data-style serialization quirk if the DTO has Carbon properties.
+- Synchronous emission paths (e.g. trait helpers like `EmitsLedgerEventsForEntity::emitLedgerEvent`) are unaffected — there's no serialization, so passing the Spatie Data DTO directly to the action is still fine there.
+- This isn't unique to the Ledger domain — apply the rule to **every** queued job that has a Spatie Data DTO in scope.
+
 ### Database Connections
 Each domain has its own database connection defined in the domain's BaseModel:
 - `action_engine` - ActionEngine domain
@@ -1527,6 +1595,9 @@ Same rule for `@belongsTo(relation: "company")`, `@hasOne(relation: "primaryAddr
 
 ### Code Style
 - **No section separator comments** — do not add `// --- SectionName ---`, `# --- SectionName ---`, or similar decorative dividers in code, tests, or schema files. Test methods and code sections are self-documenting by their names. If a file grows too large, split it into separate files instead.
+- **Comment why, not what.** Class/method docblocks and inline comments exist to capture decisions a reader can't recover from the code itself — gotchas, "why this weird approach", invariants, external constraints. Code that's self-evident from the names + body should carry no doc. If you find yourself paraphrasing the signature ("Fetch the X from Y" on a method called `fetchXFromY`), delete the comment and let the names do the work. The first design instinct should be to make the code clear enough not to need a comment; reach for the comment only when the design can't be simplified further.
+  - **Keep** comments that explain: non-obvious ordering ("OpenClaw rows first so OpenClaw wins on tie"), external-system quirks ("Node prints warnings ahead of JSON, strip before decode"), cache TTL rationale, the "why" behind an interface (cross-runtime adoption is on the *target* not the source), schema/input shapes contributors must conform to.
+  - **Delete** comments that restate code: `// Loop over the items`, `// Set the status to running`, `// Fetch logs via SSH`, class docblocks that describe what the class name already says, method docblocks that paraphrase the signature.
 
 ## Queue Workers
 

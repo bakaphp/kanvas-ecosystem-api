@@ -10,7 +10,6 @@ return new class () extends Migration {
      */
     public function up(): void
     {
-
         Schema::table('channels', function (Blueprint $table) {
             $table->string('description', 255)->nullable()->change();
             ;
@@ -22,6 +21,5 @@ return new class () extends Migration {
      */
     public function down(): void
     {
-
     }
 };

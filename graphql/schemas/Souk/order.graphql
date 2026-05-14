@@ -192,6 +192,9 @@ type GeneratePaymentIntentResult {
     client_secret: String!
     status: String
     message: Mixed
+    customer: String
+    ephemeral_key: String
+    publishable_key: String
 }
 
 type OrderResult {
@@ -500,7 +503,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@generatePaymentIntent"
         )
-    generatePaymentIntentFromOrder(orderId: ID!): GeneratePaymentIntentResult!
+    generatePaymentIntentFromOrder(orderId: ID!, stripeVersion: String): GeneratePaymentIntentResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\PaymentManagementMutation@generatePaymentIntentFromOrder"
         )

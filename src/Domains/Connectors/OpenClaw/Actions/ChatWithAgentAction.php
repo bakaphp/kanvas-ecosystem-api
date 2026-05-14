@@ -29,12 +29,11 @@ use Kanvas\Intelligence\Agents\Models\AgentMachine;
  */
 class ChatWithAgentAction
 {
-    private const string DEFAULT_MODEL = 'gpt-5.4';
-
     public function __construct(
         protected Agent $agent,
         protected string $message,
         protected ?string $sessionKey = null,
+        protected array $images = [],
     ) {
     }
 
@@ -100,8 +99,8 @@ class ChatWithAgentAction
     private function sendRequest(AgentDeployment $deployment, string $token, string $sessionKey): string
     {
         $payload = json_encode([
-            'model' => self::DEFAULT_MODEL,
-            'input' => $this->message,
+            'model' => 'openclaw/' . $this->agent->slug,
+            'input' => $this->buildInput(),
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         if ($payload === false) {
@@ -127,6 +126,21 @@ class ChatWithAgentAction
         }
 
         return $this->parseResponse($response);
+    }
+
+    private function buildInput(): string|array
+    {
+        if ($this->images === []) {
+            return $this->message;
+        }
+
+        $content = [['type' => 'input_text', 'text' => $this->message]];
+
+        foreach ($this->images as $imageUrl) {
+            $content[] = ['type' => 'input_image', 'image_url' => $imageUrl];
+        }
+
+        return [['role' => 'user', 'content' => $content]];
     }
 
     private function parseResponse(string $response): string

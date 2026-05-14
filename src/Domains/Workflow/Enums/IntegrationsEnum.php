@@ -50,6 +50,7 @@ enum IntegrationsEnum: string
     case CARDNET = 'cardnet';
     case CONTACT_CHECKER = 'contact_checker';
     case OPENCLAW = 'openclaw';
+    case HERMES = 'hermes';
     case MICROSOFT = 'microsoft';
     case INTRAS = 'intras';
     case LICENSE_PLATE_EXTRACTOR = 'license_plate_extractor';

@@ -19,4 +19,14 @@ enum LeadNotificationModeEnum: string
             default => self::NOTIFY_ALL,
         };
     }
+
+    public function shouldNotifyAgents(): bool
+    {
+        return in_array($this, [self::NOTIFY_ALL, self::NOTIFY_AGENTS], true);
+    }
+
+    public function shouldNotifyLead(): bool
+    {
+        return in_array($this, [self::NOTIFY_ALL, self::NOTIFY_LEAD], true);
+    }
 }
