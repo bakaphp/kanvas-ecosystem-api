@@ -20,6 +20,7 @@ use Kanvas\Connectors\Calendly\Jobs\ProcessCalendlyWebhookJob;
 use Kanvas\Connectors\ChromeData\Activities\AddStockImageToProductActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromLeadActivity;
 use Kanvas\Connectors\Credit700\Workflow\CreateCreditScoreFromMessageActivity;
+use Kanvas\Connectors\DealerAppCenter\Webhooks\ProcessDealerAppCenterCloudSyncWebhookJob;
 use Kanvas\Connectors\DealerSocket\Activities\AddLeadCommentFromAgentMessageActivity as ActivitiesAddLeadCommentFromAgentMessageActivity;
 use Kanvas\Connectors\DealerSocket\Activities\AddLeadKanvasChatLinkNoteActivity;
 use Kanvas\Connectors\DealerSocket\Activities\PushLeadActivity as ActivitiesPushLeadActivity;
@@ -99,7 +100,7 @@ use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
 use Kanvas\Connectors\OpenClaw\Activities\SendChannelMessageToAgentActivity;
 use Kanvas\Connectors\OpenClaw\Activities\SyncAgentSwarmContextActivity;
-use Kanvas\Connectors\OpenClaw\Activities\SyncOpenClawAgentWorkspaceActivity;
+use Kanvas\Connectors\OpenClaw\Activities\SyncOpenClawWorkspaceActivity;
 use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
 use Kanvas\Connectors\PlateRecognizer\Workflows\ProcessVehicleImageActivity;
 use Kanvas\Connectors\PromptMine\Webhooks\ModelWizardReceiverJob;
@@ -281,6 +282,7 @@ class KanvasWorkflowSynActionCommand extends Command
             LinkMessageToOrderActivity::class,
             GenerateStripeSignupLinkForUserActivity::class,
             CreateCreditScoreFromLeadActivity::class,
+            ProcessDealerAppCenterCloudSyncWebhookJob::class,
             GeneratePdfActivity::class,
             SoftPullFromLeadActivity::class,
             SendMessageNotificationToFollowersActivity::class,
@@ -429,7 +431,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SendNotificationActivity::class,
             SaveLeadPreferredChannelActivity::class,
             ContactCheckerActivity::class,
-            SyncOpenClawAgentWorkspaceActivity::class,
+            SyncOpenClawWorkspaceActivity::class,
             SyncAgentSwarmContextActivity::class,
             SendChannelMessageToAgentActivity::class,
             ReplyToPlanCommentActivity::class,

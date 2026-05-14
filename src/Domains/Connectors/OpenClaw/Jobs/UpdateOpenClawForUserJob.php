@@ -12,10 +12,6 @@ use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
 use Kanvas\Intelligence\AgentRuntime\SshClient as BaseSshClient;
 use Override;
 
-/**
- * OpenClaw-specific update job — thin subclass that wires the OpenClaw provider classes.
- * All update logic lives in BaseUpdateAgentForUserJob.
- */
 class UpdateOpenClawForUserJob extends BaseUpdateAgentForUserJob
 {
     #[Override]

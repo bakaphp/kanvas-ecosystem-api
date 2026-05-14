@@ -22,7 +22,7 @@ use phpseclib3\Net\SFTP;
  *
  * Uses phpseclib3 SFTP (which extends SSH2) for command execution and file transfer.
  *
- * Concrete subclasses (OpenClaw\SshClient, Hermes\SshClient) implement:
+ * Concrete subclasses (AgentRuntime\SshClient, Hermes\SshClient) implement:
  *  - makeProviderConfig(): ProviderConfig — supplies all provider-specific constants
  *  - buildFromCompanyConfig(CompanyInterface): void — reads provider-specific ConfigurationEnum keys
  */

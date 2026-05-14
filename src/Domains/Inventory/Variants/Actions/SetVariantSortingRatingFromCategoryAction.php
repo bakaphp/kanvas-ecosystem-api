@@ -28,27 +28,23 @@ class SetVariantSortingRatingFromCategoryAction
         $newRating = $this->resolveRating($product);
         $oldRating = (float) $this->variant->rating;
 
-        if ($newRating === $oldRating) {
-            return [
-                'status' => 'unchanged',
-                'rating' => $newRating,
-                'variant_id' => $this->variant->getId(),
-            ];
+        $status = 'unchanged';
+
+        if ($newRating !== $oldRating) {
+            $this->variant->rating = $newRating;
+            $this->variant->save();
+            $status = 'updated';
         }
 
-        $this->variant->rating = $newRating;
-        // Use save() not saveQuietly(): Scout's ModelObserver::saved listens on the
-        // standard Eloquent saved event, which saveQuietly() suppresses.
-        $this->variant->save();
-
-        // Propagate rating to the product so it lands in the product search index
-        if ($product->rating !== $newRating) {
-            $product->rating = $newRating;
+        // Propagate variant rating to the product so it lands in the product search index
+        $variantRating = (float) $this->variant->rating;
+        if ((float) $product->rating !== $variantRating) {
+            $product->rating = $variantRating;
             $product->save();
         }
 
         return [
-            'status' => 'updated',
+            'status' => $status,
             'rating' => $newRating,
             'previous' => $oldRating,
             'variant_id' => $this->variant->getId(),
