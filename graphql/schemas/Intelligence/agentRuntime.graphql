@@ -105,7 +105,6 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@terminate"
         )
 
-    "Terminate (if still running) AND soft-delete the deployment row. Use to free the agent slot or drop history; `agentRuntimeTerminateAgent` alone keeps the row for audit."
     agentRuntimeDeleteDeployment(deployment_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@delete"
