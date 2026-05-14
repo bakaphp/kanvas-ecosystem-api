@@ -115,6 +115,7 @@ class SystemModules extends BaseModel
             'Gewaer\\Models\\Leads' => Lead::class,
             'Gewaer\\Models\\Messages' => Message::class,
             'Gewaer\\Models\\Companies' => Companies::class,
+            'Canvas\\Models\\Companies' => Companies::class,
             'Kanvas\\Packages\\Social\\Models\\Messages' => Message::class,
             'Gewaer\Domains\Engagements\Models\Engagements' => Engagement::class,
             // 'Kanvas\Guild\Activities\Models\Activities' => Message::class,
