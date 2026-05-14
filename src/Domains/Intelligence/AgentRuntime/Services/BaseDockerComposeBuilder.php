@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Services;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
+use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
@@ -18,7 +19,7 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
  *  - {provider}.json   — agent config: models, channels, gateway auth, tools, hooks
  *  - auth-profiles.json — LLM provider API keys (Google, Anthropic)
  *
- * Concrete subclasses (OpenClaw\Services\DockerComposeBuilder, Hermes\Services\DockerComposeBuilder)
+ * Concrete subclasses (AgentRuntime\Services\DockerComposeBuilder, Hermes\Services\DockerComposeBuilder)
  * implement the abstract getters that return their provider-specific ConfigurationEnum key strings
  * and CustomFieldEnum key strings.
  */
@@ -46,11 +47,26 @@ abstract class BaseDockerComposeBuilder
 
     abstract protected function getAnthropicApiKeyConfigKey(): string;
 
-    abstract protected function getSlackBotTokenCustomFieldKey(): string;
+    /**
+     * Channel-token custom-field keys are runtime-agnostic — Slack/Telegram tokens are the same
+     * value regardless of which runtime reads them. See {@see AgentChannelTokenEnum}. These used
+     * to be abstract with per-connector `OPENCLAW_*` / `HERMES_*` overrides; merged here so a
+     * single agent custom-field row services every runtime.
+     */
+    protected function getSlackBotTokenCustomFieldKey(): string
+    {
+        return AgentChannelTokenEnum::SLACK_BOT_TOKEN->value;
+    }
 
-    abstract protected function getSlackAppTokenCustomFieldKey(): string;
+    protected function getSlackAppTokenCustomFieldKey(): string
+    {
+        return AgentChannelTokenEnum::SLACK_APP_TOKEN->value;
+    }
 
-    abstract protected function getTelegramBotTokenCustomFieldKey(): string;
+    protected function getTelegramBotTokenCustomFieldKey(): string
+    {
+        return AgentChannelTokenEnum::TELEGRAM_BOT_TOKEN->value;
+    }
 
     /**
      * Provider-specific fallback for the upstream Docker base image when no app-level override

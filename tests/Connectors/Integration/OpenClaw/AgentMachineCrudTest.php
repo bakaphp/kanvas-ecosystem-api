@@ -27,7 +27,7 @@ class AgentMachineCrudTest extends TestCase
 
         $this->graphQL('
             mutation($input: AgentMachineInput!) {
-                openclawCreateMachine(input: $input) {
+                agentRuntimeCreateMachine(input: $input) {
                     id
                     name
                     host
@@ -44,7 +44,7 @@ class AgentMachineCrudTest extends TestCase
         ->assertSuccessful()
         ->assertJson([
             'data' => [
-                'openclawCreateMachine' => [
+                'agentRuntimeCreateMachine' => [
                     'name' => $input['name'],
                     'host' => '192.168.1.100',
                     'ssh_port' => 22,
@@ -68,7 +68,7 @@ class AgentMachineCrudTest extends TestCase
 
         $this->graphQL('
             mutation($id: ID!, $input: UpdateAgentMachineInput!) {
-                openclawUpdateMachine(id: $id, input: $input) {
+                agentRuntimeUpdateMachine(id: $id, input: $input) {
                     id
                     name
                     max_agents
@@ -79,7 +79,7 @@ class AgentMachineCrudTest extends TestCase
         ->assertSuccessful()
         ->assertJson([
             'data' => [
-                'openclawUpdateMachine' => [
+                'agentRuntimeUpdateMachine' => [
                     'name' => $updateInput['name'],
                     'max_agents' => 200,
                     'is_active' => false,
@@ -94,11 +94,11 @@ class AgentMachineCrudTest extends TestCase
 
         $this->graphQL('
             mutation($id: ID!) {
-                openclawDeleteMachine(id: $id)
+                agentRuntimeDeleteMachine(id: $id)
             }
         ', ['id' => $machine->getId()])
         ->assertSuccessful()
-        ->assertJson(['data' => ['openclawDeleteMachine' => true]]);
+        ->assertJson(['data' => ['agentRuntimeDeleteMachine' => true]]);
     }
 
     public function testListAgentMachines(): void
@@ -141,7 +141,7 @@ class AgentMachineCrudTest extends TestCase
 
         $this->graphQL('
             mutation($input: AgentMachineInput!) {
-                openclawCreateMachine(input: $input) {
+                agentRuntimeCreateMachine(input: $input) {
                     id
                     ssh_port
                     port_range_start
@@ -153,7 +153,7 @@ class AgentMachineCrudTest extends TestCase
         ->assertSuccessful()
         ->assertJson([
             'data' => [
-                'openclawCreateMachine' => [
+                'agentRuntimeCreateMachine' => [
                     'ssh_port' => 22,
                     'port_range_start' => 20000,
                     'port_range_end' => 30000,

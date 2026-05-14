@@ -16,7 +16,7 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
 /**
- * Scan the machine for OpenClaw installations and dispatch one
+ * Scan the machine for AgentRuntime installations and dispatch one
  * UpdateOpenClawForUserJob per user so each update runs independently.
  */
 class UpdateOpenClawOnMachineJob implements ShouldQueue
