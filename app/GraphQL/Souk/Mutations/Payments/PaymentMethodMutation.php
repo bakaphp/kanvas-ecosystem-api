@@ -13,6 +13,7 @@ use Kanvas\Payments\Actions\UpdatePaymentMethodAction;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Payments\Contracts\ActivationProcessorInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 
 class PaymentMethodMutation
 {
@@ -26,7 +27,7 @@ class PaymentMethodMutation
 
         try {
             if ($input['processor']) {
-                if ($input['processor'] !== 'stripe' && empty($input['number'] ?? null)) {
+                if ($input['processor'] !== IntegrationsEnum::STRIPE->value && empty($input['number'] ?? null)) {
                     throw new ValidationException("'number' is required for processor '{$input['processor']}'.");
                 }
                 if (! empty($input['number'] ?? null)) {
