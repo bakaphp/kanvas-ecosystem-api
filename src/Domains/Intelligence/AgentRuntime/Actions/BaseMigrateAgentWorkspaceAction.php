@@ -9,11 +9,13 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Notifications\AgentMigrationNotification;
 use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
+use Kanvas\Users\Models\Users;
 use Throwable;
 
 // Same-runtime workspace move (e.g. OpenClaw on machine A → OpenClaw on machine B).
@@ -75,10 +77,14 @@ abstract class BaseMigrateAgentWorkspaceAction
             $destDeployment->saveOrFail();
 
             $agent->set($providerConfig->deploymentIdCustomFieldKey, $destDeployment->getId());
+
+            $this->notifyOwner($destDeployment, success: true);
         } catch (Throwable $e) {
             $destDeployment->status = DeploymentStatusEnum::FAILED->value;
             $destDeployment->error_message = $e->getMessage();
             $destDeployment->saveOrFail();
+
+            $this->notifyOwner($destDeployment, success: false, error: $e);
 
             throw $e;
         } finally {
@@ -266,5 +272,15 @@ abstract class BaseMigrateAgentWorkspaceAction
         ) {
             throw new ValidationException('Docker start failed on destination: ' . $result);
         }
+    }
+
+    private function notifyOwner(?AgentDeployment $destDeployment, bool $success, ?Throwable $error = null): void
+    {
+        $recipient = $this->sourceDeployment->agent?->user;
+        if (! $recipient instanceof Users) {
+            return;
+        }
+
+        $recipient->notify(new AgentMigrationNotification($this->sourceDeployment, $destDeployment, $success, $error));
     }
 }
