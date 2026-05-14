@@ -138,6 +138,13 @@ abstract class BaseBackupAgentWorkspaceAction
             return;
         }
 
-        $recipient->notify(new AgentBackupNotification($this->backup, $this->deployment, $success, $error));
+        $recipient->notify(
+            new AgentBackupNotification(
+                $this->backup,
+                $this->deployment,
+                $success,
+                $error
+            )
+        );
     }
 }
