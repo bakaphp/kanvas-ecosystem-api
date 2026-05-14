@@ -134,7 +134,7 @@ class HermesMigrateFromOpenClawTest extends TestCase
             ],
         ]);
 
-        $response->assertGraphQLErrorMessage('No query results for model');
+        $response->assertGraphQLErrorMessage('No Kanvas\Intelligence\Agents\Models\AgentDeployment record found with ID 999999999');
     }
 
     public function testMigrateFromOpenClawJobFailedHookDispatchesEvent(): void
