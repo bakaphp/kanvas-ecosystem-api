@@ -6,10 +6,12 @@ namespace Kanvas\Intelligence\AgentRuntime\Actions;
 
 use Illuminate\Support\Facades\Storage;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Notifications\AgentBackupNotification;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentBackup;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
+use Kanvas\Users\Models\Users;
 use Throwable;
 
 // Subclasses' runBackupCli() runs the runtime's `<runtime> backup` CLI inside the container
@@ -54,10 +56,14 @@ abstract class BaseBackupAgentWorkspaceAction
             $this->backup->file_size_bytes = $size === false ? null : $size;
             $this->backup->completed_at = now();
             $this->backup->saveOrFail();
+
+            $this->notifyOwner(success: true);
         } catch (Throwable $e) {
             $this->backup->status = 'failed';
             $this->backup->error_message = $e->getMessage();
             $this->backup->saveOrFail();
+
+            $this->notifyOwner(success: false, error: $e);
 
             throw $e;
         } finally {
@@ -123,5 +129,15 @@ abstract class BaseBackupAgentWorkspaceAction
         }
 
         return $s3Path;
+    }
+
+    private function notifyOwner(bool $success, ?Throwable $error = null): void
+    {
+        $recipient = $this->deployment->agent?->user;
+        if (! $recipient instanceof Users) {
+            return;
+        }
+
+        $recipient->notify(new AgentBackupNotification($this->backup, $this->deployment, $success, $error));
     }
 }
