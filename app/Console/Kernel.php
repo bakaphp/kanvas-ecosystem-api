@@ -2,7 +2,7 @@
 
 namespace App\Console;
 
-use App\Console\Commands\AgentRuntime\CollectAgentTelemetryCommand;
+use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
 use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
 use App\Console\Commands\Connectors\Movipass\CheckExpiringOrdersCommand;
 use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;

@@ -10,9 +10,9 @@ use Kanvas\ActionEngine\Tasks\WorkflowActivity\ChecklistUpdateStatusFromMessageA
 use Kanvas\Apps\Activities\AppUsersNotificationByRoleActivity;
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaB2BSubscriptionActivity;
 use Kanvas\Connectors\AeroAmbulancia\Workflows\Activities\CreateAeroAmbulanciaSubscriptionActivity;
-use Kanvas\Connectors\AgentRuntime\Activities\SendChannelMessageToAgentActivity;
-use Kanvas\Connectors\AgentRuntime\Activities\SyncAgentRuntimeWorkspaceActivity;
-use Kanvas\Connectors\AgentRuntime\Activities\SyncAgentSwarmContextActivity;
+use Kanvas\Connectors\OpenClaw\Activities\SendChannelMessageToAgentActivity;
+use Kanvas\Connectors\OpenClaw\Activities\SyncOpenClawWorkspaceActivity;
+use Kanvas\Connectors\OpenClaw\Activities\SyncAgentSwarmContextActivity;
 use Kanvas\Connectors\Amplitude\WebhookReceivers\AmplitudeEventStreamWebhookJob;
 use Kanvas\Connectors\Apollo\Workflows\Activities\ScreeningPeopleActivity;
 use Kanvas\Connectors\Azul\Webhook\AzulMethodNotificationWebhookJob;
@@ -431,7 +431,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SendNotificationActivity::class,
             SaveLeadPreferredChannelActivity::class,
             ContactCheckerActivity::class,
-            SyncAgentRuntimeWorkspaceActivity::class,
+            SyncOpenClawWorkspaceActivity::class,
             SyncAgentSwarmContextActivity::class,
             SendChannelMessageToAgentActivity::class,
             ReplyToPlanCommentActivity::class,
