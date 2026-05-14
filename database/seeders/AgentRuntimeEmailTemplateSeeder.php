@@ -2,17 +2,19 @@
 
 declare(strict_types=1);
 
-use Illuminate\Database\Migrations\Migration;
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 
-// Seed the global (apps_id=0, companies_id=0) default templates for AgentRuntime lifecycle
-// emails by reading the Blade files from resources/views/emails/agent_runtime/. The
-// `RenderTemplateAction` looks up by name (TemplatesRepository::getByName checks app/company
-// specifics first then falls back to global), so an admin can override per-app simply by
-// inserting an `apps_id=<X>` row with the same name. Editing the global row updates the
-// default everywhere.
-return new class () extends Migration {
+// Seeds global (apps_id=0, companies_id=0) defaults for AgentRuntime lifecycle email
+// templates by reading the Blade files from resources/views/emails/agent_runtime/. Runs
+// AFTER TemplateSeeder in DatabaseSeeder — TemplateSeeder inserts rows with explicit ids
+// (1, 2, ...), so any insertion before it grabs those id values and breaks the seeder
+// with a duplicate-primary-key error.
+class AgentRuntimeEmailTemplateSeeder extends Seeder
+{
     private const string TEMPLATE_DIR = 'views/emails/agent_runtime';
 
     private const array TEMPLATES = [
@@ -23,7 +25,7 @@ return new class () extends Migration {
         'agent_migration_result',
     ];
 
-    public function up(): void
+    public function run(): void
     {
         foreach (self::TEMPLATES as $name) {
             $path = resource_path(self::TEMPLATE_DIR . '/' . $name . '.blade.php');
@@ -46,7 +48,7 @@ return new class () extends Migration {
                 'apps_id' => 0,
                 'users_id' => 1,
                 'companies_id' => 0,
-                'parent_template_id' => 0,
+                'parent_template_id' => null,
                 'name' => $name,
                 'template' => File::get($path),
                 'created_at' => now(),
@@ -54,13 +56,4 @@ return new class () extends Migration {
             ]);
         }
     }
-
-    public function down(): void
-    {
-        DB::table('email_templates')
-            ->whereIn('name', self::TEMPLATES)
-            ->where('apps_id', 0)
-            ->where('companies_id', 0)
-            ->delete();
-    }
-};
+}
