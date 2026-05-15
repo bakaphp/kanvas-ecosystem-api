@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Agent\AgentHandler;
 use NeuronAI\Chat\Enums\SourceType;
 use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
 use NeuronAI\Chat\Messages\UserMessage;
@@ -51,7 +52,10 @@ class RunNeuronChatAction
             throw $e;
         }
 
-        $content = $responseContent->getContent() ?? '';
+        $message = $responseContent instanceof AgentHandler
+            ? $responseContent->getMessage()
+            : $responseContent;
+        $content = $message->getContent() ?? '';
         $response = ChatHelper::extractTextFromResponse($content);
         new KanvasConversationStore()->logTurn(
             userId: $this->user->getId(),
