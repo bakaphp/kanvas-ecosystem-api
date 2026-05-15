@@ -15,8 +15,6 @@ use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
 use NeuronAI\Chat\Messages\UserMessage;
 use Throwable;
 
-use function Illuminate\Log\log;
-
 class RunNeuronChatAction
 {
     public function __construct(
@@ -48,11 +46,8 @@ class RunNeuronChatAction
         try {
             $responseContent = $this->handler->chat($message);
         } catch (Throwable $e) {
-            dd($e->getMessage());
+            report($e);
         }
-        log('message', [
-            'message' => $responseContent->getMessage(),
-        ]);
         $response = ChatHelper::extractTextFromResponse($responseContent->getMessage()->getContent());
         new KanvasConversationStore()->logTurn(
             userId: $this->user->getId(),
