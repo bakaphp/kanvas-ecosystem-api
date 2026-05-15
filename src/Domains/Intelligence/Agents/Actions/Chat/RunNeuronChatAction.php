@@ -7,12 +7,15 @@ namespace Kanvas\Intelligence\Agents\Actions\Chat;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Agent\AgentHandler;
+use NeuronAI\Chat\Enums\SourceType;
+use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
 use NeuronAI\Chat\Messages\UserMessage;
+use Throwable;
+
+use function Illuminate\Log\log;
 
 class RunNeuronChatAction
 {
@@ -23,6 +26,7 @@ class RunNeuronChatAction
         protected readonly Apps $app,
         protected readonly Users $user,
         protected readonly mixed $handler,
+        protected readonly array $images = []
     ) {
     }
 
@@ -30,24 +34,26 @@ class RunNeuronChatAction
     {
         $sessionId = $this->session?->uuid ?? '';
 
-        $responseContent = $this->handler instanceof ADKAgent
-            ? $this->handler->chatSimple(
-                $this->app,
-                $this->agent->company,
-                (string) $this->user->getId(),
-                $sessionId,
-                $this->message
-            )
-            : $this->handler->chat(new UserMessage($this->message));
-
-        if ($this->handler instanceof ADKAgent) {
-            $response = $responseContent->getContent();
-        } elseif ($responseContent instanceof AgentHandler) {
-            $response = ChatHelper::extractTextFromResponse($responseContent->getMessage()->getContent());
-        } else {
-            $response = ChatHelper::extractTextFromResponse($responseContent->getContent());
+        $message = new UserMessage($this->message);
+        foreach ($this->images as $image) {
+            $message->addContent(
+                new ImageContent(
+                    content: base64_encode(file_get_contents($image)),
+                    sourceType: SourceType::BASE64,
+                    mediaType: 'image/png'
+                )
+            );
         }
 
+        try {
+            $responseContent = $this->handler->chat($message);
+        } catch (Throwable $e) {
+            dd($e->getMessage());
+        }
+        log('message', [
+            'message' => $responseContent->getMessage(),
+        ]);
+        $response = ChatHelper::extractTextFromResponse($responseContent->getMessage()->getContent());
         new KanvasConversationStore()->logTurn(
             userId: $this->user->getId(),
             sessionId: $sessionId,
@@ -56,6 +62,6 @@ class RunNeuronChatAction
             assistantResponse: $response,
         );
 
-        return $response;
+        return $responseContent->getMessage()->getContent();
     }
 }
