@@ -12,6 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WordPress\Actions\DownloadInventoryAction;
 use Kanvas\Connectors\WordPress\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
+use phpseclib3\Net\SFTP;
 use Throwable;
 
 class DownloadWordPressInventoryCommand extends Command
@@ -24,7 +25,7 @@ class DownloadWordPressInventoryCommand extends Command
                             {--make= : Optional vehicle make to filter by}
                             {--email= : Email address to send results notification to}';
 
-    protected $description = 'Download vehicle inventory from WordPress dealer sites, generate CSV files, upload to FTP, and notify via email';
+    protected $description = 'Download vehicle inventory from WordPress dealer sites, generate CSV files, upload via FTP/FTPS/SFTP, and notify via email';
 
     public function handle(): int
     {
@@ -168,9 +169,19 @@ class DownloadWordPressInventoryCommand extends Command
 
         $ftpUsername = (string) $app->get(ConfigurationEnum::FTP_USERNAME->value);
         $ftpPassword = (string) $app->get(ConfigurationEnum::FTP_PASSWORD->value);
-        $ftpPort = (int) ($app->get(ConfigurationEnum::FTP_PORT->value) ?: 21);
         $ftpRoot = (string) ($app->get(ConfigurationEnum::FTP_ROOT->value) ?: '/');
-        $ftpSsl = (bool) $app->get(ConfigurationEnum::FTP_SSL->value);
+
+        $protocol = strtolower((string) ($app->get(ConfigurationEnum::FTP_PROTOCOL->value) ?: ''));
+        if ($protocol === '') {
+            $protocol = ((bool) $app->get(ConfigurationEnum::FTP_SSL->value)) ? 'ftps' : 'ftp';
+        }
+
+        if (! in_array($protocol, ['ftp', 'ftps', 'sftp'], true)) {
+            throw new ValidationException("Unsupported FTP protocol: {$protocol}. Expected ftp, ftps, or sftp.");
+        }
+
+        $defaultPort = $protocol === 'sftp' ? 22 : 21;
+        $ftpPort = (int) ($app->get(ConfigurationEnum::FTP_PORT->value) ?: $defaultPort);
 
         $filesToUpload = array_filter(
             array_column($results, 'file_path'),
@@ -178,20 +189,99 @@ class DownloadWordPressInventoryCommand extends Command
         );
 
         if (empty($filesToUpload)) {
-            $this->warn('No files to upload to FTP.');
+            $this->warn('No files to upload.');
 
             return false;
         }
 
-        $this->info('Uploading to FTP: ' . $ftpHost . ':' . $ftpPort);
+        $this->info('Uploading via ' . strtoupper($protocol) . ' to: ' . $ftpHost . ':' . $ftpPort);
 
-        $scheme = $ftpSsl ? 'ftps' : 'ftp';
+        return match ($protocol) {
+            'sftp' => $this->uploadViaSftp(
+                $ftpHost,
+                $ftpPort,
+                $ftpUsername,
+                $ftpPassword,
+                $ftpRoot,
+                $filesToUpload
+            ),
+            'ftp', 'ftps' => $this->uploadViaCurl(
+                $protocol,
+                $ftpHost,
+                $ftpPort,
+                $ftpUsername,
+                $ftpPassword,
+                $ftpRoot,
+                $filesToUpload
+            ),
+        };
+    }
+
+    /**
+     * @param array<int|string, string> $files
+     */
+    protected function uploadViaSftp(
+        string $host,
+        int $port,
+        string $username,
+        string $password,
+        string $root,
+        array $files
+    ): bool {
+        $sftp = new SFTP($host, $port, 30);
+
+        if (! $sftp->login($username, $password)) {
+            $this->error('SFTP login failed for user: ' . $username);
+
+            return false;
+        }
+
+        $remoteRoot = rtrim($root, '/');
+        if ($remoteRoot !== '' && ! $sftp->is_dir($remoteRoot)) {
+            $sftp->mkdir($remoteRoot, -1, true);
+        }
+
+        $uploaded = 0;
+        foreach ($files as $localPath) {
+            $remoteName = basename($localPath);
+            $remotePath = ($remoteRoot === '' ? '' : $remoteRoot) . '/' . $remoteName;
+
+            $this->info("  Uploading: {$remoteName}");
+
+            if ($sftp->put($remotePath, $localPath, SFTP::SOURCE_LOCAL_FILE)) {
+                $uploaded++;
+                $this->info("  Uploaded: {$remoteName}");
+            } else {
+                $this->error("  Failed to upload: {$remoteName} - " . $sftp->getLastSFTPError());
+            }
+        }
+
+        $sftp->disconnect();
+
+        $this->info("SFTP upload complete: {$uploaded}/" . count($files) . ' files');
+
+        return $uploaded > 0;
+    }
+
+    /**
+     * @param array<int|string, string> $files
+     */
+    protected function uploadViaCurl(
+        string $scheme,
+        string $host,
+        int $port,
+        string $username,
+        string $password,
+        string $root,
+        array $files
+    ): bool {
+        $useSsl = $scheme === 'ftps';
         $uploaded = 0;
 
-        foreach ($filesToUpload as $localPath) {
+        foreach ($files as $localPath) {
             $remoteName = basename($localPath);
-            $remotePath = rtrim($ftpRoot, '/') . '/' . $remoteName;
-            $ftpUrl = "{$scheme}://{$ftpHost}:{$ftpPort}{$remotePath}";
+            $remotePath = rtrim($root, '/') . '/' . $remoteName;
+            $ftpUrl = "{$scheme}://{$host}:{$port}{$remotePath}";
 
             $this->info("  Uploading: {$remoteName}");
 
@@ -205,7 +295,7 @@ class DownloadWordPressInventoryCommand extends Command
             try {
                 $ch = curl_init();
                 curl_setopt($ch, CURLOPT_URL, $ftpUrl);
-                curl_setopt($ch, CURLOPT_USERPWD, "{$ftpUsername}:{$ftpPassword}");
+                curl_setopt($ch, CURLOPT_USERPWD, "{$username}:{$password}");
                 curl_setopt($ch, CURLOPT_UPLOAD, true);
                 curl_setopt($ch, CURLOPT_INFILE, $fileHandle);
                 curl_setopt($ch, CURLOPT_INFILESIZE, filesize($localPath));
@@ -213,7 +303,7 @@ class DownloadWordPressInventoryCommand extends Command
                 curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
                 curl_setopt($ch, CURLOPT_TIMEOUT, 120);
 
-                if ($ftpSsl) {
+                if ($useSsl) {
                     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
                 }
@@ -233,7 +323,7 @@ class DownloadWordPressInventoryCommand extends Command
             }
         }
 
-        $this->info("FTP upload complete: {$uploaded}/" . count($filesToUpload) . ' files');
+        $this->info(strtoupper($scheme) . " upload complete: {$uploaded}/" . count($files) . ' files');
 
         return $uploaded > 0;
     }
@@ -252,15 +342,15 @@ class DownloadWordPressInventoryCommand extends Command
         $this->info("Sending results email to: {$email}");
 
         $lines = [];
-        $lines[] = "WordPress Inventory Download - Results";
+        $lines[] = 'WordPress Inventory Download - Results';
         $lines[] = "App: {$app->name} (ID: {$app->id})";
-        $lines[] = "Date: " . now()->toDateTimeString();
-        $lines[] = "";
+        $lines[] = 'Date: ' . now()->toDateTimeString();
+        $lines[] = '';
         $lines[] = "Dealers processed successfully: {$totalSuccess}";
         $lines[] = "Dealers failed: {$totalFailed}";
-        $lines[] = "FTP upload: " . ($ftpUploaded ? 'Yes' : 'No');
-        $lines[] = "";
-        $lines[] = "Details:";
+        $lines[] = 'FTP upload: ' . ($ftpUploaded ? 'Yes' : 'No');
+        $lines[] = '';
+        $lines[] = 'Details:';
 
         foreach ($results as $r) {
             $status = $r['success'] ? 'OK' : 'FAIL';

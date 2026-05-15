@@ -97,7 +97,6 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     use HasWallet;
     use LogsActivity;
 
-    protected $is_deleted;
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
     public $translatable = ['name','description','short_description','html_description'];
 
@@ -124,8 +123,9 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     ];
 
     protected $casts = [
-        'is_published' => 'boolean',
         'is_deleted' => 'boolean',
+        'is_published' => 'boolean',
+        'rating' => 'float',
     ];
 
     protected $guarded = [];
@@ -483,6 +483,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             'short_description' => null, //$this->short_description,
             'attributes' => [],
             'apps_id' => $this->apps_id,
+            'rating' => (float) $this->rating,
         ];
         $attributes = $this->searchableAttributes();
         foreach ($attributes as $attribute) {
@@ -779,6 +780,12 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 ],
                 [
                     'name' => 'weight',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'rating',
                     'type' => 'float',
                     'optional' => true,
                     'sort' => true,

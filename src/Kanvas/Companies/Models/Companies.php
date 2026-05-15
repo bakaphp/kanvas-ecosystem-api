@@ -39,6 +39,7 @@ use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Models\BaseModel;
 use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
@@ -410,6 +411,12 @@ class Companies extends BaseModel implements CompanyInterface, Customer
             $query->whereIn('users', [auth()->user()->getId()]);
         }
 
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'name,email,address,phone,website',
+            ]);
+        }
+
         return $query;
     }
 
@@ -420,12 +427,11 @@ class Companies extends BaseModel implements CompanyInterface, Customer
         $array['users'] = CompaniesRepository::getAllCompanyUsers($this)->pluck('id')->toArray();
         $array = $this->transform($array);
         $array['id'] = (string) $this->getKey();
-        $array['created_at'] = $this->created_at
-            ? ($this->isTypesense() ? $this->created_at->timestamp : $this->created_at->toDateTimeString())
-            : null;
+        $array['created_at'] = $this->created_at?->timestamp ?? 0;
         $array['is_active'] = (bool) $this->is_active;
         $array['is_deleted'] = (bool) $this->is_deleted;
         $array['zipcode'] = (string) ($this->zipcode ?? '');
+        $array['phone'] = (string) ($this->phone ?? '');
 
         return $array;
     }
@@ -444,6 +450,13 @@ class Companies extends BaseModel implements CompanyInterface, Customer
             'companies_id' => $this->getId(),
             'apps_id' => $app->getId(),
         ]);
+    }
+
+    public function getAiAgentUser(): ?Users
+    {
+        $agentUserId = $this->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
+
+        return $agentUserId !== null ? Users::getById((int) $agentUserId) : null;
     }
 
     public function hasCompanyPermission(UserInterface $user): void

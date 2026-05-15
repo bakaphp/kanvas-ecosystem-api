@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\LicensePlateExtractor;
 
+use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\LicensePlateExtractor\Actions\ExtractLicensePlateAction;
 use Kanvas\Connectors\LicensePlateExtractor\Enums\CustomFieldEnum;
@@ -27,6 +28,10 @@ final class ExtractLicensePlateActionTest extends TestCase
             'jpg',
             'https://example.com/car.jpg'
         );
+
+        Http::fake([
+            'example.com/*' => Http::response('fake-image-bytes', 200, ['Content-Type' => 'image/jpeg']),
+        ]);
 
         StructuredAnonymousAgent::fake([
             [
@@ -101,6 +106,10 @@ final class ExtractLicensePlateActionTest extends TestCase
             'png',
             'https://example.com/empty.png'
         );
+
+        Http::fake([
+            'example.com/*' => Http::response('fake-image-bytes', 200, ['Content-Type' => 'image/png']),
+        ]);
 
         StructuredAnonymousAgent::fake([
             [

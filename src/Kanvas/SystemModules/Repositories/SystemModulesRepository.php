@@ -87,11 +87,12 @@ class SystemModulesRepository
         bool $useCompanyReference = true
     ): Model {
         $systemModule = self::getByUuidOrModelName($entityInput->systemModuleUuid);
+        $modelName = SystemModules::convertLegacySystemModules($systemModule->model_name);
 
         /**
         * @var BaseModel
         */
-        $entityModel = (new ($systemModule->model_name));
+        $entityModel = new $modelName();
         $hasUuid = $entityModel->hasColumn('uuid');
 
         $isUser = $entityModel instanceof Users;

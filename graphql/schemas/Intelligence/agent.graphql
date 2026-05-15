@@ -1,7 +1,8 @@
 type AgentAi {
     id: ID!
     company: [Company!]! @belongsTo
-    user: [User!]! @belongsTo
+    user: User @belongsTo(relation: "user")
+    creator: User @belongsTo(relation: "creator")
     type: agentType! @belongsTo
     model: AgentAiModel @belongsTo
     companyTaskList: TaskList @belongsTo
@@ -24,6 +25,8 @@ type AgentAi {
     agent_model_id: ID
     parent_id: ID
     is_active: Boolean!
+    selectedTools: [NervousSystemTool!]!
+        @belongsToMany(relation: "selectedTools")
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -52,6 +55,7 @@ type AgentAiModel {
 input AgentAiInput {
     agent_type_id: Int!
     name: String!
+    user_id: ID
     agent_model_id: Int
     description: String
     config: Mixed!
@@ -67,6 +71,7 @@ input AgentAiInput {
     company_task_list_id: Int
     communication_channels: [CommunicationChannelPivot!]
     swarm_ids: [ID!]
+    tool_ids: [ID!]
 }
 
 input CommunicationChannelPivot {
@@ -79,6 +84,7 @@ input ChatSimpleInput {
     agent_id: ID!
     session_id: String!
     message: String!
+    images: [String!]
 }
 
 input AgentSessionInput {
@@ -92,10 +98,19 @@ input UserChatInput {
     message: String!
     session_id: String
     lead_id: ID
+    images: [String!]
+}
+
+input NeuronChatInput {
+    name: String!
+    system_modules_uuid: String!
+    entity_id: String!
+    thread_id: String!
+    message: String!
 }
 
 type UserChatResponse {
-    response: String!
+    response: Mixed!
     session_id: String!
 }
 
@@ -123,6 +138,18 @@ extend type Mutation @guard {
     aiAgentUserChat(input: UserChatInput!): UserChatResponse!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@userChat"
+        )
+    attachToolToAgent(agent_id: ID!, tool_id: ID!): AgentAi!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@attachTool"
+        )
+    detachToolFromAgent(agent_id: ID!, tool_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@detachTool"
+        )
+    aiAgentNeuronChat(input: NeuronChatInput!): String!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@neuronChat"
         )
 }
 

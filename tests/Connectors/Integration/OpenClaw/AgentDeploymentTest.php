@@ -6,7 +6,7 @@ namespace Tests\Connectors\Integration\OpenClaw;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\OpenClaw\Actions\ChatWithAgentOnMachineAction;
+use Kanvas\Connectors\OpenClaw\Actions\ChatWithAgentAction;
 use Kanvas\Connectors\OpenClaw\Actions\CollectDeploymentUsageAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerLogsAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerStatusAction;
@@ -91,7 +91,7 @@ class AgentDeploymentTest extends TestCase
 
     public function testLaunchAgentGraphQL(): void
     {
-        if (! $this->hasOpenClawCredentials()) {
+        if (! $this->hasAgentRuntimeCredentials()) {
             $this->markTestSkipped('OpenClaw SSH credentials not configured');
         }
 
@@ -100,7 +100,7 @@ class AgentDeploymentTest extends TestCase
 
         $response = $this->graphQL('
             mutation($input: LaunchAgentInput!) {
-                openclawLaunchAgent(input: $input) {
+                agentRuntimeLaunchAgent(input: $input) {
                     id
                     status
                     system_user
@@ -115,14 +115,14 @@ class AgentDeploymentTest extends TestCase
         ])
         ->assertSuccessful();
 
-        $data = $response->json('data.openclawLaunchAgent');
+        $data = $response->json('data.agentRuntimeLaunchAgent');
         $this->assertEquals('provisioning', $data['status']);
         $this->assertStringContainsString('agent-', $data['system_user']);
     }
 
     public function testTerminateAgentGraphQL(): void
     {
-        if (! $this->hasOpenClawCredentials()) {
+        if (! $this->hasAgentRuntimeCredentials()) {
             $this->markTestSkipped('OpenClaw SSH credentials not configured');
         }
 
@@ -140,26 +140,30 @@ class AgentDeploymentTest extends TestCase
 
         $this->graphQL('
             mutation($deployment_id: ID!) {
-                openclawTerminateAgent(deployment_id: $deployment_id)
+                agentRuntimeTerminateAgent(deployment_id: $deployment_id)
             }
         ', ['deployment_id' => $deployment->getId()])
         ->assertSuccessful()
-        ->assertJson(['data' => ['openclawTerminateAgent' => true]]);
+        ->assertJson(['data' => ['agentRuntimeTerminateAgent' => true]]);
     }
 
-    public function testChatWithAgentOnMachineRequiresDeployment(): void
+    public function testChatWithAgentRequiresDeployment(): void
     {
+        if (! $this->hasAgentRuntimeCredentials()) {
+            $this->markTestSkipped('OpenClaw SSH credentials not configured');
+        }
+
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('Agent does not have an active deployment');
+        $this->expectExceptionMessage('Agent does not have an active Docker deployment');
 
         $agent = $this->createTestAgent();
 
-        new ChatWithAgentOnMachineAction($agent, 'Hello')->execute();
+        new ChatWithAgentAction($agent, 'Hello')->execute();
     }
 
     public function testFullDeploymentLifecycle(): void
     {
-        if (! $this->hasOpenClawCredentials()) {
+        if (! $this->hasAgentRuntimeCredentials()) {
             $this->markTestSkipped('OpenClaw SSH credentials not configured');
         }
 
@@ -187,7 +191,7 @@ class AgentDeploymentTest extends TestCase
         $restarted = new RestartAgentContainerAction($deployment)->execute();
         $this->assertEquals(DeploymentStatusEnum::RUNNING->value, $restarted->status);
 
-        $chatResponse = new ChatWithAgentOnMachineAction($agent, 'Hello')->execute();
+        $chatResponse = new ChatWithAgentAction($agent, 'Hello')->execute();
         $this->assertNotEmpty($chatResponse);
 
         new TerminateAgentOnMachineAction($deployment)->execute();
@@ -198,7 +202,7 @@ class AgentDeploymentTest extends TestCase
 
     public function testDeployAndKeepRunning(): void
     {
-        if (! $this->hasOpenClawCredentials()) {
+        if (! $this->hasAgentRuntimeCredentials()) {
             $this->markTestSkipped('OpenClaw SSH credentials not configured');
         }
 
@@ -238,7 +242,7 @@ class AgentDeploymentTest extends TestCase
 
     public function testCollectDeploymentUsage(): void
     {
-        if (! $this->hasOpenClawCredentials()) {
+        if (! $this->hasAgentRuntimeCredentials()) {
             $this->markTestSkipped('OpenClaw SSH credentials not configured');
         }
 
@@ -286,7 +290,7 @@ class AgentDeploymentTest extends TestCase
 
     public function testDeployChatAndCleanup(): void
     {
-        if (! $this->hasOpenClawCredentials()) {
+        if (! $this->hasAgentRuntimeCredentials()) {
             $this->markTestSkipped('OpenClaw SSH credentials not configured');
         }
 

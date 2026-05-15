@@ -12,6 +12,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Enums\HandOffTypeEnum;
 use Kanvas\Intelligence\Notifications\HandOffNotification;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Notifications\Channels\TwilioSmsChannel;
@@ -21,7 +22,6 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class HandOffAction
 {
-    private const string DEFAULT_HANDOFF_TYPE = 'human';
     private const string DEFAULT_MANAGER_ROLE = 'Manager';
     private const string SERVICE_MANAGER_ROLE = 'ServiceManager';
     private const string DEFAULT_TEMPLATE_NAME = 'lead_handoff';
@@ -46,7 +46,8 @@ class HandOffAction
         }
 
         $leadOwner = $this->getLeadOwner();
-        $handOffType = strtolower($this->params['handoff_type'] ?? self::DEFAULT_HANDOFF_TYPE);
+        $handOffType = HandOffTypeEnum::tryFrom(strtolower((string) ($this->params['handoff_type'] ?? '')))
+            ?? HandOffTypeEnum::HUMAN;
         $handOffUserRole = $this->getHandOffUserRole($handOffType);
 
         $leadOwner = $this->applyRotation($leadOwner);
@@ -55,7 +56,7 @@ class HandOffAction
         $this->applyHandOffType($handOffType);
 
         $this->lead->set(ConfigurationEnum::AGENT_HAND_OFF->value, 1);
-        $this->lead->set(ConfigurationEnum::AGENT_HAND_OFF_TYPE->value, $handOffType);
+        $this->lead->set(ConfigurationEnum::AGENT_HAND_OFF_TYPE->value, $handOffType->value);
 
         $handOffNotification = $this->createHandOffNotification(
             $leadOwner,
@@ -115,9 +116,9 @@ class HandOffAction
         return $leadOwner;
     }
 
-    protected function fireHandOffWorkflow(string $handOffType): void
+    protected function fireHandOffWorkflow(HandOffTypeEnum $handOffType): void
     {
-        $triggerType = $handOffType === 'human'
+        $triggerType = $handOffType === HandOffTypeEnum::HUMAN
             ? TriggersEnum::HUMAN_HANDOFF->value
             : TriggersEnum::HANDOFF->value;
 
@@ -131,29 +132,29 @@ class HandOffAction
         );
     }
 
-    protected function applyHandOffType(string $handOffType): void
+    protected function applyHandOffType(HandOffTypeEnum $handOffType): void
     {
-        if ($handOffType === 'service') {
+        if ($handOffType === HandOffTypeEnum::SERVICE) {
             $serviceLeadType = $this->getOrCreateServiceLeadType();
             $this->lead->leads_types_id = $serviceLeadType->getId();
             $this->lead->saveOrFail();
         }
 
-        if ($handOffType === 'compliance_internal') {
+        if ($handOffType === HandOffTypeEnum::COMPLIANCE_INTERNAL) {
             $this->lead->people->optOutPhoneContacts();
         }
     }
 
-    protected function getHandOffUserRole(string $handOffType): string
+    protected function getHandOffUserRole(HandOffTypeEnum $handOffType): string
     {
-        return $handOffType === 'service'
+        return $handOffType === HandOffTypeEnum::SERVICE
             ? self::SERVICE_MANAGER_ROLE
             : ($this->lead->company->get('ai_agent_handoff_user_role') ?? self::DEFAULT_MANAGER_ROLE);
     }
 
     protected function createHandOffNotification(
         Users $leadOwner,
-        string $handOffType,
+        HandOffTypeEnum $handOffType,
     ): HandOffNotification {
         $notification = new HandOffNotification(
             lead: $this->lead,
@@ -175,21 +176,21 @@ class HandOffAction
 
     protected function configureNotificationChannels(
         HandOffNotification $notification,
-        string $handOffType,
+        HandOffTypeEnum $handOffType,
     ): void {
         $companyHumanHandOffOnlySms = (bool) $this->lead->company->get('ai_human_handoff_only_sms');
         $companyHumanHandOffOnlyMail = (bool) $this->lead->company->get('ai_human_handoff_only_mail');
         $companyComplianceHandOffOnlyPush = (bool) $this->lead->company->get('ai_compliance_handoff_only_push');
 
-        if ($companyHumanHandOffOnlySms && $handOffType === 'human') {
+        if ($companyHumanHandOffOnlySms && $handOffType === HandOffTypeEnum::HUMAN) {
             $notification->channels = [TwilioSmsChannel::class];
         }
 
-        if ($companyHumanHandOffOnlyMail && $handOffType === 'human') {
+        if ($companyHumanHandOffOnlyMail && $handOffType === HandOffTypeEnum::HUMAN) {
             $notification->channels = ['mail'];
         }
 
-        if ($handOffType === 'compliance_internal') {
+        if ($handOffType === HandOffTypeEnum::COMPLIANCE_INTERNAL) {
             $notification->setTemplateName('lead_handoff_compliance_handoff');
             $notification->setSubject('Lead Compliance Handoff Notification - ' . $this->lead->people->name);
             $notification->setPushTemplateName('lead_handoff_compliance_push_notification');

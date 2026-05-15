@@ -21,11 +21,17 @@ use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Spatie\LaravelData\DataCollection;
 
 abstract class ProcessElevenLabsWebhookJob extends ProcessWebhookJob
 {
+    protected function resolveUser(): Users
+    {
+        return $this->receiver->company->getAiAgentUser() ?? $this->receiver->user;
+    }
+
     protected function resolveLeadByPhone(string $phone): Lead
     {
         $normalizedPhone = Str::normalizePhoneNumber($phone);
@@ -67,7 +73,7 @@ abstract class ProcessElevenLabsWebhookJob extends ProcessWebhookJob
         $peopleDto = new PeopleDto(
             app: $this->receiver->app,
             branch: $this->receiver->company->defaultBranch,
-            user: $this->receiver->user,
+            user: $this->resolveUser(),
             firstname: $phone,
             contacts: Contact::collect($contactData, DataCollection::class),
             address: Address::collect([], DataCollection::class),
@@ -88,6 +94,8 @@ abstract class ProcessElevenLabsWebhookJob extends ProcessWebhookJob
             ->where('name', 'Warm')
             ->firstOrFail();
 
+        $user = $this->resolveUser();
+
         $leadSource = new CreateLeadSourceAction(
             new LeadSource(
                 $people->app,
@@ -103,8 +111,8 @@ abstract class ProcessElevenLabsWebhookJob extends ProcessWebhookJob
             new LeadReceiver(
                 app: $people->app,
                 branch: $people->company->defaultBranch,
-                user: $people->user,
-                agent: $people->user,
+                user: $user,
+                agent: $user,
                 name: 'ElevenLabs Agent',
                 source: 'ElevenLabs Voice Agent',
                 isDefault: false,
@@ -116,13 +124,13 @@ abstract class ProcessElevenLabsWebhookJob extends ProcessWebhookJob
         $leadData = new LeadData(
             app: $people->app,
             branch: $people->company->defaultBranch,
-            user: $people->user,
+            user: $user,
             title: $people->name . ' ElevenLabs Opp',
             pipeline_stage_id: 0,
             people: new PeopleDto(
                 $people->app,
                 $people->company->defaultBranch,
-                $people->user,
+                $user,
                 (string) $people->firstname,
                 Contact::collect($people->contacts()->get()->toArray(), DataCollection::class),
                 Address::collect([], DataCollection::class),

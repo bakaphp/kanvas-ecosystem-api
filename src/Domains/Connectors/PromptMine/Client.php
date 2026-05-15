@@ -47,7 +47,7 @@ class Client
     {
         // Extract provider and model from ai_model configuration
         $provider = $aiModel['key'] ?? 'gemini';
-        $modelId = $aiModel['value'] ?? 'gemini-2.0-flash';
+        $modelId = $aiModel['value'] ?? 'gemini-2.5-flash';
 
         $endpoint = "/{$this->apiEnv}/v2/chat/{$provider}/qa";
 

@@ -106,6 +106,47 @@ final class ProductCascadeDeleteTest extends TestCase
         }
     }
 
+    public function testSoftDeleteFlipsIsDeletedWithoutCascading(): void
+    {
+        $product = $this->createProductWithExtraVariants(1);
+        $variantIds = $product->variants->pluck('id')->all();
+
+        $result = $product->softDelete();
+
+        $this->assertTrue($result, 'softDelete() must return true on success');
+        $this->assertSame(
+            1,
+            (int) Products::withTrashed()->find($product->getId())->is_deleted,
+            'softDelete() must actually flip is_deleted on the product. '
+            . 'A regression here likely means protected $is_deleted; was re-introduced '
+            . 'on the Products model and is shadowing Eloquent attribute magic.'
+        );
+        foreach ($variantIds as $id) {
+            $this->assertSame(
+                0,
+                (int) Variants::withTrashed()->find($id)->is_deleted,
+                "Variant {$id} must stay active: softDelete() fires softDeleting, "
+                . 'not Laravel deleting, so CascadeSoftDeletes does not run.'
+            );
+        }
+    }
+
+    public function testVariantSoftDeleteFlipsIsDeleted(): void
+    {
+        $product = $this->createProductWithExtraVariants(1);
+        $variant = $product->variants->first();
+
+        $result = $variant->softDelete();
+
+        $this->assertTrue($result);
+        $this->assertSame(
+            1,
+            (int) Variants::withTrashed()->find($variant->getId())->is_deleted,
+            'Variants::softDelete() must flip is_deleted. '
+            . 'A regression here means protected $is_deleted; was re-introduced on Variants.'
+        );
+    }
+
     public function testCascadeConfigurationIsDeclared(): void
     {
         $product = new Products();

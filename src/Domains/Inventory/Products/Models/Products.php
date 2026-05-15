@@ -112,9 +112,8 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     protected $casts = [
         'is_published' => 'boolean',
         'is_deleted' => 'boolean',
+        'rating' => 'float',
     ];
-
-    protected $is_deleted;
 
     public $translatable = ['name', 'description', 'short_description', 'html_description', 'warranty_terms'];
 
@@ -361,14 +360,14 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 )) AS distance
             ", [$lat, $long, $lat])
             ->where('a.slug', 'coordinates')
-            ->whereRaw("JSON_VALID(pa.value)")
+            ->whereRaw('JSON_VALID(pa.value)')
             ->whereRaw("JSON_EXTRACT(pa.value, '$.en') IS NOT NULL")
             ->whereRaw("JSON_VALID({$innerJson})")
             ->whereRaw("{$latExtract} BETWEEN ? AND ?", [$minLat, $maxLat])
             ->whereRaw("{$longExtract} BETWEEN ? AND ?", [$minLong, $maxLong])
             ->whereRaw("{$latExtract} != 0")
             ->whereRaw("{$longExtract} != 0")
-            ->havingRaw("distance <= ?", [$radius]);
+            ->havingRaw('distance <= ?', [$radius]);
 
         return $query
             ->where('products.is_deleted', 0)
@@ -415,7 +414,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             ->whereBetween('pvw.latitude', [$minLat, $maxLat])
             ->whereBetween('pvw.longitude', [$minLong, $maxLong])
             ->groupBy('pv.products_id')
-            ->havingRaw("distance <= ?", [$radius]);
+            ->havingRaw('distance <= ?', [$radius]);
 
         return $query
             ->where('products.is_deleted', 0)
@@ -551,6 +550,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'product_type_slug' => $this->productsType?->slug ?? null,
             'attributes' => [],
             'weight' => (int) ($this->weight ?? 0),
+            'rating' => (float) ($this->rating ?? 0),
             'translations' => [
                 'name' => $this->getAllTranslationsAsString('name'),
                 'description' => $this->getAllTranslationsAsString('description'),
@@ -801,11 +801,16 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     protected function getVariantsData(): Collection
     {
         $limit = $this->app->get(ConfigurationEnum::PRODUCT_VARIANTS_SEARCH_LIMIT->value) ?? 200;
-        $variantCount = $this->variants()->count();
+
+        $query = $this->variants()
+            ->where('is_deleted', 0)
+            ->where('is_published', 1);
+
+        $variantCount = $query->count();
 
         return $variantCount > $limit
-            ? $this->variants()->limit($limit)->get()->map(fn ($variant) => $variant->toSearchableArraySummary())
-            : $this->variants()->get()->map(fn ($variant) => $variant->toSearchableArray());
+            ? $query->limit($limit)->get()->map(fn ($variant) => $variant->toSearchableArraySummary())
+            : $query->get()->map(fn ($variant) => $variant->toSearchableArray());
     }
 
     public function getTotalVariants(): int
@@ -910,6 +915,12 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 ],
                 [
                     'name' => 'weight',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'rating',
                     'type' => 'float',
                     'optional' => true,
                     'sort' => true,

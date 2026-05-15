@@ -254,7 +254,7 @@ class PullLeadAction
         array $currentLead
     ): void {
         try {
-            $vehicleOfInterest = current(Interest::getByLeadId(
+            $vehicleOfInterest = end(Interest::getByLeadId(
                 $vinCompany,
                 $user,
                 $currentLead['LeadId']
@@ -321,7 +321,7 @@ class PullLeadAction
         array $currentLead
     ): void {
         try {
-            $vehicleTradeIn = current(TradeIn::getByLeadId(
+            $vehicleTradeIn = end(TradeIn::getByLeadId(
                 $vinCompany,
                 $user,
                 $currentLead['LeadId']

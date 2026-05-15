@@ -546,6 +546,123 @@ class ChannelsTest extends TestCase
         $this->actingAs(static::$cachedUser, 'api');
     }
 
+    public function testCreateSocialChannelWithMetadataAndTags(): void
+    {
+        $systemModule = SystemModules::fromApp()
+            ->fromApp()
+            ->notDeleted()
+            ->firstOrFail();
+
+        $metadata = [
+            'source' => 'integration-test',
+            'priority' => 5,
+            'flags' => ['featured', 'pinned'],
+        ];
+        $tags = [
+            ['name' => 'tag-' . fake()->unique()->slug(2)],
+            ['name' => 'tag-' . fake()->unique()->slug(2)],
+        ];
+
+        $data = [
+            'name' => fake()->name(),
+            'description' => fake()->text(),
+            'entity_id' => fake()->uuid(),
+            'entity_namespace_uuid' => $systemModule->uuid,
+            'metadata' => $metadata,
+            'tags' => $tags,
+        ];
+
+        $response = $this->graphQL('
+            mutation createSocialChannel($input: SocialChannelInput!) {
+                createSocialChannel(input: $input) {
+                    id
+                    name
+                    metadata
+                }
+            }
+        ', ['input' => $data])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'createSocialChannel' => [
+                    'name' => $data['name'],
+                    'metadata' => $metadata,
+                ],
+            ],
+        ]);
+
+        $channelId = (int) $response->json('data.createSocialChannel.id');
+        $channel = Channel::findOrFail($channelId);
+
+        $this->assertEquals($metadata, $channel->metadata);
+
+        $persistedTagNames = $channel->tags()->pluck('name')->all();
+        foreach ($tags as $tag) {
+            $this->assertContains($tag['name'], $persistedTagNames);
+        }
+    }
+
+    public function testUpdateSocialChannelWithMetadataAndTags(): void
+    {
+        $systemModule = SystemModules::fromApp()
+            ->fromApp()
+            ->notDeleted()
+            ->firstOrFail();
+
+        $createInput = [
+            'name' => fake()->name(),
+            'description' => fake()->text(),
+            'entity_id' => fake()->uuid(),
+            'entity_namespace_uuid' => $systemModule->uuid,
+            'metadata' => ['version' => 1],
+            'tags' => [['name' => 'initial-' . fake()->unique()->slug(2)]],
+        ];
+
+        $createResponse = $this->graphQL('
+            mutation createSocialChannel($input: SocialChannelInput!) {
+                createSocialChannel(input: $input) { id }
+            }
+        ', ['input' => $createInput])->assertSuccessful();
+
+        $channelId = (int) $createResponse->json('data.createSocialChannel.id');
+
+        $newMetadata = ['version' => 2, 'note' => 'updated'];
+        $newTag = 'updated-' . fake()->unique()->slug(2);
+        $updateInput = [
+            'name' => fake()->name(),
+            'description' => fake()->text(),
+            'entity_id' => $createInput['entity_id'],
+            'entity_namespace_uuid' => $systemModule->uuid,
+            'metadata' => $newMetadata,
+            'tags' => [['name' => $newTag]],
+        ];
+
+        $this->graphQL('
+            mutation updateSocialChannel($id: ID!, $input: SocialChannelInput!) {
+                updateSocialChannel(id: $id, input: $input) {
+                    id
+                    metadata
+                }
+            }
+        ', ['id' => $channelId, 'input' => $updateInput])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateSocialChannel' => [
+                    'id' => (string) $channelId,
+                    'metadata' => $newMetadata,
+                ],
+            ],
+        ]);
+
+        $channel = Channel::findOrFail($channelId);
+        $this->assertEquals($newMetadata, $channel->metadata);
+
+        $persistedTagNames = $channel->tags()->pluck('name')->all();
+        $this->assertContains($newTag, $persistedTagNames);
+        $this->assertNotContains($createInput['tags'][0]['name'], $persistedTagNames);
+    }
+
     public function testDeleteSocialChannel(): void
     {
         $systemModule = SystemModules::fromApp()

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Types;
 
 use Kanvas\Connectors\OpenClaw\Actions\ChatWithAgentAction;
-use Kanvas\Connectors\OpenClaw\Actions\ChatWithAgentOnMachineAction;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
@@ -18,22 +18,22 @@ class OpenClawAgentHandler
         $this->agent = $agent;
     }
 
-    public function chat(string $message): string
-    {
+    public function chat(
+        string $message,
+        ?string $sessionKey = null,
+        array $images = []
+    ): string {
         $activeDeployment = $this->agent->activeDeployment;
 
-        if ($activeDeployment instanceof AgentDeployment && $activeDeployment->isRunning()) {
-            return new ChatWithAgentOnMachineAction(
-                $this->agent,
-                $message,
-            )->execute();
+        if (! $activeDeployment instanceof AgentDeployment || ! $activeDeployment->isRunning()) {
+            throw new ValidationException('Agent does not have an active Docker deployment');
         }
 
         return new ChatWithAgentAction(
             $this->agent,
-            $this->agent->app,
-            $this->agent->company,
             $message,
+            $sessionKey,
+            $images,
         )->execute();
     }
 }

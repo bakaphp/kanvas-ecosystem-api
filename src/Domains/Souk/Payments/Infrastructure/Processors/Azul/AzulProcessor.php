@@ -467,7 +467,6 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
             if ($response->isoCode === '00' && $payment->status !== PaymentStatusEnum::PAID->value) {
                 $payment->markAsPaid($responseData);
-                $order->markAsPaid($payment->user);
             }
 
             $payment->addLog('verify_payment', $responseData);
@@ -731,7 +730,6 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
             $payment->number = $response->ticket;
             $payment->markAsPaid($responseData);
-            $order->markAsPaid($payment->user);
 
             $this->persistVaultToken($payment, $response);
 
@@ -1105,7 +1103,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
 
     private function assertSupportedCurrency(Order $order): void
     {
-        if (strtoupper((string) $order->currency) !== CurrencyEnum::DOP->value) {
+        if (strtoupper(trim((string) $order->currency)) !== CurrencyEnum::DOP->value) {
             throw new ValidationException(
                 'Azul only supports ' . CurrencyEnum::DOP->value . ' currency; order ' . $order->getId() . ' has currency ' . $order->currency
             );

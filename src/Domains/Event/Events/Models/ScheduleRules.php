@@ -35,6 +35,7 @@ class ScheduleRules extends BaseModel
         'uuid',
         'resources_id',
         'resources_type',
+        'operation_day',
         'start_at',
         'end_at',
         'rrule',

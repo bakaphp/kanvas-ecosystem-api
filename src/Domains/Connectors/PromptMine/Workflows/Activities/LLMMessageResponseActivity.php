@@ -232,7 +232,7 @@ class LLMMessageResponseActivity extends KanvasActivity
         // Get AI model configuration from message
         $aiModel = $message->message['ai_model'] ?? [
             'key' => 'gemini',
-            'value' => 'gemini-2.0-flash',
+            'value' => 'gemini-2.5-flash',
             'name' => 'Gemini 2.0 Flash',
         ];
 
@@ -698,7 +698,7 @@ PROMPT;
             $response = agent(instructions: $systemInstruction)->prompt(
                 $userPrompt,
                 provider: Lab::Gemini,
-                model: 'gemini-2.0-flash',
+                model: 'gemini-2.5-flash',
             );
 
             return trim(str_replace(['```', 'json'], '', $response->text));

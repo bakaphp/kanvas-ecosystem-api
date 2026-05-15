@@ -64,6 +64,16 @@ enum AllowedFileExtensionEnum
                 '3gp',
                 'mpeg',
                 'mpg',
+                'mp3',
+                'm4a',
+                'wav',
+                'ogg',
+                'oga',
+                'aac',
+                'flac',
+                'wma',
+                'opus',
+                'amr',
             ],
 
             self::MEDIA_FILES => [

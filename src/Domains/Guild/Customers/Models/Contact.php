@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Customers\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
+use Baka\Traits\SoftDeletesTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -31,9 +32,17 @@ class Contact extends BaseModel
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
     use CanUseWorkflow;
+    use SoftDeletesTrait;
+
+    public const DELETED_AT = 'is_deleted';
 
     protected $table = 'peoples_contacts';
     protected $guarded = [];
+
+    public function trashed()
+    {
+        return (bool) $this->{$this->getDeletedAtColumn()};
+    }
 
     #[Override]
     public function casts(): array
@@ -42,6 +51,7 @@ class Contact extends BaseModel
             'value' => 'string',
             'is_opt_out' => 'integer',
             'weight' => 'integer',
+            'is_deleted' => 'boolean',
         ];
     }
 

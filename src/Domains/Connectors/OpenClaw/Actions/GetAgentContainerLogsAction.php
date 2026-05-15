@@ -5,32 +5,16 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\OpenClaw\Actions;
 
 use Kanvas\Connectors\OpenClaw\SshClient;
-use Kanvas\Intelligence\Agents\Models\AgentDeployment;
+use Kanvas\Intelligence\AgentRuntime\Actions\BaseGetAgentContainerLogsAction;
+use Kanvas\Intelligence\AgentRuntime\SshClient as BaseSshClient;
+use Kanvas\Intelligence\Agents\Models\AgentMachine;
+use Override;
 
-/**
- * Fetch Docker container logs via `docker compose logs --tail {lines}`.
- */
-class GetAgentContainerLogsAction
+class GetAgentContainerLogsAction extends BaseGetAgentContainerLogsAction
 {
-    public function __construct(
-        protected AgentDeployment $deployment,
-        protected int $lines = 100,
-    ) {
-    }
-
-    public function execute(): string
+    #[Override]
+    protected function createSshClient(AgentMachine $machine): BaseSshClient
     {
-        $client = SshClient::fromMachine($this->deployment->machine);
-
-        try {
-            $openclawDir = $this->deployment->home_directory . '/.openclaw';
-
-            return trim($client->exec(
-                'sudo -u ' . escapeshellarg($this->deployment->system_user)
-                . ' bash -c ' . escapeshellarg('cd ' . $openclawDir . ' && docker compose logs --tail ' . $this->lines . ' 2>&1')
-            ));
-        } finally {
-            $client->disconnect();
-        }
+        return SshClient::fromMachine($machine);
     }
 }

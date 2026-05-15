@@ -18,6 +18,7 @@
         "NETSUITE",
         "Nuwave",
         "OFFERLOGIX",
+        "Openclaw",
         "Plusval",
         "QUICKBOOKS",
         "Rapido",
@@ -27,5 +28,8 @@
         "Vinsolution",
         "WASENDER",
         "WOOCOMMERCE"
+    ],
+    "i18n-ally.localesPaths": [
+        "lang"
     ]
 }
