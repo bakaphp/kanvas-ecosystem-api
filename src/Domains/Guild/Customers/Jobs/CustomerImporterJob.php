@@ -31,7 +31,6 @@ class CustomerImporterJob extends AbstractImporterJob
         $this->overwriteAppService($this->app);
         $this->overwriteAppServiceLocation($this->branch);
 
-        $totalItems = count($this->importer);
         $totalProcessSuccessfully = 0;
         $totalProcessFailed = 0;
         $created = 0;
@@ -40,12 +39,9 @@ class CustomerImporterJob extends AbstractImporterJob
 
         $this->startFilesystemMapperImport();
 
-        /**
-         * @var Companies
-         */
         $company = $this->branch->company()->firstOrFail();
 
-        foreach ($this->importer as $customerData) {
+        foreach ($this->iterateImporterRows() as $customerData) {
             try {
                 // Check if lastname and middlename are empty, and firstname contains a space
                 if (empty($customerData['lastname']) && empty($customerData['middlename']) && isset($customerData['firstname'])) {
@@ -116,6 +112,8 @@ class CustomerImporterJob extends AbstractImporterJob
             }
         }
 
+        $totalItems = $totalProcessSuccessfully + $totalProcessFailed;
+
         $this->finishFilesystemMapperImport(
             $totalItems,
             $totalProcessSuccessfully,
@@ -134,6 +132,7 @@ class CustomerImporterJob extends AbstractImporterJob
         );
     }
 
+    #[Override]
     protected function notificationStatus(
         int $totalItems,
         int $totalProcessSuccessfully,

@@ -13,4 +13,6 @@ enum ConfigurationEnum: string
     case STRIPE_ACCOUNT_EMAIL = 'stripe_email';
     case CHECKOUT_SUCCESS_URL = 'CHECKOUT_SUCCESS_URL';
     case CHECKOUT_CANCEL_URL = 'CHECKOUT_CANCEL_URL';
+    case STRIPE_PUBLISHABLE_KEY = 'stripe_publishable_key';
+    case STRIPE_WEBHOOK_SECRET = 'stripe_webhook_secret';
 }

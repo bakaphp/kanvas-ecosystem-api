@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\CMLink;
 use Kanvas\Connectors\CMLink\DataTransferObject\CMLink;
 use Kanvas\Connectors\CMLink\Services\CMLinkSetupService;
 use Kanvas\Connectors\Contracts\BaseIntegration;
+use Override;
 
 class CMLinkHandler extends BaseIntegration
 {
+    #[Override]
     public function setup(): bool
     {
         $cmLink = new CMLink(

@@ -1,0 +1,29 @@
+name: {{CONTAINER_NAME}}
+
+services:
+  hermes-gateway:
+    image: {{IMAGE_NAME}}
+    build:
+      context: {{IMAGE_DIR}}
+    container_name: {{CONTAINER_NAME}}
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    entrypoint: ["/opt/hermes/docker/entrypoint.sh"]
+    command: ["gateway", "run", "--accept-hooks"]
+    volumes:
+      - {{HERMES_DIR}}:/opt/data
+    ports:
+      - "{{GATEWAY_PORT}}:18789"
+      - "{{PROXY_PORT}}:18790"
+    env_file:
+      - path: {{HERMES_DIR}}/.env
+        required: false
+    environment:
+{{ENV_LINES}}
+  socat-proxy:
+    image: alpine/socat
+    container_name: socat-proxy-{{CONTAINER_NAME}}
+    restart: unless-stopped
+    network_mode: "service:hermes-gateway"
+    command: "TCP-LISTEN:18790,fork,bind=0.0.0.0,reuseaddr TCP:127.0.0.1:18789"

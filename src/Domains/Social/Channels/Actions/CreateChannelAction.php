@@ -56,9 +56,14 @@ class CreateChannelAction
                 'users_id' => $this->channelDto->users->id,
                 'name' => $this->channelDto->name,
                 'description' => $this->channelDto->description,
+                'metadata' => $this->channelDto->metadata,
                 ]);
 
                 ChannelCreatedEvent::dispatch($channel);
+            }
+
+            if (! empty($this->channelDto->tags)) {
+                $channel->syncTags($this->channelDto->tags);
             }
 
             try {

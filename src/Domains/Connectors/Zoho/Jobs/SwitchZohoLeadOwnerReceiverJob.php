@@ -9,9 +9,11 @@ use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 class SwitchZohoLeadOwnerReceiverJob extends ProcessWebhookJob
 {
+    #[Override]
     public function execute(): array
     {
         $zohoLeadId = $this->webhookRequest->payload['entity_id'] ?? null;

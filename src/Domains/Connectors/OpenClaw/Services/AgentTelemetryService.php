@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenClaw\Services;
 
-use App\GraphQL\Connector\OpenClaw\Subscriptions\AgentTelemetrySubscription;
+use App\GraphQL\Intelligence\Subscriptions\AgentRuntime\AgentTelemetrySubscription;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -12,10 +12,12 @@ use Illuminate\Support\Facades\Mail;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenClaw\Events\AgentTelemetryUpdated;
-use Kanvas\Connectors\OpenClaw\Jobs\CollectAgentTelemetryJob;
+use Kanvas\Connectors\OpenClaw\Jobs\CollectMachineTelemetryJob;
 use Kanvas\Connectors\OpenClaw\SshClient;
+use Kanvas\Intelligence\Agents\Enums\AgentDeploymentEventTypeEnum;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentDeploymentEvent;
+use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Nuwave\Lighthouse\Subscriptions\Contracts\BroadcastsSubscriptions;
 use Swoole\Timer;
 use Throwable;
@@ -38,41 +40,83 @@ class AgentTelemetryService
         Cache::put('openclaw:telemetry:worker', getmypid(), 65);
 
         try {
-            $deployments = AgentDeployment::where('status', 'running')
-                ->with('machine')
-                ->get();
+            // Group by machine so we dispatch ONE job per machine instead of one per deployment.
+            // Each machine job opens a single SSH connection and collects all its deployments
+            // sequentially — dramatically reducing sshd load on busy machines.
+            $machineIds = AgentDeployment::where('status', 'running')
+                ->distinct()
+                ->pluck('agent_machine_id');
         } catch (Throwable $e) {
             Log::warning('OpenClaw telemetry: failed to fetch deployments — ' . $e->getMessage());
 
             return;
         }
 
-        foreach ($deployments as $deployment) {
-            CollectAgentTelemetryJob::dispatch($deployment->id);
+        foreach ($machineIds as $machineId) {
+            CollectMachineTelemetryJob::dispatch((int) $machineId);
         }
     }
 
-    public function collectForDeployment(AgentDeployment $deployment): void
+    /**
+     * Collect telemetry for all running deployments on a machine using a single SSH connection.
+     *
+     * Opening one connection per machine (instead of one per deployment) prevents concurrent
+     * SSH hammering when multiple agents share the same host.
+     */
+    public function collectForMachine(AgentMachine $machine): void
+    {
+        $deployments = AgentDeployment::where('agent_machine_id', $machine->id)
+            ->where('status', 'running')
+            ->with('agent')
+            ->get();
+
+        if ($deployments->isEmpty()) {
+            return;
+        }
+
+        try {
+            $ssh = SshClient::fromMachine($machine);
+        } catch (Throwable $e) {
+            Log::warning("OpenClaw telemetry: SSH connection failed for machine {$machine->id} — {$e->getMessage()}");
+
+            foreach ($deployments as $deployment) {
+                try {
+                    AgentDeploymentEvent::record($deployment->id, AgentDeploymentEventTypeEnum::AGENT_UNREACHABLE, [
+                        'error' => $e->getMessage(),
+                    ]);
+                    $this->sendSlackAlert($deployment, AgentDeploymentEventTypeEnum::AGENT_UNREACHABLE, $e->getMessage());
+                } catch (Throwable) {
+                }
+            }
+
+            return;
+        }
+
+        try {
+            foreach ($deployments as $deployment) {
+                $this->collectDeploymentOnConnection($deployment, $ssh);
+            }
+        } finally {
+            $ssh->disconnect();
+        }
+    }
+
+    /**
+     * Collect telemetry for a single deployment using an already-open SSH connection.
+     * All docker exec commands run over the shared connection — no open/close overhead.
+     */
+    protected function collectDeploymentOnConnection(AgentDeployment $deployment, SshClient $ssh): void
     {
         try {
-            // Ensure both relations are loaded — machine for SSH creds, agent for slug (tools lookup).
-            $deployment->loadMissing(['machine', 'agent']);
+            $deployment->loadMissing('agent');
 
-            // One SSH connection, one exec channel — all commands run in a single shell pipeline.
-            // This is far gentler on the server's sshd than opening separate channels per command.
-            $ssh = SshClient::fromMachine($deployment->machine);
-            $sections = $ssh->getAllTelemetry();
+            $sections = $ssh->getAllTelemetryForContainer($deployment->container_name);
 
-            // Per-agent tools: extract unique tool names from this agent's own session JSONL files.
-            // Falls back to the machine-level skills list when no session data exists yet.
-            // Uses a separate exec call after getAllTelemetry so it doesn't inflate the pipeline timeout.
             $agentSlug = $deployment->agent?->slug;
             $containerName = $deployment->container_name;
             $tools = ($agentSlug && $containerName)
                 ? $ssh->getAgentTools($containerName, $agentSlug)
                 : null;
-
-            $ssh->disconnect();
 
             $health = $this->parseJson($sections['health']);
             $gatewayStatus = $this->parseJson($sections['gateway']);
@@ -107,13 +151,34 @@ class AgentTelemetryService
             Log::warning("OpenClaw telemetry: failed for deployment {$deployment->id} — {$e->getMessage()}");
 
             try {
-                AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::AGENT_UNREACHABLE, [
+                AgentDeploymentEvent::record($deployment->id, AgentDeploymentEventTypeEnum::AGENT_UNREACHABLE, [
                     'error' => $e->getMessage(),
                 ]);
-                $this->sendSlackAlert($deployment, AgentDeploymentEvent::AGENT_UNREACHABLE, $e->getMessage());
+                $this->sendSlackAlert($deployment, AgentDeploymentEventTypeEnum::AGENT_UNREACHABLE, $e->getMessage());
             } catch (Throwable) {
-                // Don't let event recording swallow the original warning
             }
+        }
+    }
+
+    /**
+     * @deprecated Use collectForMachine() — kept for backward compatibility with CollectAgentTelemetryJob.
+     */
+    public function collectForDeployment(AgentDeployment $deployment): void
+    {
+        $deployment->loadMissing(['machine', 'agent']);
+
+        try {
+            $ssh = SshClient::fromMachine($deployment->machine);
+        } catch (Throwable $e) {
+            Log::warning("OpenClaw telemetry: SSH failed for deployment {$deployment->id} — {$e->getMessage()}");
+
+            return;
+        }
+
+        try {
+            $this->collectDeploymentOnConnection($deployment, $ssh);
+        } finally {
+            $ssh->disconnect();
         }
     }
 
@@ -145,17 +210,17 @@ class AgentTelemetryService
 
         // ── Gateway reachability ──────────────────────────────────────────────
         if ($prevGateway && ! $newGateway) {
-            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::GATEWAY_DOWN, [
+            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEventTypeEnum::GATEWAY_DOWN, [
                 'previous' => $prevGateway,
                 'current' => $newGateway,
             ]);
-            $this->sendSlackAlert($deployment, AgentDeploymentEvent::GATEWAY_DOWN);
+            $this->sendSlackAlert($deployment, AgentDeploymentEventTypeEnum::GATEWAY_DOWN);
         } elseif (! $prevGateway && $newGateway) {
-            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::GATEWAY_UP, [
+            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEventTypeEnum::GATEWAY_UP, [
                 'previous' => $prevGateway,
                 'current' => $newGateway,
             ]);
-            $this->sendSlackAlert($deployment, AgentDeploymentEvent::GATEWAY_UP);
+            $this->sendSlackAlert($deployment, AgentDeploymentEventTypeEnum::GATEWAY_UP);
         }
 
         // ── Service health (gateway service + node service both running) ──────
@@ -166,13 +231,13 @@ class AgentTelemetryService
         $newHealthy = $this->isDeploymentHealthy($newRaw, $newGateway);
 
         if ($prevHealthy && ! $newHealthy) {
-            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::HEALTH_FAIL, [
+            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEventTypeEnum::HEALTH_FAIL, [
                 'gateway_reachable' => $newGateway,
                 'gateway_service' => $newRaw['gatewayService']['runtimeShort'] ?? null,
                 'node_service' => $newRaw['nodeService']['runtimeShort'] ?? null,
             ]);
         } elseif (! $prevHealthy && $newHealthy) {
-            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::HEALTH_RECOVER, [
+            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEventTypeEnum::HEALTH_RECOVER, [
                 'gateway_reachable' => $newGateway,
             ]);
         }
@@ -182,7 +247,7 @@ class AgentTelemetryService
         $newSessions = (int) ($newPayload['session_count'] ?? 0);
 
         if ($newSessions > $prevSessions) {
-            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::SESSION_STARTED, [
+            AgentDeploymentEvent::record($deployment->id, AgentDeploymentEventTypeEnum::SESSION_STARTED, [
                 'previous_count' => $prevSessions,
                 'current_count' => $newSessions,
                 'new_sessions' => $newSessions - $prevSessions,
@@ -219,7 +284,7 @@ class AgentTelemetryService
      * Set them via: $app->set('openclaw_slack_webhook_url', 'https://hooks.slack.com/...')
      * Silently no-ops when neither key is configured.
      */
-    protected function sendSlackAlert(AgentDeployment $deployment, string $eventType, string $detail = ''): void
+    protected function sendSlackAlert(AgentDeployment $deployment, AgentDeploymentEventTypeEnum $eventType, string $detail = ''): void
     {
         try {
             $app = Apps::find($deployment->apps_id);
@@ -231,17 +296,17 @@ class AgentTelemetryService
             $agentName = $deployment->agent?->name ?? $deployment->container_name;
 
             $emoji = match ($eventType) {
-                AgentDeploymentEvent::GATEWAY_DOWN => ':red_circle:',
-                AgentDeploymentEvent::AGENT_UNREACHABLE => ':warning:',
-                AgentDeploymentEvent::GATEWAY_UP => ':large_green_circle:',
+                AgentDeploymentEventTypeEnum::GATEWAY_DOWN => ':red_circle:',
+                AgentDeploymentEventTypeEnum::AGENT_UNREACHABLE => ':warning:',
+                AgentDeploymentEventTypeEnum::GATEWAY_UP => ':large_green_circle:',
                 default => ':information_source:',
             };
 
             $title = match ($eventType) {
-                AgentDeploymentEvent::GATEWAY_DOWN => 'Gateway offline',
-                AgentDeploymentEvent::AGENT_UNREACHABLE => 'Agent unreachable',
-                AgentDeploymentEvent::GATEWAY_UP => 'Gateway back online',
-                default => $eventType,
+                AgentDeploymentEventTypeEnum::GATEWAY_DOWN => 'Gateway offline',
+                AgentDeploymentEventTypeEnum::AGENT_UNREACHABLE => 'Agent unreachable',
+                AgentDeploymentEventTypeEnum::GATEWAY_UP => 'Gateway back online',
+                default => $eventType->value,
             };
 
             $text = "{$emoji} *{$title}* — `{$agentName}`";

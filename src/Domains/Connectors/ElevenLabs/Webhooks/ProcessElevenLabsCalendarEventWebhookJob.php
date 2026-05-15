@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\ElevenLabs\Webhooks;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\DateHelper;
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventData;
+use Kanvas\Event\Events\Models\EventCategory;
+use Kanvas\Event\Support\Setup;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Override;
@@ -34,7 +39,7 @@ class ProcessElevenLabsCalendarEventWebhookJob extends ProcessElevenLabsWebhookJ
 
         $app = $this->receiver->app;
         $company = $this->receiver->company;
-        $user = $this->receiver->user;
+        $user = $this->resolveUser();
         $timezone = $company->get('timezone') ?? $company->timezone ?? 'UTC';
 
         $date = DateHelper::normalizeDate($rawDate, $timezone);
@@ -50,6 +55,8 @@ class ProcessElevenLabsCalendarEventWebhookJob extends ProcessElevenLabsWebhookJ
         $lead = $this->resolveLeadByPhone($phone);
 
         $this->updateLeadPeopleInfo($lead, $payload);
+
+        $this->ensureEventDefaults($app, $user, $company);
 
         $startTime = isset($payload['start_time']) ? DateHelper::normalizeTime((string) $payload['start_time']) : null;
         $endTime = isset($payload['end_time']) ? DateHelper::normalizeTime((string) $payload['end_time']) : null;
@@ -110,6 +117,21 @@ class ProcessElevenLabsCalendarEventWebhookJob extends ProcessElevenLabsWebhookJ
             'start_time' => $startTime,
             'end_time' => $endTime,
         ];
+    }
+
+    protected function ensureEventDefaults(
+        AppInterface $app,
+        UserInterface $user,
+        CompanyInterface $company
+    ): void {
+        $hasDefaultCategory = EventCategory::fromApp($app)
+            ->fromCompany($company)
+            ->where('is_default', 1)
+            ->exists();
+
+        if (! $hasDefaultCategory) {
+            new Setup($app, $user, $company)->run();
+        }
     }
 
     protected function updateLeadPeopleInfo(Lead $lead, array $payload): void

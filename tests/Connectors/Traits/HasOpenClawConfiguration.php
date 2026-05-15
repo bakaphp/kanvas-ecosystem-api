@@ -11,7 +11,7 @@ use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
 trait HasOpenClawConfiguration
 {
-    public function setupOpenClawConfiguration(?Companies $company = null): void
+    public function setupAgentRuntimeConfiguration(?Companies $company = null): void
     {
         $company = $company ?? auth()->user()->getCurrentCompany();
 
@@ -45,7 +45,7 @@ trait HasOpenClawConfiguration
         );
     }
 
-    public function hasOpenClawCredentials(): bool
+    public function hasAgentRuntimeCredentials(): bool
     {
         return ! empty(env('TEST_OPENCLAW_SSH_HOST'));
     }

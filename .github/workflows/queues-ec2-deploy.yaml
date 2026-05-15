@@ -16,14 +16,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Copy folder content recursively to remote VM
-        uses: appleboy/scp-action@v1.0.0
+      # rsync --delete so renames/deletions in git are reflected on the server.
+      # Plain scp is additive and leaves stale files behind, which corrupts the
+      # Lighthouse schema merge whenever a .graphql file moves (see incident
+      # 2026-05-14: duplicate agentCurrentTelemetry → "Failed to load type: _").
+      - name: Sync repo to remote VM (rsync --delete)
+        uses: burnett01/rsync-deployments@8.0.5
         with:
-          host: ${{ secrets.AWS_QUEUE_EC2_HOST }}
-          username: ${{ secrets.AWS_EC2_USERNAME }}
-          key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
-          source: .
-          target: ${{ secrets.AWS_EC2_TARGET_DIR }}
+          switches: >-
+            -avzr --delete
+            --exclude='/.git'
+            --exclude='/.env'
+            --exclude='/storage'
+            --exclude='/bootstrap/cache'
+            --exclude='/node_modules'
+            --exclude='/vendor'
+          path: ./
+          remote_path: ${{ secrets.AWS_EC2_TARGET_DIR }}
+          remote_host: ${{ secrets.AWS_QUEUE_EC2_HOST }}
+          remote_user: ${{ secrets.AWS_EC2_USERNAME }}
+          remote_key: ${{ secrets.AWS_EC2_PRIVATE_SSH_KEY }}
 
   docker-command:
     runs-on: ubuntu-latest
@@ -48,25 +60,11 @@ jobs:
             docker stop nginxkanvas-ecosystem
             docker stop rediskanvas-ecosystem
 
-            # Restart queue services with container names
-            docker restart queue
-            docker restart queue-imports
-            docker restart queue-notifications
-            docker restart queue-social
-            docker restart queue-user-interactions
-            docker restart batch-logger-queue
-            docker restart openclaw-queue
+            # Restart all queue worker containers so they pick up new code.
+            # Names come from docker-compose — no hand-maintained list to rot.
+            docker ps --format "{{.ID}} {{.Names}}" | awk '$2 ~ /queue/ {print $1}' | xargs -r docker restart
+
+            # Scheduler runs Laravel code but doesn't match the /queue/ pattern.
             docker restart laravel-scheduler
-
-            # Restart services with replicas (no specific container names)
-            docker-compose -f docker-compose.${{ github.ref_name }}.yml restart queue-scrapper
-            docker-compose -f docker-compose.${{ github.ref_name }}.yml restart queue-sync-shopify
-            docker-compose -f docker-compose.${{ github.ref_name }}.yml restart queue-scout-worker
-            docker-compose -f docker-compose.${{ github.ref_name }}.yml restart queue-workflow
-
-            # Additional queues for 1.x branch
-            if [ "docker-compose.${{ github.ref_name }}.yml" == "docker-compose.1.x.yml" ]; then
-              docker ps --format "{{.ID}} {{.Names}}" | awk '$2 ~ /queue/ {print $1}' | xargs docker restart
-            fi
 
             docker exec -i phpkanvas-ecosystem php artisan octane:reload

@@ -176,7 +176,7 @@ final class LeadContextCreationTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        $company->set('ai-agent-user-id', $user->getId());
+        $company->set(EnumsConfigurationEnum::AI_AGENT_USER_ID->value, $user->getId());
         $setupInventory = new Setup($app, $user, $company);
         $setupInventory->run();
 

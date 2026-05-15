@@ -52,9 +52,9 @@ class CapturePaymentAction
             ];
         }
 
-        try {
-            $this->order->markAsPaid($this->payment->user);
+        $this->order->markAsPaid($this->payment->user);
 
+        try {
             if ($sendEmail) {
                 new SendPaymentReceiptAction(
                     $this->order,

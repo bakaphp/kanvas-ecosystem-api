@@ -11,4 +11,5 @@ enum MovipassRolesEnum: string
     case ROADSIDE_ASSISTANCE_OPERATOR = 'roadside_assistance_operator';
     case OPERATOR = 'Operador';
     case RDVIAL_CONSULTANT = 'RdvialConsultant';
+    case VIEWER = 'viewer';
 }

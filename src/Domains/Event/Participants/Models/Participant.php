@@ -29,8 +29,6 @@ class Participant extends BaseModel
     protected $table = 'participants';
     protected $guarded = [];
 
-    protected $is_deleted;
-
     public static function bootSlugTrait(): void
     {
         // Slug generation lives in ParticipantObserver (uses people->name).

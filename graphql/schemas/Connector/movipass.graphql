@@ -20,6 +20,28 @@ input RoadsideAssistanceMetricsInput {
     endDate: String
     provider_company_id: ID
     company_id: ID
+input CorporateOnboardingInput {
+    legal_name: String!
+    commercial_name: String
+    rnc: String!
+    contact_name: String!
+    contact_role: String
+    contact_email: String!
+    contact_phone: String
+}
+
+type CorporateOnboardingResult {
+    company: Company!
+    status: String!
+}
+
+extend type Mutation @guard {
+    enableCorporateMode(
+        input: CorporateOnboardingInput!
+    ): CorporateOnboardingResult!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\EnableCorporateModeMutation@enable"
+        )
 }
 
 enum MechanicAvailabilityEnum {

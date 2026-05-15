@@ -76,7 +76,7 @@ class DeleteCompaniesAction
                 foreach ($products as $product) {
                     $product->categories()->detach();
                     $product->warehouses()->detach();
-                    $product->attributes()->detach();
+                    $product->attributeValues()->forceDelete();
                     $product->variants()->delete();
                     $product->productsTypes()->delete();
 

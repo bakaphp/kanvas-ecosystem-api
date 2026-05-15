@@ -106,7 +106,7 @@ class SyncLeadAction
         if (! empty($eLeadOpportunity->tradeIns)) {
             $lead->set(
                 LeadCustomFieldEnum::TRADE_IN->value,
-                current($eLeadOpportunity->tradeIns)
+                end($eLeadOpportunity->tradeIns)
             );
         }
 

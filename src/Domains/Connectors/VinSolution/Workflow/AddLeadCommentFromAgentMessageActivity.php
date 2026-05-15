@@ -34,12 +34,6 @@ class AddLeadCommentFromAgentMessageActivity extends BaseAddLeadCommentFromAgent
     }
 
     #[Override]
-    protected function getManagerNotifiedAtKey(): ?string
-    {
-        return ConfigurationEnum::MANAGER_NOTIFIED_AT->value;
-    }
-
-    #[Override]
     protected function addNoteToExternalSystem(
         Lead $lead,
         string $note,

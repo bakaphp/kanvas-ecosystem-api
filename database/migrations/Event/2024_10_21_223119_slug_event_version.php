@@ -11,7 +11,6 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::table('event_versions', function (Blueprint $table) {
-
             $table->string('slug', 255)->change();
         });
     }
@@ -22,7 +21,6 @@ return new class () extends Migration {
     public function down(): void
     {
         Schema::table('event_versions', function (Blueprint $table) {
-
         });
     }
 };

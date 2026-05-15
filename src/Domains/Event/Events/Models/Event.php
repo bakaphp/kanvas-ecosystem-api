@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Models;
 
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Event\Events\Observers\EventObserver;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Themes\Models\Theme;
@@ -38,13 +42,12 @@ class Event extends BaseModel
     use FollowersTrait;
     use HasTagsTrait;
     use HasLightHouseCache;
+    use DatabaseSearchableTrait;
 
     protected $cascadeDeletes = ['versions'];
 
     protected $table = 'events';
     protected $guarded = [];
-
-    protected $is_deleted;
 
     public function versions(): HasMany
     {
@@ -131,5 +134,44 @@ class Event extends BaseModel
     public function getGraphTypeName(): string
     {
         return 'Event';
+    }
+
+    public function searchableAs(): string
+    {
+        $app = $this->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_event_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'event_index');
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'uuid' => $this->uuid,
+            'name' => $this->name,
+            'slug' => $this->slug,
+            'description' => $this->description,
+        ];
+    }
+
+    #[Override]
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }

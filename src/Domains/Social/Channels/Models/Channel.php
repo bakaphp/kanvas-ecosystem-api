@@ -37,6 +37,7 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  *  @property int $companies_id
  *  @property int|null $entity_id
  *  @property string|null $entity_namespace
+ *  @property array|null $metadata
  */
 class Channel extends BaseModel
 {
@@ -181,6 +182,11 @@ class Channel extends BaseModel
     public function isNoteChannel(): bool
     {
         return $this->name === ChannelNameEnum::NOTES->value;
+    }
+
+    public function isAiAssistChannel(): bool
+    {
+        return $this->name == ChannelNameEnum::AI_ASSIST->value;
     }
 
     public function isDefaultChannel(): bool

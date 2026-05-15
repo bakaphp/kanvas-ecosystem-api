@@ -19,6 +19,7 @@ class UpdateAgentAction
     {
         $this->agentModel->update([
             'agent_type_id' => $this->agent->agentType->id,
+            'user_id' => $this->agent->user->id,
             'name' => $this->agent->name,
             'role' => $this->agent->role,
             'is_active' => $this->agent->is_active,

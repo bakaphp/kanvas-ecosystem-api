@@ -38,7 +38,6 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
-use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use RuntimeException;
@@ -315,7 +314,11 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                 $lead->set('intent_number', $lead->get('intent_number') ?? 0 + 1);
 
-                if ($totalSentMessages > 0 && ! empty($app->get(VoiceBridgeConfigurationEnum::API_KEY->value))) {
+                $canRunVoice = $lead->get(VoiceBridgeConfigurationEnum::API_KEY->value, 0)
+                    ?? $lead->company->get(VoiceBridgeConfigurationEnum::API_KEY->value, 0)
+                    ?? $app->get(VoiceBridgeConfigurationEnum::API_KEY->value, 0);
+
+                if ($totalSentMessages > 0 && ! empty($canRunVoice)) {
                     $delayMinutes = (int) (
                         ($stageConfig['voice_no_response_minutes'] ?? null)
                         ?? $app->get(VoiceBridgeConfigurationEnum::VOICE_NO_RESPONSE_MINUTES->value)
@@ -427,11 +430,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         string $messageType = 'twilio-sms',
         bool $runWorkflow = true,
     ): Message {
-        $user = $lead->user;
-        $agentUser = $lead->company->get('ai-agent-user-id');
-        if ($agentUser !== null) {
-            $user = Users::getById((int) $agentUser);
-        }
+        $user = $lead->company->getAiAgentUser() ?? $lead->user;
 
         $messageTypeModel = new CreateMessageTypeAction(
             new MessageTypeInput(

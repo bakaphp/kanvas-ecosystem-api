@@ -25,11 +25,15 @@ use Override;
  * @property int $companies_id
  * @property int $companies_branches_id
  * @property int $filesystem_id
- * @property int $filesystem_mapper_id
- * @property string $results
- * @property string $exception
+ * @property int|null $filesystem_mapper_id
+ * @property string|null $results
+ * @property string|null $exception
+ * @property string $status
+ * @property int $is_deleted
+ * @property array<string, mixed>|null $extra
  * @property string $created_at
- * @property string $updated_at
+ * @property string|null $updated_at
+ * @property string|null $finished_at
  */
 #[ObservedBy([FilesystemImportObserver::class])]
 class FilesystemImports extends BaseModel

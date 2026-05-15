@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Workflow\Integration;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Actions\ProcessWorkflowEventAction;
@@ -16,6 +17,10 @@ use Workflow\WorkflowStub;
 
 final class DynamicWorkflowTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected $connectionsToTransact = ['workflow'];
+
     public function testDynamicWorkflow(): void
     {
         WorkflowStub::fake();

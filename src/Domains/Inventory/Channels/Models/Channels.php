@@ -15,6 +15,8 @@ use Kanvas\Inventory\Channels\Actions\UnPublishAllVariantsAction;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Traits\DefaultTrait;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 
 /**
@@ -111,12 +113,29 @@ class Channels extends BaseModel
 
     public function getRegions(): Collection
     {
-        return $this->productVariantChannels()
-            ->with('warehouse.region')
-            ->get()
-            ->pluck('warehouse.region')
-            ->whereNotNull()
-            ->unique('id')
-            ->values();
+        $warehousesTable = Warehouses::getTableName();
+        $variantChannelsTable = VariantsChannels::getTableName();
+
+        $regionIds = $this->productVariantChannels()
+            ->select($warehousesTable . '.regions_id')
+            ->join(
+                $warehousesTable,
+                $warehousesTable . '.id',
+                '=',
+                $variantChannelsTable . '.warehouses_id'
+            )
+            ->whereNotNull($warehousesTable . '.regions_id')
+            ->where($warehousesTable . '.is_deleted', 0)
+            ->distinct()
+            ->pluck($warehousesTable . '.regions_id');
+
+        if ($regionIds->isEmpty()) {
+            return collect();
+        }
+
+        return Regions::query()
+            ->whereIn(Regions::getTableName() . '.id', $regionIds->all())
+            ->where('is_deleted', 0)
+            ->get();
     }
 }

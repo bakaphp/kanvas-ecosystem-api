@@ -19,6 +19,8 @@ use Spatie\ImageOptimizer\Optimizers\Optipng;
 
 class ImageOptimizerService
 {
+    protected const MAX_LOCAL_OPTIMIZE_FILE_SIZE_BYTES = 25 * 1024 * 1024;
+
     /**
     * Optimize an existing Filesystem entity and update it with the optimized image.
     *
@@ -168,7 +170,6 @@ class ImageOptimizerService
                 );
 
                 $optimizerChain
-                    ->useLogger(Log::channel())
                     ->setTimeout(60)
                     ->optimize($imagePath);
             }
@@ -218,6 +219,12 @@ class ImageOptimizerService
             return $filePath;
         }
 
+        $fileSize = @filesize($filePath);
+        if (is_int($fileSize) && $fileSize > self::MAX_LOCAL_OPTIMIZE_FILE_SIZE_BYTES) {
+            // Avoid memory pressure when mime/image libraries inspect very large uploads.
+            return $filePath;
+        }
+
         $extension = self::resolveExtension($filePath);
         $resizableExtensions = ['jpg', 'jpeg', 'png', 'webp'];
 
@@ -245,11 +252,11 @@ class ImageOptimizerService
                 $optimizerChain->addOptimizer(new Optipng(['-i0', '-o2', '-quiet']));
                 $optimizerChain->addOptimizer(new Jpegoptim(['-m85', '--strip-all', '--all-progressive']));
                 $optimizerChain
-                    ->useLogger(Log::channel())
                     ->setTimeout(60)
                     ->optimize($filePath);
             } catch (Exception $e) {
-                report($e);
+                //log
+                Log::error('Image optimization failed for file: ' . $filePath, ['exception' => $e]);
             }
         }
 
@@ -386,9 +393,7 @@ class ImageOptimizerService
      */
     private static function resolveExtension(string $filePath): string
     {
-        $mimeType = mime_content_type($filePath);
-
-        return FilesystemServices::getExtensionFromMimeType($mimeType);
+        return FilesystemServices::resolveExtensionFromFile($filePath);
     }
 
     private static function isJpeg(string $ext): bool

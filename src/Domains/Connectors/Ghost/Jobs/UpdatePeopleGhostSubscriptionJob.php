@@ -9,10 +9,12 @@ use Kanvas\Guild\Customers\Actions\CreateOrUpdatePeopleSubscriptionAction;
 use Kanvas\Guild\Customers\DataTransferObject\PeopleSubscription as PeopleSubscriptionDTO;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 
 // Maybe add action at the of the class name
 class UpdatePeopleGhostSubscriptionJob extends ProcessWebhookJob
 {
+    #[Override]
     public function execute(): array
     {
         $member = $this->webhookRequest->payload;

@@ -44,7 +44,8 @@ class SendMessageToLeadAction
         ?string $from = '',
         ?string $title = null,
         bool $signature = true,
-        ?Collection $files = null
+        ?Collection $files = null,
+        ?string $to = null
     ): array {
         if ($files !== null && $files->isNotEmpty()) {
             $this->processedFiles = $this->prepareFiles($files);
@@ -52,8 +53,8 @@ class SendMessageToLeadAction
         }
 
         return match ($channel) {
-            LeadCommunicationChannelEnum::WHATSAPP->value => $this->sendWhatsAppMessage($message),
-            LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage($from, $message),
+            LeadCommunicationChannelEnum::WHATSAPP->value => $this->sendWhatsAppMessage($message, $to),
+            LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage((string) $from, $message, $to),
             LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message, $title, $signature),
             LeadCommunicationChannelEnum::VOICE->value => $this->sendVoiceMessage($message),
             default => throw new InvalidArgumentException('Unsupported communication channel ' . $channel),
@@ -194,7 +195,7 @@ class SendMessageToLeadAction
         return $this->videoEngagements;
     }
 
-    protected function sendWhatsAppMessage(string $message): array
+    protected function sendWhatsAppMessage(string $message, ?string $to = null): array
     {
         $isFromWhatsapp = (bool) $this->lead->get(ConfigurationEnum::IS_FROM_WHATSAPP->value);
         $hasOutboundConfigured = ! empty($this->lead->app->get(WaSenderConfigurationEnum::BASE_URL_OUTBOUND->value));
@@ -205,12 +206,14 @@ class SendMessageToLeadAction
             outbound: ! $isFromWhatsapp && $hasOutboundConfigured
         );
 
-        $cellphone = $this->lead->people->getCellPhones()->first()?->value;
+        $cellphone = ($to !== null && $to !== '')
+            ? $to
+            : $this->lead->people->getCellPhones()->first()?->value;
 
-        if (! $cellphone) {
+        if ($cellphone === null || $cellphone === '') {
             throw new InvalidArgumentException('Lead does not have a cellphone number');
         }
-        $cellphone = $this->hijackPhoneNumber($cellphone, '@s.whatsapp.net');
+        $cellphone = $this->hijackPhoneNumber((string) $cellphone, '@s.whatsapp.net');
 
         $this->sendWhatsAppMediaFiles($whatsAppMessageService, $cellphone);
 
@@ -253,17 +256,20 @@ class SendMessageToLeadAction
         }
     }
 
-    protected function sendSmsMessage(string $from, string $message): array
+    protected function sendSmsMessage(string $from, string $message, ?string $to = null): array
     {
         $client = Client::getInstanceByCompany($this->lead->company);
 
-        $cellphone = $this->lead->people->getCellPhones()->first()?->value;
+        $cellphone = ($to !== null && $to !== '')
+            ? $to
+            : $this->lead->people->getCellPhones()->first()?->value;
 
-        if (! $cellphone) {
+        if ($cellphone === null || $cellphone === '') {
             throw new InvalidArgumentException('Lead does not have a cellphone number');
         }
 
-        $cellphone = $this->hijackPhoneNumber($cellphone, 'twilio-');
+        $cellphone = $this->hijackPhoneNumber((string) $cellphone, 'twilio-');
+        $cellphone = Str::toE164($cellphone);
 
         $engagementUrls = array_filter(array_column($this->videoEngagements, 'url'));
         $fullMessage = $message;

@@ -12,9 +12,10 @@ type SocialChannel {
     entity_id: ID!
     last_message_id: ID
     title: String
+    metadata: Mixed
     messages: [Message!]! @belongsToMany
     users: [User!]! @belongsToMany
-    systemModule: SystemModule! @belongsTo
+    systemModule: SystemModule! @belongsTo(relation: "systemModule")
     created_at: DateTime!
     updated_at: DateTime
     categories: [Category!]
@@ -22,6 +23,11 @@ type SocialChannel {
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Inventory\\Queries\\Categories\\CategoryQueries@getCategoriesBuilder"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
 }
 
@@ -32,6 +38,8 @@ input SocialChannelInput {
     description: String!
     entity_namespace_uuid: String!
     entity_id: ID!
+    metadata: Mixed
+    tags: [TagInput!]
 }
 
 enum UsersRolesChannel {

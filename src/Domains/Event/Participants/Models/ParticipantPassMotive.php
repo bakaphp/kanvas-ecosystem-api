@@ -10,6 +10,4 @@ class ParticipantPassMotive extends BaseModel
 {
     protected $table = 'participant_pass_motives';
     protected $guarded = [];
-
-    protected $is_deleted;
 }

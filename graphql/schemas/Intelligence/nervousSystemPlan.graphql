@@ -1,0 +1,204 @@
+type NervousSystemPlan {
+    id: ID!
+    uuid: String!
+    company: Company! @belongsTo(relation: "company")
+    parent: NervousSystemPlan @belongsTo(relation: "parent")
+    children: [NervousSystemPlan!]! @hasMany(relation: "children")
+    agent: AgentAi @belongsTo(relation: "agent")
+    user: User @belongsTo(relation: "user")
+    entity_namespace: String
+    entity_id: Int
+    plan_type: String!
+    title: String!
+    description: String
+    status: String!
+    priority: Int!
+    deadline_at: DateTime
+    completion_pct: Int!
+    input: Mixed
+    output: Mixed
+    confidence_score: Float
+    requires_human_approval: Boolean!
+    approver: User @belongsTo(relation: "approver")
+    approved_at: DateTime
+    review_outcome: String
+    started_at: DateTime
+    completed_at: DateTime
+    error_message: String
+    tasks: [NervousSystemTask!]! @hasMany(relation: "tasks")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type NervousSystemTask {
+    id: ID!
+    uuid: String!
+    plan: NervousSystemPlan! @belongsTo(relation: "plan")
+    sequence: Int!
+    title: String!
+    description: String
+    status: String!
+    result: Mixed
+    blocked_reason: String
+    started_at: DateTime
+    completed_at: DateTime
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+input NervousSystemTaskInput {
+    title: String!
+    sequence: Int
+    description: String
+    status: String
+    result: Mixed
+    blocked_reason: String
+}
+
+input CreateNervousSystemPlanInput {
+    title: String!
+    plan_type: String!
+    agent_id: Int
+    users_id: Int
+    parent_plan_id: Int
+    entity_namespace: String
+    entity_id: Int
+    description: String
+    status: String
+    priority: Int
+    deadline_at: DateTime
+    input: Mixed
+    output: Mixed
+    confidence_score: Float
+    requires_human_approval: Boolean
+    tasks: [NervousSystemTaskInput!]
+    files: [FilesystemInputUrl!]
+}
+
+input UpdateNervousSystemPlanInput {
+    title: String
+    description: String
+    status: String
+    priority: Int
+    deadline_at: DateTime
+    input: Mixed
+    output: Mixed
+    confidence_score: Float
+    requires_human_approval: Boolean
+    files: [FilesystemInputUrl!]
+}
+
+input ApproveNervousSystemPlanInput {
+    approved: Boolean!
+    review_outcome: String
+}
+
+input UpdateNervousSystemTaskStatusInput {
+    status: String!
+    result: Mixed
+    blocked_reason: String
+}
+
+extend type Query @guard {
+    nervousSystemPlans(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "agent_id"
+                    "users_id"
+                    "entity_namespace"
+                    "entity_id"
+                    "plan_type"
+                    "status"
+                    "priority"
+                    "parent_plan_id"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "priority"
+                    "deadline_at"
+                    "completion_pct"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+    ): [NervousSystemPlan!]!
+        @paginate(
+            model: "Kanvas\\NervousSystem\\Plan\\Models\\Plan"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+
+    nervousSystemPlan(id: ID! @eq): NervousSystemPlan
+        @find(
+            model: "Kanvas\\NervousSystem\\Plan\\Models\\Plan"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+        )
+}
+
+extend type Mutation @guard {
+    createNervousSystemPlan(
+        input: CreateNervousSystemPlanInput!
+    ): NervousSystemPlan!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\PlanMutation@create"
+        )
+
+    updateNervousSystemPlan(
+        id: ID!
+        input: UpdateNervousSystemPlanInput!
+    ): NervousSystemPlan!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\PlanMutation@update"
+        )
+
+    approveNervousSystemPlan(
+        id: ID!
+        input: ApproveNervousSystemPlanInput!
+    ): NervousSystemPlan!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\PlanMutation@approve"
+        )
+
+    addTaskToNervousSystemPlan(
+        plan_id: ID!
+        input: NervousSystemTaskInput!
+    ): NervousSystemTask!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\PlanMutation@addTask"
+        )
+
+    updateNervousSystemTaskStatus(
+        id: ID!
+        input: UpdateNervousSystemTaskStatusInput!
+    ): NervousSystemTask!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\PlanMutation@updateTaskStatus"
+        )
+
+    deleteNervousSystemPlan(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\PlanMutation@delete"
+        )
+
+    deleteNervousSystemTask(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\NervousSystem\\PlanMutation@deleteTask"
+        )
+}
