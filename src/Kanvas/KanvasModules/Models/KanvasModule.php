@@ -8,16 +8,36 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
+use Override;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string|null $description
+ * @property bool $is_internal
+ * @property bool $is_default
+ * @property bool $is_deleted
+ */
 class KanvasModule extends BaseModel
 {
-    protected $table = "kanvas_modules";
+    protected $table = 'kanvas_modules';
 
     protected $guarded = [];
+
+    #[Override]
+    protected function casts(): array
+    {
+        return [
+            'is_internal' => 'boolean',
+            'is_default' => 'boolean',
+            'is_deleted' => 'boolean',
+        ];
+    }
 
     public function systemModules(): BelongsToMany
     {
         $app = app(Apps::class);
+
         return $this->belongsToMany(
             SystemModules::class,
             'abilities_modules',
