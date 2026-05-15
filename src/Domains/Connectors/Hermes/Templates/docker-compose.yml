@@ -16,6 +16,9 @@ services:
     ports:
       - "{{GATEWAY_PORT}}:18789"
       - "{{PROXY_PORT}}:18790"
+    env_file:
+      - path: {{HERMES_DIR}}/.env
+        required: false
     environment:
 {{ENV_LINES}}
   socat-proxy:
