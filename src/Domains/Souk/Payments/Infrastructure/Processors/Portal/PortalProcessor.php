@@ -16,6 +16,7 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\DeviceInformation;
 use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDefinedInformation;
 use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\OrderInformation;
+use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentCaptureInput;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetail;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Connectors\EchoPay\Enums\MerchantCategoryEnum;
@@ -90,24 +91,179 @@ final class PortalProcessor implements PaymentProcessorInterface, TokenizationPr
         throw new DomainException('PortalProcessor requires 3DS — call startChallenge() instead of authorize().');
     }
 
+    /**
+     * Settle a previously authorized payment.
+     * Transitions AUTHORIZED -> PAID via EchoPay's capture endpoint.
+     */
     public function capture(Payments $payment, Order $order, ?float $amount = null, array $context = []): CaptureResult
     {
-        throw new DomainException('PortalProcessor::capture() not implemented yet.');
+        if ($payment->status !== PaymentStatusEnum::AUTHORIZED->value) {
+            return new CaptureResult(
+                success: false,
+                message: "Cannot capture payment in state '{$payment->status}' — expected AUTHORIZED.",
+                transactionId: '',
+            );
+        }
+
+        $authorizeTxId = $this->getAuthorizeTransactionId($payment);
+
+        if ($authorizeTxId === '') {
+            return new CaptureResult(
+                success: false,
+                message: 'Missing authorize transaction id on payment metadata.',
+                transactionId: '',
+            );
+        }
+
+        $captureAmount = $amount ?? $order->getTotalAmount();
+        $merchant = $this->buildMerchant();
+        $input = new PaymentCaptureInput();
+        $input->transactionId = $authorizeTxId;
+        $input->orderCode = (string) $order->id;
+        $input->currency = $order->currency ?: 'DOP';
+        $input->totalAmount = (string) $captureAmount;
+        $start = hrtime(true);
+
+        try {
+            $response = $this->service->capturePayment($input, $merchant);
+        } catch (EchoPayException $e) {
+            $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+            $payment->addLog('capture_failed', [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'authorize_transaction_id' => $authorizeTxId,
+                'error' => $e->getMessage(),
+                'error_body' => $e->getErrorBody(),
+                'response_time_ms' => $responseTimeMs,
+            ]);
+
+            return new CaptureResult(
+                success: false,
+                message: $e->getUserMessage(),
+                transactionId: '',
+                raw: $e->getErrorBody(),
+            );
+        } catch (Throwable $e) {
+            $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+            $payment->addLog('capture_failed', [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'authorize_transaction_id' => $authorizeTxId,
+                'error' => $e->getMessage(),
+                'error_class' => $e::class,
+                'response_time_ms' => $responseTimeMs,
+            ]);
+
+            return new CaptureResult(
+                success: false,
+                message: $e->getMessage(),
+                transactionId: '',
+            );
+        }
+
+        $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+        $captureTxId = (string) ($response['id'] ?? $authorizeTxId);
+
+        $payment->markAsPaid([
+            'data' => [
+                'echo_pay_capture_response' => $response,
+                'echo_pay_capture_transaction_id' => $captureTxId,
+            ],
+        ]);
+
+        $payment->addLog('capture_success', [
+            'processor' => $this->name(),
+            'order_id' => $order->id,
+            'authorize_transaction_id' => $authorizeTxId,
+            'capture_transaction_id' => $captureTxId,
+            'amount' => $captureAmount,
+            'response_time_ms' => $responseTimeMs,
+        ]);
+
+        return new CaptureResult(
+            success: true,
+            message: 'Payment captured.',
+            transactionId: $captureTxId,
+            raw: $response,
+        );
     }
 
+    /**
+     * Refund a paid payment. Uses EchoPay's reversal endpoint to return captured funds.
+     */
     public function refund(Payments $payment, Order $order, ?float $amount = null, array $context = []): RefundResult
     {
-        throw new DomainException('PortalProcessor::refund() not implemented yet.');
+        if ($payment->status !== PaymentStatusEnum::PAID->value) {
+            return new RefundResult(
+                success: false,
+                message: "Cannot refund payment in state '{$payment->status}' — expected PAID (use void() while AUTHORIZED).",
+                transactionId: '',
+            );
+        }
+
+        $reason = (string) ($context['reason'] ?? 'refund');
+        $refundAmount = $amount ?? $order->getTotalAmount();
+        $result = $this->doReverse($payment, $order, $refundAmount, $reason, 'refund');
+
+        if (! $result['success']) {
+            return new RefundResult(
+                success: false,
+                message: $result['message'],
+                transactionId: '',
+                raw: $result['raw'],
+            );
+        }
+
+        $payment->update(['status' => PaymentStatusEnum::REVERSED->value]);
+
+        return new RefundResult(
+            success: true,
+            message: 'Payment refunded.',
+            transactionId: $result['transactionId'],
+            raw: $result['raw'],
+        );
     }
 
+    /**
+     * Void an authorized-but-not-captured payment. Uses EchoPay's reversal endpoint
+     * to release the hold before settlement.
+     */
     public function void(Payments $payment, Order $order, array $context = []): VoidResult
     {
-        throw new DomainException('PortalProcessor::void() not implemented yet.');
+        if ($payment->status !== PaymentStatusEnum::AUTHORIZED->value) {
+            return new VoidResult(
+                success: false,
+                message: "Cannot void payment in state '{$payment->status}' — expected AUTHORIZED (use refund() once PAID).",
+                transactionId: '',
+            );
+        }
+
+        $reason = (string) ($context['reason'] ?? 'void');
+        $voidAmount = $order->getTotalAmount();
+        $result = $this->doReverse($payment, $order, $voidAmount, $reason, 'void');
+
+        if (! $result['success']) {
+            return new VoidResult(
+                success: false,
+                message: $result['message'],
+                transactionId: '',
+                raw: $result['raw'],
+            );
+        }
+
+        $payment->update(['status' => PaymentStatusEnum::CANCELLED->value]);
+
+        return new VoidResult(
+            success: true,
+            message: 'Payment voided.',
+            transactionId: $result['transactionId'],
+            raw: $result['raw'],
+        );
     }
 
     public function verify(Payments $payment, Order $order): VerifyResult
     {
-        throw new DomainException('PortalProcessor::verify() not implemented yet.');
+        throw new DomainException('PortalProcessor::verify() not implemented — EchoPay does not expose a payment status inquiry endpoint.');
     }
 
     // -------------------------------------------------------------------------
@@ -695,6 +851,124 @@ final class PortalProcessor implements PaymentProcessorInterface, TokenizationPr
             email: (string) ($user->email ?? ''),
             phone: (string) ($paymentMethod->getMetadata('phone') ?? ''),
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers — refund / void shared implementation
+    // -------------------------------------------------------------------------
+
+    /**
+     * Shared body of refund() and void() — both hit EchoPay's reversal endpoint.
+     * Returns a plain associative array so the public methods can wrap it into
+     * the appropriate Souk DTO (RefundResult / VoidResult) and apply the right
+     * status transition. Logging uses $logTag to disambiguate refund vs void.
+     *
+     * @return array{success: bool, message: string, transactionId: string, raw: array}
+     */
+    private function doReverse(Payments $payment, Order $order, float $amount, string $reason, string $logTag): array
+    {
+        $authorizeTxId = $this->getAuthorizeTransactionId($payment);
+
+        if ($authorizeTxId === '') {
+            return [
+                'success' => false,
+                'message' => 'Missing authorize transaction id on payment metadata.',
+                'transactionId' => '',
+                'raw' => [],
+            ];
+        }
+
+        $merchant = $this->buildMerchant();
+        $input = new PaymentCaptureInput();
+        $input->transactionId = $authorizeTxId;
+        $input->orderCode = (string) $order->id;
+        $input->currency = $order->currency ?: 'DOP';
+        $input->totalAmount = (string) $amount;
+        $start = hrtime(true);
+
+        try {
+            $response = $this->service->reversePayment($input, $merchant, $reason);
+        } catch (EchoPayException $e) {
+            $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+            $payment->addLog("{$logTag}_failed", [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'authorize_transaction_id' => $authorizeTxId,
+                'reason' => $reason,
+                'error' => $e->getMessage(),
+                'error_body' => $e->getErrorBody(),
+                'response_time_ms' => $responseTimeMs,
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $e->getUserMessage(),
+                'transactionId' => '',
+                'raw' => $e->getErrorBody(),
+            ];
+        } catch (Throwable $e) {
+            $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+            $payment->addLog("{$logTag}_failed", [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'authorize_transaction_id' => $authorizeTxId,
+                'reason' => $reason,
+                'error' => $e->getMessage(),
+                'error_class' => $e::class,
+                'response_time_ms' => $responseTimeMs,
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'transactionId' => '',
+                'raw' => [],
+            ];
+        }
+
+        $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+        $reverseTxId = (string) ($response['id'] ?? $authorizeTxId);
+
+        $payment->addMetadata([
+            'data' => [
+                "echo_pay_{$logTag}_response" => $response,
+                "echo_pay_{$logTag}_transaction_id" => $reverseTxId,
+            ],
+        ]);
+        $payment->save();
+
+        $payment->addLog("{$logTag}_success", [
+            'processor' => $this->name(),
+            'order_id' => $order->id,
+            'authorize_transaction_id' => $authorizeTxId,
+            "{$logTag}_transaction_id" => $reverseTxId,
+            'amount' => $amount,
+            'reason' => $reason,
+            'response_time_ms' => $responseTimeMs,
+        ]);
+
+        return [
+            'success' => true,
+            'message' => "Payment {$logTag} processed.",
+            'transactionId' => $reverseTxId,
+            'raw' => $response,
+        ];
+    }
+
+    /**
+     * Pull the transactionId persisted by runAuthorize() — used by capture / refund / void.
+     * Falls back to payment_intent_id for older payments that were authorized before this
+     * metadata key existed.
+     */
+    private function getAuthorizeTransactionId(Payments $payment): string
+    {
+        $stored = (string) ($payment->getMetadata('echo_pay_authorize_transaction_id') ?? '');
+
+        if ($stored !== '') {
+            return $stored;
+        }
+
+        return (string) ($payment->payment_intent_id ?? '');
     }
 
     // -------------------------------------------------------------------------
