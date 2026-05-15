@@ -720,3 +720,23 @@ Forgetting step 1 → "Trait/Class not found" at runtime even though the file ex
 ## Testing
 
 For docker test commands, suites, `RefreshDatabase` ban, AppKey-guarded patterns, and Bouncer setup, see `tests/CLAUDE.md` (loads automatically when work touches `tests/`).
+
+### Tests are part of "done"
+
+Code without tests is not done. Code where the relevant test suite has not been run green is not done either. Both are non-negotiable for:
+
+- A new Action / Service / Observer / Job
+- A new GraphQL mutation or non-trivial query resolver
+- A new model behavior (scope, computed accessor, lifecycle hook, custom relation)
+- A migration that does any data transformation beyond `ADD COLUMN` (backfills, joins, computed values)
+- A bug fix — write a regression test that fails before the fix and passes after
+
+**Workflow:** write the code, write the test in the same change set, run the relevant suite, fix anything broken, *then* declare done. Do not ask "want tests?" — just write them. Smoke-testing in `php artisan tinker` is not a test (no CI, no regression protection, no documented intent).
+
+**Exceptions** — work that genuinely needs no tests:
+- Pure migrations that only add/drop a column with no data transform
+- GraphQL schema-only changes (new field that's a direct relation passthrough through `@belongsTo` / `@hasMany`)
+- Doc / copy / typo fixes
+- Work the user has explicitly tagged "spike" or "experimental"
+
+If you ship code that should have tests and don't, the next step in the conversation is to write them — not to move on to a new feature.

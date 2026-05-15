@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\KanvasModules\Models\KanvasModule;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
 use Override;
@@ -67,6 +68,17 @@ class Tool extends BaseModel
             'tool_id',
             'agent_type_id'
         );
+    }
+
+    // Cross-DB: KanvasModule lives on ecosystem; pivot has no FK to it.
+    public function kanvasModules(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            KanvasModule::class,
+            'nervous_system_tool_kanvas_modules',
+            'tool_id',
+            'kanvas_modules_id'
+        )->withPivot('direction')->withTimestamps();
     }
 
     public function scopeActive(Builder $query): Builder

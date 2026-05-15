@@ -6,7 +6,9 @@ namespace Kanvas\KanvasModules\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Models\BaseModel;
+use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\SystemModules\Models\SystemModules;
 use Override;
 
@@ -44,6 +46,28 @@ class KanvasModule extends BaseModel
             'module_id',
             'system_modules_id'
         )->where('abilities_modules.apps_id', $app->id)
-        ->groupBy('system_modules_id');
+            ->groupBy('system_modules_id');
+    }
+
+    // Cross-DB: pivot lives on intelligence connection, no FK back to this row.
+    public function tools(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Tool::class,
+            'nervous_system_tool_kanvas_modules',
+            'kanvas_modules_id',
+            'tool_id'
+        )->withPivot('direction')->withTimestamps();
+    }
+
+    // Cross-DB: pivot lives on intelligence connection, no FK back to this row.
+    public function agents(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Agent::class,
+            'agents_kanvas_modules',
+            'kanvas_modules_id',
+            'agent_id'
+        )->withPivot(['config', 'is_active', 'is_deleted'])->withTimestamps();
     }
 }
