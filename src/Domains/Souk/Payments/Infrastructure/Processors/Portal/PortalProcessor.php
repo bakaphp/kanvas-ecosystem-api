@@ -96,14 +96,21 @@ final class PortalProcessor implements PaymentProcessorInterface, TokenizationPr
     // TokenizationProcessorInterface
     // -------------------------------------------------------------------------
 
+    /**
+     * Tokenize a card with the EchoPay vault.
+     * Delegates to EchoPayService, which already implements TokenizationProcessorInterface.
+     */
     public function tokenize(array $cardDetails, UserInterface $user): TokenizeResult
     {
-        throw new DomainException('PortalProcessor::tokenize() not wired yet — see Phase 2.');
+        return $this->service->tokenize($cardDetails, $user);
     }
 
+    /**
+     * Remove a previously tokenized card from the EchoPay vault.
+     */
     public function deleteToken(string $token): bool
     {
-        throw new DomainException('PortalProcessor::deleteToken() not wired yet — see Phase 2.');
+        return $this->service->deleteToken($token);
     }
 
     // -------------------------------------------------------------------------
