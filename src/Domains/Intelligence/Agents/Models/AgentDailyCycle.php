@@ -25,6 +25,8 @@ use Override;
  * @property int $sleep_duration_minutes
  * @property int $proactive_actions_count
  * @property int $events_processed_count
+ * @property \Illuminate\Support\Carbon|null $last_action_at
+ * @property string|null $last_action_label
  * @property string|null $morning_briefing
  * @property array|null $proposed_actions
  * @property array|null $skills_emerged
@@ -54,6 +56,7 @@ class AgentDailyCycle extends BaseModel
             'sleep_duration_minutes' => 'integer',
             'proactive_actions_count' => 'integer',
             'events_processed_count' => 'integer',
+            'last_action_at' => 'datetime',
             'proposed_actions' => Json::class,
             'skills_emerged' => Json::class,
             'is_deleted' => 'boolean',

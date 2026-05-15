@@ -67,7 +67,8 @@ type AgentDailyCycle {
     sleep_duration_minutes: Int!
     proactive_actions_count: Int!
     events_processed_count: Int!
-    events_per_hour: Float! @method(name: "eventsPerHour")
+    last_action_at: DateTime
+    last_action_label: String
     morning_briefing: String
     proposed_actions: Mixed
     skills_emerged: Mixed
