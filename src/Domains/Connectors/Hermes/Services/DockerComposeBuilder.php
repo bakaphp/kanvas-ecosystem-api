@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Hermes\Services;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\Hermes\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
@@ -14,13 +13,6 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Override;
 use Symfony\Component\Yaml\Yaml;
 
-/**
- * Hermes-specific DockerComposeBuilder — thin subclass that wires provider config keys.
- *
- * All file-generation logic (including base-image pinning, version-tagged local image refs,
- * and Dockerfile substitution) lives in BaseDockerComposeBuilder. This class just supplies
- * provider-specific constants via the abstract getters.
- */
 class DockerComposeBuilder extends BaseDockerComposeBuilder
 {
     private const string TEMPLATES_DIR = __DIR__ . '/../Templates';
@@ -115,24 +107,6 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
         return ConfigurationEnum::ANTHROPIC_API_KEY->value;
     }
 
-    #[Override]
-    protected function getSlackBotTokenCustomFieldKey(): string
-    {
-        return CustomFieldEnum::SLACK_BOT_TOKEN->value;
-    }
-
-    #[Override]
-    protected function getSlackAppTokenCustomFieldKey(): string
-    {
-        return CustomFieldEnum::SLACK_APP_TOKEN->value;
-    }
-
-    #[Override]
-    protected function getTelegramBotTokenCustomFieldKey(): string
-    {
-        return CustomFieldEnum::TELEGRAM_BOT_TOKEN->value;
-    }
-
     /**
      * @return array<string, string>
      */
@@ -167,7 +141,7 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
         AppInterface $app,
         array $channelConfig = [],
     ): string {
-        $rawModel = (string) ($app->get($this->getDefaultModelConfigKey()) ?? 'gemini-3.1-pro-preview');
+        $rawModel = (string) ($app->get($this->getDefaultModelConfigKey()) ?? 'gemini-2.0-flash');
         $provider = $this->detectProvider($rawModel);
         $model = $this->normalizeModelName($rawModel, $provider);
         $baseUrl = $this->providerBaseUrl($provider);

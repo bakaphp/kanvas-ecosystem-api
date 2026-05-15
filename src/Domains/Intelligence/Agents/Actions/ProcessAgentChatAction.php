@@ -27,6 +27,7 @@ class ProcessAgentChatAction
         protected readonly Apps $app,
         protected readonly Companies $company,
         protected readonly Users $user,
+        protected readonly array $images = [],
     ) {
     }
 
@@ -64,6 +65,7 @@ class ProcessAgentChatAction
                 session: $this->session,
                 message: $this->message,
                 user: $this->user,
+                images: $this->images,
             )->execute();
         }
 

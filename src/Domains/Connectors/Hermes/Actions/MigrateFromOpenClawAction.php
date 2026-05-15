@@ -56,6 +56,7 @@ class MigrateFromOpenClawAction
 
         $destDeployment = AgentDeployment::where('agent_machine_id', $this->destinationMachine->getId())
             ->where('system_user', $systemUser)
+            ->where('provider', 'hermes')
             ->where('is_deleted', 0)
             ->first();
 
@@ -76,6 +77,7 @@ class MigrateFromOpenClawAction
             $destDeployment->gateway_port = $ports['gateway_port'];
             $destDeployment->proxy_port = $ports['proxy_port'];
             $destDeployment->container_name = 'hermes-' . $agent->slug;
+            $destDeployment->provider = 'hermes';
             $destDeployment->status = DeploymentStatusEnum::PROVISIONING->value;
             $destDeployment->saveOrFail();
         }
@@ -115,6 +117,11 @@ class MigrateFromOpenClawAction
             );
 
             $this->runMigrateCommand($client, $stagingDir, $destDeployment);
+
+            // Stop OpenClaw containers before starting Hermes — on the same machine they
+            // share the same container name prefix, so the old container must be removed first.
+            $this->terminateSourceDeployment($client);
+
             $this->startContainers($client, $destDeployment);
 
             $destDeployment->status = DeploymentStatusEnum::RUNNING->value;
@@ -122,10 +129,6 @@ class MigrateFromOpenClawAction
             $destDeployment->saveOrFail();
 
             $agent->set(CustomFieldEnum::HERMES_DEPLOYMENT_ID->value, $destDeployment->getId());
-
-            // Stop OpenClaw containers — same machine, reuse the open connection.
-            // We do NOT userdel since the user/home directory is shared with Hermes.
-            $this->terminateSourceDeployment($client);
         } catch (Throwable $e) {
             $destDeployment->status = DeploymentStatusEnum::FAILED->value;
             $destDeployment->error_message = $e->getMessage();
@@ -398,8 +401,15 @@ class MigrateFromOpenClawAction
     }
 
     /**
-     * Rewrite docker-compose.yml with the destination ports, stop any existing
-     * containers, then start fresh. Assumes the shared image is already present.
+     * Rewrite docker-compose.yml and config.yaml with the destination ports and app model
+     * settings, stop any existing containers, then start fresh.
+     * Assumes the shared image is already present.
+     *
+     * Writing config.yaml here is important for migrations: `hermes claw migrate` copies the
+     * model name from the OpenClaw workspace into config.yaml, which may be a non-existent or
+     * stale model name (e.g. Hermes's own migration default is Claude). Overwriting it here
+     * ensures the agent always starts with the model configured for this app (or gemini-2.0-flash
+     * as the valid default).
      */
     private function startContainers(SshClient $client, AgentDeployment $deployment): void
     {
@@ -412,17 +422,21 @@ class MigrateFromOpenClawAction
         $composeContent = $builder->buildDockerCompose($deployment, (string) $gatewayToken, $this->app, $agent);
         $client->writeFileAsUser($hermesDir . '/docker-compose.yml', $composeContent, $deployment->system_user);
 
-        $client->exec(
-            'sudo -u ' . escapeshellarg($deployment->system_user)
-            . ' bash -c ' . escapeshellarg('cd ' . $hermesDir . ' && docker compose down 2>&1 || true'),
-            60
-        );
+        $runtimeConfig = $builder->buildRuntimeConfig($agent, (string) $gatewayToken, $this->app);
+        $client->writeFileAsUser($hermesDir . '/config.yaml', $runtimeConfig, $deployment->system_user);
+
+        // Run down + port cleanup + up as a single exec to avoid phpseclib channel reuse errors.
+        $downCmd = 'cd ' . escapeshellarg($hermesDir) . ' && docker compose down 2>&1 || true';
+        $cleanupCmd = 'docker ps -q --filter publish=' . $deployment->gateway_port . ' | xargs -r docker rm -f 2>&1 || true'
+            . ' ; docker ps -q --filter publish=' . $deployment->proxy_port . ' | xargs -r docker rm -f 2>&1 || true';
+        $upCmd = 'cd ' . escapeshellarg($hermesDir) . ' && docker compose up -d 2>&1';
 
         $result = $client->exec(
-            'sudo -u ' . escapeshellarg($deployment->system_user)
-            . ' bash -c ' . escapeshellarg('cd ' . $hermesDir . ' && docker compose up -d 2>&1')
-            . '; echo "EXIT_CODE:$?"',
-            120
+            'sudo -u ' . escapeshellarg($deployment->system_user) . ' bash -c ' . escapeshellarg($downCmd)
+            . ' ; ' . $cleanupCmd
+            . ' ; sudo -u ' . escapeshellarg($deployment->system_user) . ' bash -c ' . escapeshellarg($upCmd)
+            . ' ; echo "EXIT_CODE:$?"',
+            180
         );
 
         if (

@@ -314,7 +314,11 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                 $lead->set('intent_number', $lead->get('intent_number') ?? 0 + 1);
 
-                if ($totalSentMessages > 0 && ! empty($app->get(VoiceBridgeConfigurationEnum::API_KEY->value))) {
+                $canRunVoice = $lead->get(VoiceBridgeConfigurationEnum::API_KEY->value, 0)
+                    ?? $lead->company->get(VoiceBridgeConfigurationEnum::API_KEY->value, 0)
+                    ?? $app->get(VoiceBridgeConfigurationEnum::API_KEY->value, 0);
+
+                if ($totalSentMessages > 0 && ! empty($canRunVoice)) {
                     $delayMinutes = (int) (
                         ($stageConfig['voice_no_response_minutes'] ?? null)
                         ?? $app->get(VoiceBridgeConfigurationEnum::VOICE_NO_RESPONSE_MINUTES->value)

@@ -4,91 +4,42 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenClaw\Actions;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\OpenClaw\SshClient;
-use Kanvas\Intelligence\Agents\Models\AgentDeployment;
-use Kanvas\Intelligence\Agents\Models\AgentUsageSnapshot;
+use Kanvas\Intelligence\AgentRuntime\Actions\BaseCollectDeploymentUsageAction;
+use Kanvas\Intelligence\AgentRuntime\SshClient as BaseSshClient;
+use Kanvas\Intelligence\Agents\Models\AgentMachine;
+use Override;
 
 /**
- * Collect usage data from a Docker-deployed OpenClaw agent via CLI.
+ * OpenClaw concrete — runs `openclaw status --usage --json` inside the container.
  *
- * Runs `openclaw status --usage --json` inside the agent's container and stores
- * the result in AgentUsageSnapshot. The JSON output includes per-session token
- * counts (input, output, cacheRead, cacheWrite, total), model info, and context
- * window utilization.
- *
- * Key data extracted from `sessions.recent[]`:
- *  - inputTokens, outputTokens, totalTokens
- *  - cacheRead, cacheWrite
- *  - model, contextTokens, remainingTokens, percentUsed
- *  - sessionId, agentId
+ * The CLI returns a single JSON document with `sessions.recent[]` carrying per-session
+ * token counts; we sum across recents to fill the `totals` block.
  */
-class CollectDeploymentUsageAction
+class CollectDeploymentUsageAction extends BaseCollectDeploymentUsageAction
 {
-    public function __construct(
-        protected AgentDeployment $deployment,
-        protected AppInterface $app,
-        protected CompanyInterface $company,
-        protected ?string $date = null,
-    ) {
+    #[Override]
+    protected function createSshClient(AgentMachine $machine): BaseSshClient
+    {
+        return SshClient::fromMachine($machine);
     }
 
-    public function execute(): AgentUsageSnapshot
+    #[Override]
+    protected function fetchRawUsage(BaseSshClient $client): string
     {
-        $snapshotDate = $this->date ?? now()->toDateString();
+        $providerConfig = $client::makeProviderConfig();
 
-        $client = SshClient::fromMachine($this->deployment->machine);
-
-        try {
-            $rawOutput = $client->exec(
-                'docker exec ' . escapeshellarg($this->deployment->container_name)
-                . ' node /app/openclaw.mjs status --usage --json 2>&1',
-                60,
-            );
-        } finally {
-            $client->disconnect();
-        }
-
-        $parsed = $this->parseStatusOutput($rawOutput);
-
-        /** @var array<string, int> $totals */
-        $totals = $parsed['totals'] ?? [];
-
-        /** @var array<int, array<string, mixed>> $sessions */
-        $sessions = $parsed['sessions'] ?? [];
-
-        $primaryModel = $sessions[0]['model'] ?? null;
-
-        return AgentUsageSnapshot::updateOrCreate(
-            [
-                'apps_id' => $this->app->getId(),
-                'companies_id' => $this->company->getId(),
-                'agent_deployment_id' => $this->deployment->getId(),
-                'snapshot_date' => $snapshotDate,
-                'source' => 'openclaw_docker',
-            ],
-            [
-                'input_tokens' => $totals['input_tokens'] ?? 0,
-                'output_tokens' => $totals['output_tokens'] ?? 0,
-                'total_tokens' => $totals['total_tokens'] ?? 0,
-                'cache_read_tokens' => $totals['cache_read'] ?? 0,
-                'cache_write_tokens' => $totals['cache_write'] ?? 0,
-                'provider' => $sessions[0]['provider'] ?? null,
-                'model' => $primaryModel,
-                'total_sessions' => $parsed['total_sessions'] ?? 0,
-                'raw_output' => $rawOutput,
-                'parsed_data' => $parsed,
-            ]
+        return $client->exec(
+            'docker exec ' . escapeshellarg($this->deployment->container_name)
+            . ' ' . $providerConfig->mjsPath . ' status --usage --json 2>&1',
+            60,
         );
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    protected function parseStatusOutput(string $output): array
+    #[Override]
+    protected function parseUsageOutput(string $rawOutput): array
     {
-        $cleanOutput = $this->stripNodeWarnings($output);
+        $cleanOutput = $this->stripNodeWarnings($rawOutput);
 
         /** @var array<string, mixed>|null $json */
         $json = json_decode($cleanOutput, true);
@@ -96,7 +47,7 @@ class CollectDeploymentUsageAction
         if (! is_array($json)) {
             return [
                 'error' => 'Failed to parse JSON output',
-                'raw_length' => strlen($output),
+                'raw_length' => strlen($rawOutput),
                 'collected_at' => now()->toIso8601String(),
             ];
         }
@@ -130,7 +81,7 @@ class CollectDeploymentUsageAction
             $sessionDetails[] = [
                 'session_id' => $session['sessionId'] ?? null,
                 'agent_id' => $session['agentId'] ?? null,
-                'provider' => self::inferProvider($model),
+                'provider' => self::inferLlmProvider($model),
                 'model' => $model !== '' ? $model : null,
                 'context_tokens' => (int) ($session['contextTokens'] ?? 0),
                 'input_tokens' => $inputTokens,
@@ -145,6 +96,8 @@ class CollectDeploymentUsageAction
 
         /** @var array<string, mixed> $gateway */
         $gateway = $json['gateway'] ?? [];
+        $primaryModel = $recent[0]['model'] ?? null;
+        $primaryProvider = $recent[0]['provider'] ?? null;
 
         return [
             'deployment_id' => $this->deployment->getId(),
@@ -160,53 +113,9 @@ class CollectDeploymentUsageAction
                 'total_tokens' => $totalTokens,
             ],
             'sessions' => $sessionDetails,
+            'provider' => $primaryProvider,
+            'model' => $primaryModel,
             'collected_at' => now()->toIso8601String(),
         ];
-    }
-
-    /**
-     * Infer the provider from a model name (e.g. "gemini-3.1-pro" → "google").
-     * Models may use full prefix ("google/gemini-3.1-pro") or short names.
-     */
-    private static function inferProvider(string $model): ?string
-    {
-        if ($model === '') {
-            return null;
-        }
-
-        if (str_contains($model, '/')) {
-            return explode('/', $model)[0];
-        }
-
-        return match (true) {
-            str_starts_with($model, 'gemini') => 'google',
-            str_starts_with($model, 'claude') => 'anthropic',
-            str_starts_with($model, 'gpt'), str_starts_with($model, 'o1'), str_starts_with($model, 'o3') => 'openai',
-            str_starts_with($model, 'llama') => 'meta',
-            str_starts_with($model, 'mistral') => 'mistral',
-            default => null,
-        };
-    }
-
-    /**
-     * Strip Node.js deprecation warnings that appear before the JSON output.
-     */
-    private function stripNodeWarnings(string $output): string
-    {
-        $lines = explode("\n", $output);
-        $jsonLines = [];
-        $jsonStarted = false;
-
-        foreach ($lines as $line) {
-            if (! $jsonStarted && str_starts_with(trim($line), '{')) {
-                $jsonStarted = true;
-            }
-
-            if ($jsonStarted) {
-                $jsonLines[] = $line;
-            }
-        }
-
-        return implode("\n", $jsonLines);
     }
 }
