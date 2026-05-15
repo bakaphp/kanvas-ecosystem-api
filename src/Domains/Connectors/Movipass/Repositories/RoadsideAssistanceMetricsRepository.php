@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Movipass\Actions;
+namespace Kanvas\Connectors\Movipass\Repositories;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Support\Carbon;
@@ -12,29 +12,25 @@ use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 
-class CalculateRoadsideAssistanceMetricsAction
+class RoadsideAssistanceMetricsRepository
 {
-    public function __construct(
-        protected readonly AppInterface $app,
-        protected readonly ?string $startDate = null,
-        protected readonly ?string $endDate = null,
-        protected readonly ?int $providerCompanyId = null,
-        protected readonly ?int $companyId = null,
-    ) {
-    }
-
-    public function execute(): array
-    {
-        $orderTypeIds = OrderTypes::where('apps_id', $this->app->getId())
+    public static function getMetrics(
+        AppInterface $app,
+        ?string $startDate = null,
+        ?string $endDate = null,
+        ?int $providerCompanyId = null,
+        ?int $companyId = null,
+    ): array {
+        $orderTypeIds = OrderTypes::where('apps_id', $app->getId())
             ->where('name', OrderTypeEnum::ROADSIDE_ASSISTANCE->value)
             ->pluck('id')
             ->all();
 
-        $start = $this->startDate !== null
-            ? Carbon::parse($this->startDate)->startOfDay()
+        $start = $startDate !== null
+            ? Carbon::parse($startDate)->startOfDay()
             : Carbon::now()->subDays(30)->startOfDay();
-        $end = $this->endDate !== null
-            ? Carbon::parse($this->endDate)->endOfDay()
+        $end = $endDate !== null
+            ? Carbon::parse($endDate)->endOfDay()
             : Carbon::now()->endOfDay();
 
         $period = [
@@ -43,7 +39,7 @@ class CalculateRoadsideAssistanceMetricsAction
         ];
 
         if ($orderTypeIds === []) {
-            return $this->emptyMetrics($period);
+            return self::emptyMetrics($period);
         }
 
         $statusMap = OrderStatus::whereIn('order_types_id', $orderTypeIds)
@@ -75,24 +71,23 @@ class CalculateRoadsideAssistanceMetricsAction
             ->leftJoinSub($buildSubquery($notResolvedIds), 'not_resolved', 'not_resolved.order_id', '=', 'o.id')
             ->leftJoinSub($buildSubquery($cancelledIds), 'cancelled', 'cancelled.order_id', '=', 'o.id')
             ->leftJoinSub($buildSubquery($onSiteIds), 'on_site', 'on_site.order_id', '=', 'o.id')
-            ->where('o.apps_id', $this->app->getId())
+            ->where('o.apps_id', $app->getId())
             ->where('o.is_deleted', 0)
             ->whereIn('o.order_types_id', $orderTypeIds)
             ->whereBetween('o.created_at', [$start, $end]);
 
-        if ($this->companyId !== null) {
-            $query->where('o.companies_id', $this->companyId);
+        if ($companyId !== null) {
+            $query->where('o.companies_id', $companyId);
         }
 
-        if ($this->providerCompanyId !== null) {
-            $providerId = $this->providerCompanyId;
-            $query->where(function ($q) use ($providerId) {
+        if ($providerCompanyId !== null) {
+            $query->where(function ($q) use ($providerCompanyId) {
                 $q->whereRaw(
                     "CAST(JSON_EXTRACT(o.metadata, '$.assistance_case.mechanic.company_id') AS UNSIGNED) = ?",
-                    [$providerId]
+                    [$providerCompanyId]
                 )->orWhereRaw(
                     "CAST(JSON_EXTRACT(o.metadata, '$.data.assistance_case.mechanic.company_id') AS UNSIGNED) = ?",
-                    [$providerId]
+                    [$providerCompanyId]
                 );
             });
         }
@@ -126,7 +121,7 @@ class CalculateRoadsideAssistanceMetricsAction
         ];
     }
 
-    private function emptyMetrics(array $period): array
+    private static function emptyMetrics(array $period): array
     {
         return [
             'period' => $period,
