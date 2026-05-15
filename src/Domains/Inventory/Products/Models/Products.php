@@ -806,11 +806,38 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             ->where('is_deleted', 0)
             ->where('is_published', 1);
 
-        $variantCount = $query->count();
+        $useSummary = $query->count() > $limit;
 
-        return $variantCount > $limit
-            ? $query->limit($limit)->get()->map(fn ($variant) => $variant->toSearchableArraySummary())
-            : $query->get()->map(fn ($variant) => $variant->toSearchableArray());
+        // Eager load the relations each variant->toSearchableArray() touches so we don't fan out
+        // into N+1 channel/warehouse/status reads while building the search payload. Summary path
+        // only renders channels.
+        $eagerLoad = $useSummary
+            ? ['channels']
+            : ['channels', 'variantWarehouses.warehouse', 'variantWarehouses.status', 'status'];
+
+        // Bound peak memory by streaming the variants in small batches instead of materialising
+        // up to PRODUCT_VARIANTS_SEARCH_LIMIT models at once — the Scout indexer was OOMing at
+        // 512MB because the outer chunk of products + every variant + every relation lived in
+        // memory simultaneously.
+        $items = [];
+        $query
+            ->with($eagerLoad)
+            ->orderBy('id')
+            ->chunkById(50, function (Collection $variants) use (&$items, $useSummary, $limit): bool {
+                foreach ($variants as $variant) {
+                    if ($useSummary && count($items) >= $limit) {
+                        return false;
+                    }
+
+                    $items[] = $useSummary
+                        ? $variant->toSearchableArraySummary()
+                        : $variant->toSearchableArray();
+                }
+
+                return true;
+            });
+
+        return collect($items);
     }
 
     public function getTotalVariants(): int
