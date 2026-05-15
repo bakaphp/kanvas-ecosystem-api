@@ -565,52 +565,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             $product['custom_fields'] = [];
 
             if ($this->app->get(EnumsConfigurationEnum::B2B_GLOBAL_COMPANY->value)) {
-                // Initialize prices array
-                $product['prices'] = [];
-
-                // Temporary array to collect all prices
-                $allPrices = [];
-
-                // Loop through each variant
-                $this->variants->each(function ($variant) use (&$allPrices) {
-                    // Each variant has its own channels, so get them
-                    if ($variant->channels && $variant->channels->count() > 0) {
-                        $variant->channels->each(function ($channel) use (&$allPrices) {
-                            // Get company by slug
-                            try {
-                                $company = Companies::getByUuid($channel->slug);
-
-                                if ($company) {
-                                    // Store price with company ID for later sorting
-                                    $allPrices[] = [
-                                        'company_id' => $company->getId(),
-                                        'price' => (float) $channel->price,
-                                    ];
-                                }
-                            } catch (Exception $e) {
-                                // Do nothing
-                            }
-                        });
-                    }
-                });
-
-                // Create an associative array to track highest price per company_id
-                $highestPrices = [];
-
-                // Loop through all prices just once
-                foreach ($allPrices as $priceData) {
-                    $companyId = $priceData['company_id'];
-
-                    // Only store if this company isn't tracked yet or if this price is higher
-                    if (! isset($highestPrices[$companyId]) || $priceData['price'] > $highestPrices[$companyId]) {
-                        $highestPrices[$companyId] = $priceData['price'];
-                    }
-                }
-
-                // Add the highest prices to the product
-                foreach ($highestPrices as $companyId => $price) {
-                    $product['prices']['price_b2b_' . $companyId] = $price;
-                }
+                $product['prices'] = $this->buildB2bGlobalPrices();
             }
         }
 
@@ -796,6 +751,46 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         $this->is_published = 1;
         $this->published_at = Carbon::now();
         $this->save();
+    }
+
+    /**
+     * Build the price_b2b_{companyId} map for the B2B_GLOBAL_COMPANY index path.
+     *
+     * Aggregates MAX(pivot.price) per channel slug in one SQL pass and bulk-resolves
+     * the matching companies — replaces a per-variant lazy load + per-channel
+     * Companies::getByUuid() loop that OOM'd on products with hundreds of variants.
+     */
+    protected function buildB2bGlobalPrices(): array
+    {
+        $rows = DB::connection($this->getConnectionName())
+            ->table('products_variants_channels as pvc')
+            ->join('channels as c', 'c.id', '=', 'pvc.channels_id')
+            ->join('products_variants as v', 'v.id', '=', 'pvc.products_variants_id')
+            ->where('v.products_id', $this->getId())
+            ->groupBy('c.slug')
+            ->selectRaw('c.slug as slug, MAX(pvc.price) as max_price')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        /** @var array<string, int> $companiesBySlug */
+        $companiesBySlug = Companies::whereIn('uuid', $rows->pluck('slug')->all())
+            ->notDeleted()
+            ->pluck('id', 'uuid')
+            ->all();
+
+        $prices = [];
+        foreach ($rows as $row) {
+            $companyId = $companiesBySlug[$row->slug] ?? null;
+            if ($companyId === null) {
+                continue;
+            }
+            $prices['price_b2b_' . $companyId] = (float) $row->max_price;
+        }
+
+        return $prices;
     }
 
     protected function getVariantsData(): Collection
