@@ -4174,16 +4174,16 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v0.6.7",
+            "version": "v0.6.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "ab1426ee26ae9b7fa96bc35eb70597e2ab00d30d"
+                "reference": "b457ea4c0ec0fb1bca5504666332b653f7648d7e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/ab1426ee26ae9b7fa96bc35eb70597e2ab00d30d",
-                "reference": "ab1426ee26ae9b7fa96bc35eb70597e2ab00d30d",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/b457ea4c0ec0fb1bca5504666332b653f7648d7e",
+                "reference": "b457ea4c0ec0fb1bca5504666332b653f7648d7e",
                 "shasum": ""
             },
             "require": {
@@ -4238,7 +4238,7 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-05-07T13:47:00+00:00"
+            "time": "2026-05-11T10:46:54+00:00"
         },
         {
             "name": "laravel/cashier",
