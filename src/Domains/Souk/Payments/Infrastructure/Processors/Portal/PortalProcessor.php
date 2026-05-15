@@ -4,11 +4,25 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Payments\Infrastructure\Processors\Portal;
 
+use Baka\Support\IPInfo;
 use Baka\Users\Contracts\UserInterface;
 use DomainException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\EchoPay\DataTransferObject\BillingDetail;
+use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
+use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthenticationInformation;
+use Kanvas\Connectors\EchoPay\DataTransferObject\DeviceInformation;
+use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDefinedInformation;
 use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
+use Kanvas\Connectors\EchoPay\DataTransferObject\OrderInformation;
+use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetail;
+use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
+use Kanvas\Connectors\EchoPay\Enums\MerchantCategoryEnum;
+use Kanvas\Connectors\EchoPay\Enums\MerchantDocumentTypesEnum;
+use Kanvas\Connectors\EchoPay\Enums\MerchantPlatformEnum;
+use Kanvas\Connectors\EchoPay\Enums\MerchantTokenizationEnum;
+use Kanvas\Connectors\EchoPay\Enums\PaymentStatusEnum as EchoPayStatusEnum;
 use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Souk\Orders\Models\Order;
@@ -258,22 +272,322 @@ final class PortalProcessor implements PaymentProcessorInterface, TokenizationPr
         }
     }
 
+    /**
+     * Finalize the EchoPay 3DS flow after the browser-side device data step
+     * (and, if required, a separate ACS challenge) completes.
+     *
+     * State machine driven off Payments::status:
+     *
+     *   WAITING_DEVICE_DATA       (set by startChallenge)
+     *      -> checkPayerEnrollment
+     *         - ECI valid (frictionless)  -> authorize    -> AUTHORIZED
+     *         - challenge required        -> persist auth_transaction_id,
+     *                                        return acsUrl/stepUpUrl/pareq,
+     *                                        status: PENDING_AUTHORIZATION
+     *         - hard failure              -> FAILED
+     *
+     *   PENDING_AUTHORIZATION    (set above, after challenge is completed)
+     *      -> validatePayerAuthResult
+     *         - ECI valid                 -> authorize    -> AUTHORIZED
+     *         - otherwise                 -> FAILED
+     *
+     * The actual capture (PAID transition) is handled by capture() in a
+     * subsequent phase, mirroring EchoPay's asynchronous auth/capture split.
+     */
     public function finalizeChallenge(Payments $payment, Order $order, array $context = []): ThreeDSResult
     {
-        throw new DomainException('PortalProcessor::finalizeChallenge() not implemented yet — see Phase 4.');
+        return match ($payment->status) {
+            PaymentStatusEnum::WAITING_DEVICE_DATA->value => $this->runCheckEnrollment($payment, $order),
+            PaymentStatusEnum::PENDING_AUTHORIZATION->value => $this->runValidateAndAuthorize($payment, $order),
+            default => new ThreeDSResult(
+                success: false,
+                message: "finalizeChallenge called with payment in state '{$payment->status}' — expected WAITING_DEVICE_DATA or PENDING_AUTHORIZATION.",
+                status: $payment->status ?? PaymentStatusEnum::FAILED->value,
+            ),
+        };
     }
 
     // -------------------------------------------------------------------------
-    // Helpers
+    // Helpers — 3DS orchestration
     // -------------------------------------------------------------------------
 
     /**
-     * Build the MerchantDetail used for setupPayer.
+     * Step 2 — checkPayerEnrollment with the reference id collected during setupPayer.
+     */
+    private function runCheckEnrollment(Payments $payment, Order $order): ThreeDSResult
+    {
+        $referenceId = (string) ($order->get('auth_session_id') ?? '');
+
+        if ($referenceId === '') {
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+
+            return new ThreeDSResult(
+                success: false,
+                message: 'Missing referenceId — startChallenge was never called for this payment.',
+                status: PaymentStatusEnum::FAILED->value,
+            );
+        }
+
+        $merchant = $this->buildMerchant();
+        $paymentDetail = $this->buildEnrollmentPaymentDetail($payment, $order, $referenceId);
+        $start = hrtime(true);
+
+        try {
+            $response = $this->service->checkPayerEnrollment($paymentDetail, $merchant);
+        } catch (EchoPayException $e) {
+            return $this->failWithEchoPayException($payment, $order, $e, '3ds_check_enrollment_failed', $start);
+        } catch (Throwable $e) {
+            return $this->failWithThrowable($payment, $order, $e, '3ds_check_enrollment_failed', $start);
+        }
+
+        $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+
+        /** @var ConsumerAuthentication $consumerData */
+        $consumerData = $response['consumerAuthenticationInformation'];
+        $authTransactionId = (string) ($response['id'] ?? '');
+
+        // Persist the enrollment transaction id so a later validatePayerAuthResult call can find it.
+        $payment->addMetadata([
+            'data' => [
+                'echo_pay_auth_transaction_id' => $authTransactionId,
+                'echo_pay_enrollment_status' => $response['status'] ?? null,
+            ],
+        ]);
+        $payment->save();
+
+        if ($this->isValidEci($consumerData, $response)) {
+            $payment->addLog('3ds_enrollment_frictionless', [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'auth_transaction_id' => $authTransactionId,
+                'response_time_ms' => $responseTimeMs,
+            ]);
+
+            return $this->runAuthorize($payment, $order, $consumerData);
+        }
+
+        // Hard authentication failure — no point continuing.
+        $enrollmentStatus = $response['status'] ?? null;
+
+        if ($enrollmentStatus === EchoPayStatusEnum::AUTHENTICATION_FAILED->value) {
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+            $payment->addLog('3ds_enrollment_failed', [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'enrollment_status' => $enrollmentStatus,
+                'response_time_ms' => $responseTimeMs,
+            ]);
+
+            return new ThreeDSResult(
+                success: false,
+                message: '3DS authentication failed at enrollment.',
+                status: PaymentStatusEnum::FAILED->value,
+                raw: $response,
+            );
+        }
+
+        // Soft case — challenge needed. Caller redirects to acsUrl/stepUpUrl with pareq.
+        $payment->update(['status' => PaymentStatusEnum::PENDING_AUTHORIZATION->value]);
+        $payment->addLog('3ds_challenge_required', [
+            'processor' => $this->name(),
+            'order_id' => $order->id,
+            'auth_transaction_id' => $authTransactionId,
+            'response_time_ms' => $responseTimeMs,
+        ]);
+
+        return new ThreeDSResult(
+            success: true,
+            message: '3DS challenge required — redirect the cardholder to acs_url with pareq, then call finalizeChallenge again.',
+            status: PaymentStatusEnum::PENDING_AUTHORIZATION->value,
+            data: [
+                'auth_transaction_id' => $authTransactionId,
+                'enrollment_status' => $enrollmentStatus,
+                'acs_url' => $consumerData->acsUrl ?? '',
+                'step_up_url' => $consumerData->stepUpUrl ?? '',
+                'pareq' => $consumerData->pareq ?? '',
+                'access_token' => $consumerData->accessToken ?? '',
+                'consumer_authentication' => $consumerData->toArray(),
+            ],
+            raw: $response,
+        );
+    }
+
+    /**
+     * Step 4 — validatePayerAuthResult with the auth transaction id persisted by step 2;
+     * step 5 — authorizePayment once the ECI looks good.
+     */
+    private function runValidateAndAuthorize(Payments $payment, Order $order): ThreeDSResult
+    {
+        $authTransactionId = (string) ($payment->getMetadata('echo_pay_auth_transaction_id') ?? '');
+
+        if ($authTransactionId === '') {
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+
+            return new ThreeDSResult(
+                success: false,
+                message: 'Missing auth_transaction_id — checkPayerEnrollment was never completed for this payment.',
+                status: PaymentStatusEnum::FAILED->value,
+            );
+        }
+
+        $merchant = $this->buildMerchant();
+        $paymentDetail = $this->buildEnrollmentPaymentDetail($payment, $order, referenceId: null);
+        $start = hrtime(true);
+
+        try {
+            $response = $this->service->validatePayerAuthResult($authTransactionId, $paymentDetail, $merchant);
+        } catch (EchoPayException $e) {
+            return $this->failWithEchoPayException($payment, $order, $e, '3ds_validate_failed', $start);
+        } catch (Throwable $e) {
+            return $this->failWithThrowable($payment, $order, $e, '3ds_validate_failed', $start);
+        }
+
+        $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+
+        /** @var ConsumerAuthentication $consumerData */
+        $consumerData = $response['consumerAuthenticationInformation'];
+
+        if (! $this->isValidEci($consumerData, $response)) {
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+            $payment->addLog('3ds_validate_eci_invalid', [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'eci' => $consumerData->eci ?? $consumerData->eciRaw ?? null,
+                'status' => $response['status'] ?? null,
+                'response_time_ms' => $responseTimeMs,
+            ]);
+
+            return new ThreeDSResult(
+                success: false,
+                message: '3DS challenge validation failed (ECI not approved).',
+                status: PaymentStatusEnum::FAILED->value,
+                raw: $response,
+            );
+        }
+
+        $payment->addLog('3ds_validate_success', [
+            'processor' => $this->name(),
+            'order_id' => $order->id,
+            'auth_transaction_id' => $authTransactionId,
+            'response_time_ms' => $responseTimeMs,
+        ]);
+
+        return $this->runAuthorize($payment, $order, $consumerData);
+    }
+
+    /**
+     * Step 5 — call authorizePayment to actually charge. EchoPay is auth/capture-split,
+     * so a successful authorize moves the payment to AUTHORIZED, not PAID. capture()
+     * (Phase 5+) finishes the transaction.
+     */
+    private function runAuthorize(Payments $payment, Order $order, ConsumerAuthentication $consumerData): ThreeDSResult
+    {
+        $merchant = $this->buildMerchantWithDetails($payment);
+        $paymentDetail = $this->buildAuthorizePaymentDetail($payment, $order);
+        $start = hrtime(true);
+
+        try {
+            $response = $this->service->authorizePayment($paymentDetail, $consumerData, $merchant);
+        } catch (EchoPayException $e) {
+            return $this->failWithEchoPayException($payment, $order, $e, '3ds_authorize_failed', $start);
+        } catch (Throwable $e) {
+            return $this->failWithThrowable($payment, $order, $e, '3ds_authorize_failed', $start);
+        }
+
+        $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+
+        $authorized = ($response['status'] ?? null) === 'AUTHORIZED';
+
+        if (! $authorized) {
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+            $payment->addLog('3ds_authorize_declined', [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'status' => $response['status'] ?? null,
+                'response_time_ms' => $responseTimeMs,
+            ]);
+
+            return new ThreeDSResult(
+                success: false,
+                message: 'Authorization declined by EchoPay (status: ' . ($response['status'] ?? 'unknown') . ').',
+                status: PaymentStatusEnum::FAILED->value,
+                raw: $response,
+            );
+        }
+
+        $intentId = (string) ($response['id'] ?? '');
+        $transactionId = (string) ($response['processorInformation']['transactionId'] ?? '');
+
+        $payment->status = PaymentStatusEnum::AUTHORIZED->value;
+        $payment->payment_intent_id = $intentId;
+        $payment->addMetadata([
+            'data' => [
+                'echo_pay_authorize_response' => $response,
+                'echo_pay_authorize_transaction_id' => $transactionId,
+            ],
+        ]);
+        $payment->save();
+
+        $payment->addLog('3ds_authorize_success', [
+            'processor' => $this->name(),
+            'order_id' => $order->id,
+            'intent_id' => $intentId,
+            'transaction_id' => $transactionId,
+            'response_time_ms' => $responseTimeMs,
+        ]);
+
+        return new ThreeDSResult(
+            success: true,
+            message: 'Payment authorized — call capture() to settle.',
+            status: PaymentStatusEnum::AUTHORIZED->value,
+            data: [
+                'intent_id' => $intentId,
+                'transaction_id' => $transactionId,
+            ],
+            raw: $response,
+        );
+    }
+
+    /**
+     * Port of legacy PortalPaymentProcessor::isValidEci.
      *
-     * Pulls credentials from the app's default ECHO_PAY_MERCHANT_* configuration.
+     * Authoritative ECI values (Visa/Master ranges 02/05 mean "fully authenticated").
+     * MasterCard sometimes returns a successful authentication with the ECI field
+     * missing — when BYPASS_ECI is on we treat that as success too.
+     */
+    private function isValidEci(ConsumerAuthentication $consumerData, array $enrollmentData): bool
+    {
+        if (($enrollmentData['status'] ?? null) !== EchoPayStatusEnum::AUTHENTICATION_SUCCESSFUL->value) {
+            return false;
+        }
+
+        $eci = $consumerData->eci ?? $consumerData->eciRaw;
+        $hasValidEci = in_array($eci, ['02', '05'], strict: true);
+
+        if (isset($enrollmentData['paymentInformation']['card']['type'])) {
+            $cardBrand = $enrollmentData['paymentInformation']['card']['type'];
+            $isEciMissing = ($enrollmentData['status'] === EchoPayStatusEnum::AUTHENTICATION_SUCCESSFUL->value) && empty($consumerData->eci);
+            $byPassEci = (bool) $this->app->get(ConfigurationEnum::BYPASS_ECI->value);
+
+            if ($cardBrand === 'MASTERCARD' && $isEciMissing && $byPassEci) {
+                return true;
+            }
+        }
+
+        return $hasValidEci;
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers — DTO construction
+    // -------------------------------------------------------------------------
+
+    /**
+     * Build the basic MerchantDetail used for setupPayer / checkPayerEnrollment /
+     * validatePayerAuthResult — no merchantDefinedInformation block.
+     *
      * Multi-merchant (per-order-type) routing — present in the legacy
-     * PortalPaymentProcessor — will be ported in a follow-up phase along with
-     * the authorize() implementation that needs the full merchant block.
+     * PortalPaymentProcessor via portal_multy_merchant + {ORDER_TYPE}_ECHO_PAY_*
+     * keys — will be ported in a follow-up phase.
      */
     private function buildMerchant(): MerchantDetail
     {
@@ -282,5 +596,161 @@ final class PortalProcessor implements PaymentProcessorInterface, TokenizationPr
             'key' => (string) ($this->app->get('ECHO_PAY_MERCHANT_KEY') ?? ''),
             'secretKey' => (string) ($this->app->get('ECHO_PAY_MERCHANT_SECRET') ?? ''),
         ]);
+    }
+
+    /**
+     * Build the MerchantDetail used for authorizePayment, which also needs
+     * the merchantDefinedInformation block (customer id, document, etc.).
+     */
+    private function buildMerchantWithDetails(Payments $payment): MerchantDetail
+    {
+        $merchantId = (string) ($this->app->get('ECHO_PAY_MERCHANT_ID') ?? '');
+
+        return new MerchantDetail(
+            id: $merchantId,
+            key: (string) ($this->app->get('ECHO_PAY_MERCHANT_KEY') ?? ''),
+            secretKey: (string) ($this->app->get('ECHO_PAY_MERCHANT_SECRET') ?? ''),
+            merchantDefinedInformation: new MerchantDefinedInformation(
+                category: MerchantCategoryEnum::RETAIL,
+                cardIdentifier: $merchantId,
+                platform: MerchantPlatformEnum::MOBILE,
+                customerId: 'user_' . $payment->user->id,
+                tokenization: MerchantTokenizationEnum::TOKENIZATION_YES,
+                documentType: MerchantDocumentTypesEnum::DNI,
+                documentNumber: (string) ($payment->user->get('driver_license') ?? ''),
+            ),
+        );
+    }
+
+    /**
+     * PaymentDetail used for the enrollment / validate steps — minimal device info,
+     * no billTo on the order information (saves rebuilding it before authorize).
+     */
+    private function buildEnrollmentPaymentDetail(Payments $payment, Order $order, ?string $referenceId): PaymentDetail
+    {
+        return new PaymentDetail(
+            orderCode: (string) $order->id,
+            paymentInstrumentId: (string) $payment->paymentMethod->stripe_card_id,
+            orderInformation: new OrderInformation(
+                currency: $order->currency ?: 'DOP',
+                totalAmount: (string) $order->getTotalAmount(),
+                billTo: $this->buildBillingDetail($payment),
+            ),
+            deviceInformation: new DeviceInformation(
+                httpAcceptContent: 'application/json',
+                httpBrowserLanguage: 'en_us',
+                userAgentBrowserValue: 'chrome',
+            ),
+            consumerAuthenticationInformation: $referenceId !== null && $referenceId !== ''
+                ? new ConsumerAuthenticationInformation(
+                    deviceChannel: 'BROWSER',
+                    referenceId: $referenceId,
+                    transactionMode: 'eCommerce',
+                    returnUrl: (string) ($this->app->get(ConfigurationEnum::REDIRECT_URL->value) ?? ''),
+                )
+                : null,
+        );
+    }
+
+    /**
+     * PaymentDetail used for authorizePayment — full billTo, real IP + fingerprint.
+     */
+    private function buildAuthorizePaymentDetail(Payments $payment, Order $order): PaymentDetail
+    {
+        $merchantId = (string) ($this->app->get('ECHO_PAY_MERCHANT_ID') ?? '');
+
+        return new PaymentDetail(
+            orderCode: (string) $order->id,
+            paymentInstrumentId: (string) $payment->paymentMethod->stripe_card_id,
+            orderInformation: new OrderInformation(
+                currency: $order->currency ?: 'DOP',
+                totalAmount: (string) $order->getTotalAmount(),
+                billTo: $this->buildBillingDetail($payment),
+            ),
+            deviceInformation: new DeviceInformation(
+                ipAddress: $order->metadata['data']['user_ip'] ?? IPInfo::getClientIp(),
+                fingerprintSessionId: $merchantId . $order->id,
+            ),
+            consumerAuthenticationInformation: new ConsumerAuthenticationInformation(
+                deviceChannel: 'BROWSER',
+                referenceId: (string) ($order->get('auth_session_id') ?? ''),
+                transactionMode: 'eCommerce',
+            ),
+        );
+    }
+
+    private function buildBillingDetail(Payments $payment): BillingDetail
+    {
+        $paymentMethod = $payment->paymentMethod;
+        $user = $payment->user;
+
+        return new BillingDetail(
+            firstName: (string) ($paymentMethod->getMetadata('firstname') ?? $user->firstname ?? ''),
+            lastName: (string) ($paymentMethod->getMetadata('lastname') ?? $user->lastname ?? ''),
+            address1: (string) ($paymentMethod->getMetadata('address') ?? ''),
+            city: (string) ($paymentMethod->getMetadata('city') ?? ''),
+            administrativeArea: (string) ($paymentMethod->getMetadata('state') ?? ''),
+            postalCode: (string) ($paymentMethod->getMetadata('zip_code') ?? ''),
+            country: (string) ($paymentMethod->getMetadata('country') ?? ''),
+            email: (string) ($user->email ?? ''),
+            phone: (string) ($paymentMethod->getMetadata('phone') ?? ''),
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers — error handling
+    // -------------------------------------------------------------------------
+
+    private function failWithEchoPayException(Payments $payment, Order $order, EchoPayException $e, string $logEvent, int $start): ThreeDSResult
+    {
+        $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+
+        $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+        $payment->addMetadata([
+            'data' => [
+                'error' => $e->getMessage(),
+                'echopay_error' => $e->getErrorBody(),
+                'echopay_error_timestamp' => now()->toIso8601String(),
+            ],
+        ]);
+        $payment->addLog($logEvent, [
+            'processor' => $this->name(),
+            'order_id' => $order->id,
+            'error' => $e->getMessage(),
+            'error_body' => $e->getErrorBody(),
+            'response_time_ms' => $responseTimeMs,
+        ]);
+
+        return new ThreeDSResult(
+            success: false,
+            message: $e->getUserMessage(),
+            status: PaymentStatusEnum::FAILED->value,
+            raw: $e->getErrorBody(),
+        );
+    }
+
+    private function failWithThrowable(Payments $payment, Order $order, Throwable $e, string $logEvent, int $start): ThreeDSResult
+    {
+        $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+
+        $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+        $payment->addMetadata([
+            'data' => [
+                'error' => $e->getMessage(),
+            ],
+        ]);
+        $payment->addLog($logEvent, [
+            'processor' => $this->name(),
+            'order_id' => $order->id,
+            'error' => $e->getMessage(),
+            'error_class' => $e::class,
+            'response_time_ms' => $responseTimeMs,
+        ]);
+
+        return new ThreeDSResult(
+            success: false,
+            message: $e->getMessage(),
+            status: PaymentStatusEnum::FAILED->value,
+        );
     }
 }
