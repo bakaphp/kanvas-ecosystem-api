@@ -69,7 +69,13 @@ class CancelMechanicAssignmentAction
             $assistanceCase['pin_attempt'] = null;
             $assistanceCase['pin_validated_at'] = null;
             $assistanceCase['pin_invalidated_at'] = Carbon::now()->toISOString();
-            unset($assistanceCase['mechanic_cancel']);
+            unset(
+                $assistanceCase['mechanic_cancel'],
+                $assistanceCase['mechanic_completion_requested'],
+                $assistanceCase['mechanic_completion_resolved'],
+                $assistanceCase['mechanic_completion_requested_at'],
+                $assistanceCase['pending_user_confirmation'],
+            );
 
             $order->metadata = [
                 ...$metadata,

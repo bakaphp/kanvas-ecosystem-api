@@ -3,6 +3,25 @@ enum MechanicFilterEnum {
     ASSIGNED
 }
 
+type RoadsideAssistanceMetrics {
+    period: Period!
+    totalCases: Int!
+    resolvedCases: Int!
+    unresolvedCompletedCases: Int!
+    cancelledCases: Int!
+    avgResolutionSeconds: Float
+    avgResolutionHours: Float
+    avgResponseSeconds: Float
+    avgResponseHours: Float
+}
+
+input RoadsideAssistanceMetricsInput {
+    startDate: String
+    endDate: String
+    provider_company_id: ID
+    company_id: ID
+}
+
 enum MechanicAvailabilityEnum {
     ACTIVO
     NO_DISPONIBLE
@@ -28,6 +47,11 @@ extend type Query @guard {
         @paginate(
             builder: "App\\GraphQL\\Connector\\Movipass\\Builders\\MechanicsBuilder@build"
             defaultCount: 25
+        )
+
+    roadsideAssistanceMetrics(input: RoadsideAssistanceMetricsInput): RoadsideAssistanceMetrics!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Movipass\\Queries\\RoadsideAssistanceMetricsQuery@get"
         )
 
     mechanicOrders(
