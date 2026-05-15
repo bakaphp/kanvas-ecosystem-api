@@ -141,7 +141,7 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
         AppInterface $app,
         array $channelConfig = [],
     ): string {
-        $rawModel = (string) ($app->get($this->getDefaultModelConfigKey()) ?? 'gemini-3.1-pro-preview');
+        $rawModel = (string) ($app->get($this->getDefaultModelConfigKey()) ?? 'gemini-2.0-flash');
         $provider = $this->detectProvider($rawModel);
         $model = $this->normalizeModelName($rawModel, $provider);
         $baseUrl = $this->providerBaseUrl($provider);

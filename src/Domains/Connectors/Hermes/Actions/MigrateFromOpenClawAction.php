@@ -401,8 +401,15 @@ class MigrateFromOpenClawAction
     }
 
     /**
-     * Rewrite docker-compose.yml with the destination ports, stop any existing
-     * containers, then start fresh. Assumes the shared image is already present.
+     * Rewrite docker-compose.yml and config.yaml with the destination ports and app model
+     * settings, stop any existing containers, then start fresh.
+     * Assumes the shared image is already present.
+     *
+     * Writing config.yaml here is important for migrations: `hermes claw migrate` copies the
+     * model name from the OpenClaw workspace into config.yaml, which may be a non-existent or
+     * stale model name (e.g. Hermes's own migration default is Claude). Overwriting it here
+     * ensures the agent always starts with the model configured for this app (or gemini-2.0-flash
+     * as the valid default).
      */
     private function startContainers(SshClient $client, AgentDeployment $deployment): void
     {
@@ -414,6 +421,9 @@ class MigrateFromOpenClawAction
         $gatewayToken = $this->company->get(ConfigurationEnum::GATEWAY_TOKEN->value) ?? bin2hex(random_bytes(32));
         $composeContent = $builder->buildDockerCompose($deployment, (string) $gatewayToken, $this->app, $agent);
         $client->writeFileAsUser($hermesDir . '/docker-compose.yml', $composeContent, $deployment->system_user);
+
+        $runtimeConfig = $builder->buildRuntimeConfig($agent, (string) $gatewayToken, $this->app);
+        $client->writeFileAsUser($hermesDir . '/config.yaml', $runtimeConfig, $deployment->system_user);
 
         // Run down + port cleanup + up as a single exec to avoid phpseclib channel reuse errors.
         $downCmd = 'cd ' . escapeshellarg($hermesDir) . ' && docker compose down 2>&1 || true';
