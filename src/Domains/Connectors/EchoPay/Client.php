@@ -8,12 +8,12 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\RequestException;
-use Kanvas\Connectors\EchoPay\Contracts\ClientInterface;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Souk\Payments\Contracts\HttpClientInterface;
 
-class Client implements ClientInterface
+class Client implements HttpClientInterface
 {
     protected string $baseUrl;
     protected string $appToken;

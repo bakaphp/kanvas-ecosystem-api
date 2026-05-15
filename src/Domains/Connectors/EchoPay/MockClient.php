@@ -8,11 +8,11 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Kanvas\Connectors\EchoPay\Contracts\ClientInterface;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Connectors\EchoPay\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Contracts\HttpClientInterface;
 
-class MockClient implements ClientInterface
+class MockClient implements HttpClientInterface
 {
     public function __construct(
         protected AppInterface $app,
