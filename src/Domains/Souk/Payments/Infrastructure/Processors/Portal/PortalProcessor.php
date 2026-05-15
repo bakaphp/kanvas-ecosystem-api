@@ -8,6 +8,8 @@ use Baka\Users\Contracts\UserInterface;
 use DomainException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\EchoPay\DataTransferObject\MerchantDetail;
+use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
@@ -20,7 +22,9 @@ use Kanvas\Souk\Payments\DataTransferObject\ThreeDSResult;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
+use Throwable;
 
 /**
  * Portal / EchoPay payment processor (Dominican Republic).
@@ -117,13 +121,166 @@ final class PortalProcessor implements PaymentProcessorInterface, TokenizationPr
     // ThreeDSProcessorInterface
     // -------------------------------------------------------------------------
 
+    /**
+     * Initiate the EchoPay 3DS flow by calling setupPayer.
+     *
+     * Returns the deviceDataCollectionUrl + access token the browser needs to
+     * embed in a hidden iframe so EchoPay can fingerprint the cardholder's
+     * device. Once that fingerprinting completes client-side, the caller invokes
+     * finalizeChallenge() to run checkPayerEnrollment + validatePayerAuthResult
+     * and (when ECI indicates a frictionless flow) authorize the payment.
+     *
+     * Payment transitions to WAITING_DEVICE_DATA. The setupPayer transaction id,
+     * referenceId, and accessToken are persisted on payment metadata so they
+     * survive the round-trip back from the browser. The referenceId is also
+     * mirrored onto order.auth_session_id to match the contract used by the
+     * legacy PortalPaymentProcessor.
+     */
     public function startChallenge(Payments $payment, Order $order, array $context = []): ThreeDSResult
     {
-        throw new DomainException('PortalProcessor::startChallenge() not implemented yet — see Phase 3.');
+        $payment->addLog('3ds_setup_payer_start', [
+            'processor' => $this->name(),
+            'order_id' => $order->id,
+            'payment_id' => $payment->id,
+        ]);
+
+        $paymentInstrumentId = (string) ($payment->paymentMethod->stripe_card_id ?? '');
+
+        if ($paymentInstrumentId === '') {
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+            $payment->addLog('3ds_setup_payer_failed', [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'reason' => 'Missing payment instrument id on payment method',
+            ]);
+
+            return new ThreeDSResult(
+                success: false,
+                message: 'Payment method has no stored EchoPay token (stripe_card_id).',
+                status: PaymentStatusEnum::FAILED->value,
+            );
+        }
+
+        $merchant = $this->buildMerchant();
+        $start = hrtime(true);
+
+        try {
+            $response = $this->service->setupPayer((string) $order->id, $paymentInstrumentId, $merchant);
+            $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+
+            $consumerAuth = $response['consumerAuthenticationInformation'] ?? [];
+            $referenceId = (string) ($consumerAuth['referenceId'] ?? '');
+            $accessToken = (string) ($consumerAuth['accessToken'] ?? '');
+            $deviceDataCollectionUrl = (string) ($consumerAuth['deviceDataCollectionUrl'] ?? '');
+            $setupPayerTransactionId = (string) ($response['id'] ?? '');
+
+            $payment->payment_intent_id = $setupPayerTransactionId;
+            $payment->addMetadata([
+                'data' => [
+                    'echo_pay_setup_payer_id' => $setupPayerTransactionId,
+                    'echo_pay_reference_id' => $referenceId,
+                    'echo_pay_access_token' => $accessToken,
+                    'echo_pay_device_data_collection_url' => $deviceDataCollectionUrl,
+                ],
+            ]);
+            $payment->update(['status' => PaymentStatusEnum::WAITING_DEVICE_DATA->value]);
+
+            // Mirror legacy contract: subsequent enrollment/auth calls read this off the order.
+            $order->set('auth_session_id', $referenceId);
+
+            $payment->addLog('3ds_setup_payer_success', [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'transaction_id' => $setupPayerTransactionId,
+                'reference_id' => $referenceId,
+                'response_time_ms' => $responseTimeMs,
+            ]);
+
+            return new ThreeDSResult(
+                success: true,
+                message: '3DS device data collection required — embed device_data_collection_url in a hidden iframe, then call finalizeChallenge.',
+                status: PaymentStatusEnum::WAITING_DEVICE_DATA->value,
+                data: [
+                    'transaction_id' => $setupPayerTransactionId,
+                    'reference_id' => $referenceId,
+                    'access_token' => $accessToken,
+                    'device_data_collection_url' => $deviceDataCollectionUrl,
+                ],
+                raw: $response,
+            );
+        } catch (EchoPayException $e) {
+            $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+            $payment->addMetadata([
+                'data' => [
+                    'error' => $e->getMessage(),
+                    'echopay_error' => $e->getErrorBody(),
+                    'echopay_error_timestamp' => now()->toIso8601String(),
+                ],
+            ]);
+            $payment->addLog('3ds_setup_payer_failed', [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+                'error_body' => $e->getErrorBody(),
+                'response_time_ms' => $responseTimeMs,
+            ]);
+
+            return new ThreeDSResult(
+                success: false,
+                message: $e->getUserMessage(),
+                status: PaymentStatusEnum::FAILED->value,
+                raw: $e->getErrorBody(),
+            );
+        } catch (Throwable $e) {
+            $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
+
+            $payment->update(['status' => PaymentStatusEnum::FAILED->value]);
+            $payment->addMetadata([
+                'data' => [
+                    'error' => $e->getMessage(),
+                ],
+            ]);
+            $payment->addLog('3ds_setup_payer_failed', [
+                'processor' => $this->name(),
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+                'error_class' => $e::class,
+                'response_time_ms' => $responseTimeMs,
+            ]);
+
+            return new ThreeDSResult(
+                success: false,
+                message: $e->getMessage(),
+                status: PaymentStatusEnum::FAILED->value,
+            );
+        }
     }
 
     public function finalizeChallenge(Payments $payment, Order $order, array $context = []): ThreeDSResult
     {
         throw new DomainException('PortalProcessor::finalizeChallenge() not implemented yet — see Phase 4.');
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Build the MerchantDetail used for setupPayer.
+     *
+     * Pulls credentials from the app's default ECHO_PAY_MERCHANT_* configuration.
+     * Multi-merchant (per-order-type) routing — present in the legacy
+     * PortalPaymentProcessor — will be ported in a follow-up phase along with
+     * the authorize() implementation that needs the full merchant block.
+     */
+    private function buildMerchant(): MerchantDetail
+    {
+        return MerchantDetail::from([
+            'id' => (string) ($this->app->get('ECHO_PAY_MERCHANT_ID') ?? ''),
+            'key' => (string) ($this->app->get('ECHO_PAY_MERCHANT_KEY') ?? ''),
+            'secretKey' => (string) ($this->app->get('ECHO_PAY_MERCHANT_SECRET') ?? ''),
+        ]);
     }
 }
