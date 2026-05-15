@@ -47,8 +47,12 @@ class RunNeuronChatAction
             $responseContent = $this->handler->chat($message);
         } catch (Throwable $e) {
             report($e);
+
+            throw $e;
         }
-        $response = ChatHelper::extractTextFromResponse($responseContent->getMessage()->getContent());
+
+        $content = $responseContent->getContent() ?? '';
+        $response = ChatHelper::extractTextFromResponse($content);
         new KanvasConversationStore()->logTurn(
             userId: $this->user->getId(),
             sessionId: $sessionId,
@@ -57,6 +61,6 @@ class RunNeuronChatAction
             assistantResponse: $response,
         );
 
-        return $responseContent->getMessage()->getContent();
+        return $content;
     }
 }
