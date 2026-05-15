@@ -8,12 +8,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Carbon;
 use Kanvas\NervousSystem\Dashboard\Factories\DashboardMetricsDailyFactory;
 use Kanvas\NervousSystem\Models\BaseModel;
+use Override;
 
 /**
- * Daily snapshot of dashboard metrics. One row per (apps_id, companies_id,
- * metric_date). Written by RollupDashboardMetricsAction; never edited
- * after creation (formula_version bump + re-rollup is the way to revise).
- *
  * @property int $id
  * @property int $apps_id
  * @property int $companies_id
