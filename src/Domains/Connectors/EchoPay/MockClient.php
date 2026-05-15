@@ -237,7 +237,7 @@ class MockClient implements HttpClientInterface
             'eciRaw' => '05',
             'eci' => '05',
             'authenticationResult' => '0',
-            'strongAuthentication' => 'YES',
+            'strongAuthentication' => ['result' => 'YES'],
             'authenticationStatusMsg' => 'Success',
             'accessToken' => 'mock-access-token',
             'token' => 'mock-token',
