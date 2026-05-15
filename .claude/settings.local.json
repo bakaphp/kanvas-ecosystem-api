@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.\\(php|php\\)$\")",
+      "Bash(grep -l \"slug\" /c/kanvas-ecosystem-api/database/migrations/Souk/*.php)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -E \"\\\\.\\(php|sql\\)$\")",
+      "Bash(grep 'protected $table' /c/kanvas-ecosystem-api/src/Kanvas/Users/Models/Users.php)",
+      "Bash(xargs ls *)",
+      "Bash(git remote *)",
+      "Bash(vendor/bin/php-cs-fixer fix *)"
+    ]
+  }
+}
