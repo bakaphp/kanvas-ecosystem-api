@@ -7,8 +7,8 @@ namespace Kanvas\NervousSystem\Capability\Models;
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\KanvasModules\Models\KanvasModule;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
@@ -16,7 +16,8 @@ use Kanvas\NervousSystem\Models\BaseModel;
 use Override;
 
 /**
- * Tool catalog entry. apps_id=0 means a global tool available to all apps.
+ * Tool catalog entry. Strict per-app scoping via `fromApp` —
+ * tools never cross-tenant, even at apps_id=0.
  *
  * @property int $id
  * @property string $uuid
@@ -24,6 +25,7 @@ use Override;
  * @property string $name
  * @property string|null $description
  * @property string $tool_type
+ * @property int|null $tool_category_id
  * @property string|null $handler
  * @property array|null $input_schema
  * @property array|null $output_schema
@@ -91,12 +93,29 @@ class Tool extends BaseModel
         return $query->whereJsonContains('frameworks', $framework);
     }
 
-    public function scopeForApp(Builder $query, mixed $appsId = null): Builder
+    public function category(): BelongsTo
     {
-        $id = $appsId instanceof Apps
-            ? $appsId->getId()
-            : (int) ($appsId ?? app(Apps::class)->getId());
+        return $this->belongsTo(ToolCategory::class, 'tool_category_id', 'id');
+    }
 
-        return $query->whereIn('apps_id', [0, $id]);
+    public function scopeInCategory(Builder $query, mixed $category): Builder
+    {
+        // Accept either a category id (int / string) or a slug. Slug lookups
+        // hit apps_id=0 first; pass a ToolCategory model to skip the lookup.
+        if ($category instanceof ToolCategory) {
+            return $query->where('tool_category_id', $category->getKey());
+        }
+
+        if (is_numeric($category)) {
+            return $query->where('tool_category_id', (int) $category);
+        }
+
+        return $query->whereIn(
+            'tool_category_id',
+            ToolCategory::query()
+                ->where('slug', (string) $category)
+                ->fromAppOrGlobal()
+                ->pluck('id'),
+        );
     }
 }

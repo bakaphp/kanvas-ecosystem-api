@@ -8,13 +8,13 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
 use Override;
 
 /**
- * Skill catalog entry. apps_id=0 means a global skill available to all apps.
+ * Skill catalog entry. Strict per-app scoping via `fromApp` —
+ * skills never cross-tenant, even at apps_id=0.
  *
  * @property int $id
  * @property string $uuid
@@ -69,14 +69,5 @@ class Skill extends BaseModel
     public function scopeForFramework(Builder $query, string $framework): Builder
     {
         return $query->whereJsonContains('frameworks', $framework);
-    }
-
-    public function scopeForApp(Builder $query, mixed $appsId = null): Builder
-    {
-        $id = $appsId instanceof Apps
-            ? $appsId->getId()
-            : (int) ($appsId ?? app(Apps::class)->getId());
-
-        return $query->whereIn('apps_id', [0, $id]);
     }
 }

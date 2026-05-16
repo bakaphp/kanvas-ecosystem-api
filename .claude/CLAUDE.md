@@ -489,6 +489,28 @@ class BaseModel extends EloquentModel
 - **Company-scoped entities**: scope queries with `fromCompany` + `fromApp` + `notDeleted`
 - Lookups: `Model::getById($id, $app)` for global, `Model::getByIdFromCompanyApp($id, $company, $app)` for company-scoped
 
+#### Never recreate `forApp` / `forCompany` scopes — `fromApp` / `fromCompany` already exist
+
+`KanvasModelTrait` (via `KanvasAppScopesTrait` + `KanvasCompanyScopesTrait`) provides `fromApp(?$app = null)` and `fromCompany(?$company = null)` on every model that uses it — which is every domain BaseModel. They scope to a **single** `apps_id` / `companies_id` (no `apps_id=0` union), and accept either an `Apps` instance, an id, or `null` (falls back to `app(Apps::class)`). Always pass the resolved app/company in explicitly when you have one — don't rely on the global resolver.
+
+```php
+// CORRECT — use the canonical scopes
+Tool::query()->where('id', $id)->fromApp($app)->firstOrFail();
+Plan::query()->fromApp($app)->fromCompany($company)->notDeleted()->get();
+```
+
+```php
+// WRONG — never add a per-model app/company scope
+public function scopeForApp(Builder $query, mixed $appsId = null): Builder
+{
+    return $query->whereIn('apps_id', [0, /* current */]);
+}
+```
+
+**Don't reach for the `apps_id=0` union unless the entity is actively designed to ship platform-global rows that every tenant sees.** A union scope on a per-tenant entity is how cross-app leaks happen. Today the only models with that pattern are `AgentType` and `ToolCategory`, each via an explicit `scopeFromAppOrGlobal` — copy that name (not `forApp`) if you genuinely need the union, and document *why* the entity ships platform globals in the docblock.
+
+The legacy `Activity::scopeForApp` predates `KanvasModelTrait`; don't model new code on it.
+
 ### JSON/Array Fields
 If a model has JSON columns, cast them with `Baka\Casts\Json::class` — **never** `'array'`. The Baka cast handles edge cases like double-encoded JSON, MariaDB's longtext-without-validity, and round-trip equality, which Laravel's built-in `'array'` cast does not.
 
