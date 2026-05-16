@@ -107,6 +107,7 @@ class ProcessAgentChatAction
             app: $this->app,
             user: $this->user,
             handler: $handler,
+            images: $this->images
         )->execute();
     }
 

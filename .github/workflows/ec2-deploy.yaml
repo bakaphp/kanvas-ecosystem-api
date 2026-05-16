@@ -22,7 +22,7 @@ jobs:
       # Lighthouse schema merge whenever a .graphql file moves (see incident
       # 2026-05-14: duplicate agentCurrentTelemetry → "Failed to load type: _").
       - name: Sync repo to remote VM (rsync --delete)
-        uses: burnett01/rsync-deployments@7.0.1
+        uses: burnett01/rsync-deployments@8.0.5
         with:
           switches: >-
             -avzr --delete

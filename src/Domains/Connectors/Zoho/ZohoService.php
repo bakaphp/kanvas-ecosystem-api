@@ -18,6 +18,7 @@ class ZohoService
 {
     protected ZohoCrm $zohoCrm;
     protected string $zohoAgentModule;
+    protected ?array $lastCreateAgentRequest = null;
     private const string DEFAULT_AGENT_MODULE = 'agents';
 
     public function __construct(
@@ -72,6 +73,7 @@ class ZohoService
         if ($zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
             $data['Lead_Routing'] = $zohoOwnerAgent ? $zohoOwnerAgent->Lead_Routing : (string) $this->company->get('default_lead_routing');
 
+            $this->lastCreateAgentRequest = $data;
             $zohoAgent = $this->zohoCrm->agents->create($data);
         } else {
             $data['Vendor_Name'] = $agentInfo->name;
@@ -92,10 +94,16 @@ class ZohoService
                 }
             }
 
+            $this->lastCreateAgentRequest = $data;
             $zohoAgent = $this->zohoCrm->vendors->create($data);
         }
 
         return $zohoAgent;
+    }
+
+    public function getLastCreateAgentRequest(): ?array
+    {
+        return $this->lastCreateAgentRequest;
     }
 
     public function updateAgent(Agent $agent): object

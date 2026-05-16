@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Users\Models\Users;
@@ -48,21 +49,31 @@ class BaseKanvasAgent extends NeuronAIAgent
     #[Override]
     protected function provider(): AIProviderInterface
     {
+        $config = $this->agent->config ?? [];
+        $key = $config['key'] ?? $this->app->get(ConfigurationEnum::GEMINI_KEY->value);
+        $model = $config['model'] ?? $this->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-2.5-pro';
+
+        if (! is_string($key) || $key === '') {
+            throw new ValidationException(
+                'Gemini API key is not configured for this agent or app. Set agent.config.key or the app ' . ConfigurationEnum::GEMINI_KEY->value . ' setting.'
+            );
+        }
+
         return new Gemini(
-            key: $this->app->get(ConfigurationEnum::GEMINI_KEY->value),
-            model: $this->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-2.5-pro',
+            key: $key,
+            model: $model,
         );
     }
 
     #[Override]
     public function instructions(): string
     {
-        $role = $this->agent->role;
+        $role = $this->agent->role ?? [];
 
         return new SystemPrompt(
-            background: explode('\n', $role['background']),
-            steps: explode('\n', $role['steps']),
-            output: explode('\n', $role['output']),
+            background: explode("\n", $role['background'] ?? ''),
+            steps: explode("\n", $role['steps'] ?? ''),
+            output: explode("\n", $role['output'] ?? ''),
         )->__toString();
     }
 
