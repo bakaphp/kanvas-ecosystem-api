@@ -6712,16 +6712,16 @@
         },
         {
             "name": "mindee/mindee",
-            "version": "v2.8.0",
+            "version": "v2.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mindee/mindee-api-php.git",
-                "reference": "3904cd0e92c33dd88a7ea7094f00530f345b075f"
+                "reference": "1719007baa7b4a20d8854fade053b361d1657be5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/3904cd0e92c33dd88a7ea7094f00530f345b075f",
-                "reference": "3904cd0e92c33dd88a7ea7094f00530f345b075f",
+                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/1719007baa7b4a20d8854fade053b361d1657be5",
+                "reference": "1719007baa7b4a20d8854fade053b361d1657be5",
                 "shasum": ""
             },
             "require": {
@@ -6761,9 +6761,9 @@
             "description": "Mindee Client Library for PHP",
             "support": {
                 "issues": "https://github.com/mindee/mindee-api-php/issues",
-                "source": "https://github.com/mindee/mindee-api-php/tree/v2.8.0"
+                "source": "https://github.com/mindee/mindee-api-php/tree/v2.9.0"
             },
-            "time": "2026-04-22T19:41:19+00:00"
+            "time": "2026-05-11T08:25:44+00:00"
         },
         {
             "name": "mll-lab/graphql-php-scalars",
@@ -11239,16 +11239,16 @@
         },
         {
             "name": "setasign/fpdi",
-            "version": "v2.6.6",
+            "version": "v2.6.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Setasign/FPDI.git",
-                "reference": "de0cf35911be3e9ea63b48e0f307883b1c7c48ac"
+                "reference": "388c51e69982a3fc16698710b763e8107a49f510"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Setasign/FPDI/zipball/de0cf35911be3e9ea63b48e0f307883b1c7c48ac",
-                "reference": "de0cf35911be3e9ea63b48e0f307883b1c7c48ac",
+                "url": "https://api.github.com/repos/Setasign/FPDI/zipball/388c51e69982a3fc16698710b763e8107a49f510",
+                "reference": "388c51e69982a3fc16698710b763e8107a49f510",
                 "shasum": ""
             },
             "require": {
@@ -11299,7 +11299,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Setasign/FPDI/issues",
-                "source": "https://github.com/Setasign/FPDI/tree/v2.6.6"
+                "source": "https://github.com/Setasign/FPDI/tree/v2.6.7"
             },
             "funding": [
                 {
@@ -11307,7 +11307,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-03-13T08:38:20+00:00"
+            "time": "2026-05-13T10:16:22+00:00"
         },
         {
             "name": "shish/safe",
