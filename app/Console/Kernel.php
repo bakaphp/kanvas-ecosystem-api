@@ -13,6 +13,7 @@ use App\Console\Commands\NervousSystem\DetectStalledPlanTasksCommand;
 use App\Console\Commands\NervousSystem\ExpireCapabilitiesCommand;
 use App\Console\Commands\NervousSystem\RecordAgentDailyCyclesCommand;
 use App\Console\Commands\NervousSystem\RefreshAgentLiveCountersCommand;
+use App\Console\Commands\NervousSystem\SyncModelPricingCommand;
 use App\Console\Commands\Social\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
 use App\Console\Commands\Souk\CancelStalePaymentsCommand;
@@ -66,6 +67,10 @@ class Kernel extends ConsoleKernel
         $schedule->command(RefreshAgentLiveCountersCommand::class)
             ->hourly()
             ->withoutOverlapping();
+        $schedule->command(SyncModelPricingCommand::class)
+            ->dailyAt('02:30')
+            ->withoutOverlapping()
+            ->onOneServer();
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()
                     ->withoutOverlapping(5)
