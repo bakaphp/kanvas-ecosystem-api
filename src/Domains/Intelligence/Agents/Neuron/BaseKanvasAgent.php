@@ -48,9 +48,13 @@ class BaseKanvasAgent extends NeuronAIAgent
     #[Override]
     protected function provider(): AIProviderInterface
     {
+        $config = $this->agent->config ?? [];
+        $key = $config['key'] ?? $this->app->get(ConfigurationEnum::GEMINI_KEY->value);
+        $model = $config['model'] ?? $this->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-2.5-pro';
+
         return new Gemini(
-            key: $this->app->get(ConfigurationEnum::GEMINI_KEY->value),
-            model: $this->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-2.5-pro',
+            key: $key,
+            model: $model,
         );
     }
 
