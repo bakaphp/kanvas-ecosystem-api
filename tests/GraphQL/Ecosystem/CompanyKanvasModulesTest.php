@@ -9,6 +9,7 @@ use Kanvas\KanvasModules\Actions\RefreshCompanyKanvasModulesSummaryAction;
 use Kanvas\KanvasModules\Enums\CompanyKanvasModuleStatusEnum;
 use Kanvas\KanvasModules\Enums\KanvasModuleEnum;
 use Kanvas\KanvasModules\Models\CompanyKanvasModule;
+use Kanvas\KanvasModules\Models\KanvasModule;
 use Tests\TestCase;
 
 class CompanyKanvasModulesTest extends TestCase
@@ -104,6 +105,17 @@ class CompanyKanvasModulesTest extends TestCase
         $company->grantModule(KanvasModuleEnum::CRM, $app, CompanyKanvasModuleStatusEnum::CONNECTED);
         $company->grantModule(KanvasModuleEnum::ECOSYSTEM, $app, CompanyKanvasModuleStatusEnum::CONNECTED);
         $company->grantModule(KanvasModuleEnum::WORKFLOW, $app, CompanyKanvasModuleStatusEnum::CONNECTED);
+
+        // CI sometimes seeds kanvas_modules rows *after* the classification
+        // migration ran, leaving is_internal at the column default. Pin the
+        // flags the resolver filters on so this test exercises the filter,
+        // not migration ordering.
+        KanvasModule::query()
+            ->whereIn('id', [KanvasModuleEnum::ECOSYSTEM->value, KanvasModuleEnum::WORKFLOW->value])
+            ->update(['is_internal' => 1]);
+        KanvasModule::query()
+            ->where('id', KanvasModuleEnum::CRM->value)
+            ->update(['is_internal' => 0]);
 
         $this->graphQL('
             query {

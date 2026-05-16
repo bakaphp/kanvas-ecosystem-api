@@ -69,6 +69,11 @@ class RecordAgentDailyCycleActionTest extends TestCase
 
     public function testCycleCapturesSleepWakeWindowAndPhases(): void
     {
+        // Anchor "now" past the wake event so the awake-duration fallback in
+        // the action ("wokeAt.diffInMinutes(now)") stays non-negative when CI
+        // happens to run in the early morning hours.
+        Carbon::setTestNow(Carbon::today()->setTime(7, 0));
+
         $agent = $this->makeAgent();
         $today = Carbon::today();
 

@@ -108,12 +108,17 @@ class RecordAgentDailyCycleAction
             }
         }
 
+        // Durations are persisted in unsignedInteger columns — clamp to 0 so a
+        // future-dated wake event (test fixtures, clock skew) or any signed
+        // diff quirk can never reach the DB as a negative.
         $sleepMinutes = ($sleptAt && $wokeAt && $wokeAt->gt($sleptAt))
-            ? (int) $sleptAt->diffInMinutes($wokeAt)
+            ? (int) max(0, $sleptAt->diffInMinutes($wokeAt))
             : 0;
-        $awakeMinutes = ($wokeAt && $nextSleptAt && $nextSleptAt->gt($wokeAt))
-            ? (int) $wokeAt->diffInMinutes($nextSleptAt)
-            : ($wokeAt ? (int) $wokeAt->diffInMinutes(now()) : 0);
+        $awakeMinutes = match (true) {
+            $wokeAt && $nextSleptAt && $nextSleptAt->gt($wokeAt) => (int) max(0, $wokeAt->diffInMinutes($nextSleptAt)),
+            $wokeAt && $wokeAt->lt(now()) => (int) max(0, $wokeAt->diffInMinutes(now())),
+            default => 0,
+        };
 
         return [
             'woke_at' => $wokeAt,
