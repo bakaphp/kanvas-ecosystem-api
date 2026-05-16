@@ -411,6 +411,66 @@ class SwarmMetricsTest extends TestCase
             ->assertJsonPath('data.agentSwarm.needs_attention.severity', 'warning');
     }
 
+    public function testDeleteSwarmCascadesToMembersBudgetCyclesButLeavesAgentsIntact(): void
+    {
+        $swarm = $this->makeSwarm();
+        $agent = $this->makeAgentInSwarm($swarm);
+        $today = Carbon::now()->toDateString();
+        $this->seedSnapshotsForAgent($agent, 1000, 500, 5.0, $today);
+
+        AgentSwarmDailyCycle::create([
+            'apps_id' => $swarm->apps_id,
+            'companies_id' => $swarm->companies_id,
+            'agent_swarm_id' => $swarm->getId(),
+            'cycle_date' => $today,
+            'generated_at' => Carbon::now(),
+            'members_active_count' => 1,
+            'members_idle_count' => 0,
+            'events_processed_count' => 0,
+            'proactive_actions_count' => 0,
+            'is_deleted' => false,
+        ]);
+
+        AgentSwarmBudget::create([
+            'uuid' => (string) Str::uuid(),
+            'apps_id' => $swarm->apps_id,
+            'companies_id' => $swarm->companies_id,
+            'agent_swarm_id' => $swarm->getId(),
+            'period' => 'monthly',
+            'monthly_cost_cap_usd' => 100.00,
+            'warn_at_pct' => 80,
+            'hard_stop_at_cap' => false,
+            'period_resets_on' => 1,
+            'is_active' => true,
+            'is_deleted' => false,
+        ]);
+
+        $memberId = $swarm->members()->first()?->id;
+        $cycleId = $swarm->dailyCycles()->first()?->id;
+        $budgetId = $swarm->budgets()->first()?->id;
+        $agentId = $agent->getId();
+
+        $this->assertNotNull($memberId);
+        $this->assertNotNull($cycleId);
+        $this->assertNotNull($budgetId);
+
+        // Soft-delete the swarm via the model — the cascade trait fires on the deleting event.
+        $swarm->delete();
+
+        // The swarm itself + all owned children should be soft-deleted.
+        $this->assertSame(1, (int) DB::connection('intelligence')->table('agent_swarms')->where('id', $swarm->getId())->value('is_deleted'));
+        $this->assertSame(1, (int) DB::connection('intelligence')->table('agent_swarm_members')->where('id', $memberId)->value('is_deleted'));
+        $this->assertSame(1, (int) DB::connection('intelligence')->table('agent_swarm_daily_cycles')->where('id', $cycleId)->value('is_deleted'));
+        $this->assertSame(1, (int) DB::connection('intelligence')->table('agent_swarm_budgets')->where('id', $budgetId)->value('is_deleted'));
+
+        // The agent itself MUST remain intact — agents exist independently.
+        $this->assertSame(
+            0,
+            (int) DB::connection('intelligence')->table('agents')->where('id', $agentId)->value('is_deleted'),
+            'Cascade must not touch the agent — only the membership pivot row.',
+        );
+    }
+
     public function testCrossTenantSwarmLookupReturnsNull(): void
     {
         // Create a swarm directly in a foreign tenant — should not be visible

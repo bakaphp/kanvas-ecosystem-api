@@ -10,6 +10,7 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -42,12 +43,29 @@ use Override;
 #[ObservedBy([AgentSwarmObserver::class])]
 class AgentSwarm extends BaseModel
 {
+    use CascadeSoftDeletes;
     use HasLightHouseCache;
     use UuidTrait;
     use SlugTrait;
     use DatabaseSearchableTrait {
         search as public traitSearch;
     }
+
+    /**
+     * Cascade soft-deletes everything that's exclusively owned by this swarm.
+     * `agents` is intentionally absent — agents exist independently and may
+     * belong to other swarms or operate standalone; only the membership
+     * pivot rows (the `members` relation) get soft-deleted alongside the
+     * swarm.
+     *
+     * @var array<int, string>
+     */
+    protected $cascadeDeletes = [
+        'members',
+        'dailyCycles',
+        'budgets',
+        'swarmPlans',
+    ];
 
     #[Override]
     public function getGraphTypeName(): string
@@ -112,6 +130,30 @@ class AgentSwarm extends BaseModel
     public function members(): HasMany
     {
         return $this->hasMany(AgentSwarmMember::class, 'agent_swarm_id')
+            ->where('is_deleted', 0);
+    }
+
+    public function dailyCycles(): HasMany
+    {
+        return $this->hasMany(AgentSwarmDailyCycle::class, 'agent_swarm_id')
+            ->where('is_deleted', 0);
+    }
+
+    public function budgets(): HasMany
+    {
+        return $this->hasMany(AgentSwarmBudget::class, 'agent_swarm_id')
+            ->where('is_deleted', 0);
+    }
+
+    /**
+     * Plans tied to this swarm (mission plans + any child plans referencing
+     * this swarm_id). Named `swarmPlans` (not `plans`) to avoid colliding
+     * with the parent's existing relation graph if it ever adds a generic
+     * `plans` accessor.
+     */
+    public function swarmPlans(): HasMany
+    {
+        return $this->hasMany(Plan::class, 'swarm_id', 'id')
             ->where('is_deleted', 0);
     }
 
