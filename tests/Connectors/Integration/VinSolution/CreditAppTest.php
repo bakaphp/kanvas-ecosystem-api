@@ -27,9 +27,9 @@ class CreditAppTest extends TestCase
                 [
                     'AddressId' => 0,
                     'AddressType' => 'Primary',
-                    'StreetAddress' => '992 Mackenzie Dr',
+                    'StreetAddress' => '123 Test St',
                     'StreetAddress2' => '',
-                    'City' => 'Antioch',
+                    'City' => 'Testville',
                     'State' => 'IL',
                     'PostalCode' => '60002',
                     'Duration' => '21.0',
@@ -41,7 +41,7 @@ class CreditAppTest extends TestCase
         $this->assertSame(
             [
                 'ContactId' => 0,
-                'Ssn' => '338683816',
+                'Ssn' => '000000000',
                 'PersonalDates' => [
                     ['DateType' => 'DateOfBirth', 'DateValue' => '1978-04-08T00:00:00Z'],
                 ],
@@ -52,18 +52,18 @@ class CreditAppTest extends TestCase
                     'Expense' => 2600.0,
                 ],
                 'CurrentEmploymentInformation' => [
-                    'JobTitle' => 'Maintenance manager ',
+                    'JobTitle' => 'QA Engineer',
                     'EmploymentStatusType' => 'Employed',
                     'DurationYears' => 28,
                     'DurationMonths' => 0,
-                    'EmployerName' => 'Waukegan public school district 60 ',
+                    'EmployerName' => 'Acme Test Corp',
                     'IncomeType' => 'Monthly',
                     'Income' => 97500.0,
-                    'EmployerContactPhone' => '2245015468',
+                    'EmployerContactPhone' => '5555550101',
                     'EmployerAddress' => [
-                        'StreetAddress' => '1201 n Sheridan rd ',
+                        'StreetAddress' => '1 Fixture Ave',
                         'StreetAddress2' => '',
-                        'City' => 'Waukegan ',
+                        'City' => 'Testville',
                         'State' => 'IL',
                         'PostalCode' => '60085',
                     ],
@@ -181,27 +181,29 @@ class CreditAppTest extends TestCase
     }
 
     /**
-     * Real-world credit-app submission shape (Anthony Christian payload, redacted).
+     * Mirrors the real credit-app submission shape with obviously-synthetic PII (RFC2606 domains,
+     * 555 phone numbers, zeroed SSN). Field values are deliberately deterministic so the
+     * full-shape assertSame below stays stable.
      */
     protected function basePayload(): array
     {
         return [
-            'visitor_id' => 'de8f651d-1736-4ceb-9df7-76b6178ccee5',
+            'visitor_id' => '00000000-0000-0000-0000-000000000000',
             'data' => [
                 'form' => [
                     'personal' => [
-                        'first_name' => 'Anthony',
-                        'middle_name' => 'W',
-                        'last_name' => 'Christian',
+                        'first_name' => 'Test',
+                        'middle_name' => 'Q',
+                        'last_name' => 'Customer',
                         'dob' => '8-April-1978',
-                        'ssn' => '338683816',
-                        'mobile_number' => '8473442632',
-                        'email' => 'tonyc4878@comcast.net',
+                        'ssn' => '000000000',
+                        'mobile_number' => '5555550100',
+                        'email' => 'test+customer@example.test',
                     ],
                     'housing' => [
-                        'address' => '992 Mackenzie Dr',
+                        'address' => '123 Test St',
                         'state' => ['id' => '3625', 'name' => 'Illinois', 'code' => 'IL'],
-                        'city' => 'Antioch',
+                        'city' => 'Testville',
                         'zip_code' => '60002',
                         'residence_type' => 'Mortgage',
                         'rent' => '2600',
@@ -209,13 +211,13 @@ class CreditAppTest extends TestCase
                     ],
                     'financial' => [
                         'employment_status' => 'Full Time',
-                        'current_employment_title' => 'Maintenance manager ',
-                        'current_employer' => 'Waukegan public school district 60 ',
-                        'current_employer_address_line1' => '1201 n Sheridan rd ',
+                        'current_employment_title' => 'QA Engineer',
+                        'current_employer' => 'Acme Test Corp',
+                        'current_employer_address_line1' => '1 Fixture Ave',
                         'state' => ['id' => '3625', 'name' => 'Illinois', 'code' => 'IL'],
-                        'city' => 'Waukegan ',
+                        'city' => 'Testville',
                         'zip_code' => '60085',
-                        'current_employer_phone' => '2245015468',
+                        'current_employer_phone' => '5555550101',
                         'previous_employer_phone' => '',
                         'years_at_current_employment' => '28.0',
                         'gross_income' => '97500',
