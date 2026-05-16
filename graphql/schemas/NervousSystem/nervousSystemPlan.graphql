@@ -131,6 +131,8 @@ extend type Query @guard {
                     "uuid"
                     "agent_id"
                     "users_id"
+                    "swarm_id"
+                    "is_swarm_mission"
                     "entity_namespace"
                     "entity_id"
                     "plan_type"
