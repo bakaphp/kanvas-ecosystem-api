@@ -7,11 +7,9 @@ input MigrateAgentWorkspaceInput {
     destination_path: String
 }
 
-"Cross-runtime adoption: stand up a new deployment on `target_provider` (running on `destination_machine_id`) using the workspace from `source_deployment_id`."
 input MigrateAgentToProviderInput {
     source_deployment_id: ID!
     destination_machine_id: ID!
-    "Runtime to adopt INTO. The target provider's connector must implement adoption — today only Hermes does, consuming OpenClaw deployments."
     target_provider: AgentProvider!
     source_path: String
     destination_path: String

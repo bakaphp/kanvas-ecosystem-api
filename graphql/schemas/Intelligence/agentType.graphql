@@ -7,6 +7,9 @@ type agentType {
     handler: String
     config: Mixed
     role: Mixed
+    soul: String
+    instructions: String
+    output_format: String
     is_active: Boolean!
     is_default: Boolean!
     is_published: Boolean!
@@ -16,19 +19,24 @@ type agentType {
     createdAt: DateTime!
     updatedAt: DateTime!
 }
+
 input AgentTypeInput {
     name: String!
     description: String
     provider: String
     handler: String
-    config: String!
+    config: String
     is_active: Boolean
-    role: String!
+    role: String
+    soul: String
+    instructions: String
+    output_format: String
     is_default: Boolean
     is_published: Boolean
     is_multi_agent: Boolean
-    multi_agent_list: Mixed!
+    multi_agent_list: Mixed
 }
+
 extend type Mutation @guard {
     createAgentType(input: AgentTypeInput!): agentType!
         @field(
@@ -43,6 +51,7 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentTypeManagementMutation@delete"
         )
 }
+
 extend type Query @guard {
     agentTypes(
         search: String @search

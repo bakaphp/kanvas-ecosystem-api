@@ -149,7 +149,7 @@ class AgentManagementMutation
 
         $tool = Tool::query()
             ->where('id', (int) $req['tool_id'])
-            ->forApp($app)
+            ->fromApp($app)
             ->firstOrFail();
 
         $agent->selectedTools()->syncWithoutDetaching([$tool->getId()]);
@@ -168,7 +168,7 @@ class AgentManagementMutation
 
         $tool = Tool::query()
             ->where('id', (int) $req['tool_id'])
-            ->forApp($app)
+            ->fromApp($app)
             ->firstOrFail();
 
         $agent->selectedTools()->detach($tool->getId());
@@ -210,7 +210,7 @@ class AgentManagementMutation
         foreach ($toolIds as $toolId) {
             $tool = Tool::query()
                 ->where('id', (int) $toolId)
-                ->forApp((int) $app->getId())
+                ->fromApp($app)
                 ->firstOrFail();
             $ids[] = $tool->getId();
         }

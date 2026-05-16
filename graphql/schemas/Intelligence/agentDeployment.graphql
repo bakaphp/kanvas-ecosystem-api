@@ -128,11 +128,6 @@ input LaunchAgentInput {
     provider: AgentProvider = OPENCLAW
 }
 
-# Lifecycle mutations live in graphql/schemas/Intelligence/agentRuntime.graphql as the
-# unified `agentRuntime*` set — dispatching by provider via AgentRuntimeProviderRegistry.
-# The old `launchAgent` / `terminateAgent` / `setAgentSlackTokens` / `setAgentTelegramToken`
-# fields were removed in favour of `agentRuntimeLaunchAgent` etc.
-
 extend type Query @guard {
     agentUsageSnapshots(
         search: String @search

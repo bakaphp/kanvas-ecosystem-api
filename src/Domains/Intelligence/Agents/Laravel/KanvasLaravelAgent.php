@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Config;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentRecord;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
 use Laravel\Ai\Contracts\HasTools;
@@ -106,12 +108,59 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
 
     public function promptWithConfig(string $message): AgentResponse
     {
-        return $this->prompt(
-            $message,
-            provider: $this->getProvider(),
-            model: $this->getModel(),
-            timeout: $this->agentRecord?->config['timeout'] ?? 120,
-        );
+        // Snapshot → override → restore in finally so the per-tenant key only
+        // lives in global config for the duration of THIS prompt call. Under
+        // Octane the config repository is a singleton shared across requests
+        // on the same worker; without the restore the previous tenant's key
+        // would leak into anything that reads `ai.providers.*.key` later.
+        $restore = $this->applyTenantProviderCredentials();
+
+        try {
+            return $this->prompt(
+                $message,
+                provider: $this->getProvider(),
+                model: $this->getModel(),
+                timeout: $this->agentRecord?->config['timeout'] ?? 120,
+            );
+        } finally {
+            $restore();
+        }
+    }
+
+    /**
+     * Override Laravel-AI's provider keys with the current tenant's values.
+     * Returns a closure that restores the original config — call it in finally
+     * to guarantee no cross-tenant leak under Octane.
+     */
+    protected function applyTenantProviderCredentials(): \Closure
+    {
+        $app = $this->app;
+        if ($app === null) {
+            return static fn () => null;
+        }
+
+        // app-config key → laravel-ai config path.
+        $bindings = [
+            ConfigurationEnum::GEMINI_KEY->value => 'ai.providers.gemini.key',
+            // Future per-tenant providers slot in once their
+            // ConfigurationEnum cases exist (openai, anthropic, ...).
+        ];
+
+        $snapshot = [];
+        foreach ($bindings as $appKey => $configPath) {
+            $value = $app->get($appKey);
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $snapshot[$configPath] = Config::get($configPath);
+            Config::set($configPath, $value);
+        }
+
+        return static function () use ($snapshot): void {
+            foreach ($snapshot as $configPath => $originalValue) {
+                Config::set($configPath, $originalValue);
+            }
+        };
     }
 
     #[Override]

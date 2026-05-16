@@ -20,7 +20,11 @@ class AgentType extends Data
         public ?string $handler = null,
         public ?string $config = null,
         public ?string $role = null,
+        public ?string $soul = null,
+        public ?string $instructions = null,
+        public ?string $output_format = null,
         public ?string $multi_agent_list = null,
+        public bool $is_default = false,
     ) {
     }
 }

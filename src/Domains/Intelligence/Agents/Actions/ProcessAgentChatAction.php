@@ -11,12 +11,14 @@ use Kanvas\Intelligence\Agents\Actions\Chat\RunLaravelAgentChatAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunOpenClawChatAction;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
+use Kanvas\Intelligence\Agents\Exceptions\AgentProviderException;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
+use Throwable;
 
 class ProcessAgentChatAction
 {
@@ -36,7 +38,11 @@ class ProcessAgentChatAction
         $startTime = microtime(true);
         $sessionId = $this->session?->uuid ?? '';
 
-        $response = $this->runHandler();
+        try {
+            $response = $this->runHandler();
+        } catch (Throwable $e) {
+            throw AgentProviderException::fromThrowable($e, $this->agent);
+        }
 
         $durationMs = (microtime(true) - $startTime) * 1000.0;
         $this->trackUsage($response, $durationMs, $sessionId);

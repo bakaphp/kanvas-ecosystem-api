@@ -27,6 +27,11 @@ type AgentAi {
     is_active: Boolean!
     selectedTools: [NervousSystemTool!]!
         @belongsToMany(relation: "selectedTools")
+    kanvasModules: [AgentKanvasModule!]! @hasMany(relation: "kanvasModules")
+    awake_state: String
+    last_state_changed_at: DateTime
+    latestDailyCycle: AgentDailyCycle @hasOne(relation: "latestDailyCycle")
+    dailyCycles: [AgentDailyCycle!]! @hasMany(relation: "dailyCycles")
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -40,6 +45,48 @@ type AgentAi {
         )
     created_at: DateTime!
     updated_at: DateTime!
+}
+
+type AgentKanvasModule {
+    id: ID!
+    is_active: Boolean!
+    config: Mixed
+    module: KanvasModule! @belongsTo(relation: "module")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type AgentDailyCycle {
+    id: ID!
+    cycle_date: Date!
+    awake_started_at: DateTime
+    awake_ended_at: DateTime
+    sleep_started_at: DateTime
+    sleep_ended_at: DateTime
+    awake_duration_minutes: Int!
+    sleep_duration_minutes: Int!
+    proactive_actions_count: Int!
+    events_processed_count: Int!
+    last_action_at: DateTime
+    last_action_label: String
+    morning_briefing: String
+    proposed_actions: Mixed
+    skills_emerged: Mixed
+    self_improvement_score: String!
+    signed_by_text: String
+    phases: [AgentSleepPhase!]! @hasMany(relation: "phases")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type AgentSleepPhase {
+    id: ID!
+    phase: String!
+    started_at: DateTime!
+    ended_at: DateTime!
+    duration_minutes: Int!
+    outcome_summary: String
+    payload: Mixed
 }
 
 type AgentAiModel {
@@ -222,5 +269,22 @@ extend type Subscription @guard {
     agentChatResponse(agent_id: ID!, session_id: String!): JSON
         @subscription(
             class: "App\\GraphQL\\Intelligence\\Subscriptions\\AgentChatSubscription"
+        )
+}
+
+# Canonical path is observer-driven; these are app-owner overrides only.
+extend type Mutation @guardByAppKey {
+    setAgentKanvasModule(
+        agent_id: ID!
+        kanvas_module_id: ID!
+        config: Mixed
+        is_active: Boolean
+    ): AgentKanvasModule!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentKanvasModuleMutation@set"
+        )
+    removeAgentKanvasModule(agent_id: ID!, kanvas_module_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentKanvasModuleMutation@remove"
         )
 }

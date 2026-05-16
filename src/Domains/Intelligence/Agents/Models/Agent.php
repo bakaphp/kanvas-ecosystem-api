@@ -96,6 +96,8 @@ class Agent extends BaseModel
         'deployment_status',
         'agent_model_id',
         'is_active',
+        'awake_state',
+        'last_state_changed_at',
     ];
 
     protected $casts = [
@@ -103,12 +105,19 @@ class Agent extends BaseModel
         'role' => Json::class,
         'identity' => Json::class,
         'is_active' => 'boolean',
+        'last_state_changed_at' => 'datetime',
     ];
 
     #[Override]
     public function getGraphTypeName(): string
     {
         return 'AgentAi';
+    }
+
+    #[Override]
+    public function getRelations(?string $modelClass = null): array
+    {
+        return func_num_args() > 0 ? [] : $this->relations;
     }
 
     public function type(): BelongsTo
@@ -168,6 +177,39 @@ class Agent extends BaseModel
             'agent_id',
             'tool_id'
         );
+    }
+
+    /**
+     * Module subscriptions for this agent. Each row carries a per-agent JSON
+     * `config` (e.g. which inventory integrations / channels / pipelines to
+     * watch). Soft-deleted rows are excluded by default; `is_active=false`
+     * rows are included so the UI can render disabled-but-configured state.
+     */
+    public function kanvasModules(): HasMany
+    {
+        return $this->hasMany(AgentKanvasModule::class, 'agent_id', 'id')
+            ->where('agents_kanvas_modules.is_deleted', 0);
+    }
+
+    public function activeKanvasModules(): HasMany
+    {
+        return $this->hasMany(AgentKanvasModule::class, 'agent_id', 'id')
+            ->where('agents_kanvas_modules.is_deleted', 0)
+            ->where('agents_kanvas_modules.is_active', 1);
+    }
+
+    public function dailyCycles(): HasMany
+    {
+        return $this->hasMany(AgentDailyCycle::class, 'agent_id', 'id')
+            ->where('agent_daily_cycles.is_deleted', 0)
+            ->orderBy('cycle_date', 'desc');
+    }
+
+    public function latestDailyCycle(): HasOne
+    {
+        return $this->hasOne(AgentDailyCycle::class, 'agent_id', 'id')
+            ->where('agent_daily_cycles.is_deleted', 0)
+            ->latestOfMany('cycle_date');
     }
 
     public static function getModel(): Model

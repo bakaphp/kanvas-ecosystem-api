@@ -21,12 +21,16 @@ class AgentTypeManagementMutation
             description: $input['description'] ?? null,
             provider: $input['provider'] ?? null,
             handler: $input['handler'] ?? null,
-            config: $input['config'],
-            role: $input['role'],
+            config: $input['config'] ?? null,
+            role: $input['role'] ?? null,
+            soul: $input['soul'] ?? null,
+            instructions: $input['instructions'] ?? null,
+            output_format: $input['output_format'] ?? null,
             is_active: $input['is_active'] ?? true,
             is_published: $input['is_published'] ?? false,
             is_multi_agent: $input['is_multi_agent'] ?? false,
-            multi_agent_list: $input['multi_agent_list'],
+            is_default: $input['is_default'] ?? false,
+            multi_agent_list: $input['multi_agent_list'] ?? null,
         );
         $action = new CreateAgentTypeAction($agentTypeDTO);
 
@@ -41,13 +45,18 @@ class AgentTypeManagementMutation
             app: app(Apps::class),
             name: $input['name'],
             description: $input['description'] ?? null,
+            provider: $input['provider'] ?? $agentTypeModel->provider,
             handler: $input['handler'] ?? $agentTypeModel->handler,
-            config: $input['config'],
-            role: $input['role'],
-            is_active: $input['is_active'] ?? true,
-            is_published: $input['is_published'] ?? false,
-            is_multi_agent: $input['is_multi_agent'] ?? false,
-            multi_agent_list: $input['multi_agent_list']
+            config: $input['config'] ?? $agentTypeModel->config,
+            role: $input['role'] ?? $agentTypeModel->role,
+            soul: $input['soul'] ?? $agentTypeModel->soul,
+            instructions: $input['instructions'] ?? $agentTypeModel->instructions,
+            output_format: $input['output_format'] ?? $agentTypeModel->output_format,
+            is_active: $input['is_active'] ?? $agentTypeModel->is_active,
+            is_published: $input['is_published'] ?? $agentTypeModel->is_published,
+            is_multi_agent: $input['is_multi_agent'] ?? $agentTypeModel->is_multi_agent,
+            is_default: $input['is_default'] ?? $agentTypeModel->is_default,
+            multi_agent_list: $input['multi_agent_list'] ?? null,
         );
         $action = new UpdateAgentTypeAction($agentTypeDTO, $agentTypeModel);
 
