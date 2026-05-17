@@ -47,10 +47,10 @@ class PlanDeleteTest extends TestCase
         $result = new DeletePlanAction($plan)->execute();
 
         $this->assertTrue($result);
-        $this->assertSame(1, (int) Plan::query()->where('id', $plan->id)->value('is_deleted'));
+        $this->assertSame(1, (int) Plan::query()->withTrashed()->where('id', $plan->id)->value('is_deleted'));
         $this->assertSame(
             count($taskIds),
-            Task::query()->whereIn('id', $taskIds)->where('is_deleted', 1)->count(),
+            Task::query()->withTrashed()->whereIn('id', $taskIds)->where('is_deleted', 1)->count(),
         );
     }
 
@@ -138,7 +138,7 @@ class PlanDeleteTest extends TestCase
 
         new DeleteTaskAction($first)->execute();
 
-        $this->assertSame(1, (int) Task::query()->where('id', $first->id)->value('is_deleted'));
+        $this->assertSame(1, (int) Task::query()->withTrashed()->where('id', $first->id)->value('is_deleted'));
 
         // Plan still has 1 active task; nothing is "done" yet, so completion stays at 0
         $plan->refresh();

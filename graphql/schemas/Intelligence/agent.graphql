@@ -186,14 +186,6 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@userChat"
         )
-    attachToolToAgent(agent_id: ID!, tool_id: ID!): AgentAi!
-        @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@attachTool"
-        )
-    detachToolFromAgent(agent_id: ID!, tool_id: ID!): Boolean!
-        @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@detachTool"
-        )
     aiAgentNeuronChat(input: NeuronChatInput!): String!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@neuronChat"
