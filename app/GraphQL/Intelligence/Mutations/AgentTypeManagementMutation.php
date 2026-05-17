@@ -31,6 +31,7 @@ class AgentTypeManagementMutation
             is_multi_agent: $input['is_multi_agent'] ?? false,
             is_default: $input['is_default'] ?? false,
             multi_agent_list: $input['multi_agent_list'] ?? null,
+            weight: (int) ($input['weight'] ?? 0),
         );
         $action = new CreateAgentTypeAction($agentTypeDTO);
 
@@ -57,6 +58,7 @@ class AgentTypeManagementMutation
             is_multi_agent: $input['is_multi_agent'] ?? $agentTypeModel->is_multi_agent,
             is_default: $input['is_default'] ?? $agentTypeModel->is_default,
             multi_agent_list: $input['multi_agent_list'] ?? null,
+            weight: (int) ($input['weight'] ?? $agentTypeModel->weight),
         );
         $action = new UpdateAgentTypeAction($agentTypeDTO, $agentTypeModel);
 
