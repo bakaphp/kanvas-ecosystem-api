@@ -36,6 +36,7 @@ use Override;
  * @property bool $is_published
  * @property bool $is_multi_agent
  * @property bool $is_default
+ * @property int $weight
  * @property array|null $multi_agent_list
  * @property bool $is_deleted
  */
@@ -63,6 +64,7 @@ class AgentType extends BaseModel
         'is_published',
         'is_multi_agent',
         'is_default',
+        'weight',
         'multi_agent_list',
     ];
 

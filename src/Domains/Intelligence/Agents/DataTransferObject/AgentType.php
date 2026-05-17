@@ -25,6 +25,7 @@ class AgentType extends Data
         public ?string $output_format = null,
         public ?string $multi_agent_list = null,
         public bool $is_default = false,
+        public int $weight = 0,
     ) {
     }
 }

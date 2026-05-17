@@ -31,6 +31,7 @@ class CreateAgentTypeAction
             'is_published' => $this->agentType->is_published,
             'is_multi_agent' => $this->agentType->is_multi_agent,
             'is_default' => $this->agentType->is_default,
+            'weight' => $this->agentType->weight,
             'multi_agent_list' => $this->agentType->multi_agent_list ?? [],
         ]);
     }
