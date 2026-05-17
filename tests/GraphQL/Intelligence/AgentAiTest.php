@@ -60,7 +60,7 @@ class AgentAiTest extends TestCase
                 'agent_type_id' => $agentTypeId,
                 'description' => 'Test Agent',
                 'config' => [
-                    "key" => "value",
+                    'key' => 'value',
                 ],
                 'name' => 'Test Agent',
                 'role' => [
@@ -488,88 +488,5 @@ class AgentAiTest extends TestCase
         $deletedDeployment = AgentDeployment::withTrashed()->find($deploymentId);
         $this->assertNotNull($deletedDeployment);
         $this->assertTrue((bool) $deletedDeployment->is_deleted);
-    }
-
-    public function testAttachToolToAgent(): void
-    {
-        $app = app(Apps::class);
-        $agentTypeId = $this->createAgentType()->getId();
-
-        $agentId = $this->graphQL('
-            mutation($input: AgentAiInput!) {
-                createAiAgent(input: $input) { id }
-            }
-        ', [
-            'input' => [
-                'agent_type_id' => $agentTypeId,
-                'name' => 'Tool Attach Test ' . fake()->word(),
-                'config' => '{}',
-                'role' => 'test',
-                'is_active' => true,
-            ],
-        ])->json('data.createAiAgent.id');
-
-        $tool = \Kanvas\NervousSystem\Capability\Models\Tool::create([
-            'name' => 'test-attach-tool-' . uniqid(),
-            'apps_id' => $app->getId(),
-            'tool_type' => 'custom',
-            'frameworks' => ['laravel'],
-            'version' => '1.0.0',
-            'is_active' => true,
-            'is_deleted' => false,
-        ]);
-
-        $this->graphQL('
-            mutation($agent_id: ID!, $tool_id: ID!) {
-                attachToolToAgent(agent_id: $agent_id, tool_id: $tool_id) {
-                    id
-                    selectedTools { id name }
-                }
-            }
-        ', ['agent_id' => $agentId, 'tool_id' => $tool->getId()])
-        ->assertJsonFragment(['id' => (string) $tool->getId()]);
-    }
-
-    public function testDetachToolFromAgent(): void
-    {
-        $app = app(Apps::class);
-        $agentTypeId = $this->createAgentType()->getId();
-
-        $agentId = $this->graphQL('
-            mutation($input: AgentAiInput!) {
-                createAiAgent(input: $input) { id }
-            }
-        ', [
-            'input' => [
-                'agent_type_id' => $agentTypeId,
-                'name' => 'Tool Detach Test ' . fake()->word(),
-                'config' => '{}',
-                'role' => 'test',
-                'is_active' => true,
-            ],
-        ])->json('data.createAiAgent.id');
-
-        $tool = \Kanvas\NervousSystem\Capability\Models\Tool::create([
-            'name' => 'test-detach-tool-' . uniqid(),
-            'apps_id' => $app->getId(),
-            'tool_type' => 'custom',
-            'frameworks' => ['laravel'],
-            'version' => '1.0.0',
-            'is_active' => true,
-            'is_deleted' => false,
-        ]);
-
-        $this->graphQL('
-            mutation($agent_id: ID!, $tool_id: ID!) {
-                attachToolToAgent(agent_id: $agent_id, tool_id: $tool_id) { id }
-            }
-        ', ['agent_id' => $agentId, 'tool_id' => $tool->getId()]);
-
-        $this->graphQL('
-            mutation($agent_id: ID!, $tool_id: ID!) {
-                detachToolFromAgent(agent_id: $agent_id, tool_id: $tool_id)
-            }
-        ', ['agent_id' => $agentId, 'tool_id' => $tool->getId()])
-        ->assertJson(['data' => ['detachToolFromAgent' => true]]);
     }
 }

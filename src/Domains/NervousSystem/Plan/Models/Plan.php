@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
-use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\NervousSystem\Ledger\Enums\LedgerConfigurationEnum;
@@ -75,7 +74,6 @@ use Throwable;
 class Plan extends BaseModel
 {
     use EmitsLedgerEventsForEntity;
-    use HasFilesystemTrait;
     use HasLightHouseCache;
     use HasTagsTrait;
     use UuidTrait;

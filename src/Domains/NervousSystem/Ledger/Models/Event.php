@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Kanvas\NervousSystem\Ledger\Enums\EventCategoryEnum;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
-use Kanvas\NervousSystem\Models\BaseModel;
+use Kanvas\NervousSystem\Models\ImmutableBaseModel;
 use Override;
 
 /**
@@ -36,7 +36,7 @@ use Override;
  * @property Carbon $occurred_at
  * @property Carbon $indexed_at
  */
-class Event extends BaseModel
+class Event extends ImmutableBaseModel
 {
     use UuidTrait;
 

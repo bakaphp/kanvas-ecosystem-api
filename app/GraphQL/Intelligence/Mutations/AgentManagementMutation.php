@@ -138,44 +138,6 @@ class AgentManagementMutation
         return (bool) $agent->delete();
     }
 
-    public function attachTool(mixed $root, array $req): Agent
-    {
-        $app = app(Apps::class);
-        $agent = Agent::getByIdFromCompanyApp(
-            id: $req['agent_id'],
-            app: $app,
-            company: auth()->user()->getCurrentCompany()
-        );
-
-        $tool = Tool::query()
-            ->where('id', (int) $req['tool_id'])
-            ->fromApp($app)
-            ->firstOrFail();
-
-        $agent->selectedTools()->syncWithoutDetaching([$tool->getId()]);
-
-        return $agent;
-    }
-
-    public function detachTool(mixed $root, array $req): bool
-    {
-        $app = app(Apps::class);
-        $agent = Agent::getByIdFromCompanyApp(
-            id: $req['agent_id'],
-            app: $app,
-            company: auth()->user()->getCurrentCompany()
-        );
-
-        $tool = Tool::query()
-            ->where('id', (int) $req['tool_id'])
-            ->fromApp($app)
-            ->firstOrFail();
-
-        $agent->selectedTools()->detach($tool->getId());
-
-        return true;
-    }
-
     /**
      * When role is provided and soul/instructions are not explicitly set,
      * auto-populate them from role['background'] and role['steps'] for backward compatibility.

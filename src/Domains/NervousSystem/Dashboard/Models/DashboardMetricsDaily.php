@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Dashboard\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Carbon;
 use Kanvas\NervousSystem\Dashboard\Factories\DashboardMetricsDailyFactory;
-use Kanvas\NervousSystem\Models\BaseModel;
+use Kanvas\NervousSystem\Models\ImmutableBaseModel;
 use Override;
 
 /**
@@ -25,13 +24,9 @@ use Override;
  * @property Carbon $computed_at
  * @property string $formula_version
  */
-class DashboardMetricsDaily extends BaseModel
+class DashboardMetricsDaily extends ImmutableBaseModel
 {
-    use HasFactory;
-
     protected $table = 'nervous_system_dashboard_metrics_daily';
-
-    public $timestamps = false;
 
     protected $guarded = [];
 

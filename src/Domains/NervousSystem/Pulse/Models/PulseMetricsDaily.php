@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Pulse\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Carbon;
-use Kanvas\NervousSystem\Models\BaseModel;
+use Kanvas\NervousSystem\Models\ImmutableBaseModel;
 use Kanvas\NervousSystem\Pulse\Factories\PulseMetricsDailyFactory;
 
 /**
@@ -28,13 +27,9 @@ use Kanvas\NervousSystem\Pulse\Factories\PulseMetricsDailyFactory;
  * @property Carbon $computed_at
  * @property string $formula_version
  */
-class PulseMetricsDaily extends BaseModel
+class PulseMetricsDaily extends ImmutableBaseModel
 {
-    use HasFactory;
-
     protected $table = 'nervous_system_pulse_metrics_daily';
-
-    public $timestamps = false;
 
     protected $guarded = [];
 
