@@ -60,7 +60,7 @@ class AgentAiTest extends TestCase
                 'agent_type_id' => $agentTypeId,
                 'description' => 'Test Agent',
                 'config' => [
-                    "key" => "value",
+                    'key' => 'value',
                 ],
                 'name' => 'Test Agent',
                 'role' => [
@@ -489,5 +489,4 @@ class AgentAiTest extends TestCase
         $this->assertNotNull($deletedDeployment);
         $this->assertTrue((bool) $deletedDeployment->is_deleted);
     }
-
 }
