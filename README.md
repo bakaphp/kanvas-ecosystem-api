@@ -121,8 +121,8 @@ Shopify • NetSuite • CRMs • Internal APIs • Workflows
 
 ## Prerequisites
 
-- PHP ^8.4
-- Laravel ^12.0
+- PHP ^8.5
+- Laravel ^13.0
 
 ## Initial Setup
 
