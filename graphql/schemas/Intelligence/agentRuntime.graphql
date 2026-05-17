@@ -37,10 +37,7 @@ extend type Query @guardByAdmin {
             resolver: "App\\GraphQL\\Intelligence\\Queries\\AgentRuntime\\AgentTelemetryQuery"
         )
 
-    agentDeploymentLogs(
-        deployment_id: ID!
-        limit: Int
-    ): [AgentLogEntry!]!
+    agentDeploymentLogs(deployment_id: ID!, limit: Int): [AgentLogEntry!]!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Queries\\AgentRuntime\\AgentDeploymentLogsQuery"
         )
@@ -137,6 +134,7 @@ extend type Mutation @guard {
     agentRuntimeSetTelegramToken(
         agent_id: ID!
         telegram_bot_token: String!
+        telegram_allowed_users: String
     ): Boolean!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@setTelegramToken"
