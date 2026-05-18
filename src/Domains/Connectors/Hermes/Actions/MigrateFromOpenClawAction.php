@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Hermes\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Hermes\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Hermes\Services\DockerComposeBuilder;
@@ -365,9 +366,22 @@ class MigrateFromOpenClawAction
             300
         );
 
+        $context = [
+            'agent' => $deployment->agent->slug,
+            'deployment_id' => $deployment->getId(),
+            'staging_dir' => $stagingDir,
+            'hermes_dir' => $hermesDir,
+            'image' => $imageName,
+            'output' => $result,
+        ];
+
         if (! str_contains($result, 'EXIT_CODE:0')) {
+            Log::error('hermes claw migrate failed', $context);
+
             throw new ValidationException('hermes claw migrate failed: ' . $result);
         }
+
+        Log::info('hermes claw migrate succeeded', $context);
 
         // Fix ownership so the host system user (agent-<slug>) can read the migrated files,
         // while preserving UID 10000 as the owner so the container can also write them.
