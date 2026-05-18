@@ -205,6 +205,19 @@ abstract class BaseDockerComposeBuilder
             $envVars['SLACK_APP_TOKEN'] = (string) $slackAppToken;
         }
 
+        // Telegram: token + allow-list both have to be set or the Hermes gateway silently
+        // denies every inbound message. We mirror the Slack pattern — the values live on the
+        // agent's custom fields and the same row is reused across runtimes (the migrate flow
+        // re-injects them on the destination via this builder, so no per-runtime drift).
+        $telegramBotToken = $agent->get($this->getTelegramBotTokenCustomFieldKey());
+        $telegramAllowedUsers = $agent->get(AgentChannelTokenEnum::TELEGRAM_ALLOWED_USERS->value);
+        if (! empty($telegramBotToken)) {
+            $envVars['TELEGRAM_BOT_TOKEN'] = (string) $telegramBotToken;
+        }
+        if (! empty($telegramAllowedUsers)) {
+            $envVars['TELEGRAM_ALLOWED_USERS'] = (string) $telegramAllowedUsers;
+        }
+
         $envLines = '';
         foreach ($envVars as $key => $value) {
             $envLines .= "      - {$key}={$value}\n";

@@ -45,6 +45,7 @@ class WakeAgentForPlanJob implements ShouldQueue
 
     public const string REASON_PLAN_ASSIGNED = 'plan_assigned';
     public const string REASON_COMMENT = 'comment';
+    public const string REASON_APPROVED = 'approved';
 
     public function __construct(
         public readonly Plan $plan,
@@ -158,6 +159,27 @@ class WakeAgentForPlanJob implements ShouldQueue
                 $this->plan->id,
                 $this->plan->uuid,
                 (string) $this->userMessage,
+            );
+        }
+
+        if ($this->reason === self::REASON_APPROVED) {
+            $reviewerNote = $this->plan->review_outcome !== null && $this->plan->review_outcome !== ''
+                ? "Reviewer note: {$this->plan->review_outcome}\n"
+                : '';
+
+            return sprintf(
+                "[NS:plan_approved] plan_id=%d plan_uuid=%s\n\n"
+                . 'Your plan has been approved by the human reviewer. '
+                . 'Resume execution. Use the nervous-system-working skill '
+                . "to refresh plan context if you need to, then continue the work.\n\n"
+                . "Title: %s\n%s%s",
+                $this->plan->id,
+                $this->plan->uuid,
+                $this->plan->title,
+                $reviewerNote,
+                $this->plan->description !== null && $this->plan->description !== ''
+                    ? "Description: {$this->plan->description}"
+                    : '',
             );
         }
 

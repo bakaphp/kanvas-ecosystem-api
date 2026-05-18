@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Jobs;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\SetUsersCountAction;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\KanvasModules\Actions\RefreshCompanyKanvasModulesSummaryAction;
 
 class CompanyDashboardJob implements ShouldQueue
 {
@@ -23,13 +24,14 @@ class CompanyDashboardJob implements ShouldQueue
     use KanvasJobsTrait;
 
     public function __construct(
-        public CompanyInterface $company,
-        public AppInterface $app
+        public Companies $company,
+        public Apps $app,
     ) {
     }
 
     public function handle(): void
     {
-        (new SetUsersCountAction($this->company))->execute();
+        new SetUsersCountAction($this->company)->execute();
+        new RefreshCompanyKanvasModulesSummaryAction($this->company, $this->app)->execute();
     }
 }

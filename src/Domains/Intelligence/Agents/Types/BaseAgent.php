@@ -28,6 +28,7 @@ use NeuronAI\RAG\VectorStore\PineconeVectorStore;
 use NeuronAI\RAG\VectorStore\VectorStoreInterface;
 use NeuronAI\Tools\Tool;
 use Override;
+use RuntimeException;
 
 class BaseAgent extends RAG
 {
@@ -63,13 +64,42 @@ class BaseAgent extends RAG
     #[Override]
     public function instructions(): string
     {
-        $role = $this->agent->role;
+        if ($this->agent === null) {
+            throw new RuntimeException(
+                'Agent not set. Make sure to call setConfiguration() before invoking the agent.',
+            );
+        }
 
-        return new SystemPrompt(
-            background: $role['background'],
-            steps: $role['steps'],
-            output: $role['output'],
-        )->__toString();
+        // Prefer the per-field shape (soul/instructions/output_format) on the
+        // agent, falling back per-field to the AgentType so a type acts as the
+        // base persona. This is the supported shape going forward — the legacy
+        // structured `role` JSON path below stays for older agents only.
+        $type = $this->agent->type;
+        $coalesce = static fn (?string $a, ?string $b): ?string => ($a !== null && $a !== '') ? $a : $b;
+
+        $parts = array_filter([
+            $coalesce($this->agent->soul, $type?->soul),
+            $coalesce($this->agent->instructions, $type?->instructions),
+            $coalesce($this->agent->output_format, $type?->output_format),
+        ]);
+
+        if ($parts !== []) {
+            return implode("\n\n", $parts);
+        }
+
+        // Legacy: role stored as a structured array { background, steps, output }
+        // where each field MUST be an array — NeuronAI's SystemPrompt rejects
+        // strings. Cast defensively so a string field doesn't TypeError here.
+        $role = $this->agent->role;
+        if (is_array($role) && isset($role['background'])) {
+            return (string) new SystemPrompt(
+                background: (array) $role['background'],
+                steps: (array) ($role['steps'] ?? []),
+                output: (array) ($role['output'] ?? []),
+            );
+        }
+
+        return '';
     }
 
     #[Override]
@@ -112,8 +142,8 @@ class BaseAgent extends RAG
     {
         // Check if we have the required entity information
         if ($this->entity === null) {
-            throw new \RuntimeException(
-                'Entity information not set. Make sure to call setConfiguration() with a valid entity.'
+            throw new RuntimeException(
+                'Entity information not set. Make sure to call setConfiguration() with a valid entity.',
             );
         }
 

@@ -16,11 +16,15 @@ class WakeAgentOnPlanChange
             return;
         }
 
+        $reason = $event->changeType === PlanChangeTypeEnum::APPROVED
+            ? WakeAgentForPlanJob::REASON_APPROVED
+            : WakeAgentForPlanJob::REASON_PLAN_ASSIGNED;
+
         $event->plan->emitLedgerEvent(
             'plan.agent.wake_dispatched',
             payload: [
                 'agent_id' => $event->plan->agent_id,
-                'reason' => WakeAgentForPlanJob::REASON_PLAN_ASSIGNED,
+                'reason' => $reason,
                 'source' => 'listener',
                 'change_type' => $event->changeType->value,
             ],
@@ -28,7 +32,7 @@ class WakeAgentOnPlanChange
 
         WakeAgentForPlanJob::dispatch(
             $event->plan,
-            WakeAgentForPlanJob::REASON_PLAN_ASSIGNED,
+            $reason,
         );
     }
 

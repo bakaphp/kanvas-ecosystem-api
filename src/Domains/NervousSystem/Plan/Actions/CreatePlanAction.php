@@ -41,6 +41,19 @@ class CreatePlanAction
                 ? PlanStatusEnum::AWAITING_APPROVAL
                 : $this->data->status;
 
+            // Demote any existing active mission for this swarm BEFORE
+            // saving the new plan, so the unique-active invariant holds
+            // even if multiple writes hit the same swarm concurrently.
+            // Only fires when this plan is being marked as the swarm's
+            // mission (is_swarm_mission && swarm both set).
+            if ($this->data->isSwarmMission && $this->data->swarm !== null) {
+                Plan::query()
+                    ->where('swarm_id', $this->data->swarm->getId())
+                    ->where('is_swarm_mission', 1)
+                    ->where('is_deleted', 0)
+                    ->update(['is_swarm_mission' => 0]);
+            }
+
             $plan = new Plan();
             $plan->apps_id = $this->data->app->getId();
             $plan->companies_id = $this->data->company->getId();
@@ -62,6 +75,10 @@ class CreatePlanAction
                 ? (string) $this->data->confidenceScore
                 : null;
             $plan->requires_human_approval = $this->data->requiresHumanApproval;
+            $plan->swarm_id = $this->data->swarm?->getId();
+            $plan->is_swarm_mission = $this->data->isSwarmMission;
+            $plan->impact_summary = $this->data->impactSummary;
+            $plan->status_pill = $this->data->statusPill;
             $plan->saveOrFail();
 
             foreach ($this->tasks as $taskData) {

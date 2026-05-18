@@ -111,10 +111,12 @@ class MigrateFromOpenClawAction
             $client->exec(
                 'sudo cp -r ' . escapeshellarg($sourceDir) . '/. ' . escapeshellarg($stagingDir) . '/'
             );
-            $client->exec(
-                'sudo chown -R ' . escapeshellarg($destDeployment->system_user . ':' . $destDeployment->system_user)
-                . ' ' . escapeshellarg($stagingDir)
-            );
+            // The hermes container runs as UID 1000. Chown the staging tree to 1000 and
+            // open group/other read+traverse so the in-container user can actually read
+            // workspace/ — without this the migrate command finds nothing and exits 0,
+            // which looked exactly like "fresh agent" in the wild.
+            $client->exec('sudo chown -R 1000:1000 ' . escapeshellarg($stagingDir));
+            $client->exec('sudo chmod -R u+rwX,go+rX ' . escapeshellarg($stagingDir));
 
             $this->runMigrateCommand($client, $stagingDir, $destDeployment);
 
@@ -237,7 +239,7 @@ class MigrateFromOpenClawAction
             300
         );
 
-        if (str_contains($result, 'EXIT_CODE:1')) {
+        if (! str_contains($result, 'EXIT_CODE:0')) {
             throw new ValidationException('Failed to create OpenClaw workspace archive on source: ' . $result);
         }
 
@@ -294,17 +296,17 @@ class MigrateFromOpenClawAction
             60
         );
 
-        if (str_contains($result, 'EXIT_CODE:1')) {
+        if (! str_contains($result, 'EXIT_CODE:0')) {
             throw new ValidationException('Failed to extract OpenClaw archive on destination: ' . $result);
         }
 
         // Remove the archive now that the files are extracted.
         $client->exec('rm -f ' . escapeshellarg($remoteArchive));
 
-        $client->exec(
-            'sudo chown -R ' . escapeshellarg($deployment->system_user . ':' . $deployment->system_user)
-            . ' ' . escapeshellarg($openclawExtractDir)
-        );
+        // Chown to UID 1000 (in-container hermes user) so `claw migrate` can read the
+        // workspace through the bind mount. Same fix as the same-machine path.
+        $client->exec('sudo chown -R 1000:1000 ' . escapeshellarg($openclawExtractDir));
+        $client->exec('sudo chmod -R u+rwX,go+rX ' . escapeshellarg($openclawExtractDir));
 
         $this->runMigrateCommand($client, $openclawExtractDir, $deployment);
     }
@@ -326,23 +328,31 @@ class MigrateFromOpenClawAction
 
         $imageName = (new DockerComposeBuilder())->getSharedImageName($this->app);
 
+        // The upstream nousresearch/hermes-agent entrypoint already invokes the `hermes`
+        // binary — `docker run image gateway run` and `docker run image claw migrate` are
+        // the documented forms. Passing `hermes claw migrate` here would double-prefix
+        // (`hermes hermes claw migrate`), the CLI exits non-zero with "unknown command",
+        // and the previous EXIT_CODE:1-only check silently swallowed that as success —
+        // producing a Hermes container that looked freshly provisioned with no migrated
+        // files. Mount the staging tree as the canonical source path and the target as
+        // /opt/data (the volume the entrypoint expects) so we don't need any custom flags.
+        $containerSourcePath = '/opt/openclaw-source';
+        $containerTargetPath = '/opt/data';
+
         $result = $client->exec(
-            'sudo -u ' . escapeshellarg($deployment->system_user)
-            . ' bash -c ' . escapeshellarg(
-                'docker run --rm'
-                . ' -v ' . $stagingDir . ':' . $stagingDir
-                . ' -v ' . $hermesDir . ':' . $hermesDir
-                . ' ' . $imageName
-                . ' hermes claw migrate'
-                . ' --source ' . escapeshellarg($stagingDir)
-                . ' --workspace-target ' . escapeshellarg($hermesDir)
-                . ' --migrate-secrets --yes 2>&1'
-            )
+            'sudo docker run --rm'
+            . ' -v ' . escapeshellarg($stagingDir) . ':' . $containerSourcePath
+            . ' -v ' . escapeshellarg($hermesDir) . ':' . $containerTargetPath
+            . ' ' . escapeshellarg($imageName)
+            . ' claw migrate'
+            . ' --source ' . escapeshellarg($containerSourcePath)
+            . ' --workspace-target ' . escapeshellarg($containerTargetPath)
+            . ' --migrate-secrets --yes 2>&1'
             . '; echo "EXIT_CODE:$?"',
             300
         );
 
-        if (str_contains($result, 'EXIT_CODE:1')) {
+        if (! str_contains($result, 'EXIT_CODE:0')) {
             throw new ValidationException('hermes claw migrate failed: ' . $result);
         }
 
@@ -401,8 +411,15 @@ class MigrateFromOpenClawAction
     }
 
     /**
-     * Rewrite docker-compose.yml with the destination ports, stop any existing
-     * containers, then start fresh. Assumes the shared image is already present.
+     * Rewrite docker-compose.yml and config.yaml with the destination ports and app model
+     * settings, stop any existing containers, then start fresh.
+     * Assumes the shared image is already present.
+     *
+     * Writing config.yaml here is important for migrations: `hermes claw migrate` copies the
+     * model name from the OpenClaw workspace into config.yaml, which may be a non-existent or
+     * stale model name (e.g. Hermes's own migration default is Claude). Overwriting it here
+     * ensures the agent always starts with the model configured for this app (or gemini-2.0-flash
+     * as the valid default).
      */
     private function startContainers(SshClient $client, AgentDeployment $deployment): void
     {
@@ -414,6 +431,9 @@ class MigrateFromOpenClawAction
         $gatewayToken = $this->company->get(ConfigurationEnum::GATEWAY_TOKEN->value) ?? bin2hex(random_bytes(32));
         $composeContent = $builder->buildDockerCompose($deployment, (string) $gatewayToken, $this->app, $agent);
         $client->writeFileAsUser($hermesDir . '/docker-compose.yml', $composeContent, $deployment->system_user);
+
+        $runtimeConfig = $builder->buildRuntimeConfig($agent, (string) $gatewayToken, $this->app);
+        $client->writeFileAsUser($hermesDir . '/config.yaml', $runtimeConfig, $deployment->system_user);
 
         // Run down + port cleanup + up as a single exec to avoid phpseclib channel reuse errors.
         $downCmd = 'cd ' . escapeshellarg($hermesDir) . ' && docker compose down 2>&1 || true';
