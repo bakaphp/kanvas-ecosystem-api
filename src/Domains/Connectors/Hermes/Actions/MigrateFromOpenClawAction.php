@@ -111,12 +111,10 @@ class MigrateFromOpenClawAction
             $client->exec(
                 'sudo cp -r ' . escapeshellarg($sourceDir) . '/. ' . escapeshellarg($stagingDir) . '/'
             );
-            // The hermes container runs as UID 1000. Chown the staging tree to 1000 and
-            // open group/other read+traverse so the in-container user can actually read
-            // workspace/ — without this the migrate command finds nothing and exits 0,
-            // which looked exactly like "fresh agent" in the wild.
-            $client->exec('sudo chown -R 1000:1000 ' . escapeshellarg($stagingDir));
-            $client->exec('sudo chmod -R u+rwX,go+rX ' . escapeshellarg($stagingDir));
+            // The hermes container runs as UID 10000 (confirmed: docker run image id → uid=10000(hermes)).
+            // Chown the staging tree to 10000 so the in-container user can actually read workspace/.
+            $client->exec('sudo chown -R 10000:10000 ' . escapeshellarg($stagingDir));
+            $client->exec('sudo chmod -R 755 ' . escapeshellarg($stagingDir));
 
             $this->runMigrateCommand($client, $stagingDir, $destDeployment);
 
@@ -303,10 +301,10 @@ class MigrateFromOpenClawAction
         // Remove the archive now that the files are extracted.
         $client->exec('rm -f ' . escapeshellarg($remoteArchive));
 
-        // Chown to UID 1000 (in-container hermes user) so `claw migrate` can read the
-        // workspace through the bind mount. Same fix as the same-machine path.
-        $client->exec('sudo chown -R 1000:1000 ' . escapeshellarg($openclawExtractDir));
-        $client->exec('sudo chmod -R u+rwX,go+rX ' . escapeshellarg($openclawExtractDir));
+        // Chown to UID 10000 (confirmed in-container hermes user) so `claw migrate` can read
+        // the workspace through the bind mount. Same fix as the same-machine path.
+        $client->exec('sudo chown -R 10000:10000 ' . escapeshellarg($openclawExtractDir));
+        $client->exec('sudo chmod -R 755 ' . escapeshellarg($openclawExtractDir));
 
         $this->runMigrateCommand($client, $openclawExtractDir, $deployment);
     }
