@@ -43,21 +43,7 @@ class ProvisionDefaultConsumerModulesCommand extends Command
 
         info("App: {$app->name} (id={$app->getId()})");
 
-        $eligibleModuleIds = DB::table('abilities_modules')
-            ->where('apps_id', $app->getId())
-            ->distinct()
-            ->pluck('module_id')
-            ->filter()
-            ->map(fn (mixed $id): int => (int) $id)
-            ->all();
-
-        if ($eligibleModuleIds === []) {
-            warning('No abilities_modules rows for this app, nothing to provision.');
-
-            return self::SUCCESS;
-        }
-
-        $moduleIds = KanvasModule::whereIn('id', $eligibleModuleIds)
+        $moduleIds = KanvasModule::query()
             ->where('is_default', 1)
             ->where('is_internal', 0)
             ->where('is_deleted', 0)
@@ -66,7 +52,7 @@ class ProvisionDefaultConsumerModulesCommand extends Command
             ->all();
 
         if ($moduleIds === []) {
-            warning('No default consumer modules registered for this app, nothing to provision.');
+            warning('No default consumer modules found.');
 
             return self::SUCCESS;
         }
@@ -107,7 +93,7 @@ class ProvisionDefaultConsumerModulesCommand extends Command
                                         'kanvas_modules_id' => $moduleId,
                                         'is_active' => true,
                                         'is_deleted' => false,
-                                        'status' => CompanyKanvasModuleStatusEnum::CONNECTED->value,
+                                        'status' => CompanyKanvasModuleStatusEnum::NOT_CONNECTED->value,
                                     ]);
                                 }
                                 $totals['inserted']++;
