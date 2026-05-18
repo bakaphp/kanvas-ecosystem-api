@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Ledger\Events;
 
+use Baka\Traits\LimitsBroadcastPayload;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -17,6 +18,7 @@ class LedgerEventBroadcast implements ShouldBroadcast
 {
     use Dispatchable;
     use InteractsWithSockets;
+    use LimitsBroadcastPayload;
     use SerializesModels;
 
     /**
@@ -86,7 +88,7 @@ class LedgerEventBroadcast implements ShouldBroadcast
             'actor_type' => $this->event->actor_type,
             'actor_id' => $this->event->actor_id,
             'status' => $this->event->status,
-            'payload' => $this->event->payload,
+            'payload' => $this->limitBroadcastPayload($this->event->payload),
             'duration_ms' => $this->event->duration_ms,
             'correlation_id' => $this->event->correlation_id,
             'causation_id' => $this->event->causation_id,

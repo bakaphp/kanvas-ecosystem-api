@@ -200,6 +200,57 @@ class LedgerBroadcastTest extends TestCase
         );
     }
 
+    public function testBroadcastDropsOversizedPayload(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        // Roughly 10 KB of payload content — past Pusher's 10240-byte
+        // per-event hard limit once the rest of the envelope is added.
+        $bigPayload = ['blob' => str_repeat('a', 10_000)];
+
+        $event = new AppendEventAction(
+            new EventData(
+                app: $app,
+                company: $company,
+                sourceDomain: 'TestDomain',
+                eventType: 'broadcast.test.large',
+                status: EventStatusEnum::INFO,
+                payload: $bigPayload,
+            ),
+        )->execute();
+
+        $envelope = new LedgerEventBroadcast($event)->broadcastWith();
+
+        $this->assertNull($envelope['payload']);
+        $this->assertLessThan(10_240, strlen((string) json_encode($envelope)));
+    }
+
+    public function testBroadcastKeepsSmallPayloadInline(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $smallPayload = ['note' => 'ok'];
+
+        $event = new AppendEventAction(
+            new EventData(
+                app: $app,
+                company: $company,
+                sourceDomain: 'TestDomain',
+                eventType: 'broadcast.test.small',
+                status: EventStatusEnum::INFO,
+                payload: $smallPayload,
+            ),
+        )->execute();
+
+        $envelope = new LedgerEventBroadcast($event)->broadcastWith();
+
+        $this->assertSame($smallPayload, $envelope['payload']);
+    }
+
     public function testAgentChannelOmittedWhenActorIsNotAgent(): void
     {
         $app = app(Apps::class);
