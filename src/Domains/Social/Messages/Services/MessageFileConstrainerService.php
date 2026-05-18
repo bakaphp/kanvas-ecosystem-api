@@ -26,8 +26,7 @@ class MessageFileConstrainerService
             return $files;
         }
 
-        $rawVerbs = $app->get('filesystem-message-constrain-verbs');
-        $allowedVerbs = is_string($rawVerbs) ? (json_decode($rawVerbs, true) ?: []) : (array) $rawVerbs;
+        $allowedVerbs = (array) $app->get('filesystem-message-constrain-verbs');
         if (empty($allowedVerbs) || ! in_array($verb, $allowedVerbs, true)) {
             return $files;
         }
