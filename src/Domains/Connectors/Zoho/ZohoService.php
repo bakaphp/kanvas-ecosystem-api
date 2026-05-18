@@ -74,6 +74,8 @@ class ZohoService
             $data['Lead_Routing'] = $zohoOwnerAgent ? $zohoOwnerAgent->Lead_Routing : (string) $this->company->get('default_lead_routing');
 
             $this->lastCreateAgentRequest = $data;
+            $this->lastCreateAgentRequest['zohoOwnerAgent'] = $zohoOwnerAgent;
+            
             $zohoAgent = $this->zohoCrm->agents->create($data);
         } else {
             $data['Vendor_Name'] = $agentInfo->name;
