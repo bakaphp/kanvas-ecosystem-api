@@ -14,6 +14,7 @@ use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Connectors\OpenClaw\SshClient as OpenClawSshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilder;
 use Kanvas\Intelligence\AgentRuntime\SshClient as BaseClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -462,6 +463,20 @@ class MigrateFromOpenClawAction
 
         $runtimeConfig = $builder->buildRuntimeConfig($agent, (string) $gatewayToken, $this->app);
         $client->writeFileAsUser($hermesDir . '/config.yaml', $runtimeConfig, $deployment->system_user);
+
+        // Write workspace files (SOUL.md) from the agent model so the migrated container
+        // uses the agent's actual persona rather than Hermes's blank default template.
+        // `claw migrate` does not copy these from OpenClaw — it only migrates secrets and
+        // platform tokens — so we must write them explicitly here, same as LaunchAgentJob.
+        $files = WorkspaceFileBuilder::buildAll($agent);
+        foreach ($files as $filename => $content) {
+            $target = $builder->getWorkspaceFileTargetPath($hermesDir, $filename);
+            if ($target === null) {
+                continue;
+            }
+            $client->exec('sudo mkdir -p ' . escapeshellarg(dirname($target)));
+            $client->writeFileAsUser($target, $content, $deployment->system_user);
+        }
 
         // Run down + port cleanup + up as a single exec to avoid phpseclib channel reuse errors.
         $downCmd = 'cd ' . escapeshellarg($hermesDir) . ' && docker compose down 2>&1 || true';
