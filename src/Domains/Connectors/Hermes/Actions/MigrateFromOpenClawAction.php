@@ -312,19 +312,30 @@ class MigrateFromOpenClawAction
     }
 
     /**
-     * Run `hermes claw migrate` inside the shared container, converting the OpenClaw
-     * staging directory into a Hermes workspace under the agent's home directory.
+     * Run `claw migrate` inside the shared container, converting the OpenClaw staging
+     * directory into a Hermes workspace under the agent's home directory.
      * Cleans up the staging directory on success.
+     *
+     * Three constraints drive the invocation shape:
+     *  1. The entrypoint (/opt/hermes/docker/entrypoint.sh) prepends the `hermes` binary, so
+     *     we pass `claw migrate` — not `hermes claw migrate` — or the CLI sees a doubled prefix
+     *     and exits with code 2 (silently treated as success by an EXIT_CODE:1-only check).
+     *  2. The in-container hermes user is UID 10000. The staging dir must be chowned to 10000
+     *     before the run; host-user ownership (~1000) causes permission denied on every read.
+     *  3. The canonical target mount is /opt/data (per upstream docs). We also use an explicit
+     *     /opt/openclaw-source mount + --source flag rather than relying on auto-detection,
+     *     so the invocation is self-documenting and immune to default-path changes.
      */
     private function runMigrateCommand(SshClient $client, string $stagingDir, AgentDeployment $deployment): void
     {
         $homeDir = $this->destinationPath ?? $deployment->home_directory;
         $hermesDir = $homeDir . '/.hermes';
 
-        $client->exec(
-            'sudo -u ' . escapeshellarg($deployment->system_user)
-            . ' mkdir -p ' . escapeshellarg($hermesDir)
-        );
+        $client->exec('sudo mkdir -p ' . escapeshellarg($hermesDir));
+
+        // UID 10000 = hermes user inside the container. The staging dir must be readable by it.
+        $client->exec('sudo chown -R 10000:10000 ' . escapeshellarg($stagingDir));
+        $client->exec('sudo chmod -R 755 ' . escapeshellarg($stagingDir));
 
         $imageName = (new DockerComposeBuilder())->getSharedImageName($this->app);
 
@@ -356,9 +367,10 @@ class MigrateFromOpenClawAction
             throw new ValidationException('hermes claw migrate failed: ' . $result);
         }
 
-        // Fix ownership after the migration writes files as root inside the container.
+        // Fix ownership so the host system user (agent-<slug>) can read the migrated files,
+        // while preserving UID 10000 as the owner so the container can also write them.
         $client->exec(
-            'sudo chown -R 1000:' . escapeshellarg($deployment->system_user)
+            'sudo chown -R 10000:' . escapeshellarg($deployment->system_user)
             . ' ' . escapeshellarg($hermesDir)
         );
         $client->exec('sudo chmod -R g+rwx ' . escapeshellarg($hermesDir));
