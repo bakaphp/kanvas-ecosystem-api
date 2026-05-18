@@ -26,7 +26,8 @@ class MessageFileConstrainerService
             return $files;
         }
 
-        $allowedVerbs = (array) $app->get('filesystem-message-constrain-verbs');
+        $rawVerbs = $app->get('filesystem-message-constrain-verbs');
+        $allowedVerbs = is_string($rawVerbs) ? (json_decode($rawVerbs, true) ?: []) : (array) $rawVerbs;
         if (empty($allowedVerbs) || ! in_array($verb, $allowedVerbs, true)) {
             return $files;
         }
@@ -42,8 +43,6 @@ class MessageFileConstrainerService
                 $maxFileSize,
             );
 
-            // constrainFileSize may convert HEIC to JPEG at a new path,
-            // so we need to update the file reference
             if ($convertedPath !== $originalPath) {
                 $files[$key] = new UploadedFile(
                     $convertedPath,
