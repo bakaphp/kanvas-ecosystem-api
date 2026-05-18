@@ -21,6 +21,7 @@ use Kanvas\Social\Messages\Actions\UpdateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Enums\DistributionTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Services\MessageFileConstrainerService;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
@@ -227,6 +228,19 @@ class MessageManagementMutation
 
         if (($message->user->getId() !== auth()->user()->getId()) && ! auth()->user()->isAdmin()) {
             throw new Exception('The message does not belong to the authenticated user');
+        }
+
+        $files = isset($request['file']) ? [$request['file']] : ($request['files'] ?? []);
+        $files = MessageFileConstrainerService::constrain(
+            $app,
+            (string) $message->messageType->verb,
+            $files,
+        );
+
+        if (isset($request['file'])) {
+            $request['file'] = $files[0];
+        } else {
+            $request['files'] = $files;
         }
 
         return $this->uploadFileToEntity(
