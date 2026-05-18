@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Override;
 
 class ProcessElevenLabsConversationInitiationWebhookJob extends ProcessElevenLabsWebhookJob
@@ -23,6 +24,7 @@ class ProcessElevenLabsConversationInitiationWebhookJob extends ProcessElevenLab
         $company = $this->receiver->company;
         $timezone = $company->get('timezone') ?? $company->timezone ?? 'UTC';
         $currentDate = now($timezone)->toDateTimeString();
+        $workHoursStatus = new CompanyWorkHoursTool($this->receiver)->execute()['status'] ?? 'after_hours';
 
         $dynamicVariables = [
             'phone' => $normalizedPhone,
@@ -39,6 +41,7 @@ class ProcessElevenLabsConversationInitiationWebhookJob extends ProcessElevenLab
             'customer_name' => '',
             'firstname' => '',
             'lastname' => '',
+            'working_hours' => $workHoursStatus,
             'email' => '',
             'lead_id' => '',
             'lead_uuid' => '',
@@ -115,6 +118,8 @@ class ProcessElevenLabsConversationInitiationWebhookJob extends ProcessElevenLab
             'lead_pipeline' => (string) ($lead->pipeline?->name ?? ''),
             'opportunity_type' => $this->resolveOpportunityType($lead),
             'owner_name' => $lead->owner ? trim((string) $lead->owner->firstname . ' ' . (string) $lead->owner->lastname) : '',
+            'onwer_phone' => $lead->owner?->phone_number,
+            'owner_cellphone' => $lead->owner?->cell_phone_number,
             'ai_mode' => (string) ($lead->get(ConfigurationEnum::AI_MODE->value) ?? ''),
             'vehicle_year' => (string) ($lead->get('vehicleYear') ?? $lead->get('year') ?? ''),
             'vehicle_make' => (string) ($lead->get('vehicleMake') ?? $lead->get('vehicleBrand') ?? ''),
