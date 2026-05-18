@@ -124,6 +124,7 @@ extend type Query @guard {
         )
 
     nervousSystemTools(
+        framework: String
         where: _
             @whereConditions(
                 columns: ["id", "uuid", "name", "tool_type", "is_active"]
@@ -134,8 +135,7 @@ extend type Query @guard {
             )
     ): [NervousSystemTool!]!
         @paginate(
-            model: "Kanvas\\NervousSystem\\Capability\\Models\\Tool"
-            scopes: ["forApp", "active"]
+            builder: "App\\GraphQL\\Intelligence\\Builders\\NervousSystem\\ToolsBuilder@getTools"
             defaultCount: 50
         )
 
