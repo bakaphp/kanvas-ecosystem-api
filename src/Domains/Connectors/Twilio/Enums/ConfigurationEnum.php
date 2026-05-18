@@ -18,4 +18,5 @@ enum ConfigurationEnum: string
     case TWILIO_FROM_PHONE_NUMBER = 'twilio_from_phone_number';
     case TWILIO_PHONE_NUMBER = 'twilio_phone_number';
     case TWILIO_MMS_BATCH_SIZE = 'twilio-mms-batch-size';
+    case TWILIO_MMS_MAX_TOTAL_MEDIA = 'twilio-mms-max-total-media';
 }

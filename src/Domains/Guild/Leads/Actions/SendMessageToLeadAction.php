@@ -41,6 +41,13 @@ class SendMessageToLeadAction
     private const int DEFAULT_MMS_BATCH_SIZE = 8;
     private const int MAX_MMS_BATCH_SIZE = 10;
 
+    /**
+     * Hard upper bound on total media attached to one outbound SMS, regardless of batching.
+     * Guards against runaway "entire camera roll" sends. Override per-app via
+     * `twilio-mms-max-total-media`.
+     */
+    private const int DEFAULT_MMS_MAX_TOTAL_MEDIA = 30;
+
     protected array $processedFiles = [];
     protected array $videoEngagements = [];
 
@@ -370,7 +377,8 @@ class SendMessageToLeadAction
         }
 
         $mediaUrls = [];
-        $maxUrls = 10;
+        $maxUrls = (int) ($this->lead->app->get(TwilioConfigurationEnum::TWILIO_MMS_MAX_TOTAL_MEDIA->value) ?: self::DEFAULT_MMS_MAX_TOTAL_MEDIA);
+        $maxUrls = max(1, $maxUrls);
 
         foreach ($this->videoEngagements as $videoEngagement) {
             if (count($mediaUrls) >= $maxUrls) {
