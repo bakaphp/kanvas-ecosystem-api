@@ -38,4 +38,12 @@ enum ConfigurationEnum: string
     // Stored as an associative array (e.g. ['reply_in_thread' => false, 'require_mention' => true]).
     // Defaults applied when unset live in DockerComposeBuilder::DEFAULT_SLACK_CONFIG.
     case SLACK_CONFIG = 'hermes_slack_config';
+
+    // Telegram platform config — merged into `platforms.telegram.extra:` in config.yaml.
+    // Per https://hermes-agent.nousresearch.com/docs/user-guide/messaging/telegram, this is
+    // where group `allow_from`, `require_mention`, `mention_patterns`, `dm_topics`,
+    // `disable_link_previews`, `reactions`, etc. live. The bot token + minimum allow-list
+    // are per-agent (see AgentChannelTokenEnum) so the block here only carries behavior
+    // tuning. We emit the block only when set — Hermes does not require it.
+    case TELEGRAM_CONFIG = 'hermes_telegram_config';
 }

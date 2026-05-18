@@ -10,7 +10,6 @@ use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\EchoPay\Client;
-use Kanvas\Connectors\EchoPay\Contracts\ClientInterface;
 use Kanvas\Connectors\EchoPay\DataTransferObject\CardTokenization;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsultServiceQuery;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
@@ -21,12 +20,13 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponse;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Connectors\EchoPay\MockClient;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
+use Kanvas\Souk\Payments\Contracts\HttpClientInterface;
 use Kanvas\Souk\Payments\Contracts\TokenizationProcessorInterface;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 
 class EchoPayService implements TokenizationProcessorInterface
 {
-    protected ClientInterface $client;
+    protected HttpClientInterface $client;
     protected MerchantDetail $merchant;
 
     public function __construct(

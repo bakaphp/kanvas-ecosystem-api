@@ -433,9 +433,9 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     {
         $variant = [
             'objectID' => $this->uuid,
-            'id' => (string)$this->id,
+            'id' => (string) $this->id,
             'products_id' => $this->products_id,
-            'name' => $this->name,
+            'name' => (string) $this->name,
             'files' => $this->getFiles()->take(5)->map(function ($files) {
                 return [
                     'uuid' => $files->uuid,
@@ -451,10 +451,10 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 'name' => $this?->product?->company?->name,
             ],
             'uuid' => $this->uuid,
-            'slug' => $this->slug,
-            'sku' => $this->sku,
-            'ean' => $this->ean,
-            'barcode' => $this->barcode,
+            'slug' => (string) $this->slug,
+            'sku' => (string) $this->sku,
+            'ean' => $this->ean !== null ? (string) $this->ean : null,
+            'barcode' => $this->barcode !== null ? (string) $this->barcode : null,
             'status' => [
                 'id' => $this->status->id ?? null,
                 'name' => $this->status->name ?? null,

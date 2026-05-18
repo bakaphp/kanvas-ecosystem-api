@@ -165,6 +165,51 @@ class PlanAgentWakeUpTest extends TestCase
         $this->assertTrue($exists, 'Expected plan.agent.wake_dispatched ledger event');
     }
 
+    public function testApprovingPlanWakesAgentWithApprovedReason(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = $this->makeAgent($app, $company, $user, isActive: true);
+
+        // Create a plan that lands in awaiting_approval (requires_human_approval=true
+        // + ACTIVE status routes through CreatePlanAction's effective-status logic).
+        Bus::fake([WakeAgentForPlanJob::class]);
+
+        $plan = new CreatePlanAction(
+            new PlanData(
+                app: $app,
+                company: $company,
+                title: 'Plan needing approval',
+                planType: 'workspace_issue',
+                agent: $agent,
+                user: $user,
+                status: PlanStatusEnum::ACTIVE,
+                requiresHumanApproval: true,
+            ),
+        )->execute();
+
+        // The CREATED broadcast already dispatched (with ASSIGNED reason)
+        Bus::assertDispatchedTimes(WakeAgentForPlanJob::class, 1);
+        Bus::fake([WakeAgentForPlanJob::class]); // reset captured dispatches
+
+        // Now approve — listener should re-fire the job with the APPROVED reason.
+        new \Kanvas\NervousSystem\Plan\Actions\ApprovePlanAction(
+            plan: $plan,
+            reviewer: $user,
+            approved: true,
+            reviewOutcome: 'Looks good, ship it.',
+        )->execute();
+
+        Bus::assertDispatched(
+            WakeAgentForPlanJob::class,
+            fn (WakeAgentForPlanJob $job) =>
+                $job->plan->id === $plan->id
+                && $job->reason === WakeAgentForPlanJob::REASON_APPROVED
+        );
+    }
+
     private function makeAgent(Apps $app, $company, $user, bool $isActive): Agent
     {
         return Agent::factory()

@@ -41,6 +41,9 @@ use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\KanvasModules\Enums\CompanyKanvasModuleStatusEnum;
+use Kanvas\KanvasModules\Enums\KanvasModuleEnum;
+use Kanvas\KanvasModules\Models\CompanyKanvasModule;
 use Kanvas\Models\BaseModel;
 use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
@@ -58,6 +61,7 @@ use Override;
 /**
  * Companies Model.
  *
+ * @property int $id
  * @property int $users_id
  * @property int $system_modules_id
  * @property int $currency_id
@@ -204,6 +208,54 @@ class Companies extends BaseModel implements CompanyInterface, Customer
     public function systemModule(): BelongsTo
     {
         return $this->belongsTo(SystemModules::class, 'system_modules_id');
+    }
+
+    public function kanvasModules(): HasMany
+    {
+        return $this->hasMany(CompanyKanvasModule::class, 'companies_id', 'id');
+    }
+
+    /**
+     * Excludes platform infrastructure (Workflow engine, Ecosystem, etc).
+     * Always-on, not user-configurable, doesn't belong in consumer UI.
+     */
+    public function consumerKanvasModules(): HasMany
+    {
+        return $this->hasMany(CompanyKanvasModule::class, 'companies_id', 'id')
+            ->where('is_deleted', 0)
+            ->whereHas(
+                'module',
+                fn (Builder $q): Builder => $q->where('is_internal', 0)->where('is_deleted', 0),
+            );
+    }
+
+    public function hasModule(KanvasModuleEnum $module, Apps $app): bool
+    {
+        return $this->kanvasModules()
+            ->where('apps_id', $app->getId())
+            ->where('kanvas_modules_id', $module->value)
+            ->where('is_active', 1)
+            ->where('is_deleted', 0)
+            ->exists();
+    }
+
+    public function grantModule(
+        KanvasModuleEnum $module,
+        Apps $app,
+        CompanyKanvasModuleStatusEnum $status = CompanyKanvasModuleStatusEnum::NOT_CONNECTED,
+    ): CompanyKanvasModule {
+        return CompanyKanvasModule::updateOrCreate(
+            [
+                'apps_id' => $app->getId(),
+                'companies_id' => $this->getId(),
+                'kanvas_modules_id' => $module->value,
+            ],
+            [
+                'is_active' => true,
+                'is_deleted' => false,
+                'status' => $status->value,
+            ],
+        );
     }
 
     /**

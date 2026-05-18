@@ -7,28 +7,38 @@ type agentType {
     handler: String
     config: Mixed
     role: Mixed
+    soul: String
+    instructions: String
+    output_format: String
     is_active: Boolean!
     is_default: Boolean!
     is_published: Boolean!
     is_multi_agent: Boolean!
+    weight: Int!
     multi_agent_list: Mixed
     tools: [NervousSystemTool!]! @belongsToMany(relation: "tools")
     createdAt: DateTime!
     updatedAt: DateTime!
 }
+
 input AgentTypeInput {
     name: String!
     description: String
     provider: String
     handler: String
-    config: String!
+    config: String
     is_active: Boolean
-    role: String!
+    role: String
+    soul: String
+    instructions: String
+    output_format: String
     is_default: Boolean
     is_published: Boolean
     is_multi_agent: Boolean
-    multi_agent_list: Mixed!
+    weight: Int
+    multi_agent_list: Mixed
 }
+
 extend type Mutation @guard {
     createAgentType(input: AgentTypeInput!): agentType!
         @field(
@@ -43,6 +53,7 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentTypeManagementMutation@delete"
         )
 }
+
 extend type Query @guard {
     agentTypes(
         search: String @search
@@ -57,7 +68,10 @@ extend type Query @guard {
                     "is_published"
                 ]
             )
-        orderBy: _ @orderBy(columns: ["id", "createdAt", "updatedAt", "name"])
+        orderBy: _
+            @orderBy(
+                columns: ["id", "createdAt", "updatedAt", "name", "weight"]
+            )
     ): [agentType!]!
         @paginate(
             model: "Kanvas\\Intelligence\\Agents\\Models\\AgentType"
