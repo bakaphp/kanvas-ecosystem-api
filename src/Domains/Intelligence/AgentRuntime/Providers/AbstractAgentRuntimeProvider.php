@@ -133,6 +133,12 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
         throw $this->unsupported('machine container updates');
     }
 
+    #[Override]
+    public function dispatchWorkspaceUpdate(AgentDeployment $deployment): void
+    {
+        throw $this->unsupported('workspace file update');
+    }
+
     protected function unsupported(string $operation): LogicException
     {
         return new LogicException(
