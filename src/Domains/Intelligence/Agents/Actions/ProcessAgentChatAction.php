@@ -127,12 +127,18 @@ class ProcessAgentChatAction
             $response
         );
 
+        // Pusher enforces a 10 240-byte limit per event; truncate only the broadcast
+        // payload — the full response is still returned to the caller and persisted.
+        $broadcastResponse = mb_strlen($response) > 8000
+            ? mb_substr($response, 0, 8000) . '...[truncated]'
+            : $response;
+
         Subscription::broadcast('agentChatResponse', [
             'agent_id' => $this->agent->getId(),
             'agent_name' => $this->agent->name,
             'session_id' => $sessionId,
             'message' => $this->message,
-            'response' => $response,
+            'response' => $broadcastResponse,
         ]);
     }
 }
