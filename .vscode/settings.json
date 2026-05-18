@@ -28,5 +28,8 @@
         "Vinsolution",
         "WASENDER",
         "WOOCOMMERCE"
+    ],
+    "i18n-ally.localesPaths": [
+        "lang"
     ]
 }

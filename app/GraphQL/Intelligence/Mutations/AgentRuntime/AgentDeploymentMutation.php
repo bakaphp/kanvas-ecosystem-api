@@ -132,6 +132,15 @@ class AgentDeploymentMutation
 
         $agent->set(AgentChannelTokenEnum::TELEGRAM_BOT_TOKEN->value, (string) $request['telegram_bot_token']);
 
+        // Optional allow-list — without at least one Telegram user ID, Hermes denies every
+        // inbound message. Accept it on the same call so admins don't need a follow-up.
+        if (isset($request['telegram_allowed_users'])) {
+            $agent->set(
+                AgentChannelTokenEnum::TELEGRAM_ALLOWED_USERS->value,
+                (string) $request['telegram_allowed_users'],
+            );
+        }
+
         return true;
     }
 

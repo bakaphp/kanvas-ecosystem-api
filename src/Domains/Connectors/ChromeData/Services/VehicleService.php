@@ -305,14 +305,17 @@ class VehicleService
      */
     public function getStockImageByVin(
         string $vin,
-        ?string $make = null,
+        string|int|null $make = null,
         string|int|null $model = null,
         ?int $year = null,
         bool $skipCache = false
     ): ?string {
-        // If make/model/year provided, check their shared cache first
-        if ($make && $model && $year) {
-            $mmyCacheKey = $this->stockImageCachePrefix . 'mmy:' . strtolower($make) . ':' . strtolower((string) $model) . ':' . $year;
+        $makeStr = $make !== null ? (string) $make : '';
+        $modelStr = $model !== null ? (string) $model : '';
+        $hasMmy = $makeStr !== '' && $modelStr !== '' && $year !== null;
+
+        if ($hasMmy) {
+            $mmyCacheKey = $this->stockImageCachePrefix . 'mmy:' . strtolower($makeStr) . ':' . strtolower($modelStr) . ':' . $year;
 
             if (! $skipCache) {
                 $cached = Redis::get($mmyCacheKey);
@@ -327,9 +330,9 @@ class VehicleService
         $stockImage = $vehicleData?->stockImage;
 
         // Also cache under make/model/year if provided (shared across same vehicles)
-        if ($make && $model && $year && $stockImage) {
-            $mmyCacheKey = $this->stockImageCachePrefix . 'mmy:' . strtolower($make) . ':' . strtolower((string) $model) . ':' . $year;
-            Redis::setex($mmyCacheKey, $this->cacheTtl, $stockImage ?? 'null');
+        if ($hasMmy && $stockImage !== null && $stockImage !== '') {
+            $mmyCacheKey = $this->stockImageCachePrefix . 'mmy:' . strtolower($makeStr) . ':' . strtolower($modelStr) . ':' . $year;
+            Redis::setex($mmyCacheKey, $this->cacheTtl, $stockImage);
         }
 
         return $stockImage;

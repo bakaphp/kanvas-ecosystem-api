@@ -391,6 +391,52 @@ class CapabilityTest extends TestCase
         $this->assertNotNull($second->expires_at);
     }
 
+    public function testAgentsUsingCountTracksGrantAndRevokeOnSkill(): void
+    {
+        $skill = $this->createSkill(['neuron']);
+        $this->assertSame(0, (int) $skill->fresh()->agents_using_count);
+
+        $agentA = $this->createAgent('neuron');
+        $agentB = $this->createAgent('neuron');
+        $agentC = $this->createAgent('neuron');
+
+        new GrantSkillToAgentAction(
+            agent: $agentA,
+            skill: $skill,
+            grantedByUserId: (int) $this->user()->getId(),
+        )->execute();
+        $this->assertSame(1, (int) $skill->fresh()->agents_using_count);
+
+        new GrantSkillToAgentAction(
+            agent: $agentB,
+            skill: $skill,
+            grantedByUserId: (int) $this->user()->getId(),
+        )->execute();
+        $this->assertSame(2, (int) $skill->fresh()->agents_using_count);
+
+        $thirdGrant = new GrantSkillToAgentAction(
+            agent: $agentC,
+            skill: $skill,
+            grantedByUserId: (int) $this->user()->getId(),
+        )->execute();
+        $this->assertSame(3, (int) $skill->fresh()->agents_using_count);
+
+        // Revoke the third — counter decrements
+        $thirdGrant->is_active = false;
+        $thirdGrant->saveOrFail();
+        $this->assertSame(2, (int) $skill->fresh()->agents_using_count);
+
+        // Re-grant by flipping back — counter increments
+        $thirdGrant->is_active = true;
+        $thirdGrant->saveOrFail();
+        $this->assertSame(3, (int) $skill->fresh()->agents_using_count);
+
+        // Soft delete — counter decrements
+        $thirdGrant->is_deleted = true;
+        $thirdGrant->saveOrFail();
+        $this->assertSame(2, (int) $skill->fresh()->agents_using_count);
+    }
+
     private function app(): Apps
     {
         return app(Apps::class);

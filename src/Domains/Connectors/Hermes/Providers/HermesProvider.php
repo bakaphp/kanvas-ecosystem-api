@@ -19,6 +19,7 @@ use Kanvas\Connectors\Hermes\Jobs\MigrateFromOpenClawJob;
 use Kanvas\Connectors\Hermes\Jobs\RestartAgentContainerJob;
 use Kanvas\Connectors\Hermes\Jobs\TerminateAgentJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateHermesOnMachineJob;
+use Kanvas\Connectors\Hermes\Jobs\UpdateWorkspaceFilesJob;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Intelligence\AgentRuntime\Providers\AbstractAgentRuntimeProvider;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
@@ -141,6 +142,12 @@ class HermesProvider extends AbstractAgentRuntimeProvider
     public function dispatchUpdateMachineContainers(AgentMachine $machine): void
     {
         UpdateHermesOnMachineJob::dispatch($machine);
+    }
+
+    #[Override]
+    public function dispatchWorkspaceUpdate(AgentDeployment $deployment): void
+    {
+        UpdateWorkspaceFilesJob::dispatch($deployment);
     }
 
     /**

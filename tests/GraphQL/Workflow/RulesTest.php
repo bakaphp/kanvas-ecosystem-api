@@ -73,11 +73,13 @@ class RulesTest extends TestCase
                             weight
                         }
                         apps_id
+                        created_at
+                        updated_at
                     }
                 }
             }')
             ->assertSuccessful()
-            ->assertJsonStructure(['data' => ['rules' => ['data' => [['id', 'name']]]]]);
+            ->assertJsonStructure(['data' => ['rules' => ['data' => [['id', 'name', 'created_at', 'updated_at']]]]]);
     }
 
     public function testGetRuleTypes(): void

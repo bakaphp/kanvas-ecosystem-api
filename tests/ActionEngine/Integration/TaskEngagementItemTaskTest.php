@@ -15,6 +15,7 @@ use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;
 
 final class TaskEngagementItemTaskTest extends TestCase
@@ -564,6 +565,516 @@ final class TaskEngagementItemTaskTest extends TestCase
         $this->assertEquals('completed', $siblingEngagement->status);
 
         // Clean up
+        $company->del('checklist_auto_complete_siblings');
+    }
+
+    public function testCompleteSiblingChecklistItemsGetDocsMatchesByConfigId(): void
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $company->set('checklist_auto_complete_siblings', true);
+
+        $lead = Lead::factory()->create();
+
+        $action = $this->createAction([
+            'name' => 'Get Docs Action ' . fake()->uuid(),
+            'slug' => 'get-docs-action-' . fake()->uuid(),
+        ]);
+
+        $companyAction = $this->createCompanyAction([
+            'companies_id' => $company->getId(),
+            'companies_branches_id' => $company->branch()->firstOrFail()->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'actions_id' => $action->getId(),
+            'name' => 'Get Docs',
+        ]);
+
+        $taskListA = $this->createTaskList([
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Checklist A ' . fake()->uuid(),
+        ]);
+
+        $taskListB = $this->createTaskList([
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Checklist B ' . fake()->uuid(),
+        ]);
+
+        $taskListC = $this->createTaskList([
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Checklist C ' . fake()->uuid(),
+        ]);
+
+        $itemInA = $this->createTaskListItem([
+            'task_list_id' => $taskListA->getId(),
+            'companies_action_id' => $companyAction->getId(),
+            'name' => 'Bank Statements',
+            'config' => ['id' => 9],
+            'weight' => 1,
+        ]);
+
+        // Same doc id, different checklist — should be completed.
+        $siblingMatching = $this->createTaskListItem([
+            'task_list_id' => $taskListB->getId(),
+            'companies_action_id' => $companyAction->getId(),
+            'name' => 'Bank Statements',
+            'config' => ['id' => 9],
+            'weight' => 1,
+        ]);
+
+        // Different doc id, same name — should be left untouched.
+        $siblingDifferentId = $this->createTaskListItem([
+            'task_list_id' => $taskListC->getId(),
+            'companies_action_id' => $companyAction->getId(),
+            'name' => 'Bank Statements',
+            'config' => ['id' => 10],
+            'weight' => 1,
+        ]);
+
+        $message = Message::factory()->create([
+            'message' => [
+                'verb' => 'get-docs',
+                'status' => 'submitted',
+                'data' => [
+                    '9' => [
+                        'type' => ['id' => 9, 'name' => 'Bank Statements'],
+                    ],
+                ],
+            ],
+        ]);
+
+        new ChangeTaskEngagementItemStatusAction(
+            taskListItem: $itemInA,
+            lead: $lead,
+            status: 'completed',
+            user: $user,
+            app: $app,
+            company: $company,
+            message: $message,
+        )->execute();
+
+        $matched = TaskEngagementItem::fromCompany($company)
+            ->fromApp($app)
+            ->where('task_list_item_id', $siblingMatching->getId())
+            ->where('lead_id', $lead->getId())
+            ->first();
+        $this->assertNotNull($matched);
+        $this->assertEquals('completed', $matched->status);
+
+        $unmatched = TaskEngagementItem::fromCompany($company)
+            ->fromApp($app)
+            ->where('task_list_item_id', $siblingDifferentId->getId())
+            ->where('lead_id', $lead->getId())
+            ->first();
+        $this->assertNull($unmatched);
+
+        $company->del('checklist_auto_complete_siblings');
+    }
+
+    public function testCompleteSiblingChecklistItemsGetDocsGateSkipsWhenCurrentIdNotInMessage(): void
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $company->set('checklist_auto_complete_siblings', true);
+
+        $lead = Lead::factory()->create();
+
+        $action = $this->createAction([
+            'name' => 'Get Docs Action ' . fake()->uuid(),
+            'slug' => 'get-docs-action-' . fake()->uuid(),
+        ]);
+
+        $companyAction = $this->createCompanyAction([
+            'companies_id' => $company->getId(),
+            'companies_branches_id' => $company->branch()->firstOrFail()->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'actions_id' => $action->getId(),
+            'name' => 'Get Docs',
+        ]);
+
+        $taskListA = $this->createTaskList([
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Checklist A ' . fake()->uuid(),
+        ]);
+
+        $taskListB = $this->createTaskList([
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Checklist B ' . fake()->uuid(),
+        ]);
+
+        // Current item is config.id=10, but message only carries id=9 → gate must skip.
+        $itemInA = $this->createTaskListItem([
+            'task_list_id' => $taskListA->getId(),
+            'companies_action_id' => $companyAction->getId(),
+            'name' => 'Insurance card',
+            'config' => ['id' => 10],
+            'weight' => 1,
+        ]);
+
+        $siblingSameId = $this->createTaskListItem([
+            'task_list_id' => $taskListB->getId(),
+            'companies_action_id' => $companyAction->getId(),
+            'name' => 'Insurance card',
+            'config' => ['id' => 10],
+            'weight' => 1,
+        ]);
+
+        $message = Message::factory()->create([
+            'message' => [
+                'verb' => 'get-docs',
+                'status' => 'submitted',
+                'data' => [
+                    '9' => [
+                        'type' => ['id' => 9, 'name' => 'Bank Statements'],
+                    ],
+                ],
+            ],
+        ]);
+
+        new ChangeTaskEngagementItemStatusAction(
+            taskListItem: $itemInA,
+            lead: $lead,
+            status: 'completed',
+            user: $user,
+            app: $app,
+            company: $company,
+            message: $message,
+        )->execute();
+
+        $sibling = TaskEngagementItem::fromCompany($company)
+            ->fromApp($app)
+            ->where('task_list_item_id', $siblingSameId->getId())
+            ->where('lead_id', $lead->getId())
+            ->first();
+        $this->assertNull($sibling);
+
+        $company->del('checklist_auto_complete_siblings');
+    }
+
+    public function testCompleteSiblingChecklistItemsSignDocsMatchesByFilename(): void
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $company->set('checklist_auto_complete_siblings', true);
+
+        $lead = Lead::factory()->create();
+
+        $action = $this->createAction([
+            'name' => 'Sign Docs Action ' . fake()->uuid(),
+            'slug' => 'sign-docs-action-' . fake()->uuid(),
+        ]);
+
+        $companyAction = $this->createCompanyAction([
+            'companies_id' => $company->getId(),
+            'companies_branches_id' => $company->branch()->firstOrFail()->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'actions_id' => $action->getId(),
+            'name' => 'Sign Docs',
+        ]);
+
+        $taskListA = $this->createTaskList([
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Checklist A ' . fake()->uuid(),
+        ]);
+
+        $taskListB = $this->createTaskList([
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Checklist B ' . fake()->uuid(),
+        ]);
+
+        $taskListC = $this->createTaskList([
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Checklist C ' . fake()->uuid(),
+        ]);
+
+        $itemInA = $this->createTaskListItem([
+            'task_list_id' => $taskListA->getId(),
+            'companies_action_id' => $companyAction->getId(),
+            'name' => 'Working Disclosure',
+            'config' => [
+                'id' => 678838,
+                'file_name' => 'working-disclosure-form.pdf',
+            ],
+            'weight' => 1,
+        ]);
+
+        $siblingMatching = $this->createTaskListItem([
+            'task_list_id' => $taskListB->getId(),
+            'companies_action_id' => $companyAction->getId(),
+            'name' => 'Working Disclosure',
+            'config' => [
+                'id' => 999999,
+                'file_name' => 'working-disclosure-form.pdf',
+            ],
+            'weight' => 1,
+        ]);
+
+        $siblingDifferentFile = $this->createTaskListItem([
+            'task_list_id' => $taskListC->getId(),
+            'companies_action_id' => $companyAction->getId(),
+            'name' => 'Privacy Disclosure',
+            'config' => [
+                'id' => 888888,
+                'file_name' => 'privacy-disclosure.pdf',
+            ],
+            'weight' => 1,
+        ]);
+
+        $message = Message::factory()->create([
+            'message' => [
+                'verb' => 'esign-docs',
+                'status' => 'submitted',
+                'data' => [
+                    'documentForms' => [
+                        ['filename' => 'working-disclosure-form.pdf'],
+                    ],
+                ],
+            ],
+        ]);
+
+        new ChangeTaskEngagementItemStatusAction(
+            taskListItem: $itemInA,
+            lead: $lead,
+            status: 'completed',
+            user: $user,
+            app: $app,
+            company: $company,
+            message: $message,
+        )->execute();
+
+        $matched = TaskEngagementItem::fromCompany($company)
+            ->fromApp($app)
+            ->where('task_list_item_id', $siblingMatching->getId())
+            ->where('lead_id', $lead->getId())
+            ->first();
+        $this->assertNotNull($matched);
+        $this->assertEquals('completed', $matched->status);
+
+        $unmatched = TaskEngagementItem::fromCompany($company)
+            ->fromApp($app)
+            ->where('task_list_item_id', $siblingDifferentFile->getId())
+            ->where('lead_id', $lead->getId())
+            ->first();
+        $this->assertNull($unmatched);
+
+        $company->del('checklist_auto_complete_siblings');
+    }
+
+    public function testCompleteSiblingChecklistItemsGetDocsSkipsWhenCurrentHasNoConfigId(): void
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $company->set('checklist_auto_complete_siblings', true);
+
+        $lead = Lead::factory()->create();
+
+        $action = $this->createAction([
+            'name' => 'Get Docs Action ' . fake()->uuid(),
+            'slug' => 'get-docs-action-' . fake()->uuid(),
+        ]);
+
+        $companyAction = $this->createCompanyAction([
+            'companies_id' => $company->getId(),
+            'companies_branches_id' => $company->branch()->firstOrFail()->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'actions_id' => $action->getId(),
+            'name' => 'Get Docs',
+        ]);
+
+        $taskListA = $this->createTaskList([
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Checklist A ' . fake()->uuid(),
+        ]);
+
+        $taskListB = $this->createTaskList([
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Checklist B ' . fake()->uuid(),
+        ]);
+
+        // Current task is a "generic" get-docs config — no top-level id.
+        $genericItem = $this->createTaskListItem([
+            'task_list_id' => $taskListA->getId(),
+            'companies_action_id' => $companyAction->getId(),
+            'name' => 'Generic Get Docs',
+            'config' => [
+                'steps' => [
+                    ['data' => ['remote-only' => ['chrome']], 'type' => 'open-customer-action'],
+                ],
+                'checkout' => ['hide' => true],
+            ],
+            'weight' => 1,
+        ]);
+
+        // Sibling with a specific id matching the message — must NOT be touched
+        // because the current task didn't claim any specific doc id.
+        $siblingWithId = $this->createTaskListItem([
+            'task_list_id' => $taskListB->getId(),
+            'companies_action_id' => $companyAction->getId(),
+            'name' => 'Bank Statements',
+            'config' => ['id' => 9],
+            'weight' => 1,
+        ]);
+
+        $message = Message::factory()->create([
+            'message' => [
+                'verb' => 'get-docs',
+                'status' => 'submitted',
+                'data' => [
+                    '9' => ['type' => ['id' => 9, 'name' => 'Bank Statements']],
+                ],
+            ],
+        ]);
+
+        new ChangeTaskEngagementItemStatusAction(
+            taskListItem: $genericItem,
+            lead: $lead,
+            status: 'completed',
+            user: $user,
+            app: $app,
+            company: $company,
+            message: $message,
+        )->execute();
+
+        $sibling = TaskEngagementItem::fromCompany($company)
+            ->fromApp($app)
+            ->where('task_list_item_id', $siblingWithId->getId())
+            ->where('lead_id', $lead->getId())
+            ->first();
+        $this->assertNull($sibling);
+
+        $company->del('checklist_auto_complete_siblings');
+    }
+
+    public function testCompleteSiblingChecklistItemsSignDocsSkipsWhenCurrentHasNoFileName(): void
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $company->set('checklist_auto_complete_siblings', true);
+
+        $lead = Lead::factory()->create();
+
+        $action = $this->createAction([
+            'name' => 'Sign Docs Action ' . fake()->uuid(),
+            'slug' => 'sign-docs-action-' . fake()->uuid(),
+        ]);
+
+        $companyAction = $this->createCompanyAction([
+            'companies_id' => $company->getId(),
+            'companies_branches_id' => $company->branch()->firstOrFail()->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'actions_id' => $action->getId(),
+            'name' => 'Sign Docs',
+        ]);
+
+        $taskListA = $this->createTaskList([
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Checklist A ' . fake()->uuid(),
+        ]);
+
+        $taskListB = $this->createTaskList([
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Checklist B ' . fake()->uuid(),
+        ]);
+
+        // Current task is a branched sign-docs config with no top-level file_name.
+        $branchedItem = $this->createTaskListItem([
+            'task_list_id' => $taskListA->getId(),
+            'companies_action_id' => $companyAction->getId(),
+            'name' => 'Remote Sign Proposal',
+            'config' => [
+                'steps' => [
+                    [
+                        'data' => [
+                            'steps' => [
+                                ['data' => ['id' => 21, 'title' => 'task.showroom'], 'type' => 'open-showroom'],
+                                ['data' => ['form' => ['type' => 'accept_decline'], 'title' => 'Remote Sign Proposal'], 'type' => 'open-customer-action'],
+                            ],
+                        ],
+                        'type' => 'branch',
+                    ],
+                ],
+            ],
+            'weight' => 1,
+        ]);
+
+        $siblingWithFilename = $this->createTaskListItem([
+            'task_list_id' => $taskListB->getId(),
+            'companies_action_id' => $companyAction->getId(),
+            'name' => 'Working Disclosure',
+            'config' => [
+                'id' => 678838,
+                'file_name' => 'working-disclosure-form.pdf',
+            ],
+            'weight' => 1,
+        ]);
+
+        $message = Message::factory()->create([
+            'message' => [
+                'verb' => 'esign-docs',
+                'status' => 'submitted',
+                'data' => [
+                    'documentForms' => [
+                        ['filename' => 'working-disclosure-form.pdf'],
+                    ],
+                ],
+            ],
+        ]);
+
+        new ChangeTaskEngagementItemStatusAction(
+            taskListItem: $branchedItem,
+            lead: $lead,
+            status: 'completed',
+            user: $user,
+            app: $app,
+            company: $company,
+            message: $message,
+        )->execute();
+
+        $sibling = TaskEngagementItem::fromCompany($company)
+            ->fromApp($app)
+            ->where('task_list_item_id', $siblingWithFilename->getId())
+            ->where('lead_id', $lead->getId())
+            ->first();
+        $this->assertNull($sibling);
+
         $company->del('checklist_auto_complete_siblings');
     }
 }

@@ -27,14 +27,16 @@ class GrantToolToAgentAction
         $this->validateProviderCompatibility();
 
         return DB::connection('intelligence')->transaction(function (): AgentTool {
+            // Don't filter by is_deleted here — a previously revoked row
+            // should be reactivated, not duplicated, when granting again.
             $existing = AgentTool::query()
                 ->where('agent_id', $this->agent->getId())
                 ->where('tool_id', $this->tool->getId())
-                ->where('is_deleted', 0)
                 ->first();
 
             if ($existing instanceof AgentTool) {
                 $existing->is_active = true;
+                $existing->is_deleted = false;
                 $existing->granted_by_users_id = $this->grantedByUserId;
                 $existing->granted_at = Carbon::now();
                 $existing->expires_at = $this->expiresAt;
@@ -51,6 +53,7 @@ class GrantToolToAgentAction
                 $grant->granted_at = Carbon::now();
                 $grant->expires_at = $this->expiresAt;
                 $grant->is_active = true;
+                $grant->is_deleted = false;
                 $grant->config = $this->config;
                 $grant->saveOrFail();
             }

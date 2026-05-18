@@ -4,19 +4,29 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Ledger\Events;
 
+use Baka\Traits\LimitsBroadcastPayload;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Kanvas\NervousSystem\Ledger\Enums\LedgerQueueEnum;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Override;
 
-class LedgerEventBroadcast implements ShouldBroadcastNow
+class LedgerEventBroadcast implements ShouldBroadcast
 {
     use Dispatchable;
     use InteractsWithSockets;
+    use LimitsBroadcastPayload;
     use SerializesModels;
+
+    /**
+     * Fire on the dedicated ledger worker — keeps Pusher latency off
+     * the request thread and isolates broadcast failures from the
+     * ledger write that triggered them.
+     */
+    public string $broadcastQueue = LedgerQueueEnum::LEDGER->value;
 
     public function __construct(
         public Event $event,
@@ -74,9 +84,11 @@ class LedgerEventBroadcast implements ShouldBroadcastNow
             'source_entity_type' => $this->event->source_entity_type,
             'source_entity_id' => $this->event->source_entity_id,
             'event_type' => $this->event->event_type,
+            'category' => Event::categoryFor($this->event->event_type, $this->event->status)?->value,
             'actor_type' => $this->event->actor_type,
             'actor_id' => $this->event->actor_id,
             'status' => $this->event->status,
+            'payload' => $this->limitBroadcastPayload($this->event->payload),
             'duration_ms' => $this->event->duration_ms,
             'correlation_id' => $this->event->correlation_id,
             'causation_id' => $this->event->causation_id,
