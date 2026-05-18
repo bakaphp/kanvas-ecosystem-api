@@ -71,7 +71,11 @@ class ZohoService
         $data = $this->applySponsorData($agentInfo, $data);
 
         if ($zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
-            $data['Lead_Routing'] = $zohoOwnerAgent ? $zohoOwnerAgent->Lead_Routing : (string) $this->company->get('default_lead_routing');
+            if ($zohoOwnerAgent instanceof Agent && $zohoOwnerAgent->users_linked_source_id) {
+                $zohoOwnerAgent = $this->zohoCrm->agents->get($zohoOwnerAgent->users_linked_source_id);
+            }
+
+            $data['Lead_Routing'] = $zohoOwnerAgent !== null ? $zohoOwnerAgent->Lead_Routing : (string) $this->company->get('default_lead_routing');
 
             $this->lastCreateAgentRequest = $data;
             $this->lastCreateAgentRequest['zohoOwnerAgent'] = $zohoOwnerAgent;
