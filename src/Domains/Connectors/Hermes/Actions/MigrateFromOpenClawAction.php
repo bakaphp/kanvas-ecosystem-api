@@ -319,10 +319,10 @@ class MigrateFromOpenClawAction
      *     we pass `claw migrate` — not `hermes claw migrate` — or the CLI sees a doubled prefix
      *     and exits with code 2 (silently treated as success by an EXIT_CODE:1-only check).
      *  2. The in-container hermes user is UID 10000. The staging dir must be chowned to 10000
-     *     before the run; host-user ownership (~1000) causes permission denied on the read.
-     *  3. The canonical target mount is /opt/data (per upstream docs). Mounting hermesDir at its
-     *     own host path lets --workspace-target work, but /opt/data is what the bootstrap and
-     *     first-run logic use — mounting there is safer and matches the docs exactly.
+     *     before the run; host-user ownership (~1000) causes permission denied on every read.
+     *  3. The canonical target mount is /opt/data (per upstream docs). We also use an explicit
+     *     /opt/openclaw-source mount + --source flag rather than relying on auto-detection,
+     *     so the invocation is self-documenting and immune to default-path changes.
      */
     private function runMigrateCommand(SshClient $client, string $stagingDir, AgentDeployment $deployment): void
     {
@@ -337,12 +337,18 @@ class MigrateFromOpenClawAction
 
         $imageName = (new DockerComposeBuilder())->getSharedImageName($this->app);
 
+        $containerSourcePath = '/opt/openclaw-source';
+        $containerTargetPath = '/opt/data';
+
         $result = $client->exec(
             'sudo docker run --rm'
-            . ' -v ' . escapeshellarg($stagingDir) . ':/home/hermes/.openclaw'
-            . ' -v ' . escapeshellarg($hermesDir) . ':/opt/data'
+            . ' -v ' . escapeshellarg($stagingDir) . ':' . $containerSourcePath
+            . ' -v ' . escapeshellarg($hermesDir) . ':' . $containerTargetPath
             . ' ' . escapeshellarg($imageName)
-            . ' claw migrate --migrate-secrets --yes 2>&1'
+            . ' claw migrate'
+            . ' --source ' . escapeshellarg($containerSourcePath)
+            . ' --workspace-target ' . escapeshellarg($containerTargetPath)
+            . ' --migrate-secrets --yes 2>&1'
             . '; echo "EXIT_CODE:$?"',
             300
         );
