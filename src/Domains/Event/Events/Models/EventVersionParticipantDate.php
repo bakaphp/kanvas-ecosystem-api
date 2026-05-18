@@ -13,8 +13,6 @@ class EventVersionParticipantDate extends BaseModel
     protected $table = 'event_version_date_participants';
     protected $guarded = [];
 
-    protected $is_deleted;
-
     public function eventVersionDate(): BelongsTo
     {
         return $this->belongsTo(EventVersionDate::class);

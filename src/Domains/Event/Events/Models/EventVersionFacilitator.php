@@ -13,8 +13,6 @@ class EventVersionFacilitator extends BaseModel
     protected $table = 'event_version_facilitators';
     protected $guarded = [];
 
-    protected $is_deleted;
-
     public function eventVersion(): BelongsTo
     {
         return $this->belongsTo(EventVersion::class);

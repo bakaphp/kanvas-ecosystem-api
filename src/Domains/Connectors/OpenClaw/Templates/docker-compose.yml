@@ -3,6 +3,8 @@ name: {{CONTAINER_NAME}}
 services:
   openclaw-gateway:
     image: {{IMAGE_NAME}}
+    build:
+      context: {{IMAGE_DIR}}
     container_name: {{CONTAINER_NAME}}
     restart: unless-stopped
     stdin_open: true
@@ -25,7 +27,7 @@ services:
     command: "TCP-LISTEN:18790,fork,bind=0.0.0.0,reuseaddr TCP:127.0.0.1:18789"
 
   openclaw-cli:
-    image: ghcr.io/phioranex/openclaw-docker:latest
+    image: {{BASE_IMAGE}}
     container_name: {{CONTAINER_NAME}}-cli
     stdin_open: true
     tty: true
@@ -34,6 +36,6 @@ services:
       - {{OPENCLAW_DIR}}/workspace:/home/node/.openclaw/workspace
     environment:
       - NODE_ENV=production
-    entrypoint: ["node", "/app/dist/index.js"]
+    entrypoint: ["node", "/app/openclaw.mjs"]
     profiles:
       - cli

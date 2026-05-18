@@ -20,6 +20,7 @@ class CreateAgentAction
             'apps_id' => $this->agent->app->id,
             'companies_id' => $this->agent->company->id,
             'user_id' => $this->agent->user->id,
+            'created_by_users_id' => $this->agent->createdBy?->id ?? $this->agent->user->id,
             'agent_type_id' => $this->agent->agentType->id,
             'agent_model_id' => $this->agent->agentModel?->id ?? null,
             'name' => $this->agent->name,

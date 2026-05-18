@@ -9,12 +9,16 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\ProcessAgentChatAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Factories\NeuronAgentFactory;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateUserSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
+use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use NeuronAI\Chat\Messages\UserMessage;
 
 class AgentChatMutation
 {
@@ -26,8 +30,8 @@ class AgentChatMutation
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         /** @var Agent $agent */
-        $agent = Agent::getByIdFromCompanyApp(
-            id: $input['agent_id'],
+        $agent = Agent::getByIdWithGlobalFallback(
+            id: (int) $input['agent_id'],
             app: $app,
             company: $company
         );
@@ -42,6 +46,7 @@ class AgentChatMutation
             app: $app,
             company: $company,
             user: $user,
+            images: $input['images'] ?? [],
         )->execute();
     }
 
@@ -99,6 +104,35 @@ class AgentChatMutation
         return $chatSession->uuid;
     }
 
+    public function neuronChat(mixed $root, array $req): string
+    {
+        // $app = app(Apps::class);
+        // $user = auth()->user();
+        // $input = $req['input'] ?? [];
+
+        // $entity = SystemModulesRepository::getEntityFromInput(
+        //     new SystemModuleEntityInput(
+        //         name: (string) $input['name'],
+        //         systemModuleUuid: (string) $input['system_modules_uuid'],
+        //         entityId: (string) $input['entity_id'],
+        //     ),
+        //     $user,
+        // );
+
+        // $neuronAgent = NeuronAgentFactory::fromName(
+        //     name: (string) $input['name'],
+        //     app: $app,
+        //     entity: $entity,
+        //     user: $user,
+        // );
+        // $neuronAgent->setThreadId((string) $input['entity_id']);
+
+        // $response = $neuronAgent->chat(new UserMessage((string) $input['message']))->getMessage();
+
+        // return (string) $response->getContent();
+        return '';
+    }
+
     public function userChat(mixed $root, array $req): array
     {
         $app = app(Apps::class);
@@ -106,8 +140,8 @@ class AgentChatMutation
         $company = $user->getCurrentCompany();
         $input = $req['input'] ?? [];
 
-        $agent = Agent::getByIdFromCompanyApp(
-            id: $input['agent_id'],
+        $agent = Agent::getByIdWithGlobalFallback(
+            id: (int) $input['agent_id'],
             app: $app,
             company: $company
         );
@@ -172,6 +206,7 @@ class AgentChatMutation
             app: $app,
             company: $company,
             user: $user,
+            images: $input['images'] ?? [],
         )->execute();
 
         return [

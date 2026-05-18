@@ -236,13 +236,13 @@ class SendDelayMessageCommand extends Command
         Message $message,
         string $communicationChannel
     ): void {
-        if (! $lead->get(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value)) {
-            $lead->set(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
-        }
+        // if (! $lead->get(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value)) {
+        //     $lead->set(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
+        // }
 
-        if ($lead->get(LeadsEnumsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value)) {
-            return;
-        }
+        // if ($lead->get(LeadsEnumsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value)) {
+        //     return;
+        // }
 
         $communicationChannelNumber = $message->message['chat_jid'] ?? null;
         if (! $communicationChannelNumber) {

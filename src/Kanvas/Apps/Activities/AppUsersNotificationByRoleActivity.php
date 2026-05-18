@@ -9,11 +9,13 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Actions\AppUsersNotificationByRoleAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
 class AppUsersNotificationByRoleActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public $tries = 2;
 
+    #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);

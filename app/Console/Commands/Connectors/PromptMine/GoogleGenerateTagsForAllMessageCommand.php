@@ -12,7 +12,7 @@ use Kanvas\Connectors\Google\Actions\GenerateMessageTagAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Tags\Models\Tag;
-use Prism\Prism\Exceptions\PrismException;
+use Laravel\Ai\Exceptions\AiException;
 
 class GoogleGenerateTagsForAllMessageCommand extends Command
 {
@@ -88,7 +88,7 @@ class GoogleGenerateTagsForAllMessageCommand extends Command
                     tags: $allTags,
                     messageContentIndexes: ['prompt', 'title']
                 );
-            } catch (PrismException $e) {
+            } catch (AiException $e) {
                 $this->error('Error generating tags for message ID ' . $message->getId() . ': ' . $e->getMessage());
                 $this->output->progressAdvance();
 

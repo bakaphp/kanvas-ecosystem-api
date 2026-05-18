@@ -16,8 +16,7 @@ class ReconcileCustomerItemsCommand extends Command
     protected $signature = 'netsuite:reconcile-customer-items
         {app_id : The app ID to scope reconciliation to}
         {--dry-run : Diff only, do not re-run sync}
-        {--company=* : Limit to specific buyer company IDs (repeatable)}
-        {--saved-search=576 : NetSuite saved search ID for product list}';
+        {--company=* : Limit to specific buyer company IDs (repeatable)}';
 
     protected $description = 'Reconcile NetSuite customer items list against channel product variants';
 
@@ -36,8 +35,7 @@ class ReconcileCustomerItemsCommand extends Command
         $output = new SyncAllNetSuiteCustomerItemsListAction(
             $app,
             (bool) $this->option('dry-run'),
-            $companyIds,
-            $this->option('saved-search')
+            $companyIds
         )->execute();
 
         $rows = array_map(function (array $entry): array {

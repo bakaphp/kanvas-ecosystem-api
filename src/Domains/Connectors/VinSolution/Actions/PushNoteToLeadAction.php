@@ -42,10 +42,19 @@ class PushNoteToLeadAction
             $vinUserId,
             $this->lead->app,
         );
+
+        $vinLeadId = $this->lead->get(CustomFieldEnum::LEADS->value);
+
+        if (! $vinLeadId) {
+            throw new VinSolutionException(
+                'Lead not found in VinSolution',
+            );
+        }
+
         $vinLead = Lead::getById(
             $vinCompany,
             $user,
-            $this->lead->get(CustomFieldEnum::LEADS->value)
+            $vinLeadId
         );
 
         $note = $note === null ? $this->getNote($this->message->getMessage()) : $note;

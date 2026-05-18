@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Organizations\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Models\BaseModel;
+use Kanvas\Guild\Organizations\Observers\OrganizationPeopleObserver;
 
 /**
  * Class Organization.
@@ -17,6 +19,7 @@ use Kanvas\Guild\Models\BaseModel;
  * @property int $peoples_id
  * @property string $created_at
  */
+#[ObservedBy([OrganizationPeopleObserver::class])]
 class OrganizationPeople extends BaseModel
 {
     use NoAppRelationshipTrait;

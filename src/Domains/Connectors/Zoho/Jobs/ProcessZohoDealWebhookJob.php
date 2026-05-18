@@ -189,12 +189,19 @@ class ProcessZohoDealWebhookJob extends ProcessWebhookJob
         Companies $company
     ): void {
         try {
-            $attachments = $zohoCrm->deals->getRelatedRecords($zohoDealId, 'Attachments');
+            $attachmentsRaw = $zohoCrm->deals->getRelatedRecords($zohoDealId, 'Attachments');
         } catch (Throwable) {
             return;
         }
 
-        if (! is_array($attachments) || $attachments === []) {
+        if (! is_array($attachmentsRaw) || $attachmentsRaw === []) {
+            return;
+        }
+        // Zoho wraps records in {"data": [...], "info": {...}} — unwrap the data list
+        $attachments = isset($attachmentsRaw['data']) && is_array($attachmentsRaw['data'])
+            ? $attachmentsRaw['data']
+            : $attachmentsRaw;
+        if ($attachments === []) {
             return;
         }
 
@@ -259,12 +266,18 @@ class ProcessZohoDealWebhookJob extends ProcessWebhookJob
         try {
             $zohoCrm->deals->downloadAttachment($zohoDealId, $attachmentId, $resource);
         } catch (Throwable) {
-            fclose($resource);
+            /** @psalm-suppress RedundantCondition — Zoho SDK may close the stream itself */
+            if (is_resource($resource)) {
+                fclose($resource);
+            }
             @unlink($tmpPath);
 
             return;
         }
-        fclose($resource);
+        /** @psalm-suppress RedundantCondition — Zoho SDK may close the stream itself */
+        if (is_resource($resource)) {
+            fclose($resource);
+        }
 
         try {
             $mime = (string) (mime_content_type($tmpPath) ?: 'application/octet-stream');

@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\EchoPay\Handlers;
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\EchoPay\Client;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
+use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Override;
 
 class EchoPayHandler extends BaseIntegration
@@ -33,6 +34,10 @@ class EchoPayHandler extends BaseIntegration
         $this->app->set(ConfigurationEnum::MERCHANT_KEY->value, $merchantKey);
         $this->app->set(ConfigurationEnum::MERCHANT_SECRET->value, $merchantSecret);
         $this->app->set(ConfigurationEnum::REDIRECT_URL->value, $redirectUrl);
+
+        if (EchoPayService::shouldUseMock($this->app)) {
+            return true;
+        }
 
         $client = new Client($this->app, $this->company);
 

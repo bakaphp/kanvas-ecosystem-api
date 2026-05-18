@@ -5,25 +5,23 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Triggers\Actions;
 
 use Carbon\Carbon;
+use Exception;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
+use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 
+use function Sentry\captureException;
+
 class ApplyLeadAiModeV1Action
 {
-    private const MANUAL_TRIGGERS = [
-        TriggersEnum::MANUAL_OFF->value,
-        TriggersEnum::MANUAL_SUPPORT->value,
-        TriggersEnum::MANUAL_FON->value,
-    ];
-
     public function __construct(
         protected Lead $lead,
         protected int $triggerType,
@@ -33,7 +31,7 @@ class ApplyLeadAiModeV1Action
     public function execute(): array
     {
         if ($this->lead->get('ai_mode') == IntelligenceModeEnum::OFF->value
-            && ! in_array($this->triggerType, self::MANUAL_TRIGGERS)) {
+            && ! in_array($this->triggerType, TriggersEnum::manualTriggerValues(), true)) {
             return [
                 'changed' => false,
                 'message' => 'Currently Lead is in OFF mode',
@@ -92,6 +90,14 @@ class ApplyLeadAiModeV1Action
             : FollowUpTypeEnum::LEAD_FOLLOW_UP;
 
         $this->lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, $followUp->value);
+
+        try {
+            foreach ($this->lead->socialChannels as $channel) {
+                UnrespondedLeadAgentMessageCache::clear($this->lead, $channel);
+            }
+        } catch (Exception $e) {
+            captureException($e);
+        }
     }
 
     protected function setMode(string $aiMode, FollowUpTypeEnum $followUp): void
@@ -121,11 +127,13 @@ class ApplyLeadAiModeV1Action
             )
         )->execute();
 
+        $user = $this->lead->company->getAiAgentUser() ?? $this->lead->user;
+
         $createMessageAction = new CreateMessageAction(
             new MessageInput(
                 app: $this->lead->app,
                 company: $this->lead->company,
-                user: $this->lead->user,
+                user: $user,
                 type: $messageType,
                 message: [
                     'content' => $noteContent,
@@ -135,6 +143,6 @@ class ApplyLeadAiModeV1Action
         );
         $createMessageAction->runWorkflow = true;
         $message = $createMessageAction->execute();
-        $notesChannel->addMessage($message, $this->lead->user);
+        $notesChannel->addMessage($message, $user);
     }
 }

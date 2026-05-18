@@ -27,6 +27,8 @@ use Throwable;
 class UpdateVariantPriceJob extends ProcessWebhookJob
 {
     use KanvasJobsTrait;
+
+    protected const int RELATED_VARIANTS_RESPONSE_LIMIT = 20;
     public Channels $channel;
     public Warehouses $warehouse;
     public CompaniesBranches $companiesBranches;
@@ -141,7 +143,6 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
 
                 $variant->setTranslation('name', 'es', TranslateToSpanishAction::execute($variant->name) ?? $variant->name);
                 $variant->setTranslation('description', 'es', TranslateToSpanishAction::execute($variant->description) ?? $variant->description);
-                $variant->refresh()->load(['product', 'attributes', 'files', 'customFields']);
             } else {
                 $variant->updatePriceInChannel(
                     $this->channel,
@@ -164,22 +165,30 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
                 foreach ($mappedProduct['files'] as $file) {
                     $variant->addFileFromUrl($file['url'], $file['name']);
                 }
-                $variant->refresh()->load(['product', 'attributes', 'files', 'customFields']);
                 // UpdateFileSystemJob::dispatch($variant, $files);
             }
 
-            $variantData = $variant->toArray();
+            $variantData = [
+                'id' => $variant->getId(),
+                'uuid' => $variant->uuid,
+                'name' => $variant->name,
+                'slug' => $variant->slug,
+                'sku' => $variant->sku,
+                'products_id' => $variant->products_id,
+                'channel' => new ChannelInfoType()->price($variant, []),
+                'product' => Products::query()
+                    ->withTrashed()
+                    ->select(['id', 'uuid', 'name', 'slug'])
+                    ->where('id', $variant->products_id)
+                    ->first(),
+            ];
 
-            $variantData['channel'] = new ChannelInfoType()->price($variant, []);
-            $variantData['product'] = Products::with(['files', 'categories'])
-            ->where('id', $variant->products_id)
-            ->withTrashed()
-                ->first()
-                ->toArray();
-
-            $variants = Variants::with(['files', 'attributes'])
+            $variants = Variants::query()
+                ->select(['id', 'uuid', 'name', 'slug', 'sku', 'products_id'])
                 ->where('products_id', $productModel->getId())
                 ->where('apps_id', $this->receiver->app->getId())
+                ->orderBy('id')
+                ->limit(self::RELATED_VARIANTS_RESPONSE_LIMIT)
                 ->get();
 
             $variantData['translation'] = [
@@ -191,16 +200,15 @@ class UpdateVariantPriceJob extends ProcessWebhookJob
             $variantData['product_information'] = $customDict['product_information'] ?? [];
             $variantData['feature_bullets'] = $customDict['feature_bullets'] ?? [];
 
-            $variants = Variants::with(['files', 'attributes'])
-                ->where('products_id', $productModel->getId())
-                ->where('apps_id', $this->receiver->app->getId())
-                ->get();
-
             return [
                 'price' => $mappedProduct['price'],
                 'discounted_price' => $mappedProduct['discountPrice'] ?? null,
                 'variant' => $variantData,
                 'variants' => $variants,
+                'variants_total' => Variants::query()
+                    ->where('products_id', $productModel->getId())
+                    ->where('apps_id', $this->receiver->app->getId())
+                    ->count(),
             ];
         } catch (UniqueConstraintViolationException $e) {
         } catch (ValidationException $e) {

@@ -120,26 +120,20 @@ class CompaniesBranches extends BaseModel
 
     public function searchableAs(): string
     {
-        return config('scout.prefix') . '_companies_branches';
+        return config('scout.prefix') . 'company_branches';
     }
 
     public function toSearchableArray(): array
     {
         return [
-            'id' => (string) $this->getKey(),
-            'companies_id' => (int) $this->companies_id,
-            'users_id' => (int) $this->users_id,
-            'name' => (string) ($this->name ?? ''),
-            'email' => (string) ($this->email ?? ''),
-            'phone' => (string) ($this->phone ?? ''),
-            'address' => (string) ($this->address ?? ''),
-            'city' => (string) ($this->city ?? ''),
-            'state' => (string) ($this->state ?? ''),
-            'zipcode' => (string) ($this->zipcode ?? ''),
-            'is_default' => (bool) $this->is_default,
-            'is_active' => (bool) $this->is_active,
-            'is_deleted' => (bool) $this->is_deleted,
-            'created_at' => $this->created_at ? $this->created_at->timestamp : null,
+            'id' => (string) $this->id,
+            'companies_id' => $this->companies_id,
+            'users_id' => $this->users_id,
+            'name' => $this->name ?? '',
+            'email' => $this->email ?? '',
+            'phone' => $this->phone ?? '',
+            'is_default' => (int) $this->is_default,
+            'is_active' => (int) $this->is_active,
         ];
     }
 
@@ -151,17 +145,11 @@ class CompaniesBranches extends BaseModel
                 ['name' => 'id', 'type' => 'string'],
                 ['name' => 'companies_id', 'type' => 'int64'],
                 ['name' => 'users_id', 'type' => 'int64'],
-                ['name' => 'name', 'type' => 'string', 'sort' => true],
+                ['name' => 'name', 'type' => 'string', 'optional' => true],
                 ['name' => 'email', 'type' => 'string', 'optional' => true],
                 ['name' => 'phone', 'type' => 'string', 'optional' => true],
-                ['name' => 'address', 'type' => 'string', 'optional' => true],
-                ['name' => 'city', 'type' => 'string', 'optional' => true],
-                ['name' => 'state', 'type' => 'string', 'optional' => true],
-                ['name' => 'zipcode', 'type' => 'string', 'optional' => true],
-                ['name' => 'is_default', 'type' => 'bool'],
-                ['name' => 'is_active', 'type' => 'bool'],
-                ['name' => 'is_deleted', 'type' => 'bool'],
-                ['name' => 'created_at', 'type' => 'int64', 'optional' => true],
+                ['name' => 'is_default', 'type' => 'int32', 'optional' => true],
+                ['name' => 'is_active', 'type' => 'int32', 'optional' => true],
             ],
         ];
     }

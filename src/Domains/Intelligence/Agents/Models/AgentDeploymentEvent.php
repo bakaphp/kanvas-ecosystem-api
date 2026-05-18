@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Intelligence\Agents\Enums\AgentDeploymentEventTypeEnum;
 
 /**
  * @property int         $id
@@ -17,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class AgentDeploymentEvent extends Model
 {
     protected $connection = 'intelligence';
-    protected $table      = 'agent_deployment_events';
+    protected $table = 'agent_deployment_events';
 
     public $timestamps = false;
 
@@ -29,38 +30,30 @@ class AgentDeploymentEvent extends Model
     ];
 
     protected $casts = [
-        'payload'     => 'array',
+        'payload' => 'array',
         'occurred_at' => 'datetime',
     ];
-
-    // ── Event type constants ───────────────────────────────────────────────
-
-    public const GATEWAY_DOWN       = 'gateway_down';
-    public const GATEWAY_UP         = 'gateway_up';
-    public const HEALTH_FAIL        = 'health_fail';
-    public const HEALTH_RECOVER     = 'health_recover';
-    public const SESSION_STARTED    = 'session_started';
-    public const AGENT_UNREACHABLE  = 'agent_unreachable';
-
-    // ── Relations ─────────────────────────────────────────────────────────
 
     public function deployment(): BelongsTo
     {
         return $this->belongsTo(AgentDeployment::class, 'deployment_id');
     }
 
-    // ── Factory helper ────────────────────────────────────────────────────
-
     /**
      * @param array<string, mixed> $payload
      */
-    public static function record(int $deploymentId, string $eventType, array $payload = []): self
-    {
+    public static function record(
+        int $deploymentId,
+        AgentDeploymentEventTypeEnum|string $eventType,
+        array $payload = [],
+    ): self {
         return static::create([
             'deployment_id' => $deploymentId,
-            'event_type'    => $eventType,
-            'payload'       => $payload ?: null,
-            'occurred_at'   => now(),
+            'event_type' => $eventType instanceof AgentDeploymentEventTypeEnum
+                ? $eventType->value
+                : $eventType,
+            'payload' => $payload ?: null,
+            'occurred_at' => now(),
         ]);
     }
 }

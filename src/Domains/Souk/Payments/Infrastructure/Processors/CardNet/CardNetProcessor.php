@@ -418,7 +418,6 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
 
             if ($response->isApproved() && $payment->status !== PaymentStatusEnum::PAID->value) {
                 $payment->markAsPaid($responseData);
-                $order->markAsPaid($payment->user);
             }
 
             $payment->addLog('verify_payment', $responseData);

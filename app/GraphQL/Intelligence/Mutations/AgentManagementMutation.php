@@ -15,6 +15,8 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
+use Kanvas\NervousSystem\Capability\Models\Tool;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class AgentManagementMutation
 {
@@ -32,16 +34,20 @@ class AgentManagementMutation
 
         $input = $this->mapRoleToFields($input);
 
+        $personaUser = isset($input['user_id'])
+            ? UsersRepository::getUserOfAppById((int) $input['user_id'], $app)
+            : auth()->user();
+
         $agentDTO = new AgentDTO(
             app: $app,
             company: $company,
-            user: auth()->user(),
+            user: $personaUser,
             agentModel: $agentModel,
             agentType: $agentType,
             name: $input['name'],
             role: $input['role'],
             is_active: $input['is_active'],
-            description: $input['description'],
+            description: $input['description'] ?? null,
             config: $input['config'],
             task: $task,
             communicationChannel: $input['communication_channels'] ?? [],
@@ -52,12 +58,17 @@ class AgentManagementMutation
             userContext: $input['user_context'] ?? null,
             toolsConfig: $input['tools_config'] ?? null,
             parentAgent: $parentAgent,
+            createdBy: auth()->user(),
         );
 
         $agent = new CreateAgentAction($agentDTO)->execute();
 
         if (! empty($input['swarm_ids'])) {
             $this->syncSwarms($agent, $input['swarm_ids'], $company, $app);
+        }
+
+        if (isset($input['tool_ids'])) {
+            $this->syncTools($agent, $input['tool_ids'], $app);
         }
 
         return $agent;
@@ -77,17 +88,20 @@ class AgentManagementMutation
             : null;
 
         $input = $this->mapRoleToFields($input);
+        $personaUser = isset($input['user_id'])
+            ? UsersRepository::getUserOfAppById((int) $input['user_id'], $app)
+            : ($agent->user ?? auth()->user());
 
         $agentDTO = new AgentDTO(
             app: $app,
             company: $company,
-            user: auth()->user(),
+            user: $personaUser,
             agentType: $agentType,
             agentModel: $agentModel,
             name: $input['name'],
             role: $input['role'],
             is_active: $input['is_active'],
-            description: $input['description'],
+            description: $input['description'] ?? null,
             config: $input['config'],
             task: $task,
             communicationChannel: $input['communication_channels'] ?? [],
@@ -104,6 +118,10 @@ class AgentManagementMutation
 
         if (isset($input['swarm_ids'])) {
             $this->syncSwarms($agent, $input['swarm_ids'], $company, $app);
+        }
+
+        if (isset($input['tool_ids'])) {
+            $this->syncTools($agent, $input['tool_ids'], $app);
         }
 
         return $agent;
@@ -143,6 +161,23 @@ class AgentManagementMutation
         }
 
         return $input;
+    }
+
+    /**
+     * @param array<int, string> $toolIds
+     */
+    private function syncTools(Agent $agent, array $toolIds, AppInterface $app): void
+    {
+        $ids = [];
+        foreach ($toolIds as $toolId) {
+            $tool = Tool::query()
+                ->where('id', (int) $toolId)
+                ->fromApp($app)
+                ->firstOrFail();
+            $ids[] = $tool->getId();
+        }
+
+        $agent->selectedTools()->sync($ids);
     }
 
     /**

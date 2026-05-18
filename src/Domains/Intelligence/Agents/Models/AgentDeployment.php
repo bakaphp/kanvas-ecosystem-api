@@ -23,6 +23,7 @@ use Override;
  * @property int $gateway_port
  * @property int $proxy_port
  * @property string $container_name
+ * @property string|null $provider
  * @property string $status
  * @property Carbon|null $launched_at
  * @property Carbon|null $terminated_at
@@ -48,6 +49,7 @@ class AgentDeployment extends BaseModel
         'gateway_port',
         'proxy_port',
         'container_name',
+        'provider',
         'status',
         'launched_at',
         'terminated_at',

@@ -11,9 +11,10 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Prism\Prism\Enums\Provider;
-use Prism\Prism\Facades\Prism;
+use Laravel\Ai\Enums\Lab;
 use Throwable;
+
+use function Laravel\Ai\agent;
 
 class FixPromptDataCommand extends Command
 {
@@ -324,10 +325,11 @@ class FixPromptDataCommand extends Command
             $this->info('Added message type to message data: ' . $messageData['type']);
             if (! isset($messageData['nugget']) && $messageData['type'] === 'text-format') {
                 $this->info('Generating nugget for message ID: ' . $message->getId());
-                $response = Prism::text()
-                    ->using(Provider::Gemini, 'gemini-2.0-flash')
-                    ->withPrompt($parentMessageData['prompt'])
-                    ->asText();
+                $response = agent()->prompt(
+                    $parentMessageData['prompt'],
+                    provider: Lab::Gemini,
+                    model: 'gemini-2.5-flash',
+                );
 
                 $responseText = str_replace(['```', 'json'], '', $response->text);
                 $messageData['nugget'] = $responseText;
@@ -401,10 +403,11 @@ class FixPromptDataCommand extends Command
             return;
         }
 
-        $response = Prism::text()
-            ->using(Provider::Gemini, 'gemini-2.0-flash')
-            ->withPrompt($messageData['prompt'])
-            ->asText();
+        $response = agent()->prompt(
+            $messageData['prompt'],
+            provider: Lab::Gemini,
+            model: 'gemini-2.5-flash',
+        );
 
         $responseText = str_replace(['```', 'json'], '', $response->text);
         $nuggetId = DB::connection('social')->table('messages')->insertGetId([

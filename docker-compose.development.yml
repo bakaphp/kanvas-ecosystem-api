@@ -6,7 +6,9 @@ x-common-queue-settings: &common-queue-settings
   command:
     - "sh"
     - "-c"
-    - "php artisan config:cache && php artisan queue:work --tries=3 --queue=default,notifications,kanvas-social,batch-logger,imports --timeout=3750"
+    - "php artisan config:cache && php artisan queue:work
+      --tries=3 --queue=default,notifications,kanvas-social,batch-logger,imports
+      --timeout=3750"
   environment:
     WWWUSER: "${WWWUSER}"
     LARAVEL_SAIL: 1
@@ -66,7 +68,8 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=batch-logger --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work --queue=batch-logger
+        --tries=3 --timeout=3750"
 
   queue-social:
     <<: *common-queue-settings
@@ -74,7 +77,8 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=kanvas-social --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work
+        --queue=kanvas-social --tries=3 --timeout=3750"
 
   queue-notifications:
     <<: *common-queue-settings
@@ -82,7 +86,8 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=notifications --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work
+        --queue=notifications --tries=3 --timeout=3750"
 
   queue-user-interactions:
     <<: *common-queue-settings
@@ -90,7 +95,8 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=user-interactions --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work
+        --queue=user-interactions --tries=3 --timeout=3750"
 
   queue-imports:
     <<: *common-queue-settings
@@ -98,7 +104,8 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=imports --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work --queue=imports
+        --tries=3 --timeout=3750"
 
   queue-scrapper:
     <<: *common-queue-settings
@@ -106,7 +113,8 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=scrapper-queue --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work
+        --queue=scrapper-queue --tries=3 --timeout=3750"
 
   queue-sync-shopify:
     <<: *common-queue-settings
@@ -114,7 +122,8 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=sync-shopify-queue --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work
+        --queue=sync-shopify-queue --tries=3 --timeout=3750"
 
   queue-scout-worker:
     <<: *common-queue-settings
@@ -122,7 +131,8 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue scout --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work --queue scout
+        --tries=3 --timeout=3750"
 
   queue-workflow:
     <<: *common-queue-settings
@@ -130,15 +140,26 @@ services:
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=workflow --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work --queue=workflow
+        --tries=3 --timeout=3750"
 
-  openclaw-queue:
+  agent-runtime-queue:
     <<: *common-queue-settings
     # REMOVED container_name because replicas > 1
     command:
       - "sh"
       - "-c"
-      - "php artisan config:cache && php artisan queue:work --queue=openclaw --tries=3 --timeout=3750"
+      - "php artisan config:cache && php artisan queue:work --queue=agent-runtime
+        --tries=3 --timeout=3750"
+
+  ledger-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=ledger
+        --tries=3 --timeout=3750"
 
   laravel-scheduler:
     container_name: laravel-scheduler
@@ -179,7 +200,7 @@ services:
     depends_on:
       - php
     healthcheck:
-      test: ["CMD", "service", "nginx", "status"]
+      test: [ "CMD", "service", "nginx", "status" ]
       retries: 3
       timeout: 5s
 

@@ -1,14 +1,30 @@
 type Organization {
     id: ID!
     uuid: String!
-    company: Company! @belongsTo
-    user: User! @belongsTo
+    company: Company! @belongsTo(relation: "company")
+    user: User! @belongsTo(relation: "user")
     name: String!
     address: String
+    organization_type: OrganizationType @belongsTo(relation: "organizationType")
+    leads: [Lead!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Guild\\Queries\\Organizations\\OrganizationLeadsQuery@getLeadsBuilder"
+        )
+    total_employees: Int!
+    created_at: DateTime!
+    updated_at: DateTime
+    photo: Filesystem @method(name: "getPhoto")
     tags: [Tag!]
         @paginate(
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
         )
 }
 
@@ -19,6 +35,7 @@ input OrganizationInput {
     city: String
     state: String
     zip: String
+    organization_type_id: ID
 }
 
 input OrganizationPeopleInput {
@@ -55,12 +72,23 @@ extend type Mutation @guard {
 
 extend type Query @guard {
     organizations(
-        where: _ @whereConditions(columns: ["id", "name", "uuid"])
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+        search: String @search
+        where: _
+            @whereConditions(columns: ["id", "name", "uuid", "total_employees"])
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "total_employees"
+                ]
+            )
     ): [Organization!]!
         @paginate(
             model: "Kanvas\\Guild\\Organizations\\Models\\Organization"
-            scopes: ["fromCompany"]
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
             defaultCount: 25
         )
 }

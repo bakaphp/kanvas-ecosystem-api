@@ -1,0 +1,74 @@
+type OrganizationType {
+    id: ID!
+    uuid: ID!
+    company: Company! @belongsTo(relation: "company")
+    name: String!
+    slug: String!
+    description: String
+    config: Mixed
+    is_active: Boolean!
+    is_default: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+input OrganizationTypeInput {
+    name: String!
+    description: String
+    is_active: Boolean
+    is_default: Boolean
+    config: Mixed
+}
+
+input UpdateOrganizationTypeInput {
+    name: String
+    description: String
+    is_active: Boolean
+    is_default: Boolean
+    config: Mixed
+}
+
+extend type Mutation @guard {
+    createOrganizationType(input: OrganizationTypeInput!): OrganizationType!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationTypeManagementMutation@create"
+        )
+    updateOrganizationType(id: ID!, input: UpdateOrganizationTypeInput!): OrganizationType!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationTypeManagementMutation@update"
+        )
+    deleteOrganizationType(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationTypeManagementMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    organizationTypes(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "name"
+                    "slug"
+                    "is_active"
+                    "is_default"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "name"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+    ): [OrganizationType!]!
+        @paginate(
+            model: "Kanvas\\Guild\\Organizations\\Models\\OrganizationType"
+            defaultCount: 25
+            scopes: ["fromCompany", "notDeleted", "fromApp"]
+        )
+}

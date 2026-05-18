@@ -114,8 +114,10 @@ class ProductsTypes extends BaseModel
                             ->get()
                             ->map(function ($attribute) {
                                 $attribute->is_required = $attribute->pivot->is_required ?? false;
+
                                 return $attribute;
                             });
+
         return $attribute;
     }
 
@@ -130,6 +132,7 @@ class ProductsTypes extends BaseModel
                             ->get()
                             ->map(function ($attribute) {
                                 $attribute->is_required = $attribute->pivot->is_required ?? false;
+
                                 return $attribute;
                             });
     }

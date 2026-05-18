@@ -83,6 +83,7 @@ class Lead extends BaseModel implements EventResourceInterface
     use CanUseWorkflow;
     use HasLightHouseCache;
     use EventResourceTrait;
+
     protected $observables = [
         'softDeleting',
         'softDeleted',
@@ -424,7 +425,7 @@ class Lead extends BaseModel implements EventResourceInterface
             'pipeline_id' => $this->pipeline_id,
             'pipeline_stage_id' => $this->pipeline_stage_id,
             'people_id' => $this->people_id,
-            'organization_id' => $this->organization_id,
+            'organization_id' => (int) $this->organization_id,
             'leads_types_id' => $this->leads_types_id,
             'status' => $this->status,
             'created_at' => $this->created_at ? $this->created_at->timestamp : null,
@@ -515,6 +516,7 @@ class Lead extends BaseModel implements EventResourceInterface
                     'name' => 'organization_id',
                     'type' => 'int64',
                     'facet' => true,
+                    'optional' => true,
                 ],
                 [
                     'name' => 'leads_types_id',

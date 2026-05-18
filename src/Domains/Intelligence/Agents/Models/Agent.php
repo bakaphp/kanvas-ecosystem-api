@@ -20,10 +20,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Models\BaseModel;
+use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
 use Nevadskiy\Tree\AsTree;
 use Override;
@@ -37,6 +39,7 @@ use Override;
  * @property int|null $parent_id
  * @property string|null $path
  * @property int $user_id
+ * @property int|null $created_by_users_id
  * @property string $name
  * @property string $slug
  * @property string|null $description
@@ -67,7 +70,7 @@ class Agent extends BaseModel
     }
     use HasLightHouseCache;
 
-    protected $cascadeDeletes = ['deployments'];
+    protected $cascadeDeletes = ['deployments', 'swarmMemberships'];
 
     protected $fillable = [
         'uuid',
@@ -77,6 +80,7 @@ class Agent extends BaseModel
         'parent_id',
         'path',
         'user_id',
+        'created_by_users_id',
         'name',
         'slug',
         'description',
@@ -92,6 +96,8 @@ class Agent extends BaseModel
         'deployment_status',
         'agent_model_id',
         'is_active',
+        'awake_state',
+        'last_state_changed_at',
     ];
 
     protected $casts = [
@@ -99,12 +105,19 @@ class Agent extends BaseModel
         'role' => Json::class,
         'identity' => Json::class,
         'is_active' => 'boolean',
+        'last_state_changed_at' => 'datetime',
     ];
 
     #[Override]
     public function getGraphTypeName(): string
     {
         return 'AgentAi';
+    }
+
+    #[Override]
+    public function getRelations(?string $modelClass = null): array
+    {
+        return func_num_args() > 0 ? [] : $this->relations;
     }
 
     public function type(): BelongsTo
@@ -156,9 +169,94 @@ class Agent extends BaseModel
          ->withTimestamps();
     }
 
+    public function swarmMemberships(): HasMany
+    {
+        return $this->hasMany(AgentSwarmMember::class, 'agent_id');
+    }
+
+    public function selectedTools(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Tool::class,
+            'nervous_system_agent_selected_tools',
+            'agent_id',
+            'tool_id'
+        );
+    }
+
+    /**
+     * Module subscriptions for this agent. Each row carries a per-agent JSON
+     * `config` (e.g. which inventory integrations / channels / pipelines to
+     * watch). Soft-deleted rows are excluded by default; `is_active=false`
+     * rows are included so the UI can render disabled-but-configured state.
+     */
+    public function kanvasModules(): HasMany
+    {
+        return $this->hasMany(AgentKanvasModule::class, 'agent_id', 'id')
+            ->where('agents_kanvas_modules.is_deleted', 0);
+    }
+
+    public function activeKanvasModules(): HasMany
+    {
+        return $this->hasMany(AgentKanvasModule::class, 'agent_id', 'id')
+            ->where('agents_kanvas_modules.is_deleted', 0)
+            ->where('agents_kanvas_modules.is_active', 1);
+    }
+
+    public function dailyCycles(): HasMany
+    {
+        return $this->hasMany(AgentDailyCycle::class, 'agent_id', 'id')
+            ->where('agent_daily_cycles.is_deleted', 0)
+            ->orderBy('cycle_date', 'desc');
+    }
+
+    public function latestDailyCycle(): HasOne
+    {
+        return $this->hasOne(AgentDailyCycle::class, 'agent_id', 'id')
+            ->where('agent_daily_cycles.is_deleted', 0)
+            ->latestOfMany('cycle_date');
+    }
+
     public static function getModel(): Model
     {
         return new Agent();
+    }
+
+    /**
+     * Find an agent by ID scoped to the given company/app.
+     * Falls back to a global agent (companies_id = 0) or app-global (apps_id = 0) if not found.
+     */
+    public static function getByIdWithGlobalFallback(int $id, Apps $app, mixed $company): self
+    {
+        $companyId = is_int($company) ? $company : $company->getId();
+
+        $agent = self::where('id', $id)
+            ->notDeleted()
+            ->where(function ($q) use ($app, $companyId) {
+                $q->where(function ($q) use ($app, $companyId) {
+                    $q->where('apps_id', $app->getId())
+                        ->where('companies_id', $companyId);
+                })->orWhere(function ($q) use ($app) {
+                    $q->where('apps_id', $app->getId())
+                        ->where('companies_id', 0);
+                })->orWhere(function ($q) use ($companyId) {
+                    $q->where('apps_id', 0)
+                        ->where('companies_id', $companyId);
+                })->orWhere(function ($q) {
+                    $q->where('apps_id', 0)
+                        ->where('companies_id', 0);
+                });
+            })
+            ->orderByRaw('(apps_id = 0) ASC, (companies_id = 0) ASC')
+            ->first();
+
+        if (! $agent) {
+            throw new ModelNotFoundException(
+                sprintf('No Agent record found with ID %s for this app/company or globally', $id)
+            );
+        }
+
+        return $agent;
     }
 
     #[Override]
@@ -172,7 +270,16 @@ class Agent extends BaseModel
     {
         return $this->belongsTo(
             Users::class,
-            'users_id',
+            'user_id',
+            'id'
+        );
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(
+            Users::class,
+            'created_by_users_id',
             'id'
         );
     }
@@ -201,7 +308,7 @@ class Agent extends BaseModel
     public function toSearchableArray(): array
     {
         return [
-            'id' => $this->id,
+            'id' => (string) $this->id,
             'apps_id' => $this->apps_id,
             'companies_id' => $this->companies_id,
             'name' => $this->name,
@@ -216,6 +323,23 @@ class Agent extends BaseModel
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted();
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                ['name' => 'id', 'type' => 'string'],
+                ['name' => 'apps_id', 'type' => 'int64'],
+                ['name' => 'companies_id', 'type' => 'int64'],
+                ['name' => 'name', 'type' => 'string', 'optional' => true],
+                ['name' => 'slug', 'type' => 'string', 'optional' => true],
+                ['name' => 'description', 'type' => 'string', 'optional' => true],
+                ['name' => 'deployment_status', 'type' => 'string', 'optional' => true],
+                ['name' => 'is_active', 'type' => 'bool', 'optional' => true],
+            ],
+        ];
     }
 
     public static function search($query = '', $callback = null)

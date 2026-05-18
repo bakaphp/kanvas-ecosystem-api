@@ -28,11 +28,10 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
-use Prism\Prism\Enums\Provider;
-use Prism\Prism\Facades\Prism;
-use Prism\Prism\Schema\BooleanSchema;
-use Prism\Prism\Schema\ObjectSchema;
-use Prism\Prism\Schema\StringSchema;
+use Laravel\Ai\Enums\Lab;
+use Laravel\Ai\Responses\StructuredAgentResponse;
+
+use function Laravel\Ai\agent;
 
 class CreateMessageFollowUpAction
 {
@@ -105,12 +104,7 @@ class CreateMessageFollowUpAction
             $this->getMessageTypeVerb()
         );
 
-        $agentUser = $this->lead->company->get('ai-agent-user-id');
-        if ($agentUser !== null) {
-            $user = Users::getById($agentUser);
-        } else {
-            $user = Users::getById($this->session->agent->user_id);
-        }
+        $user = $this->lead->company->getAiAgentUser() ?? Users::getById($this->session->agent->user_id);
 
         $message = $responseText['message'];
 
@@ -209,37 +203,19 @@ class CreateMessageFollowUpAction
 
     private function generateResponseWithRetry(string $prompt): array
     {
-        $schema = new ObjectSchema(
-            name: 'follow_up_message',
-            description: 'Lead message for follow up',
-            properties: [
-                new StringSchema(
-                    name: 'message',
-                    description: ' Message for the lead'
-                ),
-                new BooleanSchema(
-                    name: 'should_respond',
-                    description: 'Confirmation if must sent message'
-                ),
-                ],
-            requiredFields: [
-                    'message',
-                    'should_respond',
-                ]
-        );
-
         for ($attempt = 1; $attempt <= self::MAX_RETRY_ATTEMPTS; $attempt++) {
-            $response = Prism::structured()
-                       ->using(Provider::Gemini, 'gemini-2.5-pro')
-                       ->withSchema($schema)
-                       ->withPrompt($prompt)
-                       ->withMaxTokens(7000)
-                       ->withClientOptions([
-                           'timeout' => 220,
-                           'connect_timeout' => 220,
-                           'read_timeout' => 220,
-                       ])
-                       ->asStructured();
+            /** @var StructuredAgentResponse $response */
+            $response = agent(
+                schema: fn ($schema) => [
+                    'message' => $schema->string()->description('Message for the lead')->required(),
+                    'should_respond' => $schema->boolean()->description('Confirmation if must sent message')->required(),
+                ],
+            )->prompt(
+                $prompt,
+                provider: Lab::Gemini,
+                model: 'gemini-2.5-pro',
+                timeout: 220,
+            );
             if (! empty($response->structured)) {
                 return $response->structured;
             }

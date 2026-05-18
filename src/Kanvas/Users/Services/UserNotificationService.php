@@ -74,7 +74,7 @@ class UserNotificationService
                 return;
             }
 
-            (new EmailVerificationService($app))->send($user);
+            new EmailVerificationService($app)->send($user);
         } catch (Throwable $e) {
             //no email sent
         }

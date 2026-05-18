@@ -211,7 +211,7 @@ class FollowUpEngagementCommand extends Command
                 //how do we avoid sending notifications for leads that haven'b been contacted
                 try {
                     $this->info('Executing FollowUpEngagementAction for lead ID ' . $lead->id . ' - ' . $lead->people->name);
-                    $followUpClass = LeadConfigurationService::isV2Enabled($lead->app)
+                    $followUpClass = (new LeadConfigurationService())->isV2Enabled($lead->app)
                         ? FollowUpEngagementAction::class
                         : FollowUpEngagementV1Action::class;
                     $result = new $followUpClass($lead, $log)->execute();

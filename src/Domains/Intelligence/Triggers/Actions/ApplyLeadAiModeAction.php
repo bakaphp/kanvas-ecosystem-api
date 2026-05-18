@@ -4,26 +4,23 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Triggers\Actions;
 
-use Carbon\Carbon;
+use Exception;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
+use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 
+use function Sentry\captureException;
+
 class ApplyLeadAiModeAction
 {
-    private const MANUAL_TRIGGERS = [
-        TriggersEnum::MANUAL_OFF->value,
-        TriggersEnum::MANUAL_SUPPORT->value,
-        TriggersEnum::MANUAL_FON->value,
-    ];
-
     public function __construct(
         protected Lead $lead,
         protected int $triggerType,
@@ -32,12 +29,13 @@ class ApplyLeadAiModeAction
 
     public function execute(): array
     {
-        $aiModeKey = LeadConfigurationService::getAiModeKey($this->lead);
-        $followUpKey = LeadConfigurationService::getFollowUpModeKey($this->lead);
+        $configService = new LeadConfigurationService();
+        $aiModeKey = $configService->getAiModeKey($this->lead);
+        $followUpKey = $configService->getFollowUpModeKey($this->lead);
 
         $currentMode = IntelligenceModeEnum::tryFrom((string) $this->lead->get($aiModeKey));
         if ($currentMode?->isOff()
-            && ! in_array($this->triggerType, self::MANUAL_TRIGGERS)) {
+            && ! in_array($this->triggerType, TriggersEnum::manualTriggerValues(), true)) {
             return [
                 'changed' => false,
                 'message' => 'Currently Lead is in OFF mode',
@@ -45,22 +43,28 @@ class ApplyLeadAiModeAction
         }
 
         $previousMode = $this->lead->get($aiModeKey);
+        $previousFollowUp = $this->lead->get($followUpKey);
         $this->applyTrigger();
         $currentMode = $this->lead->get($aiModeKey);
+        $currentFollowUp = $this->lead->get($followUpKey);
 
         if ($currentMode !== $previousMode) {
             $this->logModeChangeNote($currentMode);
+        }
+
+        if ($currentFollowUp !== $previousFollowUp) {
+            $this->logFollowUpChangeNote($currentFollowUp);
         }
 
         return [
             'changed' => $currentMode !== $previousMode,
             'mods_previous' => [
                 'ai_mode' => $previousMode,
-                'ai_follow_up' => $this->lead->get($followUpKey),
+                'ai_follow_up' => $previousFollowUp,
             ],
             'mods_current' => [
                 'ai_mode' => $currentMode,
-                'ai_follow_up' => $this->lead->get($followUpKey),
+                'ai_follow_up' => $currentFollowUp,
             ],
         ];
     }
@@ -92,12 +96,13 @@ class ApplyLeadAiModeAction
     protected function applyNewLead(): void
     {
         $leadType = $this->lead->type()->first();
-        $aiModeKey = LeadConfigurationService::getAiModeKey($this->lead);
-        $aiFollowUpKey = LeadConfigurationService::getFollowUpModeKey($this->lead);
+        $configService = new LeadConfigurationService();
+        $aiModeKey = $configService->getAiModeKey($this->lead);
+        $aiFollowUpKey = $configService->getFollowUpModeKey($this->lead);
 
         $leadTypeConfig = $leadType?->config ?? [];
-        $aiModeDefaultKey = LeadConfigurationService::getAiModeDefaultKey($this->lead);
-        $followUpDefaultKey = LeadConfigurationService::getFollowUpDefaultKey($this->lead);
+        $aiModeDefaultKey = $configService->getAiModeDefaultKey($this->lead);
+        $followUpDefaultKey = $configService->getFollowUpDefaultKey($this->lead);
 
         $aiModeValue = $leadTypeConfig[$aiModeDefaultKey] ?? $this->lead->company->get($aiModeKey);
         $followUpRawValue = $leadTypeConfig[$followUpDefaultKey] ?? $this->lead->company->get($aiFollowUpKey);
@@ -114,31 +119,48 @@ class ApplyLeadAiModeAction
         $this->lead->set(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value, true);
         $this->setMode(IntelligenceModeEnum::FULL_ON->value);
         $this->setFollowUp(FollowUpValueEnum::ON());
+
+        try {
+            foreach ($this->lead->socialChannels as $channel) {
+                UnrespondedLeadAgentMessageCache::clear($this->lead, $channel);
+            }
+        } catch (Exception $e) {
+            captureException($e);
+        }
     }
 
     protected function setMode(string $aiMode): void
     {
-        $aiModeKey = LeadConfigurationService::getAiModeKey($this->lead);
+        $aiModeKey = new LeadConfigurationService()->getAiModeKey($this->lead);
+
         $this->lead->set($aiModeKey, $aiMode);
         $this->lead->set(LeadConfigurationEnum::AI_MODE->value, $aiMode);
     }
 
     protected function setFollowUp(FollowUpValueEnum $followUpValue)
     {
-        $followUpKey = LeadConfigurationService::getFollowUpModeKey($this->lead);
+        $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($this->lead);
         $this->lead->set($followUpKey, $followUpValue->value);
         $this->lead->set(LeadConfigurationEnum::HAS_FOLLOW_UP->value, $followUpValue->value);
     }
 
     protected function logModeChangeNote(string $newMode): void
     {
+        $this->logSystemNote('Sally Mode set to ' . $newMode);
+    }
+
+    protected function logFollowUpChangeNote(mixed $currentFollowUp): void
+    {
+        $label = $currentFollowUp ? 'Follow-up enabled' : 'Follow-up disabled';
+        $this->logSystemNote($label);
+    }
+
+    protected function logSystemNote(string $noteContent): void
+    {
         $notesChannel = $this->lead->systemNotes;
         if (! $notesChannel) {
             return;
         }
-
-        $carbon = Carbon::now($this->lead->company->timezone);
-        $noteContent = $carbon->format('Y-m-d H:i:s') . ' Sally Mode set to ' . $newMode;
 
         $messageType = new CreateMessageTypeAction(
             new MessageTypeInput(

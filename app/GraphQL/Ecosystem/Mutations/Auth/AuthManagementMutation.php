@@ -40,9 +40,6 @@ class AuthManagementMutation
     use TokenTrait;
     use AuthTrait;
 
-    /**
-     * @throws \Exception
-     */
     public function loginMutation(
         mixed $rootValue,
         array $request,
@@ -247,7 +244,9 @@ class AuthManagementMutation
 
     public function verifyEmail(mixed $rootValue, array $request): bool
     {
-        return new EmailVerificationService()->verify($request['token']);
+        $app = app(Apps::class);
+
+        return new EmailVerificationService($app)->verify($request['token']);
     }
 
     public function resendVerificationEmail(mixed $rootValue, array $request): bool

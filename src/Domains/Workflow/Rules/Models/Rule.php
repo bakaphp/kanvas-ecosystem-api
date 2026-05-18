@@ -135,22 +135,27 @@ class Rule extends BaseModel
      */
     private function formatValue(string|int|float|bool|null $value): string
     {
-        // If it's numeric, don't quote it
         if (is_int($value) || is_float($value)) {
             return (string) $value;
         }
 
-        // If it's a boolean, convert to string
         if (is_bool($value)) {
             return $value ? 'true' : 'false';
         }
 
-        // If it's null
         if ($value === null) {
             return 'null';
         }
 
-        // Everything else gets quoted (strings)
+        $lower = strtolower(trim($value));
+        if ($lower === 'true' || $lower === 'false' || $lower === 'null') {
+            return $lower;
+        }
+
+        if (is_numeric($value)) {
+            return $value;
+        }
+
         return "'" . addslashes($value) . "'";
     }
 }

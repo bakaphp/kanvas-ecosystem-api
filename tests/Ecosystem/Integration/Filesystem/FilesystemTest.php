@@ -363,4 +363,42 @@ final class FilesystemTest extends TestCase
         // Clean up
         $filesystemService->delete($filesystem);
     }
+
+    public function testDetectMimeTypeAndResolveExtensionFromFile(): void
+    {
+        $tempPath = sys_get_temp_dir() . '/mime-helper-' . uniqid() . '.jpg';
+        $img = imagecreatetruecolor(64, 64);
+        $green = imagecolorallocate($img, 0, 255, 0);
+        imagefill($img, 0, 0, $green);
+        imagejpeg($img, $tempPath, 90);
+        imagedestroy($img);
+
+        $mimeType = FilesystemServices::detectMimeType($tempPath);
+        $extension = FilesystemServices::resolveExtensionFromFile($tempPath);
+
+        $this->assertEquals('image/jpeg', $mimeType);
+        $this->assertEquals('jpg', $extension);
+
+        @unlink($tempPath);
+    }
+
+    public function testOptimizeLocalFileSkipsVeryLargeFiles(): void
+    {
+        $tempPath = sys_get_temp_dir() . '/large-skip-' . uniqid() . '.jpg';
+        file_put_contents($tempPath, random_bytes(26 * 1024 * 1024));
+
+        $originalSize = filesize($tempPath);
+        $result = ImageOptimizerService::optimizeLocalFile(
+            filePath: $tempPath,
+            optimize: true,
+            maxWidth: 800,
+            maxHeight: 800,
+            quality: 75,
+        );
+
+        $this->assertEquals($tempPath, $result);
+        $this->assertEquals($originalSize, filesize($result));
+
+        @unlink($tempPath);
+    }
 }

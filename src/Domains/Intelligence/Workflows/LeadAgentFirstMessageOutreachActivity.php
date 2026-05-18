@@ -38,7 +38,6 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
-use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use RuntimeException;
@@ -57,7 +56,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
-                $leadAiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(LeadConfigurationService::getAiModeKey($lead)));
+                $leadAiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(new LeadConfigurationService()->getAiModeKey($lead)));
                 if ($leadAiMode?->isOff()) {
                     return [
                         'ai_mode is OFF',
@@ -120,15 +119,15 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     }
 
                     if ($isWithinWorkingHours) {
-                        $lead->set(LeadConfigurationService::getAiModeKey($lead), $workingHoursDefaultMode);
+                        $lead->set(new LeadConfigurationService()->getAiModeKey($lead), $workingHoursDefaultMode);
                     }
                 }
 
-                $currentAiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(LeadConfigurationService::getAiModeKey($lead)));
+                $currentAiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(new LeadConfigurationService()->getAiModeKey($lead)));
                 $disableSending = $currentAiMode?->isOff() ?? false;
 
                 $leadType = $lead->type()->first();
-                $firstMessageDefaultKey = LeadConfigurationService::getFirstMessageDefaultKey($lead);
+                $firstMessageDefaultKey = new LeadConfigurationService()->getFirstMessageDefaultKey($lead);
                 $leadTypeConfig = $leadType?->config ?? [];
 
                 if (isset($leadTypeConfig[$firstMessageDefaultKey]) && ! $leadTypeConfig[$firstMessageDefaultKey]) {
@@ -315,7 +314,11 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                 $lead->set('intent_number', $lead->get('intent_number') ?? 0 + 1);
 
-                if ($totalSentMessages > 0 && ! empty($app->get(VoiceBridgeConfigurationEnum::API_KEY->value))) {
+                $canRunVoice = $lead->get(VoiceBridgeConfigurationEnum::API_KEY->value, 0)
+                    ?? $lead->company->get(VoiceBridgeConfigurationEnum::API_KEY->value, 0);
+                //?? $app->get(VoiceBridgeConfigurationEnum::API_KEY->value, 0);
+
+                if ($totalSentMessages > 0 && ! empty($canRunVoice)) {
                     $delayMinutes = (int) (
                         ($stageConfig['voice_no_response_minutes'] ?? null)
                         ?? $app->get(VoiceBridgeConfigurationEnum::VOICE_NO_RESPONSE_MINUTES->value)
@@ -349,7 +352,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
     private function shouldSendFirstMessageNow(Lead $lead): bool
     {
-        $aiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(LeadConfigurationService::getAiModeKey($lead)));
+        $aiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(new LeadConfigurationService()->getAiModeKey($lead)));
         if ($aiMode?->isOff()) {
             return false;
         }
@@ -362,7 +365,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
         if (! $isWithinWorkingHours) {
             return true;
-        } elseif ($lead->get(LeadConfigurationService::getAiModeKey($lead)) === IntelligenceModeEnum::SUPPORT->value) {
+        } elseif ($lead->get(new LeadConfigurationService()->getAiModeKey($lead)) === IntelligenceModeEnum::SUPPORT->value) {
             return false;
         } else {
             return true;
@@ -427,11 +430,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         string $messageType = 'twilio-sms',
         bool $runWorkflow = true,
     ): Message {
-        $user = $lead->user;
-        $agentUser = $lead->company->get('ai-agent-user-id');
-        if ($agentUser !== null) {
-            $user = Users::getById((int) $agentUser);
-        }
+        $user = $lead->company->getAiAgentUser() ?? $lead->user;
 
         $messageTypeModel = new CreateMessageTypeAction(
             new MessageTypeInput(

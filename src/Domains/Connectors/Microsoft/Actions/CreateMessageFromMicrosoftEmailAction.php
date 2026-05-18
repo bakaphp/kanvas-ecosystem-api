@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
@@ -213,6 +214,10 @@ class CreateMessageFromMicrosoftEmailAction
             $this->user,
             $this->company
         );
+
+        if ($this->lead instanceof Lead) {
+            new NotifyLeadStakeholdersService($this->lead)->onCustomerEngagement($message);
+        }
 
         $channel->fireWorkflow(
             WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,

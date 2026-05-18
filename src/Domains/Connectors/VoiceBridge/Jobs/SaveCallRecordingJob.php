@@ -54,10 +54,7 @@ class SaveCallRecordingJob implements ShouldQueue
 
             $filesystemService = new FilesystemServices($app, $this->lead->company);
 
-            $agentUserId = $this->lead->company->get('ai-agent-user-id');
-            $user = $agentUserId !== null
-                ? Users::getById((int) $agentUserId)
-                : Users::getById($this->lead->users_id);
+            $user = $this->lead->company->getAiAgentUser() ?? Users::getById($this->lead->users_id);
 
             $uploadedFiles = [];
 
