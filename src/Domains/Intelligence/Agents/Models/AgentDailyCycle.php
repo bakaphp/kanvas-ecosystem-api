@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -36,7 +37,11 @@ use Override;
  */
 class AgentDailyCycle extends BaseModel
 {
+    use CascadeSoftDeletes;
+
     protected $table = 'agent_daily_cycles';
+
+    protected $cascadeDeletes = ['phases'];
 
     protected $guarded = [];
 

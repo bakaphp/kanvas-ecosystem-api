@@ -7,6 +7,7 @@ namespace Kanvas\NervousSystem\Plan\Models;
 use Baka\Casts\Json;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -73,10 +74,13 @@ use Throwable;
 #[ObservedBy([PlanObserver::class])]
 class Plan extends BaseModel
 {
+    use CascadeSoftDeletes;
     use EmitsLedgerEventsForEntity;
     use HasLightHouseCache;
     use HasTagsTrait;
     use UuidTrait;
+
+    protected $cascadeDeletes = ['tasks', 'children'];
 
     #[Override]
     public function getGraphTypeName(): string
