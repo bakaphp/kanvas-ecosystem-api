@@ -34,7 +34,7 @@ class AgentChatResponseEvent implements ShouldBroadcastNow
             'agent_id' => $this->agent->getId(),
             'agent_name' => $this->agent->name,
             'session_id' => $this->sessionId,
-            'message' => $this->message,
+            'message' => $this->limitBroadcastPayload($this->message),
             'response' => $this->limitBroadcastPayload($this->response),
         ];
     }
