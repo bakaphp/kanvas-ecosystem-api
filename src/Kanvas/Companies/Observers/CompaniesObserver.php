@@ -14,8 +14,10 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
+use Kanvas\KanvasModules\Actions\ProvisionCompanyKanvasModulesAction;
 use Kanvas\Users\Actions\AssignRoleAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Throwable;
 
 class CompaniesObserver
 {
@@ -76,6 +78,15 @@ class CompaniesObserver
 
         $assignRole = new AssignRoleAction($user, $company, $app);
         $assignRole->execute(AppEnums::DEFAULT_ROLE_NAME->getValue());
+
+        // Module provisioning must not block company creation — a
+        // missed module row is recoverable via backfill, a missed
+        // company is not.
+        try {
+            new ProvisionCompanyKanvasModulesAction($company, $app)->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         if (! $user->get(Companies::cacheKey())) {
             $user->set(Companies::cacheKey(), $company->id);

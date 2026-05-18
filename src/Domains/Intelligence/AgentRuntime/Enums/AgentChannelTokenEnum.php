@@ -13,4 +13,10 @@ enum AgentChannelTokenEnum: string
     case SLACK_BOT_TOKEN = 'AGENT_SLACK_BOT_TOKEN';
     case SLACK_APP_TOKEN = 'AGENT_SLACK_APP_TOKEN';
     case TELEGRAM_BOT_TOKEN = 'AGENT_TELEGRAM_BOT_TOKEN';
+
+    // Comma-separated Telegram user IDs authorized to DM the bot. Hermes denies all users
+    // when this is unset, so the bot looks "broken" until at least one ID is granted.
+    // Maps to the TELEGRAM_ALLOWED_USERS env var documented at
+    // https://hermes-agent.nousresearch.com/docs/user-guide/messaging/telegram.
+    case TELEGRAM_ALLOWED_USERS = 'AGENT_TELEGRAM_ALLOWED_USERS';
 }

@@ -11,12 +11,17 @@ use App\Console\Commands\ImportPromptsFromDocsCommand;
 use App\Console\Commands\NervousSystem\ArchiveOldLedgerEventsCommand;
 use App\Console\Commands\NervousSystem\DetectStalledPlanTasksCommand;
 use App\Console\Commands\NervousSystem\ExpireCapabilitiesCommand;
+use App\Console\Commands\NervousSystem\RecordAgentDailyCyclesCommand;
+use App\Console\Commands\NervousSystem\RefreshAgentLiveCountersCommand;
+use App\Console\Commands\NervousSystem\SyncModelPricingCommand;
 use App\Console\Commands\Social\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
 use App\Console\Commands\Souk\CancelStalePaymentsCommand;
 use App\Console\Commands\Souk\OrderFinishExpiredCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use Kanvas\NervousSystem\Dashboard\Jobs\RollupDailyDashboardMetricsJob;
+use Kanvas\NervousSystem\Pulse\Jobs\RollupDailyPulseMetricsJob;
 use Override;
 use Spatie\Health\Commands\DispatchQueueCheckJobsCommand;
 use Spatie\Health\Commands\RunHealthChecksCommand;
@@ -50,6 +55,22 @@ class Kernel extends ConsoleKernel
         $schedule->command(ExpireCapabilitiesCommand::class)
             ->hourly()
             ->withoutOverlapping();
+        $schedule->job(new RollupDailyDashboardMetricsJob())
+            ->dailyAt('00:30')
+            ->withoutOverlapping();
+        $schedule->job(new RollupDailyPulseMetricsJob())
+            ->dailyAt('00:35')
+            ->withoutOverlapping();
+        $schedule->command(RecordAgentDailyCyclesCommand::class)
+            ->dailyAt('06:04')
+            ->withoutOverlapping();
+        $schedule->command(RefreshAgentLiveCountersCommand::class)
+            ->hourly()
+            ->withoutOverlapping();
+        $schedule->command(SyncModelPricingCommand::class)
+            ->dailyAt('02:30')
+            ->withoutOverlapping()
+            ->onOneServer();
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()
                     ->withoutOverlapping(5)

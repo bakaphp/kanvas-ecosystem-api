@@ -23,6 +23,18 @@ class UpdatePlanAction
         return DB::connection('intelligence')->transaction(function (): Plan {
             $oldStatus = $this->plan->status;
 
+            // Demote sibling missions BEFORE saving when this plan is
+            // being promoted to its swarm's active mission. Skip self
+            // so an idempotent no-op write doesn't demote itself.
+            if ($this->data->isSwarmMission && $this->data->swarm !== null) {
+                Plan::query()
+                    ->where('swarm_id', $this->data->swarm->getId())
+                    ->where('is_swarm_mission', 1)
+                    ->where('is_deleted', 0)
+                    ->where('id', '!=', $this->plan->id)
+                    ->update(['is_swarm_mission' => 0]);
+            }
+
             $this->plan->title = $this->data->title;
             $this->plan->description = $this->data->description;
             $this->plan->priority = $this->data->priority;
@@ -33,6 +45,10 @@ class UpdatePlanAction
                 ? (string) $this->data->confidenceScore
                 : null;
             $this->plan->requires_human_approval = $this->data->requiresHumanApproval;
+            $this->plan->swarm_id = $this->data->swarm?->getId();
+            $this->plan->is_swarm_mission = $this->data->isSwarmMission;
+            $this->plan->impact_summary = $this->data->impactSummary;
+            $this->plan->status_pill = $this->data->statusPill;
 
             $newStatus = $this->data->status->value;
 

@@ -46,7 +46,13 @@ class AssignMechanicToOrderAction
         $assistanceCase['mechanic'] = $mechanicBlock;
         $assistanceCase['status'] = MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug();
         $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
-        unset($assistanceCase['assign_mechanic_id']);
+        unset(
+            $assistanceCase['assign_mechanic_id'],
+            $assistanceCase['mechanic_completion_requested'],
+            $assistanceCase['mechanic_completion_resolved'],
+            $assistanceCase['mechanic_completion_requested_at'],
+            $assistanceCase['pending_user_confirmation'],
+        );
 
         $this->order->metadata = [
             ...$metadata,

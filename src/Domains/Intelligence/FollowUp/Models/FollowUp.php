@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\FollowUp\Models;
 
 use Baka\Casts\Json;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
@@ -22,8 +23,12 @@ use Kanvas\Intelligence\Models\BaseModel;
  */
 class FollowUp extends BaseModel
 {
+    use CascadeSoftDeletes;
+
     protected $table = 'follow_ups';
     protected $guarded = [];
+
+    protected $cascadeDeletes = ['days'];
 
     protected $casts = [
         'config' => Json::class,

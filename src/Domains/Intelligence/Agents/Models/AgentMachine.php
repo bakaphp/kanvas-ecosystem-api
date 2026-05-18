@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Models;
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
@@ -34,9 +35,12 @@ use Kanvas\Intelligence\Models\BaseModel;
  */
 class AgentMachine extends BaseModel
 {
+    use CascadeSoftDeletes;
     use DatabaseSearchableTrait;
-    use UuidTrait;
     use SlugTrait;
+    use UuidTrait;
+
+    protected $cascadeDeletes = ['deployments'];
 
     protected $table = 'agent_machines';
 

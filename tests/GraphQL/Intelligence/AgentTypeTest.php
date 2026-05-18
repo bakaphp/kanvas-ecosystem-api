@@ -170,6 +170,59 @@ class AgentTypeTest extends TestCase
     }
 
     /**
+     * Weight round-trips through create + update and is exposed on the type.
+     */
+    public function testAgentTypeWeight()
+    {
+        $createMutation = '
+            mutation CreateAgentType($input: AgentTypeInput!) {
+                createAgentType(input: $input) {
+                    id
+                    weight
+                }
+            }
+        ';
+
+        $createResponse = $this->graphQL($createMutation, [
+            'input' => [
+                'name' => fake()->name(),
+                'description' => fake()->sentence(),
+                'role' => 'test-role',
+                'is_active' => true,
+                'is_published' => false,
+                'is_multi_agent' => false,
+                'weight' => 5,
+            ],
+        ]);
+
+        $createResponse->assertJsonFragment(['weight' => 5]);
+        $agentTypeId = $createResponse->json('data.createAgentType.id');
+
+        $updateMutation = '
+            mutation UpdateAgentType($id: ID!, $input: AgentTypeInput!) {
+                updateAgentType(id: $id, input: $input) {
+                    id
+                    weight
+                }
+            }
+        ';
+
+        $updateResponse = $this->graphQL($updateMutation, [
+            'id' => $agentTypeId,
+            'input' => [
+                'name' => fake()->name(),
+                'role' => 'test-role',
+                'weight' => 100,
+            ],
+        ]);
+
+        $updateResponse->assertJsonFragment([
+            'id' => $agentTypeId,
+            'weight' => 100,
+        ]);
+    }
+
+    /**
      * Test deleting an agent type after creation.
      */
     public function testDeleteAgentType()

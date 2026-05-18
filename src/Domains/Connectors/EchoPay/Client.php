@@ -11,8 +11,9 @@ use GuzzleHttp\Exception\RequestException;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
 use Kanvas\Connectors\EchoPay\Exceptions\EchoPayException;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Souk\Payments\Contracts\HttpClientInterface;
 
-class Client
+class Client implements HttpClientInterface
 {
     protected string $baseUrl;
     protected string $appToken;
