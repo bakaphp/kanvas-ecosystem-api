@@ -332,8 +332,12 @@ class MigrateFromOpenClawAction
         $hermesDir = $homeDir . '/.hermes';
 
         $client->exec('sudo mkdir -p ' . escapeshellarg($hermesDir));
+        // UID 10000 = hermes user inside the container. The target dir must be writable by it
+        // before the run — sudo mkdir creates it root:root 755, which allows traversal but not
+        // writes, so every file claw migrate tries to create silently fails or exits non-zero.
+        $client->exec('sudo chown 10000:10000 ' . escapeshellarg($hermesDir));
 
-        // UID 10000 = hermes user inside the container. The staging dir must be readable by it.
+        // The staging dir must also be readable by UID 10000.
         $client->exec('sudo chown -R 10000:10000 ' . escapeshellarg($stagingDir));
         $client->exec('sudo chmod -R 755 ' . escapeshellarg($stagingDir));
 
