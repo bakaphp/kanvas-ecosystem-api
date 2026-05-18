@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Actions;
 
 use Baka\Support\Str;
+use DateTimeInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Notification;
@@ -292,7 +293,30 @@ class SendMessageToLeadAction
 
         $twilioMessage = $client->messages->create($cellphone, $messageData);
 
-        return [$twilioMessage->body];
+        return [
+            'channel' => 'sms',
+            'sid' => $twilioMessage->sid,
+            'account_sid' => $twilioMessage->accountSid,
+            'messaging_service_sid' => $twilioMessage->messagingServiceSid,
+            'status' => $twilioMessage->status,
+            'direction' => $twilioMessage->direction,
+            'from' => $twilioMessage->from,
+            'to' => $twilioMessage->to,
+            'body' => $twilioMessage->body,
+            'num_segments' => $twilioMessage->numSegments,
+            'num_media' => $twilioMessage->numMedia,
+            'media_urls' => $mediaUrls,
+            'error_code' => $twilioMessage->errorCode,
+            'error_message' => $twilioMessage->errorMessage,
+            'price' => $twilioMessage->price,
+            'price_unit' => $twilioMessage->priceUnit,
+            'date_created' => $twilioMessage->dateCreated?->format(DateTimeInterface::ATOM),
+            'date_sent' => $twilioMessage->dateSent?->format(DateTimeInterface::ATOM),
+            'date_updated' => $twilioMessage->dateUpdated?->format(DateTimeInterface::ATOM),
+            'uri' => $twilioMessage->uri,
+            'lead_id' => $this->lead->getId(),
+            'lead_uuid' => $this->lead->uuid,
+        ];
     }
 
     protected function getMediaUrlsForTwilio(): array
@@ -377,7 +401,18 @@ class SendMessageToLeadAction
         }
         Notification::route('mail', $leadEmail)->notify($notification);
 
-        return [];
+        return [
+          'channel' => 'email',
+          'to' => $leadEmail,
+          'template' => 'first-time-agent-engagement',
+          'body_length' => strlen($message),
+          'signature' => $signature,
+          'engagement_urls' => array_values($engagementUrls),
+          'attachments' => $attachments,
+          'attachments_count' => count($attachments),
+          'lead_id' => $this->lead->getId(),
+          'lead_uuid' => $this->lead->uuid,
+        ];
     }
 
     protected function sendVoiceMessage(string $instructions = ''): array
