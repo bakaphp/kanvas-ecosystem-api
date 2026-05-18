@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions;
 
+use Baka\Traits\LimitsBroadcastPayload;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
@@ -22,6 +23,8 @@ use Throwable;
 
 class ProcessAgentChatAction
 {
+    use LimitsBroadcastPayload;
+
     public function __construct(
         protected readonly Agent $agent,
         protected readonly ?Session $session,
@@ -134,18 +137,12 @@ class ProcessAgentChatAction
             $response
         );
 
-        // Pusher enforces a 10 240-byte limit per event; truncate only the broadcast
-        // payload — the full response is still returned to the caller and persisted.
-        $broadcastResponse = mb_strlen($response) > 8000
-            ? mb_substr($response, 0, 8000) . '...[truncated]'
-            : $response;
-
         Subscription::broadcast('agentChatResponse', [
             'agent_id' => $this->agent->getId(),
             'agent_name' => $this->agent->name,
             'session_id' => $sessionId,
             'message' => $this->message,
-            'response' => $broadcastResponse,
+            'response' => $this->limitBroadcastPayload($response),
         ]);
     }
 }
