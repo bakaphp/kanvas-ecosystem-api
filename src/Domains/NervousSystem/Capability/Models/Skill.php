@@ -6,6 +6,7 @@ namespace Kanvas\NervousSystem\Capability\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
@@ -34,8 +35,11 @@ use Override;
  */
 class Skill extends BaseModel
 {
+    use CascadeSoftDeletes;
     use EmitsLedgerEventsForEntity;
     use UuidTrait;
+
+    protected $cascadeDeletes = ['agentGrants'];
 
     protected $table = 'nervous_system_skills';
 

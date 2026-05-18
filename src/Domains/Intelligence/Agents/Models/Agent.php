@@ -70,7 +70,7 @@ class Agent extends BaseModel
     }
     use HasLightHouseCache;
 
-    protected $cascadeDeletes = ['deployments'];
+    protected $cascadeDeletes = ['deployments', 'swarmMemberships'];
 
     protected $fillable = [
         'uuid',
@@ -167,6 +167,11 @@ class Agent extends BaseModel
         )->wherePivot('is_deleted', 0)
          ->withPivot('role', 'config')
          ->withTimestamps();
+    }
+
+    public function swarmMemberships(): HasMany
+    {
+        return $this->hasMany(AgentSwarmMember::class, 'agent_id');
     }
 
     public function selectedTools(): BelongsToMany

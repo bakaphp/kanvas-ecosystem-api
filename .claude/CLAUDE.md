@@ -484,6 +484,20 @@ class BaseModel extends EloquentModel
 
 **Delete call:** Use `$model->delete()` (not `softDelete()`) — `SoftDeletesTrait` makes `delete()` perform a soft delete via `runSoftDelete()`, which triggers the `deleting` event that `CascadeSoftDeletes` listens on.
 
+**Always declare cascades for owned children.** When you add a model that owns child rows via `HasMany` / `HasOne` (and the children have no other parent — i.e. they'd be orphaned and invalid if the parent is gone), wire the cascade at model-creation time. Skipping this leaks orphan rows that break non-null GraphQL relations later — e.g. `AgentSwarmMember.agent: AgentAi!` crashed with `InvariantViolation` because soft-deleted `Agent` rows left dangling membership rows (Sentry KANVAS-ECOSYSTEM-5GS).
+
+Rule of thumb — add the child relation to `$cascadeDeletes` when:
+- The child's FK points only at this parent (no shared ownership / no multi-tenant pivot).
+- A surviving child row without the parent would be semantically invalid (orphan task without plan, sleep phase without daily cycle, agent-skill grant without skill).
+- The GraphQL type for the child exposes a non-null `@belongsTo` back to the parent — orphans will fatal the resolver.
+
+Skip the cascade when:
+- The child is shared (pivot rows where deleting one side shouldn't kill the row; the *other* side's cascade handles it — e.g. `AgentSwarm.members` cascades, so `Agent.swarmMemberships` covers the agent side and the pivot is fully owned by whichever ends first).
+- The child is append-only and intentionally outlives the parent (ledger events, audit logs, daily metric snapshots).
+- The child has its own independent lifecycle (e.g. `Plan.agent` — agent isn't cascade-deleted when a plan is deleted; only the reverse holds for owned children of the agent).
+
+When in doubt, check whether the GraphQL schema marks the back-relation as non-null. If it does, you need the cascade.
+
 ### Scoping Patterns
 - **Global entities** (companies_id = 0): scope queries with `fromApp` + `notDeleted`
 - **Company-scoped entities**: scope queries with `fromCompany` + `fromApp` + `notDeleted`
