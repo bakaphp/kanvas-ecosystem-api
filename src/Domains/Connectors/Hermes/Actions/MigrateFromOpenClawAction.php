@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Hermes\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Hermes\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Hermes\Services\DockerComposeBuilder;
@@ -111,12 +112,10 @@ class MigrateFromOpenClawAction
             $client->exec(
                 'sudo cp -r ' . escapeshellarg($sourceDir) . '/. ' . escapeshellarg($stagingDir) . '/'
             );
-            // The hermes container runs as UID 1000. Chown the staging tree to 1000 and
-            // open group/other read+traverse so the in-container user can actually read
-            // workspace/ — without this the migrate command finds nothing and exits 0,
-            // which looked exactly like "fresh agent" in the wild.
-            $client->exec('sudo chown -R 1000:1000 ' . escapeshellarg($stagingDir));
-            $client->exec('sudo chmod -R u+rwX,go+rX ' . escapeshellarg($stagingDir));
+            // The hermes container runs as UID 10000 (confirmed: docker run image id → uid=10000(hermes)).
+            // Chown the staging tree to 10000 so the in-container user can actually read workspace/.
+            $client->exec('sudo chown -R 10000:10000 ' . escapeshellarg($stagingDir));
+            $client->exec('sudo chmod -R 755 ' . escapeshellarg($stagingDir));
 
             $this->runMigrateCommand($client, $stagingDir, $destDeployment);
 
@@ -303,10 +302,10 @@ class MigrateFromOpenClawAction
         // Remove the archive now that the files are extracted.
         $client->exec('rm -f ' . escapeshellarg($remoteArchive));
 
-        // Chown to UID 1000 (in-container hermes user) so `claw migrate` can read the
-        // workspace through the bind mount. Same fix as the same-machine path.
-        $client->exec('sudo chown -R 1000:1000 ' . escapeshellarg($openclawExtractDir));
-        $client->exec('sudo chmod -R u+rwX,go+rX ' . escapeshellarg($openclawExtractDir));
+        // Chown to UID 10000 (confirmed in-container hermes user) so `claw migrate` can read
+        // the workspace through the bind mount. Same fix as the same-machine path.
+        $client->exec('sudo chown -R 10000:10000 ' . escapeshellarg($openclawExtractDir));
+        $client->exec('sudo chmod -R 755 ' . escapeshellarg($openclawExtractDir));
 
         $this->runMigrateCommand($client, $openclawExtractDir, $deployment);
     }
@@ -332,8 +331,12 @@ class MigrateFromOpenClawAction
         $hermesDir = $homeDir . '/.hermes';
 
         $client->exec('sudo mkdir -p ' . escapeshellarg($hermesDir));
+        // UID 10000 = hermes user inside the container. The target dir must be writable by it
+        // before the run — sudo mkdir creates it root:root 755, which allows traversal but not
+        // writes, so every file claw migrate tries to create silently fails or exits non-zero.
+        $client->exec('sudo chown 10000:10000 ' . escapeshellarg($hermesDir));
 
-        // UID 10000 = hermes user inside the container. The staging dir must be readable by it.
+        // The staging dir must also be readable by UID 10000.
         $client->exec('sudo chown -R 10000:10000 ' . escapeshellarg($stagingDir));
         $client->exec('sudo chmod -R 755 ' . escapeshellarg($stagingDir));
 
@@ -363,9 +366,22 @@ class MigrateFromOpenClawAction
             300
         );
 
+        $context = [
+            'agent' => $deployment->agent->slug,
+            'deployment_id' => $deployment->getId(),
+            'staging_dir' => $stagingDir,
+            'hermes_dir' => $hermesDir,
+            'image' => $imageName,
+            'output' => $result,
+        ];
+
         if (! str_contains($result, 'EXIT_CODE:0')) {
+            Log::error('hermes claw migrate failed', $context);
+
             throw new ValidationException('hermes claw migrate failed: ' . $result);
         }
+
+        Log::info('hermes claw migrate succeeded', $context);
 
         // Fix ownership so the host system user (agent-<slug>) can read the migrated files,
         // while preserving UID 10000 as the owner so the container can also write them.
