@@ -42,8 +42,6 @@ class MessageFileConstrainerService
                 $maxFileSize,
             );
 
-            // constrainFileSize may convert HEIC to JPEG at a new path,
-            // so we need to update the file reference
             if ($convertedPath !== $originalPath) {
                 $files[$key] = new UploadedFile(
                     $convertedPath,
