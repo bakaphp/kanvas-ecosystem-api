@@ -14,6 +14,7 @@ use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Twilio\Client;
+use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
 use Kanvas\Connectors\VoiceBridge\Actions\TriggerVoiceCallAction;
 use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum as WaSenderConfigurationEnum;
@@ -31,6 +32,15 @@ use Ramsey\Uuid\Uuid;
 
 class SendMessageToLeadAction
 {
+    /**
+     * Default media items per Twilio MMS API call. Override per-app via
+     * `twilio-mms-batch-size` setting. Twilio's documented hard cap is 10 but
+     * 21623 fires on some account/carrier combos before that; 8 is the safe
+     * default measured against the active production account.
+     */
+    private const int DEFAULT_MMS_BATCH_SIZE = 8;
+    private const int MAX_MMS_BATCH_SIZE = 10;
+
     protected array $processedFiles = [];
     protected array $videoEngagements = [];
 
@@ -278,23 +288,60 @@ class SendMessageToLeadAction
             $fullMessage .= "\n\n" . implode("\n", $engagementUrls);
         }
 
-        $messageData = [
-            'from' => $from,
-        ];
-
-        if ($fullMessage) {
-            $messageData['body'] = $fullMessage;
-        }
-
         $mediaUrls = $this->getMediaUrlsForTwilio();
-        if (! empty($mediaUrls)) {
-            $messageData['mediaUrl'] = $mediaUrls;
+
+        if (empty($mediaUrls)) {
+            $payload = ['from' => $from];
+            if ($fullMessage !== '') {
+                $payload['body'] = $fullMessage;
+            }
+
+            $twilioMessage = $client->messages->create($cellphone, $payload);
+
+            return [
+                'channel' => 'sms',
+                'batches' => 1,
+                'batch_size' => 0,
+                'media_per_batch' => [0],
+                'lead_id' => $this->lead->getId(),
+                'lead_uuid' => $this->lead->uuid,
+                'messages' => [$this->describeTwilioMessage($twilioMessage)],
+            ];
         }
 
-        $twilioMessage = $client->messages->create($cellphone, $messageData);
+        $batchSize = (int) ($this->lead->app->get(TwilioConfigurationEnum::TWILIO_MMS_BATCH_SIZE->value) ?: self::DEFAULT_MMS_BATCH_SIZE);
+        $batchSize = max(1, min(self::MAX_MMS_BATCH_SIZE, $batchSize));
+
+        $batches = array_chunk($mediaUrls, $batchSize);
+        $twilioMessages = [];
+
+        foreach ($batches as $index => $batch) {
+            $payload = [
+                'from' => $from,
+                'mediaUrl' => $batch,
+            ];
+
+            if ($index === 0 && $fullMessage !== '') {
+                $payload['body'] = $fullMessage;
+            }
+
+            $twilioMessages[] = $client->messages->create($cellphone, $payload);
+        }
 
         return [
             'channel' => 'sms',
+            'batches' => count($batches),
+            'batch_size' => $batchSize,
+            'media_per_batch' => array_map('count', $batches),
+            'lead_id' => $this->lead->getId(),
+            'lead_uuid' => $this->lead->uuid,
+            'messages' => array_map(fn ($m) => $this->describeTwilioMessage($m), $twilioMessages),
+        ];
+    }
+
+    private function describeTwilioMessage(object $twilioMessage): array
+    {
+        return [
             'sid' => $twilioMessage->sid,
             'account_sid' => $twilioMessage->accountSid,
             'messaging_service_sid' => $twilioMessage->messagingServiceSid,
@@ -305,7 +352,6 @@ class SendMessageToLeadAction
             'body' => $twilioMessage->body,
             'num_segments' => $twilioMessage->numSegments,
             'num_media' => $twilioMessage->numMedia,
-            'media_urls' => $mediaUrls,
             'error_code' => $twilioMessage->errorCode,
             'error_message' => $twilioMessage->errorMessage,
             'price' => $twilioMessage->price,
@@ -314,8 +360,6 @@ class SendMessageToLeadAction
             'date_sent' => $twilioMessage->dateSent?->format(DateTimeInterface::ATOM),
             'date_updated' => $twilioMessage->dateUpdated?->format(DateTimeInterface::ATOM),
             'uri' => $twilioMessage->uri,
-            'lead_id' => $this->lead->getId(),
-            'lead_uuid' => $this->lead->uuid,
         ];
     }
 
