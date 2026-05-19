@@ -104,7 +104,7 @@ class ProcessAgentChatAction
         }
 
         $handler->setConfiguration($this->agent, $this->session?->entity(), null, $this->user);
-        $threadId = $this->session?->uuid ?? Str::uuid();
+        $threadId = $this->session?->uuid ?? Str::uuid()->toString();
 
         if ($handler instanceof BaseKanvasAgent) {
             $handler->setThreadId($threadId);
