@@ -12,12 +12,6 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Override;
 use Throwable;
 
-/**
- * Hermes-flavored health probe: SSH into the AgentMachine, `docker exec curl /health` against
- * port 8642 on the container's loopback, bearer = the per-agent HERMES_GATEWAY_TOKEN. State
- * machine, ledger emission, and awake_state lifecycle all live in {@see BaseCheckHealthAction}
- * — this class supplies only the probe.
- */
 class CheckApiHealthAction extends BaseCheckHealthAction
 {
     #[Override]

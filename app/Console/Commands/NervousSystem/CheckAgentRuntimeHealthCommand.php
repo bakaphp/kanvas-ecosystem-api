@@ -12,23 +12,6 @@ use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Throwable;
 
-/**
- * Unified runtime liveness probe. Walks every running deployment, routes through
- * `AgentRuntimeProviderFactory::forDeployment()`, and lets each runtime answer "are you alive"
- * its own way (Hermes does HTTP /health; future runtimes plug into the same call). Providers
- * that don't expose a probe yet return `UNSUPPORTED` from the abstract default — those are
- * counted and skipped silently.
- *
- * Lives in NervousSystem (not Intelligence/AgentRuntime) because it emits ledger events and
- * drives `agents.awake_state` — both Nervous System concerns. Sits next to RecordAgentDailyCycles
- * which consumes those same signals.
- *
- * Scheduled every 10 minutes from app/Console/Kernel.php — see `BaseCheckHealthAction` for the
- * 2-strike state machine that follows the probe.
- *
- *   php artisan kanvas:agent-runtime-check-health
- *   php artisan kanvas:agent-runtime-check-health --app=42
- */
 class CheckAgentRuntimeHealthCommand extends Command
 {
     use KanvasJobsTrait;

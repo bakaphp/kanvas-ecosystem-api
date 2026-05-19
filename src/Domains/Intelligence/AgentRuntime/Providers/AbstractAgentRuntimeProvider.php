@@ -140,11 +140,6 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
         throw $this->unsupported('workspace file update');
     }
 
-    /**
-     * Default: report UNSUPPORTED so the unified health-check cron can walk every runtime
-     * without crashing on providers that don't have a probe yet. Concrete providers override
-     * to delegate to their per-runtime `Base*CheckHealthAction` subclass.
-     */
     #[Override]
     public function checkHealth(AgentDeployment $deployment): HealthCheckResultEnum
     {

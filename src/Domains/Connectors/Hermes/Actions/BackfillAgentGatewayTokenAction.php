@@ -9,26 +9,12 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
 /**
- * Hoists an existing per-deployment HERMES_GATEWAY_TOKEN onto the agent that owns it.
- *
- * Background: pre-this-PR, gateway tokens were sourced from company config and written
- * to the deployment custom field on launch. After this PR, the agent custom field is the
- * canonical source and `BaseLaunchAgentOnMachineAction::resolveGatewayToken()` only reads
- * from there. Without this backfill, the next launch of any pre-existing agent regenerates
- * a fresh random token — invalidating the value baked into the running container.
- *
- * Strategy per agent (idempotent — safe to re-run):
- *   1. Skip if the agent already has HERMES_GATEWAY_TOKEN set (post-PR launches set this).
- *   2. Otherwise read the token from the most recent running deployment for that agent and
- *      copy it onto the agent. The running container's actual env matches that value, so
- *      a future re-launch produces the same compose file.
- *   3. Skip if no running deployment carries a token (the agent never launched on this
- *      runtime, or was terminated before the deployment write). Next launch will mint a
- *      fresh token anyway; that's fine.
- *
- * Does NOT touch the running container's runtime — operators must re-launch the agent for
- * the new API_SERVER_KEY env to take effect inside the existing container. This action only
- * makes sure that re-launch picks up the same token instead of generating a different one.
+ * Pre-this-PR, gateway tokens lived on company config + deployment custom field. After,
+ * `BaseLaunchAgentOnMachineAction::resolveGatewayToken()` only reads from the agent custom
+ * field. This backfill hoists the existing deployment-level token onto the agent so an
+ * existing agent's next re-launch reuses the same value instead of generating a fresh
+ * random one (which would diverge from the still-running container's API_SERVER_KEY).
+ * Idempotent; container env is not touched — operator must re-launch for the new env to apply.
  */
 class BackfillAgentGatewayTokenAction
 {
