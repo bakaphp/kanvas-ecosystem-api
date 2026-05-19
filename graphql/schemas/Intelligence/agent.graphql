@@ -209,6 +209,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "uuid"
                     "description"
                     "is_active"
                     "agent_type_id"
