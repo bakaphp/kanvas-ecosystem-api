@@ -161,6 +161,21 @@ abstract class BaseDockerComposeBuilder
         return [];
     }
 
+    /**
+     * Provider-specific HTTP API server env vars. Receives the resolved gateway token so the
+     * provider can wire it as the bearer key. Default is no API server (legacy CLI-only runtimes
+     * like OpenClaw). Hermes overrides to enable `API_SERVER_*` on loopback inside the container.
+     *
+     * Returned vars are merged after getProviderEnvVarDefaults() and use the same "first wins"
+     * rule, so per-app `<provider>_default_environment` overrides still take precedence.
+     *
+     * @return array<string, string>
+     */
+    protected function getApiServerEnvVars(string $gatewayToken): array
+    {
+        return [];
+    }
+
     public function buildDockerCompose(
         AgentDeployment $deployment,
         string $gatewayToken,
@@ -173,6 +188,10 @@ abstract class BaseDockerComposeBuilder
         $envVars['KANVAS_DEPLOYMENT_ID'] = (string) $deployment->getId();
 
         foreach ($this->getProviderEnvVarDefaults() as $key => $default) {
+            $envVars[$key] = $envVars[$key] ?? $default;
+        }
+
+        foreach ($this->getApiServerEnvVars($gatewayToken) as $key => $default) {
             $envVars[$key] = $envVars[$key] ?? $default;
         }
 

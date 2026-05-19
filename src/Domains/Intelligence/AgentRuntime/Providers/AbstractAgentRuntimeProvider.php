@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Providers;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider;
+use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentBackup;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
@@ -137,6 +138,17 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
     public function dispatchWorkspaceUpdate(AgentDeployment $deployment): void
     {
         throw $this->unsupported('workspace file update');
+    }
+
+    /**
+     * Default: report UNSUPPORTED so the unified health-check cron can walk every runtime
+     * without crashing on providers that don't have a probe yet. Concrete providers override
+     * to delegate to their per-runtime `Base*CheckHealthAction` subclass.
+     */
+    #[Override]
+    public function checkHealth(AgentDeployment $deployment): HealthCheckResultEnum
+    {
+        return HealthCheckResultEnum::UNSUPPORTED;
     }
 
     protected function unsupported(string $operation): LogicException

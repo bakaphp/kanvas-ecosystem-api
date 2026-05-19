@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Hermes\Providers;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Connectors\Hermes\Actions\CheckApiHealthAction;
 use Kanvas\Connectors\Hermes\Actions\CollectDeploymentUsageAction;
 use Kanvas\Connectors\Hermes\Actions\DispatchAgentDeploymentAction;
 use Kanvas\Connectors\Hermes\Actions\ExecDeploymentCommandAction;
@@ -21,6 +22,7 @@ use Kanvas\Connectors\Hermes\Jobs\TerminateAgentJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateHermesOnMachineJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateWorkspaceFilesJob;
 use Kanvas\Connectors\Hermes\SshClient;
+use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\AgentRuntime\Providers\AbstractAgentRuntimeProvider;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -191,5 +193,11 @@ class HermesProvider extends AbstractAgentRuntimeProvider
         } finally {
             $ssh->disconnect();
         }
+    }
+
+    #[Override]
+    public function checkHealth(AgentDeployment $deployment): HealthCheckResultEnum
+    {
+        return new CheckApiHealthAction($deployment)->execute();
     }
 }
