@@ -333,11 +333,7 @@ class ImageOptimizerService
 
                 $img = $img->scale($newWidth, $newHeight);
 
-                match (true) {
-                    self::isJpeg($extension) => $img->save($filePath, quality: 85),
-                    self::isPng($extension) => $img->save($filePath),
-                    default => null,
-                };
+                self::saveWithFormat($img, $filePath, $extension, 85);
                 clearstatcache(true, $filePath);
             }
 

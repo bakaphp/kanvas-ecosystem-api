@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions;
 
+use Baka\Support\Str;
 use Baka\Traits\LimitsBroadcastPayload;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -102,6 +103,8 @@ class ProcessAgentChatAction
         }
 
         $handler->setConfiguration($this->agent, $this->session?->entity(), null, $this->user);
+        $threadId = (string) ($this->session?->uuid ?? Str::uuid());
+        $handler->setThreadId($threadId);
 
         return new RunNeuronChatAction(
             agent: $this->agent,

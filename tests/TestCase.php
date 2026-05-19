@@ -12,6 +12,7 @@ use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Guild\Support\Setup;
 use Kanvas\Inventory\Support\Setup as SupportSetup;
 use Kanvas\Roles\Models\Roles;
@@ -87,6 +88,9 @@ class TestCase extends BaseTestCase
                 'domain_based' => 0,
             ]);
             new CreateAppsAction($data, new Users())->acl($currentApp);
+
+            $currentApp->set(AppSettingsEnums::ONE_SIGNAL_APP_ID->getValue(), 'test-onesignal-app-id');
+            $currentApp->set(AppSettingsEnums::ONE_SIGNAL_REST_API_KEY->getValue(), 'test-onesignal-rest-api-key');
 
             Roles::firstOrCreate([
                 'name' => 'Admins',
