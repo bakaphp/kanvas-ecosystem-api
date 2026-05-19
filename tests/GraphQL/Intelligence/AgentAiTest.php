@@ -90,6 +90,9 @@ class AgentAiTest extends TestCase
             'role' => [
                 'name' => 'test-role',
                 'description' => 'This is a test role',
+                'background' => null,
+                'output' => null,
+                'steps' => null,
             ],
             'is_active' => true,
         ]);
