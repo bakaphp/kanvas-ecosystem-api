@@ -100,7 +100,7 @@ class ProcessAgentChatAction
         }
 
         $handler->setConfiguration($this->agent, $this->session?->entity(), null, $this->user);
-        $threadId = $this->session?->uuid ?? Str::uuid();
+        $threadId = (string) ($this->session?->uuid ?? Str::uuid());
         $handler->setThreadId($threadId);
 
         return new RunNeuronChatAction(
