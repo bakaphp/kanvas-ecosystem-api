@@ -30,7 +30,7 @@ class ArchiveOldEventsAction
     public function execute(): array
     {
         $retentionDays = $this->retentionDaysOverride
-            ?? (int) config('nervous-system.ledger.retention_days', 30);
+            ?? (int) config('nervous-system.ledger.retention_days', 7);
         $disk = $this->diskOverride
             ?? (string) config('nervous-system.ledger.archive_disk', 's3');
         $pathPrefix = (string) config('nervous-system.ledger.archive_path_prefix', 'nervous-system');
@@ -38,23 +38,17 @@ class ArchiveOldEventsAction
 
         $cutoff = now()->subDays($retentionDays);
 
-        $eligibleCount = Event::query()
+        $window = Event::query()
             ->where('occurred_at', '<', $cutoff)
-            ->count();
+            ->selectRaw('count(*) as event_count, min(occurred_at) as window_start, max(occurred_at) as window_end')
+            ->first();
 
-        if ($eligibleCount === 0) {
+        if ($window === null || (int) $window->event_count === 0) {
             return ['event_count' => 0];
         }
 
-        $windowStart = Event::query()
-            ->where('occurred_at', '<', $cutoff)
-            ->min('occurred_at');
-        $windowEnd = Event::query()
-            ->where('occurred_at', '<', $cutoff)
-            ->max('occurred_at');
-
-        $startCarbon = Carbon::parse($windowStart);
-        $endCarbon = Carbon::parse($windowEnd);
+        $startCarbon = Carbon::parse($window->window_start);
+        $endCarbon = Carbon::parse($window->window_end);
 
         $relativePath = sprintf(
             '%s/%s/%s/events-%s-to-%s-%s.jsonl.gz',
@@ -88,9 +82,22 @@ class ArchiveOldEventsAction
 
         gzclose($gz);
 
-        Storage::disk($disk)->put($relativePath, file_get_contents($tempFile));
         $sizeBytes = filesize($tempFile);
-        @unlink($tempFile);
+
+        $stream = fopen($tempFile, 'rb');
+
+        if ($stream === false) {
+            @unlink($tempFile);
+
+            throw new RuntimeException('Could not reopen temp archive for streaming upload');
+        }
+
+        try {
+            Storage::disk($disk)->writeStream($relativePath, $stream);
+        } finally {
+            fclose($stream);
+            @unlink($tempFile);
+        }
 
         $archive = new EventArchive();
         $archive->apps_id = null;
