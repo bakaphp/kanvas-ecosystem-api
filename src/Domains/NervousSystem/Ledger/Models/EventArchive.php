@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Ledger\Models;
 
 use Baka\Traits\UuidTrait;
-use Kanvas\NervousSystem\Models\BaseModel;
+use Kanvas\NervousSystem\Models\ImmutableBaseModel;
 use Override;
 
 /**
@@ -21,7 +21,7 @@ use Override;
  * @property int|null $size_bytes
  * @property \Illuminate\Support\Carbon $archived_at
  */
-class EventArchive extends BaseModel
+class EventArchive extends ImmutableBaseModel
 {
     use UuidTrait;
 

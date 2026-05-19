@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
 use Baka\Contracts\AppInterface;
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,19 +22,29 @@ use Override;
 /**
  * @property int $id
  * @property string $uuid
- * @property int $app_id
+ * @property int $apps_id
  * @property string $name
+ * @property string|null $provider
+ * @property string|null $handler
  * @property string|null $description
  * @property array|null $config
  * @property string|null $role
+ * @property string|null $soul
+ * @property string|null $instructions
+ * @property string|null $output_format
  * @property bool $is_active
  * @property bool $is_published
  * @property bool $is_multi_agent
+ * @property bool $is_default
+ * @property int $weight
  * @property array|null $multi_agent_list
  * @property bool $is_deleted
  */
 class AgentType extends BaseModel
 {
+    use DatabaseSearchableTrait {
+        search as public traitSearch;
+    }
     use SoftDeletesTrait;
     use UuidTrait;
 
@@ -46,9 +57,14 @@ class AgentType extends BaseModel
         'handler',
         'config',
         'role',
+        'soul',
+        'instructions',
+        'output_format',
         'is_active',
         'is_published',
         'is_multi_agent',
+        'is_default',
+        'weight',
         'multi_agent_list',
     ];
 
@@ -58,6 +74,7 @@ class AgentType extends BaseModel
         'is_active' => 'boolean',
         'is_published' => 'boolean',
         'is_multi_agent' => 'boolean',
+        'is_default' => 'boolean',
     ];
 
     #[Override]
@@ -71,7 +88,7 @@ class AgentType extends BaseModel
             ->first();
 
         if (! $record) {
-            throw new ModelNotFoundException("No query results for model [" . static::class . "]. $id");
+            throw new ModelNotFoundException('No query results for model [' . static::class . "]. $id");
         }
 
         return $record;
@@ -103,5 +120,41 @@ class AgentType extends BaseModel
     protected static function newFactory()
     {
         return new AgentTypeFactory();
+    }
+
+    public function searchableAs(): string
+    {
+        $app = app(Apps::class);
+        $customIndex = $app->get('app_custom_agent_type_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'agent_type_index');
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'apps_id' => $this->apps_id,
+            'name' => $this->name,
+            'description' => $this->description,
+            'provider' => $this->provider,
+            'handler' => $this->handler,
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
+    /**
+     * AgentType is app-scoped with a "global" lane at apps_id=0 (templates
+     * shared across all apps). Mirror `fromAppOrGlobal` here so searches
+     * don't leak between apps but still include globals.
+     */
+    public static function search($query = '', $callback = null)
+    {
+        return self::traitSearch($query, $callback)
+            ->whereIn('apps_id', [0, app(Apps::class)->getId()]);
     }
 }

@@ -42,6 +42,9 @@ abstract class BaseTerminateAgentOnMachineAction
         $config = $this->getProviderConfig();
         $providerDir = $this->deployment->home_directory . '/.' . $config->dotDir;
         $systemUser = $this->deployment->system_user;
+        $homeDir = $this->deployment->home_directory;
+        $gatewayPort = $this->deployment->gateway_port;
+        $proxyPort = $this->deployment->proxy_port;
         $client = $this->createSshClient();
 
         try {
@@ -51,7 +54,7 @@ abstract class BaseTerminateAgentOnMachineAction
 
             if (str_contains($dirCheck, 'EXISTS')) {
                 $result = $client->exec(
-                    'sudo bash -c ' . escapeshellarg('cd ' . $providerDir . ' && docker compose down --rmi local 2>&1')
+                    'sudo bash -c ' . escapeshellarg('cd ' . $providerDir . ' && docker compose down --rmi local --remove-orphans 2>&1')
                     . '; echo "EXIT_CODE:$?"',
                     900,
                 );
@@ -63,20 +66,46 @@ abstract class BaseTerminateAgentOnMachineAction
                 }
             }
             // If the dir is missing the containers can't be running off it — fall through to
-            // userdel + status update. The deployment row gets marked terminated regardless,
-            // so this stays the canonical "make this go away" entry point.
+            // port cleanup + userdel + status update. The deployment row gets marked terminated
+            // regardless, so this stays the canonical "make this go away" entry point.
+
+            // Force-remove any containers still bound to the deployment ports — catches stray
+            // containers that survived compose down or were started outside compose.
+            $client->exec(
+                'docker ps -q --filter publish=' . $gatewayPort . ' | xargs -r docker rm -f 2>/dev/null || true'
+                . ' ; docker ps -q --filter publish=' . $proxyPort . ' | xargs -r docker rm -f 2>/dev/null || true',
+                30
+            );
+
+            // Prune dangling images left by --rmi local (intermediate build layers, etc.).
+            // Safe: only removes untagged images not referenced by any container.
+            $client->exec('docker image prune -f 2>/dev/null || true', 60);
 
             $client->exec('sudo userdel -r ' . escapeshellarg($systemUser) . ' 2>/dev/null || true', 60);
+
+            // userdel -r silently fails to remove files owned by root (e.g. written by docker
+            // containers that ran as root inside the bind-mounted volume). Remove explicitly.
+            $client->exec('sudo rm -rf ' . escapeshellarg($homeDir) . ' 2>/dev/null || true', 60);
 
             $this->deployment->status = DeploymentStatusEnum::TERMINATED->value;
             $this->deployment->terminated_at = new Carbon();
             $this->deployment->saveOrFail();
 
             $this->deployment->agent->update(['deployment_status' => 'pending']);
+
+            $this->afterTerminate($client);
         } finally {
             $client->disconnect();
         }
 
         return true;
+    }
+
+    /**
+     * Hook for provider-specific cleanup after containers and user are removed.
+     * Called after status is persisted — safe for DB writes and non-critical work.
+     */
+    protected function afterTerminate(SshClient $client): void
+    {
     }
 }

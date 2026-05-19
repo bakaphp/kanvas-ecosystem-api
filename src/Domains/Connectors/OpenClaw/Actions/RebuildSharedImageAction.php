@@ -24,10 +24,10 @@ class RebuildSharedImageAction
 
     public function execute(): void
     {
-        $builder   = new DockerComposeBuilder();
-        $client    = SshClient::fromMachine($this->machine);
+        $builder = new DockerComposeBuilder();
+        $client = SshClient::fromMachine($this->machine);
         $imageName = $builder->getSharedImageName($this->app);
-        $imageDir  = $builder->getSharedImageDir($this->app);
+        $imageDir = $builder->getSharedImageDir($this->app);
 
         try {
             $client->exec('sudo mkdir -p ' . escapeshellarg($imageDir));

@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Hermes\Services;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\Hermes\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
@@ -14,13 +13,6 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Override;
 use Symfony\Component\Yaml\Yaml;
 
-/**
- * Hermes-specific DockerComposeBuilder — thin subclass that wires provider config keys.
- *
- * All file-generation logic (including base-image pinning, version-tagged local image refs,
- * and Dockerfile substitution) lives in BaseDockerComposeBuilder. This class just supplies
- * provider-specific constants via the abstract getters.
- */
 class DockerComposeBuilder extends BaseDockerComposeBuilder
 {
     private const string TEMPLATES_DIR = __DIR__ . '/../Templates';
@@ -115,24 +107,6 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
         return ConfigurationEnum::ANTHROPIC_API_KEY->value;
     }
 
-    #[Override]
-    protected function getSlackBotTokenCustomFieldKey(): string
-    {
-        return CustomFieldEnum::SLACK_BOT_TOKEN->value;
-    }
-
-    #[Override]
-    protected function getSlackAppTokenCustomFieldKey(): string
-    {
-        return CustomFieldEnum::SLACK_APP_TOKEN->value;
-    }
-
-    #[Override]
-    protected function getTelegramBotTokenCustomFieldKey(): string
-    {
-        return CustomFieldEnum::TELEGRAM_BOT_TOKEN->value;
-    }
-
     /**
      * @return array<string, string>
      */
@@ -167,10 +141,23 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
         AppInterface $app,
         array $channelConfig = [],
     ): string {
-        $rawModel = (string) ($app->get($this->getDefaultModelConfigKey()) ?? 'gemini-3.1-pro-preview');
+        $rawModel = (string) ($app->get($this->getDefaultModelConfigKey()) ?? 'gemini-2.0-flash');
         $provider = $this->detectProvider($rawModel);
         $model = $this->normalizeModelName($rawModel, $provider);
         $baseUrl = $this->providerBaseUrl($provider);
+
+        $platforms = [
+            'slack' => $this->resolveSlackConfig($app),
+        ];
+
+        // Telegram block is opt-in: emit only when the app has explicit overrides.
+        // Hermes activates Telegram from the env-var bot token alone, so leaving the
+        // block out (vs. emitting an empty `platforms.telegram: {}`) keeps config.yaml
+        // free of dead keys when no tuning is configured.
+        $telegramConfig = $this->resolveTelegramConfig($app);
+        if ($telegramConfig !== null) {
+            $platforms['telegram'] = $telegramConfig;
+        }
 
         $config = [
             'model' => [
@@ -178,9 +165,7 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
                 'provider' => $provider,
                 'base_url' => $baseUrl,
             ],
-            'platforms' => [
-                'slack' => $this->resolveSlackConfig($app),
-            ],
+            'platforms' => $platforms,
         ];
 
         // inline=4 keeps the top-three levels (root → model/platforms → platforms.slack → fields)
@@ -209,6 +194,32 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
             : self::DEFAULT_SLACK_CONFIG;
 
         return ['extra' => $fields];
+    }
+
+    /**
+     * Same `extra:`-wrapping pattern as Slack — Hermes reads telegram customizations from
+     * `platforms.telegram.extra` and ignores fields placed at the parent level. Returns
+     * null when the app has no overrides set so we don't emit a dead `platforms.telegram:`
+     * key in config.yaml (the env-var bot token alone is enough to activate the platform).
+     *
+     * Per-app shape (e.g. on `hermes_telegram_config`):
+     *     [
+     *         'require_mention' => true,
+     *         'allow_from' => ['123456789'],
+     *         'disable_link_previews' => true,
+     *     ]
+     *
+     * @return array<string, mixed>|null  `{extra: {...fields}}` or null when not configured
+     */
+    private function resolveTelegramConfig(AppInterface $app): ?array
+    {
+        $override = $app->get(ConfigurationEnum::TELEGRAM_CONFIG->value);
+
+        if (! is_array($override) || $override === []) {
+            return null;
+        }
+
+        return ['extra' => $override];
     }
 
     /**

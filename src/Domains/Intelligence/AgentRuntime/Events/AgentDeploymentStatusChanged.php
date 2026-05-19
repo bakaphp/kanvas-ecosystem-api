@@ -51,11 +51,11 @@ class AgentDeploymentStatusChanged implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return [
-            'deployment_id'   => $this->deployment->id,
-            'agent_id'        => $this->deployment->agent_id,
-            'status'          => $this->deployment->status,
+            'deployment_id' => $this->deployment->id,
+            'agent_id' => $this->deployment->agent_id,
+            'status' => $this->deployment->status,
             'previous_status' => $this->previousStatus,
-            'error_message'   => $this->deployment->error_message,
+            'error_message' => $this->deployment->error_message,
         ];
     }
 }

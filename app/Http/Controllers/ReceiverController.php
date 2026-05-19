@@ -62,7 +62,10 @@ class ReceiverController extends BaseController
             );
         }
 
-        $status = $response['status'] ?? 200;
+        // `status` in $response is dual-purpose: numeric values are interpreted as the
+        // HTTP code, non-int values (e.g. string `"success"|"error"` per a webhook's own
+        // response envelope) stay in the body and HTTP defaults to 200.
+        $status = is_int($response['status'] ?? null) ? $response['status'] : 200;
 
         return response()->json(
             array_merge(['message' => 'Receiver processed'], $response),

@@ -128,37 +128,6 @@ input LaunchAgentInput {
     provider: AgentProvider = OPENCLAW
 }
 
-extend type Mutation @guard {
-    launchAgent(input: LaunchAgentInput!): AgentDeploymentType!
-        @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentDeploymentMutation@launch"
-        )
-
-    terminateAgent(deployment_id: ID!): Boolean!
-        @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentDeploymentMutation@terminate"
-        )
-
-    setAgentSlackTokens(
-        agent_id: ID!
-        slack_bot_token: String!
-        slack_app_token: String!
-        provider: AgentProvider
-    ): Boolean!
-        @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentDeploymentMutation@setSlackTokens"
-        )
-
-    setAgentTelegramToken(
-        agent_id: ID!
-        telegram_bot_token: String!
-        provider: AgentProvider
-    ): Boolean!
-        @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentDeploymentMutation@setTelegramToken"
-        )
-}
-
 extend type Query @guard {
     agentUsageSnapshots(
         search: String @search

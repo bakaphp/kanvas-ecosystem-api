@@ -5,19 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\OpenClaw\Services;
 
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
-use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
 use Override;
 
-/**
- * OpenClaw-specific DockerComposeBuilder — thin subclass that wires provider config keys.
- *
- * All file-generation logic (including base-image pinning, version-tagged local image refs,
- * and Dockerfile substitution) lives in BaseDockerComposeBuilder. This class just supplies
- * provider-specific constants via the abstract getters.
- */
 class DockerComposeBuilder extends BaseDockerComposeBuilder
 {
     private const string TEMPLATES_DIR = __DIR__ . '/../Templates';
@@ -90,24 +82,6 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
     protected function getAnthropicApiKeyConfigKey(): string
     {
         return ConfigurationEnum::ANTHROPIC_API_KEY->value;
-    }
-
-    #[Override]
-    protected function getSlackBotTokenCustomFieldKey(): string
-    {
-        return CustomFieldEnum::SLACK_BOT_TOKEN->value;
-    }
-
-    #[Override]
-    protected function getSlackAppTokenCustomFieldKey(): string
-    {
-        return CustomFieldEnum::SLACK_APP_TOKEN->value;
-    }
-
-    #[Override]
-    protected function getTelegramBotTokenCustomFieldKey(): string
-    {
-        return CustomFieldEnum::TELEGRAM_BOT_TOKEN->value;
     }
 
     /**

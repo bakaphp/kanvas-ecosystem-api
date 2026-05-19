@@ -1,0 +1,124 @@
+"Daily mission briefing rolled up overnight from member AgentDailyCycle rows."
+type AgentSwarmDailyCycle {
+    id: ID!
+    uuid: String!
+    cycle_date: Date!
+    generated_at: DateTime!
+    members_active_count: Int!
+    members_idle_count: Int!
+    events_processed_count: Int!
+    proactive_actions_count: Int!
+    mission_progress_pct: Float
+    progress_delta_since_yesterday: Float
+    bottleneck_summary: String
+    proposed_options: [SwarmProposedOption!]!
+        @method(name: "getProposedOptionsList")
+    emergent_patterns: [SwarmEmergentPattern!]!
+        @method(name: "getEmergentPatternsList")
+    briefing_text: String
+    signed_by_text: String
+    self_improvement_score: Float
+}
+
+type SwarmProposedOption {
+    label: String!
+    eta_hours: Float
+    impact: String
+}
+
+type SwarmEmergentPattern {
+    name: String!
+    confidence: Float
+    surfaced_in_member_count: Int
+}
+
+"Live snapshot of the swarm's monthly budget vs. spend."
+type AgentSwarmBudgetSnapshot {
+    id: ID!
+    monthly_cost_cap_usd: Float
+    monthly_token_cap: Int
+    monthly_task_cap: Int
+    spent_usd: Float!
+    remaining_usd: Float
+    tokens_used: Int!
+    tasks_used: Int!
+    days_left_in_period: Int!
+    period_resets_on: Date!
+    warn_at_pct: Int!
+    hard_stop_at_cap: Boolean!
+    warn_threshold_hit: Boolean!
+    hard_stop_threshold_hit: Boolean!
+}
+
+"Returned by AgentSwarm.needs_attention when a budget/health signal is firing."
+type SwarmNeedsAttention {
+    reason: String!
+    message: String!
+    severity: String!
+}
+
+input SwarmBudgetInput {
+    monthly_cost_cap_usd: Float
+    monthly_token_cap: Int
+    monthly_task_cap: Int
+    warn_at_pct: Int
+    hard_stop_at_cap: Boolean
+    period_resets_on: Int
+}
+
+extend type AgentSwarm {
+    "Today's accumulated USD cost across all member deployments. Updates as the deployment-usage cron runs (nightly today)."
+    cost_today: Float!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\AgentSwarm\\SwarmMetricsQuery@costToday"
+        )
+
+    "Overnight-generated mission briefing. NULL until the swarm cycle cron runs for the given date (defaults to today)."
+    daily_cycle(date: Date): AgentSwarmDailyCycle
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\AgentSwarm\\SwarmMetricsQuery@dailyCycle"
+        )
+
+    "Live budget snapshot for the current period. NULL if no budget has been set."
+    budget: AgentSwarmBudgetSnapshot
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\AgentSwarm\\SwarmMetricsQuery@budgetSnapshot"
+        )
+
+    "The single highest-severity alert to surface in the 'Needs attention' header card. NULL when all clear."
+    needs_attention: SwarmNeedsAttention
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\AgentSwarm\\SwarmMetricsQuery@needsAttention"
+        )
+
+    "Count of members currently in an active awake_state."
+    active_agents_count: Int!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\AgentSwarm\\SwarmMetricsQuery@activeAgentsCount"
+        )
+
+    "Plans tied to this swarm that are awaiting a human decision."
+    pending_decisions_count: Int!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\AgentSwarm\\SwarmMetricsQuery@pendingDecisionsCount"
+        )
+}
+
+extend type Query @guard {
+    "Single swarm lookup by id, scoped to the requester's app + company."
+    agentSwarm(id: ID!): AgentSwarm
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\AgentSwarm\\SwarmMetricsQuery@find"
+        )
+}
+
+extend type Mutation @guard {
+    "Create or update the monthly budget for a swarm. Idempotent — one budget per (swarm, period)."
+    setAgentSwarmBudget(
+        swarm_id: ID!
+        input: SwarmBudgetInput!
+    ): AgentSwarmBudgetSnapshot!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentSwarm\\SwarmBudgetMutation@set"
+        )
+}

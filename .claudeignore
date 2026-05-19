@@ -1,0 +1,37 @@
+# Third-party code — never read; vendor/ is huge and creates false-positive grep hits
+vendor/
+node_modules/
+
+# Laravel generated / cache
+bootstrap/cache/
+storage/framework/
+storage/logs/
+storage/debugbar/
+storage/clockwork/
+storage/app/public/
+storage/*.sqlite
+storage/*.HEIC
+
+# Build artifacts
+public/build/
+public/hot
+public/storage
+public/mix-manifest.json
+
+# Test / static-analysis caches
+.phpunit.cache/
+.phpunit.result.cache
+.psalm/
+.phpstan.cache/
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+
+# Lockfiles — useful occasionally, but rarely worth grep traffic
+composer.lock
+package-lock.json
+
+# Lighthouse generated schema cache
+storage/framework/cache/lighthouse-schema.php
