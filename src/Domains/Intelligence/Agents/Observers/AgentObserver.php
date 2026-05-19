@@ -22,35 +22,44 @@ class AgentObserver
             }
 
             try {
-                AgentRuntimeProviderFactory::forDeployment($deployment)->dispatchTermination($deployment);
+                AgentRuntimeProviderFactory::forDeployment($deployment)
+                    ->dispatchTermination($deployment);
             } catch (Throwable $e) {
                 report($e);
             }
         }
     }
 
+    public function saving(Agent $agent): void
+    {
+        $this->syncLegacyRole($agent);
+    }
+
     public function updated(Agent $agent): void
     {
         $workspaceFields = [
             'soul', 'instructions', 'identity', 'user_context',
-            'tools_config', 'output_format', 'role', 'name',
+            'output_format', 'role',
         ];
 
         if (! $agent->wasChanged($workspaceFields)) {
             return;
         }
 
-        $agent->deployments()
+        $deployments = $agent->deployments()
             ->where('status', 'running')
             ->where('is_deleted', 0)
-            ->get()
-            ->each(function (AgentDeployment $deployment) {
-                try {
-                    AgentRuntimeProviderFactory::forDeployment($deployment)->dispatchWorkspaceUpdate($deployment);
-                } catch (Throwable $e) {
-                    report($e);
-                }
-            });
+            ->get();
+
+        /** @var AgentDeployment $deployment */
+        foreach ($deployments as $deployment) {
+            try {
+                AgentRuntimeProviderFactory::forDeployment($deployment)
+                    ->dispatchWorkspaceUpdate($deployment);
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
     }
 
     public function saved(Agent $agent): void
@@ -61,6 +70,32 @@ class AgentObserver
     public function created(Agent $agent): void
     {
         $this->reconcileKanvasModules($agent);
+    }
+
+    private function syncLegacyRole(Agent $agent): void
+    {
+        $map = [
+            'soul' => 'background',
+            'instructions' => 'steps',
+            'output_format' => 'output',
+        ];
+
+        $dirty = array_filter(
+            array_keys($map),
+            fn (string $field): bool => $agent->isDirty($field),
+        );
+
+        if ($dirty === []) {
+            return;
+        }
+
+        $role = is_array($agent->role) ? $agent->role : [];
+
+        foreach ($dirty as $field) {
+            $role[$map[$field]] = $agent->{$field};
+        }
+
+        $agent->role = $role;
     }
 
     private function reconcileKanvasModules(Agent $agent): void

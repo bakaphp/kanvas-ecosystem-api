@@ -4,16 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Traits;
 
-use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Notifications\AnonymousNotifiable;
-use Kanvas\Exceptions\ValidationException;
 
 trait NotificationOneSignalTrait
 {
-    /**
-     * toKanvasDatabase.
-     */
     public function toOneSignal(UserInterface|AnonymousNotifiable $notifiable): array
     {
         $this->toUser = $notifiable instanceof UserInterface ? $notifiable : null;
@@ -22,23 +17,23 @@ trait NotificationOneSignalTrait
             return [];
         }
 
-        $messageContent = Str::cleanJsonString($this->getPushTemplate());
-        $messageContent = html_entity_decode($messageContent, ENT_QUOTES, 'UTF-8');
+        $content = $this->getPushContent();
+        $content['title'] = html_entity_decode($content['title'], ENT_QUOTES, 'UTF-8');
+        $content['message'] = html_entity_decode($content['message'], ENT_QUOTES, 'UTF-8');
 
-        if (! Str::isJson($messageContent)) {
-            report('Message content for push notification is not a valid JSON ' . json_encode($messageContent));
+        if ($content['subtitle'] !== null) {
+            $content['subtitle'] = html_entity_decode($content['subtitle'], ENT_QUOTES, 'UTF-8');
+        }
 
-            //throw new ValidationException('Message content for push notification is not a valid JSON');
+        if ($content['title'] === '' && $content['message'] === '') {
             return [];
         }
 
-        $messageContent = json_decode($messageContent, true);
-
         return [
             'user_id' => $this->toUser->getId(),
-            'message' => $messageContent['message'],
-            'title' => $messageContent['title'] ?? '',
-            'subtitle' => $messageContent['subtitle'] ?? '',
+            'message' => $content['message'],
+            'title' => $content['title'],
+            'subtitle' => $content['subtitle'] ?? '',
             'apps_id' => $this->app->getId(),
             'data' => $this->getData(),
         ];

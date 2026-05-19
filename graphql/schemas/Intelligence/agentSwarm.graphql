@@ -85,7 +85,7 @@ extend type Query @guard {
         search: String @search
         where: _
             @whereConditions(
-                columns: ["id", "name", "slug", "status", "is_active"]
+                columns: ["id", "name", "slug", "status", "is_active", "uuid"]
             )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [AgentSwarm!]!
