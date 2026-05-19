@@ -10,24 +10,16 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentRuntimeStateEnum;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
+use Kanvas\Intelligence\AgentRuntime\Services\AgentAwakeStateWriter;
 use Kanvas\Intelligence\Agents\Enums\AgentAwakeStateEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
-use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
-use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 
 /**
- * Runtime-agnostic 2-strike health-check state machine. Concrete subclasses override only
- * `probe()`; everything that mutates the agent or emits the ledger event lives here so the
- * rules can't drift between runtimes.
- *
- * State transitions:
- *   - First failed probe: record 'failed' on the agent custom field; awake_state untouched.
- *   - Second consecutive failed probe with awake_state != OFFLINE: flip to OFFLINE + emit
- *     `agent.runtime.health.observed` (status=error).
- *   - First successful probe while OFFLINE: flip to AWAKE + emit (status=success).
- *   - SLEEPING is never touched — owned by the cycle compiler. UNSUPPORTED short-circuits.
+ * 2-strike state machine: first failed probe is a tolerated blip, second consecutive failure
+ * flips OFFLINE, first OK after OFFLINE flips back to AWAKE. SLEEPING and UNSUPPORTED short-
+ * circuit. Subclasses override only `probe()`.
  */
 abstract class BaseCheckHealthAction
 {
@@ -81,6 +73,9 @@ abstract class BaseCheckHealthAction
             : HealthCheckResultEnum::OK;
     }
 
+    // Writer no-ops if awake_state already matches the target or if the agent is SLEEPING,
+    // so we don't recheck either here. State machine rule: 2-strike for FAILED → OFFLINE,
+    // first OK → AWAKE.
     private function applyStateMachine(
         Agent $agent,
         AppInterface $app,
@@ -88,65 +83,30 @@ abstract class BaseCheckHealthAction
         HealthCheckResultEnum $current,
         HealthCheckResultEnum $previous,
     ): void {
-        if ($agent->awake_state === AgentAwakeStateEnum::SLEEPING->value) {
-            return;
-        }
+        $writer = new AgentAwakeStateWriter();
 
-        if ($current === HealthCheckResultEnum::OK && $agent->awake_state === AgentAwakeStateEnum::OFFLINE->value) {
-            $this->transitionState(
+        if ($current === HealthCheckResultEnum::OK) {
+            $writer->write(
                 $agent,
                 $app,
                 $company,
                 AgentAwakeStateEnum::AWAKE,
                 EventStatusEnum::SUCCESS,
+                $this->deployment,
             );
 
             return;
         }
 
-        $shouldGoOffline = $current === HealthCheckResultEnum::FAILED
-            && $previous === HealthCheckResultEnum::FAILED
-            && $agent->awake_state !== AgentAwakeStateEnum::OFFLINE->value;
-
-        if ($shouldGoOffline) {
-            $this->transitionState(
+        if ($previous === HealthCheckResultEnum::FAILED) {
+            $writer->write(
                 $agent,
                 $app,
                 $company,
                 AgentAwakeStateEnum::OFFLINE,
                 EventStatusEnum::ERROR,
+                $this->deployment,
             );
         }
-    }
-
-    private function transitionState(
-        Agent $agent,
-        AppInterface $app,
-        CompanyInterface $company,
-        AgentAwakeStateEnum $newState,
-        EventStatusEnum $eventStatus,
-    ): void {
-        $agent->awake_state = $newState->value;
-        $agent->last_state_changed_at = now();
-        $agent->saveOrFail();
-
-        new AppendEventAction(
-            new EventData(
-                app: $app,
-                company: $company,
-                sourceDomain: 'Intelligence.AgentRuntime',
-                eventType: 'agent.runtime.health.observed',
-                status: $eventStatus,
-                sourceEntityType: Agent::class,
-                sourceEntityId: $agent->getId(),
-                actorType: 'System',
-                payload: [
-                    'awake_state' => $newState->value,
-                    'provider' => $this->deployment->provider,
-                    'deployment_id' => $this->deployment->getId(),
-                    'container_name' => $this->deployment->container_name,
-                ],
-            ),
-        )->execute();
     }
 }
