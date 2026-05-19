@@ -1,0 +1,180 @@
+type FollowUp {
+    id: ID!
+    pipeline: LeadPipeline! @belongsTo(relation: "pipeline")
+    days: [FollowUpDay!]! @hasMany(relation: "days")
+    name: String!
+    follow_up_type: Int!
+    config: Mixed
+    is_deleted: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type FollowUpDay {
+    id: ID!
+    followUp: FollowUp! @belongsTo(relation: "followUp")
+    pipelineStage: LeadPipelineStage! @belongsTo(relation: "pipelineStage")
+    templates: [FollowUpTemplate!]! @hasMany(relation: "templates")
+    name: String!
+    time_value: Int!
+    time_unit: String
+    weight: Int!
+    calendar_day: Boolean!
+    move_to_stage_id: Int
+    send_message: Boolean!
+    is_deleted: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type FollowUpTemplate {
+    id: ID!
+    followUpDay: FollowUpDay! @belongsTo(relation: "followUpDay")
+    communication_channel: String!
+    name: String!
+    template: String!
+    is_deleted: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+input FollowUpInput {
+    pipeline_id: ID!
+    name: String!
+    follow_up_type: Int!
+    config: Mixed
+}
+
+input UpdateFollowUpInput {
+    pipeline_id: ID
+    name: String
+    follow_up_type: Int
+    config: Mixed
+}
+
+input FollowUpDayInput {
+    follow_up_id: ID!
+    pipeline_stage_id: ID!
+    name: String!
+    time_value: Int!
+    time_unit: String
+    weight: Int!
+    calendar_day: Boolean
+    move_to_stage_id: Int
+    send_message: Boolean
+}
+
+input UpdateFollowUpDayInput {
+    pipeline_stage_id: ID
+    name: String
+    time_value: Int
+    time_unit: String
+    weight: Int
+    calendar_day: Boolean
+    move_to_stage_id: Int
+    send_message: Boolean
+}
+
+input FollowUpTemplateInput {
+    follow_up_day_id: ID!
+    communication_channel: String!
+    name: String!
+    template: String!
+}
+
+input UpdateFollowUpTemplateInput {
+    communication_channel: String
+    name: String
+    template: String
+}
+
+extend type Mutation @guard {
+    createFollowUp(input: FollowUpInput!): FollowUp!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpMutation@create"
+        )
+    updateFollowUp(id: ID!, input: UpdateFollowUpInput!): FollowUp!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpMutation@update"
+        )
+    deleteFollowUp(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpMutation@delete"
+        )
+
+    createFollowUpDay(input: FollowUpDayInput!): FollowUpDay!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpDayMutation@create"
+        )
+    updateFollowUpDay(id: ID!, input: UpdateFollowUpDayInput!): FollowUpDay!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpDayMutation@update"
+        )
+    deleteFollowUpDay(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpDayMutation@delete"
+        )
+
+    createFollowUpTemplate(input: FollowUpTemplateInput!): FollowUpTemplate!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpTemplateMutation@create"
+        )
+    updateFollowUpTemplate(
+        id: ID!
+        input: UpdateFollowUpTemplateInput!
+    ): FollowUpTemplate!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpTemplateMutation@update"
+        )
+    deleteFollowUpTemplate(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpTemplateMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    followUps(
+        where: _
+            @whereConditions(
+                columns: ["id", "name", "follow_up_type", "pipelines_id"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [FollowUp!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\FollowUp\\Models\\FollowUp"
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+
+    followUpDays(
+        where: _
+            @whereConditions(
+                columns: ["id", "name", "follow_ups_id", "pipeline_stages_id"]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "weight"])
+    ): [FollowUpDay!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\FollowUp\\Models\\FollowUpDay"
+            scopes: ["notDeleted"]
+            defaultCount: 25
+        )
+
+    followUpTemplates(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "follow_up_days_id"
+                    "communication_channel"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
+    ): [FollowUpTemplate!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\FollowUp\\Models\\FollowUpTemplate"
+            scopes: ["notDeleted"]
+            defaultCount: 25
+        )
+}

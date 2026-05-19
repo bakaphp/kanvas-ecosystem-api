@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions;
 
 use Baka\Support\Str;
+use Baka\Traits\LimitsBroadcastPayload;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
@@ -23,6 +24,8 @@ use Throwable;
 
 class ProcessAgentChatAction
 {
+    use LimitsBroadcastPayload;
+
     public function __construct(
         protected readonly Agent $agent,
         protected readonly ?Session $session,
@@ -142,7 +145,7 @@ class ProcessAgentChatAction
             'agent_name' => $this->agent->name,
             'session_id' => $sessionId,
             'message' => $this->message,
-            'response' => $response,
+            'response' => $this->limitBroadcastPayload($response),
         ]);
     }
 }

@@ -80,4 +80,6 @@ interface AgentRuntimeProvider
     ): void;
 
     public function dispatchUpdateMachineContainers(AgentMachine $machine): void;
+
+    public function dispatchWorkspaceUpdate(AgentDeployment $deployment): void;
 }
