@@ -15,6 +15,7 @@ use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Exceptions\AgentProviderException;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
@@ -101,7 +102,9 @@ class ProcessAgentChatAction
 
         $handler->setConfiguration($this->agent, $this->session?->entity(), null, $this->user);
         $threadId = $this->session?->uuid ?? Str::uuid();
-        $handler->setThreadId($threadId);
+        if ($handler instanceof BaseKanvasAgent) {
+            $handler->setThreadId($threadId);
+        }
 
         return new RunNeuronChatAction(
             agent: $this->agent,
