@@ -255,7 +255,10 @@ class MessageManagementMutation
     {
         $user = auth()->user();
         $app = app(Apps::class);
-        $message = Message::withTrashed()->where('id', $request['id'])->where('users_id', $user->getId())->fromApp($app)->firstOrFail();
+        $message = Message::withTrashed()
+            ->where('id', $request['id'])
+            ->where('users_id', $user->getId())
+            ->fromApp($app)->firstOrFail();
         $message->restore();
 
         return $message;
