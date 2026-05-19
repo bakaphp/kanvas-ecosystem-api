@@ -9,6 +9,7 @@ use Baka\Traits\LimitsBroadcastPayload;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Agents\Actions\Chat\RunADKChatAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunLaravelAgentChatAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunOpenClawChatAction;
@@ -16,6 +17,7 @@ use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Exceptions\AgentProviderException;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
@@ -80,6 +82,23 @@ class ProcessAgentChatAction
         }
 
         $handler = new $handlerClass();
+
+        if ($handler instanceof ADKAgent) {
+            // ADKAgent is a Google ADK runtime — it does not extend BaseKanvasAgent
+            // and has no setThreadId(); chatSimple() carries the session/user ids
+            // itself, so route it through its own dedicated action.
+            $handler->setConfiguration($this->agent, $this->session?->entity());
+
+            return new RunADKChatAction(
+                agent: $this->agent,
+                session: $this->session,
+                message: $this->message,
+                app: $this->app,
+                company: $this->company,
+                user: $this->user,
+                handler: $handler,
+            )->execute();
+        }
 
         if ($handler instanceof KanvasLaravelAgent) {
             // Pass the request-scoped app/company so tools get the correct tenant
