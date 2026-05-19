@@ -7,10 +7,16 @@ namespace App\Console\Commands\NervousSystem;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
+use Kanvas\Intelligence\AgentRuntime\Services\AgentAwakeStateWriter;
+use Kanvas\Intelligence\Agents\Enums\AgentAwakeStateEnum;
+use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
+use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Throwable;
 
 class CheckAgentRuntimeHealthCommand extends Command
@@ -19,20 +25,16 @@ class CheckAgentRuntimeHealthCommand extends Command
 
     protected $signature = 'kanvas:agent-runtime-check-health {--app= : Restrict to a single app id}';
 
-    protected $description = 'Probe every running agent-runtime deployment and update awake_state on outage/recovery';
+    protected $description = 'Reconcile awake_state across every agent — probes runtime deployments + in-process providers';
 
     public function handle(): int
     {
-        $query = AgentDeployment::query()
-            ->where('status', DeploymentStatusEnum::RUNNING->value)
-            ->notDeleted();
+        $appId = $this->option('app') !== null ? (int) $this->option('app') : null;
 
-        if ($this->option('app') !== null) {
-            $appId = (int) $this->option('app');
+        if ($appId !== null) {
             /** @var Apps $app */
             $app = Apps::getById($appId);
             $this->overwriteAppService($app);
-            $query->where('apps_id', $appId);
         }
 
         $counts = [
@@ -41,6 +43,32 @@ class CheckAgentRuntimeHealthCommand extends Command
             HealthCheckResultEnum::UNSUPPORTED->value => 0,
         ];
         $errored = 0;
+        $inProcessReconciled = 0;
+
+        $this->probeRuntimeDeployments($appId, $counts, $errored);
+        $this->reconcileInProcessAgents($appId, $inProcessReconciled);
+
+        $this->info(sprintf(
+            'Runtime probed: ok=%d failed=%d unsupported=%d errored=%d | In-process state changes: %d',
+            $counts[HealthCheckResultEnum::OK->value],
+            $counts[HealthCheckResultEnum::FAILED->value],
+            $counts[HealthCheckResultEnum::UNSUPPORTED->value],
+            $errored,
+            $inProcessReconciled,
+        ));
+
+        return self::SUCCESS;
+    }
+
+    private function probeRuntimeDeployments(?int $appId, array &$counts, int &$errored): void
+    {
+        $query = AgentDeployment::query()
+            ->where('status', DeploymentStatusEnum::RUNNING->value)
+            ->notDeleted();
+
+        if ($appId !== null) {
+            $query->where('apps_id', $appId);
+        }
 
         $query->chunkById(50, function ($deployments) use (&$counts, &$errored): void {
             foreach ($deployments as $deployment) {
@@ -66,15 +94,65 @@ class CheckAgentRuntimeHealthCommand extends Command
                 }
             }
         });
+    }
 
-        $this->info(sprintf(
-            'Probed: ok=%d failed=%d unsupported=%d errored=%d',
-            $counts[HealthCheckResultEnum::OK->value],
-            $counts[HealthCheckResultEnum::FAILED->value],
-            $counts[HealthCheckResultEnum::UNSUPPORTED->value],
-            $errored,
-        ));
+    // In-process providers (Neuron/Laravel/ADK) don't have containers to probe — their "health"
+    // is whether the Agent row is active. We reconcile by walking those agents and flipping
+    // awake_state via the same transitioner the runtime probe uses, so dashboards see uniform
+    // ledger events regardless of provider type.
+    private function reconcileInProcessAgents(?int $appId, int &$reconciled): void
+    {
+        $providerValues = array_map(
+            static fn (AgentProviderEnum $p): string => $p->value,
+            AgentProviderEnum::inProcessProviders(),
+        );
 
-        return self::SUCCESS;
+        $query = Agent::query()
+            ->notDeleted()
+            ->whereHas(
+                'type',
+                static fn ($q) => $q->whereIn('provider', $providerValues),
+            );
+
+        if ($appId !== null) {
+            $query->where('apps_id', $appId);
+        }
+
+        $writer = new AgentAwakeStateWriter();
+
+        $query->chunkById(50, function ($agents) use ($writer, &$reconciled): void {
+            foreach ($agents as $agent) {
+                $expected = $agent->is_active
+                    ? AgentAwakeStateEnum::AWAKE
+                    : AgentAwakeStateEnum::OFFLINE;
+
+                $eventStatus = $expected === AgentAwakeStateEnum::AWAKE
+                    ? EventStatusEnum::SUCCESS
+                    : EventStatusEnum::ERROR;
+
+                /** @var Apps $app */
+                $app = Apps::getById($agent->apps_id);
+                $company = Companies::getById($agent->companies_id);
+
+                $changed = $writer->write(
+                    $agent,
+                    $app,
+                    $company,
+                    $expected,
+                    $eventStatus,
+                );
+
+                if ($changed) {
+                    $reconciled++;
+                    $this->line(sprintf(
+                        '  agent=%-5d provider=%-8s %-30s → %s',
+                        $agent->getId(),
+                        $agent->type?->provider ?? '?',
+                        substr($agent->name, 0, 30),
+                        $expected->value,
+                    ));
+                }
+            }
+        });
     }
 }
