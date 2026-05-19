@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Hermes\Actions;
 
 use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
+use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
+use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
@@ -28,8 +30,8 @@ class BackfillAgentGatewayTokenAction
         $skippedNoToken = 0;
 
         $agentIds = AgentDeployment::query()
-            ->where('provider', 'hermes')
-            ->where('is_deleted', 0)
+            ->where('provider', AgentProviderEnum::HERMES->value)
+            ->notDeleted()
             ->pluck('agent_id')
             ->unique()
             ->values();
@@ -75,9 +77,9 @@ class BackfillAgentGatewayTokenAction
     {
         $deployments = AgentDeployment::query()
             ->where('agent_id', $agent->getId())
-            ->where('provider', 'hermes')
-            ->where('is_deleted', 0)
-            ->orderByRaw("CASE WHEN status = 'running' THEN 0 ELSE 1 END")
+            ->where('provider', AgentProviderEnum::HERMES->value)
+            ->notDeleted()
+            ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [DeploymentStatusEnum::RUNNING->value])
             ->orderByDesc('id')
             ->get();
 

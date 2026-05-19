@@ -7,6 +7,7 @@ namespace App\Console\Commands\NervousSystem;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
@@ -23,8 +24,8 @@ class CheckAgentRuntimeHealthCommand extends Command
     public function handle(): int
     {
         $query = AgentDeployment::query()
-            ->where('status', 'running')
-            ->where('is_deleted', 0);
+            ->where('status', DeploymentStatusEnum::RUNNING->value)
+            ->notDeleted();
 
         if ($this->option('app') !== null) {
             $appId = (int) $this->option('app');

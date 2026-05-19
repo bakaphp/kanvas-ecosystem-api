@@ -15,15 +15,14 @@ use Throwable;
 class CheckApiHealthAction extends BaseCheckHealthAction
 {
     #[Override]
-    protected function probe(): HealthCheckResultEnum
+    protected function probe(Agent $agent): HealthCheckResultEnum
     {
         $machine = $this->deployment->machine;
         if ($machine === null) {
             return HealthCheckResultEnum::FAILED;
         }
 
-        $agent = Agent::query()->find($this->deployment->agent_id);
-        $token = (string) ($agent?->get(CustomFieldEnum::HERMES_GATEWAY_TOKEN->value) ?? '');
+        $token = (string) ($agent->get(CustomFieldEnum::HERMES_GATEWAY_TOKEN->value) ?? '');
         if ($token === '') {
             return HealthCheckResultEnum::FAILED;
         }

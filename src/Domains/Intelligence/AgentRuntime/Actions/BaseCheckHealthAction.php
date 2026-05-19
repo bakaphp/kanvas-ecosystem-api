@@ -36,15 +36,10 @@ abstract class BaseCheckHealthAction
     ) {
     }
 
-    abstract protected function probe(): HealthCheckResultEnum;
+    abstract protected function probe(Agent $agent): HealthCheckResultEnum;
 
     public function execute(): HealthCheckResultEnum
     {
-        $current = $this->probe();
-        if ($current === HealthCheckResultEnum::UNSUPPORTED) {
-            return $current;
-        }
-
         /** @var Apps $app */
         $app = Apps::getById($this->deployment->apps_id);
         $company = Companies::getById($this->deployment->companies_id);
@@ -54,6 +49,11 @@ abstract class BaseCheckHealthAction
             $company,
             $app,
         );
+
+        $current = $this->probe($agent);
+        if ($current === HealthCheckResultEnum::UNSUPPORTED) {
+            return $current;
+        }
 
         $previous = $this->resolvePreviousStatus($agent);
         $agent->set(AgentRuntimeStateEnum::LAST_HEALTH_STATUS->value, $current->value);
@@ -93,13 +93,12 @@ abstract class BaseCheckHealthAction
         }
 
         if ($current === HealthCheckResultEnum::OK && $agent->awake_state === AgentAwakeStateEnum::OFFLINE->value) {
-            $this->flipAwakeState($agent, AgentAwakeStateEnum::AWAKE);
-            $this->emit(
+            $this->transitionState(
+                $agent,
                 $app,
                 $company,
-                $agent,
-                EventStatusEnum::SUCCESS,
                 AgentAwakeStateEnum::AWAKE,
+                EventStatusEnum::SUCCESS,
             );
 
             return;
@@ -110,43 +109,39 @@ abstract class BaseCheckHealthAction
             && $agent->awake_state !== AgentAwakeStateEnum::OFFLINE->value;
 
         if ($shouldGoOffline) {
-            $this->flipAwakeState($agent, AgentAwakeStateEnum::OFFLINE);
-            $this->emit(
+            $this->transitionState(
+                $agent,
                 $app,
                 $company,
-                $agent,
-                EventStatusEnum::ERROR,
                 AgentAwakeStateEnum::OFFLINE,
+                EventStatusEnum::ERROR,
             );
         }
     }
 
-    private function flipAwakeState(Agent $agent, AgentAwakeStateEnum $newState): void
-    {
+    private function transitionState(
+        Agent $agent,
+        AppInterface $app,
+        CompanyInterface $company,
+        AgentAwakeStateEnum $newState,
+        EventStatusEnum $eventStatus,
+    ): void {
         $agent->awake_state = $newState->value;
         $agent->last_state_changed_at = now();
         $agent->saveOrFail();
-    }
 
-    private function emit(
-        AppInterface $app,
-        CompanyInterface $company,
-        Agent $agent,
-        EventStatusEnum $status,
-        AgentAwakeStateEnum $newAwakeState,
-    ): void {
         new AppendEventAction(
             new EventData(
                 app: $app,
                 company: $company,
                 sourceDomain: 'Intelligence.AgentRuntime',
                 eventType: 'agent.runtime.health.observed',
-                status: $status,
+                status: $eventStatus,
                 sourceEntityType: Agent::class,
                 sourceEntityId: $agent->getId(),
                 actorType: 'System',
                 payload: [
-                    'awake_state' => $newAwakeState->value,
+                    'awake_state' => $newState->value,
                     'provider' => $this->deployment->provider,
                     'deployment_id' => $this->deployment->getId(),
                     'container_name' => $this->deployment->container_name,

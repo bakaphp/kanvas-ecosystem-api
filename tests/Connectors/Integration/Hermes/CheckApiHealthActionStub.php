@@ -6,6 +6,7 @@ namespace Tests\Connectors\Integration\Hermes;
 
 use Kanvas\Connectors\Hermes\Actions\CheckApiHealthAction;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Override;
 
@@ -23,7 +24,7 @@ class CheckApiHealthActionStub extends CheckApiHealthAction
     }
 
     #[Override]
-    protected function probe(): HealthCheckResultEnum
+    protected function probe(Agent $agent): HealthCheckResultEnum
     {
         return $this->cannedStatus;
     }
