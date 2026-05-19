@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Traits;
 
-use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Kanvas\Exceptions\ValidationException;
@@ -12,9 +11,6 @@ use NotificationChannels\Expo\ExpoMessage;
 
 trait NotificationExpoTrait
 {
-    /**
-     * toKanvasDatabase.
-     */
     public function toExpo(UserInterface|AnonymousNotifiable $notifiable): ExpoMessage
     {
         $this->toUser = $notifiable instanceof UserInterface ? $notifiable : null;
@@ -23,14 +19,12 @@ trait NotificationExpoTrait
             throw new ValidationException('User not found');
         }
 
-        $messageContent = Str::cleanJsonString($this->getPushTemplate());
-        if (! Str::isJson($messageContent)) {
-            report('Message content for push notification is not a valid JSON ' . json_encode($messageContent));
+        $content = $this->getPushContent();
 
-            throw new ValidationException('Message content for push notification is not a valid JSON');
+        if ($content['title'] === '' && $content['message'] === '') {
+            throw new ValidationException('Push notification has no title or message');
         }
 
-        $messageContent = json_decode($messageContent, true);
         $additionalData = $this->getData();
 
         unset($additionalData['apps_id'],
@@ -51,16 +45,16 @@ trait NotificationExpoTrait
             }
         }
 
-        $expoMessage = ExpoMessage::create($messageContent['title'])
-          ->body($messageContent['message'])
+        $expoMessage = ExpoMessage::create($content['title'])
+          ->body($content['message'])
           // Only call ->data($filtered) when $filtered is non-empty. to avoid expo errors about invalid data payloads.
           ->when(! empty($filtered), fn (ExpoMessage $msg) => $msg->data($filtered))
           ->expiresAt(now()->addHour())
           ->priority('high')
           ->playSound();
 
-        if (! empty($messageContent['subtitle'])) {
-            $expoMessage->subtitle($messageContent['subtitle']);
+        if (! empty($content['subtitle'])) {
+            $expoMessage->subtitle($content['subtitle']);
         }
 
         return $expoMessage;
