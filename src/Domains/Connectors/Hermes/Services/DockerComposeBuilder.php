@@ -116,6 +116,24 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
         return ['HERMES_SKIP_SERVICE_CHECK' => 'true'];
     }
 
+    /**
+     * Enable the Hermes HTTP API server inside the container on loopback only. The bearer
+     * key reuses the per-agent gateway token already stored in HERMES_GATEWAY_TOKEN so a
+     * single rotation surface covers messaging + API auth.
+     *
+     * @return array<string, string>
+     */
+    #[Override]
+    protected function getApiServerEnvVars(string $gatewayToken): array
+    {
+        return [
+            'API_SERVER_ENABLED' => 'true',
+            'API_SERVER_HOST' => '127.0.0.1',
+            'API_SERVER_PORT' => '8642',
+            'API_SERVER_KEY' => $gatewayToken,
+        ];
+    }
+
     #[Override]
     protected static function getDefaultBaseImage(): string
     {
