@@ -19,7 +19,7 @@ class Str extends IlluminateStr
     /**
      * Given a json string decode it into array.
      */
-    public static function jsonToArray($string): mixed
+    public static function jsonToArray(mixed $string): mixed
     {
         return is_string($string) && self::isJson($string) ? json_decode($string, true) : $string;
     }
