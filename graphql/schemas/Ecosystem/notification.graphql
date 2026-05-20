@@ -111,7 +111,7 @@ extend type Query @guard {
     ): [Notification!]!
         @paginate(
             model: "Kanvas\\Notifications\\Models\\Notifications"
-            scopes: ["allNotifications"]
+            scopes: ["allNotifications", "fromCompany"]
             defaultCount: 25
         )
     notificationTypes(

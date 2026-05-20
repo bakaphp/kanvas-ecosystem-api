@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Services\AgentChannelIntegrationReadinessService;
 use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
 use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilder;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
@@ -54,6 +55,9 @@ abstract class BaseLaunchAgentOnMachineAction
 
     public function execute(): AgentDeployment
     {
+        new AgentChannelIntegrationReadinessService()
+            ->assertReadyForDeployment($this->agent, $this->getProviderConfig()->providerName);
+
         if (! $this->machine->hasCapacity()) {
             throw new ValidationException('Machine ' . $this->machine->name . ' has reached maximum agent capacity');
         }

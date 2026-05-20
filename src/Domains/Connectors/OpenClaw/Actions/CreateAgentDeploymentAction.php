@@ -7,6 +7,8 @@ namespace Kanvas\Connectors\OpenClaw\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Services\AgentChannelIntegrationReadinessService;
+use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -30,6 +32,9 @@ class CreateAgentDeploymentAction
 
     public function execute(): AgentDeployment
     {
+        new AgentChannelIntegrationReadinessService()
+            ->assertReadyForDeployment($this->agent, AgentProviderEnum::OPENCLAW->value);
+
         $ports = $this->machine->allocatePortPair();
         $slug = $this->agent->slug;
         $systemUser = 'agent-' . $slug;

@@ -21,6 +21,7 @@ class AgentRuntimeEmailTemplateSeeder extends Seeder
         'agent_deployment_launched',
         'agent_deployment_terminated',
         'agent_deployment_failed',
+        'agent_deployment_missing_channel_integration',
         'agent_backup_result',
         'agent_migration_result',
     ];
