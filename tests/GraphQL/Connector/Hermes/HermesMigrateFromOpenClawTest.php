@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Connector\Hermes;
 
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Hermes\Actions\MigrateFromOpenClawAction;
 use Kanvas\Connectors\Hermes\Jobs\MigrateFromOpenClawJob;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
+use Kanvas\Intelligence\AgentRuntime\Notifications\AgentDeploymentMissingChannelIntegrationNotification;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -118,6 +122,31 @@ class HermesMigrateFromOpenClawTest extends TestCase
         ]);
 
         Queue::assertPushed(MigrateFromOpenClawJob::class);
+    }
+
+    public function testMigrateFromOpenClawActionRequiresSlackOrTelegramIntegration(): void
+    {
+        Notification::fake();
+
+        $machine = $this->createTestMachine();
+        $sourceDeployment = $this->createTestDeployment($machine);
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        try {
+            new MigrateFromOpenClawAction($sourceDeployment, $machine, $app, $company)->execute();
+            $this->fail('Expected migration deployment to be blocked without Slack or Telegram credentials.');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('Slack integration or Telegram integration', $e->getMessage());
+        }
+
+        $this->assertSame(
+            0,
+            AgentDeployment::where('agent_id', $sourceDeployment->agent_id)
+                ->where('provider', 'hermes')
+                ->count(),
+        );
+        Notification::assertSentTo($sourceDeployment->agent->user, AgentDeploymentMissingChannelIntegrationNotification::class);
     }
 
     public function testHermesMigrateFromOpenclawRequiresValidSourceDeployment(): void
