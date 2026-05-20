@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Contracts;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentBackup;
@@ -80,4 +81,11 @@ interface AgentRuntimeProvider
     ): void;
 
     public function dispatchUpdateMachineContainers(AgentMachine $machine): void;
+
+    public function dispatchWorkspaceUpdate(AgentDeployment $deployment): void;
+
+    // Runtime liveness probe — drives the unified health-check cron + dashboard "is offline" pill.
+    // Returns UNSUPPORTED for runtimes that don't expose a probe yet (default in the abstract);
+    // OK/FAILED feed the 2-strike state machine in `BaseCheckHealthAction`.
+    public function checkHealth(AgentDeployment $deployment): HealthCheckResultEnum;
 }

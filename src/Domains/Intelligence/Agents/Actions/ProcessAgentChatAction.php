@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions;
 
+use Baka\Support\Str;
+use Baka\Traits\LimitsBroadcastPayload;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
@@ -14,6 +16,7 @@ use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Exceptions\AgentProviderException;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
@@ -22,6 +25,8 @@ use Throwable;
 
 class ProcessAgentChatAction
 {
+    use LimitsBroadcastPayload;
+
     public function __construct(
         protected readonly Agent $agent,
         protected readonly ?Session $session,
@@ -99,6 +104,11 @@ class ProcessAgentChatAction
         }
 
         $handler->setConfiguration($this->agent, $this->session?->entity(), null, $this->user);
+        $threadId = $this->session?->uuid ?? Str::uuid()->toString();
+
+        if ($handler instanceof BaseKanvasAgent) {
+            $handler->setThreadId($threadId);
+        }
 
         return new RunNeuronChatAction(
             agent: $this->agent,
@@ -139,7 +149,7 @@ class ProcessAgentChatAction
             'agent_name' => $this->agent->name,
             'session_id' => $sessionId,
             'message' => $this->message,
-            'response' => $response,
+            'response' => $this->limitBroadcastPayload($response),
         ]);
     }
 }

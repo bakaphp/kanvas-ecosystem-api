@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Providers;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider;
+use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentBackup;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
@@ -131,6 +132,18 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
     public function dispatchUpdateMachineContainers(AgentMachine $machine): void
     {
         throw $this->unsupported('machine container updates');
+    }
+
+    #[Override]
+    public function dispatchWorkspaceUpdate(AgentDeployment $deployment): void
+    {
+        throw $this->unsupported('workspace file update');
+    }
+
+    #[Override]
+    public function checkHealth(AgentDeployment $deployment): HealthCheckResultEnum
+    {
+        return HealthCheckResultEnum::UNSUPPORTED;
     }
 
     protected function unsupported(string $operation): LogicException

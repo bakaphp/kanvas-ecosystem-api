@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Hermes\Actions;
 
+use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Intelligence\AgentRuntime\Actions\BaseTerminateAgentOnMachineAction;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
@@ -26,5 +27,11 @@ class TerminateAgentOnMachineAction extends BaseTerminateAgentOnMachineAction
     protected function createSshClient(): BaseSshClient
     {
         return SshClient::fromMachine($this->deployment->machine);
+    }
+
+    #[Override]
+    protected function afterTerminate(BaseSshClient $client): void
+    {
+        $this->deployment->agent->del(CustomFieldEnum::HERMES_DEPLOYMENT_ID->value);
     }
 }

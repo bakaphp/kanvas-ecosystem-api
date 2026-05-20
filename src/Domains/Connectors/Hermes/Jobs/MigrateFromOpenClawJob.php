@@ -64,6 +64,8 @@ class MigrateFromOpenClawJob implements ShouldQueue
 
     public function failed(Throwable $e): void
     {
+        report($e);
+
         $sourceDeployment = AgentDeployment::find($this->sourceDeployment->id);
 
         if (! $sourceDeployment) {
