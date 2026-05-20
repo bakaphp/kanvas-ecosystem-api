@@ -17,4 +17,5 @@ enum ModuleEnum: int
     case SETTING = 9;
     case AI = 10;
     case COMMERCE = 11;
+    case EVENT = 12;
 }
