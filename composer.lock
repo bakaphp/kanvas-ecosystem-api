@@ -2188,16 +2188,16 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.440.0",
+            "version": "v0.441.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
-                "reference": "f835f7a84611071ca2f58e8f44aac497d3aa7c44"
+                "reference": "b389588a2f9f375ec448d6cd8d0903d83c571ae0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/f835f7a84611071ca2f58e8f44aac497d3aa7c44",
-                "reference": "f835f7a84611071ca2f58e8f44aac497d3aa7c44",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/b389588a2f9f375ec448d6cd8d0903d83c571ae0",
+                "reference": "b389588a2f9f375ec448d6cd8d0903d83c571ae0",
                 "shasum": ""
             },
             "require": {
@@ -2226,9 +2226,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.440.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.441.1"
             },
-            "time": "2026-05-04T01:36:24+00:00"
+            "time": "2026-05-17T01:38:24+00:00"
         },
         {
             "name": "google/auth",
@@ -2294,16 +2294,16 @@
         },
         {
             "name": "google/cloud-core",
-            "version": "v1.72.0",
+            "version": "v1.72.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-core.git",
-                "reference": "62cf5d2243af167c75019743c5aebcf25c3905ca"
+                "reference": "aa7869016cb9e87e95071bb92579fd22146ababb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/62cf5d2243af167c75019743c5aebcf25c3905ca",
-                "reference": "62cf5d2243af167c75019743c5aebcf25c3905ca",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/aa7869016cb9e87e95071bb92579fd22146ababb",
+                "reference": "aa7869016cb9e87e95071bb92579fd22146ababb",
                 "shasum": ""
             },
             "require": {
@@ -2355,9 +2355,9 @@
             ],
             "description": "Google Cloud PHP shared dependency, providing functionality useful to all components.",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.72.0"
+                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.72.1"
             },
-            "time": "2026-04-09T21:01:46+00:00"
+            "time": "2026-05-12T19:06:48+00:00"
         },
         {
             "name": "google/cloud-discoveryengine",
@@ -2460,16 +2460,16 @@
         },
         {
             "name": "google/cloud-storage",
-            "version": "v1.51.0",
+            "version": "v2.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-storage.git",
-                "reference": "9ba3d5e8cbd53bf67fab644b5be310e719533def"
+                "reference": "bb3c3100970c541daf12d6679e7fc5a8528dcc45"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/9ba3d5e8cbd53bf67fab644b5be310e719533def",
-                "reference": "9ba3d5e8cbd53bf67fab644b5be310e719533def",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/bb3c3100970c541daf12d6679e7fc5a8528dcc45",
+                "reference": "bb3c3100970c541daf12d6679e7fc5a8528dcc45",
                 "shasum": ""
             },
             "require": {
@@ -2512,9 +2512,9 @@
             ],
             "description": "Cloud Storage Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v1.51.0"
+                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v2.1.0"
             },
-            "time": "2026-04-09T21:01:46+00:00"
+            "time": "2026-05-12T19:06:48+00:00"
         },
         {
             "name": "google/common-protos",
@@ -2577,16 +2577,16 @@
         },
         {
             "name": "google/gax",
-            "version": "v1.42.3",
+            "version": "v1.42.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/gax-php.git",
-                "reference": "9dce5145169f2390ef2500d638c3cb5632054a96"
+                "reference": "9b1f5fb68960a9020e34fdb88583bcd43779e4fd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/gax-php/zipball/9dce5145169f2390ef2500d638c3cb5632054a96",
-                "reference": "9dce5145169f2390ef2500d638c3cb5632054a96",
+                "url": "https://api.github.com/repos/googleapis/gax-php/zipball/9b1f5fb68960a9020e34fdb88583bcd43779e4fd",
+                "reference": "9b1f5fb68960a9020e34fdb88583bcd43779e4fd",
                 "shasum": ""
             },
             "require": {
@@ -2628,9 +2628,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/gax-php/issues",
-                "source": "https://github.com/googleapis/gax-php/tree/v1.42.3"
+                "source": "https://github.com/googleapis/gax-php/tree/v1.42.4"
             },
-            "time": "2026-04-30T20:59:42+00:00"
+            "time": "2026-05-11T17:49:55+00:00"
         },
         {
             "name": "google/grpc-gcp",
@@ -2723,16 +2723,16 @@
         },
         {
             "name": "google/protobuf",
-            "version": "v5.34.1",
+            "version": "v5.35.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/protocolbuffers/protobuf-php.git",
-                "reference": "da52fbc6bb574bfa6693ee2c86f9096f7b7f003b"
+                "reference": "d96ed77c7edaff3cd576a74173aa0b0655c87b1a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/da52fbc6bb574bfa6693ee2c86f9096f7b7f003b",
-                "reference": "da52fbc6bb574bfa6693ee2c86f9096f7b7f003b",
+                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/d96ed77c7edaff3cd576a74173aa0b0655c87b1a",
+                "reference": "d96ed77c7edaff3cd576a74173aa0b0655c87b1a",
                 "shasum": ""
             },
             "require": {
@@ -2761,9 +2761,9 @@
                 "proto"
             ],
             "support": {
-                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v5.34.1"
+                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v5.35.0"
             },
-            "time": "2026-03-19T20:51:56+00:00"
+            "time": "2026-05-19T22:13:40+00:00"
         },
         {
             "name": "graham-campbell/result-type",
@@ -4848,16 +4848,16 @@
         },
         {
             "name": "laravel/scout",
-            "version": "v11.1.0",
+            "version": "v11.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/scout.git",
-                "reference": "9865fca4129d79c271da6a89afb44359e9ee9020"
+                "reference": "5a267813fe0d7bca58b993c3bae592b2c814591e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/scout/zipball/9865fca4129d79c271da6a89afb44359e9ee9020",
-                "reference": "9865fca4129d79c271da6a89afb44359e9ee9020",
+                "url": "https://api.github.com/repos/laravel/scout/zipball/5a267813fe0d7bca58b993c3bae592b2c814591e",
+                "reference": "5a267813fe0d7bca58b993c3bae592b2c814591e",
                 "shasum": ""
             },
             "require": {
@@ -4924,7 +4924,7 @@
                 "issues": "https://github.com/laravel/scout/issues",
                 "source": "https://github.com/laravel/scout"
             },
-            "time": "2026-03-18T14:50:59+00:00"
+            "time": "2026-05-13T15:50:06+00:00"
         },
         {
             "name": "laravel/serializable-closure",
@@ -5750,20 +5750,20 @@
         },
         {
             "name": "league/flysystem-google-cloud-storage",
-            "version": "3.31.0",
+            "version": "3.34.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/flysystem-google-cloud-storage.git",
-                "reference": "0e877148edb3809954559b2987da57e21f7f15a6"
+                "reference": "7ae8cd9ec58dd4b387ee1f7349e728ed8c455b09"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/flysystem-google-cloud-storage/zipball/0e877148edb3809954559b2987da57e21f7f15a6",
-                "reference": "0e877148edb3809954559b2987da57e21f7f15a6",
+                "url": "https://api.github.com/repos/thephpleague/flysystem-google-cloud-storage/zipball/7ae8cd9ec58dd4b387ee1f7349e728ed8c455b09",
+                "reference": "7ae8cd9ec58dd4b387ee1f7349e728ed8c455b09",
                 "shasum": ""
             },
             "require": {
-                "google/cloud-storage": "^1.23",
+                "google/cloud-storage": "^1.23 || ^2.0",
                 "league/flysystem": "^3.10.0",
                 "league/mime-type-detection": "^1.0.0",
                 "php": "^8.0.2"
@@ -5792,9 +5792,9 @@
                 "google cloud storage"
             ],
             "support": {
-                "source": "https://github.com/thephpleague/flysystem-google-cloud-storage/tree/3.31.0"
+                "source": "https://github.com/thephpleague/flysystem-google-cloud-storage/tree/3.34.0"
             },
-            "time": "2026-01-23T15:30:45+00:00"
+            "time": "2026-05-12T08:30:57+00:00"
         },
         {
             "name": "league/flysystem-local",
@@ -12184,16 +12184,16 @@
         },
         {
             "name": "spatie/laravel-package-tools",
-            "version": "1.93.0",
+            "version": "1.93.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-package-tools.git",
-                "reference": "0d097bce95b2bf6802fb1d83e1e753b0f5a948e7"
+                "reference": "d5552849801f2642aea710557463234b59ef65eb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-package-tools/zipball/0d097bce95b2bf6802fb1d83e1e753b0f5a948e7",
-                "reference": "0d097bce95b2bf6802fb1d83e1e753b0f5a948e7",
+                "url": "https://api.github.com/repos/spatie/laravel-package-tools/zipball/d5552849801f2642aea710557463234b59ef65eb",
+                "reference": "d5552849801f2642aea710557463234b59ef65eb",
                 "shasum": ""
             },
             "require": {
@@ -12233,7 +12233,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-package-tools/issues",
-                "source": "https://github.com/spatie/laravel-package-tools/tree/1.93.0"
+                "source": "https://github.com/spatie/laravel-package-tools/tree/1.93.1"
             },
             "funding": [
                 {
@@ -12241,7 +12241,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-02-21T12:49:54+00:00"
+            "time": "2026-05-19T14:06:37+00:00"
         },
         {
             "name": "spatie/laravel-queueable-action",
@@ -19191,23 +19191,23 @@
         },
         {
             "name": "sebastian/cli-parser",
-            "version": "4.2.0",
+            "version": "4.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/cli-parser.git",
-                "reference": "90f41072d220e5c40df6e8635f5dafba2d9d4d04"
+                "reference": "7d05781b13f7dec9043a629a21d086ed74582a15"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/cli-parser/zipball/90f41072d220e5c40df6e8635f5dafba2d9d4d04",
-                "reference": "90f41072d220e5c40df6e8635f5dafba2d9d4d04",
+                "url": "https://api.github.com/repos/sebastianbergmann/cli-parser/zipball/7d05781b13f7dec9043a629a21d086ed74582a15",
+                "reference": "7d05781b13f7dec9043a629a21d086ed74582a15",
                 "shasum": ""
             },
             "require": {
                 "php": ">=8.3"
             },
             "require-dev": {
-                "phpunit/phpunit": "^12.0"
+                "phpunit/phpunit": "^12.5.25"
             },
             "type": "library",
             "extra": {
@@ -19236,7 +19236,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/cli-parser/issues",
                 "security": "https://github.com/sebastianbergmann/cli-parser/security/policy",
-                "source": "https://github.com/sebastianbergmann/cli-parser/tree/4.2.0"
+                "source": "https://github.com/sebastianbergmann/cli-parser/tree/4.2.1"
             },
             "funding": [
                 {
@@ -19256,7 +19256,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-09-14T09:36:45+00:00"
+            "time": "2026-05-17T05:29:34+00:00"
         },
         {
             "name": "sebastian/comparator",
@@ -19717,24 +19717,24 @@
         },
         {
             "name": "sebastian/lines-of-code",
-            "version": "4.0.0",
+            "version": "4.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/lines-of-code.git",
-                "reference": "97ffee3bcfb5805568d6af7f0f893678fc076d2f"
+                "reference": "d543b8ef219dcd8da262cbb958639a96bedba10e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/lines-of-code/zipball/97ffee3bcfb5805568d6af7f0f893678fc076d2f",
-                "reference": "97ffee3bcfb5805568d6af7f0f893678fc076d2f",
+                "url": "https://api.github.com/repos/sebastianbergmann/lines-of-code/zipball/d543b8ef219dcd8da262cbb958639a96bedba10e",
+                "reference": "d543b8ef219dcd8da262cbb958639a96bedba10e",
                 "shasum": ""
             },
             "require": {
-                "nikic/php-parser": "^5.0",
+                "nikic/php-parser": "^5.7.0",
                 "php": ">=8.3"
             },
             "require-dev": {
-                "phpunit/phpunit": "^12.0"
+                "phpunit/phpunit": "^12.5.25"
             },
             "type": "library",
             "extra": {
@@ -19763,15 +19763,27 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/lines-of-code/issues",
                 "security": "https://github.com/sebastianbergmann/lines-of-code/security/policy",
-                "source": "https://github.com/sebastianbergmann/lines-of-code/tree/4.0.0"
+                "source": "https://github.com/sebastianbergmann/lines-of-code/tree/4.0.1"
             },
             "funding": [
                 {
                     "url": "https://github.com/sebastianbergmann",
                     "type": "github"
+                },
+                {
+                    "url": "https://liberapay.com/sebastianbergmann",
+                    "type": "liberapay"
+                },
+                {
+                    "url": "https://thanks.dev/u/gh/sebastianbergmann",
+                    "type": "thanks_dev"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/sebastian/lines-of-code",
+                    "type": "tidelift"
                 }
             ],
-            "time": "2025-02-07T04:57:28+00:00"
+            "time": "2026-05-19T16:22:07+00:00"
         },
         {
             "name": "sebastian/object-enumerator",
