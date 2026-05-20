@@ -16,6 +16,7 @@ use Kanvas\Connectors\OpenClaw\Jobs\LaunchAgentJob as OpenClawLaunchAgentJob;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\AgentRuntime\Notifications\AgentDeploymentMissingChannelIntegrationNotification;
+use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -238,7 +239,7 @@ class AgentRuntimeAgentActionsTest extends TestCase
         $deployment = new DispatchHermesAgentDeploymentAction($agent, $machine, $app, $company)->execute();
 
         $this->assertSame('provisioning', $deployment->status);
-        $this->assertSame('hermes', $deployment->provider);
+        $this->assertSame(AgentProviderEnum::HERMES->value, $deployment->provider);
         Queue::assertPushed(HermesLaunchAgentJob::class);
         Notification::assertNothingSent();
     }
@@ -258,7 +259,7 @@ class AgentRuntimeAgentActionsTest extends TestCase
         $deployment = new DispatchOpenClawAgentDeploymentAction($agent, $machine, $app, $company)->execute();
 
         $this->assertSame('provisioning', $deployment->status);
-        $this->assertSame('openclaw', $deployment->provider);
+        $this->assertSame(AgentProviderEnum::OPENCLAW->value, $deployment->provider);
         Queue::assertPushed(OpenClawLaunchAgentJob::class);
         Notification::assertNothingSent();
     }

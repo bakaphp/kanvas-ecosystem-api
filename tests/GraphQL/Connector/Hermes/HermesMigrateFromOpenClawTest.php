@@ -13,6 +13,7 @@ use Kanvas\Connectors\Hermes\Jobs\MigrateFromOpenClawJob;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
 use Kanvas\Intelligence\AgentRuntime\Notifications\AgentDeploymentMissingChannelIntegrationNotification;
+use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -143,7 +144,7 @@ class HermesMigrateFromOpenClawTest extends TestCase
         $this->assertSame(
             0,
             AgentDeployment::where('agent_id', $sourceDeployment->agent_id)
-                ->where('provider', 'hermes')
+                ->where('provider', AgentProviderEnum::HERMES->value)
                 ->count(),
         );
         Notification::assertSentTo($sourceDeployment->agent->user, AgentDeploymentMissingChannelIntegrationNotification::class);
