@@ -11,11 +11,6 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Override;
 use Throwable;
 
-/**
- * Probes OpenClaw via `openclaw health --json` inside the container — exercises the gateway
- * and channel connectivity, so it catches "container up but gateway broken" that a bare
- * `docker inspect` would miss. Healthy = the top-level `ok: true` in the JSON payload.
- */
 class CheckCliHealthAction extends BaseCheckHealthAction
 {
     #[Override]
