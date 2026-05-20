@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "22cc7b25106b0b28c78e0c4f101195d0",
+    "content-hash": "e9b3035dc868aae7f036b9db70c9eaf1",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -383,16 +383,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.381.1",
+            "version": "3.381.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "405affc23ea14950c378d5ae79420302fcb467dc"
+                "reference": "846c38e4ebcbbc3ab30fe8dca343ce399b0b4ad4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/405affc23ea14950c378d5ae79420302fcb467dc",
-                "reference": "405affc23ea14950c378d5ae79420302fcb467dc",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/846c38e4ebcbbc3ab30fe8dca343ce399b0b4ad4",
+                "reference": "846c38e4ebcbbc3ab30fe8dca343ce399b0b4ad4",
                 "shasum": ""
             },
             "require": {
@@ -474,9 +474,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.381.1"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.381.4"
             },
-            "time": "2026-05-14T18:08:28+00:00"
+            "time": "2026-05-19T18:16:18+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -4175,16 +4175,16 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v0.6.8",
+            "version": "v0.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "b457ea4c0ec0fb1bca5504666332b653f7648d7e"
+                "reference": "eb2a2612b82086eedaf136b559be507fd85052f5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/b457ea4c0ec0fb1bca5504666332b653f7648d7e",
-                "reference": "b457ea4c0ec0fb1bca5504666332b653f7648d7e",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/eb2a2612b82086eedaf136b559be507fd85052f5",
+                "reference": "eb2a2612b82086eedaf136b559be507fd85052f5",
                 "shasum": ""
             },
             "require": {
@@ -4192,6 +4192,7 @@
                 "illuminate/console": "^12.0|^13.0",
                 "illuminate/container": "^12.0|^13.0",
                 "illuminate/contracts": "^12.0|^13.0",
+                "illuminate/database": "^12.0|^13.0",
                 "illuminate/filesystem": "^12.0|^13.0",
                 "illuminate/json-schema": "^12.0|^13.0",
                 "illuminate/support": "^12.0|^13.0",
@@ -4204,7 +4205,8 @@
                 "mockery/mockery": "^1.6.12",
                 "orchestra/testbench": "^10.6|^11.0",
                 "pestphp/pest": "^3.0|^4.0",
-                "pestphp/pest-plugin-laravel": "^3.0|^4.0"
+                "pestphp/pest-plugin-laravel": "^3.0|^4.0",
+                "phpstan/phpstan": "^2.1"
             },
             "type": "library",
             "extra": {
@@ -4239,7 +4241,7 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-05-11T10:46:54+00:00"
+            "time": "2026-05-19T17:09:28+00:00"
         },
         {
             "name": "laravel/cashier",
