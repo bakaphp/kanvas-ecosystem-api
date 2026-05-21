@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\AgentRuntime\Actions\CopyDefaultAgentMachineAction;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentRuntimeSettingEnum;
-use Kanvas\Intelligence\AgentRuntime\Enums\AgentRuntimeStateEnum;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\AgentRuntime\Services\AgentChannelIntegrationReadinessService;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
