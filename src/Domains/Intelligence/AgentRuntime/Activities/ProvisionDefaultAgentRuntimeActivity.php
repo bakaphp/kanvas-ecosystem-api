@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\AgentRuntime\Actions\CopyDefaultAgentMachineAction;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentRuntimeSettingEnum;
+use Kanvas\Intelligence\AgentRuntime\Enums\AgentRuntimeStateEnum;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\AgentRuntime\Services\AgentChannelIntegrationReadinessService;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
@@ -114,7 +115,7 @@ class ProvisionDefaultAgentRuntimeActivity extends KanvasActivity implements Wor
                 $config = is_array($agent->config) ? $agent->config : [];
                 $config['channel'] = self::DEFAULT_CHANNEL;
                 $config['language_model'] = self::DEFAULT_LANGUAGE_MODEL;
-                $config['runtime'] = $isReady;
+                $config['runtime'] = AgentProviderEnum::HERMES->value; // Runtime provider must be set for the agent to deploy
                 $agent->config = $config;
                 $agent->saveOrFail();
 
