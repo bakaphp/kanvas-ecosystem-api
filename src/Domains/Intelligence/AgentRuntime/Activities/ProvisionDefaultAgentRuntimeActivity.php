@@ -33,25 +33,12 @@ class ProvisionDefaultAgentRuntimeActivity extends KanvasActivity implements Wor
     {
         $this->overwriteAppService($app);
 
-        if (! $this->shouldRunForWelcomeState($entity, $params)) {
-            return ['msg' => 'welcome was not completed'];
-        }
-
-        $defaultMachineId = (int) ($app->get(AgentRuntimeSettingEnum::DEFAULT_MACHINE_ID->value) ?? 0);
-        if ($defaultMachineId <= 0) {
-            return ['msg' => 'no default machine configured'];
-        }
-
-        $company = $this->resolveCompany($params);
-        if (! $company instanceof CompanyInterface) {
-            return $this->failWorkflow(['msg' => 'no company found for agent runtime provisioning']);
-        }
-
         return $this->executeIntegration(
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: fn () => $this->provision(
+                $entity,
                 $app,
                 $company,
                 $params,
@@ -63,11 +50,26 @@ class ProvisionDefaultAgentRuntimeActivity extends KanvasActivity implements Wor
     }
 
     private function provision(
+        Model $entity,
         AppInterface $app,
         CompanyInterface $company,
         array $params,
         int $defaultMachineId
     ): array {
+        if (! $this->shouldRunForWelcomeState($entity, $params)) {
+            return $this->failWorkflow(['msg' => 'welcome was not completed']);
+        }
+
+        $defaultMachineId = (int) ($app->get(AgentRuntimeSettingEnum::DEFAULT_MACHINE_ID->value) ?? 0);
+        if ($defaultMachineId <= 0) {
+            return $this->failWorkflow(['msg' => 'no default machine configured']) ;
+        }
+
+        $company = $this->resolveCompany($params);
+        if (! $company instanceof CompanyInterface) {
+            return $this->failWorkflow(['msg' => 'no company found for agent runtime provisioning']);
+        }
+
         try {
             $sourceMachine = AgentMachine::query()
                 ->fromApp($app)
