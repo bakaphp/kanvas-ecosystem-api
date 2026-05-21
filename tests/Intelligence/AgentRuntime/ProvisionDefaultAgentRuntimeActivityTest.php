@@ -103,13 +103,15 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
     public function testNoConfigIsNoOp(): void
     {
         $app = app(Apps::class);
+        $user = auth()->user();
         $app->set(AgentRuntimeSettingEnum::DEFAULT_MACHINE_ID->value, '');
         $company = Companies::factory()->create();
+        $this->setIntegration($app, IntegrationsEnum::INTERNAL, InternalHandler::class, $company, $user);
 
         Queue::fake();
         Notification::fake();
 
-        $result = $this->activity()->execute(auth()->user(), $app, [
+        $result = $this->activity()->execute($user, $app, [
             'company' => $company,
             'welcome_changed' => true,
             'welcome_previous' => 0,
@@ -124,14 +126,17 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
     public function testWelcomeTransitionGateIsRequired(): void
     {
         $app = app(Apps::class);
+        $user = auth()->user();
+        $sourceCompany = $user->getCurrentCompany();
         $company = Companies::factory()->create();
-        $sourceMachine = $this->createMachine(auth()->user()->getCurrentCompany(), 'runtime-source-' . fake()->uuid());
+        $sourceMachine = $this->createMachine($sourceCompany, 'runtime-source-' . fake()->uuid());
         $app->set(AgentRuntimeSettingEnum::DEFAULT_MACHINE_ID->value, $sourceMachine->getId());
+        $this->setIntegration($app, IntegrationsEnum::INTERNAL, InternalHandler::class, $company, $user);
 
         Queue::fake();
         Notification::fake();
 
-        $result = $this->activity()->execute(auth()->user(), $app, [
+        $result = $this->activity()->execute($user, $app, [
             'company' => $company,
             'welcome_changed' => false,
             'welcome_previous' => 1,
