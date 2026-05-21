@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use DomainException;
+use Kanvas\Connectors\PayWay\Enums\CustomFieldEnum;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Payments\Contracts\TokenizationProcessorInterface;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
@@ -36,7 +37,7 @@ final class PayWayTokenizationService implements TokenizationProcessorInterface
             ->where('companies_id', $this->company->getId())
             ->where('processor', 'payway')
             ->where('is_deleted', 0)
-            ->whereJsonContains('metadata->payway_numero_uuid', $token)
+            ->whereJsonContains('metadata->' . CustomFieldEnum::PAYWAY_NUMERO_UUID->value, $token)
             ->get();
 
         foreach ($rows as $row) {

@@ -342,6 +342,89 @@ class PayWayPaymentFlowTest extends TestCase
         $this->assertStringContainsString('does not support refunds', $result['message']);
     }
 
+    /**
+     * Regression: the resolver used to flatten cardData as $context['card_number']/['cvc']
+     * only, which matched Azul but left PayWay's nested $context['card'] lookup empty —
+     * so tarjetaVencimiento went to PayWay as "" and tarjetaNumero/tarjetaCvv2 were the
+     * encryption of an empty string. PayWay then returned an HTML error page parsed as
+     * returnCode=98. This test confirms the resolver now passes the nested 'card' shape
+     * to the processor so the raw-card path encrypts real data and normalizes YYYY-MM →
+     * YYYYMM for tarjetaVencimiento.
+     */
+    public function testStartPaymentChallengeWithCardPassesCardDataToProcessor(): void
+    {
+        $order = $this->buildOrder();
+
+        $this->fakeClient->queueResponse('payUsing3ds', PayWayResponse::fromArray([
+            'returnCode' => '01',
+            'message' => '3DS step required',
+            'success' => false,
+            'tokenAcceso' => 'jwt-token-step2',
+            'urlColeccionDatoDispositivo' => 'https://centinelapistag.cardinalcommerce.com/V2/Cruise/Collect',
+            'referenciaId' => 'ref-uuid-card-path',
+            'numeroTransaccionSistema' => 'tx-sis-card',
+            'numeroTransaccionReferencia' => 'tx-ref-card',
+        ]));
+
+        $response = $this->graphQL('
+            mutation($orderId: ID!, $paymentData: StartChallengeCardInput!) {
+                startPaymentChallengeWithCard(orderId: $orderId, paymentData: $paymentData) {
+                    success
+                    status
+                }
+            }
+        ', [
+            'orderId' => (string) $order->id,
+            'paymentData' => [
+                'processor' => 'payway',
+                'number' => '4111111111111111',
+                'cvv' => '123',
+                'expiration_date' => '2030-12',
+                'firstname' => 'Jesus',
+                'lastname' => 'Guerrero',
+                'address' => 'Av. Winston Churchill 25',
+                'city' => 'Santo Domingo',
+                'state' => 'DN',
+                'country' => 'DO',
+                'zip_code' => '10101',
+                'phone' => '8095551234',
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->currentCompany->branch->uuid,
+        ]);
+
+        $response->assertSuccessful();
+        $result = $response->json('data.startPaymentChallengeWithCard');
+        $this->assertTrue($result['success'], 'startPaymentChallengeWithCard should return success=true on 3DS step required');
+        $this->assertSame('payway_waiting_device_data', $result['status']);
+
+        $calls = $this->fakeClient->getCalls('payUsing3ds');
+        $this->assertCount(1, $calls, 'FakePayWayClient::payUsing3ds should have been called once');
+
+        $payload = $calls[0]['payload'];
+
+        // The raw-card path must encrypt and forward the actual values, not blanks.
+        $this->assertArrayHasKey('tarjetaNumero', $payload);
+        $this->assertArrayHasKey('tarjetaCvv2', $payload);
+        $this->assertNotEmpty($payload['tarjetaNumero'], 'tarjetaNumero must not be the AES encryption of an empty string');
+        $this->assertNotEmpty($payload['tarjetaCvv2'], 'tarjetaCvv2 must not be the AES encryption of an empty string');
+
+        // YYYY-MM normalizes to YYYYMM in PayWayProcessor::normalizeExpiration().
+        $this->assertSame('203012', $payload['tarjetaVencimiento']);
+
+        // datos3ds reflects the billing fields from the GraphQL input, not the saved
+        // PaymentMethod metadata (there is none in the raw-card path).
+        $this->assertSame('Jesus', $payload['datos3ds']['nombre']);
+        $this->assertSame('Guerrero', $payload['datos3ds']['apellido']);
+        $this->assertSame('Av. Winston Churchill 25', $payload['datos3ds']['direccion']);
+        $this->assertSame('8095551234', $payload['datos3ds']['telefono']);
+        $this->assertSame('DO', $payload['datos3ds']['paisCodigoIso']);
+        $this->assertSame('10101', $payload['datos3ds']['codigoPostal']);
+
+        // Saved-card fields must be absent on the raw-card path.
+        $this->assertArrayNotHasKey('tarjetaUuid', $payload);
+    }
+
     private function buildOrder(): Order
     {
         $order = new Order();

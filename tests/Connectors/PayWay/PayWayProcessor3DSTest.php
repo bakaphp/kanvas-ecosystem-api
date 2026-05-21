@@ -15,7 +15,6 @@ use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Infrastructure\Processors\PayWay\PayWayProcessor;
 use Kanvas\Souk\Payments\Models\Payments;
 use Mockery;
-use Mockery\MockInterface;
 use Tests\Connectors\PayWay\Fakes\FakePayWayClient;
 use Tests\TestCase;
 
@@ -237,6 +236,67 @@ class PayWayProcessor3DSTest extends TestCase
         $this->assertTrue($secondResult->success);
         $this->assertSame('payway_terminal', $secondResult->status);
         $this->assertSame(PaymentStatusEnum::PAID->value, $payment->status);
+    }
+
+    public function testFinalizeChallengeOtpTerminalPaidFallsBackToTraceWhenTrxInfoMissing(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::PENDING_AUTHORIZATION->value);
+        $payment->metadata = ['data' => ['payway_otp_token_acceso' => 'otp-jwt']];
+        $order = $this->buildOrderMock();
+
+        // FE listener didn't forward trxInformacion (manual fallback button), so the
+        // processor must reconcile by traceId via /payments/trace/{traceId}.
+        $this->fakeClient->queueResponse('traceTransaction', PayWayResponse::fromArray([
+            'returnCode' => '00',
+            'message' => 'TRANSACCION EXITOSA',
+            'success' => true,
+            'numeroCompra' => 'compra-from-trace',
+            'numeroAutorizacion' => 'auth-from-trace',
+            'numeroPayWay' => 'pw-from-trace',
+            'marcaTarjeta' => 'visa',
+            'terminacionTarjeta' => 'X-1841',
+        ]));
+
+        $result = $this->processor->finalizeChallenge($payment, $order, [
+            'otp_terminal_status' => 'PAID',
+        ]);
+
+        $this->assertTrue($result->success);
+        $this->assertSame('payway_terminal', $result->status);
+        $this->assertSame(PaymentStatusEnum::PAID->value, $payment->status);
+
+        // Standard columns now populated from the trace response.
+        $this->assertSame('compra-from-trace', $payment->payment_intent_id);
+        $this->assertSame('auth-from-trace', $payment->authorization_code);
+        $this->assertSame('pw-from-trace', $payment->number);
+        $this->assertSame('visa', $payment->payment_method_brand);
+        $this->assertSame('1841', $payment->payment_method_last_four);
+
+        // traceTransaction must have been called exactly once with the payment's idempotency_key.
+        $traceCalls = $this->fakeClient->getCalls('traceTransaction');
+        $this->assertCount(1, $traceCalls);
+        $this->assertSame('aaaabbbb-cccc-4000-8000-ddddeeeeffff', $traceCalls[0]['path'] ?? null);
+    }
+
+    public function testFinalizeChallengeOtpTerminalPaidSkipsTraceWhenTrxInfoForwarded(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::PENDING_AUTHORIZATION->value);
+        $payment->metadata = ['data' => ['payway_otp_token_acceso' => 'otp-jwt']];
+        $order = $this->buildOrderMock();
+
+        $result = $this->processor->finalizeChallenge($payment, $order, [
+            'otp_terminal_status' => 'PAID',
+            'trxInformacion' => [
+                'numeroCompra' => 'compra-from-fe',
+                'numeroAutorizacion' => 'auth-from-fe',
+                'numeroPayWay' => 'pw-from-fe',
+            ],
+        ]);
+
+        $this->assertTrue($result->success);
+        $this->assertSame('compra-from-fe', $payment->payment_intent_id);
+        $this->assertSame('auth-from-fe', $payment->authorization_code);
+        $this->assertCount(0, $this->fakeClient->getCalls('traceTransaction'));
     }
 
     public function testFinalizeChallengeIdempotentOnAlreadyPaid(): void

@@ -265,7 +265,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@startChallengeWithCard"
         )
-    finalizePaymentChallenge(paymentId: ID!): ThreeDSChallengeResult!
+    finalizePaymentChallenge(paymentId: ID!, metadata: Mixed): ThreeDSChallengeResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@finalizeChallenge"
         )

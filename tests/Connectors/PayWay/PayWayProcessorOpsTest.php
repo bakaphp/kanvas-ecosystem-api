@@ -9,7 +9,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\PayWay\DataTransferObject\PayWayResponse;
 use Kanvas\Connectors\PayWay\Enums\ConfigurationEnum;
-use Kanvas\Connectors\PayWay\Enums\CustomFieldEnum;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;

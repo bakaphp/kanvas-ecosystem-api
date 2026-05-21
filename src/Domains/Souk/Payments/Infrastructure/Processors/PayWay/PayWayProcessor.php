@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Payments\Infrastructure\Processors\PayWay;
 
+use Carbon\Carbon;
 use DomainException;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
@@ -102,7 +103,7 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
             );
         }
 
-        $numeroCompra = $payment->getMetadata(self::META_NUMERO_COMPRA);
+        $numeroCompra = (string) ($payment->payment_intent_id ?: $payment->getMetadata(self::META_NUMERO_COMPRA));
 
         if (empty($numeroCompra)) {
             $payment->addLog('payway_void_failed', ['reason' => 'missing_numero_compra']);
@@ -166,7 +167,7 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
     #[Override]
     public function verify(Payments $payment, Order $order): VerifyResult
     {
-        $numeroCompra = $payment->getMetadata(self::META_NUMERO_COMPRA);
+        $numeroCompra = (string) ($payment->payment_intent_id ?: $payment->getMetadata(self::META_NUMERO_COMPRA));
 
         if (empty($numeroCompra)) {
             return new VerifyResult(
@@ -278,7 +279,9 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
 
         // Second call after OTP: FE signals the terminal state via context.
         if (isset($context['otp_terminal_status'])) {
-            return $this->handleOtpTerminalResult($payment, $context['otp_terminal_status']);
+            $trxInfo = is_array($context['trxInformacion'] ?? null) ? $context['trxInformacion'] : [];
+
+            return $this->handleOtpTerminalResult($payment, $context['otp_terminal_status'], $trxInfo);
         }
 
         // PENDING_AUTHORIZATION re-entry without OTP terminal status is a no-op —
@@ -302,16 +305,26 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
         }
 
         try {
-            $seguimiento = $payment->getMetadata(self::META_SEGUIMIENTO);
-            $payload = array_merge(
-                ['seguimientoDatos3ds' => $seguimiento],
-                $this->buildBasePayload($payment, $order),
-            );
+            // Step 3 body is minimal — Step 1's card/customer/amount fields must NOT be
+            // re-sent. The auth trio is injected by PayWayClient::injectAuth.
+            $seguimiento = $payment->getMetadata(self::META_SEGUIMIENTO) ?? [];
+            $paso = (string) ($seguimiento['seguimientoDatos3ds']['paso'] ?? '2');
+
+            $payload = [
+                'traceId' => (string) $payment->idempotency_key,
+                'datos3ds' => [
+                    'paso' => $paso,
+                    'referenciaId' => (string) $payment->getMetadata(self::META_REFERENCIA_ID),
+                    'numeroTransaccionSistema' => (string) $payment->getMetadata(self::META_NUMERO_TRANSACCION_SISTEMA),
+                    'numeroTransaccionReferencia' => (string) $payment->getMetadata(self::META_NUMERO_TRANSACCION_REFERENCIA),
+                ],
+            ];
 
             $response = $this->client->completePayment($payload);
 
-            // Escenario 2: PayWay requires OTP (paso=4, returnCode=01).
-            if ($response->is3dsStepRequired() && $response->get('paso') === 4) {
+            // Escenario 2: OTP required when returnCode=01 and paso=4.
+            $responsePaso = (string) $response->getNested('seguimientoDatos3ds', 'paso', $response->get('paso', ''));
+            if ($response->is3dsStepRequired() && $responsePaso === '4') {
                 return $this->handleOtpRequired($payment, $response);
             }
 
@@ -331,11 +344,12 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
 
     private function handleStep2Required(Payments $payment, PayWayResponse $response): ThreeDSResult
     {
-        $tokenAcceso = $response->get('tokenAcceso', '');
-        $urlColeccion = $response->get('urlColeccionDatoDispositivo', '');
-        $referenciaId = $response->get('referenciaId', '');
-        $numeroTransaccionSistema = $response->get('numeroTransaccionSistema', '');
-        $numeroTransaccionReferencia = $response->get('numeroTransaccionReferencia', '');
+        // Real API nests under seguimientoDatos3ds; flat top-level kept for fixtures.
+        $tokenAcceso = (string) $response->getNested('seguimientoDatos3ds', 'tokenAcceso', $response->get('tokenAcceso', ''));
+        $urlColeccion = (string) $response->getNested('seguimientoDatos3ds', 'urlColeccionDatoDispositivo', $response->get('urlColeccionDatoDispositivo', ''));
+        $referenciaId = (string) $response->getNested('seguimientoDatos3ds', 'referenciaId', $response->get('referenciaId', ''));
+        $numeroTransaccionSistema = (string) $response->getNested('seguimientoDatos3ds', 'numeroTransaccionSistema', $response->get('numeroTransaccionSistema', ''));
+        $numeroTransaccionReferencia = (string) $response->getNested('seguimientoDatos3ds', 'numeroTransaccionReferencia', $response->get('numeroTransaccionReferencia', ''));
 
         $payment->addMetadata([
             'data' => [
@@ -375,27 +389,19 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
 
     private function handleStep1NoChallenge(Payments $payment, PayWayResponse $response): ThreeDSResult
     {
-        $numeroUuid = $response->get('numeroUuid', '');
-        $numeroCompra = $response->get('numeroCompra', '');
-        $numeroAutorizacion = $response->get('numeroAutorizacion', '');
-
-        $payment->addMetadata([
-            'data' => [
-                self::META_NUMERO_UUID => $numeroUuid,
-                self::META_NUMERO_COMPRA => $numeroCompra,
-                self::META_NUMERO_AUTORIZACION => $numeroAutorizacion,
-            ],
-        ]);
+        $this->applyTransactionToPayment($payment, $response->payload);
 
         $payment->processor = $this->name();
         $payment->markAsPaid();
 
-        $this->persistUuidToPaymentMethod($payment, $numeroUuid);
-
         $payment->addLog('payway_step1_success_no_3ds', [
-            'numero_uuid' => $numeroUuid,
-            'numero_compra' => $numeroCompra,
+            'numero_uuid' => $response->get('numeroUuid', ''),
+            'numero_compra' => $response->get('numeroCompra', ''),
         ]);
+
+        $numeroUuid = (string) $response->get('numeroUuid', '');
+        $numeroCompra = (string) $response->get('numeroCompra', '');
+        $numeroAutorizacion = (string) $response->get('numeroAutorizacion', '');
 
         return new ThreeDSResult(
             success: true,
@@ -439,24 +445,15 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
     private function handleStep3Terminal(Payments $payment, PayWayResponse $response): ThreeDSResult
     {
         if ($response->isSuccess()) {
-            $numeroUuid = $response->get('numeroUuid', '');
-            $numeroCompra = $response->get('numeroCompra', '');
-            $numeroAutorizacion = $response->get('numeroAutorizacion', '');
-
-            $payment->addMetadata([
-                'data' => [
-                    self::META_NUMERO_UUID => $numeroUuid,
-                    self::META_NUMERO_COMPRA => $numeroCompra,
-                    self::META_NUMERO_AUTORIZACION => $numeroAutorizacion,
-                ],
-            ]);
-
+            $this->applyTransactionToPayment($payment, $response->payload);
             $this->clearTransientMetadata($payment);
 
             $payment->processor = $this->name();
             $payment->markAsPaid();
 
-            $this->persistUuidToPaymentMethod($payment, $numeroUuid);
+            $numeroUuid = (string) $response->get('numeroUuid', '');
+            $numeroCompra = (string) $response->get('numeroCompra', '');
+            $numeroAutorizacion = (string) $response->get('numeroAutorizacion', '');
 
             $payment->addLog('payway_step3_terminal_paid', [
                 'numero_uuid' => $numeroUuid,
@@ -504,8 +501,8 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
 
     private function handleOtpRequired(Payments $payment, PayWayResponse $response): ThreeDSResult
     {
-        $otpTokenAcceso = $response->get('tokenAcceso', '');
-        $otpUrl = $response->get('urlColeccionDatoDispositivo', '');
+        $otpTokenAcceso = (string) $response->getNested('seguimientoDatos3ds', 'tokenAcceso', $response->get('tokenAcceso', ''));
+        $otpUrl = (string) $response->getNested('seguimientoDatos3ds', 'urlColeccionDatoDispositivo', $response->get('urlColeccionDatoDispositivo', ''));
 
         $payment->addMetadata([
             'data' => [
@@ -535,11 +532,24 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
         );
     }
 
-    private function handleOtpTerminalResult(Payments $payment, string $otpStatus): ThreeDSResult
+    private function handleOtpTerminalResult(Payments $payment, string $otpStatus, array $trxInfo = []): ThreeDSResult
     {
         $isPaid = strtoupper($otpStatus) === 'PAID';
+        $fetchedTrxInfo = false;
 
         $this->clearTransientMetadata($payment);
+
+        if ($isPaid) {
+            // FE listener forwards trxInformacion when PayWay's postMessage carries it;
+            // when the manual fallback button is used (or the postMessage shape changes),
+            // reconcile against PayWay by traceId so payment_intent_id is never empty.
+            if ($trxInfo === []) {
+                $trxInfo = $this->fetchTransactionByTrace($payment);
+                $fetchedTrxInfo = $trxInfo !== [];
+            }
+            $this->applyTransactionToPayment($payment, $trxInfo);
+            $payment->processor = $this->name();
+        }
 
         $payment->status = $isPaid ? PaymentStatusEnum::PAID->value : PaymentStatusEnum::FAILED->value;
         $payment->save();
@@ -547,6 +557,8 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
         $payment->addLog('payway_finalize_otp_submitted', [
             'otp_terminal_status' => $otpStatus,
             'mapped_status' => $payment->status,
+            'trx_info_provided' => $trxInfo !== [],
+            'trx_info_from_trace' => $fetchedTrxInfo,
         ]);
 
         return new ThreeDSResult(
@@ -556,13 +568,15 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
             data: [
                 self::META_NUMERO_UUID => $payment->getMetadata(self::META_NUMERO_UUID),
                 self::META_NUMERO_COMPRA => $payment->getMetadata(self::META_NUMERO_COMPRA),
+                self::META_NUMERO_AUTORIZACION => $payment->getMetadata(self::META_NUMERO_AUTORIZACION),
             ],
         );
     }
 
     private function buildStep1Payload(Payments $payment, Order $order, array $context): array
     {
-        $encryptionKey = (string) $this->company->get(ConfigurationEnum::PAYWAY_ENCRYPTION_KEY->value);
+        $encryptionKey = (string) ($this->company->get(ConfigurationEnum::PAYWAY_ENCRYPTION_KEY->value)
+            ?: $this->app->get(ConfigurationEnum::PAYWAY_ENCRYPTION_KEY->value));
         $base = $this->buildBasePayload($payment, $order);
 
         $paymentMethod = $payment->paymentMethod;
@@ -597,14 +611,23 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
         $user = $payment->paymentMethod?->users_id
             ? $payment->paymentMethod->user
             : null;
-        $clienteUsuario = $user?->email ?? $order->user_email ?? '';
+        $clienteCorreo = $user?->email ?? $order->user_email ?? '';
+        // PayWay spec: clienteUsuario is the merchant-side user identifier (not the email).
+        $clienteUsuario = (string) ($user?->id ?? $order->users_id ?? $clienteCorreo);
+        $concepto = (string) ($payment->concept ?: 'Pago orden ' . $order->order_number);
 
+        // Per spec: order_number is NOT a top-level field. Carry it as datoAuxiliar1
+        // so it still appears in PayWay's reports for reconciliation.
         return [
+            'clienteCorreo' => $clienteCorreo,
+            'clienteUsuario' => $clienteUsuario,
+            'clienteIp' => $clienteIp,
+            'concepto' => $concepto,
             'monto' => number_format((float) $order->getTotalAmount(), 2, '.', ''),
             'traceId' => (string) $payment->idempotency_key,
-            'clienteIp' => $clienteIp,
-            'clienteUsuario' => $clienteUsuario,
-            'numeroOrden' => (string) $order->order_number,
+            'datosAuxiliares' => [
+                'datoAuxiliar1' => (string) $order->order_number,
+            ],
         ];
     }
 
@@ -618,9 +641,8 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
             'apellido' => ($card['lastname'] ?? $meta['lastname'] ?? ''),
             'direccion' => ($card['address'] ?? $meta['address'] ?? ''),
             'telefono' => ($card['phone'] ?? $meta['phone'] ?? ''),
-            'pais' => ($card['country'] ?? $meta['country'] ?? 'SV'),
+            'paisCodigoIso' => ($card['country'] ?? $meta['country'] ?? 'SV'),
             'codigoPostal' => ($card['zip'] ?? $card['zip_code'] ?? $meta['zip_code'] ?? ''),
-            'email' => ($card['email'] ?? $meta['email'] ?? $order->user_email ?? ''),
         ];
     }
 
@@ -636,6 +658,114 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
             [CustomFieldEnum::PAYWAY_NUMERO_UUID->value => $numeroUuid]
         );
         $paymentMethod->save();
+    }
+
+    /**
+     * Fallback when the FE OTP listener doesn't forward trxInformacion: call
+     * /payments/trace/{traceId} so we can still reconcile numeroCompra /
+     * numeroAutorizacion onto the payment. Returns the raw response payload
+     * (already includes the trx fields PayWay exposes) or [] on failure.
+     */
+    private function fetchTransactionByTrace(Payments $payment): array
+    {
+        $traceId = (string) $payment->idempotency_key;
+        if ($traceId === '') {
+            return [];
+        }
+
+        try {
+            $response = $this->client->traceTransaction($traceId);
+
+            if (! $response->isSuccess()) {
+                $payment->addLog('payway_trace_fallback_unsuccessful', [
+                    'trace_id' => $traceId,
+                    'return_code' => $response->returnCode,
+                    'message' => $response->message,
+                ]);
+
+                return [];
+            }
+
+            $payment->addLog('payway_trace_fallback_ok', [
+                'trace_id' => $traceId,
+                'numero_compra' => (string) ($response->payload['numeroCompra'] ?? ''),
+            ]);
+
+            return $response->payload;
+        } catch (Throwable $e) {
+            $payment->addLog('payway_trace_fallback_failed', [
+                'trace_id' => $traceId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * Map a PayWay transaction info bag onto the standard Payment columns
+     * (payment_intent_id ← numeroCompra, authorization_code, number, brand,
+     * last_four, payment_date) and mirror the merchant refs into metadata.data
+     * so getMetadata() callers keep working. Does NOT save the payment; caller
+     * coalesces with markAsPaid / status changes. numeroUuid is also persisted
+     * on the PaymentMethod so subsequent charges can reuse tarjetaUuid.
+     */
+    private function applyTransactionToPayment(Payments $payment, array $trxInfo): void
+    {
+        if ($trxInfo === []) {
+            return;
+        }
+
+        $numeroCompra = (string) ($trxInfo['numeroCompra'] ?? '');
+        $numeroAutorizacion = (string) ($trxInfo['numeroAutorizacion'] ?? '');
+        $numeroPayWay = (string) ($trxInfo['numeroPayWay'] ?? '');
+        $numeroUuid = (string) ($trxInfo['numeroUuid'] ?? '');
+        $marcaTarjeta = strtolower((string) ($trxInfo['marcaTarjeta'] ?? ''));
+        $terminacionTarjeta = (string) ($trxInfo['terminacionTarjeta'] ?? '');
+        $fechaTransaccion = (string) ($trxInfo['fechaTransaccion'] ?? '');
+
+        // Strip the "X-" prefix PayWay uses on terminacionTarjeta (e.g. "X-2223" -> "2223").
+        $lastFour = preg_replace('/^X-/i', '', $terminacionTarjeta);
+
+        if ($numeroCompra !== '') {
+            $payment->payment_intent_id = $numeroCompra;
+        }
+        if ($numeroAutorizacion !== '') {
+            $payment->authorization_code = $numeroAutorizacion;
+        }
+        if ($numeroPayWay !== '') {
+            $payment->number = $numeroPayWay;
+        }
+        if ($marcaTarjeta !== '' && empty($payment->payment_method_brand)) {
+            $payment->payment_method_brand = $marcaTarjeta;
+        }
+        if ($lastFour !== '' && empty($payment->payment_method_last_four)) {
+            $payment->payment_method_last_four = $lastFour;
+        }
+        if ($fechaTransaccion !== '') {
+            try {
+                $payment->payment_date = Carbon::createFromFormat('YmdHis', $fechaTransaccion)->toDateString();
+            } catch (Throwable) {
+                // Ignore malformed dates — non-fatal, payment_date is informational.
+            }
+        }
+
+        // Mirror to metadata.data for backwards compatibility with getMetadata() callers.
+        $metaData = [];
+        if ($numeroCompra !== '') {
+            $metaData[self::META_NUMERO_COMPRA] = $numeroCompra;
+        }
+        if ($numeroAutorizacion !== '') {
+            $metaData[self::META_NUMERO_AUTORIZACION] = $numeroAutorizacion;
+        }
+        if ($numeroUuid !== '') {
+            $metaData[self::META_NUMERO_UUID] = $numeroUuid;
+        }
+        if ($metaData !== []) {
+            $payment->addMetadata(['data' => $metaData]);
+        }
+
+        $this->persistUuidToPaymentMethod($payment, $numeroUuid);
     }
 
     private function clearTransientMetadata(Payments $payment): void

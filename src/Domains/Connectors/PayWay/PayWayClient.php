@@ -30,13 +30,13 @@ final class PayWayClient implements PayWayClientInterface
         private readonly CompanyInterface $company,
         ?GuzzleClient $http = null,
     ) {
-        $this->token = (string) $this->company->get(ConfigurationEnum::PAYWAY_TOKEN->value);
-        $colectorIdRaw = (string) $this->company->get(ConfigurationEnum::PAYWAY_COLECTOR_ID->value);
-        $this->usuarioOperacion = (string) $this->company->get(ConfigurationEnum::PAYWAY_USUARIO_OPERACION->value);
-        $baseUrl = (string) ($this->company->get(ConfigurationEnum::PAYWAY_BASE_URL->value) ?: 'https://test.payway.sv');
+        $this->token = $this->resolveSetting(ConfigurationEnum::PAYWAY_TOKEN);
+        $colectorIdRaw = $this->resolveSetting(ConfigurationEnum::PAYWAY_COLECTOR_ID);
+        $this->usuarioOperacion = $this->resolveSetting(ConfigurationEnum::PAYWAY_USUARIO_OPERACION);
+        $baseUrl = $this->resolveSetting(ConfigurationEnum::PAYWAY_BASE_URL) ?: 'https://test.payway.sv';
 
         if ($this->token === '' || $colectorIdRaw === '' || $this->usuarioOperacion === '') {
-            throw new ValidationException('PayWay is not fully configured for this company (token/colectorId/usuarioOperacion missing).');
+            throw new ValidationException('PayWay is not fully configured (token/colectorId/usuarioOperacion missing — checked company then app).');
         }
 
         $this->colectorId = (int) $colectorIdRaw;
@@ -44,8 +44,23 @@ final class PayWayClient implements PayWayClientInterface
         $this->http = $http ?? new GuzzleClient([
             'base_uri' => $baseUrl,
             'timeout' => 30.0,
-            'headers' => ['Content-Type' => 'application/json'],
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+            ],
         ]);
+    }
+
+    /**
+     * Resolve a PayWay setting company-first, then fall back to app-level.
+     * Per-merchant credentials live on the company; an app-level value acts as
+     * a shared default for apps that run a single PayWay collector.
+     */
+    private function resolveSetting(ConfigurationEnum $key): string
+    {
+        $companyValue = (string) $this->company->get($key->value);
+
+        return $companyValue !== '' ? $companyValue : (string) $this->app->get($key->value);
     }
 
     public function payUsing3ds(array $payload): PayWayResponse

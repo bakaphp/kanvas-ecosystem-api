@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PayWay\DataTransferObject;
 
+use Illuminate\Support\Facades\Log;
+
 final class PayWayResponse
 {
     public function __construct(
@@ -16,6 +18,8 @@ final class PayWayResponse
 
     public static function fromArray(array $data): self
     {
+        Log::debug('PayWayResponse::fromArray called with data: ' . json_encode($data));
+
         return new self(
             returnCode: (string) ($data['returnCode'] ?? '98'),
             message: (string) ($data['message'] ?? ''),

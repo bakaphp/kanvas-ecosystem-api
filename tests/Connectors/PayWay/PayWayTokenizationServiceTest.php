@@ -8,6 +8,7 @@ use DomainException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\PayWay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\PayWay\Services\PayWayTokenizationService;
 use Kanvas\Payments\Models\PaymentMethods;
 use Tests\TestCase;
@@ -43,7 +44,7 @@ class PayWayTokenizationServiceTest extends TestCase
         $pm->users_id = static::$cachedUser->getId();
         $pm->processor = 'payway';
         $pm->is_deleted = 0;
-        $pm->metadata = ['payway_numero_uuid' => $token];
+        $pm->metadata = [CustomFieldEnum::PAYWAY_NUMERO_UUID->value => $token];
         $pm->saveOrFail();
 
         return $pm;
