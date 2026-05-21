@@ -114,7 +114,7 @@ class ProvisionDefaultAgentRuntimeActivity extends KanvasActivity implements Wor
                 $config = is_array($agent->config) ? $agent->config : [];
                 $config['channel'] = self::DEFAULT_CHANNEL;
                 $config['language_model'] = self::DEFAULT_LANGUAGE_MODEL;
-                $config['runtime'] = $isReady;
+                $config['runtime'] = AgentProviderEnum::HERMES->value; // Runtime provider must be set for the agent to deploy
                 $agent->config = $config;
                 $agent->saveOrFail();
 
