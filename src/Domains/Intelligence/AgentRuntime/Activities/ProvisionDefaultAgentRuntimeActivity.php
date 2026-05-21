@@ -25,6 +25,9 @@ use ValueError;
 
 class ProvisionDefaultAgentRuntimeActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    private const string DEFAULT_CHANNEL = 'Web Chat';
+    private const string DEFAULT_LANGUAGE_MODEL = 'Gemini';
+
     #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
@@ -102,14 +105,20 @@ class ProvisionDefaultAgentRuntimeActivity extends KanvasActivity implements Wor
 
                 $agentIds[] = $agent->getId();
 
-                if (! $readiness->isReady($agent)) {
-                    continue;
-                }
+                $isReady = $readiness->isReady($agent);
 
+                // Every provisioned agent gets the default Web Chat + Gemini
+                // config; runtime only turns on for agents that can deploy.
                 $config = is_array($agent->config) ? $agent->config : [];
-                $config['runtime'] = true;
+                $config['channel'] = self::DEFAULT_CHANNEL;
+                $config['language_model'] = self::DEFAULT_LANGUAGE_MODEL;
+                $config['runtime'] = $isReady;
                 $agent->config = $config;
                 $agent->saveOrFail();
+
+                if (! $isReady) {
+                    continue;
+                }
 
                 $deployment = $provider->dispatchDeployment(
                     $agent,
