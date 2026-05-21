@@ -78,8 +78,15 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
 
         $readyAgent->refresh();
         $notReadyAgent->refresh();
+
         $this->assertTrue($readyAgent->config['runtime']);
-        $this->assertArrayNotHasKey('runtime', $notReadyAgent->config);
+        $this->assertTrue($readyAgent->config['existing']);
+        $this->assertSame('Web Chat', $readyAgent->config['channel']);
+        $this->assertSame('Gemini', $readyAgent->config['language_model']);
+
+        $this->assertFalse($notReadyAgent->config['runtime']);
+        $this->assertSame('Web Chat', $notReadyAgent->config['channel']);
+        $this->assertSame('Gemini', $notReadyAgent->config['language_model']);
 
         $deployment = AgentDeployment::where('agent_id', $readyAgent->getId())
             ->where('agent_machine_id', $newMachine->getId())

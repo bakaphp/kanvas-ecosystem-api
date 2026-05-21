@@ -97,7 +97,11 @@ class CompaniesObserver
             $user->set($company->branchCacheKey(), $branch->id);
         }
 
-        $this->setupDefaultIntegration($company, $app);
+        try {
+            $this->setupDefaultIntegration($company, $app);
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         $company->fireWorkflow(
             WorkflowEnum::CREATED->value,
