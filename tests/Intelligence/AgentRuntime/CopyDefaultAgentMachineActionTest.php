@@ -28,7 +28,7 @@ class CopyDefaultAgentMachineActionTest extends TestCase
         $this->assertNotSame($sourceMachine->getId(), $copiedMachine->getId());
         $this->assertSame($app->getId(), (int) $copiedMachine->apps_id);
         $this->assertSame($targetCompany->getId(), (int) $copiedMachine->companies_id);
-        $this->assertSame($sourceMachine->name, $copiedMachine->name);
+        $this->assertSame($sourceMachine->name . ' - Company ' . $targetCompany->getId(), $copiedMachine->name);
         $this->assertSame($sourceMachine->host, $copiedMachine->host);
         $this->assertSame($sourceMachine->ssh_port, $copiedMachine->ssh_port);
         $this->assertSame($sourceMachine->ssh_user, $copiedMachine->ssh_user);

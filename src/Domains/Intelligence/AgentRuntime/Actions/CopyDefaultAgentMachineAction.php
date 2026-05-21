@@ -24,7 +24,7 @@ class CopyDefaultAgentMachineAction
         return new CreateAgentMachineAction(AgentMachineData::from([
             'app' => $this->app,
             'company' => $this->company,
-            'name' => $this->source->name,
+            'name' => $this->source->name . ' - Company ' . $this->company->getId(),
             'host' => $this->source->host,
             'ssh_user' => $this->source->ssh_user,
             'ssh_private_key' => $this->source->ssh_private_key,

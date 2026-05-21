@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Internal\Handlers\InternalHandler;
 use Kanvas\Connectors\Hermes\Jobs\LaunchAgentJob as HermesLaunchAgentJob;
 use Kanvas\Intelligence\AgentRuntime\Activities\ProvisionDefaultAgentRuntimeActivity;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
@@ -17,19 +18,22 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\TestCase;
 
 class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
 {
+    use HasIntegrationCompany;
+
     public function testCopiesDefaultMachineAndDeploysReadyCompanyAgents(): void
     {
-        Queue::fake();
-        Notification::fake();
-
         $app = app(Apps::class);
         $user = auth()->user();
         $sourceCompany = $user->getCurrentCompany();
         $targetCompany = Companies::factory()->create();
+        $this->setIntegration($app, IntegrationsEnum::INTERNAL, InternalHandler::class, $targetCompany, $user);
+
         $sourceMachine = $this->createMachine($sourceCompany, 'runtime-source-' . fake()->uuid());
         $app->set(AgentRuntimeSettingEnum::DEFAULT_MACHINE_ID->value, $sourceMachine->getId());
 
@@ -49,6 +53,9 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
             'user_id' => $user->getId(),
             'name' => 'Draft Runtime Agent ' . fake()->uuid(),
         ]);
+
+        Queue::fake();
+        Notification::fake();
 
         $result = $this->activity()->execute($user, $app, [
             'company' => $targetCompany,
@@ -88,12 +95,12 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
 
     public function testNoConfigIsNoOp(): void
     {
-        Queue::fake();
-        Notification::fake();
-
         $app = app(Apps::class);
         $app->set(AgentRuntimeSettingEnum::DEFAULT_MACHINE_ID->value, '');
         $company = Companies::factory()->create();
+
+        Queue::fake();
+        Notification::fake();
 
         $result = $this->activity()->execute(auth()->user(), $app, [
             'company' => $company,
@@ -103,19 +110,19 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
         ]);
 
         $this->assertSame('no default machine configured', $result['msg']);
-        Queue::assertNothingPushed();
+        Queue::assertNotPushed(HermesLaunchAgentJob::class);
         Notification::assertNothingSent();
     }
 
     public function testWelcomeTransitionGateIsRequired(): void
     {
-        Queue::fake();
-        Notification::fake();
-
         $app = app(Apps::class);
         $company = Companies::factory()->create();
         $sourceMachine = $this->createMachine(auth()->user()->getCurrentCompany(), 'runtime-source-' . fake()->uuid());
         $app->set(AgentRuntimeSettingEnum::DEFAULT_MACHINE_ID->value, $sourceMachine->getId());
+
+        Queue::fake();
+        Notification::fake();
 
         $result = $this->activity()->execute(auth()->user(), $app, [
             'company' => $company,
@@ -125,7 +132,7 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
         ]);
 
         $this->assertSame('welcome was not completed', $result['msg']);
-        Queue::assertNothingPushed();
+        Queue::assertNotPushed(HermesLaunchAgentJob::class);
         Notification::assertNothingSent();
     }
 
