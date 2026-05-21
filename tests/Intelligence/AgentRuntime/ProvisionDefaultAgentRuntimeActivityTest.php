@@ -84,7 +84,9 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
         $this->assertSame('Web Chat', $readyAgent->config['channel']);
         $this->assertSame('Gemini', $readyAgent->config['language_model']);
 
-        $this->assertFalse($notReadyAgent->config['runtime']);
+        // runtime is always enabled on provisioning; readiness only decides
+        // whether the agent is actually deployed (see deployed_agent_ids above).
+        $this->assertTrue($notReadyAgent->config['runtime']);
         $this->assertSame('Web Chat', $notReadyAgent->config['channel']);
         $this->assertSame('Gemini', $notReadyAgent->config['language_model']);
 

@@ -110,7 +110,8 @@ class ProvisionDefaultAgentRuntimeActivity extends KanvasActivity implements Wor
                 $isReady = $readiness->isReady($agent);
 
                 // Every provisioned agent gets the default Web Chat + Gemini
-                // config; runtime only turns on for agents that can deploy.
+                // config with runtime enabled so it can be deployed; the
+                // readiness check below only gates the actual deployment.
                 $config = is_array($agent->config) ? $agent->config : [];
                 $config['channel'] = self::DEFAULT_CHANNEL;
                 $config['language_model'] = self::DEFAULT_LANGUAGE_MODEL;
