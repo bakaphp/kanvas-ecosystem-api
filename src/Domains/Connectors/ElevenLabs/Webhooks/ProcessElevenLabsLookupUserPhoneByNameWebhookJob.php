@@ -23,6 +23,8 @@ class ProcessElevenLabsLookupUserPhoneByNameWebhookJob extends ProcessElevenLabs
             return ['status' => 422, 'message' => 'Name is required'];
         }
 
+        [$firstname, $lastname] = $this->splitName($name);
+
         $app = $this->receiver->app;
         $company = $this->receiver->company;
 
@@ -31,12 +33,12 @@ class ProcessElevenLabsLookupUserPhoneByNameWebhookJob extends ProcessElevenLabs
             ->where('users_associated_apps.apps_id', $app->getId())
             ->where('users_associated_apps.companies_id', $company->getId())
             ->where('users_associated_apps.is_deleted', StateEnums::NO->getValue())
-            ->where(function (Builder $query) use ($name): void {
-                $like = '%' . $name . '%';
-                $query->where('users.firstname', 'like', $like)
-                    ->orWhere('users.lastname', 'like', $like)
-                    ->orWhere('users.displayname', 'like', $like)
-                    ->orWhereRaw("CONCAT_WS(' ', users.firstname, users.lastname) like ?", [$like]);
+            ->where(function (Builder $query) use ($firstname, $lastname): void {
+                $query->where('users.firstname', 'like', '%' . $firstname . '%');
+
+                if ($lastname !== '') {
+                    $query->where('users.lastname', 'like', '%' . $lastname . '%');
+                }
             })
             ->groupBy('users.id')
             ->limit(10)
@@ -46,6 +48,8 @@ class ProcessElevenLabsLookupUserPhoneByNameWebhookJob extends ProcessElevenLabs
             return [
                 'message' => 'No users found',
                 'name' => $name,
+                'firstname' => $firstname,
+                'lastname' => $lastname,
                 'matches' => [],
             ];
         }
@@ -53,8 +57,22 @@ class ProcessElevenLabsLookupUserPhoneByNameWebhookJob extends ProcessElevenLabs
         return [
             'message' => 'Users found',
             'name' => $name,
+            'firstname' => $firstname,
+            'lastname' => $lastname,
             'matches' => $users->map(fn (Users $user): array => $this->formatUser($user))->all(),
         ];
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    protected function splitName(string $name): array
+    {
+        $parts = preg_split('/\s+/', $name, 2) ?: [$name];
+        $firstname = trim($parts[0] ?? '');
+        $lastname = trim($parts[1] ?? '');
+
+        return [$firstname, $lastname];
     }
 
     protected function formatUser(Users $user): array
