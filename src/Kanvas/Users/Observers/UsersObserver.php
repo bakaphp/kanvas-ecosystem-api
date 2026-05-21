@@ -20,7 +20,6 @@ class UsersObserver
 {
     /**
      * Handle the Apps "saving" event.
-     *
      */
     public function creating(Users $user): void
     {
@@ -69,7 +68,7 @@ class UsersObserver
             $userRegisterInApp = new RegisterUsersAppAction($user, $app);
             $appUser = $userRegisterInApp->execute($user->password);
         }
-        
+
         $appUser->update([
             'firstname' => $user->firstname,
             'lastname' => $user->lastname,
