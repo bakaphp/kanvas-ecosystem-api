@@ -14,16 +14,9 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
-use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\KanvasModules\Actions\ProvisionCompanyKanvasModulesAction;
 use Kanvas\Users\Actions\AssignRoleAction;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
-use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Kanvas\Workflow\Integrations\Actions\CreateIntegrationCompanyAction;
-use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany as IntegrationsCompanyDto;
-use Kanvas\Workflow\Integrations\Models\Status;
-use Kanvas\Workflow\Models\Integrations;
 use Throwable;
 
 class CompaniesObserver
@@ -97,11 +90,7 @@ class CompaniesObserver
             $user->set($company->branchCacheKey(), $branch->id);
         }
 
-        try {
-            $this->setupDefaultIntegration($company, $app);
-        } catch (Throwable $e) {
-            report($e);
-        }
+        //remember we have a OnBoardingJob , so we will create the default integration in there
 
         $company->fireWorkflow(
             WorkflowEnum::CREATED->value,
@@ -124,37 +113,5 @@ class CompaniesObserver
                 'company' => $company,
             ]
         );
-    }
-
-    private function setupDefaultIntegration(Companies $company, Apps $app): void
-    {
-        $integration = Integrations::getByName(IntegrationsEnum::INTERNAL->value);
-        $defaultRegion = $company->defaultRegion()->first();
-
-        if (! $integration || ! $defaultRegion) {
-            return;
-        }
-
-        $integrationDto = new IntegrationsCompanyDto(
-            integration: $integration,
-            region: $defaultRegion,
-            company: $company,
-            config: [],
-            app: $app
-        );
-
-        if (! class_exists($handler = $integration->handler)) {
-            throw new InternalServerErrorException('Handler Class not found.');
-        }
-
-        $status = Status::where('slug', StatusEnum::ACTIVE->value)
-                        ->where('apps_id', 0)
-                        ->first();
-
-        new CreateIntegrationCompanyAction(
-            $integrationDto,
-            $company->user,
-            $status
-        )->execute();
     }
 }
