@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use Database\Seeders\Workflow\IntegrationsSeeder;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -34,6 +35,7 @@ class DatabaseSeeder extends Seeder
             NotificationChannelsSeeder::class,
             KanvasModulesSeeder::class,
             SoukSeeder::class,
+            IntegrationsSeeder::class,
         ]);
     }
 }
