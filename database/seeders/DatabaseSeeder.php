@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Database\Seeders\Souk\CartSeeder;
 use Database\Seeders\Workflow\IntegrationsSeeder;
 use Database\Seeders\Workflow\RatingWorkflowActionsSeeder;
 use Database\Seeders\Workflow\RulesTypesSeeder;
