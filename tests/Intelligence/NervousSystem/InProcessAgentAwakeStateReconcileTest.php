@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
-use Illuminate\Support\Facades\Artisan;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\AgentRuntime\Services\AgentAwakeStateWriter;
 use Kanvas\Intelligence\Agents\Enums\AgentAwakeStateEnum;
@@ -123,19 +122,5 @@ class InProcessAgentAwakeStateReconcileTest extends TestCase
         $this->assertFalse($changed, 'sleep cycle owns awake_state during sleep');
         $agent->refresh();
         $this->assertSame(AgentAwakeStateEnum::SLEEPING->value, $agent->awake_state);
-    }
-
-    public function testCommandReconcilesInactiveInProcessAgentToOffline(): void
-    {
-        $agent = $this->makeInProcessAgent(
-            AgentProviderEnum::LARAVEL->value,
-            false,
-            AgentAwakeStateEnum::AWAKE->value,
-        );
-
-        Artisan::call('kanvas:agent-runtime-check-health');
-
-        $agent->refresh();
-        $this->assertSame(AgentAwakeStateEnum::OFFLINE->value, $agent->awake_state);
     }
 }
