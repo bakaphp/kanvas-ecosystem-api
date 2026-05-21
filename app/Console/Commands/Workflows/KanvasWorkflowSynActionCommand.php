@@ -190,6 +190,7 @@ use Kanvas\Connectors\Zoho\Jobs\UpdateLeadFromZohoDealWebhookJob;
 use Kanvas\Connectors\Zoho\Jobs\UpdateZohoLeadInfoWebhookJob;
 use Kanvas\Filesystem\Activities\ConvertHeicToJpgActivity;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
+use Kanvas\Intelligence\AgentRuntime\Activities\ProvisionDefaultAgentRuntimeActivity;
 use Kanvas\Intelligence\FollowUp\Activities\FollowUpPromptActivity;
 use Kanvas\Intelligence\Sessions\Activities\InjectADKSessionEventsActivity;
 use Kanvas\Intelligence\Triggers\Workflows\TriggerIntelligenceActivity;
@@ -252,6 +253,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ImportStripePriceWebhookJob::class,
             SetPlanWithoutPaymentActivity::class,
             GenerateCompanyDashboardActivity::class,
+            ProvisionDefaultAgentRuntimeActivity::class,
             SyncProductWithShopifyActivity::class,
             SyncInventoryActivity::class,
             ImportProductActivity::class,
