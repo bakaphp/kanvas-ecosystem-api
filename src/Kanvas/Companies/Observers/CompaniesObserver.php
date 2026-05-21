@@ -14,24 +14,25 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\KanvasModules\Actions\ProvisionCompanyKanvasModulesAction;
 use Kanvas\Users\Actions\AssignRoleAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Workflow\Integrations\Actions\CreateIntegrationCompanyAction;
+use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany as IntegrationsCompanyDto;
+use Kanvas\Workflow\Integrations\Models\Status;
+use Kanvas\Workflow\Models\Integrations;
 use Throwable;
 
 class CompaniesObserver
 {
-    /**
-     * Handle the Apps "saving" event.
-     */
     public function creating(Companies $company): void
     {
         $company->uuid = Str::uuid()->toString();
     }
 
-    /**
-     * Handle the Apps "saving" event.
-     */
     public function created(Companies $company): void
     {
         $app = app(Apps::class);
@@ -96,6 +97,8 @@ class CompaniesObserver
             $user->set($company->branchCacheKey(), $branch->id);
         }
 
+        $this->setupDefaultIntegration($company, $app);
+
         $company->fireWorkflow(
             WorkflowEnum::CREATED->value,
             true,
@@ -117,5 +120,37 @@ class CompaniesObserver
                 'company' => $company,
             ]
         );
+    }
+
+    private function setupDefaultIntegration(Companies $company, Apps $app): void
+    {
+        $integration = Integrations::getByName(IntegrationsEnum::INTERNAL->value);
+        $defaultRegion = $company->defaultRegion()->first();
+
+        if (! $integration || ! $defaultRegion) {
+            return;
+        }
+
+        $integrationDto = new IntegrationsCompanyDto(
+            integration: $integration,
+            region: $defaultRegion,
+            company: $company,
+            config: [],
+            app: $app
+        );
+
+        if (! class_exists($handler = $integration->handler)) {
+            throw new InternalServerErrorException('Handler Class not found.');
+        }
+
+        $status = Status::where('slug', StatusEnum::ACTIVE->value)
+                        ->where('apps_id', 0)
+                        ->first();
+
+        new CreateIntegrationCompanyAction(
+            $integrationDto,
+            $company->user,
+            $status
+        )->execute();
     }
 }
