@@ -32,12 +32,14 @@ class ProvisionDefaultAgentRuntimeActivity extends KanvasActivity implements Wor
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
+        $company = $this->resolveCompany($params);
+        $defaultMachineId = (int) ($app->get(AgentRuntimeSettingEnum::DEFAULT_MACHINE_ID->value) ?? 0);
 
         return $this->executeIntegration(
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
-            integrationOperation: fn () => $this->provision(
+            integrationOperation: fn (): array => $this->provision(
                 $entity,
                 $app,
                 $company,
@@ -60,12 +62,10 @@ class ProvisionDefaultAgentRuntimeActivity extends KanvasActivity implements Wor
             return $this->failWorkflow(['msg' => 'welcome was not completed']);
         }
 
-        $defaultMachineId = (int) ($app->get(AgentRuntimeSettingEnum::DEFAULT_MACHINE_ID->value) ?? 0);
         if ($defaultMachineId <= 0) {
             return $this->failWorkflow(['msg' => 'no default machine configured']) ;
         }
 
-        $company = $this->resolveCompany($params);
         if (! $company instanceof CompanyInterface) {
             return $this->failWorkflow(['msg' => 'no company found for agent runtime provisioning']);
         }
