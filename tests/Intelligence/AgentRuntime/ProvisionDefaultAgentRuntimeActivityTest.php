@@ -59,7 +59,7 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
 
         $result = $this->activity()->execute($user, $app, [
             'company' => $targetCompany,
-            'provider' => AgentProviderEnum::HERMES->value,
+            'provider' => true,
             'welcome_changed' => true,
             'welcome_previous' => 0,
             'welcome_current' => 1,
@@ -172,7 +172,7 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
             'gateway_port' => 26000,
             'proxy_port' => 26001,
             'container_name' => 'hermes-agent-host-aware',
-            'provider' => AgentProviderEnum::HERMES->value,
+            'provider' => true,
             'status' => 'running',
         ]);
 
