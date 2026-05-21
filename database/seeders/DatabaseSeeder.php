@@ -2,7 +2,10 @@
 
 namespace Database\Seeders;
 
+use Database\Seeders\Souk\CartSeeder;
 use Database\Seeders\Workflow\IntegrationsSeeder;
+use Database\Seeders\Workflow\RatingWorkflowActionsSeeder;
+use Database\Seeders\Workflow\RulesTypesSeeder;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -36,6 +39,12 @@ class DatabaseSeeder extends Seeder
             KanvasModulesSeeder::class,
             SoukSeeder::class,
             IntegrationsSeeder::class,
+            RulesTypesSeeder::class,
+            RatingWorkflowActionsSeeder::class,
+            AppPlansPricesSeeder::class,
+            SourceSocialSeeder::class,
+            CartSeeder::class,
+            CanadaCitiesSeeder::class,
         ]);
     }
 }
