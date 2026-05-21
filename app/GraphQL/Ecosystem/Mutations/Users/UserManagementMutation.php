@@ -377,11 +377,9 @@ class UserManagementMutation
     {
         $loggedUser = auth()->user();
         $app = app(Apps::class);
-        $userId = (int) $request['user_id'];
-
-        if ($userId !== $loggedUser->getId() && ! $loggedUser->isAdmin()) {
-            throw new Exception('You are not allowed to update this user banner');
-        }
+        $userId = $loggedUser->isAdmin() && (int) $request['user_id'] > 0
+            ? (int) $request['user_id']
+            : $loggedUser->getId();
 
         $user = UsersRepository::getUserOfAppById($userId, $app);
         $user->set('banner_url', $request['url'], true);
