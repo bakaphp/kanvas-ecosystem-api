@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Users\Jobs;
 
-use Baka\Contracts\AppInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Bus\Queueable;

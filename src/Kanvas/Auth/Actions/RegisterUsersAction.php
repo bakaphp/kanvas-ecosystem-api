@@ -69,7 +69,7 @@ class RegisterUsersAction extends CreateUserAction
                 $company
             );
         }
-        
+
         if ($this->runWorkflow) {
             $user->fireWorkflow(
                 WorkflowEnum::REGISTERED->value,
