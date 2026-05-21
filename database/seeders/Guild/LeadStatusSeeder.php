@@ -16,12 +16,16 @@ class LeadStatusSeeder extends Seeder
     {
         DB::table('leads_status')->insert([
             [
+                'apps_id' => 0,
+                'companies_id' => 0,
                 'name' => 'Active',
                 'is_default' => 1,
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
             ],
             [
+                'apps_id' => 0,
+                'companies_id' => 0,
                 'name' => 'Inactive',
                 'is_default' => 0,
                 'created_at' => date('Y-m-d H:i:s'),
