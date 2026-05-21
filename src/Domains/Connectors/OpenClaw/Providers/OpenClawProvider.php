@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\OpenClaw\Providers;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Facades\Cache;
+use Kanvas\Connectors\OpenClaw\Actions\CheckCliHealthAction;
 use Kanvas\Connectors\OpenClaw\Actions\CollectDeploymentUsageAction;
 use Kanvas\Connectors\OpenClaw\Actions\DispatchAgentDeploymentAction;
 use Kanvas\Connectors\OpenClaw\Actions\ExecDeploymentCommandAction;
@@ -20,6 +21,7 @@ use Kanvas\Connectors\OpenClaw\Jobs\RestartAgentContainerJob;
 use Kanvas\Connectors\OpenClaw\Jobs\TerminateAgentJob;
 use Kanvas\Connectors\OpenClaw\Jobs\UpdateOpenClawOnMachineJob;
 use Kanvas\Connectors\OpenClaw\SshClient;
+use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\AgentRuntime\Providers\AbstractAgentRuntimeProvider;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -100,6 +102,12 @@ class OpenClawProvider extends AbstractAgentRuntimeProvider
     public function fetchContainerStatus(AgentDeployment $deployment): AgentDeployment
     {
         return new GetAgentContainerStatusAction($deployment)->execute();
+    }
+
+    #[Override]
+    public function checkHealth(AgentDeployment $deployment): HealthCheckResultEnum
+    {
+        return new CheckCliHealthAction($deployment)->execute();
     }
 
     #[Override]

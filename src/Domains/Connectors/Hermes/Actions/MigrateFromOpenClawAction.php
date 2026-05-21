@@ -14,8 +14,10 @@ use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Connectors\OpenClaw\SshClient as OpenClawSshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Services\AgentChannelIntegrationReadinessService;
 use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilder;
 use Kanvas\Intelligence\AgentRuntime\SshClient as BaseClient;
+use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
@@ -51,6 +53,9 @@ class MigrateFromOpenClawAction
     public function execute(): AgentDeployment
     {
         $agent = $this->sourceDeployment->agent;
+        new AgentChannelIntegrationReadinessService()
+            ->assertReadyForDeployment($agent, AgentProviderEnum::HERMES->value);
+
         $sameMachine = $this->sourceDeployment->machine->getId() === $this->destinationMachine->getId();
 
         $systemUser = 'agent-' . $agent->slug;

@@ -141,15 +141,20 @@ class OpenClawTest extends TestCase
 
     public function testWorkspaceFileBuilderFallsBackToLegacyRole()
     {
-        $agent = $this->createTestAgent([
-            'soul' => null,
-            'instructions' => null,
-            'output_format' => null,
-            'role' => [
-                'background' => 'Legacy background text',
-                'steps' => 'Legacy step instructions',
-            ],
-        ]);
+        $agent = $this->createTestAgent();
+
+        // AgentObserver's `saving` hook syncs soul/instructions/output_format down
+        // into role.background/steps/output. To exercise the legacy fallback path
+        // we need soul/instructions/output_format to be null AND role to carry the
+        // legacy values — use saveQuietly() to bypass the observer.
+        $agent->soul = null;
+        $agent->instructions = null;
+        $agent->output_format = null;
+        $agent->role = [
+            'background' => 'Legacy background text',
+            'steps' => 'Legacy step instructions',
+        ];
+        $agent->saveQuietly();
 
         $soulMd = WorkspaceFileBuilder::buildSoulMd($agent);
         $agentsMd = WorkspaceFileBuilder::buildAgentsMd($agent);

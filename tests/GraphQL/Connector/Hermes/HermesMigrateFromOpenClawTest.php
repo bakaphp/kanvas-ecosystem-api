@@ -5,10 +5,15 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Connector\Hermes;
 
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Hermes\Actions\MigrateFromOpenClawAction;
 use Kanvas\Connectors\Hermes\Jobs\MigrateFromOpenClawJob;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
+use Kanvas\Intelligence\AgentRuntime\Notifications\AgentDeploymentMissingChannelIntegrationNotification;
+use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -46,15 +51,20 @@ class HermesMigrateFromOpenClawTest extends TestCase
         return $machine;
     }
 
-    private function createTestDeployment(AgentMachine $machine, string $status = 'running'): AgentDeployment
-    {
+    private function createTestDeployment(
+        AgentMachine $machine,
+        string $status = 'running',
+        ?Agent $agent = null,
+    ): AgentDeployment {
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $agent = Agent::where('apps_id', $app->getId())
-            ->where('is_deleted', 0)
-            ->first();
+        if ($agent === null) {
+            $agent = Agent::where('apps_id', $app->getId())
+                ->where('is_deleted', 0)
+                ->first();
+        }
 
         if (! $agent) {
             $agent = Agent::factory()->create([
@@ -118,6 +128,44 @@ class HermesMigrateFromOpenClawTest extends TestCase
         ]);
 
         Queue::assertPushed(MigrateFromOpenClawJob::class);
+    }
+
+    public function testMigrateFromOpenClawActionRequiresSlackOrTelegramIntegration(): void
+    {
+        Notification::fake();
+
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        // Dedicated fresh agent with no Slack/Telegram channel tokens, so the readiness
+        // check blocks the migration before any SSH connection is attempted. Reusing an
+        // existing agent is non-deterministic — a sibling test may have left Telegram or
+        // Slack tokens on it (channel tokens are custom fields that outlive the test
+        // transaction), which would skip the check and fail on the fake SSH key instead.
+        $agent = Agent::factory()->create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'user_id' => $user->getId(),
+        ]);
+
+        $machine = $this->createTestMachine();
+        $sourceDeployment = $this->createTestDeployment($machine, agent: $agent);
+
+        try {
+            new MigrateFromOpenClawAction($sourceDeployment, $machine, $app, $company)->execute();
+            $this->fail('Expected migration deployment to be blocked without Slack or Telegram credentials.');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('Slack integration or Telegram integration', $e->getMessage());
+        }
+
+        $this->assertSame(
+            0,
+            AgentDeployment::where('agent_id', $agent->getId())
+                ->where('provider', AgentProviderEnum::HERMES->value)
+                ->count(),
+        );
+        Notification::assertSentTo($agent->user, AgentDeploymentMissingChannelIntegrationNotification::class);
     }
 
     public function testHermesMigrateFromOpenclawRequiresValidSourceDeployment(): void

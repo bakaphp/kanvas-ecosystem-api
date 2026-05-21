@@ -170,6 +170,7 @@ extend type Query @guard {
         )
 
     nervousSystemTools(
+        framework: String
         where: _
             @whereConditions(
                 columns: [
@@ -194,8 +195,7 @@ extend type Query @guard {
             )
     ): [NervousSystemTool!]!
         @paginate(
-            model: "Kanvas\\NervousSystem\\Capability\\Models\\Tool"
-            scopes: ["fromApp", "active"]
+            builder: "App\\GraphQL\\Intelligence\\Builders\\NervousSystem\\ToolsBuilder@getTools"
             defaultCount: 50
         )
 

@@ -1730,6 +1730,124 @@ class MessageTest extends TestCase
         @unlink($tempPath);
     }
 
+    public function testAttachFileToMessageConstrainsLargeImage(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $verb = 'twilio-sms-attach-' . uniqid();
+        $messageType = MessageType::factory()->create(['verb' => $verb]);
+
+        $prevOptimize = $app->get('filesystem-optimize-on-upload');
+        $app->set('filesystem-optimize-on-upload', false);
+
+        $tempPath = sys_get_temp_dir() . '/attach-large-' . uniqid() . '.jpg';
+        $img = imagecreatetruecolor(3000, 3000);
+        for ($y = 0; $y < 3000; $y += 2) {
+            for ($x = 0; $x < 3000; $x += 2) {
+                $color = imagecolorallocate($img, rand(0, 255), rand(0, 255), rand(0, 255));
+                imagesetpixel($img, $x, $y, $color);
+            }
+        }
+        imagejpeg($img, $tempPath, 100);
+        imagedestroy($img);
+
+        $originalSize = filesize($tempPath);
+        $maxFileSize = (int) ($originalSize * 0.25);
+        $app->set('filesystem-message-max-filesize', $maxFileSize);
+        $app->set('filesystem-message-constrain-verbs', [$verb]);
+
+        $message = Message::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $user->getCurrentCompany()->getId(),
+            'users_id' => $user->getId(),
+            'message_types_id' => $messageType->getId(),
+            'message' => ['content' => 'attach test'],
+            'is_public' => 1,
+            'is_locked' => 0,
+        ]);
+
+        $file = new UploadedFile($tempPath, 'large-attach.jpg', 'image/jpeg', null, true);
+
+        $mutation = new \App\GraphQL\Social\Mutations\Messages\MessageManagementMutation();
+        $mutation->attachFileToMessage(null, [
+            'message_id' => $message->getId(),
+            'file' => $file,
+        ]);
+
+        clearstatcache(true, $tempPath);
+        $this->assertLessThanOrEqual(
+            $maxFileSize,
+            filesize($tempPath),
+            'Image attached via attachFileToMessage should be constrained to max file size'
+        );
+
+        $app->set('filesystem-message-max-filesize', null);
+        $app->set('filesystem-message-constrain-verbs', null);
+        $app->set('filesystem-optimize-on-upload', $prevOptimize);
+        @unlink($tempPath);
+    }
+
+    public function testCreateMessageConstrainsFileWithoutExtension(): void
+    {
+        // Regression: PHP multipart uploads land at /tmp/phpXXXXXX with no extension.
+        // Intervention v4 $img->save($path) infers encoder from filename — fails on no extension.
+        // saveWithFormat() must use the MIME-resolved $extension to encode explicitly.
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $verb = 'twilio-sms-noext-' . uniqid();
+        $messageType = MessageType::factory()->create(['verb' => $verb]);
+
+        $prevOptimize = $app->get('filesystem-optimize-on-upload');
+        $app->set('filesystem-optimize-on-upload', false);
+
+        // Multipart-style temp path: no extension, like /tmp/phpWtmcv1
+        $tempPath = sys_get_temp_dir() . '/php' . substr(uniqid(), -6);
+        $img = imagecreatetruecolor(3000, 3000);
+        for ($y = 0; $y < 3000; $y += 2) {
+            for ($x = 0; $x < 3000; $x += 2) {
+                $color = imagecolorallocate($img, rand(0, 255), rand(0, 255), rand(0, 255));
+                imagesetpixel($img, $x, $y, $color);
+            }
+        }
+        imagejpeg($img, $tempPath, 100);
+        imagedestroy($img);
+
+        $originalSize = filesize($tempPath);
+        $maxFileSize = (int) ($originalSize * 0.25);
+        $app->set('filesystem-message-max-filesize', $maxFileSize);
+        $app->set('filesystem-message-constrain-verbs', [$verb]);
+
+        $file = new UploadedFile($tempPath, 'no-ext-photo.jpg', 'image/jpeg', null, true);
+
+        $action = new CreateMessageAction(
+            new MessageInput(
+                app: $app,
+                company: $company,
+                user: $user,
+                type: $messageType,
+                message: 'no-extension temp upload',
+                files: [$file],
+            ),
+        );
+        $action->runWorkflow = false;
+        $action->execute();
+
+        clearstatcache(true, $tempPath);
+        $this->assertLessThanOrEqual(
+            $maxFileSize,
+            filesize($tempPath),
+            'Image at extensionless temp path should still be constrained'
+        );
+
+        $app->set('filesystem-message-max-filesize', null);
+        $app->set('filesystem-message-constrain-verbs', null);
+        $app->set('filesystem-optimize-on-upload', $prevOptimize);
+        @unlink($tempPath);
+    }
+
     public function testCreateMessageConstrainsHeicFile(): void
     {
         $app = app(Apps::class);

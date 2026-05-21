@@ -21,17 +21,11 @@ use Throwable;
 
 class CompaniesObserver
 {
-    /**
-     * Handle the Apps "saving" event.
-     */
     public function creating(Companies $company): void
     {
         $company->uuid = Str::uuid()->toString();
     }
 
-    /**
-     * Handle the Apps "saving" event.
-     */
     public function created(Companies $company): void
     {
         $app = app(Apps::class);
@@ -95,6 +89,8 @@ class CompaniesObserver
         if (! $user->get($company->branchCacheKey())) {
             $user->set($company->branchCacheKey(), $branch->id);
         }
+
+        //remember we have a OnBoardingJob , so we will create the default integration in there
 
         $company->fireWorkflow(
             WorkflowEnum::CREATED->value,

@@ -9,6 +9,7 @@ use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
 use App\Console\Commands\NervousSystem\ArchiveOldLedgerEventsCommand;
+use App\Console\Commands\NervousSystem\CheckAgentRuntimeHealthCommand;
 use App\Console\Commands\NervousSystem\DetectStalledPlanTasksCommand;
 use App\Console\Commands\NervousSystem\ExpireCapabilitiesCommand;
 use App\Console\Commands\NervousSystem\RecordAgentDailyCyclesCommand;
@@ -66,6 +67,9 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping();
         $schedule->command(RefreshAgentLiveCountersCommand::class)
             ->hourly()
+            ->withoutOverlapping();
+        $schedule->command(CheckAgentRuntimeHealthCommand::class)
+            ->everyTenMinutes()
             ->withoutOverlapping();
         $schedule->command(SyncModelPricingCommand::class)
             ->dailyAt('02:30')
