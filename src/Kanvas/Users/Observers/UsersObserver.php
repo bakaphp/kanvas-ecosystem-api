@@ -89,7 +89,6 @@ class UsersObserver
                 && (int) $user->welcome === 1;
 
         if ($passOnboarding) {
-       
             $user->fireWorkflow(
                 WorkflowEnum::AFTER_ONBOARDING->value,
                 true,
@@ -98,7 +97,6 @@ class UsersObserver
                     'welcome_changed' => true,
                     'welcome_previous' => $user->getOriginal('welcome'),
                     'welcome_current' => $user->welcome,
-
                 ]
             );
         }
