@@ -81,7 +81,15 @@ class AgentMachine extends BaseModel
 
     public function hasCapacity(): bool
     {
-        return $this->activeDeployments()->count() < $this->max_agents;
+        $machineIds = self::query()
+            ->where('host', $this->host)
+            ->where('is_deleted', 0)
+            ->pluck('id');
+
+        return AgentDeployment::whereIn('agent_machine_id', $machineIds)
+            ->where('status', 'running')
+            ->where('is_deleted', 0)
+            ->count() < $this->max_agents;
     }
 
     /**
@@ -91,12 +99,17 @@ class AgentMachine extends BaseModel
      */
     public function allocatePortPair(): array
     {
-        $usedPorts = AgentDeployment::where('agent_machine_id', $this->id)
+        $machineIds = self::query()
+            ->where('host', $this->host)
+            ->where('is_deleted', 0)
+            ->pluck('id');
+
+        $usedPorts = AgentDeployment::whereIn('agent_machine_id', $machineIds)
             ->whereNotIn('status', ['terminated'])
             ->where('is_deleted', 0)
             ->pluck('gateway_port')
             ->merge(
-                AgentDeployment::where('agent_machine_id', $this->id)
+                AgentDeployment::whereIn('agent_machine_id', $machineIds)
                     ->whereNotIn('status', ['terminated'])
                     ->where('is_deleted', 0)
                     ->pluck('proxy_port')

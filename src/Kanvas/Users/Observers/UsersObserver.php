@@ -69,6 +69,7 @@ class UsersObserver
             $userRegisterInApp = new RegisterUsersAppAction($user, $app);
             $appUser = $userRegisterInApp->execute($user->password);
         }
+        
         $appUser->update([
             'firstname' => $user->firstname,
             'lastname' => $user->lastname,
@@ -79,7 +80,12 @@ class UsersObserver
         $user->fireWorkflow(
             WorkflowEnum::UPDATED->value,
             true,
-            ['company' => $user->getCurrentCompany()]
+            [
+                'company' => $user->getCurrentCompany(),
+                'welcome_changed' => $user->wasChanged('welcome'),
+                'welcome_previous' => (int) $user->getOriginal('welcome'),
+                'welcome_current' => (int) $user->welcome,
+            ]
         );
     }
 }
