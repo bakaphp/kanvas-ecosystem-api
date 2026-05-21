@@ -178,7 +178,7 @@ class CreateLeadAction
             ->notDeleted(StateEnums::NO->getValue())
             ->where([
                 ['people_id', $people->getId()],
-                ['leads_status_id', $this->leadData->status_id ?: LeadStatus::getDefault()->getId()],
+                ['leads_status_id', $this->leadData->status_id ?: LeadStatus::getDefault($this->leadData->app, $this->company)->getId()],
             ])
             ->lockForUpdate()
             ->exists();
