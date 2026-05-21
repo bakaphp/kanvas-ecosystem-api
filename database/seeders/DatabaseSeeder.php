@@ -43,7 +43,6 @@ class DatabaseSeeder extends Seeder
             RatingWorkflowActionsSeeder::class,
             AppPlansPricesSeeder::class,
             SourceSocialSeeder::class,
-            CartSeeder::class,
             CanadaCitiesSeeder::class,
         ]);
     }
