@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyWithIntegrationActivity;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Services\VariantService;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Connectors\Traits\HasShopifyConfiguration;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
@@ -60,7 +61,9 @@ class IntegrationTest extends TestCase
         ])->assertSuccessful();
         $regionResponse = $regionResponse->decodeResponseJson();
 
-        $integration = $response->json()['data']['integrations']['data'][0];
+        $integration = collect($response->json()['data']['integrations']['data'])
+            ->firstWhere('name', IntegrationsEnum::SHOPIFY->value);
+        $this->assertNotNull($integration, 'Shopify integration must be present in integrations query');
         $company = auth()->user()->getCurrentCompany();
         $credentials = [
             'client_id' => getenv('TEST_SHOPIFY_API_KEY'),
@@ -136,7 +139,9 @@ class IntegrationTest extends TestCase
         ])->assertSuccessful();
         $regionResponse = $regionResponse->decodeResponseJson();
 
-        $integration = $response->json()['data']['integrations']['data'][0];
+        $integration = collect($response->json()['data']['integrations']['data'])
+            ->firstWhere('name', IntegrationsEnum::SHOPIFY->value);
+        $this->assertNotNull($integration, 'Shopify integration must be present in integrations query');
         $company = auth()->user()->getCurrentCompany();
 
         $credentials = [

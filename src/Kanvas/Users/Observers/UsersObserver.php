@@ -81,10 +81,21 @@ class UsersObserver
             true,
             [
                 'company' => $user->getCurrentCompany(),
-                'welcome_changed' => $user->wasChanged('welcome'),
-                'welcome_previous' => (int) $user->getOriginal('welcome'),
-                'welcome_current' => (int) $user->welcome,
             ]
         );
+
+        $passOnboarding = $user->wasChanged('welcome')
+                && (int) $user->getOriginal('welcome') === 0
+                && (int) $user->welcome === 1;
+
+        if ($passOnboarding) {
+            $user->fireWorkflow(
+                WorkflowEnum::AFTER_ONBOARDING->value,
+                true,
+                [
+                    'company' => $user->getCurrentCompany(),
+                ]
+            );
+        }
     }
 }
