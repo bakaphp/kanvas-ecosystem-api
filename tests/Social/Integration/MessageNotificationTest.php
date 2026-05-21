@@ -79,12 +79,18 @@ class MessageNotificationTest extends TestCase
 
         $region = Regions::fromApp($app)->fromCompany($company)->first();
 
-        $integration = Integrations::firstOrCreate([
-            'apps_id' => $app->getId(),
-            'name' => IntegrationsEnum::INTERNAL->value,
-            'config' => [],
-            'handler' => InternalHandler::class,
-        ]);
+        // Key on name only so this resolves to the same row IntegrationsCompany::getByIntegration()
+        // picks via its un-scoped where('name', ...) lookup — IntegrationsSeeder seeds INTERNAL as apps_id=0.
+        $integration = Integrations::firstOrCreate(
+            [
+                'name' => IntegrationsEnum::INTERNAL->value,
+            ],
+            [
+                'apps_id' => 0,
+                'config' => [],
+                'handler' => InternalHandler::class,
+            ]
+        );
 
         $integrationDto = new IntegrationsCompany(
             integration: $integration,
