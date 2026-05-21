@@ -143,8 +143,6 @@ class CompaniesObserver
             throw new InternalServerErrorException('Handler Class not found.');
         }
 
-        $handler = $integration->handler;
-
         $status = Status::where('slug', StatusEnum::ACTIVE->value)
                         ->where('apps_id', 0)
                         ->first();
