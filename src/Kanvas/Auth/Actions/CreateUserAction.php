@@ -79,7 +79,7 @@ class CreateUserAction
         $this->assignCompany($user);
 
         if ($newUser && $company !== null) {
-            (new SetupService())->onBoarding(
+            new SetupService()->onBoarding(
                 $user,
                 $this->app,
                 $company

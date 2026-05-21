@@ -8,10 +8,10 @@ use Faker\Factory as FakerFactory;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\Company;
-use Kanvas\Companies\Observers\CompaniesObserver;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Inventory\Support\Setup;
+use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\UserRoles;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -63,10 +63,11 @@ final class CompanyDefaultSetupTest extends TestCase
     }
 
     /**
-     * CompaniesObserver::setupDefaultIntegration wires the company to the
-     * internal integration. It needs a default region to exist — which a fresh
-     * company has not yet — so we provision the inventory defaults first, then
-     * exercise the (private) setup directly the way the observer does.
+     * OnBoardingJob::setupDefaultIntegration wires the company to the internal
+     * integration. It needs a default region to exist — which a fresh company
+     * has not yet — so the job runs it right after InventorySetup. Here we
+     * provision the inventory defaults first, then exercise that (private)
+     * setup directly the way the job does.
      */
     public function testDefaultInternalIntegrationIsSetUp(): void
     {
@@ -85,11 +86,17 @@ final class CompanyDefaultSetupTest extends TestCase
             'Inventory setup should give the company a default region.'
         );
 
+        $onBoardingJob = new OnBoardingJob(
+            $owner,
+            $company->defaultBranch()->firstOrFail(),
+            $app
+        );
+
         $setupDefaultIntegration = new ReflectionMethod(
-            CompaniesObserver::class,
+            OnBoardingJob::class,
             'setupDefaultIntegration'
         );
-        $setupDefaultIntegration->invoke(new CompaniesObserver(), $company, $app);
+        $setupDefaultIntegration->invoke($onBoardingJob, $company, $app);
 
         $internal = Integrations::getByName(IntegrationsEnum::INTERNAL->value);
         $this->assertTrue(
