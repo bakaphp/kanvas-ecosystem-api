@@ -10,10 +10,9 @@ use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
+use Throwable;
 
 use function Sentry\captureException;
-
-use Throwable;
 
 class ProcessWebhookAttemptAction
 {
