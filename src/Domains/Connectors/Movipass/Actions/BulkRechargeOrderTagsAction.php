@@ -110,13 +110,19 @@ class BulkRechargeOrderTagsAction
                     throw new RuntimeException('PasoRapido did not confirm TAG ' . $tagNumber);
                 }
 
-                $telemetry = new UpdateVehicleTagTelemetryAction(
-                    $this->order,
-                    $this->app,
-                    $tagNumber,
-                    $amount,
-                    $service,
-                )->execute();
+                $vehicle = $item->variant?->product;
+                $telemetry = ['status' => 'skipped', 'reason' => 'item has no vehicle product'];
+
+                if ($vehicle) {
+                    $telemetry = new UpdateVehicleTagTelemetryAction(
+                        $vehicle,
+                        $this->order,
+                        $this->app,
+                        $tagNumber,
+                        $amount,
+                        $service,
+                    )->execute();
+                }
 
                 $results[$tagNumber] = [
                     'status' => 'success',

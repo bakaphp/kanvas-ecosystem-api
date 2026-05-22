@@ -100,7 +100,6 @@ use Kanvas\Connectors\NetSuite\Workflow\SyncPeopleWithNetSuiteActivity;
 use Kanvas\Connectors\Ofac\Activities\OfacScreeningActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullActivity;
 use Kanvas\Connectors\OfferLogix\Workflow\SoftPullFromLeadActivity;
-use Kanvas\Connectors\OpenClaw\Activities\SendChannelMessageToAgentActivity;
 use Kanvas\Connectors\OpenClaw\Activities\SyncAgentSwarmContextActivity;
 use Kanvas\Connectors\OpenClaw\Activities\SyncOpenClawWorkspaceActivity;
 use Kanvas\Connectors\PasoRapido\Workflows\Activities\CreatePasoRapidoOrderActivity;
@@ -193,6 +192,7 @@ use Kanvas\Connectors\Zoho\Jobs\UpdateZohoLeadInfoWebhookJob;
 use Kanvas\Filesystem\Activities\ConvertHeicToJpgActivity;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Intelligence\AgentRuntime\Activities\ProvisionDefaultAgentRuntimeActivity;
+use Kanvas\Intelligence\Agents\Activities\RuntimeAgentChannelResponderActivity;
 use Kanvas\Intelligence\FollowUp\Activities\FollowUpPromptActivity;
 use Kanvas\Intelligence\Sessions\Activities\InjectADKSessionEventsActivity;
 use Kanvas\Intelligence\Triggers\Workflows\TriggerIntelligenceActivity;
@@ -438,7 +438,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ContactCheckerActivity::class,
             SyncOpenClawWorkspaceActivity::class,
             SyncAgentSwarmContextActivity::class,
-            SendChannelMessageToAgentActivity::class,
+            RuntimeAgentChannelResponderActivity::class,
             ReplyToPlanCommentActivity::class,
             MicrosoftAgentChannelResponderActivity::class,
             SyncMicrosoftEmailActivity::class,
