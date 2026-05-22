@@ -32,7 +32,7 @@ final class AgentRuntimeProviderFactory
     // legacy agent types that pre-date the `agent_types.provider` column.
     public static function forAgent(Agent $agent): AgentRuntimeProvider
     {
-        $raw = $agent->agentType?->provider;
+        $raw = $agent->type?->provider;
 
         if (! is_string($raw) || $raw === '') {
             return self::forProvider(AgentProviderEnum::OPENCLAW);
