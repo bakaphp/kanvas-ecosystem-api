@@ -186,7 +186,7 @@ class ProvisionDefaultAgentRuntimeActivity extends KanvasActivity implements Wor
         try {
             $provider = AgentProviderEnum::from($provider);
 
-            return in_array($provider, AgentProviderEnum::runtimeProviders(), true)
+            return $provider->isRuntimeProvider()
                 ? $provider
                 : AgentProviderEnum::HERMES;
         } catch (ValueError) {

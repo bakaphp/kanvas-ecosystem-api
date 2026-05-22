@@ -88,4 +88,15 @@ interface AgentRuntimeProvider
     // Returns UNSUPPORTED for runtimes that don't expose a probe yet (default in the abstract);
     // OK/FAILED feed the 2-strike state machine in `BaseCheckHealthAction`.
     public function checkHealth(AgentDeployment $deployment): HealthCheckResultEnum;
+
+    // Chat with the agent's live container deployment over its runtime HTTP API. Only the
+    // container runtimes (OpenClaw, Hermes) implement this — in-process providers don't deploy
+    // containers, so the abstract base default-throws.
+    /** @param list<string> $images URLs to forward as multimodal image content. */
+    public function chat(
+        Agent $agent,
+        string $message,
+        ?string $sessionKey = null,
+        array $images = [],
+    ): string;
 }
