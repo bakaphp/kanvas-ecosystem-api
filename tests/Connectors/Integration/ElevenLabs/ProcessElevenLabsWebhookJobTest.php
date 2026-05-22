@@ -119,6 +119,72 @@ class ProcessElevenLabsWebhookJobTest extends TestCase
         $this->assertEquals('', $result['dynamic_variables']['lead_uuid']);
     }
 
+    public function testConversationInitiationWebhookFillsVehicleFromSingleObjectCustomField(): void
+    {
+        $this->createTestLeadWithPhone();
+
+        $this->testLead->set('vehicle_of_interest', [
+            'make' => 'Toyota',
+            'id' => '6b9c2b1e-967d-ed11-b0c8-00505690dca3',
+            'model' => 'Camry',
+            'trim' => 'LE',
+            'vin' => '5LMJJ2HT9KEL09198',
+            'year' => '2026',
+            'stockNumber' => 'AV052A',
+            'isPrimary' => true,
+        ]);
+
+        $result = $this->dispatchJob(
+            ProcessElevenLabsConversationInitiationWebhookJob::class,
+            ['caller_id' => $this->testPhone, 'agent_id' => 'agent_123']
+        );
+
+        $vars = $result['dynamic_variables'];
+        $this->assertEquals('2026', $vars['vehicle_year']);
+        $this->assertEquals('Toyota', $vars['vehicle_make']);
+        $this->assertEquals('Camry', $vars['vehicle_model']);
+        $this->assertEquals('LE', $vars['vehicle_trim']);
+        $this->assertEquals('5LMJJ2HT9KEL09198', $vars['vehicle_vin']);
+        $this->assertEquals('AV052A', $vars['vehicle_stock_number']);
+    }
+
+    public function testConversationInitiationWebhookFillsVehicleFromListPicksPrimary(): void
+    {
+        $this->createTestLeadWithPhone();
+
+        $this->testLead->set('vehicle_of_interest', [
+            [
+                'make' => 'Ford',
+                'model' => 'F-150',
+                'trim' => 'XLT',
+                'vin' => 'SECONDARYVIN00001',
+                'year' => '2024',
+                'stockNumber' => 'FD001',
+                'isPrimary' => false,
+            ],
+            [
+                'make' => 'Toyota',
+                'model' => 'Camry',
+                'trim' => 'LE',
+                'vin' => '5LMJJ2HT9KEL09198',
+                'year' => '2026',
+                'stockNumber' => 'AV052A',
+                'isPrimary' => true,
+            ],
+        ]);
+
+        $result = $this->dispatchJob(
+            ProcessElevenLabsConversationInitiationWebhookJob::class,
+            ['caller_id' => $this->testPhone, 'agent_id' => 'agent_123']
+        );
+
+        $vars = $result['dynamic_variables'];
+        $this->assertEquals('Toyota', $vars['vehicle_make']);
+        $this->assertEquals('Camry', $vars['vehicle_model']);
+        $this->assertEquals('5LMJJ2HT9KEL09198', $vars['vehicle_vin']);
+        $this->assertEquals('AV052A', $vars['vehicle_stock_number']);
+    }
+
     public function testTranscriptWebhookWithPhoneCallMetadata(): void
     {
         $this->createTestLeadWithPhone();
