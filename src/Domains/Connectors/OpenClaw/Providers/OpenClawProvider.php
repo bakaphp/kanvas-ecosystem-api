@@ -112,9 +112,18 @@ class OpenClawProvider extends AbstractAgentRuntimeProvider
     }
 
     #[Override]
-    public function chat(Agent $agent, string $message, ?string $sessionKey = null, array $images = []): string
-    {
-        return new ChatWithAgentAction($agent, $message, $sessionKey, $images)->execute();
+    public function chat(
+        Agent $agent,
+        string $message,
+        ?string $sessionKey = null,
+        array $images = [],
+    ): string {
+        return new ChatWithAgentAction(
+            $agent,
+            $message,
+            $sessionKey,
+            $images,
+        )->execute();
     }
 
     #[Override]

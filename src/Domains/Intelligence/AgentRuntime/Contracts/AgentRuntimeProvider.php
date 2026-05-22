@@ -93,5 +93,10 @@ interface AgentRuntimeProvider
     // container runtimes (OpenClaw, Hermes) implement this — in-process providers don't deploy
     // containers, so the abstract base default-throws.
     /** @param list<string> $images URLs to forward as multimodal image content. */
-    public function chat(Agent $agent, string $message, ?string $sessionKey = null, array $images = []): string;
+    public function chat(
+        Agent $agent,
+        string $message,
+        ?string $sessionKey = null,
+        array $images = [],
+    ): string;
 }

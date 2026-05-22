@@ -147,8 +147,12 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
     }
 
     #[Override]
-    public function chat(Agent $agent, string $message, ?string $sessionKey = null, array $images = []): string
-    {
+    public function chat(
+        Agent $agent,
+        string $message,
+        ?string $sessionKey = null,
+        array $images = [],
+    ): string {
         throw $this->unsupported('chat');
     }
 

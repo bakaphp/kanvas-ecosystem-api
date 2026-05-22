@@ -11,13 +11,6 @@ use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
 
-/**
- * Chat with a container-deployed runtime agent (OpenClaw, Hermes, …).
- *
- * The provider owns the transport; this action resolves it from the agent's live
- * deployment, derives the session key, and logs the turn — keeping the chat
- * surface uniform with the in-process Run*ChatActions.
- */
 class RunRuntimeChatAction
 {
     /**

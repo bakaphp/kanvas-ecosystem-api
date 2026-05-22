@@ -57,10 +57,6 @@ class ProcessAgentChatAction
 
     protected function runHandler(): string
     {
-        // Container-deployed runtime agents (OpenClaw, Hermes) chat through their
-        // AgentRuntime provider, resolved from the deployment — not the agent_type
-        // handler, which still points every container agent at OpenClawAgentHandler.
-        // In-process Neuron/Laravel/ADK agents fall through to the dispatch below.
         if ($this->agent->isContainerRuntime()) {
             return new RunRuntimeChatAction(
                 agent: $this->agent,
