@@ -11,13 +11,12 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunLaravelAgentChatAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
-use Kanvas\Intelligence\Agents\Actions\Chat\RunOpenClawChatAction;
+use Kanvas\Intelligence\Agents\Actions\Chat\RunRuntimeChatAction;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Exceptions\AgentProviderException;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
-use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
@@ -58,6 +57,16 @@ class ProcessAgentChatAction
 
     protected function runHandler(): string
     {
+        if ($this->agent->isContainerRuntime()) {
+            return new RunRuntimeChatAction(
+                agent: $this->agent,
+                session: $this->session,
+                message: $this->message,
+                user: $this->user,
+                images: $this->images,
+            )->execute();
+        }
+
         $handlerClass = $this->agent->type?->handler;
 
         if ($handlerClass === null || $handlerClass === '' || ! class_exists($handlerClass)) {
@@ -68,16 +77,6 @@ class ProcessAgentChatAction
                 (string) ($this->agent->agent_type_id ?? 'null'),
                 $handlerClass === null ? 'null' : "'{$handlerClass}'",
             ));
-        }
-
-        if ($handlerClass === OpenClawAgentHandler::class) {
-            return new RunOpenClawChatAction(
-                agent: $this->agent,
-                session: $this->session,
-                message: $this->message,
-                user: $this->user,
-                images: $this->images,
-            )->execute();
         }
 
         $handler = new $handlerClass();
@@ -121,8 +120,11 @@ class ProcessAgentChatAction
         )->execute();
     }
 
-    protected function trackUsage(string $response, float $durationMs, string $sessionId): void
-    {
+    protected function trackUsage(
+        string $response,
+        float $durationMs,
+        string $sessionId
+    ): void {
         new TrackAgentUsageAction(
             agent: $this->agent,
             app: $this->app,

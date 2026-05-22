@@ -94,6 +94,9 @@ class UsersObserver
                 true,
                 [
                     'company' => $user->getCurrentCompany(),
+                    'welcome_changed' => true,
+                    'welcome_previous' => $user->getOriginal('welcome'),
+                    'welcome_current' => $user->welcome,
                 ]
             );
         }

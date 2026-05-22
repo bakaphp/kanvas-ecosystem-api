@@ -32,26 +32,15 @@ class ProvisionDefaultAgentRuntimeActivity extends KanvasActivity implements Wor
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
-
-        if (! $this->shouldRunForWelcomeState($entity, $params)) {
-            return ['msg' => 'welcome was not completed'];
-        }
-
-        $defaultMachineId = (int) ($app->get(AgentRuntimeSettingEnum::DEFAULT_MACHINE_ID->value) ?? 0);
-        if ($defaultMachineId <= 0) {
-            return ['msg' => 'no default machine configured'];
-        }
-
         $company = $this->resolveCompany($params);
-        if (! $company instanceof CompanyInterface) {
-            return $this->failWorkflow(['msg' => 'no company found for agent runtime provisioning']);
-        }
+        $defaultMachineId = (int) ($app->get(AgentRuntimeSettingEnum::DEFAULT_MACHINE_ID->value) ?? 0);
 
         return $this->executeIntegration(
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
-            integrationOperation: fn () => $this->provision(
+            integrationOperation: fn (): array => $this->provision(
+                $entity,
                 $app,
                 $company,
                 $params,
@@ -63,11 +52,24 @@ class ProvisionDefaultAgentRuntimeActivity extends KanvasActivity implements Wor
     }
 
     private function provision(
+        Model $entity,
         AppInterface $app,
         CompanyInterface $company,
         array $params,
         int $defaultMachineId
     ): array {
+        if (! $this->shouldRunForWelcomeState($entity, $params)) {
+            return $this->failWorkflow(['msg' => 'welcome was not completed']);
+        }
+
+        if ($defaultMachineId <= 0) {
+            return $this->failWorkflow(['msg' => 'no default machine configured']) ;
+        }
+
+        if (! $company instanceof CompanyInterface) {
+            return $this->failWorkflow(['msg' => 'no company found for agent runtime provisioning']);
+        }
+
         try {
             $sourceMachine = AgentMachine::query()
                 ->fromApp($app)
@@ -108,11 +110,12 @@ class ProvisionDefaultAgentRuntimeActivity extends KanvasActivity implements Wor
                 $isReady = $readiness->isReady($agent);
 
                 // Every provisioned agent gets the default Web Chat + Gemini
-                // config; runtime only turns on for agents that can deploy.
+                // config with runtime enabled so it can be deployed; the
+                // readiness check below only gates the actual deployment.
                 $config = is_array($agent->config) ? $agent->config : [];
                 $config['channel'] = self::DEFAULT_CHANNEL;
                 $config['language_model'] = self::DEFAULT_LANGUAGE_MODEL;
-                $config['runtime'] = $isReady;
+                $config['runtime'] = true;
                 $agent->config = $config;
                 $agent->saveOrFail();
 
@@ -183,7 +186,7 @@ class ProvisionDefaultAgentRuntimeActivity extends KanvasActivity implements Wor
         try {
             $provider = AgentProviderEnum::from($provider);
 
-            return in_array($provider, AgentProviderEnum::runtimeProviders(), true)
+            return $provider->isRuntimeProvider()
                 ? $provider
                 : AgentProviderEnum::HERMES;
         } catch (ValueError) {

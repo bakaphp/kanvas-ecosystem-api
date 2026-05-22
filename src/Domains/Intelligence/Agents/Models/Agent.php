@@ -22,8 +22,10 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
+use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
@@ -295,6 +297,21 @@ class Agent extends BaseModel
             ->where('status', 'running')
             ->where('is_deleted', 0)
             ->latestOfMany();
+    }
+
+    public function isContainerRuntime(): bool
+    {
+        if ($this->activeDeployment instanceof AgentDeployment) {
+            return true;
+        }
+
+        $provider = AgentProviderEnum::tryFrom(strtolower($this->type?->provider ?? ''));
+
+        if ($provider?->isRuntimeProvider() === true) {
+            return true;
+        }
+
+        return $this->type?->handler === OpenClawAgentHandler::class;
     }
 
     public function searchableAs(): string

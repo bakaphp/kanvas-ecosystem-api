@@ -59,7 +59,7 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
 
         $result = $this->activity()->execute($user, $app, [
             'company' => $targetCompany,
-            'provider' => AgentProviderEnum::HERMES->value,
+            'provider' => true,
             'welcome_changed' => true,
             'welcome_previous' => 0,
             'welcome_current' => 1,
@@ -84,7 +84,9 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
         $this->assertSame('Web Chat', $readyAgent->config['channel']);
         $this->assertSame('Gemini', $readyAgent->config['language_model']);
 
-        $this->assertFalse($notReadyAgent->config['runtime']);
+        // runtime is always enabled on provisioning; readiness only decides
+        // whether the agent is actually deployed (see deployed_agent_ids above).
+        $this->assertTrue($notReadyAgent->config['runtime']);
         $this->assertSame('Web Chat', $notReadyAgent->config['channel']);
         $this->assertSame('Gemini', $notReadyAgent->config['language_model']);
 
@@ -103,13 +105,15 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
     public function testNoConfigIsNoOp(): void
     {
         $app = app(Apps::class);
+        $user = auth()->user();
         $app->set(AgentRuntimeSettingEnum::DEFAULT_MACHINE_ID->value, '');
         $company = Companies::factory()->create();
+        $this->setIntegration($app, IntegrationsEnum::INTERNAL, InternalHandler::class, $company, $user);
 
         Queue::fake();
         Notification::fake();
 
-        $result = $this->activity()->execute(auth()->user(), $app, [
+        $result = $this->activity()->execute($user, $app, [
             'company' => $company,
             'welcome_changed' => true,
             'welcome_previous' => 0,
@@ -124,14 +128,17 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
     public function testWelcomeTransitionGateIsRequired(): void
     {
         $app = app(Apps::class);
+        $user = auth()->user();
+        $sourceCompany = $user->getCurrentCompany();
         $company = Companies::factory()->create();
-        $sourceMachine = $this->createMachine(auth()->user()->getCurrentCompany(), 'runtime-source-' . fake()->uuid());
+        $sourceMachine = $this->createMachine($sourceCompany, 'runtime-source-' . fake()->uuid());
         $app->set(AgentRuntimeSettingEnum::DEFAULT_MACHINE_ID->value, $sourceMachine->getId());
+        $this->setIntegration($app, IntegrationsEnum::INTERNAL, InternalHandler::class, $company, $user);
 
         Queue::fake();
         Notification::fake();
 
-        $result = $this->activity()->execute(auth()->user(), $app, [
+        $result = $this->activity()->execute($user, $app, [
             'company' => $company,
             'welcome_changed' => false,
             'welcome_previous' => 1,
@@ -167,7 +174,7 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
             'gateway_port' => 26000,
             'proxy_port' => 26001,
             'container_name' => 'hermes-agent-host-aware',
-            'provider' => AgentProviderEnum::HERMES->value,
+            'provider' => true,
             'status' => 'running',
         ]);
 

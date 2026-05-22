@@ -146,6 +146,16 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
         return HealthCheckResultEnum::UNSUPPORTED;
     }
 
+    #[Override]
+    public function chat(
+        Agent $agent,
+        string $message,
+        ?string $sessionKey = null,
+        array $images = [],
+    ): string {
+        throw $this->unsupported('chat');
+    }
+
     protected function unsupported(string $operation): LogicException
     {
         return new LogicException(

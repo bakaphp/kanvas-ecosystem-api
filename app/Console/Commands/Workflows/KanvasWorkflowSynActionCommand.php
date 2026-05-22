@@ -40,6 +40,7 @@ use Kanvas\Connectors\Elead\Workflow\ScheduleActivityFromEventActivity;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsAgentDateWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsAgentWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsCalendarEventWebhookJob;
+use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsCallUsersByRoleWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsConversationInitiationWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsHandOffWebhookJob;
 use Kanvas\Connectors\ElevenLabs\Webhooks\ProcessElevenLabsProductShareWebhookJob;
@@ -452,6 +453,7 @@ class KanvasWorkflowSynActionCommand extends Command
             ProcessElevenLabsProductShareWebhookJob::class,
             ProcessElevenLabsHandOffWebhookJob::class,
             ProcessElevenLabsSendMessageWebhookJob::class,
+            ProcessElevenLabsCallUsersByRoleWebhookJob::class,
         ];
 
         $createdActions = [];

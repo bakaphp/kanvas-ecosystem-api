@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\OpenClaw\Providers;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Facades\Cache;
+use Kanvas\Connectors\OpenClaw\Actions\ChatWithAgentAction;
 use Kanvas\Connectors\OpenClaw\Actions\CheckCliHealthAction;
 use Kanvas\Connectors\OpenClaw\Actions\CollectDeploymentUsageAction;
 use Kanvas\Connectors\OpenClaw\Actions\DispatchAgentDeploymentAction;
@@ -108,6 +109,21 @@ class OpenClawProvider extends AbstractAgentRuntimeProvider
     public function checkHealth(AgentDeployment $deployment): HealthCheckResultEnum
     {
         return new CheckCliHealthAction($deployment)->execute();
+    }
+
+    #[Override]
+    public function chat(
+        Agent $agent,
+        string $message,
+        ?string $sessionKey = null,
+        array $images = [],
+    ): string {
+        return new ChatWithAgentAction(
+            $agent,
+            $message,
+            $sessionKey,
+            $images,
+        )->execute();
     }
 
     #[Override]
