@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Hermes\Actions;
 
+use finfo;
 use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
+use Throwable;
 
 /**
  * Chat with a deployed Hermes agent via SSH + `docker exec curl` against the
@@ -103,24 +105,47 @@ class ChatWithAgentAction
 
         $client = $this->openSshClient($deployment->machine);
 
+        // phpseclib3's exec channel caps a single command around ~200 KB, so a 1+ MB
+        // payload (the base64-inlined image case) gets truncated mid-write — phpseclib
+        // raises "Only N of M bytes were sent" and the request never reaches Hermes.
+        // Stage the payload as a file via SFTP (which chunks properly), `docker cp` it
+        // into the container, and have curl read it from disk with --data-binary.
+        $hostTmp = '/tmp/hermes-chat-' . bin2hex(random_bytes(8)) . '.json';
+        $containerTmp = '/tmp/hermes-chat-' . bin2hex(random_bytes(8)) . '.json';
+        $containerArg = escapeshellarg($deployment->container_name);
+
         try {
+            if (! $client->writeFile($hostTmp, $payload)) {
+                throw new ValidationException('Failed to stage Hermes payload on remote host');
+            }
+
             $response = $client->exec(
-                'docker exec ' . escapeshellarg($deployment->container_name)
+                'docker cp ' . escapeshellarg($hostTmp) . ' '
+                . escapeshellarg($deployment->container_name . ':' . $containerTmp)
+                . ' && docker exec ' . $containerArg
                 . ' curl -sS --max-time 580 -w "\nHTTP_CODE:%{http_code}"'
                 . ' http://127.0.0.1:8642/v1/chat/completions'
                 . ' -H ' . escapeshellarg('Authorization: Bearer ' . $token)
                 . ' -H ' . escapeshellarg('Content-Type: application/json')
-                . ' -d ' . escapeshellarg($payload),
+                . ' --data-binary @' . escapeshellarg($containerTmp)
+                . ' ; docker exec ' . $containerArg . ' rm -f ' . escapeshellarg($containerTmp),
                 600,
             );
         } finally {
+            // Best-effort cleanup of the host-side staging file — never mask the
+            // real response or exception with a cleanup failure.
+            try {
+                $client->exec('rm -f ' . escapeshellarg($hostTmp), 5);
+            } catch (Throwable) {
+                // ignore
+            }
             $client->disconnect();
         }
 
         return $this->parseResponse($response);
     }
 
-    private function buildContent(): string|array
+    protected function buildContent(): string|array
     {
         if ($this->images === []) {
             return $this->message;
@@ -129,14 +154,57 @@ class ChatWithAgentAction
         $content = [['type' => 'text', 'text' => $this->message]];
 
         foreach ($this->images as $imageUrl) {
-            $content[] = ['type' => 'image_url', 'image_url' => ['url' => $imageUrl]];
+            $content[] = [
+                'type' => 'image_url',
+                'image_url' => ['url' => $this->toInlineImage($imageUrl)],
+            ];
         }
 
         return $content;
     }
 
+    /**
+     * Hermes' vision pipeline expects the image bytes inlined as a base64 `data:` URI — its
+     * docs state the image is sent as `{ "url": "data:image/...;base64,..." }`. Handing the
+     * API a remote http(s) URL instead makes the Hermes server fetch the asset itself, which
+     * it does not do reliably for API requests, so the agent silently never sees the image.
+     * Inline the bytes here so the request is self-contained.
+     */
+    private function toInlineImage(string $imageUrl): string
+    {
+        if (str_starts_with($imageUrl, 'data:')) {
+            return $imageUrl;
+        }
+
+        $binary = $this->fetchImageBinary($imageUrl);
+        $detected = new finfo(FILEINFO_MIME_TYPE)->buffer($binary);
+        $mimeType = is_string($detected) && $detected !== '' ? $detected : 'image/png';
+
+        return 'data:' . $mimeType . ';base64,' . base64_encode($binary);
+    }
+
+    /**
+     * Fetch the raw image bytes. Isolated so tests can supply canned bytes without network.
+     */
+    protected function fetchImageBinary(string $url): string
+    {
+        $binary = @file_get_contents($url);
+
+        if ($binary === false) {
+            throw new ValidationException('Could not fetch image for Hermes vision: ' . $url);
+        }
+
+        return $binary;
+    }
+
     private function parseResponse(string $response): string
     {
+        // The SSH transport can return bytes truncated mid-multi-byte (curl hitting
+        // --max-time, mixed stderr, etc.) — coerce to valid UTF-8 so neither the parsed
+        // content nor any exception message built from it can poison Laravel's JSON
+        // response with `InvalidArgumentException: Malformed UTF-8 characters`.
+        $response = (string) mb_convert_encoding($response, 'UTF-8', 'UTF-8');
+
         $lines = explode("\n", trim($response));
         $statusLine = array_pop($lines) ?: '';
         $body = implode("\n", $lines);
