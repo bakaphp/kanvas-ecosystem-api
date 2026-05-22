@@ -192,10 +192,26 @@ class PaymentProcessorMutation
             }
 
             // Card number and CVV are passed in-memory only — never persisted to DB (PCI DSS).
+            // We populate two shapes because the 3DS processors haven't converged yet:
+            //   - Azul reads flat keys ($context['card_number'], 'cvc', 'browser_info').
+            //   - PayWay reads a nested 'card' array (number/cvv/expiration_date + billing fields
+            //     used for datos3ds). Drop the flat keys once Azul is migrated.
+            $cardNumber = preg_replace('/\s+/', '', $cardData['number']);
             $context = [
-                'card_number'  => preg_replace('/\s+/', '', $cardData['number']),
+                'card_number'  => $cardNumber,
                 'cvc'          => $cardData['cvv'] ?? null,
                 'browser_info' => $cardData['browser_info'] ?? [],
+                'card' => [
+                    'number'          => $cardNumber,
+                    'cvv'             => $cardData['cvv'] ?? null,
+                    'expiration_date' => $cardData['expiration_date'] ?? null,
+                    'firstname'       => $cardData['firstname'] ?? null,
+                    'lastname'        => $cardData['lastname'] ?? null,
+                    'address'         => $cardData['address'] ?? null,
+                    'phone'           => $cardData['phone'] ?? null,
+                    'country'         => $cardData['country'] ?? null,
+                    'zip_code'        => $cardData['zip_code'] ?? null,
+                ],
             ];
 
             $result = $this->resolveThreeDSProcessor($payment, $app)->startChallenge($payment, $order, $context);
@@ -287,7 +303,8 @@ class PaymentProcessorMutation
                 return ['success' => true, 'message' => 'Order is already paid', 'status' => PaymentStatusEnum::PAID->value, 'data' => []];
             }
 
-            $result = $this->resolveThreeDSProcessor($payment, $app)->finalizeChallenge($payment, $order);
+            $context = is_array($request['metadata'] ?? null) ? $request['metadata'] : [];
+            $result = $this->resolveThreeDSProcessor($payment, $app)->finalizeChallenge($payment, $order, $context);
 
             return [
                 'success' => $result->success,

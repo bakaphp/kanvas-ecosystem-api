@@ -87,6 +87,7 @@ use Kanvas\Connectors\Movipass\Workflows\Activities\ExtendReservationActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\PropagateCorporateFieldsToUserActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassImpoundActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassPasoRapidoActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassRoadsideAssistanceActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncProductCapacityActivity;
 use Kanvas\Connectors\NetSuite\Webhooks\ProcessNetSuiteCompanyCustomerWebhookJob;
@@ -348,6 +349,7 @@ class KanvasWorkflowSynActionCommand extends Command
             SyncMovipassActivity::class,
             SyncProductCapacityActivity::class,
             SyncMovipassImpoundActivity::class,
+            SyncMovipassPasoRapidoActivity::class,
             SyncMovipassRoadsideAssistanceActivity::class,
             AutoApproveCorporateLeadActivity::class,
             BulkRechargeTagsActivity::class,

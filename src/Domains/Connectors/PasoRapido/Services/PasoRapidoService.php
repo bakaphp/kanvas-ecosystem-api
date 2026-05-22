@@ -167,6 +167,28 @@ class PasoRapidoService
         ]);
     }
 
+    /**
+     * Internal balance lookup for post-payment sync jobs.
+     * Bypasses the end-user rate limits / fraud heuristics applied by verifyCustomer().
+     */
+    public function fetchTagBalance(string $tag): VerifyCustomerResponse
+    {
+        $response = $this->client->post(ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag, []);
+
+        return VerifyCustomerResponse::from([
+            'username' => $response['nombreUsuario'] ?? '',
+            'lastname' => $response['apellidoUsuario'] ?? '',
+            'device' => $response['dispositivo'],
+            'message' => $response['descripcionMensaje'],
+            'document' => $response['rnc_Cedula'] ?? null,
+            'balance' => $response['balance'],
+            'type' => $response['tipoDeReferencia'],
+            'reference' => $response['referencia'],
+            'account' => $response['cuenta'],
+            'status' => $response['estado'],
+        ]);
+    }
+
     public function confirmPayment(PaymentConfirmData $data): PaymentConfirmResponse
     {
         $response = $this->client->post(ConfigurationEnum::CONFIRM_PAYMENT_PATH->value, [
