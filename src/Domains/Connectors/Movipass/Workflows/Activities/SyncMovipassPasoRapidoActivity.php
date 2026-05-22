@@ -38,8 +38,6 @@ class SyncMovipassPasoRapidoActivity extends KanvasActivity implements WorkflowA
                     ];
                 }
 
-                // Bulk corporate recharges run their per-vehicle updates inside
-                // BulkRechargeOrderTagsAction during the per-TAG loop.
                 if (($order->metadata['data']['is_bulk_recharge'] ?? false) === true) {
                     return [
                         'order' => $order->getId(),
@@ -129,10 +127,6 @@ class SyncMovipassPasoRapidoActivity extends KanvasActivity implements WorkflowA
         );
     }
 
-    /**
-     * PASO_RAPIDO orders carry the vehicle as an order item with productsType
-     * slug = 'vehicle'. Walk the items and return the first vehicle product.
-     */
     private function resolveVehicleProduct(Order $order): ?Products
     {
         foreach ($order->items as $item) {
