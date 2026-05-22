@@ -7,6 +7,7 @@ namespace Tests\Connectors\Integration\Shopify;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyWithIntegrationActivity;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Services\EntityIntegrationHistoryService;
 use Kanvas\Workflow\Models\Integrations;
@@ -49,7 +50,9 @@ final class ExportProductToShopifyActivityTest extends TestCase
 
     public function testIntegrationHistory(): void
     {
-        $integration = Integrations::first();
+        // Resolve Shopify explicitly by name — IntegrationsSeeder now seeds other integrations
+        // ahead of it, so Integrations::first() is no longer guaranteed to be Shopify.
+        $integration = Integrations::where('name', IntegrationsEnum::SHOPIFY->value)->firstOrFail();
         $product = Products::first();
 
         $variant = $product->variants()->first();

@@ -1,0 +1,326 @@
+type NervousSystemSkill {
+    id: ID!
+    uuid: String!
+    name: String!
+    description: String
+    skill_type: String!
+    handler: String
+    definition: Mixed
+    frameworks: Mixed!
+    version: String!
+    is_active: Boolean!
+    agents_using_count: Int!
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type NervousSystemTool {
+    id: ID!
+    uuid: String!
+    name: String!
+    description: String
+    tool_type: String!
+    category: NervousSystemToolCategory @belongsTo(relation: "category")
+    handler: String
+    input_schema: Mixed
+    output_schema: Mixed
+    requires_permission: Mixed
+    frameworks: Mixed!
+    version: String!
+    is_active: Boolean!
+    agentTypes: [agentType!]! @belongsToMany(relation: "agentTypes")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type NervousSystemToolCategory {
+    id: ID!
+    slug: String!
+    name: String!
+    description: String
+    icon: String
+    display_order: Int!
+    is_active: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+input CreateNervousSystemToolCategoryInput {
+    slug: String!
+    name: String!
+    description: String
+    icon: String
+    display_order: Int
+    is_active: Boolean
+}
+
+input UpdateNervousSystemToolCategoryInput {
+    name: String
+    description: String
+    icon: String
+    display_order: Int
+    is_active: Boolean
+}
+
+type NervousSystemAgentSkill {
+    id: ID!
+    uuid: String!
+    agent: AgentAi! @belongsTo(relation: "agent")
+    skill: NervousSystemSkill! @belongsTo(relation: "skill")
+    grantedBy: User @belongsTo(relation: "grantedBy")
+    granted_at: DateTime!
+    expires_at: DateTime
+    is_active: Boolean!
+    config: Mixed
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type NervousSystemAgentTool {
+    id: ID!
+    uuid: String!
+    agent: AgentAi! @belongsTo(relation: "agent")
+    tool: NervousSystemTool! @belongsTo(relation: "tool")
+    grantedBy: User @belongsTo(relation: "grantedBy")
+    granted_at: DateTime!
+    expires_at: DateTime
+    is_active: Boolean!
+    is_deleted: Boolean!
+    config: Mixed
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type NervousSystemAgentCapabilities {
+    skills: [NervousSystemSkill!]!
+    tools: [NervousSystemTool!]!
+}
+
+input CreateNervousSystemSkillInput {
+    name: String!
+    frameworks: [String!]!
+    skill_type: String
+    description: String
+    handler: String
+    definition: Mixed
+    version: String
+    is_active: Boolean
+    apps_id: Int
+}
+
+input UpdateNervousSystemSkillInput {
+    name: String!
+    frameworks: [String!]!
+    skill_type: String
+    description: String
+    handler: String
+    definition: Mixed
+    version: String
+    is_active: Boolean
+}
+
+input CreateNervousSystemToolInput {
+    name: String!
+    frameworks: [String!]!
+    tool_type: String
+    description: String
+    handler: String
+    input_schema: Mixed
+    output_schema: Mixed
+    requires_permission: Mixed
+    version: String
+    is_active: Boolean
+    apps_id: Int
+}
+
+input UpdateNervousSystemToolInput {
+    name: String!
+    frameworks: [String!]!
+    tool_type: String
+    description: String
+    handler: String
+    input_schema: Mixed
+    output_schema: Mixed
+    requires_permission: Mixed
+    version: String
+    is_active: Boolean
+}
+
+input GrantNervousSystemCapabilityInput {
+    agent_id: ID!
+    expires_at: DateTime
+    config: Mixed
+}
+
+extend type Query @guard {
+    nervousSystemSkills(
+        where: _
+            @whereConditions(
+                columns: ["id", "uuid", "name", "skill_type", "is_active"]
+            )
+        orderBy: _
+            @orderBy(
+                columns: ["id", "name", "version", "created_at", "updated_at"]
+            )
+    ): [NervousSystemSkill!]!
+        @paginate(
+            model: "Kanvas\\NervousSystem\\Capability\\Models\\Skill"
+            scopes: ["fromApp", "active"]
+            defaultCount: 50
+        )
+
+    nervousSystemTools(
+        framework: String
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "name"
+                    "tool_type"
+                    "tool_category_id"
+                    "is_active"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "name"
+                    "tool_category_id"
+                    "version"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+    ): [NervousSystemTool!]!
+        @paginate(
+            builder: "App\\GraphQL\\Intelligence\\Builders\\NervousSystem\\ToolsBuilder@getTools"
+            defaultCount: 50
+        )
+
+    nervousSystemAgentSkills(agent_id: ID!): [NervousSystemAgentSkill!]!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Queries\\CapabilityQuery@agentSkills"
+        )
+
+    nervousSystemAgentTools(agent_id: ID!): [NervousSystemTool!]!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Queries\\CapabilityQuery@agentTools"
+        )
+
+    nervousSystemAgentCapabilities(
+        agent_id: ID!
+        framework: String
+    ): NervousSystemAgentCapabilities!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Queries\\CapabilityQuery@agentCapabilities"
+        )
+
+    "Tool categories visible to the current app (platform-seeded apps_id=0 + this app's custom ones)."
+    nervousSystemToolCategories(
+        where: _
+            @whereConditions(
+                columns: ["id", "slug", "name", "is_active"]
+            )
+        orderBy: _
+            @orderBy(
+                columns: ["id", "display_order", "name", "slug"]
+            )
+    ): [NervousSystemToolCategory!]!
+        @paginate(
+            model: "Kanvas\\NervousSystem\\Capability\\Models\\ToolCategory"
+            scopes: ["fromAppOrGlobal", "active"]
+            defaultCount: 50
+        )
+}
+
+extend type Mutation @guardByAdmin {
+    createNervousSystemSkill(
+        input: CreateNervousSystemSkillInput!
+    ): NervousSystemSkill!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@createSkill"
+        )
+
+    updateNervousSystemSkill(
+        id: ID!
+        input: UpdateNervousSystemSkillInput!
+    ): NervousSystemSkill!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@updateSkill"
+        )
+
+    createNervousSystemTool(
+        input: CreateNervousSystemToolInput!
+    ): NervousSystemTool!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@createTool"
+        )
+
+    updateNervousSystemTool(
+        id: ID!
+        input: UpdateNervousSystemToolInput!
+    ): NervousSystemTool!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@updateTool"
+        )
+
+    grantNervousSystemSkill(
+        skill_id: ID!
+        input: GrantNervousSystemCapabilityInput!
+    ): NervousSystemAgentSkill!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@grantSkill"
+        )
+
+    revokeNervousSystemSkill(
+        grant_id: ID!
+        reason: String
+    ): NervousSystemAgentSkill!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@revokeSkill"
+        )
+
+    attachNervousSystemToolToAgentType(
+        tool_id: ID!
+        agent_type_id: ID!
+    ): NervousSystemTool!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@attachToolToAgentType"
+        )
+
+    detachNervousSystemToolFromAgentType(
+        tool_id: ID!
+        agent_type_id: ID!
+    ): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@detachToolFromAgentType"
+        )
+
+    "Idempotent per-agent toggle. enabled=true grants or reactivates the tool for the agent; enabled=false revokes it. Returns the resulting AgentTool grant row."
+    setNervousSystemAgentTool(
+        agent_id: ID!
+        tool_id: ID!
+        enabled: Boolean!
+        config: Mixed
+    ): NervousSystemAgentTool!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@setAgentTool"
+        )
+
+    createNervousSystemToolCategory(
+        input: CreateNervousSystemToolCategoryInput!
+    ): NervousSystemToolCategory!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@createToolCategory"
+        )
+
+    updateNervousSystemToolCategory(
+        id: ID!
+        input: UpdateNervousSystemToolCategoryInput!
+    ): NervousSystemToolCategory!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@updateToolCategory"
+        )
+}

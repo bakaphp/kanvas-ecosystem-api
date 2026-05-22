@@ -10,6 +10,7 @@ use Kanvas\ActionEngine\Actions\DataTransferObject\CompanyAction as CompanyActio
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 
 class CompanyActionMutation
 {
@@ -20,7 +21,9 @@ class CompanyActionMutation
         $company = $user->getCurrentCompany();
 
         $input = $request['input'];
-        $action = Action::getById((int) $input['actions_id'], $app);
+        $action = Action::where('id', (int) $input['actions_id'])
+            ->whereIn('apps_id', [$app->getId(), AppEnums::LEGACY_APP_ID->getValue()])
+            ->firstOrFail();
 
         return new CreateCompanyActionAction(
             new CompanyActionData(

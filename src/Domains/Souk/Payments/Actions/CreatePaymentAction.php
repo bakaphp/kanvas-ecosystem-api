@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Payments\Actions;
 
 use Exception;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Str;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
@@ -28,7 +29,7 @@ class CreatePaymentAction
 
     public function execute($formData = []): Payments
     {
-        $idempotencyKey = $formData['idempotency_key'] ?? null;
+        $idempotencyKey = $formData['idempotency_key'] ?? Str::uuid()->toString();
 
         if ($idempotencyKey) {
             $existing = Payments::where('idempotency_key', $idempotencyKey)

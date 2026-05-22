@@ -33,6 +33,20 @@ enum AgentProviderEnum: string
         ];
     }
 
+    public static function inProcessProviders(): array
+    {
+        return [
+            self::NEURON,
+            self::LARAVEL,
+            self::ADK,
+        ];
+    }
+
+    public function isRuntimeProvider(): bool
+    {
+        return in_array($this, self::runtimeProviders(), true);
+    }
+
     /**
      * Resolve the provider from a deployment row, defaulting to OPENCLAW if the column is empty
      * (legacy rows from before the provider field existed). Wrapped here so resolvers don't

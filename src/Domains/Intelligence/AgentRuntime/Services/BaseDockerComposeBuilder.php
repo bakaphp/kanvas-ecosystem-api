@@ -161,6 +161,18 @@ abstract class BaseDockerComposeBuilder
         return [];
     }
 
+    /**
+     * Default empty for CLI-only runtimes (OpenClaw). Hermes overrides to enable API_SERVER_*
+     * with the gateway token as bearer. Merged after getProviderEnvVarDefaults() with first-wins
+     * so per-app overrides still take precedence.
+     *
+     * @return array<string, string>
+     */
+    protected function getApiServerEnvVars(string $gatewayToken): array
+    {
+        return [];
+    }
+
     public function buildDockerCompose(
         AgentDeployment $deployment,
         string $gatewayToken,
@@ -173,6 +185,10 @@ abstract class BaseDockerComposeBuilder
         $envVars['KANVAS_DEPLOYMENT_ID'] = (string) $deployment->getId();
 
         foreach ($this->getProviderEnvVarDefaults() as $key => $default) {
+            $envVars[$key] = $envVars[$key] ?? $default;
+        }
+
+        foreach ($this->getApiServerEnvVars($gatewayToken) as $key => $default) {
             $envVars[$key] = $envVars[$key] ?? $default;
         }
 
@@ -203,6 +219,19 @@ abstract class BaseDockerComposeBuilder
         }
         if (! empty($slackAppToken)) {
             $envVars['SLACK_APP_TOKEN'] = (string) $slackAppToken;
+        }
+
+        // Telegram: token + allow-list both have to be set or the Hermes gateway silently
+        // denies every inbound message. We mirror the Slack pattern — the values live on the
+        // agent's custom fields and the same row is reused across runtimes (the migrate flow
+        // re-injects them on the destination via this builder, so no per-runtime drift).
+        $telegramBotToken = $agent->get($this->getTelegramBotTokenCustomFieldKey());
+        $telegramAllowedUsers = $agent->get(AgentChannelTokenEnum::TELEGRAM_ALLOWED_USERS->value);
+        if (! empty($telegramBotToken)) {
+            $envVars['TELEGRAM_BOT_TOKEN'] = (string) $telegramBotToken;
+        }
+        if (! empty($telegramAllowedUsers)) {
+            $envVars['TELEGRAM_ALLOWED_USERS'] = (string) $telegramAllowedUsers;
         }
 
         $envLines = '';

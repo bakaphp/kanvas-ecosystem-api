@@ -146,7 +146,13 @@ class ProductImporterJob extends AbstractImporterJob
             $this->user,
             $subscriptionData
         );
-        Subscription::broadcast('filesystemImported', $subscriptionData);
+
+        try {
+            Subscription::broadcast('filesystemImported', $subscriptionData);
+        } catch (Throwable $e) {
+            Log::warning('filesystemImported subscription broadcast skipped: ' . $e->getMessage());
+            captureException($e);
+        }
     }
 
     protected function executeWorkflow(Companies $company, array $workflowData): void

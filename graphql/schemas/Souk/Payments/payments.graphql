@@ -33,7 +33,11 @@ type Payment @model(class: "Kanvas\\Souk\\Payments\\Models\\Payments") {
     user: User! @belongsTo(relation: "user")
     payment_method: PaymentMethod @belongsTo(relation: "paymentMethod")
     payment_method_type: String @rename(attribute: "payment_method")
-    order: Order @field(resolver: "App\\GraphQL\\Souk\\Queries\\Payments\\PaymentOrderResolver")
+    payment_intent_id: String
+    order: Order
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\Payments\\PaymentOrderResolver"
+        )
     payment_date: String!
     concept: String!
     notes: String
@@ -257,15 +261,21 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@verifyPayment"
         )
-    startPaymentChallenge(paymentId: ID!, browserInfo: BrowserInfoInput): ThreeDSChallengeResult!
+    startPaymentChallenge(
+        paymentId: ID!
+        browserInfo: BrowserInfoInput
+    ): ThreeDSChallengeResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@startChallenge"
         )
-    startPaymentChallengeWithCard(orderId: ID!, paymentData: StartChallengeCardInput!): ThreeDSChallengeResult!
+    startPaymentChallengeWithCard(
+        orderId: ID!
+        paymentData: StartChallengeCardInput!
+    ): ThreeDSChallengeResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@startChallengeWithCard"
         )
-    finalizePaymentChallenge(paymentId: ID!): ThreeDSChallengeResult!
+    finalizePaymentChallenge(paymentId: ID!, metadata: Mixed): ThreeDSChallengeResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@finalizeChallenge"
         )
@@ -314,7 +324,17 @@ extend type Query @guard {
                 columns: ["name"]
                 handler: "App\\GraphQL\\Souk\\Handlers\\PaymentOrderTypeHandler"
             )
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "amount", "payment_date", "status"])
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "amount"
+                    "payment_date"
+                    "status"
+                ]
+            )
     ): [Payment!]!
         @paginate(
             defaultCount: 25
@@ -360,7 +380,17 @@ extend type Query @guard {
                 columns: ["name"]
                 handler: "App\\GraphQL\\Souk\\Handlers\\PaymentOrderTypeHandler"
             )
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "amount", "payment_date", "status"])
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "amount"
+                    "payment_date"
+                    "status"
+                ]
+            )
     ): [Payment!]!
         @paginate(
             defaultCount: 25

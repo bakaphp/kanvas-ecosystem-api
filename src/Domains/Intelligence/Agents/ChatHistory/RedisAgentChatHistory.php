@@ -52,7 +52,7 @@ class RedisAgentChatHistory extends AbstractChatHistory
                 // Add input message (user message)
                 if ($record->input && isset($record->input['role']) && isset($record->input['content'])) {
                     $messages[] = [
-                        'role' => $record->input['role'],
+                        'role' => (string) $record->input['role'],
                         'content' => $record->input['content'],
                     ];
                 }
@@ -60,16 +60,57 @@ class RedisAgentChatHistory extends AbstractChatHistory
                 // Add output message (assistant message)
                 if ($record->output && isset($record->output['role']) && isset($record->output['content'])) {
                     $messages[] = [
-                        'role' => $record->output['role'],
+                        'role' => (string) $record->output['role'],
                         'content' => $record->output['content'],
                     ];
                 }
             }
 
+            $messages = $this->sanitizeAlternation($messages);
+
             if (! empty($messages)) {
                 $this->history = $this->deserializeMessages($messages);
             }
         }
+    }
+
+    /**
+     * NeuronAI requires strict user/assistant alternation starting with user
+     * (Anthropic + Gemini both enforce this upstream). A failed AI call leaves
+     * a user-only row in agent_history with no matching assistant row — on the
+     * next turn the reconstructed sequence becomes [..., user, user] and the
+     * alternation check rejects it.
+     *
+     * This method walks the loaded sequence, drops out-of-order messages, and
+     * trims a trailing orphan user message so the next `addMessage(user)` lands
+     * on a clean alternating tail. Rows stay in the DB for audit — they just
+     * don't get replayed.
+     *
+     * @param array<int, array{role: string, content: mixed}> $messages
+     * @return array<int, array{role: string, content: mixed}>
+     */
+    private function sanitizeAlternation(array $messages): array
+    {
+        $cleaned = [];
+        $expected = MessageRole::USER->value;
+
+        foreach ($messages as $msg) {
+            if (($msg['role'] ?? null) !== $expected) {
+                continue;
+            }
+            $cleaned[] = $msg;
+            $expected = $expected === MessageRole::USER->value
+                ? MessageRole::ASSISTANT->value
+                : MessageRole::USER->value;
+        }
+
+        // Drop trailing orphan user — it has no assistant follow-up and would
+        // collide with the new user message about to be appended.
+        if ($cleaned !== [] && end($cleaned)['role'] === MessageRole::USER->value) {
+            array_pop($cleaned);
+        }
+
+        return $cleaned;
     }
 
     /**

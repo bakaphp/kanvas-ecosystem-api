@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Contracts;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentBackup;
@@ -80,4 +81,22 @@ interface AgentRuntimeProvider
     ): void;
 
     public function dispatchUpdateMachineContainers(AgentMachine $machine): void;
+
+    public function dispatchWorkspaceUpdate(AgentDeployment $deployment): void;
+
+    // Runtime liveness probe — drives the unified health-check cron + dashboard "is offline" pill.
+    // Returns UNSUPPORTED for runtimes that don't expose a probe yet (default in the abstract);
+    // OK/FAILED feed the 2-strike state machine in `BaseCheckHealthAction`.
+    public function checkHealth(AgentDeployment $deployment): HealthCheckResultEnum;
+
+    // Chat with the agent's live container deployment over its runtime HTTP API. Only the
+    // container runtimes (OpenClaw, Hermes) implement this — in-process providers don't deploy
+    // containers, so the abstract base default-throws.
+    /** @param list<string> $images URLs to forward as multimodal image content. */
+    public function chat(
+        Agent $agent,
+        string $message,
+        ?string $sessionKey = null,
+        array $images = [],
+    ): string;
 }

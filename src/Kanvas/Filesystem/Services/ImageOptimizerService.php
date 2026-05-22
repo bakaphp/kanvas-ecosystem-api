@@ -7,6 +7,7 @@ namespace Kanvas\Filesystem\Services;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Http\File;
+use Illuminate\Support\Facades\Log;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
@@ -254,7 +255,8 @@ class ImageOptimizerService
                     ->setTimeout(60)
                     ->optimize($filePath);
             } catch (Exception $e) {
-                report($e);
+                //log
+                Log::error('Image optimization failed for file: ' . $filePath, ['exception' => $e]);
             }
         }
 
@@ -331,11 +333,7 @@ class ImageOptimizerService
 
                 $img = $img->scale($newWidth, $newHeight);
 
-                match (true) {
-                    self::isJpeg($extension) => $img->save($filePath, quality: 85),
-                    self::isPng($extension) => $img->save($filePath),
-                    default => null,
-                };
+                self::saveWithFormat($img, $filePath, $extension, 85);
                 clearstatcache(true, $filePath);
             }
 

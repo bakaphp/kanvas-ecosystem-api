@@ -14,6 +14,8 @@ use Kanvas\Guild\Customers\Observers\PeopleEmploymentHistoryObserver;
 use Kanvas\Guild\Customers\Observers\PeopleObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
+use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
+use Kanvas\Intelligence\AgentRuntime\Listeners\SendAgentDeploymentLifecycleEmail;
 use Kanvas\Inventory\Categories\Observers\ProductsCategoriesObserver;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Observers\ChannelObserver;
@@ -44,17 +46,15 @@ use Override;
 
 class EventServiceProvider extends ServiceProvider
 {
-    /**
-     * The event listener mappings for the application.
-     *
-     * @var array<class-string, array<int, class-string>>
-     */
     protected $listen = [
         PushNotificationsEvent::class => [
             NotificationsListener::class,
         ],
         PlanBroadcast::class => [
             WakeAgentOnPlanChange::class,
+        ],
+        AgentDeploymentStatusChanged::class => [
+            SendAgentDeploymentLifecycleEmail::class,
         ],
         'LaravelCart.Added' => [
             CartListener::class,

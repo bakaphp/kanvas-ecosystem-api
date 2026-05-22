@@ -241,20 +241,20 @@ class CreateAgentTypeCommand extends Command
         $resolvedApp = $app ?? app(Apps::class);
 
         $tools = Tool::query()
-            ->forApp($resolvedApp->getId())
+            ->fromApp($resolvedApp)
             ->active()
             ->forFramework($provider)
             ->orderBy('id')
             ->get();
 
         if ($tools->isEmpty()) {
-            $this->warn("No active {$provider} tools found for this app (or global). Create tools first with nervous-system:tool-setup.");
+            $this->warn("No active {$provider} tools found for this app. Create tools first with nervous-system:tool-setup.");
 
             return;
         }
 
         $options = $tools->mapWithKeys(fn (Tool $t) => [
-            $t->getId() => "[{$t->getId()}] {$t->name} ({$t->tool_type})" . ($t->apps_id === 0 ? ' [global]' : ''),
+            $t->getId() => "[{$t->getId()}] {$t->name} ({$t->tool_type})",
         ])->all();
 
         $selected = multiselect(

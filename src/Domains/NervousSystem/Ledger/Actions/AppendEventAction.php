@@ -46,10 +46,13 @@ class AppendEventAction
     }
 
     /**
-     * Broadcast the event over Pusher when the app has opted in. Off by
-     * default — set `broadcast_ledger_events = true` on the app to enable.
-     * Optionally restrict to a list of event-type prefixes via
-     * `broadcast_ledger_event_types` (array on the app config).
+     * Broadcast the event over Pusher. Default is ON — Kanvas IS the
+     * nervous system, so live ledger broadcasting is core, not opt-in.
+     * Apps that need to suppress it (heavy synthetic load, debug runs)
+     * set `broadcast_ledger_events = false` explicitly.
+     *
+     * Optional allowlist via `broadcast_ledger_event_types` restricts to
+     * specific event-type prefixes when set. Empty/unset = broadcast all.
      *
      * Failures are swallowed: a broadcasting outage must not break ledger
      * writes. The event row is already persisted at this point.
@@ -59,7 +62,10 @@ class AppendEventAction
         try {
             $app = $this->data->app;
 
-            if (! (bool) $app->get(LedgerConfigurationEnum::BROADCAST_LEDGER_EVENTS->value)) {
+            $flag = $app->get(LedgerConfigurationEnum::BROADCAST_LEDGER_EVENTS->value);
+            // Default ON. Only suppress when the app explicitly stores a
+            // falsy value (false / 0 / "0" / ""). null / missing → broadcast.
+            if ($flag !== null && ! (bool) $flag) {
                 return;
             }
 

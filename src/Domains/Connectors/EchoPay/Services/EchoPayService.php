@@ -18,13 +18,15 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentCaptureInput;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponse;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
+use Kanvas\Connectors\EchoPay\MockClient;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
+use Kanvas\Souk\Payments\Contracts\HttpClientInterface;
 use Kanvas\Souk\Payments\Contracts\TokenizationProcessorInterface;
 use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 
 class EchoPayService implements TokenizationProcessorInterface
 {
-    protected Client $client;
+    protected HttpClientInterface $client;
     protected MerchantDetail $merchant;
 
     public function __construct(
@@ -32,12 +34,29 @@ class EchoPayService implements TokenizationProcessorInterface
         protected CompanyInterface $company,
         protected array $config = []
     ) {
-        $this->client = (new Client($app, $company, $config));
+        $this->client = self::shouldUseMock($app)
+            ? new MockClient($app, $company, $config)
+            : new Client($app, $company, $config);
         $this->merchant = MerchantDetail::from([
             'id' => $app->get(ConfigurationEnum::MERCHANT_ID->value),
             'key' => $app->get(ConfigurationEnum::MERCHANT_KEY->value),
             'secretKey' => $app->get(ConfigurationEnum::MERCHANT_SECRET->value),
         ]);
+    }
+
+    public static function shouldUseMock(AppInterface $app): bool
+    {
+        $raw = $app->get(ConfigurationEnum::USE_MOCK->value);
+        $enabled = filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true;
+
+        if ($enabled) {
+            Log::warning('EchoPay MockClient is enabled', [
+                'app' => $app->getId(),
+                'raw_flag_value' => $raw,
+            ]);
+        }
+
+        return $enabled;
     }
 
     public function consultService(ConsultServiceQuery $data): array

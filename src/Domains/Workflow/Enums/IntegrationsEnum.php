@@ -28,6 +28,7 @@ enum IntegrationsEnum: string
     case WASENDER = 'wa_sender';
     case DRIVE_CENTRIC = 'drive_centric';
     case PASO_RAPIDO = 'paso_rapido';
+    case PAYWAY = 'payway';
     case PLATE_RECOGNIZER = 'plate_recognizer';
     case MINDEE = 'mindee';
     case SALESASSIST = 'salesassist';

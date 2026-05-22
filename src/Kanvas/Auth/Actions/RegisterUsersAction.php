@@ -63,12 +63,13 @@ class RegisterUsersAction extends CreateUserAction
         UserNotificationService::sendEmailVerification($this->app, $user);
 
         if ($newUser) {
-            (new SetupService())->onBoarding(
+            new SetupService()->onBoarding(
                 $user,
                 $this->app,
                 $company
             );
         }
+
         if ($this->runWorkflow) {
             $user->fireWorkflow(
                 WorkflowEnum::REGISTERED->value,

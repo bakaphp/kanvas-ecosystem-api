@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\ActionEngine;
 
+use Kanvas\ActionEngine\Actions\Models\Action;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Tests\TestCase;
 
 class CompanyActionTest extends TestCase
@@ -81,6 +84,72 @@ class CompanyActionTest extends TestCase
         $this->assertEquals($globalAction['id'], $companyAction['action']['id']);
         $this->assertNotNull($companyAction['pipeline']);
         $this->assertCount(3, $companyAction['pipeline']['stages']);
+    }
+
+    public function testCreateCompanyActionWithLocalAction(): void
+    {
+        // An action created via the createAction mutation lands with apps_id = current app
+        // (see CreateActionAction::execute). That's the "local action" path.
+        $localAction = $this->createGlobalAction();
+
+        $this->assertEquals(
+            app(Apps::class)->getId(),
+            Action::find($localAction['id'])->apps_id,
+            'Sanity check: createAction should produce an action scoped to the current app.',
+        );
+
+        $response = $this->graphQL('
+            mutation($input: CreateCompanyActionInput!) {
+                createCompanyAction(input: $input) {
+                    id
+                    name
+                    action {
+                        id
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'actions_id' => $localAction['id'],
+                'name' => 'Local Backed Company Action ' . fake()->word(),
+            ],
+        ])->assertSuccessful();
+
+        $companyAction = $response->json('data.createCompanyAction');
+        $this->assertEquals($localAction['id'], $companyAction['action']['id']);
+    }
+
+    public function testCreateCompanyActionWithGlobalAction(): void
+    {
+        // A true global action has apps_id = 0 (AppEnums::LEGACY_APP_ID). Models created via
+        // CreateActionAction always set apps_id to the current app, so we down-shift one
+        // here to simulate a globally-shared action seeded into the action_engine DB.
+        $createdAction = $this->createGlobalAction();
+        $globalAction = Action::find($createdAction['id']);
+        $globalAction->apps_id = AppEnums::LEGACY_APP_ID->getValue();
+        $globalAction->saveOrFail();
+
+        $this->assertSame(0, (int) $globalAction->fresh()->apps_id);
+
+        $response = $this->graphQL('
+            mutation($input: CreateCompanyActionInput!) {
+                createCompanyAction(input: $input) {
+                    id
+                    name
+                    action {
+                        id
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'actions_id' => $globalAction->id,
+                'name' => 'Global Backed Company Action ' . fake()->word(),
+            ],
+        ])->assertSuccessful();
+
+        $companyAction = $response->json('data.createCompanyAction');
+        $this->assertEquals($globalAction->id, $companyAction['action']['id']);
     }
 
     public function testCreateCompanyActionWithCustomFields(): void
