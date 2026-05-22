@@ -2,13 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\OpenClaw\Actions;
+namespace Kanvas\Intelligence\Agents\Actions;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
+use Kanvas\Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider;
+use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
+use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -17,7 +19,7 @@ use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
-class SendChannelMessageToAgentAction
+class RuntimeAgentChannelResponderAction
 {
     private const string AGENT_RESPONSE_TYPE_VERB = 'ai-agent-response';
 
@@ -32,6 +34,9 @@ class SendChannelMessageToAgentAction
     {
         $payload = $this->message->getMessage();
 
+        // Loop guard: every reply this action writes is flagged `from_me`, and that reply
+        // re-enters the channel workflow. Bailing on `from_me` here is what stops the agent
+        // from answering its own messages forever.
         if (($payload['from_me'] ?? false) === true) {
             return $this->message;
         }
@@ -44,19 +49,26 @@ class SendChannelMessageToAgentAction
 
         $sessionKey = 'kanvas-channel-' . (string) $this->channel->getId();
 
-        $handler = new OpenClawAgentHandler();
-        $handler->setAgent($this->agent);
-
-        $reply = $handler->chat(
-            $content,
-            $sessionKey,
-            $this->extractImageUrls()
+        $reply = $this->resolveProvider()->chat(
+            agent: $this->agent,
+            message: $content,
+            sessionKey: $sessionKey,
+            images: $this->extractImageUrls(),
         );
 
         $replyMessage = $this->createReplyMessage($reply);
         $this->channel->addMessage($replyMessage, $this->agent->user);
 
         return $replyMessage;
+    }
+
+    protected function resolveProvider(): AgentRuntimeProvider
+    {
+        $deployment = $this->agent->activeDeployment;
+
+        return $deployment instanceof AgentDeployment
+            ? AgentRuntimeProviderFactory::forDeployment($deployment)
+            : AgentRuntimeProviderFactory::forAgent($this->agent);
     }
 
     /**
@@ -114,6 +126,8 @@ class SendChannelMessageToAgentAction
             tags: [self::AGENT_RESPONSE_TYPE_VERB],
         );
 
+        // Suppress the create action's own workflow pass; CREATED is fired manually below,
+        // after the source-entity link is attached, so rules that read the entity see it.
         $createMessage = new CreateMessageAction($messageInput);
         $createMessage->runWorkflow = false;
 
