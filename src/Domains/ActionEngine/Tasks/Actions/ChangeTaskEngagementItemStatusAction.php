@@ -12,6 +12,7 @@ use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Enums\TaskStatusEnum;
 use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
+use Kanvas\ActionEngine\Tasks\Traits\ExtractsSubmittedDocumentTypes;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -43,6 +44,8 @@ use Throwable;
  */
 class ChangeTaskEngagementItemStatusAction
 {
+    use ExtractsSubmittedDocumentTypes;
+
     public function __construct(
         protected TaskListItem $taskListItem,
         protected Lead $lead,
@@ -271,7 +274,9 @@ class ChangeTaskEngagementItemStatusAction
 
     protected function findSiblingsByGetDocs(): iterable
     {
-        $submittedIds = $this->extractGetDocsSubmittedIds();
+        $submittedIds = $this->extractGetDocsDocumentTypeIds(
+            $this->message?->getMessage()['data'] ?? []
+        );
 
         if (empty($submittedIds)) {
             return [];
@@ -344,28 +349,6 @@ class ChangeTaskEngagementItemStatusAction
             ->where('company_task_list.is_deleted', 0)
             ->where('company_task_list_items.id', '!=', $this->taskListItem->getId())
             ->where('company_task_list_items.is_deleted', 0);
-    }
-
-    /**
-     * @return array<int, int>
-     */
-    protected function extractGetDocsSubmittedIds(): array
-    {
-        $data = $this->message?->getMessage()['data'] ?? [];
-
-        $ids = [];
-        foreach ($data as $entry) {
-            if (! is_array($entry)) {
-                continue;
-            }
-
-            $typeId = $entry['type']['id'] ?? null;
-            if ($typeId !== null) {
-                $ids[] = (int) $typeId;
-            }
-        }
-
-        return array_values(array_unique($ids));
     }
 
     /**
