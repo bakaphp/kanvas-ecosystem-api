@@ -2873,16 +2873,16 @@
         },
         {
             "name": "guzzlehttp/guzzle",
-            "version": "7.10.3",
+            "version": "7.10.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/guzzle.git",
-                "reference": "47ba23c7a55247e2e1b7407aca90e9bbed0d9d86"
+                "reference": "aec528da477062d3af11f51e6b33402be233b21f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/47ba23c7a55247e2e1b7407aca90e9bbed0d9d86",
-                "reference": "47ba23c7a55247e2e1b7407aca90e9bbed0d9d86",
+                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/aec528da477062d3af11f51e6b33402be233b21f",
+                "reference": "aec528da477062d3af11f51e6b33402be233b21f",
                 "shasum": ""
             },
             "require": {
@@ -2980,7 +2980,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/guzzle/issues",
-                "source": "https://github.com/guzzle/guzzle/tree/7.10.3"
+                "source": "https://github.com/guzzle/guzzle/tree/7.10.4"
             },
             "funding": [
                 {
@@ -2996,7 +2996,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-20T22:59:19+00:00"
+            "time": "2026-05-22T19:00:53+00:00"
         },
         {
             "name": "guzzlehttp/promises",
@@ -17872,16 +17872,16 @@
         },
         {
             "name": "laramint/laravel-brain",
-            "version": "v2.2.1",
+            "version": "v2.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laramint/laravel-brain.git",
-                "reference": "e2a33b148670a100cf2fff5d825352b49efabbf7"
+                "reference": "4194817ea3202ff04587ff04e45fc2b3a271a33f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laramint/laravel-brain/zipball/e2a33b148670a100cf2fff5d825352b49efabbf7",
-                "reference": "e2a33b148670a100cf2fff5d825352b49efabbf7",
+                "url": "https://api.github.com/repos/laramint/laravel-brain/zipball/4194817ea3202ff04587ff04e45fc2b3a271a33f",
+                "reference": "4194817ea3202ff04587ff04e45fc2b3a271a33f",
                 "shasum": ""
             },
             "require": {
@@ -17921,7 +17921,7 @@
             "description": "Visualize your Laravel request lifecycle as an interactive graph",
             "support": {
                 "issues": "https://github.com/laramint/laravel-brain/issues",
-                "source": "https://github.com/laramint/laravel-brain/tree/v2.2.1"
+                "source": "https://github.com/laramint/laravel-brain/tree/v2.3.0"
             },
             "funding": [
                 {
@@ -17933,7 +17933,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-05-17T16:24:16+00:00"
+            "time": "2026-05-19T09:14:37+00:00"
         },
         {
             "name": "laramint/laravel-stress",
