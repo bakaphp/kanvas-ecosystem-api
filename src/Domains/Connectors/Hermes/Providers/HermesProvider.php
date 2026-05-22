@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Hermes\Providers;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Connectors\Hermes\Actions\ChatWithAgentAction;
 use Kanvas\Connectors\Hermes\Actions\CheckApiHealthAction;
 use Kanvas\Connectors\Hermes\Actions\CollectDeploymentUsageAction;
 use Kanvas\Connectors\Hermes\Actions\DispatchAgentDeploymentAction;
@@ -199,5 +200,19 @@ class HermesProvider extends AbstractAgentRuntimeProvider
     public function checkHealth(AgentDeployment $deployment): HealthCheckResultEnum
     {
         return new CheckApiHealthAction($deployment)->execute();
+    }
+
+    /**
+     * The Hermes API server's /v1/chat/completions endpoint is stateless, so $sessionKey
+     * is unused — cross-turn continuity comes from the agent's own persistent memory.
+     */
+    #[Override]
+    public function chat(
+        Agent $agent,
+        string $message,
+        ?string $sessionKey = null,
+        array $images = [],
+    ): string {
+        return new ChatWithAgentAction($agent, $message, $images)->execute();
     }
 }

@@ -48,6 +48,11 @@ class GoogleADKService
 
         $this->client = new GuzzleClient([
             'base_uri' => $this->baseUrl,
+            // connect_timeout bounds TCP establishment; timeout stays 0 because
+            // /run_sse streams SSE and /run runs an LLM — a finite global read
+            // timeout would truncate those long-lived responses.
+            'connect_timeout' => 10,
+            'timeout' => 0,
             'headers' => [
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
