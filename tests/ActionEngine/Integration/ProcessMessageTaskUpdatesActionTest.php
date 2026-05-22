@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\ActionEngine\Integration;
 
+use Illuminate\Support\Facades\Notification;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
@@ -97,6 +98,11 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
      */
     private function bootChecklist(): array
     {
+        // Creating the Engagement fires EngagementStatusChangedEvent, which renders
+        // a push-notification template not seeded in CI. The test asserts on task
+        // status, not notifications, so faking them keeps it environment-independent.
+        Notification::fake();
+
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
