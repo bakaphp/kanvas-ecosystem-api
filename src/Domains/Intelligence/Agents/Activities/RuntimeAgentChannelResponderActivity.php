@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\OpenClaw\Activities;
+namespace Kanvas\Intelligence\Agents\Activities;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\OpenClaw\Actions\SendChannelMessageToAgentAction;
+use Kanvas\Intelligence\Agents\Actions\RuntimeAgentChannelResponderAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-class SendChannelMessageToAgentActivity extends KanvasActivity
+class RuntimeAgentChannelResponderActivity extends KanvasActivity
 {
     public function execute(Channel $entity, Apps $app, array $params): array
     {
@@ -30,7 +30,7 @@ class SendChannelMessageToAgentActivity extends KanvasActivity
         return $this->executeIntegration(
             entity: $entity,
             app: $app,
-            integration: IntegrationsEnum::OPENCLAW,
+            integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function () use ($entity, $app, $message, $defaultAgentId, $allowedChannels, $channelAgentMapping, $params) {
                 if (! $message instanceof Message) {
@@ -83,7 +83,7 @@ class SendChannelMessageToAgentActivity extends KanvasActivity
                 /** @var Agent $agent */
                 $agent = Agent::getById((int) $agentId, $app);
 
-                $reply = new SendChannelMessageToAgentAction(
+                $reply = new RuntimeAgentChannelResponderAction(
                     $agent,
                     $message,
                     $entity,
