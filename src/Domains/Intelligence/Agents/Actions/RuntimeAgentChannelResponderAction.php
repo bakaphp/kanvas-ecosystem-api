@@ -7,10 +7,10 @@ namespace Kanvas\Intelligence\Agents\Actions;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -41,19 +41,24 @@ class RuntimeAgentChannelResponderAction
             return $this->message;
         }
 
-        $content = (string) ($payload['content'] ?? '');
+        ['images' => $imageUrls, 'documents' => $documentUrls] = $this->collectAttachmentUrls();
 
-        if ($content === '') {
-            throw new ValidationException('Message has no content to send to the agent');
+        $messageContent = $this->buildMessageContent(
+            (string) ($payload['content'] ?? ''),
+            $documentUrls,
+        );
+
+        if ($messageContent === '' && $imageUrls === []) {
+            throw new ValidationException('Message has no content or attachments to send to the agent');
         }
 
         $sessionKey = 'kanvas-channel-' . (string) $this->channel->getId();
 
         $reply = $this->resolveProvider()->chat(
             agent: $this->agent,
-            message: $content,
+            message: $messageContent,
             sessionKey: $sessionKey,
-            images: $this->extractImageUrls(),
+            images: $imageUrls,
         );
 
         $replyMessage = $this->createReplyMessage($reply);
@@ -62,21 +67,28 @@ class RuntimeAgentChannelResponderAction
         return $replyMessage;
     }
 
+    /**
+     * Resolve the agent's runtime through the shared factory — the same resolution
+     * RunRuntimeChatAction uses, so every chat path reaches the same provider.
+     * Overridable in tests to inject a fake provider without touching the network.
+     */
     protected function resolveProvider(): AgentRuntimeProvider
     {
-        $deployment = $this->agent->activeDeployment;
-
-        return $deployment instanceof AgentDeployment
-            ? AgentRuntimeProviderFactory::forDeployment($deployment)
-            : AgentRuntimeProviderFactory::forAgent($this->agent);
+        return AgentRuntimeProviderFactory::forRunningAgent($this->agent);
     }
 
     /**
-     * @return list<string>
+     * Split the inbound message's attachments by what the runtime can actually accept:
+     * image URLs go through as native multimodal content, every other file (PDF, doc, ...)
+     * comes back under `documents` so its link can be folded into the message text — the
+     * runtime chat APIs reject non-image content uploads with `400 unsupported_content_type`.
+     *
+     * @return array{images: list<string>, documents: list<string>}
      */
-    private function extractImageUrls(): array
+    private function collectAttachmentUrls(): array
     {
-        $urls = [];
+        $images = [];
+        $documents = [];
 
         foreach ($this->message->files as $file) {
             $url = (string) ($file->url ?? '');
@@ -84,14 +96,66 @@ class RuntimeAgentChannelResponderAction
                 continue;
             }
 
-            if (! MediaTypeEnum::fromExtension((string) ($file->file_type ?? ''))->isImage()) {
-                continue;
+            if ($this->isImageFile($file, $url)) {
+                $images[] = $url;
+            } else {
+                $documents[] = $url;
             }
-
-            $urls[] = $url;
         }
 
-        return $urls;
+        return ['images' => $images, 'documents' => $documents];
+    }
+
+    /**
+     * Fold non-image attachment links into the message text. The runtime can't take them as
+     * content parts, so the agent receives them as URLs to fetch with its own tools.
+     *
+     * @param list<string> $documentUrls
+     */
+    private function buildMessageContent(string $content, array $documentUrls): string
+    {
+        if ($documentUrls === []) {
+            return $content;
+        }
+
+        $attachmentList = "Attached files:\n" . implode(
+            "\n",
+            array_map(static fn (string $url): string => '- ' . $url, $documentUrls),
+        );
+
+        return $content === '' ? $attachmentList : $content . "\n\n" . $attachmentList;
+    }
+
+    /**
+     * Determine whether an attachment is an image. `file_type` alone is unreliable on
+     * channel-ingested files — webhook media arrives as a MIME type (`image/jpeg`), or, when
+     * the source URL has no extension, as the literal `unknown` that
+     * `HasFilesystemTrait::addFileFromUrl()` writes — so weigh the MIME prefix, the
+     * `file_type` extension, and the extension parsed off the stored name or URL path.
+     */
+    private function isImageFile(Filesystem $file, string $url): bool
+    {
+        $fileType = strtolower(trim($file->file_type));
+
+        if (str_starts_with($fileType, 'image/')) {
+            return true;
+        }
+
+        $path = parse_url($url, PHP_URL_PATH);
+
+        $extensionCandidates = [
+            $fileType,
+            pathinfo($file->name, PATHINFO_EXTENSION),
+            is_string($path) ? pathinfo($path, PATHINFO_EXTENSION) : '',
+        ];
+
+        foreach ($extensionCandidates as $candidate) {
+            if ($candidate !== '' && MediaTypeEnum::fromExtension($candidate)->isImage()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function createReplyMessage(string $reply): Message
