@@ -6,7 +6,6 @@ namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
@@ -29,10 +28,7 @@ class RunRuntimeChatAction
     {
         $sessionId = $this->session?->uuid ?? '';
 
-        $deployment = $this->agent->activeDeployment;
-        $provider = $deployment instanceof AgentDeployment
-            ? AgentRuntimeProviderFactory::forDeployment($deployment)
-            : AgentRuntimeProviderFactory::forAgent($this->agent);
+        $provider = AgentRuntimeProviderFactory::forRunningAgent($this->agent);
 
         $response = $provider->chat(
             agent: $this->agent,
