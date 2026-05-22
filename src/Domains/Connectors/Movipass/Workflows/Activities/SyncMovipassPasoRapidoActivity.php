@@ -8,6 +8,8 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Movipass\Actions\UpdateVehicleTagTelemetryAction;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -88,7 +90,18 @@ class SyncMovipassPasoRapidoActivity extends KanvasActivity implements WorkflowA
                     ];
                 }
 
+                $vehicle = $this->resolveVehicleProduct($order);
+
+                if (! $vehicle instanceof Products) {
+                    return [
+                        'order' => $order->getId(),
+                        'status' => 'skipped',
+                        'message' => 'No vehicle product found among order items',
+                    ];
+                }
+
                 $result = new UpdateVehicleTagTelemetryAction(
+                    $vehicle,
                     $order,
                     $app,
                     $tag,
@@ -114,5 +127,21 @@ class SyncMovipassPasoRapidoActivity extends KanvasActivity implements WorkflowA
             },
             company: $order->company,
         );
+    }
+
+    /**
+     * PASO_RAPIDO orders carry the vehicle as an order item with productsType
+     * slug = 'vehicle'. Walk the items and return the first vehicle product.
+     */
+    private function resolveVehicleProduct(Order $order): ?Products
+    {
+        foreach ($order->items as $item) {
+            $product = $item->variant?->product;
+            if ($product instanceof Products && $product->productsType?->slug === 'vehicle') {
+                return $product;
+            }
+        }
+
+        return null;
     }
 }

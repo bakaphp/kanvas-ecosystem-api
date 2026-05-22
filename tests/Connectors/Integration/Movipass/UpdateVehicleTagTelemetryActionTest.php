@@ -31,13 +31,13 @@ final class UpdateVehicleTagTelemetryActionTest extends TestCase
         $this->kanvasUser = $user;
     }
 
-    public function testWritesTelemetryAttributesOntoVehicleProductWhenBalanceLookupSucceeds(): void
+    public function testWritesTelemetryAttributesOntoVehicleWhenBalanceLookupSucceeds(): void
     {
-        $tag = '941991';
+        $tag = $this->uniqueTag();
         $rechargeAmount = 750.00;
         $expectedBalance = 1500.50;
 
-        $vehicle = $this->createVehicleProductWithTag($tag);
+        $vehicle = $this->createVehicleProduct();
         $order = $this->createPasoRapidoOrder($tag, $rechargeAmount);
 
         $service = Mockery::mock(PasoRapidoService::class);
@@ -58,6 +58,7 @@ final class UpdateVehicleTagTelemetryActionTest extends TestCase
             ]));
 
         $result = new UpdateVehicleTagTelemetryAction(
+            $vehicle,
             $order,
             $this->kanvasApp,
             $tag,
@@ -78,32 +79,33 @@ final class UpdateVehicleTagTelemetryActionTest extends TestCase
         $this->assertNotNull($vehicle->getAttributeBySlug('tag-balance-fetched-at')?->value);
     }
 
-    public function testSkipsWhenVehicleProductIsNotFound(): void
+    public function testSkipsOnEmptyTag(): void
     {
-        $tag = '999999';
-        $order = $this->createPasoRapidoOrder($tag, 500.00);
+        $vehicle = $this->createVehicleProduct();
+        $order = $this->createPasoRapidoOrder('', 500.00);
 
         $service = Mockery::mock(PasoRapidoService::class);
         $service->shouldNotReceive('fetchTagBalance');
 
         $result = new UpdateVehicleTagTelemetryAction(
+            $vehicle,
             $order,
             $this->kanvasApp,
-            $tag,
+            '',
             500.00,
             $service,
         )->execute();
 
         $this->assertSame('skipped', $result['status']);
-        $this->assertSame('vehicle product not found for tag', $result['reason']);
+        $this->assertSame('empty tag', $result['reason']);
     }
 
     public function testPersistsRechargeFieldsEvenWhenBalanceLookupFails(): void
     {
-        $tag = '942222';
+        $tag = $this->uniqueTag();
         $rechargeAmount = 200.00;
 
-        $vehicle = $this->createVehicleProductWithTag($tag);
+        $vehicle = $this->createVehicleProduct();
         $order = $this->createPasoRapidoOrder($tag, $rechargeAmount);
 
         $service = Mockery::mock(PasoRapidoService::class);
@@ -113,6 +115,7 @@ final class UpdateVehicleTagTelemetryActionTest extends TestCase
             ->andThrow(new RuntimeException('upstream timeout'));
 
         $result = new UpdateVehicleTagTelemetryAction(
+            $vehicle,
             $order,
             $this->kanvasApp,
             $tag,
@@ -130,23 +133,22 @@ final class UpdateVehicleTagTelemetryActionTest extends TestCase
         $this->assertEquals($order->getId(), $vehicle->getAttributeBySlug('last-order-id')?->value);
     }
 
-    private function createVehicleProductWithTag(string $tag): Products
+    private function uniqueTag(): string
     {
-        $company = $this->kanvasUser->getCurrentCompany();
+        return (string) random_int(100000000000, 999999999999);
+    }
 
-        $product = Products::factory()
+    private function createVehicleProduct(): Products
+    {
+        $companyId = $this->kanvasUser->getCurrentCompany()->getId();
+
+        return Products::factory()
             ->state([
                 'apps_id' => $this->kanvasApp->getId(),
-                'companies_id' => $company->getId(),
+                'companies_id' => $companyId,
                 'users_id' => $this->kanvasUser->getId(),
             ])
             ->create();
-
-        $product->addAttributes($this->kanvasUser, [
-            ['name' => 'tag_number', 'value' => $tag],
-        ]);
-
-        return $product->fresh();
     }
 
     private function createPasoRapidoOrder(string $tag, float $amount): Order
