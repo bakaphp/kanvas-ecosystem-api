@@ -128,7 +128,7 @@ class ChatWithAgentAction
         return $this->parseResponse($response);
     }
 
-    private function buildInput(): string|array
+    protected function buildInput(): string|array
     {
         if ($this->images === []) {
             return $this->message;
@@ -137,7 +137,14 @@ class ChatWithAgentAction
         $content = [['type' => 'input_text', 'text' => $this->message]];
 
         foreach ($this->images as $imageUrl) {
-            $content[] = ['type' => 'input_image', 'image_url' => $imageUrl];
+            // OpenClaw's /v1/responses documents `input_image` with a `source` object —
+            // a flat `image_url` key was the old shape and is no longer recognized after
+            // the gateway's input_image bug fix. See
+            // https://docs.openclaw.ai/gateway/openresponses-http-api#images-input_image
+            $content[] = [
+                'type' => 'input_image',
+                'source' => ['type' => 'url', 'url' => $imageUrl],
+            ];
         }
 
         return [['role' => 'user', 'content' => $content]];

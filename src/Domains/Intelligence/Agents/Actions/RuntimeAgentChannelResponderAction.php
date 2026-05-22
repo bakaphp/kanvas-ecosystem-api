@@ -6,10 +6,9 @@ namespace Kanvas\Intelligence\Agents\Actions;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Filesystem\Enums\MediaTypeEnum;
-use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
+use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -43,7 +42,7 @@ class RuntimeAgentChannelResponderAction
 
         ['images' => $imageUrls, 'documents' => $documentUrls] = $this->collectAttachmentUrls();
 
-        $messageContent = $this->buildMessageContent(
+        $messageContent = AttachmentPromptBuilder::withAttachments(
             (string) ($payload['content'] ?? ''),
             $documentUrls,
         );
@@ -96,7 +95,7 @@ class RuntimeAgentChannelResponderAction
                 continue;
             }
 
-            if ($this->isImageFile($file, $url)) {
+            if ($file->mediaType()->isImage()) {
                 $images[] = $url;
             } else {
                 $documents[] = $url;
@@ -104,58 +103,6 @@ class RuntimeAgentChannelResponderAction
         }
 
         return ['images' => $images, 'documents' => $documents];
-    }
-
-    /**
-     * Fold non-image attachment links into the message text. The runtime can't take them as
-     * content parts, so the agent receives them as URLs to fetch with its own tools.
-     *
-     * @param list<string> $documentUrls
-     */
-    private function buildMessageContent(string $content, array $documentUrls): string
-    {
-        if ($documentUrls === []) {
-            return $content;
-        }
-
-        $attachmentList = "Attached files:\n" . implode(
-            "\n",
-            array_map(static fn (string $url): string => '- ' . $url, $documentUrls),
-        );
-
-        return $content === '' ? $attachmentList : $content . "\n\n" . $attachmentList;
-    }
-
-    /**
-     * Determine whether an attachment is an image. `file_type` alone is unreliable on
-     * channel-ingested files — webhook media arrives as a MIME type (`image/jpeg`), or, when
-     * the source URL has no extension, as the literal `unknown` that
-     * `HasFilesystemTrait::addFileFromUrl()` writes — so weigh the MIME prefix, the
-     * `file_type` extension, and the extension parsed off the stored name or URL path.
-     */
-    private function isImageFile(Filesystem $file, string $url): bool
-    {
-        $fileType = strtolower(trim($file->file_type));
-
-        if (str_starts_with($fileType, 'image/')) {
-            return true;
-        }
-
-        $path = parse_url($url, PHP_URL_PATH);
-
-        $extensionCandidates = [
-            $fileType,
-            pathinfo($file->name, PATHINFO_EXTENSION),
-            is_string($path) ? pathinfo($path, PATHINFO_EXTENSION) : '',
-        ];
-
-        foreach ($extensionCandidates as $candidate) {
-            if ($candidate !== '' && MediaTypeEnum::fromExtension($candidate)->isImage()) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private function createReplyMessage(string $reply): Message

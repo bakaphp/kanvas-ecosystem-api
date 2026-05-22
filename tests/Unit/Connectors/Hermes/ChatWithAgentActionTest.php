@@ -51,14 +51,20 @@ class ChatWithAgentActionTest extends TestCase
 
         $this->assertSame('hello back', $result);
 
+        // The shell command stages the JSON via SFTP (writeFile) + `docker cp`, then
+        // curls with `--data-binary @<file>` — the payload no longer travels in argv.
         $command = $ssh->capturedCommand;
+        $this->assertStringContainsString('docker cp', $command);
         $this->assertStringContainsString('docker exec', $command);
         $this->assertStringContainsString('hermes-bot', $command);
         $this->assertStringContainsString('curl -sS', $command);
         $this->assertStringContainsString('http://127.0.0.1:8642/v1/chat/completions', $command);
         $this->assertStringContainsString('Authorization: Bearer tok-agent', $command);
-        $this->assertStringContainsString('"model":"hermes-agent"', $command);
-        $this->assertStringContainsString('"content":"hello"', $command);
+        $this->assertStringContainsString('--data-binary @', $command);
+
+        // The JSON body lives in the file SFTP wrote, captured here.
+        $this->assertStringContainsString('"model":"hermes-agent"', $ssh->capturedPayload);
+        $this->assertStringContainsString('"content":"hello"', $ssh->capturedPayload);
     }
 
     public function testFallsBackToDeploymentTokenWhenAgentHasNone(): void
@@ -81,20 +87,30 @@ class ChatWithAgentActionTest extends TestCase
     {
         $ssh = $this->makeSshMock($this->chatBody('saw it'), 200);
 
+        // A real 1x1 PNG so finfo can resolve the media type to image/png.
+        $png = (string) base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII=',
+            true,
+        );
+
         $action = $this->makeAction(
             message: 'look',
             agentToken: 'tok',
             deploymentToken: null,
             sshClient: $ssh,
             images: ['https://cdn.example.com/pic.png'],
+            cannedImageBytes: $png,
         );
 
         $action->execute();
 
-        $command = $ssh->capturedCommand;
-        $this->assertStringContainsString('"type":"text"', $command);
-        $this->assertStringContainsString('"type":"image_url"', $command);
-        $this->assertStringContainsString('https://cdn.example.com/pic.png', $command);
+        // Hermes' vision pipeline expects the bytes inlined as a base64 `data:` URI — the
+        // raw URL must NOT appear in the wire payload anymore.
+        $payload = $ssh->capturedPayload;
+        $this->assertStringContainsString('"type":"text"', $payload);
+        $this->assertStringContainsString('"type":"image_url"', $payload);
+        $this->assertStringContainsString('data:image/png;base64,', $payload);
+        $this->assertStringNotContainsString('https://cdn.example.com/pic.png', $payload);
     }
 
     public function testThrowsOnNon2xxHttpError(): void
@@ -187,6 +203,7 @@ class ChatWithAgentActionTest extends TestCase
         ?string $deploymentToken,
         FakeSshClient $sshClient,
         array $images = [],
+        string $cannedImageBytes = '',
     ): TestableChatWithAgentAction {
         $machine = Mockery::mock(AgentMachine::class);
 
@@ -205,7 +222,7 @@ class ChatWithAgentActionTest extends TestCase
             ->andReturn($agentToken);
         $agent->shouldReceive('getId')->andReturn(940);
 
-        return new TestableChatWithAgentAction($agent, $message, $images, $sshClient);
+        return new TestableChatWithAgentAction($agent, $message, $images, $sshClient, $cannedImageBytes);
     }
 
     private function makeSshMock(string $body, int $status): FakeSshClient
@@ -238,6 +255,7 @@ class TestableChatWithAgentAction extends ChatWithAgentAction
         string $message,
         array $images,
         private FakeSshClient $sshClient,
+        private string $cannedImageBytes = '',
     ) {
         parent::__construct($agent, $message, $images);
     }
@@ -246,11 +264,17 @@ class TestableChatWithAgentAction extends ChatWithAgentAction
     {
         return $this->sshClient;
     }
+
+    protected function fetchImageBinary(string $url): string
+    {
+        return $this->cannedImageBytes;
+    }
 }
 
 /**
- * Minimal stand-in for SshClient. Dequeues a pre-seeded response on every
- * exec() call and records the command for later assertions.
+ * Minimal stand-in for SshClient. Captures the SFTP payload, captures the first exec
+ * command (the main docker cp + curl — not the cleanup `rm` in finally), and dequeues
+ * a pre-seeded response on every exec() call.
  */
 class FakeSshClient extends SshClient
 {
@@ -258,15 +282,27 @@ class FakeSshClient extends SshClient
     public array $queue = [];
     public int $callCount = 0;
     public string $capturedCommand = '';
+    public string $capturedPayload = '';
 
     public function __construct()
     {
         // intentionally skip parent constructor — we never open a real socket
     }
 
+    public function writeFile(string $remotePath, string $content): bool
+    {
+        $this->capturedPayload = $content;
+
+        return true;
+    }
+
     public function exec(string $command, int $timeout = 30): string
     {
-        $this->capturedCommand = $command;
+        // Only the first exec is the "real" one we want to assert on — the second is the
+        // cleanup `rm -f` fired from the action's `finally`, which we deliberately ignore.
+        if ($this->callCount === 0) {
+            $this->capturedCommand = $command;
+        }
         $this->callCount++;
 
         $next = array_shift($this->queue);
