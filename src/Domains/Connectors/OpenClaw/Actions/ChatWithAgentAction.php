@@ -147,7 +147,11 @@ class ChatWithAgentAction
             ];
         }
 
-        return [['role' => 'user', 'content' => $content]];
+        // Items in the `input` array carry an explicit `type`. The role-only shorthand
+        // some OpenAI Responses examples show is rejected by OpenClaw's stricter validator
+        // with `input: Invalid input` — every item must declare its kind. See:
+        // https://docs.openclaw.ai/gateway/openresponses-http-api#items-input
+        return [['type' => 'message', 'role' => 'user', 'content' => $content]];
     }
 
     private function parseResponse(string $response): string
