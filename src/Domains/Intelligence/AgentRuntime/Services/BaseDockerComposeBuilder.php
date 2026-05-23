@@ -25,7 +25,8 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
  */
 abstract class BaseDockerComposeBuilder
 {
-    private const string RUNTIME_VERSION = '2026.3.12';
+    private const string RUNTIME_VERSION = '2026.5.20';
+    //private const string RUNTIME_VERSION = '2026.3.12';
 
     abstract protected function getProviderConfig(): ProviderConfig;
 
