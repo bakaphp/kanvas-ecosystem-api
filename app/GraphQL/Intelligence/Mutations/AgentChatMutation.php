@@ -212,7 +212,12 @@ class AgentChatMutation
             )->execute();
         }
 
-        [$mergedImages, $mergedFiles] = $this->mergeUploadsWithUrls($input, $user, $app, $session);
+        [$mergedImages, $mergedFiles] = $this->mergeUploadsWithUrls(
+            $input,
+            $user,
+            $app,
+            $session
+        );
 
         $response = new ProcessAgentChatAction(
             agent: $agent,
@@ -244,8 +249,12 @@ class AgentChatMutation
      * @param array<string, mixed> $input
      * @return array{0: list<string>, 1: list<string>} `[$images, $files]`
      */
-    private function mergeUploadsWithUrls(array $input, Users $user, Apps $app, ?Model $attachTo): array
-    {
+    protected function mergeUploadsWithUrls(
+        array $input,
+        Users $user,
+        Apps $app,
+        ?Model $attachTo
+    ): array {
         /** @var list<string> $images */
         $images = $input['images'] ?? [];
         /** @var list<string> $files */
