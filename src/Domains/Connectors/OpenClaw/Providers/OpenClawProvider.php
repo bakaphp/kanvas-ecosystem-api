@@ -53,7 +53,12 @@ class OpenClawProvider extends AbstractAgentRuntimeProvider
         AppInterface $app,
         CompanyInterface $company,
     ): AgentDeployment {
-        return new DispatchAgentDeploymentAction($agent, $machine, $app, $company)->execute();
+        return new DispatchAgentDeploymentAction(
+            $agent,
+            $machine,
+            $app,
+            $company
+        )->execute();
     }
 
     #[Override]
@@ -93,7 +98,11 @@ class OpenClawProvider extends AbstractAgentRuntimeProvider
         $ssh = SshClient::fromMachine($deployment->machine);
 
         try {
-            return $ssh->getDeploymentLogs($deployment->container_name, $deployment->agent->slug, $limit);
+            return $ssh->getDeploymentLogs(
+                $deployment->container_name,
+                $deployment->agent->slug,
+                $limit
+            );
         } finally {
             $ssh->disconnect();
         }
