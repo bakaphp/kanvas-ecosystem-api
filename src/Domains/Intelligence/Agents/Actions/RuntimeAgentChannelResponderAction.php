@@ -90,7 +90,7 @@ class RuntimeAgentChannelResponderAction
         $documents = [];
 
         foreach ($this->message->files as $file) {
-            $url = (string) ($file->url ?? '');
+            $url = $file->url;
             if ($url === '') {
                 continue;
             }
