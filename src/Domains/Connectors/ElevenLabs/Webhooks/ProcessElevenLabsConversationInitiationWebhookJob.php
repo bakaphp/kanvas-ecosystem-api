@@ -56,6 +56,7 @@ class ProcessElevenLabsConversationInitiationWebhookJob extends ProcessElevenLab
             'vehicle_model' => '',
             'vehicle_trim' => '',
             'vehicle_vin' => '',
+            'vehicle_stock_number' => '',
             'vehicle_mileage' => '',
             'preferred_date' => '',
             'appointment_time' => '',
@@ -109,6 +110,8 @@ class ProcessElevenLabsConversationInitiationWebhookJob extends ProcessElevenLab
 
     protected function leadDynamicVariables(Lead $lead): array
     {
+        $vehicle = $this->resolveVehicleOfInterest($lead);
+
         return [
             'has_open_opportunity' => true,
             'lead_id' => (string) $lead->getId(),
@@ -121,15 +124,43 @@ class ProcessElevenLabsConversationInitiationWebhookJob extends ProcessElevenLab
             'onwer_phone' => $lead->owner?->phone_number,
             'owner_cellphone' => $lead->owner?->cell_phone_number,
             'ai_mode' => (string) ($lead->get(ConfigurationEnum::AI_MODE->value) ?? ''),
-            'vehicle_year' => (string) ($lead->get('vehicleYear') ?? $lead->get('year') ?? ''),
-            'vehicle_make' => (string) ($lead->get('vehicleMake') ?? $lead->get('vehicleBrand') ?? ''),
-            'vehicle_model' => (string) ($lead->get('vehicleModel') ?? $lead->get('model') ?? ''),
-            'vehicle_trim' => (string) ($lead->get('vehicleTrim') ?? ''),
-            'vehicle_vin' => (string) ($lead->get('vehicleVin') ?? ''),
-            'vehicle_mileage' => (string) ($lead->get('vehicleMileage') ?? $lead->get('mileage') ?? ''),
+            'vehicle_year' => (string) ($vehicle['year'] ?? $lead->get('vehicleYear') ?? $lead->get('year') ?? ''),
+            'vehicle_make' => (string) ($vehicle['make'] ?? $lead->get('vehicleMake') ?? $lead->get('vehicleBrand') ?? ''),
+            'vehicle_model' => (string) ($vehicle['model'] ?? $lead->get('vehicleModel') ?? $lead->get('model') ?? ''),
+            'vehicle_trim' => (string) ($vehicle['trim'] ?? $lead->get('vehicleTrim') ?? ''),
+            'vehicle_vin' => (string) ($vehicle['vin'] ?? $lead->get('vehicleVin') ?? ''),
+            'vehicle_stock_number' => (string) ($vehicle['stockNumber'] ?? $lead->get('vehicleStockNumber') ?? ''),
+            'vehicle_mileage' => (string) ($vehicle['mileage'] ?? $lead->get('vehicleMileage') ?? $lead->get('mileage') ?? ''),
             'preferred_date' => (string) ($lead->get('preferred_date') ?? $lead->get('appointmentDate') ?? ''),
             'appointment_time' => (string) ($lead->get('appointmentTime') ?? ''),
         ];
+    }
+
+    protected function resolveVehicleOfInterest(Lead $lead): array
+    {
+        $raw = $lead->get('vehicle_of_interest');
+
+        if (! is_array($raw) || $raw === []) {
+            return [];
+        }
+
+        if (! array_is_list($raw)) {
+            return $raw;
+        }
+
+        $vehicles = array_values(array_filter($raw, 'is_array'));
+
+        if ($vehicles === []) {
+            return [];
+        }
+
+        foreach ($vehicles as $vehicle) {
+            if (! empty($vehicle['isPrimary'])) {
+                return $vehicle;
+            }
+        }
+
+        return $vehicles[0];
     }
 
     protected function resolveOpportunityType(Lead $lead): string

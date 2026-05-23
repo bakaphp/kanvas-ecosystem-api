@@ -9,6 +9,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Hermes\Providers\HermesProvider;
 use Kanvas\Connectors\OpenClaw\Providers\OpenClawProvider;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider;
 use Kanvas\Intelligence\AgentRuntime\Providers\AbstractAgentRuntimeProvider;
 use Kanvas\Intelligence\Agents\Actions\RuntimeAgentChannelResponderAction;
@@ -70,6 +71,59 @@ class RuntimeAgentChannelResponderActionTest extends TestCase
 
         $this->expectException(ValidationException::class);
         $action->execute();
+    }
+
+    public function testForwardsImageAttachmentsWhoseFileTypeIsAMimeType(): void
+    {
+        [$agent, $channel, $message] = $this->makeChannelConversation('look at this', fromMe: false);
+
+        // MIME `file_type` + an extensionless URL — exactly the shape that used to be
+        // silently dropped by the old extension-only check.
+        $imageUrl = 'https://cdn.example.com/whatsapp/media/' . uniqid();
+        $this->attachFile($message, $imageUrl, name: 'whatsapp-media', fileType: 'image/jpeg');
+
+        $provider = new FakeChannelRuntimeProvider('seen it');
+        $action = new TestableRuntimeAgentChannelResponderAction($agent, $message, $channel);
+        $action->fakeProvider = $provider;
+
+        $action->execute();
+
+        $this->assertContains($imageUrl, $provider->lastImages);
+    }
+
+    public function testForwardsNonImageAttachmentsAsLinksInTheMessageText(): void
+    {
+        [$agent, $channel, $message] = $this->makeChannelConversation('check this doc', fromMe: false);
+
+        $pdfUrl = 'https://cdn.example.com/docs/quote-' . uniqid() . '.pdf';
+        $this->attachFile($message, $pdfUrl, name: 'quote.pdf', fileType: 'application/pdf');
+
+        $provider = new FakeChannelRuntimeProvider('got it');
+        $action = new TestableRuntimeAgentChannelResponderAction($agent, $message, $channel);
+        $action->fakeProvider = $provider;
+
+        $action->execute();
+
+        // The runtime rejects non-image content, so a PDF must reach the agent as a link
+        // in the message text — never in the multimodal images slot.
+        $this->assertStringContainsString($pdfUrl, (string) $provider->lastMessage);
+        $this->assertNotContains($pdfUrl, $provider->lastImages);
+    }
+
+    public function testSendsImageOnlyMessagesThatHaveNoTextCaption(): void
+    {
+        [$agent, $channel, $message] = $this->makeChannelConversation('', fromMe: false);
+
+        $imageUrl = 'https://cdn.example.com/whatsapp/media/' . uniqid() . '.jpg';
+        $this->attachFile($message, $imageUrl, name: 'photo.jpg', fileType: 'jpg');
+
+        $provider = new FakeChannelRuntimeProvider('nice photo');
+        $action = new TestableRuntimeAgentChannelResponderAction($agent, $message, $channel);
+        $action->fakeProvider = $provider;
+
+        $action->execute();
+
+        $this->assertContains($imageUrl, $provider->lastImages);
     }
 
     public function testRoutesToOpenClawForAnAgentWithNoDeclaredProvider(): void
@@ -137,6 +191,27 @@ class RuntimeAgentChannelResponderActionTest extends TestCase
 
         return [$agent, $channel, $message];
     }
+
+    private function attachFile(Message $message, string $url, string $name, string $fileType): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $file = new Filesystem();
+        $file->apps_id = $app->getId();
+        $file->companies_id = $company->getId();
+        $file->users_id = $user->getId();
+        $file->name = $name;
+        $file->path = '/tmp/' . $name;
+        $file->url = $url;
+        $file->size = '0';
+        $file->file_type = $fileType;
+        $file->is_deleted = 0;
+        $file->saveOrFail();
+
+        $message->addFile($file, 'attachment');
+    }
 }
 
 /**
@@ -147,6 +222,8 @@ class FakeChannelRuntimeProvider extends AbstractAgentRuntimeProvider
     public bool $wasCalled = false;
     public ?string $lastMessage = null;
     public ?string $lastSessionKey = null;
+    /** @var list<string> */
+    public array $lastImages = [];
 
     public function __construct(private readonly string $reply)
     {
@@ -168,6 +245,7 @@ class FakeChannelRuntimeProvider extends AbstractAgentRuntimeProvider
         $this->wasCalled = true;
         $this->lastMessage = $message;
         $this->lastSessionKey = $sessionKey;
+        $this->lastImages = $images;
 
         return $this->reply;
     }

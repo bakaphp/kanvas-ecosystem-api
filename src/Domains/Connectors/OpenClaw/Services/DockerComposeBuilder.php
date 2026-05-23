@@ -14,15 +14,8 @@ class DockerComposeBuilder extends BaseDockerComposeBuilder
 {
     private const string TEMPLATES_DIR = __DIR__ . '/../Templates';
 
-    // Compile-time fallback pin — used when the app-level `openclaw_base_image` config is unset.
-    // Pinned to the 20260312 build (ships OpenClaw 2026.3.8 npm) because the May 2026 releases
-    // (2026.5.x) tightened the channels.slack schema and break prod deploys.
-    //
-    // To bump WITHOUT a code deploy, set ConfigurationEnum::BASE_IMAGE on the app, e.g.:
-    //     $app->set('openclaw_base_image', 'ghcr.io/phioranex/openclaw-docker:20260601');
-    // Then run the openclawUpdateMachineContainers mutation against the machines you want forward.
-    // Update this constant when changing the default for apps without the override.
-    private const string OPENCLAW_BASE_IMAGE = 'ghcr.io/phioranex/openclaw-docker:20260312';
+    // docker image version
+    private const string OPENCLAW_BASE_IMAGE = 'ghcr.io/phioranex/openclaw-docker:20260522';
 
     #[Override]
     protected function getProviderConfig(): ProviderConfig

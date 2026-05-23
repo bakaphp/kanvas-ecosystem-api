@@ -8,6 +8,7 @@ use Baka\Traits\HashTableTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Models\BaseModel;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
@@ -54,6 +55,11 @@ class Filesystem extends BaseModel
     protected function createSettingsModel(): void
     {
         $this->settingsModel = new FilesystemSettings();
+    }
+
+    public function mediaType(): MediaTypeEnum
+    {
+        return MediaTypeEnum::fromFilesystem($this);
     }
 
     public function createdAt(): Carbon

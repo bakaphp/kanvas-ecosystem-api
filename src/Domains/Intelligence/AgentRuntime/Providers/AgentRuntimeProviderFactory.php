@@ -45,6 +45,19 @@ final class AgentRuntimeProviderFactory
         }
     }
 
+    // Canonical resolution for every "chat with this agent" path: the active deployment's
+    // provider when one is running, the agent type's declared provider otherwise. Both
+    // RunRuntimeChatAction and RuntimeAgentChannelResponderAction must go through this so a
+    // chat always reaches the same runtime regardless of which entry point triggered it.
+    public static function forRunningAgent(Agent $agent): AgentRuntimeProvider
+    {
+        $deployment = $agent->activeDeployment;
+
+        return $deployment instanceof AgentDeployment
+            ? self::forDeployment($deployment)
+            : self::forAgent($agent);
+    }
+
     /** @return list<AgentRuntimeProvider> */
     public static function runtimeProviders(): array
     {

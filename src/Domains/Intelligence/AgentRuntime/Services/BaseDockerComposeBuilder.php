@@ -25,7 +25,8 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
  */
 abstract class BaseDockerComposeBuilder
 {
-    private const string RUNTIME_VERSION = '2026.3.12';
+    private const string RUNTIME_VERSION = '2026.5.20';
+    //private const string RUNTIME_VERSION = '2026.3.12';
 
     abstract protected function getProviderConfig(): ProviderConfig;
 
@@ -501,12 +502,13 @@ abstract class BaseDockerComposeBuilder
         $slackAppToken = $agent->get($this->getSlackAppTokenCustomFieldKey());
 
         if (! empty($slackBotToken) && ! empty($slackAppToken)) {
+            // OpenClaw 2026.5.x tightened channels.slack — `streaming` is now an object
+            // (was string `'partial'`), the legacy top-level `nativeStreaming` moved inside
+            // as `nativeTransport`, and `allowBots` was removed. Gateway boot fails on the
+            // old shape with: `channels.slack.streaming: invalid config: must be object`.
             $channels['slack'] = [
                 'enabled' => true,
                 'mode' => 'socket',
-                'allowBots' => true,
-                'streaming' => 'partial',
-                'nativeStreaming' => true,
                 'botToken' => (string) $slackBotToken,
                 'appToken' => (string) $slackAppToken,
                 'dmPolicy' => 'open',
@@ -516,6 +518,10 @@ abstract class BaseDockerComposeBuilder
                     'groupEnabled' => true,
                 ],
                 'groupPolicy' => 'open',
+                'streaming' => [
+                    'mode' => 'partial',
+                    'nativeTransport' => true,
+                ],
             ];
         }
 
@@ -527,7 +533,10 @@ abstract class BaseDockerComposeBuilder
                 'botToken' => (string) $telegramBotToken,
                 'dmPolicy' => 'pairing',
                 'groupPolicy' => 'allowlist',
-                'streaming' => 'partial',
+                'streaming' => [
+                    'mode' => 'partial',
+                    'nativeTransport' => true,
+                ],
             ];
         }
 
