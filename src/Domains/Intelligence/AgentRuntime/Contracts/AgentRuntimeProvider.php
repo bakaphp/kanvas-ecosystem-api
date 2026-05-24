@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Contracts;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -99,4 +100,19 @@ interface AgentRuntimeProvider
         ?string $sessionKey = null,
         array $images = [],
     ): string;
+
+    // Pull the agent's conversation transcripts out of the runtime's per-deployment store
+    // and persist into agent_conversations + agent_conversation_messages. Watermarked
+    // incremental — concrete providers track the last imported message id in
+    // agent_conversations.meta and ask the runtime only for newer rows. Returns the count
+    // of newly persisted messages so callers can log / emit ledger events.
+    //
+    // $since is an optional override for the lookback floor; when null the provider uses
+    // its own watermark (or a sane recent default for the first run).
+    public function collectSessionTranscripts(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        ?Carbon $since = null,
+    ): int;
 }

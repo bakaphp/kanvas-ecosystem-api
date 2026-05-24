@@ -121,6 +121,14 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@collectUsage"
         )
+    "Pull conversation transcripts out of the deployment runtime and persist into agent_conversations / agent_conversation_messages. Returns the count of newly persisted messages. Routes via AgentRuntimeProviderFactory — runtimes that don't support transcript collection throw a clear LogicException."
+    agentRuntimeCollectSessionTranscripts(
+        deployment_id: ID!
+        since: DateTime
+    ): Int!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@collectSessionTranscripts"
+        )
 
     agentRuntimeSetSlackTokens(
         agent_id: ID!

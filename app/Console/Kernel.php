@@ -8,6 +8,7 @@ use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
+use App\Console\Commands\Intelligence\CollectAgentSessionTranscriptsCommand;
 use App\Console\Commands\NervousSystem\ArchiveOldLedgerEventsCommand;
 use App\Console\Commands\NervousSystem\CheckAgentRuntimeHealthCommand;
 use App\Console\Commands\NervousSystem\DetectStalledPlanTasksCommand;
@@ -71,6 +72,11 @@ class Kernel extends ConsoleKernel
         $schedule->command(CheckAgentRuntimeHealthCommand::class)
             ->everyTenMinutes()
             ->withoutOverlapping();
+        $schedule->command(CollectAgentSessionTranscriptsCommand::class)
+            ->hourly()
+            ->withoutOverlapping()
+            ->onOneServer()
+            ->runInBackground();
         $schedule->command(SyncModelPricingCommand::class)
             ->dailyAt('02:30')
             ->withoutOverlapping()

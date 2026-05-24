@@ -17,7 +17,7 @@ use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
  * Single writer for `agents.awake_state` changes + the paired ledger event. No-op when already
  * at target or when SLEEPING (the cycle compiler owns the column during a cycle).
  */
-class AgentAwakeStateWriter
+class AgentAwakeStateWriterService
 {
     public function write(
         Agent $agent,

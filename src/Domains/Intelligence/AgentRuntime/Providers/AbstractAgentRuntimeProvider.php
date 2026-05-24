@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Providers;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -154,6 +155,16 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
         array $images = [],
     ): string {
         throw $this->unsupported('chat');
+    }
+
+    #[Override]
+    public function collectSessionTranscripts(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        ?Carbon $since = null,
+    ): int {
+        throw $this->unsupported('session transcript collection');
     }
 
     protected function unsupported(string $operation): LogicException

@@ -11,13 +11,13 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event;
 use Kanvas\NervousSystem\Pulse\Models\PulseMetricsDaily;
-use Kanvas\NervousSystem\Pulse\Services\PulseMetricsAggregator;
+use Kanvas\NervousSystem\Pulse\Services\PulseMetricsAggregatorService;
 use Kanvas\NervousSystem\Pulse\Support\PulseMetricsCache;
 
 /**
  * Snapshot one (app, company, date) tuple of Pulse metrics. Idempotent
  * — re-running upserts the existing row. Single source of truth for
- * the formula via PulseMetricsAggregator.
+ * the formula via PulseMetricsAggregatorService.
  *
  * Emits `pulse.metrics_rolled_up` ledger event for audit + flushes the
  * tenant cache so the next dashboard read sees fresh numbers.
@@ -30,7 +30,7 @@ class RollupPulseMetricsAction
         protected readonly AppInterface $app,
         protected readonly CompanyInterface $company,
         protected readonly Carbon $date,
-        protected readonly PulseMetricsAggregator $aggregator = new PulseMetricsAggregator(),
+        protected readonly PulseMetricsAggregatorService $aggregator = new PulseMetricsAggregatorService(),
     ) {
     }
 

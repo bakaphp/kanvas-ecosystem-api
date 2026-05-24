@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Intelligence\Mutations\AgentRuntime;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
@@ -103,6 +104,23 @@ class AgentDeploymentMutation
         $deployment = $this->loadDeployment((int) $request['deployment_id']);
 
         return AgentRuntimeProviderFactory::forDeployment($deployment)->collectUsage($deployment, $app, $company);
+    }
+
+    public function collectSessionTranscripts(mixed $root, array $request): int
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $deployment = $this->loadDeployment((int) $request['deployment_id']);
+
+        $since = isset($request['since']) ? Carbon::parse((string) $request['since']) : null;
+
+        return AgentRuntimeProviderFactory::forDeployment($deployment)
+            ->collectSessionTranscripts(
+                $deployment,
+                $app,
+                $company,
+                $since
+            );
     }
 
     public function setSlackTokens(mixed $root, array $request): bool

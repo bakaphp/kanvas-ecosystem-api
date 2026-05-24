@@ -6,9 +6,11 @@ namespace Kanvas\Connectors\Hermes\Providers;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Hermes\Actions\ChatWithAgentAction;
 use Kanvas\Connectors\Hermes\Actions\CheckApiHealthAction;
 use Kanvas\Connectors\Hermes\Actions\CollectDeploymentUsageAction;
+use Kanvas\Connectors\Hermes\Actions\CollectSessionTranscriptsAction;
 use Kanvas\Connectors\Hermes\Actions\DispatchAgentDeploymentAction;
 use Kanvas\Connectors\Hermes\Actions\ExecDeploymentCommandAction;
 use Kanvas\Connectors\Hermes\Actions\GetAgentContainerLogsAction;
@@ -99,9 +101,28 @@ class HermesProvider extends AbstractAgentRuntimeProvider
     }
 
     #[Override]
+    public function collectSessionTranscripts(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        ?Carbon $since = null,
+    ): int {
+        return new CollectSessionTranscriptsAction(
+            $deployment,
+            $app,
+            $company,
+            $since
+        )->execute();
+    }
+
+    #[Override]
     public function execCommand(AgentDeployment $deployment, string $command, string $sessionId): bool
     {
-        return new ExecDeploymentCommandAction($deployment, $command, $sessionId)->execute();
+        return new ExecDeploymentCommandAction(
+            $deployment,
+            $command,
+            $sessionId
+        )->execute();
     }
 
     #[Override]
@@ -213,6 +234,10 @@ class HermesProvider extends AbstractAgentRuntimeProvider
         ?string $sessionKey = null,
         array $images = [],
     ): string {
-        return new ChatWithAgentAction($agent, $message, $images)->execute();
+        return new ChatWithAgentAction(
+            $agent,
+            $message,
+            $images
+        )->execute();
     }
 }

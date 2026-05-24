@@ -19,7 +19,7 @@ use Kanvas\NervousSystem\Pulse\DataTransferObject\PulseAggregateRow;
  *   1. nervous_system_events grouped by category (counts the 5 buckets)
  *   2. nervous_system_plans aggregating prevented_issues + confidence
  */
-class PulseMetricsAggregator
+class PulseMetricsAggregatorService
 {
     public function aggregate(
         AppInterface $app,
