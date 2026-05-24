@@ -13,6 +13,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\AgentConversation;
 use Kanvas\Intelligence\Agents\Models\AgentDailyCycle;
 use Kanvas\NervousSystem\DailyLearning\Notifications\DailyLearningDigestNotification;
+use Kanvas\NervousSystem\DailyLearning\Services\CycleWindowResolverService;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
@@ -90,13 +91,9 @@ class SendDailyLearningDigestAction
      */
     private function buildAgentRows(EloquentCollection $cycles): array
     {
-        $timezone = $this->resolveTimezone();
-        // Re-parse from the YMD label so the date is anchored *in* the target
-        // tz rather than shifted into it — `setTimezone()` rotates the moment,
-        // which slides the day window backward for west-of-UTC zones.
-        $cycleLabel = $this->cycleDate->toDateString();
-        $dayStart = Carbon::parse($cycleLabel, $timezone)->startOfDay()->utc();
-        $dayEnd = Carbon::parse($cycleLabel, $timezone)->endOfDay()->utc();
+        $window = CycleWindowResolverService::resolve($this->app, $this->company, $this->cycleDate);
+        $dayStart = $window['dayStart'];
+        $dayEnd = $window['dayEnd'];
 
         $rows = [];
         foreach ($cycles as $cycle) {
@@ -154,26 +151,4 @@ class SendDailyLearningDigestAction
         ))->execute();
     }
 
-    /**
-     * Company.timezone is a real column on Companies; Apps has no timezone
-     * column so its value comes from custom_fields via ->get().
-     */
-    private function resolveTimezone(): string
-    {
-        // Cast + suppress: Companies' `@property string $timezone` docblock
-        // is optimistic — the column is nullable in DB so unset rows surface
-        // as null at runtime.
-        /** @psalm-suppress RedundantCastGivenDocblockType */
-        $companyTz = (string) $this->company->timezone;
-        if ($companyTz !== '') {
-            return $companyTz;
-        }
-
-        $appTz = $this->app->get('timezone');
-        if (is_string($appTz) && $appTz !== '') {
-            return $appTz;
-        }
-
-        return 'UTC';
-    }
 }

@@ -11,6 +11,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentConversation;
 use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
+use Kanvas\NervousSystem\DailyLearning\Services\CycleWindowResolverService;
 
 /**
  * Discovery for the scheduled daily-learning sweep — returns the agents
@@ -35,13 +36,9 @@ class EnumerateAgentsForDailyLearningAction
      */
     public function execute(): Collection
     {
-        $timezone = $this->resolveTimezone();
-        // Re-parse from the YMD label so the date is anchored *in* the target
-        // tz rather than shifted into it — `setTimezone()` rotates the moment,
-        // which slides the day window backward for west-of-UTC zones.
-        $cycleLabel = $this->cycleDate->toDateString();
-        $dayStart = Carbon::parse($cycleLabel, $timezone)->startOfDay()->utc();
-        $dayEnd = Carbon::parse($cycleLabel, $timezone)->endOfDay()->utc();
+        $window = CycleWindowResolverService::resolve($this->app, $this->company, $this->cycleDate);
+        $dayStart = $window['dayStart'];
+        $dayEnd = $window['dayEnd'];
 
         // Conversation ids in the day window: filter on the messages table
         // (it carries the timestamp); the agent_conversations.updated_at is
@@ -81,25 +78,4 @@ class EnumerateAgentsForDailyLearningAction
         return $agents;
     }
 
-    /**
-     * Company timezone → app timezone → UTC, in that order. Companies.timezone
-     * is a real DB column (nullable in practice despite the optimistic
-     * `@property string` docblock); Apps has no timezone column so its
-     * value comes from custom_fields via ->get().
-     */
-    private function resolveTimezone(): string
-    {
-        /** @psalm-suppress RedundantCastGivenDocblockType */
-        $companyTz = (string) $this->company->timezone;
-        if ($companyTz !== '') {
-            return $companyTz;
-        }
-
-        $appTz = $this->app->get('timezone');
-        if (is_string($appTz) && $appTz !== '') {
-            return $appTz;
-        }
-
-        return 'UTC';
-    }
 }
