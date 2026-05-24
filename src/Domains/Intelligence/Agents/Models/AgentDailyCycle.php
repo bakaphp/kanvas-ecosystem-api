@@ -31,6 +31,7 @@ use Override;
  * @property string|null $morning_briefing
  * @property array|null $proposed_actions
  * @property array|null $skills_emerged
+ * @property array|null $durable_facts
  * @property string $self_improvement_score
  * @property string|null $signed_by_text
  * @property bool $is_deleted
@@ -64,6 +65,7 @@ class AgentDailyCycle extends BaseModel
             'last_action_at' => 'datetime',
             'proposed_actions' => Json::class,
             'skills_emerged' => Json::class,
+            'durable_facts' => Json::class,
             'is_deleted' => 'boolean',
         ];
     }

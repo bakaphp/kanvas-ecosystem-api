@@ -15,6 +15,8 @@ use App\Console\Commands\NervousSystem\DetectStalledPlanTasksCommand;
 use App\Console\Commands\NervousSystem\ExpireCapabilitiesCommand;
 use App\Console\Commands\NervousSystem\RecordAgentDailyCyclesCommand;
 use App\Console\Commands\NervousSystem\RefreshAgentLiveCountersCommand;
+use App\Console\Commands\NervousSystem\SendDailyLearningDigestCommand;
+use App\Console\Commands\NervousSystem\SummarizeAgentDailyLearningCommand;
 use App\Console\Commands\NervousSystem\SyncModelPricingCommand;
 use App\Console\Commands\Social\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
@@ -66,6 +68,20 @@ class Kernel extends ConsoleKernel
         $schedule->command(RecordAgentDailyCyclesCommand::class)
             ->dailyAt('06:04')
             ->withoutOverlapping();
+        // 06:30 — LLM-summarize yesterday for every agent that had conversations.
+        // Runs after RecordAgentDailyCyclesCommand (06:04) so the deterministic
+        // cycle row exists; the summarize action overwrites morning_briefing in
+        // place. Fans out per-agent jobs onto the agent-runtime queue.
+        $schedule->command(SummarizeAgentDailyLearningCommand::class)
+            ->dailyAt('06:30')
+            ->withoutOverlapping()
+            ->onOneServer();
+        // 07:30 — fan out the digest email after the summarize queue has drained.
+        // Mail-only, one notification per AgentReport role member per company.
+        $schedule->command(SendDailyLearningDigestCommand::class)
+            ->dailyAt('07:30')
+            ->withoutOverlapping()
+            ->onOneServer();
         $schedule->command(RefreshAgentLiveCountersCommand::class)
             ->hourly()
             ->withoutOverlapping();

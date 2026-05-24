@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Contracts;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
+use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -115,4 +116,19 @@ interface AgentRuntimeProvider
         CompanyInterface $company,
         ?Carbon $since = null,
     ): int;
+
+    // Feeds yesterday's distilled learnings back into the agent's own memory bank so
+    // the agent literally reads them on its next prompt — the loop-closing step of the
+    // daily-learning system. Returns true if the push happened, false if the runtime
+    // doesn't support it (NOT an error — Kanvas-side persistence still completed).
+    //
+    // Hermes: appends one-line facts to ~/.hermes/memories/MEMORY.md in §-separated
+    // format, deduped against existing entries, FIFO-capped at ~80 facts.
+    // OpenClaw: not yet implemented; chunked memory store requires the openclaw memory
+    // CLI rather than markdown file write.
+    public function pushDailyLearningContext(
+        AgentDeployment $deployment,
+        DailyLearningSummary $summary,
+        Carbon $cycleDate,
+    ): bool;
 }

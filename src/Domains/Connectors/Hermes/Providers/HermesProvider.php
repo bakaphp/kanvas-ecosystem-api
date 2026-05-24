@@ -16,6 +16,7 @@ use Kanvas\Connectors\Hermes\Actions\ExecDeploymentCommandAction;
 use Kanvas\Connectors\Hermes\Actions\GetAgentContainerLogsAction;
 use Kanvas\Connectors\Hermes\Actions\GetAgentContainerStatusAction;
 use Kanvas\Connectors\Hermes\Actions\GetDeploymentConfigAction;
+use Kanvas\Connectors\Hermes\Actions\PushDailyLearningContextAction;
 use Kanvas\Connectors\Hermes\Actions\UpdateDeploymentConfigAction;
 use Kanvas\Connectors\Hermes\Jobs\BackupAgentWorkspaceJob;
 use Kanvas\Connectors\Hermes\Jobs\MigrateAgentWorkspaceJob;
@@ -25,6 +26,7 @@ use Kanvas\Connectors\Hermes\Jobs\TerminateAgentJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateHermesOnMachineJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateWorkspaceFilesJob;
 use Kanvas\Connectors\Hermes\SshClient;
+use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\AgentRuntime\Providers\AbstractAgentRuntimeProvider;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
@@ -112,6 +114,19 @@ class HermesProvider extends AbstractAgentRuntimeProvider
             $app,
             $company,
             $since
+        )->execute();
+    }
+
+    #[Override]
+    public function pushDailyLearningContext(
+        AgentDeployment $deployment,
+        DailyLearningSummary $summary,
+        Carbon $cycleDate,
+    ): bool {
+        return new PushDailyLearningContextAction(
+            $deployment,
+            $summary,
+            $cycleDate
         )->execute();
     }
 
