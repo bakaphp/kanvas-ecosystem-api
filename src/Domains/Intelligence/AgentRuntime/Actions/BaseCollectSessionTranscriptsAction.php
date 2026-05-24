@@ -27,6 +27,11 @@ abstract class BaseCollectSessionTranscriptsAction
 {
     private const int INSERT_CHUNK = 500;
 
+    // Matches the agent_conversation_messages.id column width (VARCHAR(100)
+    // after the 2026_05_24 widen). Anything longer is hashed to a 36-char
+    // sha1 prefix so we never silently overflow — see composeMessageId().
+    private const int MAX_MESSAGE_ID_LENGTH = 100;
+
     public function __construct(
         protected readonly AgentDeployment $deployment,
         protected readonly AppInterface $app,
@@ -59,7 +64,12 @@ abstract class BaseCollectSessionTranscriptsAction
         $appId = (int) $this->app->getId();
         $companyId = (int) $this->company->getId();
 
-        $conversation = AgentConversation::query()->find($transcript->sessionId);
+        $conversation = AgentConversation::query()
+            ->where('id', $transcript->sessionId)
+            ->where('apps_id', $appId)
+            ->where('companies_id', $companyId)
+            ->where('agent_id', $agent->getId())
+            ->first();
 
         $sessionMeta = array_filter([
             'source' => $transcript->source,
@@ -188,7 +198,7 @@ abstract class BaseCollectSessionTranscriptsAction
         // cast on the model, so JSON columns must be pre-encoded here. Matching the
         // KanvasConversationStore convention of empty `'[]'` for unused columns.
         return [
-            'id' => sprintf('%s:%s', $transcript->sessionId, (string) $msg->runtimeMessageId),
+            'id' => $this->composeMessageId($transcript->sessionId, (string) $msg->runtimeMessageId),
             'conversation_id' => $transcript->sessionId,
             'user_id' => null,
             'agent' => $agentTag,
@@ -215,6 +225,37 @@ abstract class BaseCollectSessionTranscriptsAction
     }
 
     /**
+     * Compose the deterministic message PK as `<sessionId>:<runtimeMessageId>`,
+     * falling back to a stable sha1 of the same input when the composite
+     * exceeds MAX_MESSAGE_ID_LENGTH. Stable because sha1 is deterministic,
+     * so re-ingesting the same source still produces the same key — which
+     * is the property `insertOrIgnore` relies on for idempotency.
+     *
+     * Hashing only kicks in if a runtime ever emits a runtimeMessageId
+     * pathologically long enough to overflow the widened 100-char column.
+     * Today's runtimes (Hermes ints, OpenClaw short strings) stay under
+     * 50 chars composite, well below the bound.
+     */
+    private function composeMessageId(string $sessionId, string $runtimeMessageId): string
+    {
+        $composite = $sessionId . ':' . $runtimeMessageId;
+        if (strlen($composite) <= self::MAX_MESSAGE_ID_LENGTH) {
+            return $composite;
+        }
+
+        // Prefix the readable session id so debugging by `LIKE 'sess:%'`
+        // still works; suffix the deterministic hash of the runtime id.
+        $hashLength = self::MAX_MESSAGE_ID_LENGTH - strlen($sessionId) - 1;
+        if ($hashLength < 8) {
+            // sessionId itself is at/near the cap — drop the prefix and
+            // return a pure sha1 of the whole composite (capped to width).
+            return substr(sha1($composite), 0, self::MAX_MESSAGE_ID_LENGTH);
+        }
+
+        return $sessionId . ':' . substr(sha1($runtimeMessageId), 0, $hashLength);
+    }
+
+    /**
      * Hermes uses int sqlite ids; future runtimes might use string ULIDs.
      * Integer pair → numeric max; anything else → lexicographic.
      */
@@ -226,6 +267,7 @@ abstract class BaseCollectSessionTranscriptsAction
         if (is_int($current) && is_int($candidate)) {
             return max($current, $candidate);
         }
+
         return ((string) $candidate) > ((string) $current) ? $candidate : $current;
     }
 

@@ -91,6 +91,60 @@ class DailyLearningPromptBuilderServiceTest extends TestCase
         );
     }
 
+    public function testHonorsEagerLoadedDayWindowAndDoesNotReQueryAllMessages(): void
+    {
+        // Regression — the builder used to call $conversation->messages()
+        // (the relation method) which re-queried ALL messages, discarding
+        // the day-window eager-load constraint applied by the summarize
+        // action. Long-running sessions then leaked older messages into
+        // "yesterday's" summary.
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['name' => 'felix-sales']);
+
+        $conversation = AgentConversation::query()->create([
+            'id' => 'conv-window-' . uniqid('', true),
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'agent_id' => $agent->getId(),
+            'title' => 'long-running thread',
+            'meta' => ['source' => 'slack'],
+        ]);
+
+        // Three messages: two from "yesterday" (in-window), one from a
+        // week ago (out-of-window).
+        $this->makeMessage($conversation->id, $user->getId(), 'user', 'older context — must be excluded', Carbon::parse('2026-05-15 10:00:00'));
+        $this->makeMessage($conversation->id, $user->getId(), 'user', 'yesterday-user-msg', Carbon::parse('2026-05-22 10:00:00'));
+        $this->makeMessage($conversation->id, null, 'assistant', 'yesterday-assistant-msg', Carbon::parse('2026-05-22 10:01:00'));
+
+        // Load with the same day-window constraint the summarize action uses.
+        $dayStart = Carbon::parse('2026-05-22 00:00:00', 'UTC');
+        $dayEnd = Carbon::parse('2026-05-22 23:59:59', 'UTC');
+
+        /** @var Collection<int, AgentConversation> $conversations */
+        $conversations = AgentConversation::query()
+            ->where('id', $conversation->id)
+            ->with(['messages' => fn ($q) => $q->whereBetween('created_at', [$dayStart, $dayEnd])])
+            ->get();
+
+        $prompt = new DailyLearningPromptBuilderService()->build(
+            $agent,
+            '2026-05-22',
+            $conversations,
+        );
+
+        // Both in-window messages present
+        $this->assertStringContainsString('yesterday-user-msg', $prompt);
+        $this->assertStringContainsString('yesterday-assistant-msg', $prompt);
+        // Older message MUST NOT leak in
+        $this->assertStringNotContainsString('older context — must be excluded', $prompt);
+    }
+
     public function testInjectsExistingMemoryFactsForLlmSideDedup(): void
     {
         $app = app(Apps::class);

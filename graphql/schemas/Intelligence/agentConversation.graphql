@@ -6,7 +6,10 @@ type AgentConversation {
     title: String!
     "Free-form runtime-specific session metadata. For Hermes: model, system_prompt, source, parent_session_id, costs, handoff_state, watermark."
     meta: Mixed
-    messages: [AgentConversationMessage!]!
+    messages(
+        where: _ @whereConditions(columns: ["role", "agent", "created_at"])
+        orderBy: _ @orderBy(columns: ["created_at", "id"])
+    ): [AgentConversationMessage!]!
         @paginate(
             model: "Kanvas\\Intelligence\\Agents\\Models\\AgentConversationMessage"
             relation: "messages"
@@ -55,18 +58,5 @@ extend type Query @guard {
             model: "Kanvas\\Intelligence\\Agents\\Models\\AgentConversation"
             defaultCount: 25
             scopes: ["fromApp", "fromCompany"]
-        )
-
-    agentConversation(id: ID! @eq): AgentConversation
-        @find(model: "Kanvas\\Intelligence\\Agents\\Models\\AgentConversation")
-
-    agentConversationMessages(
-        conversation_id: ID! @eq
-        where: _ @whereConditions(columns: ["role", "agent", "created_at"])
-        orderBy: _ @orderBy(columns: ["created_at", "id"])
-    ): [AgentConversationMessage!]!
-        @paginate(
-            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentConversationMessage"
-            defaultCount: 100
         )
 }

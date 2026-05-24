@@ -8,6 +8,7 @@ use Illuminate\Support\Collection;
 use Kanvas\Connectors\Hermes\Services\HermesMemoryBlockBuilderService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentConversation;
+use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
 
 /**
  * Converts a day's worth of an agent's conversations into a single LLM prompt.
@@ -144,7 +145,16 @@ PROMPT;
         $lines = [];
         $lines[] = sprintf('[Conversation: %s — %s]', $title === '' ? '(untitled)' : $title, $source);
 
-        foreach ($conversation->messages()->orderBy('created_at')->orderBy('id')->cursor() as $message) {
+        // Walk the eager-loaded relation, NOT a fresh `messages()` query
+        // builder — the caller (SummarizeAgentDailyLearningAction) eager-loads
+        // with a day-window `whereBetween('created_at', [...])` constraint;
+        // re-opening the relation here would discard the window and leak
+        // older messages into yesterday's summary.
+        $messages = $conversation->messages
+            ->sortBy(fn (AgentConversationMessage $m): array => [$m->created_at->getTimestamp(), $m->id])
+            ->values();
+
+        foreach ($messages as $message) {
             $rendered = $this->renderMessage($message);
             if ($rendered !== null) {
                 $lines[] = $rendered;
