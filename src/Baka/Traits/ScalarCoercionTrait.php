@@ -21,6 +21,7 @@ trait ScalarCoercionTrait
             return null;
         }
         $coerced = is_string($value) ? $value : (string) $value;
+
         return $coerced === '' ? null : $coerced;
     }
 
@@ -44,6 +45,7 @@ trait ScalarCoercionTrait
             return null;
         }
         $epoch = (float) $value;
+
         return Carbon::createFromTimestampMs((int) round($epoch * 1000.0));
     }
 
@@ -56,6 +58,7 @@ trait ScalarCoercionTrait
         if (! is_string($value) || $value === '') {
             return null;
         }
+
         try {
             return Carbon::parse($value);
         } catch (\Throwable) {
@@ -77,8 +80,8 @@ trait ScalarCoercionTrait
         if (! is_string($value)) {
             return is_array($value) ? array_values($value) : null;
         }
+
         try {
-            /** @var mixed $decoded */
             $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
             return null;
@@ -86,6 +89,7 @@ trait ScalarCoercionTrait
         if (! is_array($decoded) || $decoded === []) {
             return null;
         }
+
         return array_values($decoded);
     }
 
@@ -103,12 +107,13 @@ trait ScalarCoercionTrait
         if (! is_string($value)) {
             return is_array($value) ? $value : null;
         }
+
         try {
-            /** @var mixed $decoded */
             $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
             return null;
         }
+
         return is_array($decoded) && $decoded !== [] ? $decoded : null;
     }
 }
