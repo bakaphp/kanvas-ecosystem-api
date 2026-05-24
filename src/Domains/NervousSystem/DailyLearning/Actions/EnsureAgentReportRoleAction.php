@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\DailyLearning\Actions;
 
-use Kanvas\AccessControlList\Actions\CreateRoleAction;
+use Bouncer;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
 use Silber\Bouncer\Database\Role as SilberRole;
 
 /**
- * Bootstrap the AgentReport Bouncer role on a given app. Idempotent at this
- * layer — `CreateRoleAction` itself validator-rejects on a duplicate name
- * before its inner `firstOrCreate` ever runs, so we look up first and only
- * call create when the row is genuinely missing.
+ * Bootstrap the AgentReport Bouncer role on a given app. Truly idempotent —
+ * `firstOrCreate` keyed on (name, scope). Bypasses `CreateRoleAction`
+ * because that action's validator throws on duplicate name before its
+ * inner firstOrCreate ever runs, defeating the idempotency this command
+ * needs for safe re-runs on every deploy.
  *
  * Run before any user gets `$user->assign('AgentReport')`. Console command
  * `kanvas:nervous-system:ensure-agent-report-role` wraps this.
@@ -27,21 +28,14 @@ class EnsureAgentReportRoleAction
 
     public function execute(): SilberRole
     {
-        $scope = RolesEnums::getScope($this->app);
+        Bouncer::useRoleModel(Role::class);
 
-        $existing = Role::query()
-            ->where('name', RolesEnums::AGENT_REPORT->value)
-            ->where('scope', $scope)
-            ->first();
-
-        if ($existing !== null) {
-            return $existing;
-        }
-
-        return new CreateRoleAction(
-            name: RolesEnums::AGENT_REPORT->value,
-            title: 'Agent Report Recipient',
-            app: $this->app,
-        )->execute();
+        return Bouncer::role()->firstOrCreate(
+            [
+                'name' => RolesEnums::AGENT_REPORT->value,
+                'scope' => RolesEnums::getScope($this->app),
+            ],
+            ['title' => 'Agent Report Recipient'],
+        );
     }
 }
