@@ -36,10 +36,34 @@ class DailyLearningPromptBuilderServiceTest extends TestCase
         ]);
 
         $now = Carbon::now();
-        $this->makeMessage($conversation->id, $user->getId(), 'user', 'Hey, what is the EVT status?', $now);
-        $this->makeMessage($conversation->id, null, 'assistant', '', $now->copy()->addSecond());  // tool-call dispatch
-        $this->makeMessage($conversation->id, null, 'tool_result', 'raw schedule master rows', $now->copy()->addSeconds(2));
-        $this->makeMessage($conversation->id, null, 'assistant', 'EVT validation is on track for Friday.', $now->copy()->addSeconds(3));
+        $this->makeMessage(
+            $conversation->id,
+            $user->getId(),
+            'user',
+            'Hey, what is the EVT status?',
+            $now
+        );
+        $this->makeMessage(
+            $conversation->id,
+            null,
+            'assistant',
+            '',
+            $now->copy()->addSecond()
+        );  // tool-call dispatch
+        $this->makeMessage(
+            $conversation->id,
+            null,
+            'tool_result',
+            'raw schedule master rows',
+            $now->copy()->addSeconds(2)
+        );
+        $this->makeMessage(
+            $conversation->id,
+            null,
+            'assistant',
+            'EVT validation is on track for Friday.',
+            $now->copy()->addSeconds(3)
+        );
 
         /** @var Collection<int, AgentConversation> $conversations */
         $conversations = AgentConversation::query()
@@ -60,7 +84,9 @@ class DailyLearningPromptBuilderServiceTest extends TestCase
 
         // Tool-result and empty-content assistant rows must be filtered out
         $this->assertStringNotContainsString('raw schedule master rows', $prompt);
-        $this->assertStringNotContainsString('ASSISTANT (', substr($prompt, strpos($prompt, 'EVT validation is on track for Friday.') + 1) ?: 'sentinel',
+        $this->assertStringNotContainsString(
+            'ASSISTANT (',
+            substr($prompt, strpos($prompt, 'EVT validation is on track for Friday.') + 1) ?: 'sentinel',
             'expected exactly one ASSISTANT line — the empty-content tool dispatch should be stripped',
         );
     }

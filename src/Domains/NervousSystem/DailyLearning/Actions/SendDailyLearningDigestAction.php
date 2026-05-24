@@ -7,8 +7,8 @@ namespace Kanvas\NervousSystem\DailyLearning\Actions;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\AgentConversation;
 use Kanvas\Intelligence\Agents\Models\AgentDailyCycle;
@@ -62,6 +62,7 @@ class SendDailyLearningDigestAction
                 'company_id' => $this->company->getId(),
                 'cycle_date' => $cycleDateLabel,
             ]);
+
             return 0;
         }
 
