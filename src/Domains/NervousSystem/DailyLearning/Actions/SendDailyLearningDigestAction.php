@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\AgentConversation;
 use Kanvas\Intelligence\Agents\Models\AgentDailyCycle;
@@ -17,6 +18,7 @@ use Kanvas\NervousSystem\DailyLearning\Services\CycleWindowResolverService;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\Users\Repositories\UsersRepository;
 
 /**
  * Per-company digest fan-out: collects yesterday's AgentDailyCycle rows
@@ -56,7 +58,19 @@ class SendDailyLearningDigestAction
 
         $agents = $this->buildAgentRows($cycles);
 
-        $recipients = new EnumerateAgentReportRecipientsAction($this->app, $this->company)->execute();
+        // Recipients = users with the `AgentReport` Bouncer role in this
+        // (app, company). The repository helper joins users_associated_apps
+        // + assigned_roles directly — same shape as AddAdminsToCompanyAction
+        // uses for owner discovery. Tack on the deliverable-email filters.
+        $recipients = UsersRepository::getCompanyAppUserByRole(
+            $this->company,
+            $this->app,
+            RolesEnums::AGENT_REPORT->value,
+        )
+            ->where('users.is_deleted', 0)
+            ->whereNotNull('users.email')
+            ->where('users.email', '!=', '')
+            ->get();
 
         if ($recipients->isEmpty()) {
             Log::info('Daily learning digest: no recipients for company; skipping send', [
