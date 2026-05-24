@@ -35,10 +35,11 @@ final class DailyLearningPromptBuilderService
 
     private function instructions(Agent $agent, string $cycleDateLabel): string
     {
-        // Agent.name is docblocked as non-null but real data sometimes has it
-        // empty — handle both with a `?:` fallback. getId() returns mixed per
-        // the trait, hence the explicit (int) cast for concatenation.
-        $agentName = $agent->name !== '' ? $agent->name : ('agent #' . (int) $agent->getId());
+        // Agent.name is docblocked as non-null but real data sometimes has
+        // it empty *or* null — cast first so both fall through to the id
+        // fallback. getId() returns mixed per the trait, hence the (int) cast.
+        $rawName = (string) ($agent->name ?? '');
+        $agentName = $rawName !== '' ? $rawName : ('agent #' . (int) $agent->getId());
 
         return <<<PROMPT
 You are analyzing a day's worth of conversations for an autonomous agent named "{$agentName}". The conversations are from {$cycleDateLabel} in the agent's company timezone.

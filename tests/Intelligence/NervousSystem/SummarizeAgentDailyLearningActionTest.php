@@ -162,6 +162,89 @@ class SummarizeAgentDailyLearningActionTest extends TestCase
         );
     }
 
+    public function testCompanyTimezoneAnchorsTheDayWindow(): void
+    {
+        // Regression — felix-sales smoke caught it. Carbon::parse(YMD) is
+        // UTC by default; setTimezone() then shifts the moment instead of
+        // reinterpreting the day, sliding the window backward 4h for ET.
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $originalTimezone = $company->timezone;
+        $company->timezone = 'America/New_York';
+        // No ->save() — the action reads $this->company->timezone from the
+        // model instance, so in-memory mutation is enough. Persisting would
+        // leak the change to subsequent tests outside any transaction.
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['name' => 'felix-sales']);
+
+        // A message stamped 04:30 UTC on May 18 → 00:30 EDT on May 18.
+        // Belongs to the May 18 NY day; must NOT bleed into May 17.
+        $conversation = AgentConversation::query()->create([
+            'id' => 'conv-tz-' . uniqid('', true),
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'agent_id' => $agent->getId(),
+            'title' => 'tz-boundary check',
+            'meta' => ['source' => 'slack'],
+        ]);
+        AgentConversationMessage::query()->create([
+            'id' => 'msg-tz-' . uniqid('', true),
+            'conversation_id' => $conversation->id,
+            'user_id' => $user->getId(),
+            'agent' => 'TestAgent',
+            'role' => 'user',
+            'content' => 'Boundary message at 00:30 EDT (04:30 UTC).',
+            'attachments' => [], 'tool_calls' => [], 'tool_results' => [],
+            'usage' => [], 'meta' => [],
+            'created_at' => Carbon::parse('2026-05-18 04:30:00', 'UTC'),
+            'updated_at' => Carbon::parse('2026-05-18 04:30:00', 'UTC'),
+        ]);
+
+        StructuredAnonymousAgent::fake([[
+            'briefing' => 'Captured the boundary message.',
+            'proposed_actions' => [],
+            'durable_facts' => [],
+            'skills_emerged' => [],
+            'self_improvement_score' => 0.0,
+        ]]);
+
+        $summary = new SummarizeAgentDailyLearningAction(
+            agent: $agent,
+            app: $app,
+            company: $company,
+            cycleDate: Carbon::parse('2026-05-18'),
+            dryRun: true,
+        )->execute();
+
+        $this->assertNotNull($summary, 'Boundary message in NY day window must be picked up');
+
+        // And the previous NY day must NOT find it.
+        StructuredAnonymousAgent::fake([[
+            'briefing' => 'should-not-be-reached',
+            'proposed_actions' => [],
+            'durable_facts' => [],
+            'skills_emerged' => [],
+            'self_improvement_score' => 0.0,
+        ]]);
+        $shouldBeNull = new SummarizeAgentDailyLearningAction(
+            agent: $agent,
+            app: $app,
+            company: $company,
+            cycleDate: Carbon::parse('2026-05-17'),
+            dryRun: true,
+        )->execute();
+
+        $this->assertNull($shouldBeNull, 'NY May 17 must not contain the May 18 00:30 EDT message');
+
+        // Belt-and-suspenders: restore the in-memory timezone in case the
+        // test runner keeps the company instance live for the next test.
+        $company->timezone = $originalTimezone;
+    }
+
     public function testIdempotentOnReRunSameDay(): void
     {
         $app = app(Apps::class);
@@ -235,8 +318,12 @@ class SummarizeAgentDailyLearningActionTest extends TestCase
         int $userId,
         Carbon $cycleDate,
     ): void {
-        $companyTz = $company->get('timezone') ?: ($app->get('timezone') ?: 'UTC');
-        $messageAt = $cycleDate->copy()->setTimezone($companyTz)->setTime(12, 0, 0)->utc();
+        $companyTz = ((string) $company->timezone) !== ''
+            ? (string) $company->timezone
+            : ((is_string($app->get('timezone')) && $app->get('timezone') !== '') ? $app->get('timezone') : 'UTC');
+        // Anchor the moment IN the tz (parse the label there), don't shift
+        // into it — same fix shape as the production action.
+        $messageAt = Carbon::parse($cycleDate->toDateString(), $companyTz)->setTime(12, 0, 0)->utc();
 
         $conversation = AgentConversation::query()->create([
             'id' => 'conv-' . uniqid('', true),

@@ -158,7 +158,10 @@ class SummarizeAgentDailyLearningAction
                 'self_improvement_score' => $summary->self_improvement_score,
                 'signed_by_text' => sprintf(
                     '— %s, signing in',
-                    $this->agent->name !== '' ? $this->agent->name : ('agent-' . (int) $this->agent->getId()),
+                    /** @psalm-suppress RedundantCastGivenDocblockType, DocblockTypeContradiction */
+                    ((string) ($this->agent->name ?? '')) !== ''
+                        ? $this->agent->name
+                        : ('agent-' . (int) $this->agent->getId()),
                 ),
             ],
         );
