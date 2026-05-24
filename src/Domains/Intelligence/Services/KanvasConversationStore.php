@@ -16,9 +16,11 @@ use Laravel\Ai\Prompts\AgentPrompt;
 use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\Data\ToolCall;
 use Laravel\Ai\Responses\Data\ToolResult;
+use Override;
 
 class KanvasConversationStore implements ConversationStore
 {
+    #[Override]
     public function latestConversationId(string|int $userId): ?string
     {
         [$appsId, $companiesId] = $this->tenantIds();
@@ -31,6 +33,7 @@ class KanvasConversationStore implements ConversationStore
             ->first()?->id;
     }
 
+    #[Override]
     public function storeConversation(string|int|null $userId, string $title): string
     {
         [$appsId, $companiesId] = $this->tenantIds();
@@ -50,8 +53,12 @@ class KanvasConversationStore implements ConversationStore
         return $conversationId;
     }
 
-    public function storeUserMessage(string $conversationId, string|int|null $userId, AgentPrompt $prompt): string
-    {
+    #[Override]
+    public function storeUserMessage(
+        string $conversationId,
+        string|int|null $userId,
+        AgentPrompt $prompt
+    ): string {
         $messageId = (string) Str::uuid7();
 
         DB::connection('intelligence')->table('agent_conversation_messages')->insert([
@@ -73,8 +80,13 @@ class KanvasConversationStore implements ConversationStore
         return $messageId;
     }
 
-    public function storeAssistantMessage(string $conversationId, string|int|null $userId, AgentPrompt $prompt, AgentResponse $response): string
-    {
+    #[Override]
+    public function storeAssistantMessage(
+        string $conversationId,
+        string|int|null $userId,
+        AgentPrompt $prompt,
+        AgentResponse $response
+    ): string {
         $messageId = (string) Str::uuid7();
 
         DB::connection('intelligence')->table('agent_conversation_messages')->insert([
@@ -97,8 +109,9 @@ class KanvasConversationStore implements ConversationStore
     }
 
     /**
-     * @return Collection<int, Message>
+     * @return Collection<int<0, max>, Message>
      */
+    #[Override]
     public function getLatestConversationMessages(string $conversationId, int $limit): Collection
     {
         return DB::connection('intelligence')->table('agent_conversation_messages')
