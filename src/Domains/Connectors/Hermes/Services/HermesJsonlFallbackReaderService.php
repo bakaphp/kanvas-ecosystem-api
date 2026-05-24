@@ -288,6 +288,7 @@ final class HermesJsonlFallbackReaderService implements SessionTranscriptReader
                 $joined .= $block;
             }
         }
+
         return $joined;
     }
 

@@ -12,7 +12,6 @@ use Kanvas\Intelligence\AgentRuntime\DataTransferObject\ParsedMessage;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\ParsedSessionTranscript;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentConversation;
-use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Override;
 use Tests\TestCase;

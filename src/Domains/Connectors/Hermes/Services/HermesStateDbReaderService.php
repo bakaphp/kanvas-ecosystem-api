@@ -95,6 +95,7 @@ SQL;
         foreach ($rows as $row) {
             $byKey[(string) $row['id']] = $row;
         }
+
         return $byKey;
     }
 
@@ -120,6 +121,7 @@ SQL;
         foreach ($rows as $row) {
             $byKey[(string) $row['session_id']][] = $row;
         }
+
         return $byKey;
     }
 
