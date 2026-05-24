@@ -77,5 +77,4 @@ class EnumerateAgentsForDailyLearningAction
 
         return $agents;
     }
-
 }
