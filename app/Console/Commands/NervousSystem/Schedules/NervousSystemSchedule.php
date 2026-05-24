@@ -18,22 +18,6 @@ use Illuminate\Console\Scheduling\Schedule;
 use Kanvas\NervousSystem\Dashboard\Jobs\RollupDailyDashboardMetricsJob;
 use Kanvas\NervousSystem\Pulse\Jobs\RollupDailyPulseMetricsJob;
 
-/**
- * All scheduled work that belongs to the Nervous System domain — agent
- * lifecycle (record/refresh/health), ledger maintenance, pulse + dashboard
- * rollups, plan + capability sweeps, and the daily-learning loop.
- *
- * Co-located with the commands it schedules under `NervousSystem/Schedules/`
- * so the whole domain's console surface lives in one folder. Safe to sit
- * inside the auto-loaded `Commands/` tree because `Kernel::load()` only
- * registers classes extending `Illuminate\Console\Command`; this plain
- * class is skipped.
- *
- * `CollectAgentSessionTranscriptsCommand` lives in the `Intelligence/`
- * commands namespace but is scheduled here — it ingests Hermes transcripts
- * that feed the daily-learning pipeline, so its cadence belongs with the
- * downstream consumers.
- */
 final class NervousSystemSchedule
 {
     /**
