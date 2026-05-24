@@ -36,6 +36,36 @@ use Kanvas\NervousSystem\Pulse\Jobs\RollupDailyPulseMetricsJob;
  */
 final class NervousSystemSchedule
 {
+    /**
+     * Timing map at a glance (UTC, all `withoutOverlapping()` so a slow run
+     * skips the next slot rather than stacking):
+     *
+     * ── Sub-hourly ─────────────────────────────────────────────────────
+     *   every 5m   DetectStalledPlanTasks    (idempotent ledger sweep)
+     *   every 10m  CheckAgentRuntimeHealth   (per-deployment SSH ping)
+     *
+     * ── Hourly, staggered to avoid :00 thundering herd ────────────────
+     *   :00     ExpireCapabilities           (cheap UPDATE sweep)
+     *   :05     RefreshAgentLiveCounters     (full-fleet DB scan)
+     *   :10     CollectAgentSessionTranscripts (SSH ingest, runs in bg)
+     *
+     * ── Daily ─────────────────────────────────────────────────────────
+     *   00:30   RollupDailyDashboardMetrics
+     *   00:35   RollupDailyPulseMetrics      (+5min after dashboard)
+     *   02:00   ArchiveOldLedgerEvents
+     *   02:30   SyncModelPricing
+     *   06:04   RecordAgentDailyCycles       ← daily-learning pipeline
+     *   06:30   SummarizeAgentDailyLearning  ← 26min buffer for record
+     *   07:30   SendDailyLearningDigest      ← 60min buffer for queue
+     *
+     * Daily-learning pipeline buffers depend on:
+     *  - RecordAgentDailyCycles finishing in <26min for all active agents
+     *    (deterministic ledger rollup, scales with agents × yesterday's
+     *    event volume; well within budget today).
+     *  - The agent-runtime queue draining within 60min after 06:30. The
+     *    queue has multi-replica workers in dev + prod compose; budget
+     *    holds at ~100 agents × 30s LLM round-trip = ~50min serial-worst.
+     */
     public static function register(Schedule $schedule): void
     {
         // Ledger maintenance — keep the events table from unbounded growth.
@@ -43,7 +73,9 @@ final class NervousSystemSchedule
             ->dailyAt('02:00')
             ->withoutOverlapping();
 
-        // Plan + capability lifecycle.
+        // Plan + capability lifecycle. ExpireCapabilities stays at :00 —
+        // it's a cheap UPDATE that's unlikely to contend with the every-5/10
+        // min checks that also fire there.
         $schedule->command(DetectStalledPlanTasksCommand::class)
             ->everyFiveMinutes()
             ->withoutOverlapping();
@@ -51,8 +83,8 @@ final class NervousSystemSchedule
             ->hourly()
             ->withoutOverlapping();
 
-        // Rollups run early — feed the dashboard + pulse cards before
-        // operators log in. Staggered by 5min so they don't slam the DB.
+        // Daily rollups feed dashboard + pulse cards before operators log in.
+        // Staggered by 5min so they don't slam the DB simultaneously.
         $schedule->job(new RollupDailyDashboardMetricsJob())
             ->dailyAt('00:30')
             ->withoutOverlapping();
@@ -60,42 +92,40 @@ final class NervousSystemSchedule
             ->dailyAt('00:35')
             ->withoutOverlapping();
 
-        // Daily-cycle pipeline (run order matters — each depends on the prior).
-        // 06:04 — deterministic cycle row from yesterday's ledger.
+        // Daily-learning pipeline — strict order, see timing map above.
         $schedule->command(RecordAgentDailyCyclesCommand::class)
             ->dailyAt('06:04')
             ->withoutOverlapping();
-        // 06:30 — LLM-summarize yesterday's conversations and overwrite the
-        // briefing/proposed_actions/durable_facts on the cycle row.
         $schedule->command(SummarizeAgentDailyLearningCommand::class)
             ->dailyAt('06:30')
             ->withoutOverlapping()
             ->onOneServer();
-        // 07:30 — fan out the per-company digest email after the summarize
-        // queue has drained.
         $schedule->command(SendDailyLearningDigestCommand::class)
             ->dailyAt('07:30')
             ->withoutOverlapping()
             ->onOneServer();
 
-        // Agent runtime monitoring.
+        // Agent runtime monitoring. RefreshAgentLiveCounters does a full-fleet
+        // DB scan — kept off :00 to dodge the every-5/every-10/hourly cluster.
         $schedule->command(RefreshAgentLiveCountersCommand::class)
-            ->hourly()
+            ->hourlyAt(5)
             ->withoutOverlapping();
         $schedule->command(CheckAgentRuntimeHealthCommand::class)
             ->everyTenMinutes()
             ->withoutOverlapping();
 
-        // Hermes transcript ingestion (Intelligence-namespaced, but its
-        // output is the input for the 06:30 summarize step above).
+        // Hermes transcript ingestion — Intelligence-namespaced, but feeds
+        // the 06:30 summarize step. Staggered to :10 because SSH-ingest is
+        // the heaviest hourly job; `runInBackground` so the scheduler doesn't
+        // block on the actual ingest dispatch.
         $schedule->command(CollectAgentSessionTranscriptsCommand::class)
-            ->hourly()
+            ->hourlyAt(10)
             ->withoutOverlapping()
             ->onOneServer()
             ->runInBackground();
 
-        // Model pricing sync — daily, before the rollups would surface any
-        // pricing-derived cost numbers.
+        // Model pricing sync — daily, before any rollup that derives cost
+        // figures from current pricing.
         $schedule->command(SyncModelPricingCommand::class)
             ->dailyAt('02:30')
             ->withoutOverlapping()
