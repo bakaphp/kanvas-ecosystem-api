@@ -131,4 +131,12 @@ interface AgentRuntimeProvider
         DailyLearningSummary $summary,
         Carbon $cycleDate,
     ): bool;
+
+    // Read the agent's current durable-memory text so the summarize prompt
+    // can tell the LLM "don't re-emit facts already in here". Returning the
+    // raw file contents — the prompt builder owns the parsing/formatting.
+    // Empty string is the documented "I have nothing to share" answer for
+    // runtimes that don't support memory inspection (the contract default)
+    // or for agents that haven't been written to yet.
+    public function fetchDailyLearningContext(AgentDeployment $deployment): string;
 }

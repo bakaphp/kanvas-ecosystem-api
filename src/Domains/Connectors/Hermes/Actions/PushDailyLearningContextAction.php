@@ -16,7 +16,12 @@ use Throwable;
 /**
  * Closes the daily-learning loop on the Hermes side: appends the LLM-distilled
  * durable_facts to the agent's MEMORY.md so it lands in the agent's next prompt.
- * Read → dedup-and-append via HermesMemoryBlockBuilderService → write back.
+ * Read → dedup-and-append via HermesMemoryBlockBuilderService → backup → write.
+ *
+ * Every modification writes a timestamped backup (`MEMORY.md.bak-{UTC ISO}`)
+ * alongside the original BEFORE overwriting, so any corruption / regression
+ * from the LLM output is recoverable without restoring from a container
+ * snapshot. Backups are tiny text files; we never garbage-collect them in v1.
  *
  * Returns false (not throws) on any failure — Kanvas-side persistence has
  * already happened; the memory push is best-effort feedback.
@@ -62,6 +67,14 @@ class PushDailyLearningContextAction
                 return false;
             }
 
+            // Backup before overwrite — only when MEMORY.md exists already.
+            // First push (no existing memory) needs no backup.
+            $backupPath = null;
+            if ($existing !== '') {
+                $backupPath = $this->resolveBackupPath($path);
+                $ssh->writeFileAsUser($backupPath, $existing, $this->deployment->system_user);
+            }
+
             $ssh->writeFileAsUser($path, $built['content'], $this->deployment->system_user);
 
             Log::info('Hermes daily-learning push: appended facts to MEMORY.md', [
@@ -69,6 +82,7 @@ class PushDailyLearningContextAction
                 'cycle_date' => $this->cycleDate->toDateString(),
                 'added' => $built['added'],
                 'evicted' => $built['evicted'],
+                'backup_path' => $backupPath,
             ]);
 
             return true;
@@ -91,6 +105,17 @@ class PushDailyLearningContextAction
             : '/home/' . $this->deployment->system_user;
 
         return rtrim($home, '/') . '/.hermes/memories/MEMORY.md';
+    }
+
+    /**
+     * Backup sibling next to MEMORY.md, suffixed with the UTC instant the
+     * write happens. Compact ISO ("20260524T215030Z") so the directory sorts
+     * chronologically and a `ls -1` is human-readable. We don't rotate v1 —
+     * backups are KB-scale text and an operator can rm old ones if needed.
+     */
+    private function resolveBackupPath(string $memoryPath): string
+    {
+        return $memoryPath . '.bak-' . now('UTC')->format('Ymd\THis\Z');
     }
 
     /**

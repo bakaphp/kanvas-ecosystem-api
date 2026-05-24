@@ -182,6 +182,15 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
         return false;
     }
 
+    // Empty string is the contract default — runtimes that don't expose their
+    // memory bank for inspection (OpenClaw v1) still satisfy the contract;
+    // the LLM-dedup prompt just won't have prior facts to skip.
+    #[Override]
+    public function fetchDailyLearningContext(AgentDeployment $deployment): string
+    {
+        return '';
+    }
+
     protected function unsupported(string $operation): LogicException
     {
         return new LogicException(

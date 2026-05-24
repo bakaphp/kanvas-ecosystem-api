@@ -13,6 +13,7 @@ use Kanvas\Connectors\Hermes\Actions\CollectDeploymentUsageAction;
 use Kanvas\Connectors\Hermes\Actions\CollectSessionTranscriptsAction;
 use Kanvas\Connectors\Hermes\Actions\DispatchAgentDeploymentAction;
 use Kanvas\Connectors\Hermes\Actions\ExecDeploymentCommandAction;
+use Kanvas\Connectors\Hermes\Actions\FetchDailyLearningContextAction;
 use Kanvas\Connectors\Hermes\Actions\GetAgentContainerLogsAction;
 use Kanvas\Connectors\Hermes\Actions\GetAgentContainerStatusAction;
 use Kanvas\Connectors\Hermes\Actions\GetDeploymentConfigAction;
@@ -128,6 +129,12 @@ class HermesProvider extends AbstractAgentRuntimeProvider
             $summary,
             $cycleDate
         )->execute();
+    }
+
+    #[Override]
+    public function fetchDailyLearningContext(AgentDeployment $deployment): string
+    {
+        return new FetchDailyLearningContextAction($deployment)->execute();
     }
 
     #[Override]

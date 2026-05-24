@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Hermes\Services\HermesMemoryBlockBuilderService;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -57,10 +58,16 @@ class SummarizeAgentDailyLearningAction
             return null;
         }
 
+        // Fetch the agent's current memory bank BEFORE the LLM call so the
+        // prompt can ask the model to skip facts already known. Done even on
+        // dryRun — dry-run is meant to mirror the real path, not short-cut it.
+        $existingMemory = $this->fetchExistingMemory();
+
         $prompt = new DailyLearningPromptBuilderService()->build(
             $this->agent,
             $this->cycleDate->toDateString(),
             $conversations,
+            $existingMemory,
         );
 
         $summary = $this->callLlm($prompt);
@@ -76,9 +83,36 @@ class SummarizeAgentDailyLearningAction
             $pushed = $this->pushToRuntime($summary);
         }
 
-        $this->emitLedger($summary, $conversations->count(), $pushed);
+        $existingFactCount = count(HermesMemoryBlockBuilderService::parseFacts($existingMemory));
+        $this->emitLedger($summary, $conversations->count(), $pushed, $existingFactCount);
 
         return $summary;
+    }
+
+    /**
+     * Best-effort fetch of the agent's current durable memory. Empty string
+     * when no deployment exists, the runtime doesn't expose memory, or the
+     * fetch fails — the prompt builder's existingMemoryBlock degrades to ''
+     * cleanly in that case (no dedup rules injected).
+     */
+    private function fetchExistingMemory(): string
+    {
+        $deployment = $this->resolveActiveDeployment();
+        if (! $deployment instanceof AgentDeployment) {
+            return '';
+        }
+
+        try {
+            return AgentRuntimeProviderFactory::forDeployment($deployment)
+                ->fetchDailyLearningContext($deployment);
+        } catch (Throwable $e) {
+            Log::warning('Daily learning fetch from runtime failed; LLM will run without prior-memory context', [
+                'agent_id' => $this->agent->getId(),
+                'deployment_id' => $deployment->getId(),
+                'error' => $e->getMessage(),
+            ]);
+            return '';
+        }
     }
 
     /**
@@ -194,8 +228,12 @@ class SummarizeAgentDailyLearningAction
         return $this->agent->activeDeployment;
     }
 
-    private function emitLedger(DailyLearningSummary $summary, int $conversationCount, bool $pushed): void
-    {
+    private function emitLedger(
+        DailyLearningSummary $summary,
+        int $conversationCount,
+        bool $pushed,
+        int $existingFactCount,
+    ): void {
         new AppendEventAction(new EventData(
             app: $this->app,
             company: $this->company,
@@ -208,6 +246,7 @@ class SummarizeAgentDailyLearningAction
             payload: [
                 'cycle_date' => $this->cycleDate->toDateString(),
                 'conversation_count' => $conversationCount,
+                'existing_memory_facts_count' => $existingFactCount,
                 'durable_facts_count' => count($summary->durable_facts),
                 'skills_emerged_count' => count($summary->skills_emerged),
                 'self_improvement_score' => $summary->self_improvement_score,

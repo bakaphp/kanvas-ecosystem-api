@@ -91,6 +91,68 @@ class DailyLearningPromptBuilderServiceTest extends TestCase
         );
     }
 
+    public function testInjectsExistingMemoryFactsForLlmSideDedup(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['name' => 'felix-sales']);
+
+        /** @var Collection<int, AgentConversation> $conversations */
+        $conversations = new Collection();
+
+        $existingMemory = implode(
+            "\n§\n",
+            [
+                'Steven Lu is the contact for PNP and check-ins.',
+                'Reynaldo handles POs at felix.',
+            ]
+        );
+
+        $prompt = new DailyLearningPromptBuilderService()->build(
+            $agent,
+            '2026-05-23',
+            $conversations,
+            $existingMemory,
+        );
+
+        $this->assertStringContainsString('EXISTING DURABLE MEMORY (2 facts', $prompt);
+        $this->assertStringContainsString('Steven Lu is the contact for PNP', $prompt);
+        $this->assertStringContainsString('Reynaldo handles POs at felix.', $prompt);
+        $this->assertStringContainsString('DEDUP RULES for `durable_facts`', $prompt);
+        $this->assertStringContainsString('REDUNDANT', $prompt);
+        $this->assertStringContainsString('Emit CORRECTIONS as new facts', $prompt);
+    }
+
+    public function testEmptyExistingMemoryOmitsDedupBlock(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['name' => 'felix-sales']);
+
+        /** @var Collection<int, AgentConversation> $conversations */
+        $conversations = new Collection();
+
+        $prompt = new DailyLearningPromptBuilderService()->build(
+            $agent,
+            '2026-05-23',
+            $conversations,
+            '', // no existing memory
+        );
+
+        $this->assertStringNotContainsString('EXISTING DURABLE MEMORY', $prompt);
+        $this->assertStringNotContainsString('DEDUP RULES', $prompt);
+    }
+
     public function testHandlesAgentWithEmptyName(): void
     {
         $app = app(Apps::class);

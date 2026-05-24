@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\DailyLearning\Services;
 
 use Illuminate\Support\Collection;
+use Kanvas\Connectors\Hermes\Services\HermesMemoryBlockBuilderService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentConversation;
 
@@ -13,6 +14,11 @@ use Kanvas\Intelligence\Agents\Models\AgentConversation;
  * Strips both tool_result rows AND empty-content assistant tool-call rows,
  * truncates long content — the LLM sees the human↔agent dialogue only so
  * extracted learnings come from substance, not tool noise.
+ *
+ * When the caller passes an `$existingMemory` blob, it's parsed via the
+ * Hermes `§`-format and injected into the prompt so the LLM can semantically
+ * dedup `durable_facts` upstream — the first-50-chars-lowercased heuristic
+ * in HermesMemoryBlockBuilderService misses re-phrasings, the LLM doesn't.
  */
 final class DailyLearningPromptBuilderService
 {
@@ -24,13 +30,55 @@ final class DailyLearningPromptBuilderService
 
     /**
      * @param Collection<int, AgentConversation> $conversations  must have messages eager-loaded
+     * @param string                              $existingMemory raw `§`-separated MEMORY.md text from the runtime; '' if none/unsupported
      */
-    public function build(Agent $agent, string $cycleDateLabel, Collection $conversations): string
-    {
+    public function build(
+        Agent $agent,
+        string $cycleDateLabel,
+        Collection $conversations,
+        string $existingMemory = '',
+    ): string {
         $instructions = $this->instructions($agent, $cycleDateLabel);
+        $existingBlock = $this->existingMemoryBlock($existingMemory);
         $transcript = $this->transcript($conversations);
 
-        return $instructions . "\n\nCONVERSATIONS:\n" . $transcript;
+        return $instructions . $existingBlock . "\n\nCONVERSATIONS:\n" . $transcript;
+    }
+
+    /**
+     * Renders the "facts already in the agent's memory" block, or '' when
+     * there's nothing prior. Sits between the instructions and the conversation
+     * transcript so the LLM sees the dedup rules in the same scroll as the
+     * existing facts.
+     */
+    private function existingMemoryBlock(string $existingMemory): string
+    {
+        $facts = HermesMemoryBlockBuilderService::parseFacts($existingMemory);
+        if ($facts === []) {
+            return '';
+        }
+
+        $rendered = array_map(static fn (string $f) => '  • ' . $f, $facts);
+        $count = count($facts);
+
+        return "\n\nEXISTING DURABLE MEMORY ({$count} facts already in the agent's memory bank):\n"
+            . implode("\n", $rendered)
+            . "\n\n"
+            . "DEDUP RULES for `durable_facts`:\n"
+            . "- Do NOT re-emit anything semantically covered by the existing memory above, "
+            . "even if the wording differs.\n"
+            . "- A fact is REDUNDANT if it restates an existing fact with different phrasing, "
+            . "is a more verbose version of an existing fact, or repeats a subset of a richer "
+            . "existing fact (e.g. if memory already lists three Google Sheet IDs, do NOT emit "
+            . "them again as separate facts).\n"
+            . "- A fact is NEW if it adds information the existing memory does not capture: "
+            . "a different person/system, an additional constraint, a corrected/updated value, "
+            . "or a discovered platform limitation.\n"
+            . "- Emit CORRECTIONS as new facts (e.g. \"Reynaldo handles POs now (transitioned "
+            . "from Kimberly)\" supersedes an older Kimberly fact).\n"
+            . "- If yesterday only CONFIRMED existing memory without producing genuinely new "
+            . "durable knowledge, return an empty `durable_facts` array. This is the expected "
+            . "and correct outcome on most days.";
     }
 
     private function instructions(Agent $agent, string $cycleDateLabel): string

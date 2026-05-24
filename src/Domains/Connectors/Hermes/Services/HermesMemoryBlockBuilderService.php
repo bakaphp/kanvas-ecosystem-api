@@ -26,7 +26,7 @@ final class HermesMemoryBlockBuilderService
      */
     public function build(string $existingMemory, DailyLearningSummary $summary): array
     {
-        $existing = $this->parse($existingMemory);
+        $existing = self::parseFacts($existingMemory);
         $existingDedupKeys = array_map([$this, 'dedupKey'], $existing);
 
         $added = 0;
@@ -60,9 +60,13 @@ final class HermesMemoryBlockBuilderService
     }
 
     /**
+     * Shared `§`-parser — the daily-learning prompt builder also needs to
+     * walk the existing MEMORY.md to feed prior facts back to the LLM for
+     * upstream dedup, so this is the one source of truth for the format.
+     *
      * @return list<string>
      */
-    private function parse(string $memory): array
+    public static function parseFacts(string $memory): array
     {
         $trimmed = trim($memory);
         if ($trimmed === '') {
