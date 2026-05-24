@@ -80,7 +80,6 @@ final class HermesJsonlFallbackReaderService implements SessionTranscriptReader
         }
 
         try {
-            /** @var mixed $decoded */
             $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
             throw new RuntimeException('Failed to parse Hermes sessions.json', previous: $e);
@@ -164,7 +163,6 @@ final class HermesJsonlFallbackReaderService implements SessionTranscriptReader
             }
 
             try {
-                /** @var mixed $event */
                 $event = json_decode($line, true, 512, JSON_THROW_ON_ERROR);
             } catch (JsonException) {
                 continue;
