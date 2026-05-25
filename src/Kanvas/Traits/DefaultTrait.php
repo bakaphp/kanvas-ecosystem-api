@@ -6,9 +6,9 @@ namespace Kanvas\Traits;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
-use Kanvas\Models\BaseModel;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 
 trait DefaultTrait
@@ -17,7 +17,7 @@ trait DefaultTrait
      * get default entity of the model.
      * Falls back to app-global (companies_id = 0) if no company-specific default exists.
      */
-    public static function getDefault(CompanyInterface $company, ?AppInterface $app = null): ?BaseModel
+    public static function getDefault(CompanyInterface $company, ?AppInterface $app = null): ?EloquentModel
     {
         $query = self::where('companies_id', $company->getId())
                 ->where('is_default', 1);

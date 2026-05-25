@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Support\IPInfo;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Kanvas\Connectors\PasoRapido\Client;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\BillingDetail;
@@ -61,7 +62,7 @@ class PasoRapidoService
 
         $tagAttributeSlug = $this->app->get(ConfigurationEnum::VERIFY_TAG_ATTRIBUTE_SLUG->value);
 
-        if ($tagAttributeSlug && ! ProductsRepository::existsByAttributeValue($this->app, $this->company, $tagAttributeSlug, $tag, $userId)) {
+        if ($tagAttributeSlug && ! $this->userCanAccessTag($user, $tagAttributeSlug, $tag)) {
             $email = $user?->email ?? 'unknown';
             report(new ValidationException("PasoRapido unauthorized tag lookup - user:{$userId} email:{$email} ip:{$clientIp} app:{$appId} tag:{$tag}"));
 
@@ -167,6 +168,28 @@ class PasoRapidoService
         ]);
     }
 
+    /**
+     * Internal balance lookup for post-payment sync jobs.
+     * Bypasses the end-user rate limits / fraud heuristics applied by verifyCustomer().
+     */
+    public function fetchTagBalance(string $tag): VerifyCustomerResponse
+    {
+        $response = $this->client->post(ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag, []);
+
+        return VerifyCustomerResponse::from([
+            'username' => $response['nombreUsuario'] ?? '',
+            'lastname' => $response['apellidoUsuario'] ?? '',
+            'device' => $response['dispositivo'],
+            'message' => $response['descripcionMensaje'],
+            'document' => $response['rnc_Cedula'] ?? null,
+            'balance' => $response['balance'],
+            'type' => $response['tipoDeReferencia'],
+            'reference' => $response['referencia'],
+            'account' => $response['cuenta'],
+            'status' => $response['estado'],
+        ]);
+    }
+
     public function confirmPayment(PaymentConfirmData $data): PaymentConfirmResponse
     {
         $response = $this->client->post(ConfigurationEnum::CONFIRM_PAYMENT_PATH->value, [
@@ -218,6 +241,45 @@ class PasoRapidoService
         $response = $this->client->post(ConfigurationEnum::CANCEL_PAYMENT_PATH->value . '?numeroTransaccion=' . $transactionNumber, []);
 
         return CancelPaymentResponse::from($response);
+    }
+
+    /**
+     * Allow tag access when EITHER the user owns it personally OR the tag belongs
+     * to a corporate company (is_corporate=1) the user is associated with.
+     */
+    private function userCanAccessTag(?UserInterface $user, string $tagAttributeSlug, string $tag): bool
+    {
+        $userId = $user?->getId() ?? 0;
+
+        if (ProductsRepository::existsByAttributeValue($this->app, $this->company, $tagAttributeSlug, $tag, $userId)) {
+            return true;
+        }
+
+        if (! $user) {
+            return false;
+        }
+
+        $corporateCompanyIds = $user->companies()
+            ->whereExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('companies_settings')
+                    ->whereColumn('companies_settings.companies_id', 'companies.id')
+                    ->where('companies_settings.name', 'is_corporate')
+                    ->where('companies_settings.value', '1')
+                    ->where('companies_settings.is_deleted', 0);
+            })
+            ->pluck('companies.id');
+
+        if ($corporateCompanyIds->isEmpty()) {
+            return false;
+        }
+
+        return ProductsRepository::existsByAttributeValueInCompanies(
+            $this->app,
+            $corporateCompanyIds,
+            $tagAttributeSlug,
+            $tag,
+        );
     }
 
     private function logTagVerification(UserInterface $user, string $tag): void

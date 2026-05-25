@@ -69,7 +69,25 @@ class AgentObserver
 
     public function created(Agent $agent): void
     {
+        $this->appendIdToSlug($agent);
         $this->reconcileKanvasModules($agent);
+    }
+
+    /**
+     * SlugTrait derives the slug from the name during `creating`, before the
+     * auto-increment id exists — so two agents sharing a name collide on slug.
+     * The id is only known post-insert, so append it here to keep slugs unique.
+     */
+    private function appendIdToSlug(Agent $agent): void
+    {
+        $suffix = '-' . $agent->id;
+
+        if (str_ends_with($agent->slug, $suffix)) {
+            return;
+        }
+
+        $agent->slug = $agent->slug . $suffix;
+        $agent->save();
     }
 
     private function syncLegacyRole(Agent $agent): void

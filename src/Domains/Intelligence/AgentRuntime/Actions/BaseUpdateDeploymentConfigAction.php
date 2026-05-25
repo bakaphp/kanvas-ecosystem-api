@@ -52,7 +52,11 @@ abstract class BaseUpdateDeploymentConfigAction
             $providerDir = $this->deployment->home_directory . '/.' . $providerConfig->dotDir;
             $configPath = $providerDir . '/' . $providerConfig->configFilename;
 
-            $currentRaw = trim($client->readFile($configPath));
+            // sudo cat because .hermes/ is 0700 owned by the container's
+            // agent UID. SFTP-level readFile would silently return '',
+            // the merge would treat the file as empty, and we'd overwrite
+            // every existing config key with just the patch fields.
+            $currentRaw = trim($client->readFileAsUser($configPath));
             $current = $currentRaw === '' ? [] : $this->decodeConfig($currentRaw);
 
             $merged = $this->deepMerge($current, $patch);

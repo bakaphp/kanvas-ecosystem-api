@@ -44,6 +44,7 @@ class Event extends ImmutableBaseModel
 
     protected $guarded = [];
 
+    #[Override]
     protected static function booted(): void
     {
         // Materialize the Pulse category on insert so the daily rollup

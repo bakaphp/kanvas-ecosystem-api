@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use Baka\Traits\KanvasJobsTrait;
 use Bouncer;
 use Illuminate\Console\Command;
 use Kanvas\AccessControlList\Enums\AbilityEnum;
@@ -13,6 +14,8 @@ use Kanvas\Enums\AppEnums;
 
 class KanvasEcosystemUpdates extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -44,7 +47,10 @@ class KanvasEcosystemUpdates extends Command
         $keys = AppKey::notDeleted()->get();
         foreach ($keys as $appKey) {
             $app = $appKey->app;
-            Bouncer::scope()->to(RolesEnums::getScope($app));
+            // Rebind container Apps + Bouncer scope per iteration; without
+            // this Bouncer::allow() / $user->assign() land under the
+            // previous app's scope instead of this iteration's.
+            $this->overwriteAppService($app);
 
             $appKey->user->assign(RolesEnums::OWNER->value);
             $appKey->user->assign(RolesEnums::ADMIN->value);

@@ -71,7 +71,9 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('graphql', function (Request $request) {
             $userId = $request->user()?->id;
 
-            return Limit::perMinute(config('kanvas.ratelimit.max_attempts'))->by($userId !== null ? $userId : IPInfo::getClientIp($request));
+            return Limit::perMinute(
+                config('kanvas.ratelimit.max_attempts')
+            )->by($userId !== null ? $userId : IPInfo::getClientIp($request));
         });
     }
 }

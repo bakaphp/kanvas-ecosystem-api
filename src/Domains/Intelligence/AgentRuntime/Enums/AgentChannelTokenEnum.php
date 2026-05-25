@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\AgentRuntime\Enums;
 
 // Shared keys for agent channel credentials. A Slack token's value doesn't change based on
-// which runtime reads it, so we store it once here and let each runtime's DockerComposeBuilder
+// which runtime reads it, so we store it once here and let each runtime's DockerComposeBuilderService
 // inject the canonical container env var. Legacy `OPENCLAW_*`/`HERMES_*` rows were backfilled
 // into these keys by `2026_05_14_000000_unify_agent_channel_token_keys`.
 enum AgentChannelTokenEnum: string

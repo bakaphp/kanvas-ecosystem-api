@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\NervousSystem;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Intelligence\AgentRuntime\Services\AgentAwakeStateWriter;
+use Kanvas\Intelligence\AgentRuntime\Services\AgentAwakeStateWriterService;
 use Kanvas\Intelligence\Agents\Enums\AgentAwakeStateEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -17,7 +17,7 @@ use Tests\TestCase;
 /**
  * Exercises the in-process branch of `kanvas:agent-runtime-check-health` —
  * agents with provider=neuron/laravel/adk have no AgentDeployment; their awake_state
- * is reconciled from `is_active` directly via the shared AgentAwakeStateWriter.
+ * is reconciled from `is_active` directly via the shared AgentAwakeStateWriterService.
  */
 class InProcessAgentAwakeStateReconcileTest extends TestCase
 {
@@ -52,7 +52,7 @@ class InProcessAgentAwakeStateReconcileTest extends TestCase
             AgentAwakeStateEnum::AWAKE->value,
         );
 
-        $changed = new AgentAwakeStateWriter()->write(
+        $changed = new AgentAwakeStateWriterService()->write(
             $agent,
             app(Apps::class),
             auth()->user()->getCurrentCompany(),
@@ -87,7 +87,7 @@ class InProcessAgentAwakeStateReconcileTest extends TestCase
             ->where('source_entity_id', $agent->getId())
             ->count();
 
-        $changed = new AgentAwakeStateWriter()->write(
+        $changed = new AgentAwakeStateWriterService()->write(
             $agent,
             app(Apps::class),
             auth()->user()->getCurrentCompany(),
@@ -111,7 +111,7 @@ class InProcessAgentAwakeStateReconcileTest extends TestCase
             AgentAwakeStateEnum::SLEEPING->value,
         );
 
-        $changed = new AgentAwakeStateWriter()->write(
+        $changed = new AgentAwakeStateWriterService()->write(
             $agent,
             app(Apps::class),
             auth()->user()->getCurrentCompany(),

@@ -31,7 +31,9 @@ abstract class BaseGetDeploymentConfigAction
             $providerConfig = $client::makeProviderConfig();
             $configPath = $this->deployment->home_directory . '/.' . $providerConfig->dotDir . '/' . $providerConfig->configFilename;
 
-            return trim($client->readFile($configPath));
+            // sudo cat — same rationale as the write/merge path; SFTP can't
+            // traverse the 0700 .hermes/ parent so it would falsely return ''.
+            return trim($client->readFileAsUser($configPath));
         } finally {
             $client->disconnect();
         }

@@ -11,7 +11,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
-use Kanvas\Intelligence\AgentRuntime\Services\AgentAwakeStateWriter;
+use Kanvas\Intelligence\AgentRuntime\Services\AgentAwakeStateWriterService;
 use Kanvas\Intelligence\Agents\Enums\AgentAwakeStateEnum;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -118,7 +118,7 @@ class CheckAgentRuntimeHealthCommand extends Command
             $query->where('apps_id', $appId);
         }
 
-        $writer = new AgentAwakeStateWriter();
+        $writer = new AgentAwakeStateWriterService();
 
         $query->chunkById(50, function ($agents) use ($writer, &$reconciled): void {
             foreach ($agents as $agent) {

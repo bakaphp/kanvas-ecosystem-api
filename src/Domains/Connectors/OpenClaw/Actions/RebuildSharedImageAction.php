@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\OpenClaw\Actions;
 
 use Baka\Contracts\AppInterface;
-use Kanvas\Connectors\OpenClaw\Services\DockerComposeBuilder;
+use Kanvas\Connectors\OpenClaw\Services\DockerComposeBuilderService;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -24,7 +24,7 @@ class RebuildSharedImageAction
 
     public function execute(): void
     {
-        $builder = new DockerComposeBuilder();
+        $builder = new DockerComposeBuilderService();
         $client = SshClient::fromMachine($this->machine);
         $imageName = $builder->getSharedImageName($this->app);
         $imageDir = $builder->getSharedImageDir($this->app);

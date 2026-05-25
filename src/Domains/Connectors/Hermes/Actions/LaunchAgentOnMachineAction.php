@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Hermes\Actions;
 
-use Kanvas\Connectors\Hermes\Services\DockerComposeBuilder;
+use Kanvas\Connectors\Hermes\Services\DockerComposeBuilderService;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Intelligence\AgentRuntime\Actions\BaseLaunchAgentOnMachineAction;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
-use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
+use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilderService;
 use Kanvas\Intelligence\AgentRuntime\SshClient as BaseClient;
 use Override;
 
@@ -19,7 +19,7 @@ use Override;
  */
 class LaunchAgentOnMachineAction extends BaseLaunchAgentOnMachineAction
 {
-    private DockerComposeBuilder $builder;
+    private DockerComposeBuilderService $builder;
 
     #[Override]
     protected function getProviderConfig(): ProviderConfig
@@ -34,8 +34,8 @@ class LaunchAgentOnMachineAction extends BaseLaunchAgentOnMachineAction
     }
 
     #[Override]
-    protected function getDockerComposeBuilder(): BaseDockerComposeBuilder
+    protected function getDockerComposeBuilder(): BaseDockerComposeBuilderService
     {
-        return $this->builder ??= new DockerComposeBuilder();
+        return $this->builder ??= new DockerComposeBuilderService();
     }
 }

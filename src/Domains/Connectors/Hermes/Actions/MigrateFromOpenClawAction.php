@@ -9,13 +9,13 @@ use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Hermes\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Hermes\Services\DockerComposeBuilder;
+use Kanvas\Connectors\Hermes\Services\DockerComposeBuilderService;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Connectors\OpenClaw\SshClient as OpenClawSshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Services\AgentChannelIntegrationReadinessService;
-use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilder;
+use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilderService;
 use Kanvas\Intelligence\AgentRuntime\SshClient as BaseClient;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
@@ -346,7 +346,7 @@ class MigrateFromOpenClawAction
         $client->exec('sudo chown -R 10000:10000 ' . escapeshellarg($stagingDir));
         $client->exec('sudo chmod -R 755 ' . escapeshellarg($stagingDir));
 
-        $imageName = (new DockerComposeBuilder())->getSharedImageName($this->app);
+        $imageName = new DockerComposeBuilderService()->getSharedImageName($this->app);
 
         // The upstream nousresearch/hermes-agent entrypoint already invokes the `hermes`
         // binary — `docker run image gateway run` and `docker run image claw migrate` are
@@ -407,7 +407,7 @@ class MigrateFromOpenClawAction
      */
     private function ensureSharedImage(SshClient $client): void
     {
-        $builder = new DockerComposeBuilder();
+        $builder = new DockerComposeBuilderService();
         $imageName = $builder->getSharedImageName($this->app);
         $imageDir = $builder->getSharedImageDir($this->app);
 
@@ -460,7 +460,7 @@ class MigrateFromOpenClawAction
         $hermesDir = $deployment->home_directory . '/.hermes';
         $agent = $deployment->agent;
 
-        $builder = new DockerComposeBuilder();
+        $builder = new DockerComposeBuilderService();
 
         $gatewayToken = $this->company->get(ConfigurationEnum::GATEWAY_TOKEN->value) ?? bin2hex(random_bytes(32));
         $composeContent = $builder->buildDockerCompose($deployment, (string) $gatewayToken, $this->app, $agent);
@@ -473,7 +473,7 @@ class MigrateFromOpenClawAction
         // uses the agent's actual persona rather than Hermes's blank default template.
         // `claw migrate` does not copy these from OpenClaw — it only migrates secrets and
         // platform tokens — so we must write them explicitly here, same as LaunchAgentJob.
-        $files = WorkspaceFileBuilder::buildAll($agent);
+        $files = WorkspaceFileBuilderService::buildAll($agent);
         foreach ($files as $filename => $content) {
             $target = $builder->getWorkspaceFileTargetPath($hermesDir, $filename);
             if ($target === null) {

@@ -32,7 +32,7 @@ final class AgentRuntimeProviderFactory
     // legacy agent types that pre-date the `agent_types.provider` column.
     public static function forAgent(Agent $agent): AgentRuntimeProvider
     {
-        $raw = $agent->agentType?->provider;
+        $raw = $agent->type?->provider;
 
         if (! is_string($raw) || $raw === '') {
             return self::forProvider(AgentProviderEnum::OPENCLAW);
@@ -43,6 +43,19 @@ final class AgentRuntimeProviderFactory
         } catch (ValueError) {
             return self::forProvider(AgentProviderEnum::OPENCLAW);
         }
+    }
+
+    // Canonical resolution for every "chat with this agent" path: the active deployment's
+    // provider when one is running, the agent type's declared provider otherwise. Both
+    // RunRuntimeChatAction and RuntimeAgentChannelResponderAction must go through this so a
+    // chat always reaches the same runtime regardless of which entry point triggered it.
+    public static function forRunningAgent(Agent $agent): AgentRuntimeProvider
+    {
+        $deployment = $agent->activeDeployment;
+
+        return $deployment instanceof AgentDeployment
+            ? self::forDeployment($deployment)
+            : self::forAgent($agent);
     }
 
     /** @return list<AgentRuntimeProvider> */

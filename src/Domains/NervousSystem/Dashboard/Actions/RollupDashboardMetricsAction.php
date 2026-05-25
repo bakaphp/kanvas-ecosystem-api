@@ -9,7 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\NervousSystem\Dashboard\Models\DashboardMetricsDaily;
-use Kanvas\NervousSystem\Dashboard\Services\DashboardMetricsAggregator;
+use Kanvas\NervousSystem\Dashboard\Services\DashboardMetricsAggregatorService;
 use Kanvas\NervousSystem\Dashboard\Support\DashboardMetricsCache;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event;
@@ -31,7 +31,7 @@ class RollupDashboardMetricsAction
         protected readonly AppInterface $app,
         protected readonly CompanyInterface $company,
         protected readonly Carbon $date,
-        protected readonly DashboardMetricsAggregator $aggregator = new DashboardMetricsAggregator(),
+        protected readonly DashboardMetricsAggregatorService $aggregator = new DashboardMetricsAggregatorService(),
     ) {
     }
 

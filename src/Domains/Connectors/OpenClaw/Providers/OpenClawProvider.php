@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\OpenClaw\Providers;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Facades\Cache;
+use Kanvas\Connectors\OpenClaw\Actions\ChatWithAgentAction;
 use Kanvas\Connectors\OpenClaw\Actions\CheckCliHealthAction;
 use Kanvas\Connectors\OpenClaw\Actions\CollectDeploymentUsageAction;
 use Kanvas\Connectors\OpenClaw\Actions\DispatchAgentDeploymentAction;
@@ -52,7 +53,12 @@ class OpenClawProvider extends AbstractAgentRuntimeProvider
         AppInterface $app,
         CompanyInterface $company,
     ): AgentDeployment {
-        return new DispatchAgentDeploymentAction($agent, $machine, $app, $company)->execute();
+        return new DispatchAgentDeploymentAction(
+            $agent,
+            $machine,
+            $app,
+            $company
+        )->execute();
     }
 
     #[Override]
@@ -92,7 +98,11 @@ class OpenClawProvider extends AbstractAgentRuntimeProvider
         $ssh = SshClient::fromMachine($deployment->machine);
 
         try {
-            return $ssh->getDeploymentLogs($deployment->container_name, $deployment->agent->slug, $limit);
+            return $ssh->getDeploymentLogs(
+                $deployment->container_name,
+                $deployment->agent->slug,
+                $limit
+            );
         } finally {
             $ssh->disconnect();
         }
@@ -108,6 +118,21 @@ class OpenClawProvider extends AbstractAgentRuntimeProvider
     public function checkHealth(AgentDeployment $deployment): HealthCheckResultEnum
     {
         return new CheckCliHealthAction($deployment)->execute();
+    }
+
+    #[Override]
+    public function chat(
+        Agent $agent,
+        string $message,
+        ?string $sessionKey = null,
+        array $images = [],
+    ): string {
+        return new ChatWithAgentAction(
+            $agent,
+            $message,
+            $sessionKey,
+            $images,
+        )->execute();
     }
 
     #[Override]

@@ -30,7 +30,7 @@ use Kanvas\NervousSystem\Pulse\Support\PulseMetricsCache;
 class PulseMetricsService
 {
     public function __construct(
-        protected readonly PulseMetricsAggregator $aggregator = new PulseMetricsAggregator(),
+        protected readonly PulseMetricsAggregatorService $aggregator = new PulseMetricsAggregatorService(),
         protected readonly DashboardPeriodResolver $periodResolver = new DashboardPeriodResolver(),
     ) {
     }

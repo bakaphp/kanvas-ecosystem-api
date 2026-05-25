@@ -6,7 +6,9 @@ namespace Kanvas\Intelligence\AgentRuntime\Providers;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider;
+use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentBackup;
@@ -144,6 +146,49 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
     public function checkHealth(AgentDeployment $deployment): HealthCheckResultEnum
     {
         return HealthCheckResultEnum::UNSUPPORTED;
+    }
+
+    #[Override]
+    public function chat(
+        Agent $agent,
+        string $message,
+        ?string $sessionKey = null,
+        array $images = [],
+    ): string {
+        throw $this->unsupported('chat');
+    }
+
+    #[Override]
+    public function collectSessionTranscripts(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        ?Carbon $since = null,
+    ): int {
+        throw $this->unsupported('session transcript collection');
+    }
+
+    // Returning false (not throwing) is intentional: pushing the daily learning
+    // back into the agent's own memory is optional — the Kanvas-side persistence
+    // (AgentDailyCycle row, digest email) still completes regardless of whether
+    // the runtime supports a memory-bank write path. Hermes overrides this with
+    // a MEMORY.md append; OpenClaw will once we wire its memory CLI in v1.1.
+    #[Override]
+    public function pushDailyLearningContext(
+        AgentDeployment $deployment,
+        DailyLearningSummary $summary,
+        Carbon $cycleDate,
+    ): bool {
+        return false;
+    }
+
+    // Empty string is the contract default — runtimes that don't expose their
+    // memory bank for inspection (OpenClaw v1) still satisfy the contract;
+    // the LLM-dedup prompt just won't have prior facts to skip.
+    #[Override]
+    public function fetchDailyLearningContext(AgentDeployment $deployment): string
+    {
+        return '';
     }
 
     protected function unsupported(string $operation): LogicException

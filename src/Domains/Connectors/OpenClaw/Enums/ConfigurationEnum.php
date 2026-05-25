@@ -27,7 +27,7 @@ enum ConfigurationEnum: string
     case SHARED_IMAGE_DIR = 'openclaw_shared_image_dir';
 
     // Full upstream image ref, e.g. `ghcr.io/phioranex/openclaw-docker:20260312`.
-    // When set, overrides the compile-time pin in DockerComposeBuilder. Lets us
+    // When set, overrides the compile-time pin in DockerComposeBuilderService. Lets us
     // bump the pin from app config without redeploying — set the new ref, then
     // run the agentMachineUpdate mutation against the machines you want forward.
     case BASE_IMAGE = 'openclaw_base_image';

@@ -126,6 +126,33 @@ abstract class SshClient
     }
 
     /**
+     * Read a file owned by another user via `sudo cat`. Symmetric counterpart
+     * to writeFileAsUser — needed when the SSH user can't traverse into the
+     * target user's directory (e.g. agent home dirs at 0700 owned by the
+     * container's per-agent UID, which the host's SSH user is not).
+     *
+     * `sudo -n` = non-interactive: fails fast if a password would be prompted
+     * instead of hanging the SSH channel. Pre-flighted base64 + pipeline so
+     * binary-safe content survives the shell round-trip.
+     */
+    public function readFileAsUser(string $remotePath): string
+    {
+        $output = $this->exec(
+            'sudo -n cat ' . escapeshellarg($remotePath) . ' 2>/dev/null | base64 -w 0',
+            60,
+        );
+
+        $trimmed = trim($output);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        $decoded = base64_decode($trimmed, true);
+
+        return $decoded === false ? '' : $decoded;
+    }
+
+    /**
      * Write a file via SFTP (direct transfer, no sudo).
      */
     public function writeFile(string $remotePath, string $content): bool
