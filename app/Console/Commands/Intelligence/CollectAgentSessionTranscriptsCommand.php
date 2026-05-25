@@ -7,7 +7,6 @@ namespace App\Console\Commands\Intelligence;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
@@ -29,8 +28,6 @@ class CollectAgentSessionTranscriptsCommand extends Command
 
     public function handle(): int
     {
-        $app = app(Apps::class);
-
         $sinceRaw = $this->option('since');
         $since = is_string($sinceRaw) && $sinceRaw !== '' ? Carbon::parse($sinceRaw) : null;
 
@@ -57,6 +54,18 @@ class CollectAgentSessionTranscriptsCommand extends Command
                 $company = $deployment->company;
                 if ($company === null) {
                     $this->warn("Skipping deployment {$deployment->id} — no company");
+
+                    continue;
+                }
+
+                // Take the app from the DEPLOYMENT, not the CLI's global
+                // app(Apps::class) which defaults to apps_id=1. That bug was
+                // why every conversation got stamped with apps_id=1 and the
+                // daily-learning filter (which uses the agent's actual apps_id)
+                // never matched them.
+                $app = $deployment->app;
+                if ($app === null) {
+                    $this->warn("Skipping deployment {$deployment->id} — no app");
 
                     continue;
                 }

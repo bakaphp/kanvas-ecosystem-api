@@ -6,7 +6,9 @@ namespace Kanvas\Intelligence\AgentRuntime\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kanvas\Intelligence\AgentRuntime\Contracts\SessionTranscriptReader;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\ParsedMessage;
@@ -61,8 +63,27 @@ abstract class BaseCollectSessionTranscriptsAction
 
     private function persistTranscript(ParsedSessionTranscript $transcript, Agent $agent): int
     {
-        $appId = (int) $this->app->getId();
-        $companyId = (int) $this->company->getId();
+        // Always derive tenant fields from the AGENT, not from $this->app /
+        // $this->company. The action's constructor takes (app, company) for
+        // backwards-compat with older callers, but a misconfigured caller
+        // (e.g. CLI passing the global app context instead of the deployment's)
+        // can ship conversations with the wrong apps_id — which breaks the
+        // daily-learning filter that joins by the agent's actual apps_id.
+        // Source of truth for "which tenant owns this conversation" is the
+        // agent that produced it, end of story.
+        $appId = $agent->apps_id;
+        $companyId = $agent->companies_id;
+
+        if ($appId !== (int) $this->app->getId() || $companyId !== (int) $this->company->getId()) {
+            Log::warning('Transcript ingest: caller-provided tenant differs from agent tenant; using agent', [
+                'agent_id' => $agent->getId(),
+                'agent_apps_id' => $appId,
+                'agent_companies_id' => $companyId,
+                'caller_apps_id' => (int) $this->app->getId(),
+                'caller_companies_id' => (int) $this->company->getId(),
+                'deployment_id' => $this->deployment->getId(),
+            ]);
+        }
 
         $conversation = AgentConversation::query()
             ->where('id', $transcript->sessionId)
@@ -121,7 +142,33 @@ abstract class BaseCollectSessionTranscriptsAction
                 'created_at' => $transcript->startedAt ?? now(),
                 'updated_at' => now(),
             ];
-            AgentConversation::query()->insert($attributes);
+
+            try {
+                AgentConversation::query()->insert($attributes);
+            } catch (QueryException $e) {
+                // PK collision means the row exists under a different tenant
+                // (apps/company/agent) — our scoped find returned null because
+                // it's not OURS. Two known causes: pre-tenant-scoping ingestion
+                // claimed the row under whichever agent the iteration touched
+                // first, OR two deployments share the same physical Hermes
+                // container and both see the same session id. Skip this
+                // transcript silently so one cross-tenant ghost doesn't fail
+                // the whole deployment's run; log so the data quality issue
+                // is visible.
+                if ((string) $e->getCode() === '23000') {
+                    Log::warning('Transcript ingest: session id already claimed by another tenant — skipping', [
+                        'session_id' => $transcript->sessionId,
+                        'deployment_id' => $this->deployment->getId(),
+                        'agent_id' => $agent->getId(),
+                        'apps_id' => $appId,
+                        'companies_id' => $companyId,
+                        'runtime' => $this->runtimeName(),
+                    ]);
+                    return 0;
+                }
+                throw $e;
+            }
+
             // Hydrate locally rather than re-reading. `findOrFail` would hit
             // the read replica under prod's master/replica topology and throw
             // ModelNotFoundException for any row still propagating from the
