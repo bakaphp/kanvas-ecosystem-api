@@ -305,7 +305,7 @@ class Agent extends BaseModel
             ->where('is_deleted', 0)
             ->latestOfMany();
     }
-  
+
     public function isContainerRuntime(): bool
     {
         if ($this->activeDeployment instanceof AgentDeployment) {
