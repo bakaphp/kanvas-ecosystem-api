@@ -10,7 +10,7 @@ class LeadStatusTest extends TestCase
     {
         $input = [
             'name' => fake()->word,
-            'is_default' => (int)fake()->boolean,
+            'is_default' => (int) fake()->boolean,
         ];
 
         $this->graphQL(
@@ -39,7 +39,7 @@ class LeadStatusTest extends TestCase
     {
         $input = [
             'name' => fake()->word,
-            'is_default' => (int)fake()->boolean,
+            'is_default' => (int) fake()->boolean,
         ];
         $response = $this->graphQL(
             '
@@ -59,7 +59,7 @@ class LeadStatusTest extends TestCase
         $id = $response->json('data.createLeadStatus.id');
         $input = [
             'name' => fake()->word,
-            'is_default' => (int)fake()->boolean,
+            'is_default' => (int) fake()->boolean,
         ];
         $this->graphQL(
             '
@@ -88,7 +88,7 @@ class LeadStatusTest extends TestCase
     {
         $input = [
             'name' => fake()->word,
-            'is_default' => (int)fake()->boolean,
+            'is_default' => (int) fake()->boolean,
         ];
         $response = $this->graphQL(
             '
@@ -124,7 +124,7 @@ class LeadStatusTest extends TestCase
 
     public function testLeadStatus(): void
     {
-        $response = $this->graphQL(
+        $this->graphQL(
             '
                 {
                     leadStatuses {
@@ -134,7 +134,7 @@ class LeadStatusTest extends TestCase
                             is_default,
                         }
                     }
-                }   
+                }
             '
         )->assertJsonStructure([
             'data' => [
@@ -149,5 +149,28 @@ class LeadStatusTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testGlobalLeadStatusesAreVisible(): void
+    {
+        $this->graphQL(
+            '
+                {
+                    leadStatuses {
+                        data {
+                            id
+                            name
+                            is_default
+                        }
+                    }
+                }
+            '
+        )->assertJsonStructure([
+            'data' => [
+                'leadStatuses' => [
+                    'data' => [],
+                ],
+            ],
+        ])->assertSuccessful();
     }
 }
