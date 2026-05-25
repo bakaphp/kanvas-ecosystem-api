@@ -297,6 +297,13 @@ class Agent extends BaseModel
             ->latestOfMany();
     }
 
+    public function latestDeployment(): HasOne
+    {
+        return $this->hasOne(AgentDeployment::class)
+            ->where('is_deleted', 0)
+            ->latestOfMany();
+    }
+
     public function searchableAs(): string
     {
         $app = $this->app ?? app(Apps::class);

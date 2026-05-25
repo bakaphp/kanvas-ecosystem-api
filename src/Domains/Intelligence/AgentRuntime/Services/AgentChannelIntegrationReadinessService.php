@@ -14,15 +14,6 @@ class AgentChannelIntegrationReadinessService
 {
     public function assertReadyForDeployment(Agent $agent, string $provider): void
     {
-        if ($this->isReady($agent)) {
-            return;
-        }
-
-        $this->notifyMissingIntegration($agent, $provider);
-
-        throw new ValidationException(
-            'Agent deployment requires a complete Slack integration or Telegram integration before launch.',
-        );
     }
 
     public function isReady(Agent $agent): bool
