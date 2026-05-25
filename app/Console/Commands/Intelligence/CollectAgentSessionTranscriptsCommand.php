@@ -58,11 +58,6 @@ class CollectAgentSessionTranscriptsCommand extends Command
                     continue;
                 }
 
-                // Take the app from the DEPLOYMENT, not the CLI's global
-                // app(Apps::class) which defaults to apps_id=1. That bug was
-                // why every conversation got stamped with apps_id=1 and the
-                // daily-learning filter (which uses the agent's actual apps_id)
-                // never matched them.
                 $app = $deployment->app;
                 if ($app === null) {
                     $this->warn("Skipping deployment {$deployment->id} — no app");
