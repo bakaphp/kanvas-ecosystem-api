@@ -325,11 +325,6 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@saveUserAppPreferences"
         )
-    updateBannerUrl(user_id: ID!, url: String!): User!
-        @guard
-        @field(
-            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updateBannerUrl"
-        )
 }
 
 type Query @guard {

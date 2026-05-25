@@ -372,18 +372,4 @@ class UserManagementMutation
 
         return true;
     }
-
-    public function updateBannerUrl(mixed $rootValue, array $request): Users
-    {
-        $loggedUser = auth()->user();
-        $app = app(Apps::class);
-        $userId = $loggedUser->isAdmin() && (int) $request['user_id'] > 0
-            ? (int) $request['user_id']
-            : $loggedUser->getId();
-
-        $user = UsersRepository::getUserOfAppById($userId, $app);
-        $user->set('banner_url', $request['url'], true);
-
-        return $user;
-    }
 }
