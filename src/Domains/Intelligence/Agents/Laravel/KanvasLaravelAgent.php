@@ -169,7 +169,8 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
         $tools = [];
 
         foreach ($this->agentTools() as $tool) {
-            if ($tool instanceof KanvasToolInterface && $this->app && $this->company) {
+            if (($tool instanceof KanvasToolInterface || $tool instanceof KanvasAgentAsTool)
+                && $this->app && $this->company) {
                 $tool->withContext($this->app, $this->company);
             }
             $tools[] = $tool;
