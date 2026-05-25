@@ -6,6 +6,7 @@ namespace Kanvas\NervousSystem\DailyLearning\Actions;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
@@ -58,19 +59,25 @@ class SendDailyLearningDigestAction
 
         $agents = $this->buildAgentRows($cycles);
 
-        // Recipients = users with the `AgentReport` Bouncer role in this
-        // (app, company). The repository helper joins users_associated_apps
-        // + assigned_roles directly — same shape as AddAdminsToCompanyAction
-        // uses for owner discovery. Tack on the deliverable-email filters.
-        $recipients = UsersRepository::getCompanyAppUserByRole(
-            $this->company,
-            $this->app,
-            RolesEnums::AGENT_REPORT->value,
-        )
-            ->notDeleted()
-            ->whereNotNull('users.email')
-            ->where('users.email', '!=', '')
-            ->get();
+        try {
+            $recipients = UsersRepository::getCompanyAppUserByRole(
+                $this->company,
+                $this->app,
+                RolesEnums::AGENT_REPORT->value,
+            )
+                ->notDeleted()
+                ->whereNotNull('users.email')
+                ->where('users.email', '!=', '')
+                ->get();
+        } catch (ModelNotFoundException) {
+            Log::info('Daily learning digest: AgentReport role not bootstrapped for app; run kanvas:nervous-system:ensure-agent-report-role to enable', [
+                'app_id' => $this->app->getId(),
+                'company_id' => $this->company->getId(),
+                'cycle_date' => $cycleDateLabel,
+            ]);
+
+            return 0;
+        }
 
         if ($recipients->isEmpty()) {
             Log::info('Daily learning digest: no recipients for company; skipping send', [
