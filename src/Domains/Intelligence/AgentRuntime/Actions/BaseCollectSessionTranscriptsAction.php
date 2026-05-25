@@ -6,7 +6,9 @@ namespace Kanvas\Intelligence\AgentRuntime\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kanvas\Intelligence\AgentRuntime\Contracts\SessionTranscriptReader;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\ParsedMessage;
@@ -61,8 +63,19 @@ abstract class BaseCollectSessionTranscriptsAction
 
     private function persistTranscript(ParsedSessionTranscript $transcript, Agent $agent): int
     {
-        $appId = (int) $this->app->getId();
-        $companyId = (int) $this->company->getId();
+        $appId = $agent->apps_id;
+        $companyId = $agent->companies_id;
+
+        if ($appId !== (int) $this->app->getId() || $companyId !== (int) $this->company->getId()) {
+            Log::warning('Transcript ingest: caller-provided tenant differs from agent tenant; using agent', [
+                'agent_id' => $agent->getId(),
+                'agent_apps_id' => $appId,
+                'agent_companies_id' => $companyId,
+                'caller_apps_id' => (int) $this->app->getId(),
+                'caller_companies_id' => (int) $this->company->getId(),
+                'deployment_id' => $this->deployment->getId(),
+            ]);
+        }
 
         $conversation = AgentConversation::query()
             ->where('id', $transcript->sessionId)
@@ -121,13 +134,35 @@ abstract class BaseCollectSessionTranscriptsAction
                 'created_at' => $transcript->startedAt ?? now(),
                 'updated_at' => now(),
             ];
-            AgentConversation::query()->insert($attributes);
+
+            try {
+                AgentConversation::query()->insert($attributes);
+            } catch (QueryException $e) {
+                // PK collision = row exists under another tenant (scoped find
+                // returned null because it's not OURS). Skip + log so one
+                // cross-tenant ghost doesn't fail the whole cron run.
+                if ((string) $e->getCode() === '23000') {
+                    Log::warning('Transcript ingest: session id already claimed by another tenant — skipping', [
+                        'session_id' => $transcript->sessionId,
+                        'deployment_id' => $this->deployment->getId(),
+                        'agent_id' => $agent->getId(),
+                        'apps_id' => $appId,
+                        'companies_id' => $companyId,
+                        'runtime' => $this->runtimeName(),
+                    ]);
+
+                    return 0;
+                }
+
+                throw $e;
+            }
+
             // Hydrate locally rather than re-reading. `findOrFail` would hit
             // the read replica under prod's master/replica topology and throw
             // ModelNotFoundException for any row still propagating from the
             // write just above. `newFromBuilder` binds an Eloquent instance
             // to the same data we just inserted, exists=true, no extra query.
-            $conversation = (new AgentConversation())->newFromBuilder($attributes);
+            $conversation = new AgentConversation()->newFromBuilder($attributes);
         } else {
             $updates = [
                 'agent_id' => $agent->getId(),
@@ -231,16 +266,10 @@ abstract class BaseCollectSessionTranscriptsAction
     }
 
     /**
-     * Compose the deterministic message PK as `<sessionId>:<runtimeMessageId>`,
-     * falling back to a stable sha1 of the same input when the composite
-     * exceeds MAX_MESSAGE_ID_LENGTH. Stable because sha1 is deterministic,
-     * so re-ingesting the same source still produces the same key — which
-     * is the property `insertOrIgnore` relies on for idempotency.
-     *
-     * Hashing only kicks in if a runtime ever emits a runtimeMessageId
-     * pathologically long enough to overflow the widened 100-char column.
-     * Today's runtimes (Hermes ints, OpenClaw short strings) stay under
-     * 50 chars composite, well below the bound.
+     * `<sessionId>:<runtimeMessageId>` when it fits; sha1 fallback when the
+     * composite would overflow MAX_MESSAGE_ID_LENGTH. sha1 is deterministic
+     * so the same source still produces the same key — required for
+     * `insertOrIgnore` idempotency on replays.
      */
     private function composeMessageId(string $sessionId, string $runtimeMessageId): string
     {
