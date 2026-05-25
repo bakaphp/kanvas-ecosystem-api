@@ -4,21 +4,25 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\NervousSystem\DailyLearning\Actions\EnsureAgentReportRoleAction;
 use Throwable;
 
 /**
- * Idempotent role bootstrap. Runs the underlying `firstOrCreate` on
- * (name='AgentReport', scope=app_X_company_0), so re-running on each
- * deploy is safe.
+ * Idempotent role bootstrap. Runs the underlying CreateRoleAction on each
+ * matched app — safe to re-run on every deploy.
  *
- * Default scope is every undeleted app; --app= narrows to one. Run this
- * before any user gets assigned the role via `$user->assign('AgentReport')`.
+ * Per-iteration `overwriteAppService()` rebinds both `Apps::class` in the
+ * container AND Bouncer's scope to the current app. Without it the static
+ * Bouncer scope leaks from the previous app and INSERT hits
+ * `roles.name_scope` unique with the prior iteration's scope value.
  */
 class EnsureAgentReportRoleCommand extends Command
 {
+    use KanvasJobsTrait;
+
     protected $signature = 'kanvas:nervous-system:ensure-agent-report-role
         {--app= : Restrict to a single apps_id; otherwise applies to every undeleted app}';
 
@@ -43,13 +47,20 @@ class EnsureAgentReportRoleCommand extends Command
 
         foreach ($apps as $app) {
             try {
-                new EnsureAgentReportRoleAction($app)->execute();
-                $this->line(sprintf('  app=%-3d %s → AgentReport role ensured', $app->getId(), $app->name));
+                $this->overwriteAppService($app);
+
+                $role = new EnsureAgentReportRoleAction($app)->execute();
+                $this->line(sprintf(
+                    '  ✓ app=%-3d %s role_id=%d',
+                    $app->getId(),
+                    $app->name,
+                    $role->id,
+                ));
                 $created++;
             } catch (Throwable $e) {
                 $failed++;
                 report($e);
-                $this->error(sprintf('  app=%d failed: %s', $app->getId(), $e->getMessage()));
+                $this->error(sprintf('  ✗ app=%d %s FAILED: %s', $app->getId(), $app->name, $e->getMessage()));
             }
         }
 
