@@ -74,7 +74,7 @@ final class HermesJsonlFallbackReaderService implements SessionTranscriptReader
      */
     private function loadIndex(string $sessionsDir): array
     {
-        $raw = $this->ssh->readFile($sessionsDir . '/sessions.json');
+        $raw = $this->ssh->readFileAsUser($sessionsDir . '/sessions.json');
         if (trim($raw) === '') {
             return [];
         }
@@ -144,7 +144,7 @@ final class HermesJsonlFallbackReaderService implements SessionTranscriptReader
     private function readMessageFile(string $sessionsDir, string $sessionId, int $sinceEpoch): array
     {
         try {
-            $raw = $this->ssh->readFile($sessionsDir . '/' . $sessionId . '.jsonl');
+            $raw = $this->ssh->readFileAsUser($sessionsDir . '/' . $sessionId . '.jsonl');
         } catch (RuntimeException) {
             return [];
         }

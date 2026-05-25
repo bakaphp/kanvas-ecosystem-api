@@ -67,7 +67,7 @@ class FetchDailyLearningContextAction
     private function safeReadFile(SshClient $ssh, string $path): string
     {
         try {
-            return $ssh->readFile($path);
+            return $ssh->readFileAsUser($path);
         } catch (RuntimeException) {
             return '';
         }
