@@ -346,7 +346,7 @@ class MigrateFromOpenClawAction
         $client->exec('sudo chown -R 10000:10000 ' . escapeshellarg($stagingDir));
         $client->exec('sudo chmod -R 755 ' . escapeshellarg($stagingDir));
 
-        $imageName = (new DockerComposeBuilderService())->getSharedImageName($this->app);
+        $imageName = new DockerComposeBuilderService()->getSharedImageName($this->app);
 
         // The upstream nousresearch/hermes-agent entrypoint already invokes the `hermes`
         // binary — `docker run image gateway run` and `docker run image claw migrate` are

@@ -63,14 +63,6 @@ abstract class BaseCollectSessionTranscriptsAction
 
     private function persistTranscript(ParsedSessionTranscript $transcript, Agent $agent): int
     {
-        // Always derive tenant fields from the AGENT, not from $this->app /
-        // $this->company. The action's constructor takes (app, company) for
-        // backwards-compat with older callers, but a misconfigured caller
-        // (e.g. CLI passing the global app context instead of the deployment's)
-        // can ship conversations with the wrong apps_id — which breaks the
-        // daily-learning filter that joins by the agent's actual apps_id.
-        // Source of truth for "which tenant owns this conversation" is the
-        // agent that produced it, end of story.
         $appId = $agent->apps_id;
         $companyId = $agent->companies_id;
 
@@ -146,15 +138,9 @@ abstract class BaseCollectSessionTranscriptsAction
             try {
                 AgentConversation::query()->insert($attributes);
             } catch (QueryException $e) {
-                // PK collision means the row exists under a different tenant
-                // (apps/company/agent) — our scoped find returned null because
-                // it's not OURS. Two known causes: pre-tenant-scoping ingestion
-                // claimed the row under whichever agent the iteration touched
-                // first, OR two deployments share the same physical Hermes
-                // container and both see the same session id. Skip this
-                // transcript silently so one cross-tenant ghost doesn't fail
-                // the whole deployment's run; log so the data quality issue
-                // is visible.
+                // PK collision = row exists under another tenant (scoped find
+                // returned null because it's not OURS). Skip + log so one
+                // cross-tenant ghost doesn't fail the whole cron run.
                 if ((string) $e->getCode() === '23000') {
                     Log::warning('Transcript ingest: session id already claimed by another tenant — skipping', [
                         'session_id' => $transcript->sessionId,
@@ -164,8 +150,10 @@ abstract class BaseCollectSessionTranscriptsAction
                         'companies_id' => $companyId,
                         'runtime' => $this->runtimeName(),
                     ]);
+
                     return 0;
                 }
+
                 throw $e;
             }
 
@@ -174,7 +162,7 @@ abstract class BaseCollectSessionTranscriptsAction
             // ModelNotFoundException for any row still propagating from the
             // write just above. `newFromBuilder` binds an Eloquent instance
             // to the same data we just inserted, exists=true, no extra query.
-            $conversation = (new AgentConversation())->newFromBuilder($attributes);
+            $conversation = new AgentConversation()->newFromBuilder($attributes);
         } else {
             $updates = [
                 'agent_id' => $agent->getId(),
@@ -278,16 +266,10 @@ abstract class BaseCollectSessionTranscriptsAction
     }
 
     /**
-     * Compose the deterministic message PK as `<sessionId>:<runtimeMessageId>`,
-     * falling back to a stable sha1 of the same input when the composite
-     * exceeds MAX_MESSAGE_ID_LENGTH. Stable because sha1 is deterministic,
-     * so re-ingesting the same source still produces the same key — which
-     * is the property `insertOrIgnore` relies on for idempotency.
-     *
-     * Hashing only kicks in if a runtime ever emits a runtimeMessageId
-     * pathologically long enough to overflow the widened 100-char column.
-     * Today's runtimes (Hermes ints, OpenClaw short strings) stay under
-     * 50 chars composite, well below the bound.
+     * `<sessionId>:<runtimeMessageId>` when it fits; sha1 fallback when the
+     * composite would overflow MAX_MESSAGE_ID_LENGTH. sha1 is deterministic
+     * so the same source still produces the same key — required for
+     * `insertOrIgnore` idempotency on replays.
      */
     private function composeMessageId(string $sessionId, string $runtimeMessageId): string
     {
