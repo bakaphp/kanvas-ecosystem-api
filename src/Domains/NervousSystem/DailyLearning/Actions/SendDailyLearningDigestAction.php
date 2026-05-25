@@ -67,7 +67,7 @@ class SendDailyLearningDigestAction
             $this->app,
             RolesEnums::AGENT_REPORT->value,
         )
-            ->where('users.is_deleted', 0)
+            ->notDeleted()
             ->whereNotNull('users.email')
             ->where('users.email', '!=', '')
             ->get();
