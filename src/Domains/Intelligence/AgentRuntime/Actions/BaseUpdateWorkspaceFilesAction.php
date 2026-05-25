@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\AgentRuntime\Actions;
 
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
-use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilder;
+use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilderService;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
@@ -32,7 +32,7 @@ abstract class BaseUpdateWorkspaceFilesAction
         $client = $this->createSshClient();
 
         try {
-            $files = WorkspaceFileBuilder::buildAll($agent);
+            $files = WorkspaceFileBuilderService::buildAll($agent);
 
             foreach ($files as $filename => $content) {
                 $target = $builder->getWorkspaceFileTargetPath($providerDir, $filename);

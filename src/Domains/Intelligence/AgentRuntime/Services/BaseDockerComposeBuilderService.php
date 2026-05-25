@@ -19,11 +19,11 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
  *  - {provider}.json   — agent config: models, channels, gateway auth, tools, hooks
  *  - auth-profiles.json — LLM provider API keys (Google, Anthropic)
  *
- * Concrete subclasses (AgentRuntime\Services\DockerComposeBuilder, Hermes\Services\DockerComposeBuilder)
+ * Concrete subclasses (AgentRuntime\Services\DockerComposeBuilderService, Hermes\Services\DockerComposeBuilderService)
  * implement the abstract getters that return their provider-specific ConfigurationEnum key strings
  * and CustomFieldEnum key strings.
  */
-abstract class BaseDockerComposeBuilder
+abstract class BaseDockerComposeBuilderService
 {
     private const string RUNTIME_VERSION = '2026.5.20';
     //private const string RUNTIME_VERSION = '2026.3.12';

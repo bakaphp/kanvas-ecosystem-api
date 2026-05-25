@@ -8,12 +8,12 @@ use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\Hermes\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
-use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
+use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilderService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Override;
 use Symfony\Component\Yaml\Yaml;
 
-class DockerComposeBuilder extends BaseDockerComposeBuilder
+class DockerComposeBuilderService extends BaseDockerComposeBuilderService
 {
     private const string TEMPLATES_DIR = __DIR__ . '/../Templates';
 

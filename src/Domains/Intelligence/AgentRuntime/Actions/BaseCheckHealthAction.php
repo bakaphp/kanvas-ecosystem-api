@@ -10,7 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentRuntimeStateEnum;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
-use Kanvas\Intelligence\AgentRuntime\Services\AgentAwakeStateWriter;
+use Kanvas\Intelligence\AgentRuntime\Services\AgentAwakeStateWriterService;
 use Kanvas\Intelligence\Agents\Enums\AgentAwakeStateEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
@@ -83,7 +83,7 @@ abstract class BaseCheckHealthAction
         HealthCheckResultEnum $current,
         HealthCheckResultEnum $previous,
     ): void {
-        $writer = new AgentAwakeStateWriter();
+        $writer = new AgentAwakeStateWriterService();
 
         if ($current === HealthCheckResultEnum::OK) {
             $writer->write(

@@ -14,7 +14,7 @@ use Kanvas\NervousSystem\Dashboard\Actions\BackfillDashboardMetricsAction;
 use Kanvas\NervousSystem\Dashboard\Actions\RollupDashboardMetricsAction;
 use Kanvas\NervousSystem\Dashboard\Enums\DashboardPeriodEnum;
 use Kanvas\NervousSystem\Dashboard\Models\DashboardMetricsDaily;
-use Kanvas\NervousSystem\Dashboard\Services\DashboardMetricsAggregator;
+use Kanvas\NervousSystem\Dashboard\Services\DashboardMetricsAggregatorService;
 use Kanvas\NervousSystem\Dashboard\Services\DashboardMetricsService;
 use Kanvas\NervousSystem\Dashboard\Support\DashboardMetricsCache;
 use Kanvas\NervousSystem\Dashboard\Support\DashboardPeriodResolver;
@@ -84,7 +84,7 @@ class DashboardMetricsTest extends TestCase
         $this->insertPlan($app, $company, $day->copy()->setTime(12, 0), 'failed', errorMessage: 'boom', requiresHumanApproval: false);
         $this->insertPlan($app, $company, $day->copy()->setTime(13, 0), 'done', errorMessage: 'oops', requiresHumanApproval: true);
 
-        $aggregate = new DashboardMetricsAggregator()->aggregate(
+        $aggregate = new DashboardMetricsAggregatorService()->aggregate(
             $app,
             $company,
             $day->copy()->startOfDay(),
@@ -104,7 +104,7 @@ class DashboardMetricsTest extends TestCase
 
         $this->insertPlan($app, $company, $day->copy()->setTime(10, 0), 'done', output: ['summary' => 'x']);
 
-        $aggregate = new DashboardMetricsAggregator()->aggregate(
+        $aggregate = new DashboardMetricsAggregatorService()->aggregate(
             $app,
             $company,
             $day->copy()->startOfDay(),
@@ -133,7 +133,7 @@ class DashboardMetricsTest extends TestCase
             'estimated_human_hours' => 4,
         ]);
 
-        $aggregate = new DashboardMetricsAggregator()->aggregate(
+        $aggregate = new DashboardMetricsAggregatorService()->aggregate(
             $app,
             $company,
             $day->copy()->startOfDay(),

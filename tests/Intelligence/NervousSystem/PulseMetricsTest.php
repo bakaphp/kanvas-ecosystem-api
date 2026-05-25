@@ -17,7 +17,7 @@ use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\NervousSystem\Pulse\Actions\BackfillPulseMetricsAction;
 use Kanvas\NervousSystem\Pulse\Actions\RollupPulseMetricsAction;
 use Kanvas\NervousSystem\Pulse\Models\PulseMetricsDaily;
-use Kanvas\NervousSystem\Pulse\Services\PulseMetricsAggregator;
+use Kanvas\NervousSystem\Pulse\Services\PulseMetricsAggregatorService;
 use Kanvas\NervousSystem\Pulse\Services\PulseMetricsService;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
@@ -108,7 +108,7 @@ class PulseMetricsTest extends TestCase
         $this->seedEvent($app, $company, $day->copy()->setTime(13, 0), 'integration.salesforce.completed', EventStatusEnum::INFO);
         $this->seedEvent($app, $company, $day->copy()->setTime(14, 0), 'integration.netsuite.failed', EventStatusEnum::ERROR);
 
-        $aggregate = new PulseMetricsAggregator()->aggregate(
+        $aggregate = new PulseMetricsAggregatorService()->aggregate(
             $app,
             $company,
             $day->copy()->startOfDay(),
@@ -129,7 +129,7 @@ class PulseMetricsTest extends TestCase
         $this->seedPlan($app, $company, $day->copy()->setTime(10, 0), confidenceScore: 0.85);
         $this->seedPlan($app, $company, $day->copy()->setTime(11, 0), confidenceScore: 0.95);
 
-        $aggregate = new PulseMetricsAggregator()->aggregate(
+        $aggregate = new PulseMetricsAggregatorService()->aggregate(
             $app,
             $company,
             $day->copy()->startOfDay(),

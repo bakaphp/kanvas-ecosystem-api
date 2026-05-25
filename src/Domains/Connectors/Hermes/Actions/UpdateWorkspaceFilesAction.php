@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Hermes\Actions;
 
-use Kanvas\Connectors\Hermes\Services\DockerComposeBuilder;
+use Kanvas\Connectors\Hermes\Services\DockerComposeBuilderService;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Intelligence\AgentRuntime\Actions\BaseUpdateWorkspaceFilesAction;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
@@ -26,8 +26,8 @@ class UpdateWorkspaceFilesAction extends BaseUpdateWorkspaceFilesAction
     }
 
     #[Override]
-    protected function getDockerComposeBuilder(): DockerComposeBuilder
+    protected function getDockerComposeBuilder(): DockerComposeBuilderService
     {
-        return new DockerComposeBuilder();
+        return new DockerComposeBuilderService();
     }
 }

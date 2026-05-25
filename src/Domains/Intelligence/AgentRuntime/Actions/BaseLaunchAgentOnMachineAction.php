@@ -12,8 +12,8 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Services\AgentChannelIntegrationReadinessService;
-use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
-use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilder;
+use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilderService;
+use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilderService;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
@@ -50,8 +50,8 @@ abstract class BaseLaunchAgentOnMachineAction
     /** Returns a connected SSH client for this provider pointing at $this->machine. */
     abstract protected function createSshClient(): SshClient;
 
-    /** Returns the concrete DockerComposeBuilder for this provider. */
-    abstract protected function getDockerComposeBuilder(): BaseDockerComposeBuilder;
+    /** Returns the concrete DockerComposeBuilderService for this provider. */
+    abstract protected function getDockerComposeBuilder(): BaseDockerComposeBuilderService;
 
     public function execute(): AgentDeployment
     {
@@ -172,7 +172,7 @@ abstract class BaseLaunchAgentOnMachineAction
         // Workspace markdown files. The builder decides where each file goes (and may skip
         // some): OpenClaw puts them all in $providerDir/workspace/, Hermes only writes
         // SOUL.md at the root of $providerDir.
-        $files = WorkspaceFileBuilder::buildAll($this->agent);
+        $files = WorkspaceFileBuilderService::buildAll($this->agent);
         foreach ($files as $filename => $content) {
             $target = $builder->getWorkspaceFileTargetPath($providerDir, $filename);
             if ($target === null) {

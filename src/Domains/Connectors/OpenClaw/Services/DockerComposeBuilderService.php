@@ -7,10 +7,10 @@ namespace Kanvas\Connectors\OpenClaw\Services;
 use Kanvas\Connectors\OpenClaw\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
-use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
+use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilderService;
 use Override;
 
-class DockerComposeBuilder extends BaseDockerComposeBuilder
+class DockerComposeBuilderService extends BaseDockerComposeBuilderService
 {
     private const string TEMPLATES_DIR = __DIR__ . '/../Templates';
 

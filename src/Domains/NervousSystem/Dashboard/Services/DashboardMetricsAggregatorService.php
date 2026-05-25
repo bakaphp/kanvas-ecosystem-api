@@ -29,7 +29,7 @@ use Kanvas\NervousSystem\Dashboard\DataTransferObject\DashboardAggregateRow;
  * If no plan in the window populated a key, the corresponding aggregate
  * is null (not 0). This preserves "no data yet" vs "measured zero".
  */
-class DashboardMetricsAggregator
+class DashboardMetricsAggregatorService
 {
     public function aggregate(
         AppInterface $app,
