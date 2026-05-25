@@ -135,8 +135,10 @@ SQL;
         $singleLine = preg_replace('/\s+/', ' ', $sql) ?? $sql;
         $escapedSql = escapeshellarg(trim($singleLine));
 
+        // sudo because .hermes/ is 0700 owned by the container's agent UID;
+        // see SshClient::readFileAsUser docblock for the full rationale.
         $output = $this->ssh->exec(
-            "sqlite3 -readonly -bail -json {$escapedDb} {$escapedSql} 2>&1",
+            "sudo -n sqlite3 -readonly -bail -json {$escapedDb} {$escapedSql} 2>&1",
             120,
         );
 

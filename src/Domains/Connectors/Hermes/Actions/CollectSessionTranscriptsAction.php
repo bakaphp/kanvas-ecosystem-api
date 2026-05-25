@@ -145,7 +145,7 @@ class CollectSessionTranscriptsAction extends BaseCollectSessionTranscriptsActio
         $dbPath = rtrim($home, '/') . '/.hermes/state.db';
 
         $output = $ssh->exec(
-            'sqlite3 -readonly -bail ' . escapeshellarg($dbPath) . ' "SELECT 1" 2>&1',
+            'sudo -n sqlite3 -readonly -bail ' . escapeshellarg($dbPath) . ' "SELECT 1" 2>&1',
             15,
         );
         $trimmed = trim($output);
