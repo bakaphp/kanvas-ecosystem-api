@@ -110,7 +110,7 @@ abstract class BaseCollectSessionTranscriptsAction
         $resolvedUserId = $this->resolveUserId($transcript, $agent);
 
         if ($conversation === null) {
-            AgentConversation::query()->insert([
+            $attributes = [
                 'id' => $transcript->sessionId,
                 'agent_id' => $agent->getId(),
                 'apps_id' => $appId,
@@ -120,8 +120,14 @@ abstract class BaseCollectSessionTranscriptsAction
                 'meta' => json_encode($sessionMeta, JSON_THROW_ON_ERROR),
                 'created_at' => $transcript->startedAt ?? now(),
                 'updated_at' => now(),
-            ]);
-            $conversation = AgentConversation::query()->findOrFail($transcript->sessionId);
+            ];
+            AgentConversation::query()->insert($attributes);
+            // Hydrate locally rather than re-reading. `findOrFail` would hit
+            // the read replica under prod's master/replica topology and throw
+            // ModelNotFoundException for any row still propagating from the
+            // write just above. `newFromBuilder` binds an Eloquent instance
+            // to the same data we just inserted, exists=true, no extra query.
+            $conversation = (new AgentConversation())->newFromBuilder($attributes);
         } else {
             $updates = [
                 'agent_id' => $agent->getId(),
