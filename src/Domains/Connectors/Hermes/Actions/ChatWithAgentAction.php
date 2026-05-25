@@ -23,7 +23,7 @@ use Throwable;
  * because that is what the Hermes API server exposes. The API server binds to
  * loopback inside the container and authenticates with a bearer key that equals
  * the per-agent gateway token (API_SERVER_KEY == the HERMES_GATEWAY_TOKEN custom
- * field — see DockerComposeBuilder::getApiServerEnvVars()).
+ * field — see DockerComposeBuilderService::getApiServerEnvVars()).
  *
  * The endpoint is stateless — each call sends only the current user message.
  * Continuity across turns comes from Hermes's own persistent auto-memory; true

@@ -8,7 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
 use Kanvas\Connectors\OpenClaw\SshClient;
-use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilder;
+use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilderService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Throwable;
 
@@ -34,7 +34,7 @@ class DeployAgentAction
                 . ' --non-interactive --json'
             );
 
-            $files = WorkspaceFileBuilder::buildAll($this->agent);
+            $files = WorkspaceFileBuilderService::buildAll($this->agent);
             foreach ($files as $filename => $content) {
                 $client->writeFile($workspacePath . '/' . $filename, $content);
             }

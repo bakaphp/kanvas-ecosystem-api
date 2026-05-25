@@ -19,10 +19,10 @@ use Kanvas\Intelligence\Agents\Models\Agent;
  *  - USER.md     — optional user context (only if Agent::user_context is set)
  *  - TOOLS.md    — optional tool configuration (only if Agent::tools_config is set)
  *
- * Replaces the per-provider copies (OpenClaw\Services\WorkspaceFileBuilder,
- * Hermes\Services\WorkspaceFileBuilder) which were byte-for-byte identical.
+ * Replaces the per-provider copies (OpenClaw\Services\WorkspaceFileBuilderService,
+ * Hermes\Services\WorkspaceFileBuilderService) which were byte-for-byte identical.
  */
-class WorkspaceFileBuilder
+class WorkspaceFileBuilderService
 {
     public static function buildSoulMd(Agent $agent): string
     {

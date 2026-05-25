@@ -14,6 +14,7 @@ enum RolesEnums: string
     case ADMIN = 'Admin';
     case USER = 'Users';
     case AGENT = 'Agents';
+    case AGENT_REPORT = 'AgentReport';
     case DEVELOPER = 'Developer';
     case MANAGER = 'Managers';
     case INVENTORY_MANAGER = 'InventoryManager';
@@ -38,6 +39,7 @@ enum RolesEnums: string
             'admin' => self::ADMIN,
             'user', 'users' => self::USER,
             'agent', 'agents' => self::AGENT,
+            'agentreport', 'agent_report' => self::AGENT_REPORT,
             'developer', 'developers' => self::DEVELOPER,
             'manager', 'managers' => self::MANAGER,
             'inventorymanager', 'inventory_manager' => self::INVENTORY_MANAGER,
@@ -54,6 +56,7 @@ enum RolesEnums: string
             self::OWNER->value,
             self::USER->value,
             self::AGENT->value,
+            self::AGENT_REPORT->value,
             self::DEVELOPER->value,
             self::MANAGER->value,
             self::INVENTORY_MANAGER->value,
