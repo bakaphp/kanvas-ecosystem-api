@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\AccessControl;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\AccessControlList\Actions\CreateAbilitiesByModule;
 use Kanvas\Apps\Models\Apps;
 
 class UpdateAbilitiesCommand extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -34,8 +37,15 @@ class UpdateAbilitiesCommand extends Command
         } else {
             $apps = Apps::all();
         }
+
+        /** @var Apps $app */
         foreach ($apps as $app) {
-            (new CreateAbilitiesByModule($app))->execute();
+            // Rebind container Apps + Bouncer scope so any code inside
+            // CreateAbilitiesByModule that resolves `app(Apps::class)`
+            // sees this iteration's app, not the one bound at boot.
+            $this->overwriteAppService($app);
+
+            new CreateAbilitiesByModule($app)->execute();
         }
     }
 }
