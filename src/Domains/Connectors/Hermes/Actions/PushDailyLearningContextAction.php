@@ -55,7 +55,23 @@ class PushDailyLearningContextAction
 
         try {
             $path = $this->resolveMemoryPath();
+
+            // Probe existence FIRST so we can distinguish "no file yet" (first
+            // push, safe to write fresh) from "file exists but our read returned
+            // empty" (perms/sudo issue — must NOT overwrite or we silently
+            // destroy Hermes-managed memory). `sudo -n test -s` is cheap and
+            // doesn't care about cat-level sudoers entries.
+            $fileExists = $this->remoteFileHasContent($ssh, $path);
             $existing = $this->safeReadFile($ssh, $path);
+
+            if ($fileExists && $existing === '') {
+                Log::error('Hermes daily-learning push aborted: file exists but read returned empty — refusing to overwrite (likely sudo cat NOPASSWD missing)', [
+                    'deployment_id' => $this->deployment->getId(),
+                    'path' => $path,
+                ]);
+
+                return false;
+            }
 
             $built = new HermesMemoryBlockBuilderService()->build($existing, $this->summary);
 
@@ -119,15 +135,36 @@ class PushDailyLearningContextAction
     }
 
     /**
-     * Read MEMORY.md if it exists; return empty string for first-push case
-     * (agent has never had us write before). Other SSH errors propagate.
+     * Read MEMORY.md via `sudo cat` because `.hermes/` is 0700 owned by the
+     * container's agent UID — SFTP as the SSH user would hit Permission
+     * denied and silently return empty, which would make us treat existing
+     * memory as "first push" and overwrite it. Symmetric with the write
+     * path's `sudo tee` via `writeFileAsUser`.
      */
     private function safeReadFile(SshClient $ssh, string $path): string
     {
         try {
-            return $ssh->readFile($path);
+            return $ssh->readFileAsUser($path);
         } catch (RuntimeException) {
             return '';
         }
+    }
+
+    /**
+     * Cheap pre-flight: does the file exist on the remote with non-zero
+     * size? `sudo -n stat` rather than SFTP stat because the parent dir
+     * may not be traversable by the SSH user. If stat fails for any reason
+     * we conservatively report "doesn't exist" — the caller's read attempt
+     * is the authority; this is just a sanity check to catch the case where
+     * read silently degrades to '' on a file that actually has content.
+     */
+    private function remoteFileHasContent(SshClient $ssh, string $path): bool
+    {
+        $output = trim($ssh->exec(
+            'sudo -n stat -c %s ' . escapeshellarg($path) . ' 2>/dev/null',
+            10,
+        ));
+
+        return ctype_digit($output) && (int) $output > 0;
     }
 }
