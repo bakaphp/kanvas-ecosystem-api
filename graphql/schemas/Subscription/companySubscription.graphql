@@ -41,6 +41,19 @@ input SubscriptionUpdateInput {
     payment_method_id: String
 }
 
+input SubscriptionCheckoutInput {
+    apps_plans_prices_id: ID!
+    success_url: String
+    cancel_url: String
+}
+
+type SubscriptionCheckoutResult {
+    status: String!
+    payment_url: String
+    session_id: String
+    message: String
+}
+
 extend type Mutation @guard {
     createSubscription(input: SubscriptionInput!): CompanySubscription!
         @field(
@@ -58,6 +71,11 @@ extend type Mutation @guard {
     reactiveSubscription(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@reactivate"
+        )
+
+    generateSubscriptionCheckoutSession(input: SubscriptionCheckoutInput!): SubscriptionCheckoutResult!
+        @field(
+            resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionCheckoutMutation@generate"
         )
 }
 
