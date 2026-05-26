@@ -71,6 +71,7 @@ class AddFundsToWalletActivity extends KanvasActivity
                     'order_id' => $order->getId(),
                     'transaction_id' => $transaction->getKey(),
                     'amount' => $transaction->amountFloat ?? 0,
+                    'company_id' => $transaction->wallet?->holder_id,
                 ];
             },
             company: $order->company,
