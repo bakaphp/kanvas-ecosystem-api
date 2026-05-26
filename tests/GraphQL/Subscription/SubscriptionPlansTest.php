@@ -133,22 +133,24 @@ final class SubscriptionPlansTest extends TestCase
         ]);
     }
 
-    public function testDeletePlan(): void
+    public function testDeletePlanWithPricesArchivesOnStripeAndSoftDeletesLocally(): void
     {
+        // Plan WITH a price — covers the production case where Stripe refuses
+        // hard-delete on products that have prices. Mutation must archive
+        // (active: false) on Stripe and soft-delete locally regardless.
         $response = $this->graphQL('
             mutation {
                 createPlan(input: {
-                    name: "Test plan to delete",
-                    description: "Plan to delete",
-                    free_trial_dates: 15,
-                    is_default: true,
-                    prices: []
+                    name: "Plan with price to delete",
+                    description: "must archive on Stripe, soft-delete locally",
+                    free_trial_dates: 0,
+                    is_default: false,
+                    prices: [
+                        { amount: 12.00, currency: "USD", interval: "month" }
+                    ]
                 }) {
                     id
-                    name
                     stripe_id
-                    free_trial_dates
-                    is_default
                 }
             }
         ', [], [], $this->appKeyHeader());

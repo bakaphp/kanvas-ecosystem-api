@@ -38,12 +38,14 @@ use Kanvas\Social\Messages\Models\UserMessageActivity;
 use Kanvas\Social\Messages\Observers\UserMessageActivityObserver;
 use Kanvas\Social\UsersLists\Models\UserList;
 use Kanvas\Social\UsersLists\Observers\UsersListsObserver;
+use Kanvas\Subscription\Plans\Listeners\CatalogSyncWebhookListener;
 use Kanvas\Subscription\Subscriptions\Listeners\CompanySubscriptionWebhookListener;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\Subscription\Subscriptions\Observers\AppsStripeCustomerObserver;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Observers\UsersObserver;
 use Laravel\Cashier\Events\WebhookHandled;
+use Laravel\Cashier\Events\WebhookReceived;
 use Override;
 
 class EventServiceProvider extends ServiceProvider
@@ -69,6 +71,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         WebhookHandled::class => [
             CompanySubscriptionWebhookListener::class,
+        ],
+        WebhookReceived::class => [
+            CatalogSyncWebhookListener::class,
         ],
     ];
 

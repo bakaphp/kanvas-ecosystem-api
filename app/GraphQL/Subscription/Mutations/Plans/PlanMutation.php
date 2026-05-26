@@ -75,8 +75,14 @@ class PlanMutation
     {
         $plan = PlanRepository::getByIdWithApp((int) $req['id']);
 
-        $stripeProduct = StripeProduct::retrieve($plan->stripe_id);
-        $stripeProduct->delete();
+        // Stripe rejects hard-delete on products that have any prices (which
+        // every real plan has). Archive on Stripe (active: false) and soft-delete
+        // locally — both sides end up hidden from the customer flow, and any
+        // historical subscription can still resolve the plan by stripe_id.
+        StripeProduct::update(
+            $plan->stripe_id,
+            ['active' => false]
+        );
 
         $plan->delete();
 
