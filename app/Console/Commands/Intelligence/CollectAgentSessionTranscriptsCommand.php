@@ -41,7 +41,10 @@ class CollectAgentSessionTranscriptsCommand extends Command
             $query->where('id', (int) $deploymentRaw);
         } else {
             // Widen this list as other runtimes implement collectSessionTranscripts().
-            $query->where('provider', AgentProviderEnum::HERMES->value);
+            $query->whereIn('provider', [
+                AgentProviderEnum::HERMES->value,
+                AgentProviderEnum::OPENCLAW->value,
+            ]);
         }
 
         $deployments = $query->get();
