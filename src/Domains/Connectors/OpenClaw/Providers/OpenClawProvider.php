@@ -6,15 +6,19 @@ namespace Kanvas\Connectors\OpenClaw\Providers;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\OpenClaw\Actions\ChatWithAgentAction;
 use Kanvas\Connectors\OpenClaw\Actions\CheckCliHealthAction;
 use Kanvas\Connectors\OpenClaw\Actions\CollectDeploymentUsageAction;
+use Kanvas\Connectors\OpenClaw\Actions\CollectSessionTranscriptsAction;
 use Kanvas\Connectors\OpenClaw\Actions\DispatchAgentDeploymentAction;
 use Kanvas\Connectors\OpenClaw\Actions\ExecDeploymentCommandAction;
+use Kanvas\Connectors\OpenClaw\Actions\FetchDailyLearningContextAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerLogsAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerStatusAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetDeploymentConfigAction;
+use Kanvas\Connectors\OpenClaw\Actions\PushDailyLearningContextAction;
 use Kanvas\Connectors\OpenClaw\Actions\UpdateDeploymentConfigAction;
 use Kanvas\Connectors\OpenClaw\Jobs\BackupAgentWorkspaceJob;
 use Kanvas\Connectors\OpenClaw\Jobs\MigrateAgentWorkspaceJob;
@@ -22,6 +26,7 @@ use Kanvas\Connectors\OpenClaw\Jobs\RestartAgentContainerJob;
 use Kanvas\Connectors\OpenClaw\Jobs\TerminateAgentJob;
 use Kanvas\Connectors\OpenClaw\Jobs\UpdateOpenClawOnMachineJob;
 use Kanvas\Connectors\OpenClaw\SshClient;
+use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\AgentRuntime\Providers\AbstractAgentRuntimeProvider;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
@@ -191,5 +196,39 @@ class OpenClawProvider extends AbstractAgentRuntimeProvider
     public function dispatchUpdateMachineContainers(AgentMachine $machine): void
     {
         UpdateOpenClawOnMachineJob::dispatch($machine);
+    }
+
+    #[Override]
+    public function collectSessionTranscripts(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        ?Carbon $since = null,
+    ): int {
+        return new CollectSessionTranscriptsAction(
+            deployment: $deployment,
+            app: $app,
+            company: $company,
+            since: $since,
+        )->execute();
+    }
+
+    #[Override]
+    public function pushDailyLearningContext(
+        AgentDeployment $deployment,
+        DailyLearningSummary $summary,
+        Carbon $cycleDate,
+    ): bool {
+        return new PushDailyLearningContextAction(
+            deployment: $deployment,
+            summary: $summary,
+            cycleDate: $cycleDate,
+        )->execute();
+    }
+
+    #[Override]
+    public function fetchDailyLearningContext(AgentDeployment $deployment): string
+    {
+        return new FetchDailyLearningContextAction($deployment)->execute();
     }
 }

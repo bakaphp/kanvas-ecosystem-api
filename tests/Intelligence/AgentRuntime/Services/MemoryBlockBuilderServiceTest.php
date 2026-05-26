@@ -2,16 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Hermes\Services;
+namespace Tests\Intelligence\AgentRuntime\Services;
 
-use Kanvas\Connectors\Hermes\Services\HermesMemoryBlockBuilderService;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
+use Kanvas\Intelligence\AgentRuntime\Enums\MemoryFormatEnum;
+use Kanvas\Intelligence\AgentRuntime\Services\MemoryBlockBuilderService;
 use Tests\TestCase;
 
-/**
- * Pure-function tests — no DB, no SSH. Verifies dedup-and-cap semantics.
- */
-class HermesMemoryBlockBuilderServiceTest extends TestCase
+// Pure-function tests — no DB, no SSH. Default builder produces Hermes
+// §-format; OpenClaw builder produces per-fact markdown sections. parseFacts
+// is heuristic and handles both shapes.
+class MemoryBlockBuilderServiceTest extends TestCase
 {
     private function summary(array $durableFacts): DailyLearningSummary
     {
@@ -26,7 +27,7 @@ class HermesMemoryBlockBuilderServiceTest extends TestCase
 
     public function testAppendsToEmptyMemory(): void
     {
-        $result = new HermesMemoryBlockBuilderService()->build(
+        $result = new MemoryBlockBuilderService()->build(
             existingMemory: '',
             summary: $this->summary(['Steven is the PNP contact.', 'EVT starts 1 workday after sample.']),
         );
@@ -49,7 +50,7 @@ class HermesMemoryBlockBuilderServiceTest extends TestCase
             ],
         );
 
-        $result = new HermesMemoryBlockBuilderService()->build(
+        $result = new MemoryBlockBuilderService()->build(
             existingMemory: $existing,
             summary: $this->summary([
                 'Steven is the PNP contact.',           // exact match
@@ -70,7 +71,7 @@ class HermesMemoryBlockBuilderServiceTest extends TestCase
 
     public function testFifoEvictsOldestWhenOverMaxFacts(): void
     {
-        $cap = HermesMemoryBlockBuilderService::MAX_FACTS;
+        $cap = MemoryBlockBuilderService::MAX_FACTS;
 
         // Build $cap unique existing facts (oldest first), then push 5 new ones.
         $existingFacts = [];
@@ -79,7 +80,7 @@ class HermesMemoryBlockBuilderServiceTest extends TestCase
         }
         $existing = implode("\n§\n", $existingFacts);
 
-        $result = new HermesMemoryBlockBuilderService()->build(
+        $result = new MemoryBlockBuilderService()->build(
             existingMemory: $existing,
             summary: $this->summary([
                 'New fact A.',
@@ -105,7 +106,7 @@ class HermesMemoryBlockBuilderServiceTest extends TestCase
 
     public function testIgnoresBlankCandidateFacts(): void
     {
-        $result = new HermesMemoryBlockBuilderService()->build(
+        $result = new MemoryBlockBuilderService()->build(
             existingMemory: '',
             summary: $this->summary(['', '   ', "\n\n"]),
         );
@@ -113,5 +114,55 @@ class HermesMemoryBlockBuilderServiceTest extends TestCase
         $this->assertSame(0, $result['added']);
         $this->assertSame(0, $result['evicted']);
         $this->assertSame('', $result['content']);
+    }
+
+    public function testMarkdownSectionsFormatRendersOneSectionPerFact(): void
+    {
+        $result = new MemoryBlockBuilderService(MemoryFormatEnum::MarkdownSections)->build(
+            existingMemory: '',
+            summary: $this->summary(['Steven is the PNP contact.', 'EVT starts 1 workday after sample.']),
+        );
+
+        $this->assertSame(2, $result['added']);
+        $this->assertStringContainsString("## 1\nSteven is the PNP contact.", $result['content']);
+        $this->assertStringContainsString("## 2\nEVT starts 1 workday after sample.", $result['content']);
+        // Should NOT use the §-separator
+        $this->assertStringNotContainsString('§', $result['content']);
+    }
+
+    public function testMarkdownSectionsDedupsAgainstExistingMarkdown(): void
+    {
+        $existing = "# Kanvas Durable Facts\n\n## 1\nSteven is the PNP contact.\n\n## 2\nEVT starts 1 workday after sample receipt.\n";
+
+        $result = new MemoryBlockBuilderService(MemoryFormatEnum::MarkdownSections)->build(
+            existingMemory: $existing,
+            summary: $this->summary([
+                'Steven is the PNP contact.',           // duplicate
+                'New fact about something else.',       // new
+            ]),
+        );
+
+        $this->assertSame(1, $result['added']);
+        $this->assertStringContainsString('New fact about something else.', $result['content']);
+        $this->assertSame(
+            1,
+            substr_count($result['content'], 'Steven is the PNP contact.'),
+        );
+    }
+
+    public function testParseFactsHeuristicallyDetectsMarkdownFormat(): void
+    {
+        $markdown = "# Kanvas Durable Facts\n\n## 1\nFact one.\n\n## 2\nFact two.\n";
+        $parsed = MemoryBlockBuilderService::parseFacts($markdown);
+
+        $this->assertSame(['Fact one.', 'Fact two.'], $parsed);
+    }
+
+    public function testParseFactsHeuristicallyDetectsSeparatorFormat(): void
+    {
+        $separator = "Fact one.\n§\nFact two.";
+        $parsed = MemoryBlockBuilderService::parseFacts($separator);
+
+        $this->assertSame(['Fact one.', 'Fact two.'], $parsed);
     }
 }
