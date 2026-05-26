@@ -27,7 +27,7 @@ input PlanUpdateInput {
     is_default: Boolean
 }
 
-extend type Mutation @guard {
+extend type Mutation @guardByAppKey {
     createPlan(input: PlanInput!): Plan!
         @requiresStripeConfiguration
         @field(

@@ -23,7 +23,7 @@ input PriceUpdateInput {
     is_active: Boolean
 }
 
-extend type Mutation @guard {
+extend type Mutation @guardByAppKey {
     createPrice(input: PriceInput!): Price!
         @requiresStripeConfiguration
         @field(

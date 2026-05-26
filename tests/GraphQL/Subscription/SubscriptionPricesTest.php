@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Subscription\Plans\Models\Plan;
 use Kanvas\Subscription\Prices\Models\Price;
 use Tests\TestCase;
@@ -28,9 +29,13 @@ final class SubscriptionPricesTest extends TestCase
         }
     }
 
-    /**
-     * TestCreatePrice.
-     */
+    private function appKeyHeader(): array
+    {
+        return [
+            AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $this->appModel->keys()->first()->client_secret_id,
+        ];
+    }
+
     public function testCreatePrice()
     {
         $plan = [
@@ -61,7 +66,7 @@ final class SubscriptionPricesTest extends TestCase
                     currency
                 }
             }
-        ');
+        ', [], [], $this->appKeyHeader());
 
         $response->assertJson([
             'data' => [
@@ -79,9 +84,6 @@ final class SubscriptionPricesTest extends TestCase
         ]);
     }
 
-    /**
-     * TestUpdatePrice.
-     */
     public function testUpdatePrice()
     {
         $priceId = Price::firstOrFail()->id;
@@ -96,7 +98,7 @@ final class SubscriptionPricesTest extends TestCase
                     is_active
                 }
             }
-        ');
+        ', [], [], $this->appKeyHeader());
 
         $response->assertJson([
             'data' => [
@@ -110,5 +112,22 @@ final class SubscriptionPricesTest extends TestCase
             'id' => $priceId,
             'is_active' => true,
         ]);
+    }
+
+    public function testCreatePriceRejectedWithoutAppKey(): void
+    {
+        $response = $this->graphQL('
+            mutation {
+                createPrice(input: {
+                    apps_plans_id: 1,
+                    amount: 99.00,
+                    currency: "USD",
+                    interval: "month"
+                }) { id }
+            }
+        ');
+
+        $this->assertNotEmpty($response->json('errors'));
+        $this->assertNull($response->json('data.createPrice'));
     }
 }

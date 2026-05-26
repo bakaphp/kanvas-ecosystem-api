@@ -7,6 +7,7 @@ namespace Tests\GraphQL\Subscription;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Subscription\Plans\Models\Plan;
 use Tests\TestCase;
 
@@ -26,9 +27,13 @@ final class SubscriptionPlansTest extends TestCase
         }
     }
 
-    /**
-     * TestCreatePlan.
-     */
+    private function appKeyHeader(): array
+    {
+        return [
+            AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $this->appModel->keys()->first()->client_secret_id,
+        ];
+    }
+
     public function testCreatePlan()
     {
         $response = $this->graphQL('
@@ -60,7 +65,7 @@ final class SubscriptionPlansTest extends TestCase
                     }
                 }
             }
-        ');
+        ', [], [], $this->appKeyHeader());
 
         $response->assertJson([
             'data' => [
@@ -86,9 +91,6 @@ final class SubscriptionPlansTest extends TestCase
         ]);
     }
 
-    /**
-     * TestUpdatePlan.
-     */
     public function testUpdatePlan()
     {
         $planId = Plan::firstOrFail()->id;
@@ -111,7 +113,7 @@ final class SubscriptionPlansTest extends TestCase
                     is_default
                 }
             }
-        ');
+        ', [], [], $this->appKeyHeader());
 
         $response->assertJson([
             'data' => [
@@ -133,9 +135,6 @@ final class SubscriptionPlansTest extends TestCase
         ]);
     }
 
-    /**
-     * TestDeletePlan.
-     */
     public function testDeletePlan(): void
     {
         $response = $this->graphQL('
@@ -154,7 +153,7 @@ final class SubscriptionPlansTest extends TestCase
                     is_default
                 }
             }
-        ');
+        ', [], [], $this->appKeyHeader());
 
         $planId = $response->json('data.createPlan.id');
 
@@ -162,7 +161,7 @@ final class SubscriptionPlansTest extends TestCase
             mutation {
                 deletePlan(id: ' . $planId . ')
             }
-        ');
+        ', [], [], $this->appKeyHeader());
 
         $deleteResponse->assertJson([
             'data' => [
@@ -176,9 +175,6 @@ final class SubscriptionPlansTest extends TestCase
         ]);
     }
 
-    /**
-     * TestListPlans.
-     */
     public function testListPlans(): void
     {
         $response = $this->graphQL(
@@ -221,5 +217,23 @@ final class SubscriptionPlansTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testCreatePlanRejectedWithoutAppKey(): void
+    {
+        $response = $this->graphQL('
+            mutation {
+                createPlan(input: {
+                    name: "Unauthorized plan",
+                    description: "should fail",
+                    free_trial_dates: 0,
+                    is_default: false,
+                    prices: []
+                }) { id }
+            }
+        ');
+
+        $this->assertNotEmpty($response->json('errors'));
+        $this->assertNull($response->json('data.createPlan'));
     }
 }
