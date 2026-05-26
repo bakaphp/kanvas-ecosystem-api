@@ -25,4 +25,6 @@ enum ConfigurationEnum: string
     case PRODUCT_TYPE_WALLET_SUBSCRIPTION_AMOUNT = 'wallet-subscription-amount';
     case USE_VARIANT_CREDIT_INSTEAD_OF_VARIANT_PRICE_SLUG = 'use_variant_credit_instead_of_variant_price';
     case VARIANT_WALLET_CREDIT_AMOUNT = 'credit';
+
+    case WALLET_RESOLVE_COMPANY_FROM_METADATA = 'wallet_resolve_company_from_metadata';
 }
