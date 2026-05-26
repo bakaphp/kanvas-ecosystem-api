@@ -6,6 +6,7 @@ namespace Baka\Traits;
 
 use Illuminate\Support\Carbon;
 use JsonException;
+use Throwable;
 
 /**
  * Defensive scalar / json coercion helpers for mapping `mixed` payloads from
@@ -61,7 +62,7 @@ trait ScalarCoercionTrait
 
         try {
             return Carbon::parse($value);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
     }

@@ -10,11 +10,6 @@ use Kanvas\Intelligence\AgentRuntime\Actions\BaseCollectSessionTranscriptsAction
 use Kanvas\Intelligence\AgentRuntime\Contracts\SessionTranscriptReader;
 use Override;
 
-/**
- * Owns the SSH connection lifecycle; persistence + idempotency live in the
- * base action. Reader walks `~/.openclaw/agents/<slug>/sessions/<uuid>.jsonl`
- * files via sudo (the agent home dir is 0700 owned by the system user).
- */
 class CollectSessionTranscriptsAction extends BaseCollectSessionTranscriptsAction
 {
     private ?SshClient $sshClient = null;

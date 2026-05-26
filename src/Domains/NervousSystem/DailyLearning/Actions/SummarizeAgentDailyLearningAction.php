@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Hermes\Services\HermesMemoryBlockBuilderService;
+use Kanvas\Intelligence\AgentRuntime\Services\MemoryBlockBuilderService;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -84,7 +84,7 @@ class SummarizeAgentDailyLearningAction
             $pushed = $this->pushToRuntime($summary);
         }
 
-        $existingFactCount = count(HermesMemoryBlockBuilderService::parseFacts($existingMemory));
+        $existingFactCount = count(MemoryBlockBuilderService::parseFacts($existingMemory));
         $this->emitLedger($summary, $conversations->count(), $pushed, $existingFactCount);
 
         return $summary;

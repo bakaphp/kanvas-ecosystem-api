@@ -15,18 +15,11 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Override;
 use RuntimeException;
 
-/**
- * OpenClaw stores sessions as per-session JSONL files under
- * `~/.openclaw/agents/<slug>/sessions/<uuid>.jsonl`, alongside auxiliary
- * `.trajectory.jsonl` / `.checkpoint.*.jsonl` / `.jsonl.reset.*` files we
- * deliberately skip — only the bare `<uuid>.jsonl` carries the conversation
- * messages.
- *
- * Each line is a typed event (`type` ∈ {session, model_change,
- * thinking_level_change, message, …}). We only care about `type:"message"`,
- * which wraps an OpenAI-style `{role, content[]}` envelope inside the
- * `.message` field.
- */
+// Sessions live in `~/.openclaw/agents/<slug>/sessions/<uuid>.jsonl`, with
+// auxiliary `.trajectory.jsonl` / `.checkpoint.*.jsonl` / `.jsonl.reset.*`
+// siblings we deliberately skip — only the bare `<uuid>.jsonl` carries
+// conversation messages. Each line is a typed event; we only care about
+// `type:"message"`, which wraps an OpenAI-style `{role, content[]}` envelope.
 final class OpenClawSessionsReaderService implements SessionTranscriptReader
 {
     use ScalarCoercionTrait;
@@ -67,15 +60,8 @@ final class OpenClawSessionsReaderService implements SessionTranscriptReader
         return rtrim($home, '/') . '/.openclaw/agents/' . $agentSlug . '/sessions';
     }
 
-    /**
-     * `find -printf "%T@ %f\n"` over the sessions dir, filtering to bare
-     * `<uuid>.jsonl` files (excluding `.trajectory.jsonl`,
-     * `.checkpoint.*.jsonl`, `.jsonl.reset.*`) modified at-or-after $since.
-     *
-     * Sudo so we traverse the 0700-owned agent home dir.
-     *
-     * @return iterable<string, int>  session UUID => mtime epoch
-     */
+    // Sudo find so we traverse the 0700-owned agent home dir.
+    /** @return iterable<string, int> session UUID => mtime epoch */
     private function listSessionFiles(string $sessionsDir, int $sinceEpoch): iterable
     {
         $cmd = sprintf(
@@ -106,8 +92,8 @@ final class OpenClawSessionsReaderService implements SessionTranscriptReader
             }
 
             $sessionId = substr($parts[1], 0, -strlen('.jsonl'));
-            // Sanity-check UUID-ish length to avoid feeding a reset marker
-            // (`<uuid>.jsonl.reset.<ts>`) into persistence.
+            // Filter out reset markers (`<uuid>.jsonl.reset.<ts>`) that find
+            // can still surface despite the negative name filters above.
             if (! preg_match('/^[0-9a-f-]{36}$/i', $sessionId)) {
                 continue;
             }
@@ -124,9 +110,8 @@ final class OpenClawSessionsReaderService implements SessionTranscriptReader
     ): ParsedSessionTranscript {
         [$messages, $headerTs, $model] = $this->readMessageFile($sessionsDir, $sessionId, $sinceEpoch);
 
-        // Fall back to file mtime for endedAt when the JSONL has no trailing
-        // timestamp we can trust. startedAt comes from the `type:"session"`
-        // header line when present.
+        // endedAt falls back to file mtime; startedAt comes from the
+        // `type:"session"` header line when present.
         $endedAt = Carbon::createFromTimestamp($mtimeEpoch);
 
         return new ParsedSessionTranscript(
@@ -272,18 +257,12 @@ final class OpenClawSessionsReaderService implements SessionTranscriptReader
         );
     }
 
-    /**
-     * OpenClaw content blocks: list of `{type, ...}` items. Mostly:
-     *  - {type:"text", text}                              → message body
-     *  - {type:"thinking", thinking, thinkingSignature}   → ignored for transcript
-     *  - {type:"toolCall", id, name, arguments}           → tool_calls array
-     *
-     * For tool_result messages the content is the tool's output text and we
-     * package it as a single toolResults entry; the inner `content` field
-     * goes to null per the SessionTranscriptReader contract.
-     *
-     * @return array{0: ?string, 1: ?list<array<string, mixed>>, 2: ?list<array<string, mixed>>}
-     */
+    // OpenClaw content blocks: `{type:"text", text}` → body,
+    // `{type:"toolCall", id, name, arguments}` → tool_calls, `thinking`
+    // blocks dropped. For tool_result messages we package output text as a
+    // single toolResults entry; inner `content` goes null per the
+    // SessionTranscriptReader contract.
+    /** @return array{0: ?string, 1: ?list<array<string, mixed>>, 2: ?list<array<string, mixed>>} */
     private function extractContentBlocks(mixed $raw, string $role): array
     {
         if (! is_array($raw)) {
@@ -313,8 +292,6 @@ final class OpenClawSessionsReaderService implements SessionTranscriptReader
                     'arguments' => is_array($block['arguments'] ?? null) ? $block['arguments'] : [],
                 ];
             }
-            // `thinking` blocks are intentionally dropped — they're prompt
-            // chain-of-thought, not user-visible transcript content.
         }
 
         if ($role === 'tool_result') {
@@ -334,18 +311,5 @@ final class OpenClawSessionsReaderService implements SessionTranscriptReader
             $toolCalls === [] ? null : $toolCalls,
             null,
         ];
-    }
-
-    private function parseIso(mixed $raw): ?Carbon
-    {
-        if (! is_string($raw) || $raw === '') {
-            return null;
-        }
-
-        try {
-            return Carbon::parse($raw);
-        } catch (\Throwable) {
-            return null;
-        }
     }
 }

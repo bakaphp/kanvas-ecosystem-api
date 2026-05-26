@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\DailyLearning\Services;
 
 use Illuminate\Support\Collection;
-use Kanvas\Connectors\Hermes\Services\HermesMemoryBlockBuilderService;
+use Kanvas\Intelligence\AgentRuntime\Services\MemoryBlockBuilderService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentConversation;
 use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
@@ -19,7 +19,7 @@ use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
  * When the caller passes an `$existingMemory` blob, it's parsed via the
  * Hermes `§`-format and injected into the prompt so the LLM can semantically
  * dedup `durable_facts` upstream — the first-50-chars-lowercased heuristic
- * in HermesMemoryBlockBuilderService misses re-phrasings, the LLM doesn't.
+ * in MemoryBlockBuilderService misses re-phrasings, the LLM doesn't.
  */
 final class DailyLearningPromptBuilderService
 {
@@ -54,7 +54,7 @@ final class DailyLearningPromptBuilderService
      */
     private function existingMemoryBlock(string $existingMemory): string
     {
-        $facts = HermesMemoryBlockBuilderService::parseFacts($existingMemory);
+        $facts = MemoryBlockBuilderService::parseFacts($existingMemory);
         if ($facts === []) {
             return '';
         }

@@ -2,16 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Hermes\Services;
+namespace Tests\Intelligence\AgentRuntime\Services;
 
-use Kanvas\Connectors\Hermes\Services\HermesMemoryBlockBuilderService;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
+use Kanvas\Intelligence\AgentRuntime\Services\MemoryBlockBuilderService;
 use Tests\TestCase;
 
 /**
- * Pure-function tests — no DB, no SSH. Verifies dedup-and-cap semantics.
+ * Pure-function tests — no DB, no SSH. Verifies dedup-and-cap semantics
+ * shared across Hermes (MEMORY.md) and OpenClaw (KANVAS-LEARNINGS.md) memory
+ * files — both use the §-separated format this builder produces.
  */
-class HermesMemoryBlockBuilderServiceTest extends TestCase
+class MemoryBlockBuilderServiceTest extends TestCase
 {
     private function summary(array $durableFacts): DailyLearningSummary
     {
@@ -26,7 +28,7 @@ class HermesMemoryBlockBuilderServiceTest extends TestCase
 
     public function testAppendsToEmptyMemory(): void
     {
-        $result = new HermesMemoryBlockBuilderService()->build(
+        $result = new MemoryBlockBuilderService()->build(
             existingMemory: '',
             summary: $this->summary(['Steven is the PNP contact.', 'EVT starts 1 workday after sample.']),
         );
@@ -49,7 +51,7 @@ class HermesMemoryBlockBuilderServiceTest extends TestCase
             ],
         );
 
-        $result = new HermesMemoryBlockBuilderService()->build(
+        $result = new MemoryBlockBuilderService()->build(
             existingMemory: $existing,
             summary: $this->summary([
                 'Steven is the PNP contact.',           // exact match
@@ -70,7 +72,7 @@ class HermesMemoryBlockBuilderServiceTest extends TestCase
 
     public function testFifoEvictsOldestWhenOverMaxFacts(): void
     {
-        $cap = HermesMemoryBlockBuilderService::MAX_FACTS;
+        $cap = MemoryBlockBuilderService::MAX_FACTS;
 
         // Build $cap unique existing facts (oldest first), then push 5 new ones.
         $existingFacts = [];
@@ -79,7 +81,7 @@ class HermesMemoryBlockBuilderServiceTest extends TestCase
         }
         $existing = implode("\n§\n", $existingFacts);
 
-        $result = new HermesMemoryBlockBuilderService()->build(
+        $result = new MemoryBlockBuilderService()->build(
             existingMemory: $existing,
             summary: $this->summary([
                 'New fact A.',
@@ -105,7 +107,7 @@ class HermesMemoryBlockBuilderServiceTest extends TestCase
 
     public function testIgnoresBlankCandidateFacts(): void
     {
-        $result = new HermesMemoryBlockBuilderService()->build(
+        $result = new MemoryBlockBuilderService()->build(
             existingMemory: '',
             summary: $this->summary(['', '   ', "\n\n"]),
         );

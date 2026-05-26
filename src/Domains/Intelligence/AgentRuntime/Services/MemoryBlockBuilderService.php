@@ -2,20 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Hermes\Services;
+namespace Kanvas\Intelligence\AgentRuntime\Services;
 
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
 
-/**
- * Pure transformation kept off the SSH-wired action so the dedup/cap logic
- * stays unit-testable. Hermes's MEMORY.md format is `§`-separated one-line
- * facts; we append `durable_facts` in that format, dedup against existing
- * entries, and FIFO-cap at MAX_FACTS to bound the agent's prompt cost.
- *
- * Only `durable_facts` reach the agent's memory bank — `briefing` and
- * `proposed_actions` belong on AgentDailyCycle (humans), not here.
- */
-final class HermesMemoryBlockBuilderService
+// Pure transformation kept off the SSH-wired actions so dedup/cap logic stays
+// unit-testable. Hermes (MEMORY.md) and OpenClaw (KANVAS-LEARNINGS.md) both
+// write `§`-separated one-line facts; FIFO-capped at MAX_FACTS to bound prompt
+// cost. Only `durable_facts` reach here — `briefing` and `proposed_actions`
+// belong on AgentDailyCycle.
+final class MemoryBlockBuilderService
 {
     public const int MAX_FACTS = 80;
 
@@ -59,13 +55,9 @@ final class HermesMemoryBlockBuilderService
         ];
     }
 
-    /**
-     * Shared `§`-parser — the daily-learning prompt builder also needs to
-     * walk the existing MEMORY.md to feed prior facts back to the LLM for
-     * upstream dedup, so this is the one source of truth for the format.
-     *
-     * @return list<string>
-     */
+    // One source of truth for the `§` format — also called by the prompt
+    // builder to feed prior facts back to the LLM for upstream dedup.
+    /** @return list<string> */
     public static function parseFacts(string $memory): array
     {
         $trimmed = trim($memory);
@@ -84,14 +76,12 @@ final class HermesMemoryBlockBuilderService
                 $out[] = $part;
             }
         }
+
         return $out;
     }
 
-    /**
-     * Cheap heuristic — lowercased prefix of the first 50 chars catches the
-     * common case where the LLM re-emits a fact with minor wording drift.
-     * Swap for LLM-side dedup in v1.1 if near-duplicates leak through.
-     */
+    // Lowercased 50-char prefix — catches re-emissions with minor wording
+    // drift. Swap for LLM-side dedup if near-duplicates leak through.
     private function dedupKey(string $fact): string
     {
         return mb_strtolower(mb_substr(trim($fact), 0, 50));
