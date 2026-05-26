@@ -254,6 +254,16 @@ class Plan extends Data
 }
 ```
 
+**Call via Spatie's `::from()` magic, NOT `::fromMultiple()` directly.**
+
+Spatie Data's `BaseData::from(mixed ...$payloads)` is the public factory. When you call `Plan::from($app, $user, $company, $request['input'])`, Spatie's creation pipeline inspects the runtime types of the args and routes to whichever `from*` magic method on the class has a matching signature. Our `fromMultiple` method is one of those magic methods — naming it `fromMultiple` makes it the canonical entry for the "multiple typed-objects + data array" shape.
+
+**Do NOT try to rename `fromMultiple` to `from`.** PHP will fatal at class load because Spatie's parent signature `from(mixed ...$payloads): static` cannot be narrowed to a fixed typed signature (LSP violation: child can't have more required params than parent, and can't narrow variadic mixed to specific types).
+
+**Do NOT call `Plan::fromMultiple(...)` directly from outside the class** — use `Plan::from(...)`. Spatie's pipeline handles the routing. Direct calls work but bypass any Spatie-side normalization/casting and are non-idiomatic.
+
+`forUpdate` is NOT a Spatie magic method (magic methods are `from*` prefixed, not `for*`). Call it directly: `Plan::forUpdate($existing, $app, $user, $data)`.
+
 **Mutation resolver becomes a 3-liner:**
 
 ```php
@@ -264,7 +274,7 @@ public function create(mixed $rootValue, array $request): Plan
     $company = $user->getCurrentCompany();
 
     return new CreatePlanAction(
-        PlanData::fromMultiple($app, $user, $company, $request['input']),
+        PlanData::from($app, $user, $company, $request['input']),
     )->execute();
 }
 

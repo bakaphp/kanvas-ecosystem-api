@@ -23,9 +23,7 @@ final class ImportPlanFromStripeActivityTest extends TestCase
         parent::setUp();
         $this->appModel = app(Apps::class);
         $this->user = Users::factory()->create();
-        if (empty($this->appModel->get(ConfigurationEnum::STRIPE_SECRET_KEY->value))) {
-            $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
-        }
+        $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, $this->requireStripeTestKey());
     }
 
     public function testImportPlanWorkflow(): void

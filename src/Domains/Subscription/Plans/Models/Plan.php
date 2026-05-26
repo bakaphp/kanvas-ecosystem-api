@@ -7,6 +7,7 @@ namespace Kanvas\Subscription\Plans\Models;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Subscription\Models\BaseModel;
 use Kanvas\Subscription\Prices\Models\Price;
+use Override;
 
 /**
  * Class Plan.
@@ -28,9 +29,17 @@ class Plan extends BaseModel
     protected $table = 'apps_plans';
     protected $guarded = [];
 
-    /**
-     * price.
-     */
+    #[Override]
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+            'is_default' => 'boolean',
+            'is_deleted' => 'boolean',
+            'free_trial_dates' => 'integer',
+        ];
+    }
+
     public function price(): HasMany
     {
         return $this->hasMany(Price::class, 'apps_plans_id');

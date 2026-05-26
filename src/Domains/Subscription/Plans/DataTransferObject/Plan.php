@@ -6,6 +6,7 @@ namespace Kanvas\Subscription\Plans\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Subscription\Plans\Models\Plan as PlanModel;
 use Spatie\LaravelData\Data;
 
 class Plan extends Data
@@ -19,22 +20,41 @@ class Plan extends Data
         public int $free_trial_dates = 0,
         public bool $is_active = true,
         public bool $is_default = false,
-        public bool $is_deleted = false,
     ) {
     }
 
-    public static function viaRequest(array $request, UserInterface $user, AppInterface $app): self
-    {
+    public static function fromMultiple(
+        AppInterface $app,
+        UserInterface $user,
+        array $data,
+    ): self {
         return new self(
-            $app,
-            $user,
-            $request['name'],
-            $request['stripe_id'],
-            $request['description'] ?? null,
-            $request['free_trial_dates'] ?? 0,
-            $request['is_active'] ?? true,
-            $request['is_default'] ?? false,
-            $request['is_deleted'] ?? false
+            app: $app,
+            user: $user,
+            name: (string) $data['name'],
+            stripe_id: (string) $data['stripe_id'],
+            description: $data['description'] ?? null,
+            free_trial_dates: (int) ($data['free_trial_dates'] ?? 0),
+            is_active: (bool) ($data['is_active'] ?? true),
+            is_default: (bool) ($data['is_default'] ?? false),
+        );
+    }
+
+    public static function forUpdate(
+        PlanModel $plan,
+        AppInterface $app,
+        UserInterface $user,
+        array $data,
+    ): self {
+        return new self(
+            app: $app,
+            user: $user,
+            name: (string) ($data['name'] ?? $plan->name),
+            stripe_id: $plan->stripe_id,
+            description: $data['description'] ?? $plan->description,
+            free_trial_dates: (int) ($data['free_trial_dates'] ?? $plan->free_trial_dates),
+            is_active: (bool) ($data['is_active'] ?? $plan->is_active),
+            is_default: (bool) ($data['is_default'] ?? $plan->is_default),
         );
     }
 }
