@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Actions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
+use Kanvas\Intelligence\AgentRuntime\Enums\MemoryFormatEnum;
 use Kanvas\Intelligence\AgentRuntime\Services\MemoryBlockBuilderService;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
@@ -34,6 +35,15 @@ abstract class BasePushDailyLearningContextAction
     abstract protected function resolveMemoryPath(): string;
 
     abstract protected function runtimeName(): string;
+
+    // Which on-disk format the runtime's memory file uses. Hermes (the
+    // default) reads MEMORY.md verbatim into the prompt and only needs
+    // round-trippable text; OpenClaw chunks by markdown header so one
+    // fact per `## N` block yields one chunk per fact.
+    protected function memoryFormat(): MemoryFormatEnum
+    {
+        return MemoryFormatEnum::Separator;
+    }
 
     // Optional post-write hook (reindex, cache bust, container reload).
     // Return value is logged but doesn't gate push success — the write
@@ -79,7 +89,7 @@ abstract class BasePushDailyLearningContextAction
                 return false;
             }
 
-            $built = new MemoryBlockBuilderService()->build($existing, $this->summary);
+            $built = new MemoryBlockBuilderService($this->memoryFormat())->build($existing, $this->summary);
 
             if ($built['added'] === 0) {
                 Log::info(sprintf('%s daily-learning push: no new facts to add (all deduped)', $this->runtimeName()), [

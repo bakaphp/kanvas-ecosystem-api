@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\OpenClaw\Actions;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Intelligence\AgentRuntime\Actions\BasePushDailyLearningContextAction;
+use Kanvas\Intelligence\AgentRuntime\Enums\MemoryFormatEnum;
 use Kanvas\Intelligence\AgentRuntime\SshClient as BaseSshClient;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Override;
@@ -38,6 +39,12 @@ class PushDailyLearningContextAction extends BasePushDailyLearningContextAction
     protected function runtimeName(): string
     {
         return 'OpenClaw';
+    }
+
+    #[Override]
+    protected function memoryFormat(): MemoryFormatEnum
+    {
+        return MemoryFormatEnum::MarkdownSections;
     }
 
     // `--force` to bypass openclaw's dirty-file tracking; we just wrote a

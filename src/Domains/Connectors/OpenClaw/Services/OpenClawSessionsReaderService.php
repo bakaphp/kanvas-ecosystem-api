@@ -42,7 +42,12 @@ final class OpenClawSessionsReaderService implements SessionTranscriptReader
         $sinceEpoch = $since !== null ? (int) $since->timestamp : 0;
 
         foreach ($this->listSessionFiles($sessionsDir, $sinceEpoch) as $sessionId => $mtimeEpoch) {
-            yield $this->buildTranscript($sessionsDir, $sessionId, $mtimeEpoch, $sinceEpoch);
+            yield $this->buildTranscript(
+                $sessionsDir,
+                $sessionId,
+                $mtimeEpoch,
+                $sinceEpoch,
+            );
         }
     }
 
