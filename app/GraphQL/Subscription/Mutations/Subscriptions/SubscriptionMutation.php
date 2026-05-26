@@ -18,10 +18,14 @@ class SubscriptionMutation
     {
         $app = app(Apps::class);
         $user = auth()->user();
-        $data = $args['input'];
         $company = $user->getCurrentCompany();
 
-        $subscriptionInput = SubscriptionInput::viaRequest($data, $user, $company, $app);
+        $subscriptionInput = SubscriptionInput::from(
+            $app,
+            $user,
+            $company,
+            $args['input'],
+        );
 
         $companyStripeAccount = $company->getStripeAccount($app);
 

@@ -28,16 +28,18 @@ class PlanMutation
         ]);
 
         $data['stripe_id'] = $stripeProduct->id;
-        $dto = PlanDto::viaRequest($data, $user, $app);
-        $newPlan = new CreatePlanAction($dto, $user)->execute();
+        $newPlan = new CreatePlanAction(
+            PlanDto::from($app, $user, $data)
+        )->execute();
 
         if (! empty($data['prices'])) {
             foreach ($data['prices'] as $priceData) {
                 $priceData['apps_plans_id'] = (string) $newPlan->id;
                 $priceData['stripe_id'] = $newPlan->stripe_id;
 
-                $priceDto = PriceDto::viaRequest($priceData, $user, $app);
-                new CreatePriceAction($priceDto)->execute();
+                new CreatePriceAction(
+                    PriceDto::from($app, $user, $priceData)
+                )->execute();
             }
         }
 
@@ -48,28 +50,25 @@ class PlanMutation
     {
         $app = app(Apps::class);
         $user = auth()->user();
+        /** @var PlanModel $plan */
         $plan = PlanRepository::getByIdWithApp((int) $req['id']);
-
-        // Overlay partial input on existing plan values so archive flows
-        // (e.g. {is_active: false} only) don't null out other columns.
-        $data = array_merge([
-            'name' => $plan->name,
-            'description' => $plan->description,
-            'free_trial_dates' => $plan->free_trial_dates,
-            'is_active' => $plan->is_active,
-            'is_default' => $plan->is_default,
-        ], $req['input']);
+        $input = $req['input'];
 
         StripeProduct::update($plan->stripe_id, [
-            'name' => $data['name'],
-            'description' => $data['description'] ?? '',
-            'active' => (bool) $data['is_active'],
+            'name' => $input['name'] ?? $plan->name,
+            'description' => $input['description'] ?? $plan->description,
+            'active' => (bool) ($input['is_active'] ?? $plan->is_active),
         ]);
 
-        $data['stripe_id'] = $plan->stripe_id;
-        $dto = PlanDto::viaRequest($data, $user, $app);
-
-        return new UpdatePlanAction($plan, $dto)->execute();
+        return new UpdatePlanAction(
+            $plan,
+            PlanDto::forUpdate(
+                $plan,
+                $app,
+                $user,
+                $input
+            ),
+        )->execute();
     }
 
     public function delete(mixed $root, array $req): bool
