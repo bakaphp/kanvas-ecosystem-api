@@ -14,7 +14,7 @@ use Throwable;
 
 class SubscriptionMutation
 {
-    public function create($root, array $args, $context): Subscription
+    public function create(mixed $root, array $args): Subscription
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -53,7 +53,7 @@ class SubscriptionMutation
         return $createdSubscription;
     }
 
-    public function update($root, array $args, $context, $info): Subscription
+    public function update(mixed $root, array $args): Subscription
     {
         $app = app(Apps::class);
         $user = auth()->user();

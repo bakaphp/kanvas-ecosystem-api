@@ -219,6 +219,51 @@ final class SubscriptionPlansTest extends TestCase
         ]);
     }
 
+    public function testArchivePlanWithIsActiveOnlyDoesNotWipeOtherFields(): void
+    {
+        $createResponse = $this->graphQL('
+            mutation {
+                createPlan(input: {
+                    name: "Plan To Archive",
+                    description: "preserve me on archive",
+                    free_trial_dates: 21,
+                    is_default: false,
+                    prices: []
+                }) {
+                    id
+                    name
+                    description
+                    free_trial_dates
+                }
+            }
+        ', [], [], $this->appKeyHeader());
+
+        $planId = $createResponse->json('data.createPlan.id');
+
+        $response = $this->graphQL('
+            mutation {
+                updatePlan(id: ' . $planId . ', input: { is_active: false }) {
+                    id
+                    name
+                    description
+                    free_trial_dates
+                    is_active
+                }
+            }
+        ', [], [], $this->appKeyHeader());
+
+        $response->assertJson([
+            'data' => [
+                'updatePlan' => [
+                    'name' => 'Plan To Archive',
+                    'description' => 'preserve me on archive',
+                    'free_trial_dates' => 21,
+                    'is_active' => false,
+                ],
+            ],
+        ]);
+    }
+
     public function testCreatePlanRejectedWithoutAppKey(): void
     {
         $response = $this->graphQL('

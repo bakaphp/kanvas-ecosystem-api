@@ -33,7 +33,6 @@ class CashierStripeWebhookJob extends ProcessWebhookJob
             ? $this->webhookRequest->payload
             : (string) json_encode($this->webhookRequest->payload);
 
-        //call the internal Cashier webhook handler to process the event and trigger the appropriate listeners
         $request = Request::create(
             '/cashier/webhook',
             'POST',

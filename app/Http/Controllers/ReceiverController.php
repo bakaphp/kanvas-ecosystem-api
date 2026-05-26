@@ -36,8 +36,11 @@ class ReceiverController extends BaseController
         }
 
         $jobClass = $receiver->action?->model_name;
-        if (is_string($jobClass)
-            && is_a($jobClass, ProcessWebhookJob::class, true)
+        if (! is_string($jobClass)) {
+            return response()->json(['message' => 'Receiver has no action configured'], 500);
+        }
+
+        if (is_a($jobClass, ProcessWebhookJob::class, true)
             && ! $jobClass::authenticateRequest($request, $receiver)
         ) {
             return response()->json(['message' => 'Unauthorized'], 401);
@@ -48,7 +51,6 @@ class ReceiverController extends BaseController
             $request
         )->execute();
 
-        $jobClass = $receiver->action->model_name;
         $job = new $jobClass($webhookRequest);
 
         if ($receiver->runAsync()) {

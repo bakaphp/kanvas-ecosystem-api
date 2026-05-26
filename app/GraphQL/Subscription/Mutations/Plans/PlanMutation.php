@@ -48,13 +48,22 @@ class PlanMutation
     {
         $app = app(Apps::class);
         $user = auth()->user();
-        $data = $req['input'];
         $plan = PlanRepository::getByIdWithApp((int) $req['id']);
 
+        // Overlay partial input on existing plan values so archive flows
+        // (e.g. {is_active: false} only) don't null out other columns.
+        $data = array_merge([
+            'name' => $plan->name,
+            'description' => $plan->description,
+            'free_trial_dates' => $plan->free_trial_dates,
+            'is_active' => $plan->is_active,
+            'is_default' => $plan->is_default,
+        ], $req['input']);
+
         StripeProduct::update($plan->stripe_id, [
-            'name' => $data['name'] ?? $plan->name,
-            'description' => $data['description'] ?? $plan->description,
-            'active' => $data['is_active'],
+            'name' => $data['name'],
+            'description' => $data['description'] ?? '',
+            'active' => (bool) $data['is_active'],
         ]);
 
         $data['stripe_id'] = $plan->stripe_id;

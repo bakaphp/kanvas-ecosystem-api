@@ -31,10 +31,20 @@ class PriceMutation
     {
         $app = app(Apps::class);
         $user = auth()->user();
-        $data = $req['input'];
         $price = PriceRepository::getByIdWithApp((int) $req['id'], $app);
-        $data['stripe_id'] = $price->stripe_id;
 
+        // Overlay partial input on existing price values so single-field
+        // updates (e.g. archive via {is_active: false}) don't null out
+        // the immutable amount/currency/interval columns.
+        $data = array_merge([
+            'amount' => $price->amount,
+            'currency' => $price->currency,
+            'interval' => $price->interval,
+            'is_active' => $price->is_active,
+            'is_default' => $price->is_default,
+        ], $req['input']);
+
+        $data['stripe_id'] = $price->stripe_id;
         $dto = PriceDto::viaRequest($data, $user, $app);
 
         return new UpdatePriceAction($price, $dto)->execute();
