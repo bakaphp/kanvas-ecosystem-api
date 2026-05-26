@@ -17,7 +17,6 @@ class SubscriptionInput extends Data
         public Companies $company,
         public AppInterface $app,
         public UserInterface $user,
-        public string $name,
         public string $payment_method_id,
         public Price $price
     ) {
@@ -31,7 +30,6 @@ class SubscriptionInput extends Data
             $company,
             $app,
             $user,
-            $request['name'],
             $request['payment_method_id'],
             $price
         );
