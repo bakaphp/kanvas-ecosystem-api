@@ -4,38 +4,69 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Stripe\Webhooks;
 
-use Baka\Support\Str;
-use Kanvas\Connectors\Stripe\Traits\CashierWebhookTrait;
+use Illuminate\Http\Request;
+use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Kanvas\Workflow\Models\ReceiverWebhook;
 use Laravel\Cashier\Cashier;
+use Laravel\Cashier\Http\Controllers\WebhookController;
 use Override;
+use Stripe\Exception\SignatureVerificationException;
+use Stripe\Stripe;
+use Stripe\Webhook;
+use UnexpectedValueException;
 
 class CashierStripeWebhookJob extends ProcessWebhookJob
 {
-    use CashierWebhookTrait;
-
     #[Override]
     public function execute(): array
     {
-        //$regionId = $this->receiver->configuration['region_id'];
-        $payload = $this->webhookRequest->payload;
-        $method = 'handle' . Str::studly(str_replace('.', '_', $payload['type']));
-
-        if (method_exists($this, $method)) {
-            $this->setMaxNetworkRetries();
-
-            /**
-             * @todo this is a copy and past from laravel cashier webhook controller
-             * we need to look for a better way to keep this update without copy and paste
-             */
-            $response = $this->{$method}($payload);
-        } else {
-            $response = $this->missingMethod($payload);
+        $stripeSecret = $this->receiver->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value);
+        if (is_string($stripeSecret) && $stripeSecret !== '') {
+            Stripe::setApiKey($stripeSecret);
         }
+
+        Cashier::useCustomerModel(AppsStripeCustomer::class);
+
+        $rawPayload = is_string($this->webhookRequest->payload)
+            ? $this->webhookRequest->payload
+            : (string) json_encode($this->webhookRequest->payload);
+
+        $request = Request::create(
+            '/cashier/webhook',
+            'POST',
+            [],
+            [],
+            [],
+            ['CONTENT_TYPE' => 'application/json'],
+            $rawPayload,
+        );
+
+        $response = app(WebhookController::class)->handleWebhook($request);
 
         return [
             'message' => 'Stripe Webhook Sync',
-            'response' => $response,
+            'status' => $response->getStatusCode(),
         ];
+    }
+
+    #[Override]
+    public static function authenticateRequest(Request $request, ReceiverWebhook $receiver): bool
+    {
+        $secret = $receiver->app->get(ConfigurationEnum::STRIPE_WEBHOOK_SECRET->value);
+        $signature = $request->header('Stripe-Signature');
+
+        if (empty($secret) || ! is_string($signature) || $signature === '') {
+            return false;
+        }
+
+        try {
+            Webhook::constructEvent($request->getContent(), $signature, $secret);
+        } catch (SignatureVerificationException | UnexpectedValueException) {
+            return false;
+        }
+
+        return true;
     }
 }

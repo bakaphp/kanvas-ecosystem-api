@@ -24,9 +24,7 @@ final class SubscriptionsTest extends TestCase
         parent::setUp();
         $this->company = auth()->user()->getCurrentCompany();
         $this->appModel = app(Apps::class);
-        if (empty($this->appModel->get(ConfigurationEnum::STRIPE_SECRET_KEY->value))) {
-            $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
-        }
+        $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, $this->requireStripeTestKey());
 
         $this->paymentMethodId = $this->createPaymentMethod();
         $this->seedAppPlansPrices();
@@ -93,8 +91,7 @@ final class SubscriptionsTest extends TestCase
             mutation {
                 createSubscription(input: {
                     apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
-                    name: "TestCreate Subscription",       
-                    payment_method_id: "' . $paymentMethod . '"                      
+                    payment_method_id: "' . $paymentMethod . '"
                 }) {
                     id
                     stripe_id
@@ -162,8 +159,7 @@ final class SubscriptionsTest extends TestCase
             mutation {
                 createSubscription(input: {
                     apps_plans_prices_id: ' . $priceId . ' , #without trial
-                    name: "TestCreate Subscription",       
-                    payment_method_id: "' . $paymentMethod . '"                      
+                    payment_method_id: "' . $paymentMethod . '"
                 }) {
                     id
                     stripe_id
@@ -200,8 +196,7 @@ final class SubscriptionsTest extends TestCase
         mutation {
             createSubscription(input: {
                 apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
-                name: "TestCreate Subscription",       
-                payment_method_id: "' . $paymentMethod . '"      
+                payment_method_id: "' . $paymentMethod . '"
             }) {
                 id
                 stripe_id
@@ -246,8 +241,7 @@ final class SubscriptionsTest extends TestCase
         mutation {
             createSubscription(input: {
                 apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
-                name: "TestCreate Subscription",       
-                payment_method_id: "' . $paymentMethod . '"     
+                payment_method_id: "' . $paymentMethod . '"
             }) {
                 id
                 stripe_id
@@ -285,6 +279,55 @@ final class SubscriptionsTest extends TestCase
         ]);
     }
 
+    public function testCreateSubscriptionThrowsWhenCompanyAlreadyHasActiveSubscription()
+    {
+        $freshUser = $this->createUser();
+        $this->actingAs($freshUser, 'api');
+
+        $paymentMethod = $this->createPaymentMethod();
+        $user = auth()->user();
+
+        $this->graphQL('
+            mutation {
+                createSubscription(input: {
+                    apps_plans_prices_id: ' . $this->price->getId() . ',
+                    payment_method_id: "' . $paymentMethod . '"
+                }) {
+                    id
+                    stripe_status
+                }
+            }
+        ', [], [], [
+            'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+        ])->assertJson([
+            'data' => [
+                'createSubscription' => [
+                    'stripe_status' => 'trialing',
+                ],
+            ],
+        ]);
+
+        $secondPaymentMethod = $this->createPaymentMethod();
+        $response = $this->graphQL('
+            mutation {
+                createSubscription(input: {
+                    apps_plans_prices_id: ' . $this->price->getId() . ',
+                    payment_method_id: "' . $secondPaymentMethod . '"
+                }) {
+                    id
+                }
+            }
+        ', [], [], [
+            'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
+        ]);
+
+        $this->assertNotNull($response->json('errors'));
+        $this->assertStringContainsString(
+            'already has an active subscription',
+            $response->json('errors.0.message') ?? ''
+        );
+    }
+
     public function testCancelSubscription()
     {
         $user = auth()->user();
@@ -294,7 +337,6 @@ final class SubscriptionsTest extends TestCase
         mutation {
             createSubscription(input: {
                 apps_plans_prices_id: ' . $this->price->getId() . ' , #Basic
-                name: "TestCreate Subscription",       
                 payment_method_id: "' . $paymentMethod . '",
             }) {
                 id

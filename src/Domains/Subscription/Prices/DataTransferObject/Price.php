@@ -6,6 +6,7 @@ namespace Kanvas\Subscription\Prices\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Subscription\Prices\Models\Price as PriceModel;
 use Spatie\LaravelData\Data;
 
 class Price extends Data
@@ -19,25 +20,44 @@ class Price extends Data
         public ?string $apps_plans_id = null,
         public ?string $stripe_id = null,
         public ?bool $is_active = true,
-        public ?bool $is_default = false
+        public ?bool $is_default = false,
     ) {
     }
 
-    /**
-     * Create a new Price DTO from request data.
-     */
-    public static function viaRequest(array $request, UserInterface $user, AppInterface $app): self
-    {
+    public static function fromMultiple(
+        AppInterface $app,
+        UserInterface $user,
+        array $data,
+    ): self {
         return new self(
-            $app,
-            $user,
-            $request['amount'] ?? null,
-            $request['currency'] ?? null,
-            $request['interval'] ?? null,
-            $request['apps_plans_id'] ?? null,
-            $request['stripe_id'] ?? null,
-            $request['is_active'] ?? true,
-            $request['is_default'] ?? false
+            app: $app,
+            user: $user,
+            amount: isset($data['amount']) ? (float) $data['amount'] : null,
+            currency: $data['currency'] ?? null,
+            interval: $data['interval'] ?? null,
+            apps_plans_id: isset($data['apps_plans_id']) ? (string) $data['apps_plans_id'] : null,
+            stripe_id: $data['stripe_id'] ?? null,
+            is_active: (bool) ($data['is_active'] ?? true),
+            is_default: (bool) ($data['is_default'] ?? false),
+        );
+    }
+
+    public static function forUpdate(
+        PriceModel $price,
+        AppInterface $app,
+        UserInterface $user,
+        array $data,
+    ): self {
+        return new self(
+            app: $app,
+            user: $user,
+            amount: isset($data['amount']) ? (float) $data['amount'] : $price->amount,
+            currency: $data['currency'] ?? $price->currency,
+            interval: $data['interval'] ?? $price->interval,
+            apps_plans_id: (string) $price->apps_plans_id,
+            stripe_id: $price->stripe_id,
+            is_active: (bool) ($data['is_active'] ?? $price->is_active),
+            is_default: (bool) ($data['is_default'] ?? $price->is_default),
         );
     }
 }
