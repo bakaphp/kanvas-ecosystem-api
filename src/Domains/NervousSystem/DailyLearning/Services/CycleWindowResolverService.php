@@ -7,6 +7,7 @@ namespace Kanvas\NervousSystem\DailyLearning\Services;
 use Baka\Contracts\AppInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Enums\AppEnums;
 
 /**
  * Single source of truth for the daily-learning "what counts as yesterday"
@@ -42,10 +43,14 @@ final class CycleWindowResolverService
     }
 
     /**
-     * Company.timezone → app.timezone → UTC. Companies.timezone is a real
-     * column on the model (nullable in practice despite the optimistic
-     * `@property string` docblock — see the cast below); Apps has no
-     * timezone column so its value comes from custom_fields via ->get().
+     * Company.timezone → app.timezone → AppEnums::DEFAULT_TIMEZONE.
+     * Companies.timezone is a real column on the model (nullable in practice
+     * despite the optimistic `@property string` docblock — see the cast
+     * below); Apps has no timezone column so its value comes from
+     * custom_fields via ->get(). The final fallback uses the ecosystem-wide
+     * default (NY) so a tenant missing its tz config still lands on a
+     * sensible "yesterday" window — UTC here would mis-window any North
+     * American tenant by half a day.
      */
     public static function resolveTimezone(AppInterface $app, Companies $company): string
     {
@@ -60,6 +65,6 @@ final class CycleWindowResolverService
             return $appTz;
         }
 
-        return 'UTC';
+        return (string) AppEnums::DEFAULT_TIMEZONE->getValue();
     }
 }

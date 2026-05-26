@@ -64,7 +64,7 @@ class ProcessElevenLabsProductShareWebhookJob extends ProcessElevenLabsWebhookJo
             people: $lead->people,
         );
 
-        $engagement = new CreateEngagementAction($engagementDto, false)->execute();
+        $engagement = new CreateEngagementAction($engagementDto)->execute();
         /** @var array $messageContent */
         $messageContent = $engagement->message->message ?? [];
         $shareLink = isset($messageContent['action_link']) ? (string) $messageContent['action_link'] : null;
