@@ -57,11 +57,24 @@ final class UpdateSubscriptionTest extends TestCase
             ['invoice_settings' => ['default_payment_method' => $paymentMethod->id]]
         );
 
-        $prices = $stripe->prices->all();
+        // Create a dedicated active product + price for this test. Using
+        // $stripe->prices->all()->data[0] is flaky because the Stripe sandbox
+        // accumulates archived products from prior runs (delete-plan tests
+        // archive their products), and Stripe rejects subscription creation
+        // against any price whose product is inactive.
+        $product = $stripe->products->create([
+            'name' => 'Test product ' . uniqid('upd-sub-', true),
+        ]);
+        $price = $stripe->prices->create([
+            'product' => $product->id,
+            'unit_amount' => 1000,
+            'currency' => 'usd',
+            'recurring' => ['interval' => 'month'],
+        ]);
         $stripe->subscriptions->create([
             'customer' => $customer->id,
             'items' => [
-                ['price' => $prices->data[0]->id],
+                ['price' => $price->id],
             ],
         ]);
         $payload = [

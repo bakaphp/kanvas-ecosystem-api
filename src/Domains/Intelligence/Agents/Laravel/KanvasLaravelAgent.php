@@ -48,6 +48,18 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
         $this->externalReferenceId = $externalReferenceId;
     }
 
+    /**
+     * Surfaces the Kanvas Agent id to consumers that only see the Laravel AI
+     * agent instance (e.g. KanvasConversationStore via $prompt->agent on the
+     * RememberConversation middleware path). Laravel AI's ConversationStore
+     * interface doesn't pass the agent into storeConversation, so this is the
+     * bridge that lets us wire conversation rows back to their Kanvas Agent.
+     */
+    public function getKanvasAgentId(): ?int
+    {
+        return $this->agentRecord?->getId();
+    }
+
     protected function getProvider(): ?Lab
     {
         $provider = $this->agentRecord?->model?->config['provider'] ?? null;
