@@ -12,6 +12,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\DailyLearning\Actions\EnumerateAgentsForDailyLearningAction;
 use Kanvas\NervousSystem\DailyLearning\Actions\SummarizeAgentDailyLearningAction;
 use Kanvas\NervousSystem\DailyLearning\Jobs\SummarizeAgentDailyLearningJob;
+use Kanvas\NervousSystem\DailyLearning\Services\CycleWindowResolverService;
 use Throwable;
 
 /**
@@ -44,10 +45,7 @@ class SummarizeAgentDailyLearningCommand extends Command
 
     public function handle(): int
     {
-        $cycleDate = $this->option('date') !== null
-            ? Carbon::parse((string) $this->option('date'))
-            : Carbon::yesterday();
-
+        $dateOverride = $this->option('date');
         $dryRun = (bool) $this->option('dry-run');
         $skipPush = (bool) $this->option('skip-push');
         $sync = (bool) $this->option('sync');
@@ -61,16 +59,30 @@ class SummarizeAgentDailyLearningCommand extends Command
 
         $dispatched = 0;
         $failed = 0;
+        $lastCycleLabel = null;
 
         foreach ($tuples as [$appId, $companyId]) {
             try {
+                /** @var Apps $app */
                 $app = Apps::getById($appId);
+                /** @var Companies $company */
                 $company = Companies::getById($companyId);
             } catch (Throwable $e) {
                 $this->warn(sprintf('apps_id=%d companies_id=%d → tenant resolution failed: %s', $appId, $companyId, $e->getMessage()));
                 $failed++;
                 continue;
             }
+
+            // Compute cycle date PER tenant in the company's own TZ so the
+            // cron's "yesterday" matches each agent's local calendar, not
+            // the app TZ. A west-of-UTC tenant would otherwise be summarized
+            // for the wrong day half (or skipped if cron fires before their
+            // midnight).
+            $tenantTz = CycleWindowResolverService::resolveTimezone($app, $company);
+            $cycleDate = is_string($dateOverride) && $dateOverride !== ''
+                ? Carbon::parse($dateOverride, $tenantTz)
+                : Carbon::yesterday($tenantTz);
+            $lastCycleLabel = $cycleDate->toDateString();
 
             $agents = new EnumerateAgentsForDailyLearningAction($app, $company, $cycleDate)->execute();
 
@@ -124,11 +136,14 @@ class SummarizeAgentDailyLearningCommand extends Command
             }
         }
 
+        // Cycle label is per-tenant now; show the last one processed (or
+        // the explicit override) so the summary line stays informative
+        // without claiming a single date for all tenants.
         $this->info(sprintf(
             'Done. %s %d agent(s) for %s. Failures: %d',
             $sync ? 'Processed' : 'Dispatched',
             $dispatched,
-            $cycleDate->toDateString(),
+            $lastCycleLabel ?? 'n/a',
             $failed,
         ));
 
