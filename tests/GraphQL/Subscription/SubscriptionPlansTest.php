@@ -264,6 +264,39 @@ final class SubscriptionPlansTest extends TestCase
         ]);
     }
 
+    public function testCreatePlanWithEmptyDescriptionDoesNotPassEmptyStringToStripe(): void
+    {
+        // Sentry KANVAS-ECOSYSTEM-5P6: Stripe rejects empty-string description
+        // with "cannot be unset". GraphQL `description: String!` keeps null out,
+        // but `""` is still valid String!, so the resolver must omit it from the
+        // Stripe payload rather than forward the empty string.
+        $response = $this->graphQL('
+            mutation {
+                createPlan(input: {
+                    name: "Empty desc plan",
+                    description: "",
+                    free_trial_dates: 0,
+                    is_default: false,
+                    prices: []
+                }) {
+                    id
+                    name
+                    stripe_id
+                }
+            }
+        ', [], [], $this->appKeyHeader());
+
+        $response->assertJson([
+            'data' => [
+                'createPlan' => [
+                    'name' => 'Empty desc plan',
+                ],
+            ],
+        ]);
+        $this->assertNotEmpty($response->json('data.createPlan.stripe_id'));
+        $this->assertNull($response->json('errors'));
+    }
+
     public function testCreatePlanRejectedWithoutAppKey(): void
     {
         $response = $this->graphQL('

@@ -63,6 +63,7 @@ class RunNeuronChatAction
             agentClass: get_class($this->handler),
             userMessage: $this->message,
             assistantResponse: $response,
+            agentId: $this->agent->getId(),
         );
 
         return $content;

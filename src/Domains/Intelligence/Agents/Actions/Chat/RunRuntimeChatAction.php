@@ -43,6 +43,7 @@ class RunRuntimeChatAction
             agentClass: $provider::class,
             userMessage: $this->message,
             assistantResponse: $response,
+            agentId: $this->agent->getId(),
         );
 
         return $response;

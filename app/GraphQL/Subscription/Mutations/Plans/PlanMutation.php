@@ -22,10 +22,11 @@ class PlanMutation
         $user = auth()->user();
         $data = $req['input'];
 
-        $stripeProduct = StripeProduct::create([
-            'name' => $data['name'],
-            'description' => $data['description'] ?? '',
-        ]);
+        $stripePayload = ['name' => (string) $data['name']];
+        if (! empty($data['description'])) {
+            $stripePayload['description'] = (string) $data['description'];
+        }
+        $stripeProduct = StripeProduct::create($stripePayload);
 
         $data['stripe_id'] = $stripeProduct->id;
         $newPlan = new CreatePlanAction(
