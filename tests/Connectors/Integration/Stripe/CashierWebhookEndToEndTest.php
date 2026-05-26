@@ -18,6 +18,24 @@ use Tests\TestCase;
 
 final class CashierWebhookEndToEndTest extends TestCase
 {
+    private ?string $originalStripeSecretKey = null;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $existing = app(Apps::class)->get(ConfigurationEnum::STRIPE_SECRET_KEY->value);
+        $this->originalStripeSecretKey = is_string($existing) ? $existing : null;
+    }
+
+    protected function tearDown(): void
+    {
+        app(Apps::class)->set(
+            ConfigurationEnum::STRIPE_SECRET_KEY->value,
+            $this->originalStripeSecretKey
+        );
+        parent::tearDown();
+    }
+
     public function testValidSignatureUpdatesSubscriptionAndBroadcastsCompanyEvent(): void
     {
         $app = app(Apps::class);

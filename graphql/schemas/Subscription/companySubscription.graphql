@@ -66,19 +66,23 @@ input SubscriptionUpdateInput {
 
 extend type Mutation @guard {
     createSubscription(input: SubscriptionInput!): CompanySubscription!
+        @requiresStripeConfiguration
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@create"
         )
 
     updateSubscription(input: SubscriptionUpdateInput!): CompanySubscription!
+        @requiresStripeConfiguration
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@update"
         )
     cancelSubscription(id: ID!): Boolean!
+        @requiresStripeConfiguration
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@cancel"
         )
     reactiveSubscription(id: ID!): Boolean!
+        @requiresStripeConfiguration
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@reactivate"
         )

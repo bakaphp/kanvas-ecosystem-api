@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Subscription\Mutations\Subscriptions;
 
-use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Subscription\Prices\Repositories\PriceRepository;
 use Kanvas\Subscription\Subscriptions\DataTransferObject\SubscriptionInput;
@@ -16,37 +14,16 @@ use Throwable;
 
 class SubscriptionMutation
 {
-    private ?Apps $app = null;
-    private ?UserInterface $user = null;
-
-    /**
-     * @todo move to middleware
-     */
-    public function validateStripe()
-    {
-        $this->app = app(Apps::class);
-        $this->user = auth()->user();
-
-        if (empty($this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value))) {
-            throw new ValidationException('Stripe is not configured for this app');
-        }
-    }
-
     public function create($root, array $args, $context): Subscription
     {
-        $this->validateStripe();
-
+        $app = app(Apps::class);
+        $user = auth()->user();
         $data = $args['input'];
-        $company = $this->user->getCurrentCompany();
+        $company = $user->getCurrentCompany();
 
-        $subscriptionInput = SubscriptionInput::viaRequest(
-            $data,
-            $this->user,
-            $company,
-            $this->app
-        );
+        $subscriptionInput = SubscriptionInput::viaRequest($data, $user, $company, $app);
 
-        $companyStripeAccount = $company->getStripeAccount($this->app);
+        $companyStripeAccount = $company->getStripeAccount($app);
 
         $existingSubscription = $companyStripeAccount->subscriptions->first();
         if ($existingSubscription !== null && $existingSubscription->valid()) {
@@ -78,16 +55,16 @@ class SubscriptionMutation
 
     public function update($root, array $args, $context, $info): Subscription
     {
-        $this->validateStripe();
-
+        $app = app(Apps::class);
+        $user = auth()->user();
         $data = $args['input'];
-        $company = $this->user->getCurrentCompany();
-        $companyStripeAccount = $company->getStripeAccount($this->app);
+        $company = $user->getCurrentCompany();
+        $companyStripeAccount = $company->getStripeAccount($app);
 
         if (! $companyStripeAccount->subscriptions()->exists()) {
             throw new ValidationException('No active subscription found for your company');
         }
-        $newPrice = PriceRepository::getByIdWithApp((int) $data['apps_plans_prices_id'], $this->app);
+        $newPrice = PriceRepository::getByIdWithApp((int) $data['apps_plans_prices_id'], $app);
 
         $upgradeSubscription = $companyStripeAccount->subscriptions->first();
 
@@ -107,11 +84,11 @@ class SubscriptionMutation
 
     public function cancel(mixed $root, array $args): bool
     {
-        $this->validateStripe();
-
+        $app = app(Apps::class);
+        $user = auth()->user();
         $id = $args['id'];
-        $company = $this->user->getCurrentCompany();
-        $companyStripeAccount = $company->getStripeAccount($this->app);
+        $company = $user->getCurrentCompany();
+        $companyStripeAccount = $company->getStripeAccount($app);
 
         if (! $companyStripeAccount->subscriptions()->exists()) {
             throw new ValidationException('No active subscription found for your company');
@@ -131,11 +108,10 @@ class SubscriptionMutation
 
     public function reactivate(mixed $root, array $args): bool
     {
-        $this->validateStripe();
-
         $app = app(Apps::class);
+        $user = auth()->user();
         $id = $args['id'];
-        $company = $this->user->getCurrentCompany();
+        $company = $user->getCurrentCompany();
         $companyStripeAccount = $company->getStripeAccount($app);
 
         $subscription = $companyStripeAccount

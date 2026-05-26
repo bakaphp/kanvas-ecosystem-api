@@ -29,14 +29,17 @@ input PlanUpdateInput {
 
 extend type Mutation @guard {
     createPlan(input: PlanInput!): Plan!
+        @requiresStripeConfiguration
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Plans\\PlanMutation@create"
         )
     updatePlan(id: ID!, input: PlanUpdateInput!): Plan!
+        @requiresStripeConfiguration
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Plans\\PlanMutation@update"
         )
     deletePlan(id: ID!): Boolean!
+        @requiresStripeConfiguration
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Plans\\PlanMutation@delete"
         )
