@@ -17,6 +17,7 @@ input PlanInput {
     prices: [PriceInput!]
     free_trial_dates: Int
     is_default: Boolean
+    is_active: Boolean
 }
 
 input PlanUpdateInput {
@@ -50,12 +51,12 @@ extend type Query @guard {
         search: String @search
         where: _
             @whereConditions(
-                columns: ["id", "name", "description", "is_default"]
+                columns: ["id", "name", "description", "is_default", "is_active"]
             )
         hasPrices: _
             @whereHasConditions(
                 relation: "prices"
-                columns: ["id", "stripe_id", "amount", "currency", "interval"]
+                columns: ["id", "stripe_id", "amount", "currency", "interval", "is_active"]
             )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Plan!]!
