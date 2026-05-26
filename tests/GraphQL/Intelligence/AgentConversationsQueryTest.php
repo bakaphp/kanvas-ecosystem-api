@@ -89,4 +89,77 @@ class AgentConversationsQueryTest extends TestCase
         $this->assertNotContains('A says hi', $byAgent[$agentB->getId()]);
         $this->assertNotContains('A replies', $byAgent[$agentB->getId()]);
     }
+
+    public function testMessagesWhereCreatedAtFiltersWithinConversation(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+
+        $oldClock = Carbon::create(2026, 1, 1, 12, 0, 0);
+        $newClock = Carbon::create(2026, 6, 1, 12, 0, 0);
+
+        Carbon::setTestNow($oldClock);
+        $store = new KanvasConversationStore();
+        $sessionId = (string) Str::uuid();
+        $store->logTurn(
+            userId: $user->getId(),
+            sessionId: $sessionId,
+            agentClass: 'Test\\Stub\\Handler',
+            userMessage: 'old user message',
+            assistantResponse: 'old assistant message',
+            agentId: $agent->getId(),
+        );
+
+        Carbon::setTestNow($newClock);
+        $store->logTurn(
+            userId: $user->getId(),
+            sessionId: $sessionId,
+            agentClass: 'Test\\Stub\\Handler',
+            userMessage: 'new user message',
+            assistantResponse: 'new assistant message',
+            agentId: $agent->getId(),
+        );
+        Carbon::setTestNow();
+
+        $conversationId = DB::connection('intelligence')->table('agent_conversations')
+            ->where('title', $sessionId)
+            ->value('id');
+        $this->assertNotNull($conversationId);
+
+        $response = $this->graphQL('
+            query {
+                agentConversations(
+                    where: { column: ID, operator: EQ, value: "' . $conversationId . '" }
+                ) {
+                    data {
+                        id
+                        messages(
+                            where: { column: CREATED_AT, operator: GT, value: "2026-03-01 00:00:00" }
+                            orderBy: [{ column: CREATED_AT, order: ASC }]
+                        ) {
+                            data {
+                                content
+                                created_at
+                            }
+                        }
+                    }
+                }
+            }
+        ')->assertSuccessful();
+
+        $conversations = $response->json('data.agentConversations.data');
+        $this->assertCount(1, $conversations);
+
+        $contents = collect($conversations[0]['messages']['data'])->pluck('content')->all();
+        $this->assertContains('new user message', $contents);
+        $this->assertContains('new assistant message', $contents);
+        $this->assertNotContains('old user message', $contents);
+        $this->assertNotContains('old assistant message', $contents);
+    }
 }
