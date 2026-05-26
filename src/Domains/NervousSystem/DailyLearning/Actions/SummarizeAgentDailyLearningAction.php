@@ -21,12 +21,11 @@ use Kanvas\NervousSystem\DailyLearning\Services\DailyLearningPromptBuilderServic
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
-
-use function Laravel\Ai\agent;
-
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 use Throwable;
+
+use function Laravel\Ai\agent;
 
 /**
  * Core daily-learning action. Reads the agent's conversations for the date,
