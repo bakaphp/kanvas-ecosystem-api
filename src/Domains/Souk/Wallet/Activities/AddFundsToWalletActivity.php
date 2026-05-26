@@ -62,6 +62,7 @@ class AddFundsToWalletActivity extends KanvasActivity
                 $transaction = new AddFundsToCompanyWalletAction(
                     order: $order,
                     source: TransactionSourceEnum::RECHARGE_MANUAL,
+                    resolveCompanyFromMetadata: (bool) $app->get(ConfigurationEnum::WALLET_RESOLVE_COMPANY_FROM_METADATA->value),
                 )->execute();
 
                 return [

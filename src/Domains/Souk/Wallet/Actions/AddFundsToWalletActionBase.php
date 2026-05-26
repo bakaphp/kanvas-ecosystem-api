@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Wallet\Actions;
 
+use Bavix\Wallet\Interfaces\Wallet as WalletInterface;
 use Bavix\Wallet\Models\Transaction;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,7 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Souk\Wallet\Enums\TransactionSourceEnum;
+use Kanvas\Souk\Wallet\Transaction as SoukTransaction;
 
 abstract class AddFundsToWalletActionBase
 {
@@ -44,6 +46,7 @@ abstract class AddFundsToWalletActionBase
         protected readonly ?int $actorUserId = null,
         protected readonly ?string $externalReference = null,
         protected readonly ?string $reason = null,
+        protected readonly bool $resolveCompanyFromMetadata = false,
     ) {
     }
 
@@ -174,12 +177,9 @@ abstract class AddFundsToWalletActionBase
 
             $config = $this->walletTypeConfig[$walletType];
             $wallet = $walletHolder->createAppWallet($this->order->app, ['name' => $config['wallet']->value]);
+            $meta = $this->createTransactionMetadata($walletType);
 
-            $transaction = $wallet->depositFloat($total);
-            $transaction->meta = $this->createTransactionMetadata($walletType);
-            $transaction->saveOrFail();
-
-            $transactions[$walletType] = $transaction;
+            $transactions[$walletType] = $this->depositOrReturnExisting($wallet, $total, $meta);
         }
 
         if (empty($transactions)) {
@@ -199,11 +199,34 @@ abstract class AddFundsToWalletActionBase
         $walletHolder = $this->getWalletHolder();
         $tag = ConfigurationEnum::WALLET_DEFAULT_NAME->value;
         $wallet = $walletHolder->createAppWallet($this->order->app, ['name' => $tag]);
-
         $total = $this->calculateTotal();
+        $meta = $this->createTransactionMetadata();
+
+        return $this->depositOrReturnExisting($wallet, $total, $meta);
+    }
+
+    /**
+     * Application-level idempotency only — two workers racing between the lookup and the
+     * insert can still produce duplicates. DB-level unique index on meta->idempotency_key
+     * is the next layer (pending).
+     */
+    protected function depositOrReturnExisting(WalletInterface $wallet, float $total, array $meta): Transaction
+    {
+        $idempotencyKey = $meta['idempotency_key'] ?? null;
+
+        if ($idempotencyKey !== null) {
+            $existing = SoukTransaction::query()
+                ->where('wallet_id', $wallet->getKey())
+                ->where('meta->idempotency_key', $idempotencyKey)
+                ->first();
+
+            if ($existing !== null) {
+                return $existing;
+            }
+        }
 
         $transaction = $wallet->depositFloat($total);
-        $transaction->meta = $this->createTransactionMetadata();
+        $transaction->meta = $meta;
         $transaction->saveOrFail();
 
         return $transaction;

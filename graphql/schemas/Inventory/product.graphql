@@ -256,6 +256,11 @@ extend type Query @guard {
                 relation: "categories"
                 columns: ["id", "name", "slug"]
             )
+        hasProductsTypes: _
+            @whereHasConditions(
+                relation: "type"
+                columns: ["id", "name", "slug"]
+            )
         hasWarehouses: _
             @whereHasConditions(
                 relation: "warehouses"
