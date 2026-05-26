@@ -13,7 +13,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
-use Sentry\Laravel\Facade as Sentry;
 
 class ReceiverController extends BaseController
 {
@@ -27,14 +26,6 @@ class ReceiverController extends BaseController
         $receiver = ReceiverWebhook::where('uuid', $uuid)->notDeleted()->first();
 
         if (! $receiver) {
-            /* Sentry::withScope(function ($scope) use ($uuid, $request) {
-                $scope->setContext('Request Data', [
-                    'uuid' => $uuid,
-                    'payload' => $request->all(),
-                ]);
-                Sentry::captureMessage("Receiver not found for UUID: {$uuid}");
-            }); */
-
             return response()->json(['message' => 'Receiver not found'], 404);
         }
 
@@ -56,7 +47,7 @@ class ReceiverController extends BaseController
             $receiver,
             $request
         )->execute();
-        
+
         $jobClass = $receiver->action->model_name;
         $job = new $jobClass($webhookRequest);
 
