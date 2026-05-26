@@ -24,9 +24,7 @@ final class SubscriptionsTest extends TestCase
         parent::setUp();
         $this->company = auth()->user()->getCurrentCompany();
         $this->appModel = app(Apps::class);
-        if (empty($this->appModel->get(ConfigurationEnum::STRIPE_SECRET_KEY->value))) {
-            $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
-        }
+        $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, $this->requireStripeTestKey());
 
         $this->paymentMethodId = $this->createPaymentMethod();
         $this->seedAppPlansPrices();
