@@ -22,13 +22,10 @@ final class NervousSystemSchedule
 {
     /**
      * Timing map at a glance. All `dailyAt(...)` slots run in
-     * `America/New_York` (Laravel's ->timezone() modifier handles DST
-     * automatically) so a) the daily-learning pipeline only fires after
-     * every US tenant's "yesterday" is fully elapsed, and b) operators get
-     * a single consistent local timing model for all daily windows. Sub-
-     * hourly and hourlyAt(N) slots are TZ-irrelevant (interval-based) and
-     * stay UTC-anchored. All slots `withoutOverlapping()` so a slow run
-     * skips the next slot rather than stacking.
+     * `America/New_York` so the daily-learning pipeline fires after every US
+     * tenant's "yesterday" is fully elapsed (Laravel's ->timezone() modifier
+     * handles DST). Interval-based slots (`everyN`, `hourlyAt`) stay
+     * UTC-anchored. All slots `withoutOverlapping()`.
      *
      * ── Sub-hourly (interval-based, TZ-irrelevant) ────────────────────
      *   every 5m   DetectStalledPlanTasks    (idempotent ledger sweep)
@@ -86,9 +83,6 @@ final class NervousSystemSchedule
             ->withoutOverlapping();
 
         // Daily-learning pipeline — strict order, see timing map above.
-        // America/New_York TZ so "yesterday" is fully elapsed for every
-        // US tenant before we summarize (06:30 UTC was too early for
-        // west-coast companies: their midnight hadn't arrived yet).
         $schedule->command(RecordAgentDailyCyclesCommand::class)
             ->dailyAt('06:04')
             ->timezone('America/New_York')
