@@ -18,6 +18,7 @@ class CreatePasoRapidoOrderAction
     public function __construct(
         protected Apps $app,
         protected Order $order,
+        protected ?PasoRapidoService $pasoRapidoService = null,
     ) {
     }
 
@@ -52,23 +53,44 @@ class CreatePasoRapidoOrderAction
         }
 
         $tag = $this->order->metadata['data']['paso_rapido_tag'];
+        $rnc = trim((string) ($this->order->metadata['data']['rnc'] ?? ''));
+        $dni = $rnc !== ''
+            ? $rnc
+            : (string) ($this->order->get(CustomFieldEnum::PASO_RAPIDO_DNI->value) ?? '');
 
         try {
-            $pasoRapidoService = new PasoRapidoService($this->app, $this->order->company);
+            $pasoRapidoService = $this->pasoRapidoService ?? new PasoRapidoService($this->app, $this->order->company);
             $intentId = $this->order->get(EchoPayCustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value);
             $bankTransaction = explode(':', $intentId)[1];
             $confirmPaymentResponse = $pasoRapidoService->confirmPayment(new PaymentConfirmData(
                 reference: $tag,
                 bankTransaction: $bankTransaction,
                 amount: $this->order->getTotalAmount(),
-                fiscalCredit: false,
-                dni: $this->order->get(CustomFieldEnum::PASO_RAPIDO_DNI->value) ?? "",
+                fiscalCredit: $rnc !== '',
+                dni: $dni,
             ));
 
             if ($confirmPaymentResponse->tag) {
                 $this->order->set(CustomFieldEnum::PASO_RAPIDO_PAYMENT_STATUS->value, PaymentStatusEnum::PAID->value);
                 $this->order->set(CustomFieldEnum::PASO_RAPIDO_PAYMENT_RESPONSE->value, json_encode($confirmPaymentResponse->toArray()));
                 $this->order->set(EchoPayCustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value, 1);
+
+                $invoice = $confirmPaymentResponse->invoiceDetails;
+                $this->order->set(CustomFieldEnum::PASO_RAPIDO_INVOICE_COMMERCIAL_NAME->value, $invoice->commercialName);
+                $this->order->set(CustomFieldEnum::PASO_RAPIDO_INVOICE_DOCUMENT->value, $invoice->document);
+                $this->order->set(CustomFieldEnum::PASO_RAPIDO_INVOICE_FISCAL_CREDIT->value, $invoice->fiscalCredit ? '1' : '0');
+                $this->order->set(CustomFieldEnum::PASO_RAPIDO_INVOICE_NCF->value, $invoice->invoice);
+                $this->order->set(CustomFieldEnum::PASO_RAPIDO_INVOICE_PDF->value, $invoice->pdf);
+                $this->order->set(CustomFieldEnum::PASO_RAPIDO_INVOICE_REFERENCE->value, $invoice->reference);
+
+                $this->order->metadata = [
+                    ...$this->order->metadata ?? [],
+                    'data' => [
+                        ...$this->order->metadata['data'] ?? [],
+                        'invoice' => $invoice->toArray(),
+                    ],
+                ];
+                $this->order->saveQuietly();
 
                 return [
                     'status' => 'success',
