@@ -50,6 +50,23 @@ class PushLeadAction
         return $response;
     }
 
+    /**
+     * @return array<int, string>
+     */
+    protected function buildTags(): array
+    {
+        $tags = [];
+
+        foreach ($this->lead->tags()->pluck('name') as $name) {
+            $name = (string) $name;
+            if ($name !== '') {
+                $tags[] = $name;
+            }
+        }
+
+        return $tags;
+    }
+
     protected function resolveIdentifier(): ?string
     {
         $phone = $this->firstPhone();
@@ -84,23 +101,6 @@ class PushLeadAction
         }
 
         return $payload;
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    protected function buildTags(): array
-    {
-        $tags = [];
-
-        foreach (['source', 'type', 'pipeline'] as $relation) {
-            $name = (string) ($this->lead->{$relation}?->name ?? '');
-            if ($name !== '') {
-                $tags[] = $relation . ':' . $name;
-            }
-        }
-
-        return $tags;
     }
 
     protected function firstPhone(): string
