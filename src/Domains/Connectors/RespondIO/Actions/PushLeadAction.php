@@ -105,7 +105,14 @@ class PushLeadAction
 
     protected function firstPhone(): string
     {
-        return (string) ($this->lead->people->getAllPhones()->first()?->value ?? '');
+        $people = $this->lead->people;
+
+        $cell = $people->getCellPhones()->first()?->value;
+        if ($cell !== null && $cell !== '') {
+            return (string) $cell;
+        }
+
+        return (string) ($people->getAllPhones()->first()?->value ?? '');
     }
 
     protected function firstEmail(): string
