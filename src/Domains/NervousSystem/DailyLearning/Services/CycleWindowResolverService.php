@@ -9,19 +9,9 @@ use Illuminate\Support\Carbon;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 
-/**
- * Single source of truth for the daily-learning "what counts as yesterday"
- * window. Resolves the company-vs-app timezone and converts the cycle-date
- * label into a UTC `[dayStart, dayEnd]` pair anchored *in* that timezone
- * — never `setTimezone()`-shifted into it, because that slides the window
- * backward for west-of-UTC zones and was the root cause of the felix-sales
- * smoke-test miss before this PR.
- *
- * Three actions need this window (Enumerate / Summarize / SendDigest); each
- * was carrying its own copy of `resolveTimezone()` + the parse/UTC math.
- * Extracted here so a future tz convention change (e.g. honoring user-level
- * timezones over company) touches one file.
- */
+// One source for daily-learning's "what counts as yesterday" window.
+// Anchors the cycle date *in* the tenant tz — never `setTimezone()`-shifts
+// into it, which would slide the window backward for west-of-UTC zones.
 final class CycleWindowResolverService
 {
     /**
@@ -42,16 +32,10 @@ final class CycleWindowResolverService
         ];
     }
 
-    /**
-     * Company.timezone → app.timezone → AppEnums::DEFAULT_TIMEZONE.
-     * Companies.timezone is a real column on the model (nullable in practice
-     * despite the optimistic `@property string` docblock — see the cast
-     * below); Apps has no timezone column so its value comes from
-     * custom_fields via ->get(). The final fallback uses the ecosystem-wide
-     * default (NY) so a tenant missing its tz config still lands on a
-     * sensible "yesterday" window — UTC here would mis-window any North
-     * American tenant by half a day.
-     */
+    // Company.timezone → app.timezone → AppEnums::DEFAULT_TIMEZONE (NY).
+    // Companies.timezone is nullable despite the model's `@property string`
+    // docblock (hence the cast); Apps has no column so we read from
+    // custom_fields via ->get().
     public static function resolveTimezone(AppInterface $app, Companies $company): string
     {
         /** @psalm-suppress RedundantCastGivenDocblockType */

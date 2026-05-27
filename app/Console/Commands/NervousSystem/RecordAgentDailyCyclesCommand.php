@@ -26,9 +26,10 @@ class RecordAgentDailyCyclesCommand extends Command
 
     public function handle(): int
     {
+        // Cycle row represents a fully-elapsed day's activity, never today.
         $cycleDate = $this->option('date') !== null
             ? Carbon::parse((string) $this->option('date'))
-            : Carbon::today();
+            : Carbon::yesterday();
 
         $query = Agent::query()
             ->where('is_active', 1)
