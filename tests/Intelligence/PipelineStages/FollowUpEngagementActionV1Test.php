@@ -41,9 +41,7 @@ class FollowUpEngagementActionV1Test extends TestCase
     {
         parent::setUp();
 
-        $app = app(Apps::class);
-
-        $app->set('intelligence_lead_type_mode_v2', false);
+        auth()->user()->getCurrentCompany()->set('intelligence_lead_type_mode_v2', false);
     }
 
     public function testNotificationEngagementAction(): void
