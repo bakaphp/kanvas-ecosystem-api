@@ -122,6 +122,7 @@ use Kanvas\Connectors\Recombee\Workflows\PushProductToItemActivity;
 use Kanvas\Connectors\Recombee\Workflows\PushUserInteractionToEventActivity;
 use Kanvas\Connectors\RespondIO\Webhooks\ProcessRespondIOWebhookJob;
 use Kanvas\Connectors\RespondIO\Workflows\AgentChannelResponderActivity as RespondIOAgentChannelResponderActivity;
+use Kanvas\Connectors\RespondIO\Workflows\PushLeadActivity as RespondIOPushLeadActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AIAssistChannelResponderActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AttachFileToChecklistItemActivity;
 use Kanvas\Connectors\SalesAssist\Activities\AttachMessageFilesToLeadActivity;
@@ -386,6 +387,7 @@ class KanvasWorkflowSynActionCommand extends Command
             AddLeadCommentFromAgentMessageActivity::class,
             WorkflowsAgentChannelResponderActivity::class,
             RespondIOAgentChannelResponderActivity::class,
+            RespondIOPushLeadActivity::class,
             VinSolutionAddLeadCommentFromAgentMessageActivity::class,
             AgentProcessEmailWebhookJob::class,
             StripePaymentLinkWebhookJob::class,

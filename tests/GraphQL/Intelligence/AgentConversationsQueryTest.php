@@ -162,4 +162,73 @@ class AgentConversationsQueryTest extends TestCase
         $this->assertNotContains('old user message', $contents);
         $this->assertNotContains('old assistant message', $contents);
     }
+
+    public function testQueryOnlyReturnsCurrentUsersConversations(): void
+    {
+        $app = app(Apps::class);
+        $userA = auth()->user();
+        $company = $userA->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $userA->getId()]);
+
+        $store = new KanvasConversationStore();
+
+        $store->logTurn(
+            userId: $userA->getId(),
+            sessionId: (string) Str::uuid(),
+            agentClass: 'Test\\Stub\\Handler',
+            userMessage: 'message from A',
+            assistantResponse: 'reply to A',
+            agentId: $agent->getId(),
+        );
+
+        $userB = $this->createUser();
+        $this->actingAs($userB, 'api');
+
+        $emptyResponse = $this->graphQL('
+            query {
+                agentConversations(first: 25) {
+                    data { id title }
+                }
+            }
+        ')->assertSuccessful();
+
+        $this->assertSame(
+            [],
+            $emptyResponse->json('data.agentConversations.data'),
+            'User B must not see User A conversations',
+        );
+
+        $store->logTurn(
+            userId: $userB->getId(),
+            sessionId: (string) Str::uuid(),
+            agentClass: 'Test\\Stub\\Handler',
+            userMessage: 'message from B',
+            assistantResponse: 'reply to B',
+            agentId: $agent->getId(),
+        );
+
+        $userBResponse = $this->graphQL('
+            query {
+                agentConversations(first: 25) {
+                    data {
+                        id
+                        messages(first: 50) {
+                            data { content }
+                        }
+                    }
+                }
+            }
+        ')->assertSuccessful();
+
+        $convs = $userBResponse->json('data.agentConversations.data');
+        $this->assertCount(1, $convs);
+
+        $contents = collect($convs[0]['messages']['data'])->pluck('content')->all();
+        $this->assertContains('message from B', $contents);
+        $this->assertNotContains('message from A', $contents);
+    }
 }
