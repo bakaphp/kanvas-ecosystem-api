@@ -81,4 +81,14 @@ class AgentConversation extends ImmutableBaseModel
     {
         return $query->whereNotNull('agent_id');
     }
+
+    #[Override]
+    public function scopeFromUser(Builder $query, mixed $app = null): Builder
+    {
+        $userId = auth()->id();
+
+        return $userId !== null
+            ? $query->where('user_id', $userId)
+            : $query;
+    }
 }
