@@ -59,6 +59,7 @@ class AddFundsToUserWalletActivity extends KanvasActivity
 
                 $transaction = new AddFundsToUserWalletAction(
                     order: $order,
+                    useOrderTotal: (bool) $app->get(ConfigurationEnum::WALLET_USE_ORDER_TOTAL->value),
                     source: TransactionSourceEnum::RECHARGE_MANUAL,
                 )->execute($params['processTransactionsByWalletType'] ?? false);
 
