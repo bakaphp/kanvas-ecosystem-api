@@ -25,11 +25,7 @@ class CheckCliHealthAction extends BaseCheckHealthAction
         $client = SshClient::fromMachine($machine);
 
         try {
-            $output = $client->exec(
-                'docker exec ' . escapeshellarg($this->deployment->container_name)
-                . ' openclaw health --json 2>&1',
-                30,
-            );
+            $output = $client->getHealthForContainer($this->deployment->container_name);
         } catch (Throwable) {
             return HealthCheckResultEnum::FAILED;
         } finally {
