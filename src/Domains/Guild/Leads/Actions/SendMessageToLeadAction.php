@@ -13,8 +13,8 @@ use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
-use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
+use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
@@ -282,7 +282,7 @@ class SendMessageToLeadAction
 
     protected function isRespondIoEnabled(): bool
     {
-        return (bool) $this->lead->company->get(CompanyConfigurationEnum::RESPONDIO_ENABLED->value);
+        return (bool) $this->lead->company->get(RespondIOConfigurationEnum::ENABLED->value);
     }
 
     protected function getRespondIoClient(): RespondIOClient

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Guild\Unit;
 
 use InvalidArgumentException;
-use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
+use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
@@ -74,7 +74,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
     {
         $company = Mockery::mock();
         $company->shouldReceive('get')
-            ->with(CompanyConfigurationEnum::RESPONDIO_ENABLED->value)
+            ->with(RespondIOConfigurationEnum::ENABLED->value)
             ->andReturn(null);
 
         $lead = Mockery::mock(Lead::class);
@@ -89,7 +89,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
     {
         $company = Mockery::mock();
         $company->shouldReceive('get')
-            ->with(CompanyConfigurationEnum::RESPONDIO_ENABLED->value)
+            ->with(RespondIOConfigurationEnum::ENABLED->value)
             ->andReturn(true);
 
         $lead = Mockery::mock(Lead::class);
