@@ -53,6 +53,6 @@ extend type Query @guard {
         @paginate(
             model: "Kanvas\\Intelligence\\Agents\\Models\\AgentConversation"
             defaultCount: 25
-            scopes: ["fromApp", "fromCompany", "linkedToAgent"]
+            scopes: ["fromApp", "fromCompany", "linkedToAgent", "fromUser"]
         )
 }
