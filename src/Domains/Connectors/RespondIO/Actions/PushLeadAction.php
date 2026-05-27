@@ -47,7 +47,13 @@ class PushLeadAction
             $client->addContactTags($identifier, $tags);
         }
 
-        $client->updateConversationStatus($identifier, 'open');
+        try {
+            $client->updateConversationStatus($identifier, 'open');
+        } catch (ValidationException $e) {
+            if (! str_contains($e->getMessage(), 'already pending')) {
+                throw $e;
+            }
+        }
 
         return $response;
     }
@@ -73,7 +79,7 @@ class PushLeadAction
     {
         $phone = $this->firstPhone();
         if ($phone !== '') {
-            return 'phone:' . Str::ensurePhonePrefix($phone);
+            return 'phone:' . Str::toE164($phone);
         }
 
         $email = $this->firstEmail();
@@ -99,7 +105,7 @@ class PushLeadAction
 
         $phone = $this->firstPhone();
         if ($phone !== '') {
-            $payload['phone'] = Str::ensurePhonePrefix($phone);
+            $payload['phone'] = Str::toE164($phone);
         }
 
         return $payload;

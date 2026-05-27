@@ -39,7 +39,7 @@ final class PushLeadActionTest extends TestCase
             ->withPeopleId($people->getId())
             ->create();
 
-        $expectedPhone = Str::ensurePhonePrefix($people->getAllPhones()->first()->value);
+        $expectedPhone = Str::toE164($people->getAllPhones()->first()->value);
         $expectedIdentifier = 'phone:' . $expectedPhone;
         $expectedContactId = 'contact_abc123';
 
@@ -49,6 +49,7 @@ final class PushLeadActionTest extends TestCase
                 200
             ),
             'api.respond.io/v2/contact/*/tag' => Http::response(['success' => true], 200),
+            'api.respond.io/v2/contact/*/conversation/status' => Http::response(['success' => true], 200),
         ]);
 
         $response = new PushLeadAction($lead)->execute();
