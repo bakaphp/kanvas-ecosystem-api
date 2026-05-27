@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\OpenClaw\Actions;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Intelligence\AgentRuntime\Actions\BaseCheckHealthAction;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
+use Kanvas\Intelligence\AgentRuntime\Services\CliJsonExtractorService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Override;
 use Throwable;
@@ -40,18 +41,19 @@ class CheckCliHealthAction extends BaseCheckHealthAction
             : HealthCheckResultEnum::FAILED;
     }
 
-    /**
-     * OpenClaw prints "Config warnings:" lines ahead of the JSON — decode from the first brace.
-     */
+    // OpenClaw mixes plain-text warnings ("Config warnings:", "[plugins]…")
+    // with the JSON response — both BEFORE and sometimes AFTER the actual
+    // `{…}`. Brace-count via CliJsonExtractorService so trailing notices
+    // don't break the decode.
     private function isHealthy(string $output): bool
     {
-        $start = strpos($output, '{');
-        if ($start === false) {
+        $json = CliJsonExtractorService::extractFirstObject($output);
+        if ($json === null) {
             return false;
         }
 
-        $json = json_decode(substr($output, $start), true);
+        $decoded = json_decode($json, true);
 
-        return is_array($json) && ($json['ok'] ?? false) === true;
+        return is_array($decoded) && ($decoded['ok'] ?? false) === true;
     }
 }
