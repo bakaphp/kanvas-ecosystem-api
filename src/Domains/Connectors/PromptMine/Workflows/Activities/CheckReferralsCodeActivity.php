@@ -11,11 +11,13 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Souk\Discounts\Models\Discount;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class CheckReferralsCodeActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public $tries = 3;
@@ -64,7 +66,7 @@ class CheckReferralsCodeActivity extends KanvasActivity implements WorkflowActiv
                     return [
                         'result' => false,
                         'users_id' => $entity->getId(),
-                        'message' => "No free generation models configured in the app settings",
+                        'message' => 'No free generation models configured in the app settings',
                     ];
                 }
 

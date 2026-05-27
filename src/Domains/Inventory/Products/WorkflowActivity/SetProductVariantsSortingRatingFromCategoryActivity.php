@@ -8,10 +8,12 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Actions\SetVariantSortingRatingFromCategoryAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class SetProductVariantsSortingRatingFromCategoryActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

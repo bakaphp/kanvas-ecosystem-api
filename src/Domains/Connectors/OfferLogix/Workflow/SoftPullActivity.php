@@ -14,12 +14,14 @@ use Kanvas\Connectors\OfferLogix\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 /**
  * @todo rename to specific activity is from a message
  */
+#[WorkflowAction]
 class SoftPullActivity extends KanvasActivity
 {
     public function execute(Message $entity, Apps $app, array $params): array

@@ -9,9 +9,11 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Actions\AddFundsToCompanyWalletAction;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Souk\Wallet\Enums\TransactionSourceEnum;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class AddFundsToWalletActivity extends KanvasActivity
 {
     public $tries = 3;

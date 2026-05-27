@@ -9,10 +9,12 @@ use Kanvas\Connectors\WooCommerce\Actions\PullOrderFromWooCommerceAction;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Affiliates\Models\Affiliate;
 use Kanvas\Souk\Affiliates\Models\AffiliateLink;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class PullWooCommerceOrderWebhookJob extends ProcessWebhookJob
 {
     #[Override]

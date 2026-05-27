@@ -16,6 +16,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -23,6 +24,7 @@ use Kanvas\Workflow\KanvasActivity;
 /**
  * @todo move to a SA namespace, this is not for Twilio anymore
  */
+#[WorkflowAction]
 class HumanAgentChannelResponseActivity extends KanvasActivity
 {
     public $tries = 3;

@@ -7,9 +7,11 @@ namespace Kanvas\Souk\Referrals\Activities;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Referrals\Actions\ProcessReferralCodeRedemptionAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class ProcessReferralCodeRedemptionActivity extends KanvasActivity
 {
     public $tries = 3;

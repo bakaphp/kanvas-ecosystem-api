@@ -8,9 +8,11 @@ use DOMDocument;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class PremiumPromptApprovalWebhookJob extends ProcessWebhookJob
 {
     #[Override]

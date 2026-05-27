@@ -8,10 +8,12 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Knp\Snappy\Pdf;
 
+#[WorkflowAction]
 class ConvertMessageImagesToPdfActivity extends KanvasActivity
 {
     public $tries = 3;

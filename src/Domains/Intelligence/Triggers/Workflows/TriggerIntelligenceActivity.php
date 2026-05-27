@@ -10,9 +10,11 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeV1Action;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class TriggerIntelligenceActivity extends KanvasActivity
 {
     public $tries = 3;

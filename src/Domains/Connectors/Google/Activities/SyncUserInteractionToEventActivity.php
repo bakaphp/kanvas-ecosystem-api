@@ -10,10 +10,12 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Google\Actions\SyncUserInteractionToEventAction;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class SyncUserInteractionToEventActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

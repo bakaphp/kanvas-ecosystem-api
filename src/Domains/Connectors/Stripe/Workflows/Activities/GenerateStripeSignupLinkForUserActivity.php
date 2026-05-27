@@ -10,12 +10,14 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Stripe\Account;
 use Stripe\AccountLink;
 use Stripe\Stripe;
 
+#[WorkflowAction]
 class GenerateStripeSignupLinkForUserActivity extends KanvasActivity
 {
     //public $tries = 5;

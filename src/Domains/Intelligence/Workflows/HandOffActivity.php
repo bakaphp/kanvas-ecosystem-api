@@ -7,9 +7,11 @@ namespace Kanvas\Intelligence\Workflows;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Actions\HandOffAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class HandOffActivity extends KanvasActivity
 {
     public $tries = 3;

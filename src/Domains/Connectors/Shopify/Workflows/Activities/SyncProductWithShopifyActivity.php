@@ -8,12 +8,14 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Actions\SyncProductWithShopifyAction;
 use Kanvas\Connectors\Shopify\Enums\ConfigEnum;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
 use function Sentry\captureException;
 
+#[WorkflowAction]
 class SyncProductWithShopifyActivity extends KanvasActivity
 {
     //public $queue = ConfigEnum::ACTIVITY_QUEUE->value;

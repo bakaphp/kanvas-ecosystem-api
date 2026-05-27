@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\Lendflow\Activities;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Lendflow\Actions\UploadDealFilesAction;
 use Kanvas\Guild\Deals\Models\Deal;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class UploadDealFilesActivity extends KanvasActivity
 {
     public $tries = 3;

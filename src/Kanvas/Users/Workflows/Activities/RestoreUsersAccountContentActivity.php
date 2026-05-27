@@ -8,9 +8,11 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Actions\RestoreReactivatedAccountContentAction;
 use Kanvas\Users\Models\RequestDeletedAccount;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class RestoreUsersAccountContentActivity extends KanvasActivity
 {
     public function execute(Users $user, Apps $app, array $param): array
@@ -28,6 +30,7 @@ class RestoreUsersAccountContentActivity extends KanvasActivity
             ];
         }
         $requestDeletedAccount->delete();
+
         return $this->executeIntegration(
             entity: $user,
             app: $app,

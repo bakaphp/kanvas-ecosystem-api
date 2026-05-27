@@ -7,10 +7,12 @@ namespace Kanvas\Connectors\Google\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Google\Actions\SyncMessageToDocumentAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class SyncMessageToDocumentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

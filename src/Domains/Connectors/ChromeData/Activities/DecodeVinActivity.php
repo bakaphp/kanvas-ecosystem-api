@@ -8,10 +8,12 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\ChromeData\Enums\ConfigurationEnum;
 use Kanvas\Connectors\ChromeData\Services\VehicleService;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class DecodeVinActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

@@ -11,8 +11,10 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Tools\LeadIntentTool;
 use Kanvas\Intelligence\Tools\VehicleInterestTool;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Override;
 
+#[WorkflowAction]
 class ProcessElevenLabsAgentWebhookJob extends ProcessElevenLabsWebhookJob
 {
     use GeneratesChecklistEngagementUrls;

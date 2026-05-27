@@ -10,9 +10,11 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Actions\ProcessLeadDriverLicenseVerificationAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class LeadProcessDriverLicenseImageActivity extends KanvasActivity
 {
     public $tries = 3;

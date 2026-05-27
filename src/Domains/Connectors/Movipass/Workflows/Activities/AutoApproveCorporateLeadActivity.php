@@ -20,12 +20,14 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
 
+#[WorkflowAction]
 class AutoApproveCorporateLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     // Lead bookkeeping fields are namespaced to avoid collision with other connector workflows.
