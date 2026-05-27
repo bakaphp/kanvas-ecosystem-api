@@ -18,12 +18,14 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Override;
 use Throwable;
 use TypeError;
 use ValueError;
 
+#[WorkflowAction]
 class CreateCreditScoreFromMessageActivity extends CreateCreditScoreFromLeadActivity
 {
     /**

@@ -9,9 +9,11 @@ use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\PullNetSuiteProductPriceAction;
 use Kanvas\Users\Actions\SendUserNotificationAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class SyncNetSuiteProductWebhookJob extends ProcessWebhookJob
 {
     #[Override]
@@ -41,7 +43,6 @@ class SyncNetSuiteProductWebhookJob extends ProcessWebhookJob
                 RolesEnums::INVENTORY_MANAGER
             )->execute($app->get(B2BSettingsEnums::B2B_SYNC_INVENTORY_EMAIL_TEMPLATE->getValue()), []);
         }
-
 
         return [
             'message' => $successMessage,

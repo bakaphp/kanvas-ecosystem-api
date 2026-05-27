@@ -12,11 +12,13 @@ use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\UserConfig;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class SaveLlmChoiceActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

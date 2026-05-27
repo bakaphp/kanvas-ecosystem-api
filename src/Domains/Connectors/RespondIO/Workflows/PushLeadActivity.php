@@ -8,9 +8,11 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\RespondIO\Actions\PushLeadAction;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class PushLeadActivity extends KanvasActivity
 {
     public $tries = 3;

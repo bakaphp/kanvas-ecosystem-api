@@ -20,10 +20,12 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Throwable;
 
+#[WorkflowAction]
 class UpdateVariantPriceJob extends ProcessWebhookJob
 {
     use KanvasJobsTrait;

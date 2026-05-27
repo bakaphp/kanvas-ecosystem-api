@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Jobs;
 
 use Kanvas\Connectors\Zoho\Client;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class UpdateZohoLeadInfoWebhookJob extends ProcessWebhookJob
 {
     #[Override]

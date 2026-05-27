@@ -29,6 +29,7 @@ use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Users\Events\UpdateUserProfileEvent;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Laravel\Ai\Enums\Lab;
@@ -36,6 +37,7 @@ use Throwable;
 
 use function Laravel\Ai\agent;
 
+#[WorkflowAction]
 class LLMMessageResponseActivity extends KanvasActivity
 {
     public $tries = 2;

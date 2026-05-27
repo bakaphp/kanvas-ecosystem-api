@@ -12,9 +12,11 @@ use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Services\MessageInteractionService;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class MessageReportNotificationActivity extends KanvasActivity
 {
     public $tries = 2;

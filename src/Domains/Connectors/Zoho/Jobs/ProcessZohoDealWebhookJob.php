@@ -19,12 +19,14 @@ use Kanvas\Guild\Deals\DataTransferObject\Deal as DealData;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Throwable;
 use Webleit\ZohoCrmApi\ZohoCrm;
 
+#[WorkflowAction]
 class ProcessZohoDealWebhookJob extends ProcessWebhookJob
 {
     #[Override]

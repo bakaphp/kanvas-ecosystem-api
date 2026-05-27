@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -18,6 +19,7 @@ use Kanvas\Workflow\KanvasActivity;
  * Activity that triggers a human takeover workflow when a message
  * has from_human flag set to true and the entity is a Lead.
  */
+#[WorkflowAction]
 class MessageHumanTakeoverTriggerActivity extends KanvasActivity
 {
     public $tries = 3;

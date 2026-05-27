@@ -8,10 +8,12 @@ use Imdhemy\GooglePlay\DeveloperNotifications\DeveloperNotification;
 use Imdhemy\GooglePlay\DeveloperNotifications\SubscriptionNotification;
 use Kanvas\Connectors\InAppPurchase\Enums\GoogleNotificationTypeEnum;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Laravel\Cashier\Subscription as CashierSubscription;
 use Override;
 
+#[WorkflowAction]
 class ProcessGoogleSubscriptionWebhookJob extends ProcessWebhookJob
 {
     #[Override]

@@ -12,9 +12,11 @@ use Kanvas\Connectors\PromptMine\Actions\CheckNuggetGenerationCountAction;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class CheckNuggetGenerationCountActivity extends KanvasActivity
 {
     public $tries = 2;
@@ -29,7 +31,7 @@ class CheckNuggetGenerationCountActivity extends KanvasActivity
             return [
                 'result' => true,
                 'message' => 'Free generation check is not enabled or message does not have a parent',
-                'message_id' => $message->getId()
+                'message_id' => $message->getId(),
             ];
         }
 

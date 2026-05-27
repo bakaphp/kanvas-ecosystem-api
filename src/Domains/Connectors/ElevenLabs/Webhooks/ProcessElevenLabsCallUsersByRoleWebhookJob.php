@@ -10,10 +10,12 @@ use Kanvas\Connectors\Twilio\Client as TwilioClient;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Override;
 use Throwable;
 use Twilio\TwiML\VoiceResponse;
 
+#[WorkflowAction]
 class ProcessElevenLabsCallUsersByRoleWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]

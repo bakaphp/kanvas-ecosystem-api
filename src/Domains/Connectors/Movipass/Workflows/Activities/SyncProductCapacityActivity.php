@@ -8,11 +8,13 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Souk\Orders\Actions\GetSlotAvailabilityAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class SyncProductCapacityActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

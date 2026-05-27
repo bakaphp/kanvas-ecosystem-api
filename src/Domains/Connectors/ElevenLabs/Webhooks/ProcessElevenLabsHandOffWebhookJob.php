@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\ElevenLabs\Webhooks;
 
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Override;
 
+#[WorkflowAction]
 class ProcessElevenLabsHandOffWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]

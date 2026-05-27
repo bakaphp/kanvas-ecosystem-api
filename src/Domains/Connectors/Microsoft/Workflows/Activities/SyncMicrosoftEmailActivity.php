@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\Microsoft\Workflows\Activities;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Microsoft\Actions\SyncMicrosoftEmailAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class SyncMicrosoftEmailActivity extends KanvasActivity
 {
     public $tries = 3;

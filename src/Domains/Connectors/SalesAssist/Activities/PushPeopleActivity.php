@@ -11,9 +11,11 @@ use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class PushPeopleActivity extends KanvasActivity
 {
     public function execute(People $people, AppInterface $app, array $params): array

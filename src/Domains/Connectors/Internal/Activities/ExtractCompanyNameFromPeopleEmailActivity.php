@@ -11,10 +11,12 @@ use Kanvas\Connectors\Internal\Enums\ConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class ExtractCompanyNameFromPeopleEmailActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     /**

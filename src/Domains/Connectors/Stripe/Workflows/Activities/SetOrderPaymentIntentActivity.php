@@ -9,11 +9,13 @@ use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Stripe\Services\StripeCustomerService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Stripe\StripeClient;
 use Throwable;
 
+#[WorkflowAction]
 class SetOrderPaymentIntentActivity extends KanvasActivity
 {
     public $tries = 3;

@@ -12,9 +12,11 @@ use Kanvas\Intelligence\Agents\Traits\HandlesSupportModeDelayedResponseTrait;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class MicrosoftAgentChannelResponderActivity extends KanvasActivity
 {
     use HandlesSupportModeDelayedResponseTrait;

@@ -8,10 +8,12 @@ use Imdhemy\AppStore\Jws\Parser;
 use Imdhemy\AppStore\ServerNotifications\V2DecodedPayload;
 use Kanvas\Connectors\InAppPurchase\Enums\AppleNotificationTypeEnum;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Laravel\Cashier\Subscription as CashierSubscription;
 use Override;
 
+#[WorkflowAction]
 class ProcessAppleSubscriptionWebhookJob extends ProcessWebhookJob
 {
     #[Override]

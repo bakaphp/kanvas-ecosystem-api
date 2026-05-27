@@ -13,10 +13,12 @@ use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use NotificationChannels\Expo\ExpoChannel;
 use Override;
 
+#[WorkflowAction]
 class StripePaymentLinkWebhookJob extends ProcessWebhookJob
 {
     #[Override]

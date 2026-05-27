@@ -7,9 +7,11 @@ namespace Kanvas\Intelligence\Agents\Jobs;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\ProcessAgentChatAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class AgentReceiverJob extends ProcessWebhookJob
 {
     #[Override]
