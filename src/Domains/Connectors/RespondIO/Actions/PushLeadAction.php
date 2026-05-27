@@ -47,6 +47,8 @@ class PushLeadAction
             $client->addContactTags($identifier, $tags);
         }
 
+        $client->updateConversationStatus($identifier, 'open');
+
         return $response;
     }
 
