@@ -13,6 +13,8 @@ use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
+use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
@@ -215,6 +217,10 @@ class SendMessageToLeadAction
 
     protected function sendWhatsAppMessage(string $message, ?string $to = null): array
     {
+        if ($this->isRespondIoEnabled()) {
+            return $this->sendRespondIoMessage($message, $to);
+        }
+
         $isFromWhatsapp = (bool) $this->lead->get(ConfigurationEnum::IS_FROM_WHATSAPP->value);
         $hasOutboundConfigured = ! empty($this->lead->app->get(WaSenderConfigurationEnum::BASE_URL_OUTBOUND->value));
 
@@ -274,8 +280,83 @@ class SendMessageToLeadAction
         }
     }
 
+    protected function isRespondIoEnabled(): bool
+    {
+        return (bool) $this->lead->company->get(RespondIOConfigurationEnum::ENABLED->value);
+    }
+
+    protected function getRespondIoClient(): RespondIOClient
+    {
+        return new RespondIOClient($this->lead->app, $this->lead->company);
+    }
+
+    protected function sendRespondIoMessage(string $message, ?string $to = null): array
+    {
+        $client = $this->getRespondIoClient();
+
+        $cellphone = ($to !== null && $to !== '')
+            ? $to
+            : $this->lead->people->getCellPhones()->first()?->value;
+
+        if ($cellphone === null || $cellphone === '') {
+            throw new InvalidArgumentException('Lead does not have a cellphone number');
+        }
+
+        $cellphone = $this->hijackPhoneNumber((string) $cellphone, '@s.whatsapp.net');
+        $cellphone = Str::toE164($cellphone);
+
+        $responses = [];
+
+        foreach ($this->videoEngagements as $videoEngagement) {
+            if (! empty($videoEngagement['url'])) {
+                $responses[] = $client->sendMessage($cellphone, $videoEngagement['url']);
+            }
+        }
+
+        foreach ($this->processedFiles as $file) {
+            if (isset($file['is_processed_video']) && $file['is_processed_video']) {
+                continue;
+            }
+
+            $type = $file['type'] ?? null;
+            if (! $type instanceof MediaTypeEnum) {
+                continue;
+            }
+
+            $attachmentType = match ($type) {
+                MediaTypeEnum::IMAGE => 'image',
+                MediaTypeEnum::VIDEO => 'video',
+                MediaTypeEnum::AUDIO => 'audio',
+                MediaTypeEnum::DOCUMENT => 'file',
+                default => null,
+            };
+
+            if ($attachmentType === null) {
+                continue;
+            }
+
+            $responses[] = $client->sendAttachment($cellphone, $attachmentType, $file['url']);
+        }
+
+        if ($message !== '') {
+            $responses[] = $client->sendMessage($cellphone, $message);
+        }
+
+        return [
+            'channel' => 'respondio',
+            'to' => $cellphone,
+            'lead_id' => $this->lead->getId(),
+            'lead_uuid' => $this->lead->uuid,
+            'messages' => $responses,
+        ];
+    }
+
     protected function sendSmsMessage(string $from, string $message, ?string $to = null): array
     {
+        if ($this->isRespondIoEnabled()) {
+            return $this->sendRespondIoMessage($message, $to);
+        }
+
         $client = Client::getInstanceByCompany($this->lead->company);
 
         $cellphone = ($to !== null && $to !== '')
