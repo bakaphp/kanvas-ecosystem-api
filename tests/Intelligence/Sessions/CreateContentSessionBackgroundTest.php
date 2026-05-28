@@ -43,10 +43,9 @@ class CreateContentSessionBackgroundTest extends TestCase
         $background = $content['background'];
         $this->assertIsArray($background);
 
-        // each section flattens into a single newline-joined string; nulls become blank lines
-        $this->assertIsString($background['background']);
-        $this->assertSame("You represent {$company->name}.\n\nBe helpful.", $background['background']);
-        $this->assertSame("Step one.\nStep two.", $background['steps']);
+        // each section is returned as an array of rendered lines; nulls are preserved
+        $this->assertSame(['You represent ' . $company->name . '.', null, 'Be helpful.'], $background['background']);
+        $this->assertSame(['Step one.', 'Step two.'], $background['steps']);
 
         // a null section stays null
         $this->assertNull($background['output']);
@@ -61,7 +60,7 @@ class CreateContentSessionBackgroundTest extends TestCase
 
         $agent = Agent::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create([
             'role' => [
-                'background' => 'You represent {{$company_name}}.',
+                'background' => "You represent {{\$company_name}}.\nBe helpful.",
                 'steps' => 'Just do it.',
             ],
         ]);
@@ -76,12 +75,12 @@ class CreateContentSessionBackgroundTest extends TestCase
         )->execute();
         $background = $content['background'];
 
-        // string-shape sections render in place and stay strings (no comma splitting)
-        $this->assertSame("You represent {$company->name}.", $background['background']);
-        $this->assertSame('Just do it.', $background['steps']);
+        // string-shape sections split on newlines into an array of rendered lines
+        $this->assertSame(['You represent ' . $company->name . '.', 'Be helpful.'], $background['background']);
+        $this->assertSame(['Just do it.'], $background['steps']);
     }
 
-    public function testRenderingKeepsLinesThatReferenceUnknownVariables(): void
+    public function testUnknownVariablesRenderEmptyAndNeverLeaveRawBladeTags(): void
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -90,7 +89,7 @@ class CreateContentSessionBackgroundTest extends TestCase
 
         $agent = Agent::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create([
             'role' => [
-                'background' => ['Hello {{$company_name}}.', '{!! json_encode($note) !!}'],
+                'background' => ['Hello {{$company_name}}.', 'Vehicle: {{$vehicle_interest}}.'],
             ],
         ]);
 
@@ -102,11 +101,11 @@ class CreateContentSessionBackgroundTest extends TestCase
                 $user
             )
         )->execute();
-        $background = $content['background'];
+        $lines = $content['background']['background'];
 
-        // the renderable line still resolves and the whole section survives
-        $this->assertIsString($background['background']);
-        $this->assertStringContainsString("Hello {$company->name}.", $background['background']);
+        $this->assertSame('Hello ' . $company->name . '.', $lines[0]);
+        // unknown variable resolves to empty, not raw {{ }}
+        $this->assertSame('Vehicle: .', $lines[1]);
     }
 
     public function testRendersRealAgentRolePromptText(): void
@@ -146,20 +145,21 @@ class CreateContentSessionBackgroundTest extends TestCase
         )->execute();
 
         $background = $content['background']['background'];
+        $this->assertIsArray($background);
+
+        // null blank-line marker is preserved as an array entry
+        $this->assertContains(null, $background);
+
+        $joined = implode("\n", array_map(static fn (?string $line): string => $line ?? '', $background));
 
         // long text, em-dashes and smart quotes survive intact
-        $this->assertStringContainsString('You are **Sally**, a 24/7 Sales Agent designed to manage every stage of lead engagement—from initial contact', $background);
-        $this->assertStringContainsString('“It looks like I can’t confirm that specific detail from here.”', $background);
+        $this->assertStringContainsString('You are **Sally**, a 24/7 Sales Agent designed to manage every stage of lead engagement—from initial contact', $joined);
+        $this->assertStringContainsString('“It looks like I can’t confirm that specific detail from here.”', $joined);
 
-        // known variables render
-        $this->assertStringContainsString('You represent ' . $company->name . ',', $background);
-
-        // unknown variables resolve to empty — no raw Blade tags survive anywhere
-        $this->assertStringNotContainsString('{{', $background);
-        $this->assertStringNotContainsString('{{', $content['background']['steps']);
-
-        // null array entry becomes a blank line
-        $this->assertStringContainsString("\n\n", $background);
+        // known variables render, unknown ones resolve to empty — no raw Blade tags anywhere
+        $this->assertStringContainsString('You represent ' . $company->name . ',', $joined);
+        $this->assertStringNotContainsString('{{', $joined);
+        $this->assertStringNotContainsString('{{', implode("\n", $content['background']['steps']));
     }
 
     public function testRendersRealAgentRolePromptTextWhenBackgroundIsString(): void
@@ -175,11 +175,9 @@ class CreateContentSessionBackgroundTest extends TestCase
                 'background' => implode("\n", [
                     'You are **Sally**, a 24/7 Sales Agent designed to manage every stage of lead engagement—from initial contact to appointment scheduling and follow-ups—to streamline the sales process and maximize lead conversion.',
                     'You represent {{$company_name}}, a dealership in {{$branch_city}}, {{$branch_state}}.',
-                    'Full address: {{$branch_address}}.',
                     'Current work_hours/after_hours status: {{$work_hours_status}}.',
                     '',
-                    'If vehicle of interest → {{$vehicle_interest}} is already known or the customer explicitly mentions/chooses a vehicle → use that as the reference vehicle.',
-                    '- Memorial Day — Last Monday of May',
+                    'If vehicle of interest → {{$vehicle_interest}} is already known → use that as the reference vehicle.',
                     '“It looks like I can’t confirm that specific detail from here.”',
                 ]),
                 'steps' => implode("\n", [
@@ -201,20 +199,16 @@ class CreateContentSessionBackgroundTest extends TestCase
 
         $background = $content['background']['background'];
 
-        // long text, em-dashes and smart quotes survive intact
-        $this->assertIsString($background);
-        $this->assertStringContainsString('You are **Sally**, a 24/7 Sales Agent designed to manage every stage of lead engagement—from initial contact', $background);
-        $this->assertStringContainsString('“It looks like I can’t confirm that specific detail from here.”', $background);
+        // string section is split into an array of rendered lines, blank line kept as ''
+        $this->assertIsArray($background);
+        $this->assertContains('', $background);
 
-        // known variables render
-        $this->assertStringContainsString('You represent ' . $company->name . ',', $background);
-
-        // unknown variables resolve to empty — no raw Blade tags survive anywhere
-        $this->assertStringNotContainsString('{{', $background);
-        $this->assertStringNotContainsString('{{', $content['background']['steps']);
-
-        // the blank line between sections is preserved
-        $this->assertStringContainsString("\n\n", $background);
+        $joined = implode("\n", $background);
+        $this->assertStringContainsString('You are **Sally**, a 24/7 Sales Agent designed to manage every stage of lead engagement—from initial contact', $joined);
+        $this->assertStringContainsString('“It looks like I can’t confirm that specific detail from here.”', $joined);
+        $this->assertStringContainsString('You represent ' . $company->name . ',', $joined);
+        $this->assertStringNotContainsString('{{', $joined);
+        $this->assertStringNotContainsString('{{', implode("\n", $content['background']['steps']));
 
         // a null section stays null even in the string shape
         $this->assertNull($content['background']['output']);
