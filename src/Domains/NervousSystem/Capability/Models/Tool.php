@@ -9,6 +9,7 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\KanvasModules\Models\KanvasModule;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
@@ -96,6 +97,11 @@ class Tool extends BaseModel
     public function category(): BelongsTo
     {
         return $this->belongsTo(ToolCategory::class, 'tool_category_id', 'id');
+    }
+
+    public function agent(): BelongsTo
+    {
+        return $this->belongsTo(Agent::class, 'agents_id');
     }
 
     public function scopeInCategory(Builder $query, mixed $category): Builder
