@@ -30,6 +30,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Users\Models\Users;
 use RuntimeException;
+use Throwable;
 use Yasumi\Exception\InvalidYearException;
 use Yasumi\Exception\MissingTranslationException;
 use Yasumi\Exception\ProviderNotFoundException;
@@ -66,23 +67,68 @@ class CreateContentSessionAction
         return $result;
     }
 
-    protected function generateBackground(array $data): mixed
+    protected function generateBackground(array $data): ?array
     {
+        $role = $this->session->agent?->role;
+
+        if (! is_array($role)) {
+            return null;
+        }
+
         $roleData = $this->entity instanceof Lead
             ? $this->generateValuesForRole($this->entity)
             : [];
         $data = array_merge($data, $roleData);
 
-        try {
-            $background = $this->session->agent?->role !== null && is_array($this->session->agent->role)
-                ? Blade::render(json_encode($this->session->agent->role), $data)
-                : null;
-        } catch (Exception $e) {
-            report($e);
-            $background = $this->session->agent?->role;
+        return array_map(
+            fn (mixed $section): ?string => $this->renderRoleSection($section, $data),
+            $role
+        );
+    }
+
+    /**
+     * Agents store each role section (background/steps/output) either as a plain string
+     * or as an array of lines (with nulls for blank lines). Render Blade variables and
+     * flatten arrays into a single newline-joined string so session content always
+     * exposes one shape to consumers. A null section stays null.
+     */
+    protected function renderRoleSection(mixed $section, array $data): ?string
+    {
+        if ($section === null) {
+            return null;
         }
 
-        return Str::isJson($background) ? json_decode($background) : $background;
+        if (is_array($section)) {
+            $lines = array_map(
+                fn (mixed $line): string => $this->renderRoleLine($line, $data),
+                $section
+            );
+
+            return implode("\n", $lines);
+        }
+
+        return $this->renderRoleLine($section, $data);
+    }
+
+    /**
+     * Render one line. Lines may reference variables we don't carry here (e.g. the
+     * Contact Checker template's {!! json_encode($note) !!}); keep the raw line when
+     * rendering throws instead of dropping it. Null/blank lines become an empty string
+     * so they read as blank lines once the section is joined.
+     */
+    protected function renderRoleLine(mixed $line, array $data): string
+    {
+        if (! is_string($line) || $line === '') {
+            return '';
+        }
+
+        try {
+            return Blade::render($line, $data);
+        } catch (Throwable $e) {
+            report($e);
+
+            return $line;
+        }
     }
 
     protected function mapLead(Lead $lead): array
