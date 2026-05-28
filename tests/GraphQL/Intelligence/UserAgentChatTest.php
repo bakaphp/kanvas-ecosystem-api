@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Intelligence;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Tests\Stubs\Intelligence\FakeAgentHandler;
 use Tests\TestCase;
@@ -109,6 +112,37 @@ class UserAgentChatTest extends TestCase
 
         $secondResponse->assertSuccessful();
         $this->assertEquals($sessionId, $secondResponse->json('data.aiAgentUserChat.session_id'));
+    }
+
+    public function testUserChatWithUnknownSessionIdCreatesNewSession(): void
+    {
+        $unknownSessionId = (string) Str::uuid();
+
+        $response = $this->graphQL('
+            mutation($input: UserChatInput!) {
+                aiAgentUserChat(input: $input) {
+                    response
+                    session_id
+                }
+            }
+        ', [
+            'input' => [
+                'agent_id' => (string) $this->agent->getId(),
+                'message' => 'Hello with a stale session id',
+                'session_id' => $unknownSessionId,
+            ],
+        ]);
+
+        $response->assertSuccessful();
+        $this->assertArrayNotHasKey('errors', $response->json(), 'GraphQL errors: ' . $response->getContent());
+
+        $newSessionId = $response->json('data.aiAgentUserChat.session_id');
+        $this->assertNotEmpty($newSessionId);
+        $this->assertNotEquals($unknownSessionId, $newSessionId);
+
+        $session = Session::where('uuid', $newSessionId)->first();
+        $this->assertNotNull($session);
+        $this->assertEquals(Users::class, $session->entity_namespace);
     }
 
     public function testUserChatWithoutSessionIdAlwaysCreatesNewSession(): void
@@ -210,6 +244,85 @@ class UserAgentChatTest extends TestCase
 
         $this->assertNotNull($session);
         $this->assertEquals(Users::class, $session->entity_namespace);
+    }
+
+    public function testUserChatMirrorsConversationToSocialChannel(): void
+    {
+        $response = $this->graphQL('
+            mutation($input: UserChatInput!) {
+                aiAgentUserChat(input: $input) {
+                    response
+                    session_id
+                }
+            }
+        ', [
+            'input' => [
+                'agent_id' => (string) $this->agent->getId(),
+                'message' => 'Persist me to social',
+            ],
+        ]);
+
+        $response->assertSuccessful();
+        $sessionId = $response->json('data.aiAgentUserChat.session_id');
+
+        $session = Session::where('uuid', $sessionId)->first();
+        $this->assertNotNull($session->channel_id, 'Session should be linked to a Social channel');
+
+        $channel = Channel::find($session->channel_id);
+        $this->assertNotNull($channel);
+
+        $messages = $channel->messages()->get();
+        $this->assertCount(2, $messages, 'One user message + one assistant message');
+
+        $userMessage = $messages->first(fn (Message $m): bool => ! ($m->getMessage()['from_ia'] ?? false));
+        $aiMessage = $messages->first(fn (Message $m): bool => (bool) ($m->getMessage()['from_ia'] ?? false));
+
+        $this->assertNotNull($userMessage);
+        $this->assertNotNull($aiMessage);
+
+        $this->assertSame('Persist me to social', $userMessage->getMessage()['content']);
+        $this->assertSame('This is a fake agent response.', $aiMessage->getMessage()['content']);
+
+        $this->assertSame($sessionId, $userMessage->getMessage()['session_id']);
+        $this->assertSame($sessionId, $aiMessage->getMessage()['session_id']);
+
+        $this->assertEquals($userMessage->getId(), $aiMessage->parent_id, 'Assistant reply threads under the user message');
+        $this->assertEquals($userMessage->getId(), $aiMessage->response_message_id);
+    }
+
+    public function testUserChatReusesSameChannelAcrossTurns(): void
+    {
+        $first = $this->graphQL('
+            mutation($input: UserChatInput!) {
+                aiAgentUserChat(input: $input) { response session_id }
+            }
+        ', [
+            'input' => [
+                'agent_id' => (string) $this->agent->getId(),
+                'message' => 'Turn one',
+            ],
+        ]);
+        $first->assertSuccessful();
+        $sessionId = $first->json('data.aiAgentUserChat.session_id');
+
+        $second = $this->graphQL('
+            mutation($input: UserChatInput!) {
+                aiAgentUserChat(input: $input) { response session_id }
+            }
+        ', [
+            'input' => [
+                'agent_id' => (string) $this->agent->getId(),
+                'message' => 'Turn two',
+                'session_id' => $sessionId,
+            ],
+        ]);
+        $second->assertSuccessful();
+        $this->assertEquals($sessionId, $second->json('data.aiAgentUserChat.session_id'));
+
+        $session = Session::where('uuid', $sessionId)->first();
+        $channel = Channel::find($session->channel_id);
+
+        $this->assertCount(4, $channel->messages()->get(), 'Two turns append to one channel');
     }
 
     public function testAgentHistoryTracksUserId(): void

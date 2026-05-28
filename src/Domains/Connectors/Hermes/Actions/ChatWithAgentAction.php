@@ -15,20 +15,19 @@ use Throwable;
 
 /**
  * Chat with a deployed Hermes agent via SSH + `docker exec curl` against the
- * container's OpenAI-compatible API server (POST /v1/chat/completions on
- * 127.0.0.1:8642).
+ * container's OpenAI-compatible API server (POST /v1/responses on 127.0.0.1:8642).
  *
  * Same transport as OpenClaw's ChatWithAgentAction (SSH → docker exec → loopback
- * HTTP) but it speaks the Chat Completions API rather than the Responses API,
- * because that is what the Hermes API server exposes. The API server binds to
- * loopback inside the container and authenticates with a bearer key that equals
- * the per-agent gateway token (API_SERVER_KEY == the HERMES_GATEWAY_TOKEN custom
- * field — see DockerComposeBuilderService::getApiServerEnvVars()).
+ * HTTP) and, like OpenClaw, it speaks the stateful Responses API. The API server
+ * binds to loopback inside the container and authenticates with a bearer key that
+ * equals the per-agent gateway token (API_SERVER_KEY == the HERMES_GATEWAY_TOKEN
+ * custom field — see DockerComposeBuilderService::getApiServerEnvVars()).
  *
- * The endpoint is stateless — each call sends only the current user message.
- * Continuity across turns comes from Hermes's own persistent auto-memory; true
- * per-session message threading (Hermes /v1/responses + `conversation`) is a
- * deliberate follow-up, not wired here.
+ * Cross-turn continuity comes from the `conversation` id we attach to every request:
+ * it is the Kanvas `Session.uuid`, so the gateway's stateful /v1/responses store
+ * threads the whole conversation under one id — the same value the chat UI, the
+ * Social layer, and the on-disk transcript are keyed by. When no session is supplied
+ * the field is omitted and Hermes falls back to its own persistent auto-memory.
  */
 class ChatWithAgentAction
 {
@@ -38,6 +37,7 @@ class ChatWithAgentAction
     public function __construct(
         protected Agent $agent,
         protected string $message,
+        protected ?string $sessionKey = null,
         protected array $images = [],
     ) {
     }
@@ -89,19 +89,7 @@ class ChatWithAgentAction
 
     private function sendRequest(AgentDeployment $deployment, string $token): string
     {
-        // The container IS the agent (one Hermes instance per agent), so the model
-        // name is the fixed `hermes-agent` literal the API server expects.
-        $payload = json_encode([
-            'model' => 'hermes-agent',
-            'messages' => [
-                ['role' => 'user', 'content' => $this->buildContent()],
-            ],
-            'stream' => false,
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-        if ($payload === false) {
-            throw new ValidationException('Failed to encode Hermes request payload');
-        }
+        $payload = $this->buildPayload();
 
         $client = $this->openSshClient($deployment->machine);
 
@@ -124,7 +112,7 @@ class ChatWithAgentAction
                 . escapeshellarg($deployment->container_name . ':' . $containerTmp)
                 . ' && docker exec ' . $containerArg
                 . ' curl -sS --max-time 580 -w "\nHTTP_CODE:%{http_code}"'
-                . ' http://127.0.0.1:8642/v1/chat/completions'
+                . ' http://127.0.0.1:8642/v1/responses'
                 . ' -H ' . escapeshellarg('Authorization: Bearer ' . $token)
                 . ' -H ' . escapeshellarg('Content-Type: application/json')
                 . ' --data-binary @' . escapeshellarg($containerTmp)
@@ -145,22 +133,48 @@ class ChatWithAgentAction
         return $this->parseResponse($response);
     }
 
-    protected function buildContent(): string|array
+    /**
+     * The container IS the agent (one Hermes instance per agent), so the model name is the
+     * fixed `hermes-agent` literal the API server expects. `conversation` threads the turn
+     * onto the Kanvas Session — omitted when there's no session so Hermes uses its own memory.
+     */
+    protected function buildPayload(): string
+    {
+        $payload = [
+            'model' => 'hermes-agent',
+            'input' => $this->buildInput(),
+            'store' => true,
+        ];
+
+        if ($this->sessionKey !== null && $this->sessionKey !== '') {
+            $payload['conversation'] = $this->sessionKey;
+        }
+
+        $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        if ($json === false) {
+            throw new ValidationException('Failed to encode Hermes request payload');
+        }
+
+        return $json;
+    }
+
+    protected function buildInput(): string|array
     {
         if ($this->images === []) {
             return $this->message;
         }
 
-        $content = [['type' => 'text', 'text' => $this->message]];
+        $content = [['type' => 'input_text', 'text' => $this->message]];
 
         foreach ($this->images as $imageUrl) {
             $content[] = [
-                'type' => 'image_url',
-                'image_url' => ['url' => $this->toInlineImage($imageUrl)],
+                'type' => 'input_image',
+                'image_url' => $this->toInlineImage($imageUrl),
             ];
         }
 
-        return $content;
+        return [['type' => 'message', 'role' => 'user', 'content' => $content]];
     }
 
     /**
@@ -224,15 +238,50 @@ class ChatWithAgentAction
             throw new ValidationException('Hermes returned non-JSON response: ' . $body);
         }
 
+        $content = $this->extractContent($decoded);
+
+        if ($content === null || $content === '') {
+            throw new ValidationException('Hermes response had no message content: ' . $body);
+        }
+
+        return trim($content);
+    }
+
+    /**
+     * The Responses API answers with `output_text` / `output[].content[].text`; older or
+     * alternate gateway builds may still reply in Chat Completions shape. Accept both so a
+     * gateway version bump can't silently break chat.
+     *
+     * @param array<array-key, mixed> $decoded
+     */
+    private function extractContent(array $decoded): ?string
+    {
+        if (isset($decoded['output_text']) && is_string($decoded['output_text'])) {
+            return $decoded['output_text'];
+        }
+
+        $output = $decoded['output'] ?? null;
+        if (is_array($output)) {
+            foreach ($output as $item) {
+                $contentList = is_array($item) ? ($item['content'] ?? null) : null;
+                if (! is_array($contentList)) {
+                    continue;
+                }
+
+                foreach ($contentList as $chunk) {
+                    $text = is_array($chunk) ? ($chunk['text'] ?? null) : null;
+                    if (is_string($text) && $text !== '') {
+                        return $text;
+                    }
+                }
+            }
+        }
+
         $choices = $decoded['choices'] ?? null;
         $first = is_array($choices) ? ($choices[0] ?? null) : null;
         $message = is_array($first) ? ($first['message'] ?? null) : null;
         $content = is_array($message) ? ($message['content'] ?? null) : null;
 
-        if (! is_string($content) || $content === '') {
-            throw new ValidationException('Hermes response had no message content: ' . $body);
-        }
-
-        return trim($content);
+        return is_string($content) ? $content : null;
     }
 }

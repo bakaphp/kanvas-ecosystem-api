@@ -44,12 +44,12 @@ class ActionEngineSetupCommand extends Command
         }
 
         //todo: add setup class
-        (new Setup(
+        new Setup(
             $app,
             $user,
             $company,
             $actions
-        ))->run();
+        )->run();
 
         $this->newLine();
         $this->info('Action Engine setup for Company ' . $company->name . ' completed successfully');

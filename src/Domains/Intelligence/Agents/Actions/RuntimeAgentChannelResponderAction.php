@@ -10,6 +10,7 @@ use Kanvas\Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -51,7 +52,14 @@ class RuntimeAgentChannelResponderAction
             throw new ValidationException('Message has no content or attachments to send to the agent');
         }
 
-        $sessionKey = 'kanvas-channel-' . (string) $this->channel->getId();
+        // Key the runtime conversation on the channel's canonical Session.uuid so the
+        // OpenClaw/Hermes transcript lines up with any Intelligence Session for this channel
+        // and the interactive chat path — one id across every surface.
+        $sessionKey = SessionChannelService::buildChannelSessionUuid(
+            $this->channel,
+            $this->message->app,
+            $this->channel->company,
+        );
 
         $reply = $this->resolveProvider()->chat(
             agent: $this->agent,

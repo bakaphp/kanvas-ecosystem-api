@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Sessions\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Channels\Models\Channel;
 
 class SessionChannelService
 {
@@ -37,6 +39,19 @@ class SessionChannelService
             'respondio' => 'respondio-' . $normalizedId,
             'ai-assist' => 'ai-assist-' . $id,
         };
+    }
+
+    /**
+     * Canonical id for a channel-scoped agent conversation — the exact value
+     * CreateSessionAction writes to Session.uuid. Every runtime chat path keys on this so
+     * the OpenClaw/Hermes transcript, the Intelligence Session, and the Social channel all
+     * share one identifier and the conversation never loses context across paths.
+     */
+    public static function buildChannelSessionUuid(?Channel $channel, AppInterface $app, CompanyInterface $company): string
+    {
+        $channelSlug = $channel?->slug ?? 'no-channel';
+
+        return $channelSlug . '-' . (int) $app->getId() . '-' . (int) $company->getId();
     }
 
     /**
