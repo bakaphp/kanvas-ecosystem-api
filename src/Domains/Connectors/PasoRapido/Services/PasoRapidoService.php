@@ -266,7 +266,10 @@ class PasoRapidoService
                     ->whereColumn('companies_settings.companies_id', 'companies.id')
                     ->where('companies_settings.name', 'is_corporate')
                     ->where('companies_settings.value', '1')
-                    ->where('companies_settings.is_deleted', 0);
+                    ->where(function ($q) {
+                        $q->where('companies_settings.is_deleted', 0)
+                            ->orWhereNull('companies_settings.is_deleted');
+                    });
             })
             ->pluck('companies.id');
 
