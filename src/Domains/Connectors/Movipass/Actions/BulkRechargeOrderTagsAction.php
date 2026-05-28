@@ -45,6 +45,7 @@ class BulkRechargeOrderTagsAction
 
         $dni = (string) ($company->get('rnc') ?? '');
         $bankTransaction = $this->resolveBankTransaction();
+        $fiscalCredit = (bool) ($this->order->metadata['data']['fiscal_credit'] ?? false);
 
         $service = null;
         $serviceError = null;
@@ -66,7 +67,6 @@ class BulkRechargeOrderTagsAction
             }
 
             $amount = (float) $item->unit_price_gross_amount;
-            $fiscalCredit = (bool) ($item->metadata['fiscal_credit'] ?? false);
 
             if ($service === null) {
                 $results[$tagNumber] = [
@@ -110,6 +110,13 @@ class BulkRechargeOrderTagsAction
                     throw new RuntimeException('PasoRapido did not confirm TAG ' . $tagNumber);
                 }
 
+                $invoiceArray = $confirmResponse->invoiceDetails->toArray();
+                $item->metadata = [
+                    ...$item->metadata ?? [],
+                    'invoice' => $invoiceArray,
+                ];
+                $item->saveQuietly();
+
                 $vehicle = $item->variant?->product;
                 $telemetry = ['status' => 'skipped', 'reason' => 'item has no vehicle product'];
 
@@ -129,6 +136,7 @@ class BulkRechargeOrderTagsAction
                     'amount' => $amount,
                     'order_item_id' => $item->getId(),
                     'vehicle_telemetry' => $telemetry,
+                    'invoice' => $invoiceArray,
                 ];
             } catch (Throwable $e) {
                 report($e);
