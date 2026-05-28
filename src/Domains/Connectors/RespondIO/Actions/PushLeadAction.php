@@ -47,14 +47,39 @@ class PushLeadAction
             $client->addContactTags($identifier, $tags);
         }
 
+        try {
+            $client->updateConversationStatus($identifier, 'open');
+        } catch (ValidationException $e) {
+            if (! str_contains($e->getMessage(), 'already pending')) {
+                throw $e;
+            }
+        }
+
         return $response;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function buildTags(): array
+    {
+        $tags = [];
+
+        foreach ($this->lead->tags()->pluck('name') as $name) {
+            $name = (string) $name;
+            if ($name !== '') {
+                $tags[] = $name;
+            }
+        }
+
+        return $tags;
     }
 
     protected function resolveIdentifier(): ?string
     {
         $phone = $this->firstPhone();
         if ($phone !== '') {
-            return 'phone:' . Str::ensurePhonePrefix($phone);
+            return 'phone:' . Str::toE164($phone);
         }
 
         $email = $this->firstEmail();
@@ -80,27 +105,10 @@ class PushLeadAction
 
         $phone = $this->firstPhone();
         if ($phone !== '') {
-            $payload['phone'] = Str::ensurePhonePrefix($phone);
+            $payload['phone'] = Str::toE164($phone);
         }
 
         return $payload;
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    protected function buildTags(): array
-    {
-        $tags = [];
-
-        foreach (['source', 'type', 'pipeline'] as $relation) {
-            $name = (string) ($this->lead->{$relation}?->name ?? '');
-            if ($name !== '') {
-                $tags[] = $relation . ':' . $name;
-            }
-        }
-
-        return $tags;
     }
 
     protected function firstPhone(): string
