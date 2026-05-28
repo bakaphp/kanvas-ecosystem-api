@@ -353,9 +353,9 @@ class SendMessageToLeadAction
 
     protected function sendSmsMessage(string $from, string $message, ?string $to = null): array
     {
-        if ($this->isRespondIoEnabled()) {
-            return $this->sendRespondIoMessage($message, $to);
-        }
+        // if ($this->isRespondIoEnabled()) {
+        //     return $this->sendRespondIoMessage($message, $to);
+        // }
 
         $client = Client::getInstanceByCompany($this->lead->company);
 
