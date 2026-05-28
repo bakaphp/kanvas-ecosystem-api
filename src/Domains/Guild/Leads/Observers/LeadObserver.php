@@ -160,9 +160,7 @@ class LeadObserver
             $channel->delete();
         }
 
-        if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
-            new DeleteSessionAction($lead)->execute();
-        }
+        new DeleteSessionAction($lead)->execute();
     }
 
     public function softDeleted(Lead $lead): void
@@ -173,8 +171,6 @@ class LeadObserver
             'updated_at' => now(),
         ]);
 
-        if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
-            new DeleteSessionAction($lead)->execute();
-        }
+        new DeleteSessionAction($lead)->execute();
     }
 }
