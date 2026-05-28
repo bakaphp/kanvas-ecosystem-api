@@ -79,7 +79,10 @@ class CreateLeadFirstEngagementMessageAction
             $response = $this->callAi($prompt);
         }
 
-        return [...$response->structured, ['background' => $prompt]];
+        return [
+            ...$response->structured,
+            'background' => $prompt,
+        ];
     }
 
     protected function resolveAvailableChannels(): array
