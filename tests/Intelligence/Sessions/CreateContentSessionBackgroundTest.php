@@ -162,6 +162,64 @@ class CreateContentSessionBackgroundTest extends TestCase
         $this->assertStringContainsString("\n\n", $background);
     }
 
+    public function testRendersRealAgentRolePromptTextWhenBackgroundIsString(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        new Setup($app, $user, $company)->run();
+
+        // legacy shape: each section is a single multi-line string, not an array of lines
+        $agent = Agent::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create([
+            'role' => [
+                'background' => implode("\n", [
+                    'You are **Sally**, a 24/7 Sales Agent designed to manage every stage of lead engagement—from initial contact to appointment scheduling and follow-ups—to streamline the sales process and maximize lead conversion.',
+                    'You represent {{$company_name}}, a dealership in {{$branch_city}}, {{$branch_state}}.',
+                    'Full address: {{$branch_address}}.',
+                    'Current work_hours/after_hours status: {{$work_hours_status}}.',
+                    '',
+                    'If vehicle of interest → {{$vehicle_interest}} is already known or the customer explicitly mentions/chooses a vehicle → use that as the reference vehicle.',
+                    '- Memorial Day — Last Monday of May',
+                    '“It looks like I can’t confirm that specific detail from here.”',
+                ]),
+                'steps' => implode("\n", [
+                    '### **Step 2 — Next Step ({{$kanvas_flow_state}} = "NEXT_STEP")**',
+                    '* If yes: send Trade-In link: {{ $tradeIn }}.',
+                ]),
+                'output' => null,
+            ],
+        ]);
+
+        $content = new CreateContentSessionAction(
+            $this->userSession(
+                $app,
+                $company,
+                $agent,
+                $user
+            )
+        )->execute();
+
+        $background = $content['background']['background'];
+
+        // long text, em-dashes and smart quotes survive intact
+        $this->assertIsString($background);
+        $this->assertStringContainsString('You are **Sally**, a 24/7 Sales Agent designed to manage every stage of lead engagement—from initial contact', $background);
+        $this->assertStringContainsString('“It looks like I can’t confirm that specific detail from here.”', $background);
+
+        // known variables render
+        $this->assertStringContainsString('You represent ' . $company->name . ',', $background);
+
+        // unknown variables resolve to empty — no raw Blade tags survive anywhere
+        $this->assertStringNotContainsString('{{', $background);
+        $this->assertStringNotContainsString('{{', $content['background']['steps']);
+
+        // the blank line between sections is preserved
+        $this->assertStringContainsString("\n\n", $background);
+
+        // a null section stays null even in the string shape
+        $this->assertNull($content['background']['output']);
+    }
+
     private function userSession(
         Apps $app,
         Companies $company,
