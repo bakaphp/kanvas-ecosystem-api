@@ -108,7 +108,7 @@ class CreatePasoRapidoOrderAction
             if ($e instanceof RequestException) {
                 if ($e->hasResponse()) {
                     $response = $e->getResponse();
-                    $errorMessage = json_decode((string) $response->getBody())->descripcionMensaje;
+                    $errorMessage = json_decode((string) $response->getBody())?->descripcionMensaje;
                 } else {
                     $errorMessage = $e->getMessage();
                 }
