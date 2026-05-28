@@ -36,6 +36,7 @@ class Agent extends Data
         public ?string $toolsConfig = null,
         public ?AgentModel $parentAgent = null,
         public ?Users $createdBy = null,
+        public bool $isSubAgent = false,
     ) {
     }
 }

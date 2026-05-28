@@ -98,6 +98,7 @@ class Agent extends BaseModel
         'deployment_status',
         'agent_model_id',
         'is_active',
+        'is_sub_agent',
         'awake_state',
         'last_state_changed_at',
     ];
@@ -107,6 +108,7 @@ class Agent extends BaseModel
         'role' => Json::class,
         'identity' => Json::class,
         'is_active' => 'boolean',
+        'is_sub_agent' => 'boolean',
         'last_state_changed_at' => 'datetime',
     ];
 

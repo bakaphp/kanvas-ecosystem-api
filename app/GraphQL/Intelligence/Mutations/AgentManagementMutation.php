@@ -59,6 +59,7 @@ class AgentManagementMutation
             toolsConfig: $input['tools_config'] ?? null,
             parentAgent: $parentAgent,
             createdBy: auth()->user(),
+            isSubAgent: (bool) ($input['is_sub_agent'] ?? false),
         );
 
         $agent = new CreateAgentAction($agentDTO)->execute();
@@ -112,6 +113,7 @@ class AgentManagementMutation
             userContext: $input['user_context'] ?? null,
             toolsConfig: $input['tools_config'] ?? null,
             parentAgent: $parentAgent,
+            isSubAgent: (bool) ($input['is_sub_agent'] ?? false),
         );
 
         $agent = new UpdateAgentAction($agentDTO, $agent)->execute();
@@ -172,7 +174,7 @@ class AgentManagementMutation
         foreach ($toolIds as $toolId) {
             $tool = Tool::query()
                 ->where('id', (int) $toolId)
-                ->fromApp($app)
+                ->whereIn('apps_id', [0, $app->getId()])
                 ->firstOrFail();
             $ids[] = $tool->getId();
         }
