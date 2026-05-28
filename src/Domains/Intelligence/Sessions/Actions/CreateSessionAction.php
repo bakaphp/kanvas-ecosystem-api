@@ -6,7 +6,6 @@ namespace Kanvas\Intelligence\Sessions\Actions;
 
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Intelligence\Sessions\Models\Session as SessionModel;
-use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 
 class CreateSessionAction
 {
@@ -55,10 +54,10 @@ class CreateSessionAction
 
     protected function buildSessionUuid(): string
     {
-        return SessionChannelService::buildChannelSessionUuid(
-            $this->session->channel,
-            $this->session->app,
-            $this->session->company,
-        );
+        $channelSlug = $this->session->channel?->slug ?? 'no-channel';
+
+        return $channelSlug
+            . '-' . $this->session->app->getId()
+            . '-' . $this->session->company->getId();
     }
 }

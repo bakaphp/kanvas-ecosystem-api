@@ -98,36 +98,35 @@ class CreateContentSessionAction
             return null;
         }
 
-        if (is_array($section)) {
-            $lines = array_map(
-                fn (mixed $line): string => $this->renderRoleLine($line, $data),
-                $section
-            );
+        $template = is_array($section)
+            ? implode("\n", array_map(static fn (mixed $line): string => is_string($line) ? $line : '', $section))
+            : (string) $section;
 
-            return implode("\n", $lines);
-        }
-
-        return $this->renderRoleLine($section, $data);
+        return $this->renderTemplate($template, $data);
     }
 
     /**
-     * Render one line. Lines may reference variables we don't carry here (e.g. the
-     * Contact Checker template's {!! json_encode($note) !!}); keep the raw line when
-     * rendering throws instead of dropping it. Null/blank lines become an empty string
-     * so they read as blank lines once the section is joined.
+     * Blade fatals on a variable that was never defined (unlike a defined-but-null
+     * variable, which renders empty). Seed every referenced variable so an unknown one
+     * renders blank instead of leaving raw {{ }} syntax in the prompt the agent receives.
+     * Fall back to the raw template only if rendering still throws for another reason.
      */
-    protected function renderRoleLine(mixed $line, array $data): string
+    protected function renderTemplate(string $template, array $data): string
     {
-        if (! is_string($line) || $line === '') {
-            return '';
+        preg_match_all('/\$([a-zA-Z_]\w*)/', $template, $matches);
+
+        foreach ($matches[1] as $variableName) {
+            if (! array_key_exists($variableName, $data)) {
+                $data[$variableName] = '';
+            }
         }
 
         try {
-            return Blade::render($line, $data);
+            return Blade::render($template, $data);
         } catch (Throwable $e) {
             report($e);
 
-            return $line;
+            return $template;
         }
     }
 
