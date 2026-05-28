@@ -81,28 +81,29 @@ class CreateContentSessionAction
         $data = array_merge($data, $roleData);
 
         return array_map(
-            fn (mixed $section): ?string => $this->renderRoleSection($section, $data),
+            fn (mixed $section): ?array => $this->renderRoleSection($section, $data),
             $role
         );
     }
 
     /**
      * Agents store each role section (background/steps/output) either as a plain string
-     * or as an array of lines (with nulls for blank lines). Render Blade variables and
-     * flatten arrays into a single newline-joined string so session content always
-     * exposes one shape to consumers. A null section stays null.
+     * or as an array of lines (with nulls for blank lines). Render Blade variables on each
+     * line and return the section as an array of rendered lines (null blank-line markers
+     * preserved); a string section is split on newlines first. A null section stays null.
      */
-    protected function renderRoleSection(mixed $section, array $data): ?string
+    protected function renderRoleSection(mixed $section, array $data): ?array
     {
         if ($section === null) {
             return null;
         }
 
-        $template = is_array($section)
-            ? implode("\n", array_map(static fn (mixed $line): string => is_string($line) ? $line : '', $section))
-            : (string) $section;
+        $lines = is_array($section) ? array_values($section) : explode("\n", (string) $section);
 
-        return $this->renderTemplate($template, $data);
+        return array_map(
+            fn (mixed $line): ?string => is_string($line) ? $this->renderTemplate($line, $data) : null,
+            $lines
+        );
     }
 
     /**
