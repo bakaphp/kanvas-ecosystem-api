@@ -8,4 +8,5 @@ enum ConfigurationEnum: string
 {
     case NAME = 'RespondIO';
     case BEARER_TOKEN = 'RESPONDIO_BEAR_TOKEN_AUTH';
+    case ENABLED = 'respondio_enabled';
 }
