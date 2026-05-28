@@ -53,20 +53,26 @@ class CreatePasoRapidoOrderAction
         }
 
         $tag = $this->order->metadata['data']['paso_rapido_tag'];
-        $rnc = trim((string) ($this->order->metadata['data']['rnc'] ?? ''));
-        $dni = $rnc !== ''
-            ? $rnc
-            : (string) ($this->order->get(CustomFieldEnum::PASO_RAPIDO_DNI->value) ?? '');
+        $fiscalCredit = (bool) ($this->order->metadata['data']['fiscal_credit'] ?? false);
+
+        $company = $this->order->company;
+        $companyRnc = trim((string) ($company->get('rnc') ?? ''));
+        $metadataRnc = trim((string) ($this->order->metadata['data']['rnc'] ?? ''));
+        $legacyDni = (string) ($this->order->get(CustomFieldEnum::PASO_RAPIDO_DNI->value) ?? '');
+
+        $dni = $companyRnc !== ''
+            ? $companyRnc
+            : ($metadataRnc !== '' ? $metadataRnc : $legacyDni);
 
         try {
-            $pasoRapidoService = $this->pasoRapidoService ?? new PasoRapidoService($this->app, $this->order->company);
+            $pasoRapidoService = $this->pasoRapidoService ?? new PasoRapidoService($this->app, $company);
             $intentId = $this->order->get(EchoPayCustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value);
             $bankTransaction = explode(':', $intentId)[1];
             $confirmPaymentResponse = $pasoRapidoService->confirmPayment(new PaymentConfirmData(
                 reference: $tag,
                 bankTransaction: $bankTransaction,
                 amount: $this->order->getTotalAmount(),
-                fiscalCredit: $rnc !== '',
+                fiscalCredit: $fiscalCredit,
                 dni: $dni,
             ));
 

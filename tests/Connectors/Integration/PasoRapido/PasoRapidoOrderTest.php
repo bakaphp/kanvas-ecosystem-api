@@ -145,7 +145,7 @@ final class PasoRapidoOrderTest extends TestCase
         $this->assertNotNull($order->get(CustomFieldEnum::PASO_RAPIDO_PAYMENT_RESPONSE->value));
     }
 
-    public function testCreatePasoRapidoOrderSendsFiscalCreditWhenRncInMetadata(): void
+    public function testCreatePasoRapidoOrderSendsFiscalCreditWhenFlagInMetadata(): void
     {
         $app = app(Apps::class);
         $user = Auth::user();
@@ -193,6 +193,7 @@ final class PasoRapidoOrderTest extends TestCase
             'metadata' => [
                 'data' => [
                     'paso_rapido_tag' => '317169',
+                    'fiscal_credit' => true,
                     'rnc' => $rnc,
                     'payment_methods_id' => '91',
                     'payment_date' => now()->toDateTimeString(),
