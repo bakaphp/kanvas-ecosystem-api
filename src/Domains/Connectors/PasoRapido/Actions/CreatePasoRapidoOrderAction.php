@@ -56,13 +56,16 @@ class CreatePasoRapidoOrderAction
         $fiscalCredit = (bool) ($this->order->metadata['data']['fiscal_credit'] ?? false);
 
         $company = $this->order->company;
-        $companyRnc = trim((string) ($company->get('rnc') ?? ''));
-        $metadataRnc = trim((string) ($this->order->metadata['data']['rnc'] ?? ''));
-        $legacyDni = (string) ($this->order->get(CustomFieldEnum::PASO_RAPIDO_DNI->value) ?? '');
+        $isCorporate = (bool) ($company->get('is_corporate') ?? false);
 
-        $dni = $companyRnc !== ''
-            ? $companyRnc
-            : ($metadataRnc !== '' ? $metadataRnc : $legacyDni);
+        if ($isCorporate) {
+            $dni = trim((string) ($company->get('rnc') ?? ''));
+        } else {
+            $metadataRnc = trim((string) ($this->order->metadata['data']['rnc'] ?? ''));
+            $dni = $metadataRnc !== ''
+                ? $metadataRnc
+                : (string) ($this->order->get(CustomFieldEnum::PASO_RAPIDO_DNI->value) ?? '');
+        }
 
         try {
             $pasoRapidoService = $this->pasoRapidoService ?? new PasoRapidoService($this->app, $company);
