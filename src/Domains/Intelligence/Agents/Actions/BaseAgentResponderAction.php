@@ -46,7 +46,7 @@ class BaseAgentResponderAction
             ? $configService->getAiModeKey($lead)
             : 'ai_mode';
 
-        if ($lead instanceof Lead && ! $lead->get(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value) && $configService->isV2Enabled($lead->app)) {
+        if ($lead instanceof Lead && ! $lead->get(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value) && $configService->isV2Enabled($lead->company)) {
             try {
                 $isOpen = $lead->company->isWithinWorkingHours(now());
             } catch (InvalidArgumentException) {

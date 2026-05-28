@@ -49,7 +49,7 @@ class LeadConfigurationServiceV2Test extends TestCase
 
     public function testIsV2EnabledReturnsTrueWhenFlagSet(): void
     {
-        $this->assertTrue(new LeadConfigurationService(true)->isV2Enabled(app(Apps::class)));
+        $this->assertTrue(new LeadConfigurationService(true)->isV2Enabled(auth()->user()->getCurrentCompany()));
     }
 
     public function testGetAiModeKeyReturnsShowroomKeyForShowroomLeadType(): void

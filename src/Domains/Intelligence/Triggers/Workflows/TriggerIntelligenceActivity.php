@@ -32,7 +32,7 @@ class TriggerIntelligenceActivity extends KanvasActivity
                 }
 
                 $configService = new LeadConfigurationService();
-                $actionClass = $configService->isV2Enabled($app)
+                $actionClass = $configService->isV2Enabled($lead->company)
                     ? ApplyLeadAiModeAction::class
                     : ApplyLeadAiModeV1Action::class;
                 $result = new $actionClass($lead, $triggerType)->execute();
