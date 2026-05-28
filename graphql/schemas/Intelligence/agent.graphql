@@ -25,6 +25,7 @@ type AgentAi {
     agent_model_id: ID
     parent_id: ID
     is_active: Boolean!
+    is_sub_agent: Boolean!
     selectedTools: [NervousSystemTool!]!
         @belongsToMany(relation: "selectedTools")
     kanvasModules: [AgentKanvasModule!]! @hasMany(relation: "kanvasModules")
@@ -119,6 +120,7 @@ input AgentAiInput {
     communication_channels: [CommunicationChannelPivot!]
     swarm_ids: [ID!]
     tool_ids: [ID!]
+    is_sub_agent: Boolean
 }
 
 input CommunicationChannelPivot {

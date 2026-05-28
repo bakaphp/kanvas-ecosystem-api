@@ -28,6 +28,7 @@ type NervousSystemTool {
     frameworks: Mixed!
     version: String!
     is_active: Boolean!
+    agent: AgentAi @belongsTo(relation: "agent")
     agentTypes: [agentType!]! @belongsToMany(relation: "agentTypes")
     created_at: DateTime!
     updated_at: DateTime
