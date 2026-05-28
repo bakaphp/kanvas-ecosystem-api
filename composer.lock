@@ -12030,16 +12030,16 @@
         },
         {
             "name": "spatie/laravel-health",
-            "version": "1.39.3",
+            "version": "1.40.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-health.git",
-                "reference": "88a0c13e9a64ad10509b2d274b7c99ca5d8b24ca"
+                "reference": "6fa735589c04fd99970b434fc22dddbdc716a264"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/88a0c13e9a64ad10509b2d274b7c99ca5d8b24ca",
-                "reference": "88a0c13e9a64ad10509b2d274b7c99ca5d8b24ca",
+                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/6fa735589c04fd99970b434fc22dddbdc716a264",
+                "reference": "6fa735589c04fd99970b434fc22dddbdc716a264",
                 "shasum": ""
             },
             "require": {
@@ -12056,7 +12056,6 @@
                 "spatie/enum": "^3.13",
                 "spatie/laravel-package-tools": "^1.12.1",
                 "spatie/regex": "^3.1.1|^3.1",
-                "spatie/temporary-directory": "^2.2",
                 "symfony/process": "^5.4|^6.0|^7.0|^8.0"
             },
             "require-dev": {
@@ -12072,6 +12071,7 @@
                 "spatie/laravel-ray": "^1.30",
                 "spatie/pest-plugin-snapshots": "^1.1|^2.3|^3.0",
                 "spatie/pest-plugin-test-time": "^1.1.1|^1.1|^2.0|^3.0",
+                "spatie/temporary-directory": "^2.2",
                 "spatie/test-time": "^1.3|^2.0"
             },
             "type": "library",
@@ -12111,7 +12111,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-health/issues",
-                "source": "https://github.com/spatie/laravel-health/tree/1.39.3"
+                "source": "https://github.com/spatie/laravel-health/tree/1.40.0"
             },
             "funding": [
                 {
@@ -12119,7 +12119,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-05-12T07:24:15+00:00"
+            "time": "2026-05-28T08:55:40+00:00"
         },
         {
             "name": "spatie/laravel-image-optimizer",
