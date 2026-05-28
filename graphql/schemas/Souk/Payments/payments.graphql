@@ -13,7 +13,7 @@ type PaymentMethod {
 
 type PaymentLog @model(class: "Kanvas\\Souk\\Payments\\Models\\PaymentLogs") {
     id: ID!
-    payment: Payment! @belongsTo(relation: "payment")
+    payment: Payment @belongsTo(relation: "payment")
     company: Company! @belongsTo
     user: User! @belongsTo
     status: String
@@ -33,6 +33,8 @@ type Payment @model(class: "Kanvas\\Souk\\Payments\\Models\\Payments") {
     user: User! @belongsTo(relation: "user")
     payment_method: PaymentMethod @belongsTo(relation: "paymentMethod")
     payment_method_type: String @rename(attribute: "payment_method")
+    payment_method_brand: String
+    payment_method_last_four: String
     payment_intent_id: String
     order: Order
         @field(
