@@ -61,6 +61,11 @@ class CreateLeadFirstEngagementMessageActionTest extends TestCase
         $this->assertEquals('Hi there! We noticed you\'re interested in our services. We\'d love to help you get started on your journey.', $result['message']);
         $this->assertIsString($result['title']);
         $this->assertIsString($result['message']);
+
+        // background must be a top-level sibling key, never nested under a numeric "0" index
+        $this->assertArrayHasKey('background', $result);
+        $this->assertIsString($result['background']);
+        $this->assertArrayNotHasKey(0, $result);
     }
 
     public function testExecuteThrowsExceptionWhenAgentRoleEmpty(): void

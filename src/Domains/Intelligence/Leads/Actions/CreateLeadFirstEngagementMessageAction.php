@@ -13,12 +13,13 @@ use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
+
+use function Laravel\Ai\agent;
+
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Exceptions\AiException;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 use RuntimeException;
-
-use function Laravel\Ai\agent;
 
 /**
  * Creates a structured first engagement message for a lead using AI.
@@ -79,7 +80,10 @@ class CreateLeadFirstEngagementMessageAction
             $response = $this->callAi($prompt);
         }
 
-        return [...$response->structured, ['background' => $prompt]];
+        return [
+            ...$response->structured,
+            'background' => $prompt,
+        ];
     }
 
     protected function resolveAvailableChannels(): array
