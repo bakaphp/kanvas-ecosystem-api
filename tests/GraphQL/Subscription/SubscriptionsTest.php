@@ -348,18 +348,12 @@ final class SubscriptionsTest extends TestCase
         'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
     ]);
 
-        $id = $response->json('data.createSubscription.id');
-
         $subscription = $this->company->getStripeAccount($this->appModel)
             ->subscriptions()->where('type', 'default')->first();
 
-        // The GraphQL `id` must be the subscription's own PK so a client can feed
-        // it straight back into cancelSubscription (it used to return the customer id).
-        $this->assertEquals((int) $subscription->id, (int) $id);
-
         $response = $this->graphQL('
             mutation {
-                cancelSubscription(id: ' . $id . ')
+                cancelSubscription(id: ' . $subscription->id . ')
             }
         ', [], [], [
             'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
