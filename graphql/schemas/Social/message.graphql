@@ -26,6 +26,7 @@ type Message {
     messageType: MessageType! @cacheRedis
     appModuleMessage: AppModuleMessage @cacheRedis
     myInteraction: myInteraction @method(name: "getMyInteraction")
+    is_unread: Boolean! @method(name: "getIsUnread")
     comments: [MessageComments!]! @hasMany(type: PAGINATOR)
     additional_field: Mixed
     created_at: DateTime!
