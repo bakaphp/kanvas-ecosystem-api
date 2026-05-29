@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use JsonException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Agents\Models\Agent;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Enums\AppEnum;
 use Kanvas\Guild\Leads\Actions\ConvertJsonTemplateToLeadStructureAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
@@ -168,7 +169,55 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             )->execute();
         }
 
+        if (! empty($this->receiver->configuration['save_phone_as_cellphone'])) {
+            $payload = $this->duplicatePhoneAsCellphone($payload);
+        }
+
         return $this->applyReceiverDefaults($leadReceiver, $payload);
+    }
+
+    /**
+     * Workaround for receivers whose source only sends a home phone (contact type PHONE)
+     * when the lead really has a cellphone. When the `save_phone_as_cellphone` flag is set,
+     * mirror every PHONE contact into an equivalent CELLPHONE contact so both exist.
+     */
+    private function duplicatePhoneAsCellphone(array $payload): array
+    {
+        $contacts = $payload['people']['contacts'] ?? null;
+
+        if (! is_array($contacts) || empty($contacts)) {
+            return $payload;
+        }
+
+        $existingCellphones = [];
+        foreach ($contacts as $contact) {
+            if (is_array($contact) && ($contact['contacts_types_id'] ?? null) === ContactTypeEnum::CELLPHONE->value) {
+                $existingCellphones[(string) ($contact['value'] ?? '')] = true;
+            }
+        }
+
+        foreach ($contacts as $contact) {
+            if (! is_array($contact)) {
+                continue;
+            }
+
+            $value = (string) ($contact['value'] ?? '');
+            $isPhone = ($contact['contacts_types_id'] ?? null) === ContactTypeEnum::PHONE->value;
+
+            if (! $isPhone || $value === '' || isset($existingCellphones[$value])) {
+                continue;
+            }
+
+            $contacts[] = [
+                'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
+                'value' => $value,
+            ];
+            $existingCellphones[$value] = true;
+        }
+
+        $payload['people']['contacts'] = $contacts;
+
+        return $payload;
     }
 
     private function applyReceiverDefaults(LeadReceiver $leadReceiver, array $payload): array

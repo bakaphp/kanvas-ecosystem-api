@@ -52,6 +52,15 @@ class CreateAgentAction
         if ($this->agent->isSubAgent) {
             $this->ensureSubAgentTool($agent);
         }
+        if ($this->agent->tools !== null) {
+            $agent->selectedTools()->sync(
+                array_map(fn (Tool $tool): int => $tool->getId(), $this->agent->tools)
+            );
+        } elseif ($agent->selectedTools()->doesntExist()) {
+            $agent->selectedTools()->sync(
+                $this->agent->agentType->tools()->pluck('id')->all()
+            );
+        }
 
         return $agent;
     }

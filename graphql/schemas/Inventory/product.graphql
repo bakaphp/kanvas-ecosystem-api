@@ -228,6 +228,7 @@ extend type Query @guard {
     products(
         search: String @search
         variantAttributeValue: String
+        withAttributeSlug: String
         variantAttributeOrderBy: ProductAttributeOrderBy
         attributeOrderBy: ProductAttributeOrderBy
         nearByLocation: NearByLocationInput

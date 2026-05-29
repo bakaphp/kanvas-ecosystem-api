@@ -191,6 +191,43 @@ class AgentToolsGraphQLTest extends TestCase
         $this->assertContains((string) $toolB->getId(), $toolIds);
     }
 
+    public function testCreateAgentWithGlobalToolId(): void
+    {
+        $type = $this->makeAgentType();
+        $globalTool = $this->makeTool();
+        $globalTool->apps_id = 0;
+        $globalTool->saveOrFail();
+
+        $response = $this->graphQL('
+            mutation($input: AgentAiInput!) {
+                createAiAgent(input: $input) {
+                    id
+                    selectedTools {
+                        id
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'agent_type_id' => $type->getId(),
+                'name' => 'Agent Global Tool ' . uniqid(),
+                'description' => 'Test',
+                'config' => [],
+                'role' => 'test',
+                'is_active' => true,
+                'tool_ids' => [$globalTool->getId()],
+            ],
+        ]);
+
+        $response->assertSuccessful();
+        $toolIds = array_column($response->json('data.createAiAgent.selectedTools'), 'id');
+        $this->assertContains(
+            (string) $globalTool->getId(),
+            $toolIds,
+            'Global (apps_id=0) tools must be attachable to an agent',
+        );
+    }
+
     public function testUpdateAgentSyncsToolIds(): void
     {
         $type = $this->makeAgentType();

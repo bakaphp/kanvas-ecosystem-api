@@ -27,4 +27,5 @@ enum ConfigurationEnum: string
     case VARIANT_WALLET_CREDIT_AMOUNT = 'credit';
 
     case WALLET_RESOLVE_COMPANY_FROM_METADATA = 'wallet_resolve_company_from_metadata';
+    case WALLET_USE_ORDER_TOTAL = 'wallet_use_order_total';
 }

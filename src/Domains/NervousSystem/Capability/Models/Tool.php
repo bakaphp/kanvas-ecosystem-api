@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\KanvasModules\Models\KanvasModule;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
@@ -17,8 +18,10 @@ use Kanvas\NervousSystem\Models\BaseModel;
 use Override;
 
 /**
- * Tool catalog entry. Strict per-app scoping via `fromApp` —
- * tools never cross-tenant, even at apps_id=0.
+ * Tool catalog entry. App-scoped with a shared platform lane at apps_id=0:
+ * `fromAppOrGlobal` resolves a tenant's own tools plus platform globals
+ * (apps_id=0, available to every app). Per-app tools (apps_id>0) never
+ * cross-tenant — use `fromApp` when globals must be excluded.
  *
  * @property int $id
  * @property string $uuid
@@ -92,6 +95,13 @@ class Tool extends BaseModel
     public function scopeForFramework(Builder $query, string $framework): Builder
     {
         return $query->whereJsonContains('frameworks', $framework);
+    }
+
+    public function scopeFromAppOrGlobal(Builder $query, mixed $app = null): Builder
+    {
+        $app = $app instanceof Apps ? $app : app(Apps::class);
+
+        return $query->whereIn('apps_id', [0, $app->getId()]);
     }
 
     public function category(): BelongsTo

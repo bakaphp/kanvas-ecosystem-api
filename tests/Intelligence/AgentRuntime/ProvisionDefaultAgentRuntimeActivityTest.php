@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Hermes\Jobs\LaunchAgentJob as HermesLaunchAgentJob;
 use Kanvas\Connectors\Internal\Handlers\InternalHandler;
+use Kanvas\Connectors\OpenClaw\Jobs\LaunchAgentJob as OpenClawLaunchAgentJob;
 use Kanvas\Intelligence\AgentRuntime\Activities\ProvisionDefaultAgentRuntimeActivity;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentRuntimeSettingEnum;
@@ -26,7 +27,7 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
 {
     use HasIntegrationCompany;
 
-    public function testCopiesDefaultMachineAndDeploysReadyCompanyAgents(): void
+    public function testCopiesDefaultMachineAndDeploysAllHermesAgentsRegardlessOfChannel(): void
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -37,21 +38,21 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
         $sourceMachine = $this->createMachine($sourceCompany, 'runtime-source-' . fake()->uuid());
         $app->set(AgentRuntimeSettingEnum::DEFAULT_MACHINE_ID->value, $sourceMachine->getId());
 
-        $readyAgent = Agent::factory()->create([
+        $channelAgent = Agent::factory()->create([
             'apps_id' => $app->getId(),
             'companies_id' => $targetCompany->getId(),
             'user_id' => $user->getId(),
-            'name' => 'Ready Runtime Agent ' . fake()->uuid(),
+            'name' => 'Channel Runtime Agent ' . fake()->uuid(),
             'config' => ['existing' => true],
         ]);
-        $readyAgent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test');
-        $readyAgent->set(AgentChannelTokenEnum::SLACK_APP_TOKEN->value, 'xapp-test');
+        $channelAgent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test');
+        $channelAgent->set(AgentChannelTokenEnum::SLACK_APP_TOKEN->value, 'xapp-test');
 
-        $notReadyAgent = Agent::factory()->create([
+        $channelLessAgent = Agent::factory()->create([
             'apps_id' => $app->getId(),
             'companies_id' => $targetCompany->getId(),
             'user_id' => $user->getId(),
-            'name' => 'Draft Runtime Agent ' . fake()->uuid(),
+            'name' => 'Channel-less Runtime Agent ' . fake()->uuid(),
         ]);
 
         Queue::fake();
@@ -67,38 +68,93 @@ class ProvisionDefaultAgentRuntimeActivityTest extends TestCase
 
         $this->assertArrayNotHasKey('error', $result);
         $this->assertSame(AgentProviderEnum::HERMES->value, $result['provider']);
-        $this->assertContains($readyAgent->getId(), $result['agent_ids']);
-        $this->assertContains($notReadyAgent->getId(), $result['agent_ids']);
-        $this->assertContains($readyAgent->getId(), $result['deployed_agent_ids']);
-        $this->assertNotContains($notReadyAgent->getId(), $result['deployed_agent_ids']);
+        $this->assertContains($channelAgent->getId(), $result['agent_ids']);
+        $this->assertContains($channelLessAgent->getId(), $result['agent_ids']);
+
+        // Hermes is reachable via its always-on HTTP API server, so a channel-less agent
+        // deploys just like a channel-equipped one — both land in deployed_agent_ids.
+        $this->assertContains($channelAgent->getId(), $result['deployed_agent_ids']);
+        $this->assertContains($channelLessAgent->getId(), $result['deployed_agent_ids']);
 
         $newMachine = AgentMachine::where('id', $result['machine_id'])->firstOrFail();
         $this->assertSame($targetCompany->getId(), (int) $newMachine->companies_id);
         $this->assertSame($sourceMachine->host, $newMachine->host);
 
-        $readyAgent->refresh();
-        $notReadyAgent->refresh();
+        $channelAgent->refresh();
+        $channelLessAgent->refresh();
 
-        $this->assertTrue($readyAgent->config['runtime']);
-        $this->assertTrue($readyAgent->config['existing']);
-        $this->assertSame('Web Chat', $readyAgent->config['channel']);
-        $this->assertSame('Gemini', $readyAgent->config['language_model']);
+        $this->assertTrue($channelAgent->config['runtime']);
+        $this->assertTrue($channelAgent->config['existing']);
+        $this->assertSame('Web Chat', $channelAgent->config['channel']);
+        $this->assertSame('Gemini', $channelAgent->config['language_model']);
 
-        // runtime is always enabled on provisioning; readiness only decides
-        // whether the agent is actually deployed (see deployed_agent_ids above).
-        $this->assertTrue($notReadyAgent->config['runtime']);
-        $this->assertSame('Web Chat', $notReadyAgent->config['channel']);
-        $this->assertSame('Gemini', $notReadyAgent->config['language_model']);
+        $this->assertTrue($channelLessAgent->config['runtime']);
+        $this->assertSame('Web Chat', $channelLessAgent->config['channel']);
+        $this->assertSame('Gemini', $channelLessAgent->config['language_model']);
 
-        $deployment = AgentDeployment::where('agent_id', $readyAgent->getId())
-            ->where('agent_machine_id', $newMachine->getId())
-            ->firstOrFail();
+        foreach ([$channelAgent, $channelLessAgent] as $agent) {
+            $deployment = AgentDeployment::where('agent_id', $agent->getId())
+                ->where('agent_machine_id', $newMachine->getId())
+                ->firstOrFail();
 
-        $this->assertSame(AgentProviderEnum::HERMES->value, $deployment->provider);
-        $this->assertSame('provisioning', $deployment->status);
-        $this->assertSame(0, AgentDeployment::where('agent_id', $notReadyAgent->getId())->count());
+            $this->assertSame(AgentProviderEnum::HERMES->value, $deployment->provider);
+            $this->assertSame('provisioning', $deployment->status);
+        }
 
-        Queue::assertPushed(HermesLaunchAgentJob::class, 1);
+        Queue::assertPushed(HermesLaunchAgentJob::class, 2);
+        Notification::assertNothingSent();
+    }
+
+    public function testProvisionWithOpenClawProviderOnlyDeploysChannelReadyAgents(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $sourceCompany = $user->getCurrentCompany();
+        $targetCompany = Companies::factory()->create();
+        $this->setIntegration($app, IntegrationsEnum::INTERNAL, InternalHandler::class, $targetCompany, $user);
+
+        $sourceMachine = $this->createMachine($sourceCompany, 'runtime-source-' . fake()->uuid());
+        $app->set(AgentRuntimeSettingEnum::DEFAULT_MACHINE_ID->value, $sourceMachine->getId());
+
+        $channelAgent = Agent::factory()->create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $targetCompany->getId(),
+            'user_id' => $user->getId(),
+            'name' => 'OpenClaw Channel Agent ' . fake()->uuid(),
+        ]);
+        $channelAgent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test');
+        $channelAgent->set(AgentChannelTokenEnum::SLACK_APP_TOKEN->value, 'xapp-test');
+
+        $channelLessAgent = Agent::factory()->create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $targetCompany->getId(),
+            'user_id' => $user->getId(),
+            'name' => 'OpenClaw Channel-less Agent ' . fake()->uuid(),
+        ]);
+
+        Queue::fake();
+        Notification::fake();
+
+        $result = $this->activity()->execute($user, $app, [
+            'company' => $targetCompany,
+            'provider' => AgentProviderEnum::OPENCLAW->value,
+            'welcome_changed' => true,
+            'welcome_previous' => 0,
+            'welcome_current' => 1,
+        ]);
+
+        $this->assertArrayNotHasKey('error', $result);
+        $this->assertSame(AgentProviderEnum::OPENCLAW->value, $result['provider']);
+
+        // OpenClaw still requires a messaging channel: the channel agent deploys, the
+        // channel-less one is configured but skipped.
+        $this->assertContains($channelAgent->getId(), $result['deployed_agent_ids']);
+        $this->assertNotContains($channelLessAgent->getId(), $result['deployed_agent_ids']);
+
+        $this->assertSame(1, AgentDeployment::where('agent_id', $channelAgent->getId())->count());
+        $this->assertSame(0, AgentDeployment::where('agent_id', $channelLessAgent->getId())->count());
+
+        Queue::assertPushed(OpenClawLaunchAgentJob::class, 1);
         Notification::assertNothingSent();
     }
 
