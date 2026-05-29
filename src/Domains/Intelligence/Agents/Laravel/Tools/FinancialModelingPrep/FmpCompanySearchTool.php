@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Laravel\Tools\Connectors\FinancialModelingPrep;
+namespace Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Log;

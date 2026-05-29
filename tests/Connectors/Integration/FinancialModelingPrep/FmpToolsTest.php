@@ -10,8 +10,8 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\FinancialModelingPrep\Client;
 use Kanvas\Connectors\FinancialModelingPrep\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Laravel\Tools\Connectors\FinancialModelingPrep\FmpCompanyProfileTool;
-use Kanvas\Intelligence\Agents\Laravel\Tools\Connectors\FinancialModelingPrep\FmpCompanySearchTool;
+use Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep\FmpCompanyProfileTool;
+use Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep\FmpCompanySearchTool;
 use Laravel\Ai\Tools\Request;
 use Tests\TestCase;
 
