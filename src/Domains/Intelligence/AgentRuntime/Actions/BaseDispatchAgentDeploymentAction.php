@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
+use Kanvas\Intelligence\AgentRuntime\Services\AgentChannelIntegrationReadinessService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -43,6 +44,9 @@ abstract class BaseDispatchAgentDeploymentAction
     public function execute(): AgentDeployment
     {
         $config = $this->getProviderConfig();
+        new AgentChannelIntegrationReadinessService()
+            ->assertReadyForDeployment($this->agent, $config->providerName);
+
         $systemUser = substr('agent-' . $this->agent->slug, 0, 32);
         $ports = $this->machine->allocatePortPair();
 

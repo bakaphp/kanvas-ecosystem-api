@@ -4,9 +4,19 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Intelligence\AgentRuntime;
 
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Hermes\Actions\DispatchAgentDeploymentAction as DispatchHermesAgentDeploymentAction;
+use Kanvas\Connectors\Hermes\Jobs\LaunchAgentJob as HermesLaunchAgentJob;
+use Kanvas\Connectors\OpenClaw\Actions\DispatchAgentDeploymentAction as DispatchOpenClawAgentDeploymentAction;
 use Kanvas\Connectors\OpenClaw\Actions\SyncAgentWorkspaceAction;
 use Kanvas\Connectors\OpenClaw\Actions\UpdateAgentSwarmHierarchyAction;
+use Kanvas\Connectors\OpenClaw\Jobs\LaunchAgentJob as OpenClawLaunchAgentJob;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
+use Kanvas\Intelligence\AgentRuntime\Notifications\AgentDeploymentMissingChannelIntegrationNotification;
+use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -30,6 +40,29 @@ class AgentRuntimeAgentActionsTest extends TestCase
             'soul' => 'You are a helpful assistant.',
             'instructions' => 'Answer questions clearly.',
         ]);
+    }
+
+    private function createAgentMachine(): AgentMachine
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $machine = new AgentMachine();
+        $machine->apps_id = $app->getId();
+        $machine->companies_id = $company->getId();
+        $machine->name = 'RuntimeTest-' . fake()->uuid();
+        $machine->host = '127.0.0.1';
+        $machine->ssh_port = 22;
+        $machine->ssh_user = 'test';
+        $machine->ssh_private_key = 'invalid-key';
+        $machine->port_range_start = 24000;
+        $machine->port_range_end = 25000;
+        $machine->max_agents = 100;
+        $machine->is_active = true;
+        $machine->saveOrFail();
+
+        return $machine;
     }
 
     private function createSwarmWithMembers(): array
@@ -167,6 +200,86 @@ class AgentRuntimeAgentActionsTest extends TestCase
         $agent->refresh();
         $this->assertStringContainsString('Some context.', $agent->user_context);
         $this->assertStringNotContainsString('## Team Structure', $agent->user_context);
+    }
+
+    public function testOpenClawDeploymentRequiresSlackOrTelegramIntegration(): void
+    {
+        Queue::fake();
+        Notification::fake();
+
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $agent = $this->createAgent();
+        $machine = $this->createAgentMachine();
+
+        try {
+            new DispatchOpenClawAgentDeploymentAction($agent, $machine, $app, $company)->execute();
+            $this->fail('Expected deployment to be blocked without Slack or Telegram credentials.');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('Slack integration or Telegram integration', $e->getMessage());
+        }
+
+        $this->assertSame(0, AgentDeployment::where('agent_id', $agent->getId())->count());
+        Queue::assertNotPushed(OpenClawLaunchAgentJob::class);
+        Notification::assertSentTo($agent->user, AgentDeploymentMissingChannelIntegrationNotification::class);
+    }
+
+    public function testHermesDeploymentLaunchesWithoutChannelIntegration(): void
+    {
+        Queue::fake();
+        Notification::fake();
+
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $agent = $this->createAgent();
+        $machine = $this->createAgentMachine();
+
+        $deployment = new DispatchHermesAgentDeploymentAction($agent, $machine, $app, $company)->execute();
+
+        $this->assertSame('provisioning', $deployment->status);
+        $this->assertSame(AgentProviderEnum::HERMES->value, $deployment->provider);
+        Queue::assertPushed(HermesLaunchAgentJob::class);
+        Notification::assertNothingSent();
+    }
+
+    public function testHermesDeploymentLaunchesWithSlackIntegration(): void
+    {
+        Queue::fake();
+        Notification::fake();
+
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $agent = $this->createAgent();
+        $agent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test');
+        $agent->set(AgentChannelTokenEnum::SLACK_APP_TOKEN->value, 'xapp-test');
+        $machine = $this->createAgentMachine();
+
+        $deployment = new DispatchHermesAgentDeploymentAction($agent, $machine, $app, $company)->execute();
+
+        $this->assertSame('provisioning', $deployment->status);
+        $this->assertSame(AgentProviderEnum::HERMES->value, $deployment->provider);
+        Queue::assertPushed(HermesLaunchAgentJob::class);
+        Notification::assertNothingSent();
+    }
+
+    public function testOpenClawDeploymentLaunchesWithTelegramIntegration(): void
+    {
+        Queue::fake();
+        Notification::fake();
+
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $agent = $this->createAgent();
+        $agent->set(AgentChannelTokenEnum::TELEGRAM_BOT_TOKEN->value, '123456789:test');
+        $agent->set(AgentChannelTokenEnum::TELEGRAM_ALLOWED_USERS->value, '111,222');
+        $machine = $this->createAgentMachine();
+
+        $deployment = new DispatchOpenClawAgentDeploymentAction($agent, $machine, $app, $company)->execute();
+
+        $this->assertSame('provisioning', $deployment->status);
+        $this->assertSame(AgentProviderEnum::OPENCLAW->value, $deployment->provider);
+        Queue::assertPushed(OpenClawLaunchAgentJob::class);
+        Notification::assertNothingSent();
     }
 
     public function testSyncAgentWorkspaceFailsWithoutSsh(): void

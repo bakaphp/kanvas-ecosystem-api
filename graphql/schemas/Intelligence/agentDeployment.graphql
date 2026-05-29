@@ -56,12 +56,12 @@ type AgentMachineType {
     uuid: String!
     name: String!
     slug: String!
-    host: String!
-    ssh_port: Int!
-    ssh_user: String!
+    host: String @adminOnlyField
+    ssh_port: Int @adminOnlyField
+    ssh_user: String @adminOnlyField
     region: String
-    port_range_start: Int!
-    port_range_end: Int!
+    port_range_start: Int @adminOnlyField
+    port_range_end: Int @adminOnlyField
     max_agents: Int!
     is_active: Boolean!
     is_connected: Boolean!
@@ -75,11 +75,11 @@ type AgentDeploymentType {
     uuid: String!
     agent_id: ID!
     agent_machine_id: ID!
-    system_user: String!
-    home_directory: String!
-    gateway_port: Int!
-    proxy_port: Int!
-    container_name: String!
+    system_user: String @adminOnlyField
+    home_directory: String @adminOnlyField
+    gateway_port: Int @adminOnlyField
+    proxy_port: Int @adminOnlyField
+    container_name: String @adminOnlyField
     provider: String!
     status: String!
     launched_at: DateTime
@@ -152,9 +152,7 @@ extend type Query @guard {
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
-}
 
-extend type Query @guardByAdmin {
     agentMachines(
         search: String @search
         where: _
@@ -182,7 +180,9 @@ extend type Query @guardByAdmin {
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
+}
 
+extend type Query @guardByAdmin {
     agentBackups(
         where: _
             @whereConditions(columns: ["id", "agent_deployment_id", "status"])

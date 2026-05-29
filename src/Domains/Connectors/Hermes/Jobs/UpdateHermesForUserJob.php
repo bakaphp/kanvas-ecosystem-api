@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Hermes\Jobs;
 
-use Kanvas\Connectors\Hermes\Services\DockerComposeBuilder;
+use Kanvas\Connectors\Hermes\Services\DockerComposeBuilderService;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\Jobs\BaseUpdateAgentForUserJob;
-use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
+use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilderService;
 use Kanvas\Intelligence\AgentRuntime\SshClient as BaseSshClient;
 use Override;
 
@@ -25,9 +25,9 @@ class UpdateHermesForUserJob extends BaseUpdateAgentForUserJob
     }
 
     #[Override]
-    protected function createBuilder(): BaseDockerComposeBuilder
+    protected function createBuilder(): BaseDockerComposeBuilderService
     {
-        return new DockerComposeBuilder();
+        return new DockerComposeBuilderService();
     }
 
     #[Override]

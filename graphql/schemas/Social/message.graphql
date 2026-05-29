@@ -22,7 +22,22 @@ type Message {
     total_purchase: Int
     parent: Message @cacheRedis
     user: User!
-    children: [Message!] @hasMany(type: PAGINATOR)
+    children(
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                    "total_view"
+                    "total_liked"
+                    "total_shared"
+                    "total_saved"
+                    "total_children"
+                    "total_disliked"
+                ]
+            )
+    ): [Message!] @hasMany(relation: "children", type: PAGINATOR)
     messageType: MessageType! @cacheRedis
     appModuleMessage: AppModuleMessage @cacheRedis
     myInteraction: myInteraction @method(name: "getMyInteraction")

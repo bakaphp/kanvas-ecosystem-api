@@ -20,6 +20,8 @@ package.json
 /storage/framework/sessions/*
 /storage/app/*
 /storage/logs/*
+/storage/hermes-backup-agent/
+/storage/hermes-fixtures/
 package-lock.json
 .php-cs-fixer.cache
 service-account.json

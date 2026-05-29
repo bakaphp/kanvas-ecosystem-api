@@ -6,7 +6,7 @@ namespace Tests\GraphQL\Connector\Hermes;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Hermes\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Hermes\Services\DockerComposeBuilder;
+use Kanvas\Connectors\Hermes\Services\DockerComposeBuilderService;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
@@ -56,7 +56,7 @@ class HermesDockerComposeBuilderTelegramTest extends TestCase
         $agent->set(AgentChannelTokenEnum::TELEGRAM_BOT_TOKEN->value, '123456789:test-bot-token');
         $agent->set(AgentChannelTokenEnum::TELEGRAM_ALLOWED_USERS->value, '111,222,333');
 
-        $rendered = (new DockerComposeBuilder())->buildDockerCompose(
+        $rendered = (new DockerComposeBuilderService())->buildDockerCompose(
             $this->makeDeployment($agent),
             'gateway-token-abc',
             $app,
@@ -72,7 +72,7 @@ class HermesDockerComposeBuilderTelegramTest extends TestCase
         $app = app(Apps::class);
         $agent = $this->makeAgent();
 
-        $rendered = (new DockerComposeBuilder())->buildDockerCompose(
+        $rendered = (new DockerComposeBuilderService())->buildDockerCompose(
             $this->makeDeployment($agent),
             'gateway-token-abc',
             $app,
@@ -94,7 +94,7 @@ class HermesDockerComposeBuilderTelegramTest extends TestCase
         ]);
 
         try {
-            $yaml = (new DockerComposeBuilder())->buildRuntimeConfig(
+            $yaml = (new DockerComposeBuilderService())->buildRuntimeConfig(
                 $agent,
                 'gateway-token-abc',
                 $app,
@@ -116,7 +116,7 @@ class HermesDockerComposeBuilderTelegramTest extends TestCase
         // Make sure no stale value bleeds in from another test
         $app->del(ConfigurationEnum::TELEGRAM_CONFIG->value);
 
-        $yaml = (new DockerComposeBuilder())->buildRuntimeConfig(
+        $yaml = (new DockerComposeBuilderService())->buildRuntimeConfig(
             $agent,
             'gateway-token-abc',
             $app,
@@ -125,6 +125,50 @@ class HermesDockerComposeBuilderTelegramTest extends TestCase
         $parsed = Yaml::parse($yaml);
 
         $this->assertArrayHasKey('slack', $parsed['platforms']);
+        $this->assertArrayNotHasKey('telegram', $parsed['platforms']);
+    }
+
+    public function testChannelLessAgentStillEnablesApiServerWithoutChannelTokens(): void
+    {
+        $app = app(Apps::class);
+        $agent = $this->makeAgent();
+
+        $rendered = (new DockerComposeBuilderService())->buildDockerCompose(
+            $this->makeDeployment($agent),
+            'gateway-token-abc',
+            $app,
+            $agent,
+        );
+
+        // The loopback HTTP API server is what ChatWithAgentAction talks to. It is wired up
+        // regardless of messaging channels, so a channel-less agent is still reachable via chat.
+        $this->assertStringContainsString('- API_SERVER_ENABLED=true', $rendered);
+        $this->assertStringContainsString('- API_SERVER_PORT=8642', $rendered);
+        $this->assertStringContainsString('- API_SERVER_KEY=gateway-token-abc', $rendered);
+
+        // No messaging channel is wired up.
+        $this->assertStringNotContainsString('SLACK_BOT_TOKEN', $rendered);
+        $this->assertStringNotContainsString('SLACK_APP_TOKEN', $rendered);
+        $this->assertStringNotContainsString('TELEGRAM_BOT_TOKEN', $rendered);
+    }
+
+    public function testChannelLessAgentRuntimeConfigIsValidYaml(): void
+    {
+        $app = app(Apps::class);
+        $agent = $this->makeAgent();
+        $app->del(ConfigurationEnum::TELEGRAM_CONFIG->value);
+
+        $yaml = (new DockerComposeBuilderService())->buildRuntimeConfig(
+            $agent,
+            'gateway-token-abc',
+            $app,
+        );
+
+        $parsed = Yaml::parse($yaml);
+
+        $this->assertArrayHasKey('model', $parsed);
+        $this->assertArrayHasKey('platforms', $parsed);
+        // slack tuning block is inert (no token => Slack never activates); telegram is absent.
         $this->assertArrayNotHasKey('telegram', $parsed['platforms']);
     }
 }

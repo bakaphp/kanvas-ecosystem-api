@@ -30,7 +30,7 @@ class DashboardMetricsService
     private const float HOURS_PER_WORKDAY = 8.0;
 
     public function __construct(
-        protected readonly DashboardMetricsAggregator $aggregator = new DashboardMetricsAggregator(),
+        protected readonly DashboardMetricsAggregatorService $aggregator = new DashboardMetricsAggregatorService(),
         protected readonly DashboardPeriodResolver $periodResolver = new DashboardPeriodResolver(),
     ) {
     }

@@ -13,7 +13,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
-use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
+use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilderService;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -60,7 +60,7 @@ abstract class BaseUpdateAgentForUserJob implements ShouldQueue
 
     abstract protected function getProviderConfig(): ProviderConfig;
 
-    abstract protected function createBuilder(): BaseDockerComposeBuilder;
+    abstract protected function createBuilder(): BaseDockerComposeBuilderService;
 
     abstract protected function createSshClient(): SshClient;
 

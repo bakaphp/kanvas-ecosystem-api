@@ -22,15 +22,14 @@ class GenerateOrderVoucherCommand extends Command
     protected $signature = 'kanvas:movipass-generate-order-voucher
                             {app_id : The application ID}
                             {plate : Vehicle plate number to generate voucher for}
-
-                        ';
+                            {--force : Re-generate the voucher even if one already exists}';
 
     /**
      * The console command description.
      *
      * @var string|null
      */
-    protected $description = 'Fix order items for Movipass orders within a date range';
+    protected $description = 'Generate (or re-generate with --force) the release voucher PDF for a Movipass order by vehicle plate';
 
     public function handle(): void
     {
@@ -57,9 +56,14 @@ class GenerateOrderVoucherCommand extends Command
 
         $voucherUrl = $order->get("voucher_url") ?? '';
 
-        if ($voucherUrl) {
+        if ($voucherUrl && ! $this->option('force')) {
             $this->info("Voucher already exists for order({$order->id}) {$order->order_number} : {$voucherUrl}");
+            $this->info('Use --force to re-generate it.');
             return;
+        }
+
+        if ($voucherUrl) {
+            $this->warn("Re-generating voucher for order({$order->id}) {$order->order_number} (previous: {$voucherUrl})");
         }
 
         $vehiclePlate = $order->metadata['data']['vehiclePlate'] ?? '';

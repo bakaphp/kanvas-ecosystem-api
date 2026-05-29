@@ -11,8 +11,9 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
-use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
-use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilder;
+use Kanvas\Intelligence\AgentRuntime\Services\AgentChannelIntegrationReadinessService;
+use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilderService;
+use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilderService;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
@@ -49,11 +50,14 @@ abstract class BaseLaunchAgentOnMachineAction
     /** Returns a connected SSH client for this provider pointing at $this->machine. */
     abstract protected function createSshClient(): SshClient;
 
-    /** Returns the concrete DockerComposeBuilder for this provider. */
-    abstract protected function getDockerComposeBuilder(): BaseDockerComposeBuilder;
+    /** Returns the concrete DockerComposeBuilderService for this provider. */
+    abstract protected function getDockerComposeBuilder(): BaseDockerComposeBuilderService;
 
     public function execute(): AgentDeployment
     {
+        new AgentChannelIntegrationReadinessService()
+            ->assertReadyForDeployment($this->agent, $this->getProviderConfig()->providerName);
+
         if (! $this->machine->hasCapacity()) {
             throw new ValidationException('Machine ' . $this->machine->name . ' has reached maximum agent capacity');
         }
@@ -168,7 +172,7 @@ abstract class BaseLaunchAgentOnMachineAction
         // Workspace markdown files. The builder decides where each file goes (and may skip
         // some): OpenClaw puts them all in $providerDir/workspace/, Hermes only writes
         // SOUL.md at the root of $providerDir.
-        $files = WorkspaceFileBuilder::buildAll($this->agent);
+        $files = WorkspaceFileBuilderService::buildAll($this->agent);
         foreach ($files as $filename => $content) {
             $target = $builder->getWorkspaceFileTargetPath($providerDir, $filename);
             if ($target === null) {
@@ -194,15 +198,30 @@ abstract class BaseLaunchAgentOnMachineAction
         );
     }
 
+    /**
+     * Agent-level gateway token: the canonical source is the agent's custom field. Generated
+     * once on first launch and reused for every subsequent re-launch / migration. We persist
+     * before the deployment-level write on line 74 of execute() so that the agent's token
+     * outlives any single deployment row — useful for cross-runtime migration where the
+     * deployment is replaced but the agent identity (and its API_SERVER_KEY) stays the same.
+     *
+     * Company-level config (legacy `hermes_gateway_token`) is intentionally ignored: per-agent
+     * tokens are the security model going forward, and a stable agent-scoped key is what
+     * downstream Nervous System integrations (health checks, /v1/runs callers) authenticate with.
+     */
     private function resolveGatewayToken(): string
     {
-        $configured = $this->company->get($this->getProviderConfig()->gatewayTokenConfigKey);
+        $customFieldKey = $this->getProviderConfig()->gatewayTokenCustomFieldKey;
+        $existing = $this->agent->get($customFieldKey);
 
-        if (is_string($configured) && $configured !== '') {
-            return $configured;
+        if (is_string($existing) && $existing !== '') {
+            return $existing;
         }
 
-        return bin2hex(random_bytes(32));
+        $token = bin2hex(random_bytes(32));
+        $this->agent->set($customFieldKey, $token);
+
+        return $token;
     }
 
     private function buildAndStart(SshClient $client, AgentDeployment $deployment, string $gatewayToken): void

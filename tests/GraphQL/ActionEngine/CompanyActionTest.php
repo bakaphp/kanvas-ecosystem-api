@@ -13,8 +13,11 @@ class CompanyActionTest extends TestCase
 {
     private function createGlobalAction(): array
     {
+        // actions.slug is globally unique and these tests commit (no DatabaseTransactions),
+        // so the name must be unique per run — fake()->word() draws from a small pool and
+        // eventually collides across accumulated rows.
         $input = [
-            'name' => 'Global Action ' . fake()->word(),
+            'name' => 'Global Action ' . uniqid(),
             'description' => 'Global action for company action test',
             'is_active' => true,
             'is_published' => true,

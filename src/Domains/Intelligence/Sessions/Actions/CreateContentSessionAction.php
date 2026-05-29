@@ -30,6 +30,7 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Users\Models\Users;
 use RuntimeException;
+use Throwable;
 use Yasumi\Exception\InvalidYearException;
 use Yasumi\Exception\MissingTranslationException;
 use Yasumi\Exception\ProviderNotFoundException;
@@ -66,23 +67,68 @@ class CreateContentSessionAction
         return $result;
     }
 
-    protected function generateBackground(array $data): mixed
+    protected function generateBackground(array $data): ?array
     {
+        $role = $this->session->agent?->role;
+
+        if (! is_array($role)) {
+            return null;
+        }
+
         $roleData = $this->entity instanceof Lead
             ? $this->generateValuesForRole($this->entity)
             : [];
         $data = array_merge($data, $roleData);
 
-        try {
-            $background = $this->session->agent?->role !== null && is_array($this->session->agent->role)
-                ? Blade::render(json_encode($this->session->agent->role), $data)
-                : null;
-        } catch (Exception $e) {
-            report($e);
-            $background = $this->session->agent?->role;
+        return array_map(
+            fn (mixed $section): ?array => $this->renderRoleSection($section, $data),
+            $role
+        );
+    }
+
+    /**
+     * Agents store each role section (background/steps/output) either as a plain string
+     * or as an array of lines (with nulls for blank lines). Render Blade variables on each
+     * line and return the section as an array of rendered lines (null blank-line markers
+     * preserved); a string section is split on newlines first. A null section stays null.
+     */
+    protected function renderRoleSection(mixed $section, array $data): ?array
+    {
+        if ($section === null) {
+            return null;
         }
 
-        return Str::isJson($background) ? json_decode($background) : $background;
+        $lines = is_array($section) ? array_values($section) : explode("\n", (string) $section);
+
+        return array_map(
+            fn (mixed $line): ?string => is_string($line) ? $this->renderTemplate($line, $data) : null,
+            $lines
+        );
+    }
+
+    /**
+     * Blade fatals on a variable that was never defined (unlike a defined-but-null
+     * variable, which renders empty). Seed every referenced variable so an unknown one
+     * renders blank instead of leaving raw {{ }} syntax in the prompt the agent receives.
+     * Fall back to the raw template only if rendering still throws for another reason.
+     */
+    protected function renderTemplate(string $template, array $data): string
+    {
+        preg_match_all('/\$([a-zA-Z_]\w*)/', $template, $matches);
+
+        foreach ($matches[1] as $variableName) {
+            if (! array_key_exists($variableName, $data)) {
+                $data[$variableName] = '';
+            }
+        }
+
+        try {
+            return Blade::render($template, $data);
+        } catch (Throwable $e) {
+            report($e);
+
+            return $template;
+        }
     }
 
     protected function mapLead(Lead $lead): array
@@ -114,7 +160,7 @@ class CreateContentSessionAction
                 'allow_call_appointments' => $lead->company->get(EnumsConfigurationEnum::ALLOW_CALL_APPOINTMENTS->value) ?? true,
                 'work_hours' => $lead->company->get('work_hours'),
                 'working_holiday_days' => $lead->company->get('working_holiday_days'),
-                'notes_channel_uuid' => $lead->notes?->uuid,
+                'notes_channel_slug' => $lead->notes?->slug,
             ],
             $this->mapPeople($lead->people, $lead),
             $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []

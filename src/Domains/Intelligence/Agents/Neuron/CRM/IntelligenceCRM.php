@@ -6,7 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\CRM;
 
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
-use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
+use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ArtifactsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CommunicationChannelTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyInformationTool;
@@ -49,7 +49,7 @@ class IntelligenceCRM extends BaseKanvasAgent
             return new InMemoryChatHistory();
         }
 
-        return new KanvasMessageHistory(
+        return new SalesAssistKanvasMessageHistory(
             app: $this->app,
             company: $this->company,
             user: $this->user,

@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Lendflow\Activities;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Lendflow\Actions\SubmitApplicationAction;
+use Kanvas\Connectors\Lendflow\Enums\CustomFieldEnum;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -24,6 +25,15 @@ class SubmitApplicationActivity extends KanvasActivity
             integration: IntegrationsEnum::LENDFLOW,
             additionalParams: $params,
             integrationOperation: function (Deal $deal) {
+                $exit = $deal->get(CustomFieldEnum::LENDFLOW_APPLICATION_ID->value);
+                if ($exit) {
+                    return $this->failWorkflow([
+                        'message' => 'Deal already has a Lendflow application ID: ' . $exit,
+                        'application_id' => $exit,
+                        'deal_id' => $deal->getId(),
+                    ]);
+                }
+
                 $result = new SubmitApplicationAction($deal)->execute();
 
                 return [

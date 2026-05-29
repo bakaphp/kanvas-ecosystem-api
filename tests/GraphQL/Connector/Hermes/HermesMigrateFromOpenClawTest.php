@@ -46,15 +46,20 @@ class HermesMigrateFromOpenClawTest extends TestCase
         return $machine;
     }
 
-    private function createTestDeployment(AgentMachine $machine, string $status = 'running'): AgentDeployment
-    {
+    private function createTestDeployment(
+        AgentMachine $machine,
+        string $status = 'running',
+        ?Agent $agent = null,
+    ): AgentDeployment {
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $agent = Agent::where('apps_id', $app->getId())
-            ->where('is_deleted', 0)
-            ->first();
+        if ($agent === null) {
+            $agent = Agent::where('apps_id', $app->getId())
+                ->where('is_deleted', 0)
+                ->first();
+        }
 
         if (! $agent) {
             $agent = Agent::factory()->create([

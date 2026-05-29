@@ -45,23 +45,11 @@ abstract class SshClient
         }
     }
 
-    /**
-     * Returns the provider-specific configuration constants.
-     * Implemented by each concrete SshClient subclass.
-     */
     abstract public static function makeProviderConfig(): ProviderConfig;
 
-    /**
-     * Reads SSH credentials and provider paths from company custom fields.
-     * Uses the concrete provider's ConfigurationEnum keys.
-     * Must set $this->sftp, $this->providerHome, $this->cliPath, $this->configFilename.
-     */
+    // Implementations must set $this->sftp, $this->providerHome, $this->cliPath, $this->configFilename.
     abstract protected function buildFromCompanyConfig(CompanyInterface $company): void;
 
-    /**
-     * Create an SSH client from an AgentMachine model (Docker isolation model).
-     * The machine stores its own SSH credentials (host, port, user, private key).
-     */
     public static function fromMachine(AgentMachine $machine): static
     {
         $instance = new static();
@@ -86,12 +74,7 @@ abstract class SshClient
         return $instance;
     }
 
-    /**
-     * Execute a shell command on the remote machine.
-     *
-     * @param int $timeout Seconds before the command times out. Use 120+ for
-     *                     long-running operations like LLM API calls via docker exec.
-     */
+    // $timeout: seconds. Use 120+ for long-running operations like LLM API calls via docker exec.
     public function exec(string $command, int $timeout = 30): string
     {
         $this->sftp->setTimeout($timeout);
@@ -100,21 +83,12 @@ abstract class SshClient
         return is_string($result) ? $result : '';
     }
 
-    /**
-     * Run a provider CLI subcommand (e.g. "agents list --json").
-     */
     public function cli(string $subcommand): string
     {
         return $this->exec($this->cliPath . ' ' . $subcommand);
     }
 
-    /**
-     * Write a file on the remote machine as a specific Linux user via sudo.
-     *
-     * Content is base64-encoded locally, decoded on the remote side via pipe,
-     * and written with `sudo tee` to avoid permission issues. Ownership is
-     * then set to the target user.
-     */
+    // base64 round-trip is binary-safe; `sudo tee` works around perms on agent-owned dirs.
     public function writeFileAsUser(string $remotePath, string $content, string $systemUser): void
     {
         $encoded = base64_encode($content);
@@ -125,9 +99,25 @@ abstract class SshClient
         );
     }
 
-    /**
-     * Write a file via SFTP (direct transfer, no sudo).
-     */
+    // Counterpart to writeFileAsUser — SFTP can't traverse 0700 agent-owned dirs.
+    // `sudo -n` fails fast instead of hanging on password prompt; base64 keeps it binary-safe.
+    public function readFileAsUser(string $remotePath): string
+    {
+        $output = $this->exec(
+            'sudo -n cat ' . escapeshellarg($remotePath) . ' 2>/dev/null | base64 -w 0',
+            60,
+        );
+
+        $trimmed = trim($output);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        $decoded = base64_decode($trimmed, true);
+
+        return $decoded === false ? '' : $decoded;
+    }
+
     public function writeFile(string $remotePath, string $content): bool
     {
         $dir = dirname($remotePath);
@@ -136,9 +126,7 @@ abstract class SshClient
         return $this->sftp->put($remotePath, $content);
     }
 
-    /**
-     * Upload a local file to the remote machine via SFTP without loading it into memory.
-     */
+    // SOURCE_LOCAL_FILE streams from disk — avoids loading the whole file into memory.
     public function uploadFromFile(string $remotePath, string $localPath): bool
     {
         $dir = dirname($remotePath);
@@ -154,9 +142,7 @@ abstract class SshClient
         return is_string($result) ? $result : '';
     }
 
-    /**
-     * Download a remote file to a local path via SFTP without loading it into memory.
-     */
+    // Streams to disk — avoids loading the whole file into memory.
     public function downloadToFile(string $remotePath, string $localPath): bool
     {
         return (bool) $this->sftp->get($remotePath, $localPath);
@@ -198,25 +184,17 @@ abstract class SshClient
         return $this->cli('gateway status 2>&1');
     }
 
-    /**
-     * Fetch structured runtime + RPC status for the gateway service.
-     */
     public function getGatewayDeepStatus(): string
     {
         return $this->exec($this->providerConfig->cliAlias . ' gateway status --json --deep 2>/dev/null');
     }
 
-    /**
-     * Fetch top-level status: runtimeVersion, linkChannel, heartbeat agents.
-     */
+    // Returns runtimeVersion, linkChannel, heartbeat agents.
     public function getStatus(): string
     {
         return $this->exec($this->providerConfig->cliAlias . ' status --json 2>/dev/null');
     }
 
-    /**
-     * Fetch node service status.
-     */
     public function getNodeStatus(): string
     {
         return $this->exec($this->providerConfig->cliAlias . ' node status --json 2>/dev/null');
@@ -247,46 +225,42 @@ abstract class SshClient
         return $this->cli('health --json 2>&1');
     }
 
-    /**
-     * Fetch memory subsystem status (text output — no --json flag available).
-     */
+    // Invoke mjsPath directly, not entrypoint.sh: older containers lack the wrapper,
+    // and on newer ones it would re-run `service cron start` on every probe.
+    public function getHealthForContainer(string $containerName, int $timeoutSeconds = 30): string
+    {
+        $command = sprintf(
+            'docker exec %s %s health --json 2>&1',
+            escapeshellarg($containerName),
+            $this->providerConfig->mjsPath,
+        );
+
+        return $this->exec($command, $timeoutSeconds);
+    }
+
+    // Text output — no --json flag available on `memory status`.
     public function getMemoryStatus(): string
     {
         return $this->exec($this->providerConfig->cliAlias . ' memory status 2>&1');
     }
 
-    /**
-     * Fetch config as JSON to get default model and other settings.
-     */
     public function getConfig(): string
     {
         return $this->exec($this->providerConfig->cliAlias . ' config show --json 2>/dev/null');
     }
 
-    /**
-     * Fetch active sessions as JSON to get context token usage.
-     */
     public function getSessions(): string
     {
         return $this->exec($this->providerConfig->cliAlias . ' sessions list --json 2>/dev/null');
     }
 
-    /**
-     * Get OS info from the remote machine.
-     */
     public function getOsInfo(): string
     {
         return $this->exec('uname -s -r 2>/dev/null || echo unknown');
     }
 
-    /**
-     * Run all telemetry commands in a SINGLE exec channel to minimise SSH daemon load.
-     *
-     * Commands run via `docker exec` against the agent's container because the runtime
-     * CLI lives inside the container, not on the host filesystem.
-     *
-     * @return array<string, string>
-     */
+    // SINGLE exec channel to minimise SSH daemon load; runtime CLI lives inside the container, hence `docker exec`.
+    /** @return array<string, string> */
     public function getAllTelemetryForContainer(string $containerName): array
     {
         $c = escapeshellarg($containerName);
@@ -323,48 +297,7 @@ abstract class SshClient
         return $sections;
     }
 
-    /**
-     * @deprecated Use getAllTelemetryForContainer() for Docker-deployed agents.
-     * @return array<string, string>
-     */
-    public function getAllTelemetry(): array
-    {
-        $alias = $this->providerConfig->cliAlias;
-        $script = implode('; ', [
-            "echo '__SECTION__health'",
-            "timeout 10 {$alias} health --json 2>&1",
-            "echo '__SECTION__version'",
-            "timeout 3 {$alias} --version 2>/dev/null || echo unknown",
-            "echo '__SECTION__gateway'",
-            "timeout 15 {$alias} gateway status --json --deep 2>/dev/null",
-            "echo '__SECTION__memory'",
-            "timeout 15 {$alias} memory status 2>&1",
-        ]);
-
-        $raw = $this->exec($script, 70);
-        $sections = ['health' => '', 'version' => '', 'gateway' => '', 'memory' => ''];
-        $current = null;
-
-        foreach (explode("\n", $raw) as $line) {
-            if (str_starts_with($line, '__SECTION__')) {
-                $current = trim(substr($line, strlen('__SECTION__')));
-
-                continue;
-            }
-
-            if ($current !== null && array_key_exists($current, $sections)) {
-                $sections[$current] .= $line . "\n";
-            }
-        }
-
-        return $sections;
-    }
-
-    /**
-     * Extract the unique set of tools this agent has actually called across its recent sessions.
-     *
-     * @return string|null JSON-encoded array of unique tool names, or null if none found
-     */
+    /** @return string|null JSON-encoded array of unique tool names actually invoked, or null if none */
     public function getAgentTools(string $containerName, string $agentSlug): ?string
     {
         $sessionsDir = $this->providerConfig->containerHomeDotDir . '/agents/' . $agentSlug . '/sessions';
@@ -439,11 +372,7 @@ abstract class SshClient
         return null;
     }
 
-    /**
-     * Fetch the last N activity entries from a deployment's session JSONL files.
-     *
-     * @return array<int, array{ts:string,level:string,msg:string,meta:string|null}>
-     */
+    /** @return array<int, array{ts:string,level:string,msg:string,meta:string|null}> */
     public function getDeploymentLogs(string $containerName, string $agentSlug, int $limit = 100): array
     {
         $sessionsDir = $this->providerConfig->containerHomeDotDir . '/agents/' . $agentSlug . '/sessions';

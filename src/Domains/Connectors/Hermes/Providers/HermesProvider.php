@@ -6,12 +6,18 @@ namespace Kanvas\Connectors\Hermes\Providers;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Support\Carbon;
+use Kanvas\Connectors\Hermes\Actions\ChatWithAgentAction;
+use Kanvas\Connectors\Hermes\Actions\CheckApiHealthAction;
 use Kanvas\Connectors\Hermes\Actions\CollectDeploymentUsageAction;
+use Kanvas\Connectors\Hermes\Actions\CollectSessionTranscriptsAction;
 use Kanvas\Connectors\Hermes\Actions\DispatchAgentDeploymentAction;
 use Kanvas\Connectors\Hermes\Actions\ExecDeploymentCommandAction;
+use Kanvas\Connectors\Hermes\Actions\FetchDailyLearningContextAction;
 use Kanvas\Connectors\Hermes\Actions\GetAgentContainerLogsAction;
 use Kanvas\Connectors\Hermes\Actions\GetAgentContainerStatusAction;
 use Kanvas\Connectors\Hermes\Actions\GetDeploymentConfigAction;
+use Kanvas\Connectors\Hermes\Actions\PushDailyLearningContextAction;
 use Kanvas\Connectors\Hermes\Actions\UpdateDeploymentConfigAction;
 use Kanvas\Connectors\Hermes\Jobs\BackupAgentWorkspaceJob;
 use Kanvas\Connectors\Hermes\Jobs\MigrateAgentWorkspaceJob;
@@ -19,7 +25,10 @@ use Kanvas\Connectors\Hermes\Jobs\MigrateFromOpenClawJob;
 use Kanvas\Connectors\Hermes\Jobs\RestartAgentContainerJob;
 use Kanvas\Connectors\Hermes\Jobs\TerminateAgentJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateHermesOnMachineJob;
+use Kanvas\Connectors\Hermes\Jobs\UpdateWorkspaceFilesJob;
 use Kanvas\Connectors\Hermes\SshClient;
+use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
+use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\AgentRuntime\Providers\AbstractAgentRuntimeProvider;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -95,9 +104,47 @@ class HermesProvider extends AbstractAgentRuntimeProvider
     }
 
     #[Override]
+    public function collectSessionTranscripts(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        ?Carbon $since = null,
+    ): int {
+        return new CollectSessionTranscriptsAction(
+            $deployment,
+            $app,
+            $company,
+            $since
+        )->execute();
+    }
+
+    #[Override]
+    public function pushDailyLearningContext(
+        AgentDeployment $deployment,
+        DailyLearningSummary $summary,
+        Carbon $cycleDate,
+    ): bool {
+        return new PushDailyLearningContextAction(
+            $deployment,
+            $summary,
+            $cycleDate
+        )->execute();
+    }
+
+    #[Override]
+    public function fetchDailyLearningContext(AgentDeployment $deployment): string
+    {
+        return new FetchDailyLearningContextAction($deployment)->execute();
+    }
+
+    #[Override]
     public function execCommand(AgentDeployment $deployment, string $command, string $sessionId): bool
     {
-        return new ExecDeploymentCommandAction($deployment, $command, $sessionId)->execute();
+        return new ExecDeploymentCommandAction(
+            $deployment,
+            $command,
+            $sessionId
+        )->execute();
     }
 
     #[Override]
@@ -143,6 +190,12 @@ class HermesProvider extends AbstractAgentRuntimeProvider
         UpdateHermesOnMachineJob::dispatch($machine);
     }
 
+    #[Override]
+    public function dispatchWorkspaceUpdate(AgentDeployment $deployment): void
+    {
+        UpdateWorkspaceFilesJob::dispatch($deployment);
+    }
+
     /**
      * Cross-runtime adoption — converts an OpenClaw (source) deployment into a Hermes
      * deployment running on `$destinationMachine`. Today Hermes is the only adoption
@@ -184,5 +237,29 @@ class HermesProvider extends AbstractAgentRuntimeProvider
         } finally {
             $ssh->disconnect();
         }
+    }
+
+    #[Override]
+    public function checkHealth(AgentDeployment $deployment): HealthCheckResultEnum
+    {
+        return new CheckApiHealthAction($deployment)->execute();
+    }
+
+    /**
+     * The Hermes API server's /v1/chat/completions endpoint is stateless, so $sessionKey
+     * is unused — cross-turn continuity comes from the agent's own persistent memory.
+     */
+    #[Override]
+    public function chat(
+        Agent $agent,
+        string $message,
+        ?string $sessionKey = null,
+        array $images = [],
+    ): string {
+        return new ChatWithAgentAction(
+            $agent,
+            $message,
+            $images
+        )->execute();
     }
 }

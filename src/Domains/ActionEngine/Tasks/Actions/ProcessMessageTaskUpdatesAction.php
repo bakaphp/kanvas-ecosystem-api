@@ -6,11 +6,13 @@ namespace Kanvas\ActionEngine\Tasks\Actions;
 
 use Illuminate\Database\Eloquent\Builder;
 use InvalidArgumentException;
+use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Pipelines\Repositories\PipelineStageRepository;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
+use Kanvas\ActionEngine\Tasks\Traits\ExtractsSubmittedDocumentTypes;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
@@ -18,6 +20,8 @@ use Throwable;
 
 class ProcessMessageTaskUpdatesAction
 {
+    use ExtractsSubmittedDocumentTypes;
+
     public function __construct(
         protected Message $message,
         protected Lead $lead,
@@ -39,7 +43,7 @@ class ProcessMessageTaskUpdatesAction
         $results = [];
 
         // For esign-docs, only use filename-based matching to avoid processing all esign tasks
-        if ($verb === 'esign-docs') {
+        if ($verb === ActionEnum::ESIGN_DOCS->value) {
             $signDocsResults = $this->handleSignDocsFiles($messageData);
 
             return [
@@ -76,7 +80,6 @@ class ProcessMessageTaskUpdatesAction
     protected function findTaskListItems(array $messageData): Builder
     {
         $verb = $messageData['verb'];
-        $data = $messageData['data'] ?? [];
 
         $action = Action::where('slug', $verb)->firstOrFail();
         $companyAction = CompanyAction::getByAction($action, $this->lead->company, $this->lead->app);
@@ -90,8 +93,7 @@ class ProcessMessageTaskUpdatesAction
             $query->where('task_list_id', $checkListId);
         }
 
-        // Handle specific data type conditions
-        return $this->applyDataConditions($query, $data);
+        return $this->applyDataConditions($query, $messageData);
     }
 
     protected function getCheckListId(array $messageData): ?int
@@ -115,55 +117,32 @@ class ProcessMessageTaskUpdatesAction
         return $this->lead->company->get('default_checklist_id');
     }
 
-    protected function applyDataConditions(Builder $query, array $data): Builder
+    /**
+     * Narrow the task-item query to the documents the message actually submitted.
+     *
+     * A get-docs message carries one entry per document type (`data` keyed by
+     * type id, each with `type.id`), and each document type maps to a task item
+     * through its `config.id`. Without this scoping a single uploaded document
+     * completes every get-docs task item under the company action.
+     */
+    protected function applyDataConditions(Builder $query, array $messageData): Builder
     {
-        // Drivers License condition
-        if (isset($data[3]) && ($data[3]['type']['name'] ?? '') === 'Drivers License') {
-            $query->whereJsonContains('config->id', 3);
+        if (($messageData['verb'] ?? null) !== ActionEnum::GET_DOCS->value) {
+            return $query;
         }
 
-        // Insurance card condition
-        if (isset($data[10]) && ($data[10]['type']['name'] ?? '') === 'Insurance card') {
-            $query->whereJsonContains('config->id', 10);
+        $submittedDocumentTypeIds = $this->extractGetDocsDocumentTypeIds($messageData['data'] ?? []);
+
+        if (empty($submittedDocumentTypeIds)) {
+            // Nothing recognizable was submitted — complete nothing rather than everything.
+            return $query->whereRaw('1 = 0');
         }
 
-        // Company-specific sign docs conditions
-        $this->applySignDocsConditions($query, $data);
-
-        return $query;
-    }
-
-    protected function applySignDocsConditions(Builder $query, array $data): void
-    {
-        $messageData = $this->message->getMessage();
-        $isSignDocs = $messageData['verb'] === 'esign-docs';
-
-        if (! $isSignDocs) {
-            return;
-        }
-
-        // Now using filename-based matching for all companies in handleSignDocsFiles()
-        // Previous company-specific behavior commented out:
-        // $filename = $data['documentForms'][0]['filename'] ?? null;
-        // $companyId = $this->lead->company->getId();
-        //
-        // $conditionsMap = [
-        //     'privacy-disclosure.pdf' => [
-        //         8412 => 678837,
-        //         8485 => 895776,
-        //     ],
-        //     'insurance-information.pdf' => [
-        //         8485 => 895775,
-        //     ],
-        //     'working-disclosure-form.pdf' => [
-        //         8412 => 678838,
-        //     ],
-        // ];
-        //
-        // if ($filename && isset($conditionsMap[$filename][$companyId])) {
-        //     $configId = $conditionsMap[$filename][$companyId];
-        //     $query->whereJsonContains('config->id', $configId);
-        // }
+        return $query->where(function (Builder $documentTypeQuery) use ($submittedDocumentTypeIds): void {
+            foreach ($submittedDocumentTypeIds as $documentTypeId) {
+                $documentTypeQuery->orWhereJsonContains('config->id', $documentTypeId);
+            }
+        });
     }
 
     protected function handleSignDocsFiles(array $messageData): array

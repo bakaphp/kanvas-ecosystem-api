@@ -13,7 +13,7 @@ use Kanvas\Connectors\OpenClaw\Actions\ListAgentsAction;
 use Kanvas\Connectors\OpenClaw\Actions\RemoveAgentAction;
 use Kanvas\Connectors\OpenClaw\Actions\UpdateAgentDeploymentAction;
 use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
-use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilder;
+use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilderService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Tests\Connectors\Traits\HasOpenClawConfiguration;
 use Tests\TestCase;
@@ -66,7 +66,7 @@ class OpenClawTest extends TestCase
     public function testWorkspaceFileBuilderSoulMd()
     {
         $agent = $this->createTestAgent();
-        $content = WorkspaceFileBuilder::buildSoulMd($agent);
+        $content = WorkspaceFileBuilderService::buildSoulMd($agent);
 
         $this->assertStringContainsString('# SOUL', $content);
         $this->assertStringContainsString('You are a helpful test assistant.', $content);
@@ -77,7 +77,7 @@ class OpenClawTest extends TestCase
     public function testWorkspaceFileBuilderAgentsMd()
     {
         $agent = $this->createTestAgent();
-        $content = WorkspaceFileBuilder::buildAgentsMd($agent);
+        $content = WorkspaceFileBuilderService::buildAgentsMd($agent);
 
         $this->assertStringContainsString('# AGENTS', $content);
         $this->assertStringContainsString('Step 1: Greet. Step 2: Help.', $content);
@@ -86,7 +86,7 @@ class OpenClawTest extends TestCase
     public function testWorkspaceFileBuilderIdentityMd()
     {
         $agent = $this->createTestAgent();
-        $content = WorkspaceFileBuilder::buildIdentityMd($agent);
+        $content = WorkspaceFileBuilderService::buildIdentityMd($agent);
 
         $this->assertStringContainsString('# IDENTITY', $content);
         $this->assertStringContainsString('**Name:** TestBot', $content);
@@ -96,7 +96,7 @@ class OpenClawTest extends TestCase
     public function testWorkspaceFileBuilderUserMd()
     {
         $agent = $this->createTestAgent();
-        $content = WorkspaceFileBuilder::buildUserMd($agent);
+        $content = WorkspaceFileBuilderService::buildUserMd($agent);
 
         $this->assertStringContainsString('# USER', $content);
         $this->assertStringContainsString('User is testing the system.', $content);
@@ -105,7 +105,7 @@ class OpenClawTest extends TestCase
     public function testWorkspaceFileBuilderToolsMd()
     {
         $agent = $this->createTestAgent();
-        $content = WorkspaceFileBuilder::buildToolsMd($agent);
+        $content = WorkspaceFileBuilderService::buildToolsMd($agent);
 
         $this->assertStringContainsString('# TOOLS', $content);
         $this->assertStringContainsString('Use search tool for lookups.', $content);
@@ -114,7 +114,7 @@ class OpenClawTest extends TestCase
     public function testWorkspaceFileBuilderBuildAll()
     {
         $agent = $this->createTestAgent();
-        $files = WorkspaceFileBuilder::buildAll($agent);
+        $files = WorkspaceFileBuilderService::buildAll($agent);
 
         $this->assertArrayHasKey('SOUL.md', $files);
         $this->assertArrayHasKey('AGENTS.md', $files);
@@ -130,7 +130,7 @@ class OpenClawTest extends TestCase
             'tools_config' => null,
         ]);
 
-        $files = WorkspaceFileBuilder::buildAll($agent);
+        $files = WorkspaceFileBuilderService::buildAll($agent);
 
         $this->assertArrayHasKey('SOUL.md', $files);
         $this->assertArrayHasKey('AGENTS.md', $files);
@@ -141,18 +141,23 @@ class OpenClawTest extends TestCase
 
     public function testWorkspaceFileBuilderFallsBackToLegacyRole()
     {
-        $agent = $this->createTestAgent([
-            'soul' => null,
-            'instructions' => null,
-            'output_format' => null,
-            'role' => [
-                'background' => 'Legacy background text',
-                'steps' => 'Legacy step instructions',
-            ],
-        ]);
+        $agent = $this->createTestAgent();
 
-        $soulMd = WorkspaceFileBuilder::buildSoulMd($agent);
-        $agentsMd = WorkspaceFileBuilder::buildAgentsMd($agent);
+        // AgentObserver's `saving` hook syncs soul/instructions/output_format down
+        // into role.background/steps/output. To exercise the legacy fallback path
+        // we need soul/instructions/output_format to be null AND role to carry the
+        // legacy values — use saveQuietly() to bypass the observer.
+        $agent->soul = null;
+        $agent->instructions = null;
+        $agent->output_format = null;
+        $agent->role = [
+            'background' => 'Legacy background text',
+            'steps' => 'Legacy step instructions',
+        ];
+        $agent->saveQuietly();
+
+        $soulMd = WorkspaceFileBuilderService::buildSoulMd($agent);
+        $agentsMd = WorkspaceFileBuilderService::buildAgentsMd($agent);
 
         $this->assertStringContainsString('Legacy background text', $soulMd);
         $this->assertStringContainsString('Legacy step instructions', $agentsMd);

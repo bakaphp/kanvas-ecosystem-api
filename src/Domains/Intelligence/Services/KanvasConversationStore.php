@@ -8,6 +8,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Laravel\Ai\Contracts\ConversationStore;
 use Laravel\Ai\Messages\AssistantMessage;
 use Laravel\Ai\Messages\Message;
@@ -16,9 +17,11 @@ use Laravel\Ai\Prompts\AgentPrompt;
 use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\Data\ToolCall;
 use Laravel\Ai\Responses\Data\ToolResult;
+use Override;
 
 class KanvasConversationStore implements ConversationStore
 {
+    #[Override]
     public function latestConversationId(string|int $userId): ?string
     {
         [$appsId, $companiesId] = $this->tenantIds();
@@ -31,8 +34,28 @@ class KanvasConversationStore implements ConversationStore
             ->first()?->id;
     }
 
+    #[Override]
     public function storeConversation(string|int|null $userId, string $title): string
     {
+        return $this->storeConversationForAgent(
+            $userId,
+            null,
+            $title
+        );
+    }
+
+    /**
+     * Agent-aware conversation insert. The interface `storeConversation` is
+     * called by Laravel AI itself and has no place to receive the Kanvas
+     * Agent id; explicit callers (the three Run*ChatAction classes via
+     * logTurn) must pass `$agentId` here so the row is filterable from the
+     * `agentConversations` query.
+     */
+    public function storeConversationForAgent(
+        string|int|null $userId,
+        ?int $agentId,
+        string $title
+    ): string {
         [$appsId, $companiesId] = $this->tenantIds();
 
         $conversationId = (string) Str::uuid7();
@@ -40,6 +63,7 @@ class KanvasConversationStore implements ConversationStore
         DB::connection('intelligence')->table('agent_conversations')->insert([
             'id' => $conversationId,
             'user_id' => $userId,
+            'agent_id' => $agentId,
             'apps_id' => $appsId,
             'companies_id' => $companiesId,
             'title' => $title,
@@ -50,8 +74,12 @@ class KanvasConversationStore implements ConversationStore
         return $conversationId;
     }
 
-    public function storeUserMessage(string $conversationId, string|int|null $userId, AgentPrompt $prompt): string
-    {
+    #[Override]
+    public function storeUserMessage(
+        string $conversationId,
+        string|int|null $userId,
+        AgentPrompt $prompt
+    ): string {
         $messageId = (string) Str::uuid7();
 
         DB::connection('intelligence')->table('agent_conversation_messages')->insert([
@@ -70,11 +98,18 @@ class KanvasConversationStore implements ConversationStore
             'updated_at' => now(),
         ]);
 
+        $this->backfillConversationAgentId($conversationId, $prompt);
+
         return $messageId;
     }
 
-    public function storeAssistantMessage(string $conversationId, string|int|null $userId, AgentPrompt $prompt, AgentResponse $response): string
-    {
+    #[Override]
+    public function storeAssistantMessage(
+        string $conversationId,
+        string|int|null $userId,
+        AgentPrompt $prompt,
+        AgentResponse $response
+    ): string {
         $messageId = (string) Str::uuid7();
 
         DB::connection('intelligence')->table('agent_conversation_messages')->insert([
@@ -93,12 +128,47 @@ class KanvasConversationStore implements ConversationStore
             'updated_at' => now(),
         ]);
 
+        $this->backfillConversationAgentId($conversationId, $prompt);
+
         return $messageId;
     }
 
     /**
-     * @return Collection<int, Message>
+     * Wire a conversation row to its Kanvas Agent the first time a message
+     * arrives. Laravel AI's `ConversationStore::storeConversation` interface
+     * doesn't take the agent — but the very next call (storeUserMessage)
+     * carries `$prompt->agent`, which on every Kanvas flow is a
+     * KanvasLaravelAgent with the Kanvas Agent model attached. We close that
+     * gap here so the `linkedToAgent` scope + `@eq` filter on the
+     * `agentConversations` query work for the middleware path too — not just
+     * the explicit logTurn callers. `whereNull('agent_id')` makes this a
+     * once-per-conversation write; later messages are no-ops at the DB level.
      */
+    protected function backfillConversationAgentId(string $conversationId, AgentPrompt $prompt): void
+    {
+        $agent = $prompt->agent;
+        if (! $agent instanceof KanvasLaravelAgent) {
+            return;
+        }
+
+        $agentId = $agent->getKanvasAgentId();
+        if ($agentId === null) {
+            return;
+        }
+
+        DB::connection('intelligence')->table('agent_conversations')
+            ->where('id', $conversationId)
+            ->whereNull('agent_id')
+            ->update([
+                'agent_id' => $agentId,
+                'updated_at' => now(),
+            ]);
+    }
+
+    /**
+     * @return Collection<int<0, max>, Message>
+     */
+    #[Override]
     public function getLatestConversationMessages(string $conversationId, int $limit): Collection
     {
         return DB::connection('intelligence')->table('agent_conversation_messages')
@@ -155,6 +225,11 @@ class KanvasConversationStore implements ConversationStore
      * conversation identified by that session UUID (or a new one is created
      * scoped to the same session). When empty, a standalone conversation is
      * created for this turn only.
+     *
+     * $agentId is the Kanvas Agent row id; pass it so the conversation row
+     * is filterable from the `agentConversations` GraphQL query by agent.
+     * Same sessionId across two different agents must NOT collide — that's
+     * what the agent_id scoping in findOrCreateConversationBySession enforces.
      */
     public function logTurn(
         int $userId,
@@ -162,31 +237,37 @@ class KanvasConversationStore implements ConversationStore
         string $agentClass,
         string $userMessage,
         string $assistantResponse,
+        ?int $agentId = null,
     ): void {
         $conversationId = $sessionId !== ''
-            ? $this->findOrCreateConversationBySession($userId, $sessionId)
-            : $this->storeConversation($userId, 'agent-chat-' . now()->timestamp);
+            ? $this->findOrCreateConversationBySession($userId, $sessionId, $agentId)
+            : $this->storeConversationForAgent($userId, $agentId, 'agent-chat-' . now()->timestamp);
 
         $this->insertMessage($conversationId, $userId, $agentClass, 'user', $userMessage);
         $this->insertMessage($conversationId, $userId, $agentClass, 'assistant', $assistantResponse);
     }
 
-    protected function findOrCreateConversationBySession(int $userId, string $sessionId): string
+    protected function findOrCreateConversationBySession(int $userId, string $sessionId, ?int $agentId = null): string
     {
         [$appsId, $companiesId] = $this->tenantIds();
 
-        $existing = DB::connection('intelligence')->table('agent_conversations')
+        $query = DB::connection('intelligence')->table('agent_conversations')
             ->where('user_id', $userId)
             ->where('apps_id', $appsId)
             ->where('companies_id', $companiesId)
-            ->where('title', $sessionId)
-            ->first();
+            ->where('title', $sessionId);
+
+        $query = $agentId !== null
+            ? $query->where('agent_id', $agentId)
+            : $query->whereNull('agent_id');
+
+        $existing = $query->first();
 
         if ($existing) {
             return $existing->id;
         }
 
-        return $this->storeConversation($userId, $sessionId);
+        return $this->storeConversationForAgent($userId, $agentId, $sessionId);
     }
 
     protected function insertMessage(

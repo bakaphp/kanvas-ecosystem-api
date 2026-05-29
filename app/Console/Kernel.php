@@ -8,20 +8,13 @@ use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
-use App\Console\Commands\NervousSystem\ArchiveOldLedgerEventsCommand;
-use App\Console\Commands\NervousSystem\DetectStalledPlanTasksCommand;
-use App\Console\Commands\NervousSystem\ExpireCapabilitiesCommand;
-use App\Console\Commands\NervousSystem\RecordAgentDailyCyclesCommand;
-use App\Console\Commands\NervousSystem\RefreshAgentLiveCountersCommand;
-use App\Console\Commands\NervousSystem\SyncModelPricingCommand;
+use App\Console\Commands\NervousSystem\Schedules\NervousSystemSchedule;
 use App\Console\Commands\Social\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
 use App\Console\Commands\Souk\CancelStalePaymentsCommand;
 use App\Console\Commands\Souk\OrderFinishExpiredCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
-use Kanvas\NervousSystem\Dashboard\Jobs\RollupDailyDashboardMetricsJob;
-use Kanvas\NervousSystem\Pulse\Jobs\RollupDailyPulseMetricsJob;
 use Override;
 use Spatie\Health\Commands\DispatchQueueCheckJobsCommand;
 use Spatie\Health\Commands\RunHealthChecksCommand;
@@ -34,43 +27,29 @@ class Kernel extends ConsoleKernel
      *
      * @return void
      */
+    // Domain-grouped schedules live in App\Console\Schedules\* — extract the
+    // next domain into its own class as soon as its entries hit 3+ here, so
+    // this method stays a thin dispatcher rather than a god-list.
     #[Override]
     protected function schedule(Schedule $schedule)
     {
+        // Platform health (Spatie).
         $schedule->command(RunHealthChecksCommand::class)->everyMinute();
         $schedule->command(DispatchQueueCheckJobsCommand::class)->everyMinute();
         #$schedule->command(ScheduleCheckHeartbeatCommand::class)->everyMinute();
+
+        // Ecosystem / Social / Souk / Connectors — small enough to inline today.
         $schedule->command(DeleteUsersRequestedCommand::class)->dailyAt('00:00');
         $schedule->command(SocialUserCounterResetCommand::class, ['13'])->dailyAt('00:00');
         $schedule->command(OrderFinishExpiredCommand::class)->everyMinute();
         $schedule->command(CheckExpiringOrdersCommand::class)->everyMinute();
         $schedule->command(ChargeLateOrdersCommand::class)->hourly();
         $schedule->command(CancelStalePaymentsCommand::class)->everyFiveMinutes();
-        $schedule->command(ArchiveOldLedgerEventsCommand::class)
-            ->dailyAt('02:00')
-            ->withoutOverlapping();
-        $schedule->command(DetectStalledPlanTasksCommand::class)
-            ->everyFiveMinutes()
-            ->withoutOverlapping();
-        $schedule->command(ExpireCapabilitiesCommand::class)
-            ->hourly()
-            ->withoutOverlapping();
-        $schedule->job(new RollupDailyDashboardMetricsJob())
-            ->dailyAt('00:30')
-            ->withoutOverlapping();
-        $schedule->job(new RollupDailyPulseMetricsJob())
-            ->dailyAt('00:35')
-            ->withoutOverlapping();
-        $schedule->command(RecordAgentDailyCyclesCommand::class)
-            ->dailyAt('06:04')
-            ->withoutOverlapping();
-        $schedule->command(RefreshAgentLiveCountersCommand::class)
-            ->hourly()
-            ->withoutOverlapping();
-        $schedule->command(SyncModelPricingCommand::class)
-            ->dailyAt('02:30')
-            ->withoutOverlapping()
-            ->onOneServer();
+
+        // Nervous System — agent lifecycle, ledger maintenance, pulse + dashboard
+        // rollups, plan + capability sweeps, the daily-learning loop.
+        NervousSystemSchedule::register($schedule);
+
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()
                     ->withoutOverlapping(5)

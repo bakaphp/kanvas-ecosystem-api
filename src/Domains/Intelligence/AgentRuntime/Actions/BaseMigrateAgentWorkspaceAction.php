@@ -10,7 +10,8 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Notifications\AgentMigrationNotification;
-use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilder;
+use Kanvas\Intelligence\AgentRuntime\Services\AgentChannelIntegrationReadinessService;
+use Kanvas\Intelligence\AgentRuntime\Services\BaseDockerComposeBuilderService;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
@@ -34,13 +35,16 @@ abstract class BaseMigrateAgentWorkspaceAction
 
     abstract protected function createSshClient(AgentMachine $machine): SshClient;
 
-    abstract protected function getDockerComposeBuilder(): BaseDockerComposeBuilder;
+    abstract protected function getDockerComposeBuilder(): BaseDockerComposeBuilderService;
 
     public function execute(): AgentDeployment
     {
         $agent = $this->sourceDeployment->agent;
         $sourceClient = $this->createSshClient($this->sourceDeployment->machine);
         $providerConfig = $sourceClient::makeProviderConfig();
+
+        new AgentChannelIntegrationReadinessService()
+            ->assertReadyForDeployment($agent, $providerConfig->providerName);
 
         $timestamp = date('Ymd_His');
         $archiveName = $providerConfig->providerName . '_agents_' . $timestamp . '.tar.gz';

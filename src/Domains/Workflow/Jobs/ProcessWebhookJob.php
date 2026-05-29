@@ -8,6 +8,7 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Http\Request;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
@@ -70,6 +71,16 @@ abstract class ProcessWebhookJob implements ShouldQueue
     public function getFailedReturnHttpCode(): int
     {
         return $this->failedReturnHttpCode;
+    }
+
+    /**
+     * Connector-specific request authentication, evaluated before the webhook call's uploaded
+     * files are persisted. Override per connector that needs it; the default trusts the request
+     * — the existing behavior for every connector.
+     */
+    public static function authenticateRequest(Request $request, ReceiverWebhook $receiver): bool
+    {
+        return true;
     }
 
     abstract public function execute(): array;

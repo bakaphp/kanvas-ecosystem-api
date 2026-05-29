@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\AccessControl;
 
+use Baka\Traits\KanvasJobsTrait;
 use Bouncer;
 use Illuminate\Console\Command;
 use Kanvas\AccessControlList\Enums\RolesEnums;
@@ -15,6 +16,8 @@ use function Laravel\Prompts\warning;
 
 class GrantOwnerAllPermissionsCommand extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -48,9 +51,14 @@ class GrantOwnerAllPermissionsCommand extends Command
             $apps = Apps::where('id', $appId)->get();
         }
 
+        /** @var Apps $app */
         foreach ($apps as $app) {
+            // Rebind container Apps + Bouncer scope per iteration; without
+            // this the previous app's scope leaks into Bouncer::allow() and
+            // permissions land under the wrong tenant.
+            $this->overwriteAppService($app);
+
             $scope = RolesEnums::getScope($app);
-            Bouncer::scope()->to($scope);
 
             $ownerRole = Role::where('name', 'Owner')
                 ->where('scope', $scope)

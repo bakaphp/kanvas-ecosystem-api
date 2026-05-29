@@ -12,6 +12,9 @@ use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\ModuleEnum;
+use Kanvas\Event\Events\Models\Event;
+use Kanvas\Event\Events\Models\EventType;
+use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -54,6 +57,7 @@ class ModulesRepositories
             ModuleEnum::ACTION_ENGINE,
             ModuleEnum::AI,
             ModuleEnum::COMMERCE,
+            ModuleEnum::EVENT,
         ];
 
         $permissions = [];
@@ -122,6 +126,11 @@ class ModulesRepositories
             ],
             ModuleEnum::COMMERCE->value => [
                 Order::class => $crud,
+            ],
+            ModuleEnum::EVENT->value => [
+                Event::class => $crud,
+                EventVersion::class => $crud,
+                EventType::class => $crud,
             ],
         ];
 

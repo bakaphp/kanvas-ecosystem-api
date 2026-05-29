@@ -254,7 +254,7 @@ class PullLeadAction
         array $currentLead
     ): void {
         try {
-            $vehicleOfInterest = end(Interest::getByLeadId(
+            $vehicleOfInterest = current(Interest::getByLeadId(
                 $vinCompany,
                 $user,
                 $currentLead['LeadId']
@@ -321,13 +321,15 @@ class PullLeadAction
         array $currentLead
     ): void {
         try {
-            $vehicleTradeIn = end(TradeIn::getByLeadId(
+            $items = TradeIn::getByLeadId(
                 $vinCompany,
                 $user,
                 $currentLead['LeadId']
-            )->items);
+            )->items;
 
-            if (is_array($vehicleTradeIn) && count($vehicleTradeIn)) {
+            $vehicleTradeIn = $this->findLatestNonEmptyTradeIn($items);
+
+            if ($vehicleTradeIn !== null) {
                 $lead->set(LeadCustomFieldEnum::TRADE_IN->value, $vehicleTradeIn);
             }
         } catch (Throwable $e) {
@@ -341,5 +343,41 @@ class PullLeadAction
                 report($e);
             }
         }
+    }
+
+    private function findLatestNonEmptyTradeIn(array $items): ?array
+    {
+        for ($i = count($items) - 1; $i >= 0; $i--) {
+            $candidate = $items[$i];
+
+            if (! is_array($candidate) || empty($candidate)) {
+                continue;
+            }
+
+            if ($this->isTradeInPopulated($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function isTradeInPopulated(array $tradeIn): bool
+    {
+        if (! empty($tradeIn['vin'])) {
+            return true;
+        }
+
+        if (isset($tradeIn['year']) && (int) $tradeIn['year'] > 0) {
+            return true;
+        }
+
+        foreach (['make', 'model', 'trim'] as $field) {
+            if (! empty($tradeIn[$field])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
