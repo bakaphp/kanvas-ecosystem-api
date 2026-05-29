@@ -172,7 +172,7 @@ class AgentManagementMutation
             /** @var Tool $tool */
             $tool = Tool::query()
                 ->where('id', (int) $toolId)
-                ->fromApp($app)
+                ->fromAppOrGlobal($app)
                 ->firstOrFail();
             $tools[] = $tool;
         }
