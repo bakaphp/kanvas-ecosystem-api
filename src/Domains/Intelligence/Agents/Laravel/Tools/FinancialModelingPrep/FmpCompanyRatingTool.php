@@ -6,7 +6,9 @@ namespace Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Kanvas\Connectors\FinancialModelingPrep\Client;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Laravel\Ai\Tools\Request;
@@ -14,18 +16,21 @@ use Override;
 use Stringable;
 use Throwable;
 
+#[AgentTool(name: 'FMP Company Rating')]
 class FmpCompanyRatingTool implements KanvasToolInterface
 {
     use HasKanvasContext;
 
     public function name(): string
     {
-        return 'fmp_company_rating';
+        return Str::slug(AgentTool::fromClass($this)?->name ?? class_basename($this), '_');
     }
 
     public function instructions(): string
     {
-        return 'Use `fmp_company_rating` to fetch an overall financial health score and component scores (DCF, ROE, ROA, debt-to-equity, PE, price-to-book) for a public company. Requires a ticker symbol.';
+        $name = AgentTool::fromClass($this)?->name ?? $this->name();
+
+        return "Use `{$name}` to fetch an overall financial health score and component scores (DCF, ROE, ROA, debt-to-equity, PE, price-to-book) for a public company. Requires a ticker symbol.";
     }
 
     #[Override]

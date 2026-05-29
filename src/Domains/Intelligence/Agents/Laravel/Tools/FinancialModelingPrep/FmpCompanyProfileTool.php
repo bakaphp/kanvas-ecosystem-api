@@ -6,7 +6,9 @@ namespace Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Kanvas\Connectors\FinancialModelingPrep\Client;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Laravel\Ai\Tools\Request;
@@ -14,18 +16,21 @@ use Override;
 use Stringable;
 use Throwable;
 
+#[AgentTool(name: 'FMP Company Profile')]
 class FmpCompanyProfileTool implements KanvasToolInterface
 {
     use HasKanvasContext;
 
     public function name(): string
     {
-        return 'fmp_company_profile';
+        return Str::slug(AgentTool::fromClass($this)?->name ?? class_basename($this), '_');
     }
 
     public function instructions(): string
     {
-        return 'Use `fmp_company_profile` to fetch sector, industry, market cap, beta, and business description for a public company. Requires a ticker symbol — call `fmp_company_search` first if you only have the company name.';
+        $name = AgentTool::fromClass($this)?->name ?? $this->name();
+
+        return "Use `{$name}` to fetch sector, industry, market cap, beta, and business description for a public company. Requires a ticker symbol — call `FMP Company Search` first if you only have the company name.";
     }
 
     #[Override]

@@ -6,7 +6,9 @@ namespace Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Kanvas\Connectors\FinancialModelingPrep\Client;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Laravel\Ai\Tools\Request;
@@ -14,18 +16,21 @@ use Override;
 use Stringable;
 use Throwable;
 
+#[AgentTool(name: 'FMP Company Search')]
 class FmpCompanySearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;
 
     public function name(): string
     {
-        return 'fmp_company_search';
+        return Str::slug(AgentTool::fromClass($this)?->name ?? class_basename($this), '_');
     }
 
     public function instructions(): string
     {
-        return 'Use `fmp_company_search` to resolve a company name to its stock ticker symbol. Call this first whenever a company name appears in the text and you need its ticker before calling any other FMP tool.';
+        $name = AgentTool::fromClass($this)?->name ?? $this->name();
+
+        return "Use `{$name}` to resolve a company name to its stock ticker symbol. Call this first whenever a company name appears in the text and you need its ticker before calling any other FMP tool.";
     }
 
     #[Override]
