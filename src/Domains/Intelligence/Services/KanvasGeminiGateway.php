@@ -59,7 +59,7 @@ class KanvasGeminiGateway extends GeminiGateway
     {
         $hasServerSideTools = collect($tools)->some(fn ($t) => $t instanceof ProviderTool);
 
-        if ($hasServerSideTools && isset($body['tool_config'])) {
+        if ($hasServerSideTools) {
             $body['tool_config']['include_server_side_tool_invocations'] = true;
         }
     }
