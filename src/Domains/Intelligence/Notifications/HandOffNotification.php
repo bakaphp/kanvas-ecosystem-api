@@ -10,7 +10,7 @@ use Kanvas\Templates\Enums\EmailTemplateEnum as EnumsEmailTemplateEnum;
 
 class HandOffNotification extends Notification
 {
-    public array $channels = ['mail', 'push', 'expo', 'sms'];
+    public array $channels = ['mail', 'push', 'expo', 'sms', 'database'];
 
     public function __construct(
         Lead $lead,

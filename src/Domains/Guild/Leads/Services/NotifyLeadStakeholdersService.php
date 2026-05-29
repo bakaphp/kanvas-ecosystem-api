@@ -313,10 +313,10 @@ class NotifyLeadStakeholdersService
         $onlyPush = (bool) $this->lead->company->get('ai_manager_notification_only_push');
 
         return match (true) {
-            $onlySms => ['sms'],
-            $onlyMail => ['mail'],
-            $onlyPush => ['push', 'expo'],
-            default => ['mail'],
+            $onlySms => ['sms', 'database'],
+            $onlyMail => ['mail', 'database'],
+            $onlyPush => ['push', 'expo', 'database'],
+            default => ['mail', 'database'],
         };
     }
 
