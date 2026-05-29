@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -16,6 +17,7 @@ use Override;
 use Stringable;
 use Throwable;
 
+#[AgentTool(name: 'Product Recommendation Lookup')]
 class ProductRecommendationLookupTool implements KanvasToolInterface
 {
     use HasKanvasContext;

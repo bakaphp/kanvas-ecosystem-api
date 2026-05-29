@@ -52,6 +52,13 @@
       args:
         chdir: "{{ app_dir }}"
 
+    - name: Sync workflow actions and agent tools
+      shell: |
+        docker-compose exec -T php php artisan kanvas:workflow-sync-actions
+        docker-compose exec -T php php artisan kanvas:nervous-system:sync-tools
+      args:
+        chdir: "{{ app_dir }}"
+
     - name: Clear and cache config
       shell: |
         docker-compose exec -T php php artisan config:cache
