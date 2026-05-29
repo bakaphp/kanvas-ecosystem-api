@@ -38,7 +38,10 @@ class EngagementStatusChangedEvent implements ShouldBroadcast
             $overwriteMessage = $this->message;
         }
 
-        $this->notificationTextAction = new MessageNotificationTextAction($this->engagement, $overwriteMessage);
+        $this->notificationTextAction = new MessageNotificationTextAction(
+            $this->engagement,
+            $overwriteMessage
+        );
         $this->handleStatus();
     }
 
@@ -46,7 +49,9 @@ class EngagementStatusChangedEvent implements ShouldBroadcast
     public function broadcastOn(): Channel
     {
         //return new Channel('engagement-lead-' . $this->engagement->lead->getId());
-        return new Channel('engagement-lead-status-' . $this->engagement->apps_id . '-' . $this->engagement->lead->leads_owner_id . '-' . $this->engagement->company->getId());
+        return new Channel(
+            'engagement-lead-status-' . $this->engagement->apps_id . '-' . $this->engagement->lead->leads_owner_id . '-' . $this->engagement->company->getId()
+        );
     }
 
     public function broadcastAs(): string
@@ -105,14 +110,19 @@ class EngagementStatusChangedEvent implements ShouldBroadcast
             return;
         }
 
-        $notification = new EngagementStatusChangedNotification($this->engagement, [
+        $notification = new EngagementStatusChangedNotification(
+            $this->engagement,
+            [
             'messageText' => $messageText,
             'action' => $this->action,
             'subject' => 'Opened - ' . ucfirst($this->action),
-        ]);
+        ]
+        );
 
-        new NotifyLeadStakeholdersService($this->lead, $notification)->all();
-        //(new Notify($this->lead, $notification))->all();
+        new NotifyLeadStakeholdersService(
+            $this->lead,
+            $notification
+        )->all();
     }
 
     protected function handleSubmitted(): void
@@ -123,26 +133,36 @@ class EngagementStatusChangedEvent implements ShouldBroadcast
             return;
         }
 
-        $notification = new EngagementStatusChangedNotification($this->engagement, [
-         'messageText' => $messageText,
-         'action' => $this->action,
-         'subject' => 'Submitted - ' . ucfirst($this->action),
-        ]);
+        $notification = new EngagementStatusChangedNotification(
+            $this->engagement,
+            [
+                'messageText' => $messageText,
+                'action' => $this->action,
+                'subject' => 'Submitted - ' . ucfirst($this->action),
+            ]
+        );
 
         new NotifyLeadStakeholdersService($this->lead, $notification)->all();
         $notificationImport = $this->lead->app->get('notification-import-types') ?? [];
+
         if (is_array($this->message->message) && ! empty($this->message->message)) {
             $messageArray = $this->message->message;
             if (in_array($messageArray['verb'] ?? '', $notificationImport, true)) {
                 $importText = $this->lead->getFullName() . ' ' . ($messageArray['text'] ?? '') . ' is ready to be imported into eLead.';
 
-                $notification = new EngagementStatusChangedNotification($this->engagement, [
-                    'messageText' => $importText,
-                    'action' => $this->action,
-                    'subject' => 'Reader to Import - ' . ucfirst($this->action),
-                ]);
+                $notification = new EngagementStatusChangedNotification(
+                    $this->engagement,
+                    [
+                        'messageText' => $importText,
+                        'action' => $this->action,
+                        'subject' => 'Reader to Import - ' . ucfirst($this->action),
+                    ]
+                );
 
-                new NotifyLeadStakeholdersService($this->lead, $notification)->all();
+                new NotifyLeadStakeholdersService(
+                    $this->lead,
+                    $notification
+                )->all();
             }
         }
     }
