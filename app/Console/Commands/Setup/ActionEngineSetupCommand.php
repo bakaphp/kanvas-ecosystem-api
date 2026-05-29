@@ -17,7 +17,7 @@ class ActionEngineSetupCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas-action-engine:setup {app_id} {user_id} {company_id} {actions}';
+    protected $signature = 'kanvas-action-engine:setup {app_id} {user_id} {company_id} {actions?} {--from-company=}';
 
     /**
      * The console command description.
@@ -31,25 +31,26 @@ class ActionEngineSetupCommand extends Command
      */
     public function handle()
     {
+        /** @var Apps $app */
         $app = Apps::getById((int) $this->argument('app_id'));
         $company = Companies::getById((int) $this->argument('company_id'));
         $user = Users::getById((int) $this->argument('user_id'));
 
-        $actions = $app->get($this->argument('actions'), []);
+        $actionsKey = $this->argument('actions');
+        $actions = is_string($actionsKey) ? $app->get($actionsKey, []) : [];
 
-        if (empty($actions)) {
-            $this->error('Actions array cannot be empty');
+        $fromCompanyId = $this->option('from-company');
+        $fromCompany = $fromCompanyId !== null
+            ? Companies::getById((int) $fromCompanyId)
+            : null;
 
-            return;
-        }
-
-        //todo: add setup class
-        (new Setup(
+        new Setup(
             $app,
             $user,
             $company,
-            $actions
-        ))->run();
+            $actions,
+            $fromCompany
+        )->run();
 
         $this->newLine();
         $this->info('Action Engine setup for Company ' . $company->name . ' completed successfully');

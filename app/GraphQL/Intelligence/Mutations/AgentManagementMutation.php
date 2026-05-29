@@ -57,6 +57,7 @@ class AgentManagementMutation
             identity: $input['identity'] ?? null,
             userContext: $input['user_context'] ?? null,
             toolsConfig: $input['tools_config'] ?? null,
+            tools: isset($input['tool_ids']) ? $this->resolveTools($input['tool_ids'], $app) : null,
             parentAgent: $parentAgent,
             createdBy: auth()->user(),
         );
@@ -65,10 +66,6 @@ class AgentManagementMutation
 
         if (! empty($input['swarm_ids'])) {
             $this->syncSwarms($agent, $input['swarm_ids'], $company, $app);
-        }
-
-        if (isset($input['tool_ids'])) {
-            $this->syncTools($agent, $input['tool_ids'], $app);
         }
 
         return $agent;
@@ -165,19 +162,35 @@ class AgentManagementMutation
 
     /**
      * @param array<int, string> $toolIds
+     *
+     * @return array<int, Tool>
+     */
+    private function resolveTools(array $toolIds, AppInterface $app): array
+    {
+        $tools = [];
+        foreach ($toolIds as $toolId) {
+            /** @var Tool $tool */
+            $tool = Tool::query()
+                ->where('id', (int) $toolId)
+                ->fromAppOrGlobal($app)
+                ->firstOrFail();
+            $tools[] = $tool;
+        }
+
+        return $tools;
+    }
+
+    /**
+     * @param array<int, string> $toolIds
      */
     private function syncTools(Agent $agent, array $toolIds, AppInterface $app): void
     {
-        $ids = [];
-        foreach ($toolIds as $toolId) {
-            $tool = Tool::query()
-                ->where('id', (int) $toolId)
-                ->fromApp($app)
-                ->firstOrFail();
-            $ids[] = $tool->getId();
-        }
-
-        $agent->selectedTools()->sync($ids);
+        $agent->selectedTools()->sync(
+            array_map(
+                fn (Tool $tool): int => $tool->getId(),
+                $this->resolveTools($toolIds, $app)
+            )
+        );
     }
 
     /**
