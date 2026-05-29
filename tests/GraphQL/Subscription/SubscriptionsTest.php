@@ -348,8 +348,6 @@ final class SubscriptionsTest extends TestCase
         'X-Kanvas-Location' => $user->getCurrentBranch()->uuid,
     ]);
 
-        $id = $response->json('data.createSubscription.id');
-
         $subscription = $this->company->getStripeAccount($this->appModel)
             ->subscriptions()->where('type', 'default')->first();
 
