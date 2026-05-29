@@ -206,4 +206,57 @@ final class BulkRechargeTagsActivityTest extends TestCase
         $this->assertTrue(($result['skipped'] ?? false));
         $this->assertSame('already processed', $result['reason'] ?? null);
     }
+
+    public function testActivityCancelsOrderAndZeroesTotalWhenAllItemsFailAndReverse(): void
+    {
+        [$tag1, $tag2] = $this->createTagVariants(2);
+        $order = $this->createBulkRechargeOrder([
+            ['variant' => $tag1, 'tag_number' => '941001', 'amount' => 500.00],
+            ['variant' => $tag2, 'tag_number' => '941002', 'amount' => 1000.00],
+        ]);
+
+        $this->makeActivity()->execute($order, $this->kanvasApp, []);
+
+        $order->refresh();
+
+        $this->assertSame(0.0, (float) $order->total_gross_amount);
+        $this->assertSame('canceled', $order->status);
+        $this->assertSame('refunded', $order->payment_status);
+        $this->assertSame('canceled', $order->fulfillment_status);
+        $this->assertSame(0, $order->items()->where('is_deleted', 0)->count());
+    }
+
+    public function testActivityPreservesOriginalTotalAndAdjustmentReasonInMetadata(): void
+    {
+        [$tag1] = $this->createTagVariants(1);
+        $order = $this->createBulkRechargeOrder([
+            ['variant' => $tag1, 'tag_number' => '941001', 'amount' => 750.00],
+        ]);
+
+        $this->makeActivity()->execute($order, $this->kanvasApp, []);
+
+        $order->refresh();
+
+        $this->assertSame(750.0, (float) ($order->metadata['data']['original_total_gross_amount'] ?? null));
+        $this->assertSame('bulk_recharge_partial_failure', $order->metadata['data']['adjusted_reason'] ?? null);
+        $this->assertArrayHasKey('adjusted_at', $order->metadata['data'] ?? []);
+    }
+
+    public function testActivityMarksReversedFlagOnFailedItems(): void
+    {
+        [$tag1] = $this->createTagVariants(1);
+        $order = $this->createBulkRechargeOrder([
+            ['variant' => $tag1, 'tag_number' => '941001', 'amount' => 500.00],
+        ]);
+
+        $this->makeActivity()->execute($order, $this->kanvasApp, []);
+
+        $order->refresh();
+
+        $entry = $order->metadata['corporate_recharge_results']['941001'] ?? null;
+
+        $this->assertNotNull($entry);
+        $this->assertSame('failed', $entry['status']);
+        $this->assertTrue($entry['reversed'] ?? false);
+    }
 }
