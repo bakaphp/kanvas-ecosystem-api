@@ -64,12 +64,6 @@ class ToolCategory extends BaseModel
         return $query->where('is_active', 1)->where('is_deleted', 0);
     }
 
-    /**
-     * Restrict to categories that contain at least one active tool matching the
-     * given framework (in the current app or the global apps_id=0 lane). No-op
-     * when the framework is null/empty so the scope is safe to drive from a
-     * nullable GraphQL `@scope` argument.
-     */
     public function scopeForFramework(Builder $query, ?string $framework): Builder
     {
         if ($framework === null || $framework === '') {

@@ -171,7 +171,6 @@ extend type Query @guard {
         )
 
     nervousSystemTools(
-        "Filter by the agent type's framework (read from `agent_type.provider`). Use this when you already have the agent_type_id and don't want to look up the framework manually. Explicit `framework` overrides this."
         agent_type_id: ID
         framework: String
         where: _

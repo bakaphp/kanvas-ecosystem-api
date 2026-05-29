@@ -33,11 +33,6 @@ class ToolsBuilder
         return $query;
     }
 
-    /**
-     * Explicit `framework` wins. Otherwise derive it from the agent type's
-     * `provider` so the frontend can just pass `agent_type_id` without
-     * knowing about the framework concept.
-     */
     private function resolveFramework(array $args, Apps $app): ?string
     {
         if (isset($args['framework']) && $args['framework'] !== '') {
