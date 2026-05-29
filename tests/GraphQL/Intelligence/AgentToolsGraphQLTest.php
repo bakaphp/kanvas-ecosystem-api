@@ -6,6 +6,7 @@ namespace Tests\GraphQL\Intelligence;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\NervousSystem\Capability\Actions\AttachToolToAgentTypeAction;
 use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
 use Kanvas\NervousSystem\Capability\DataTransferObject\Tool as ToolData;
 use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
@@ -279,6 +280,78 @@ class AgentToolsGraphQLTest extends TestCase
         $toolIds = array_column($updateResponse->json('data.updateAiAgent.selectedTools'), 'id');
         $this->assertNotContains((string) $toolA->getId(), $toolIds, 'toolA should be replaced');
         $this->assertContains((string) $toolB->getId(), $toolIds);
+    }
+
+    public function testNervousSystemToolsListIncludesGlobalTool(): void
+    {
+        $globalTool = $this->makeTool();
+        $globalTool->apps_id = 0;
+        $globalTool->saveOrFail();
+
+        $response = $this->graphQL('
+            query($where: QueryNervousSystemToolsWhereWhereConditions) {
+                nervousSystemTools(where: $where) {
+                    data {
+                        id
+                    }
+                }
+            }
+        ', [
+            'where' => ['column' => 'ID', 'operator' => 'EQ', 'value' => $globalTool->getId()],
+        ]);
+
+        $response->assertSuccessful();
+        $ids = array_column($response->json('data.nervousSystemTools.data'), 'id');
+        $this->assertContains(
+            (string) $globalTool->getId(),
+            $ids,
+            'Global (apps_id=0) tools must appear in nervousSystemTools',
+        );
+    }
+
+    public function testAgentToolsIncludesGlobalTypeTool(): void
+    {
+        $type = $this->makeAgentType();
+        $globalTool = $this->makeTool();
+        $globalTool->apps_id = 0;
+        $globalTool->saveOrFail();
+
+        new AttachToolToAgentTypeAction($globalTool, $type)->execute();
+
+        $agentResponse = $this->graphQL('
+            mutation($input: AgentAiInput!) {
+                createAiAgent(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => [
+                'agent_type_id' => $type->getId(),
+                'name' => 'Agent Global Type Tool ' . uniqid(),
+                'description' => 'Test',
+                'config' => [],
+                'role' => 'test',
+                'is_active' => true,
+            ],
+        ])->assertSuccessful();
+
+        $agentId = $agentResponse->json('data.createAiAgent.id');
+
+        $response = $this->graphQL('
+            query($agent_id: ID!) {
+                nervousSystemAgentTools(agent_id: $agent_id) {
+                    id
+                }
+            }
+        ', ['agent_id' => $agentId]);
+
+        $response->assertSuccessful();
+        $ids = array_column($response->json('data.nervousSystemAgentTools'), 'id');
+        $this->assertContains(
+            (string) $globalTool->getId(),
+            $ids,
+            'A global tool attached to the agent type must appear in nervousSystemAgentTools',
+        );
     }
 
     public function testAgentToolsQueryIncludesAgentTypesField(): void

@@ -44,7 +44,7 @@ class CreateAgentAction
             $agent->communicationChannels()->sync($this->agent->communicationChannel);
         }
 
-        if ($this->agent->tools !== null) {
+        if ($this->agent->tools !== null && $this->agent->tools !== []) {
             $agent->selectedTools()->sync(
                 array_map(fn (Tool $tool): int => $tool->getId(), $this->agent->tools)
             );
