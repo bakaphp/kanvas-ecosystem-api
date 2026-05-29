@@ -1892,4 +1892,144 @@ class MessageTest extends TestCase
         $app->set('filesystem-message-max-filesize', null);
         $app->set('filesystem-message-constrain-verbs', null);
     }
+
+    private function makeChatMessageWithChannel(array $messagePayload): Message
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $messageType = MessageType::factory()->create();
+
+        $message = Message::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withMessageType($messageType)
+            ->create(['message' => $messagePayload]);
+
+        Channel::firstOrCreate(
+            [
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+                'slug' => 'is-unread-test-' . $message->getId(),
+            ],
+            [
+                'name' => 'Unread test channel',
+                'description' => 'Channel for is_unread coverage',
+                'users_id' => $user->getId(),
+                'last_message_id' => $message->getId(),
+            ],
+        );
+
+        return $message->fresh();
+    }
+
+    public function testIsUnreadTrueWhenIncomingAndLastInChannel(): void
+    {
+        $message = $this->makeChatMessageWithChannel([
+            'content' => 'hola, info por favor',
+            'from_me' => false,
+            'from_ia' => false,
+        ]);
+
+        $this->assertTrue($message->getIsUnread());
+    }
+
+    public function testIsUnreadFalseWhenFromMe(): void
+    {
+        $message = $this->makeChatMessageWithChannel([
+            'content' => 'reply from agent',
+            'from_me' => true,
+            'from_ia' => false,
+        ]);
+
+        $this->assertFalse($message->getIsUnread());
+    }
+
+    public function testIsUnreadFalseWhenFromIa(): void
+    {
+        $message = $this->makeChatMessageWithChannel([
+            'content' => 'AI generated reply',
+            'from_me' => false,
+            'from_ia' => true,
+        ]);
+
+        $this->assertFalse($message->getIsUnread());
+    }
+
+    public function testIsUnreadFalseWhenFlagsMissing(): void
+    {
+        // Feed-style post without chat flags should never be considered unread.
+        $message = $this->makeChatMessageWithChannel([
+            'message' => 'plain feed post',
+            'params' => [],
+        ]);
+
+        $this->assertFalse($message->getIsUnread());
+    }
+
+    public function testIsUnreadFalseWhenNotChannelsLastMessage(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $messageType = MessageType::factory()->create();
+
+        $olderMessage = Message::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withMessageType($messageType)
+            ->create(['message' => ['content' => 'old incoming', 'from_me' => false, 'from_ia' => false]]);
+
+        $newerMessage = Message::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withMessageType($messageType)
+            ->create(['message' => ['content' => 'newer incoming', 'from_me' => false, 'from_ia' => false]]);
+
+        Channel::firstOrCreate(
+            [
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+                'slug' => 'is-unread-test-not-last-' . $olderMessage->getId(),
+            ],
+            [
+                'name' => 'Unread test channel — older not last',
+                'description' => 'Channel where older incoming is no longer the last message',
+                'users_id' => $user->getId(),
+                'last_message_id' => $newerMessage->getId(),
+            ],
+        );
+
+        $this->assertFalse($olderMessage->fresh()->getIsUnread());
+        $this->assertTrue($newerMessage->fresh()->getIsUnread());
+    }
+
+    public function testIsUnreadExposedThroughGraphQL(): void
+    {
+        $message = $this->makeChatMessageWithChannel([
+            'content' => 'graphql is_unread check',
+            'from_me' => false,
+            'from_ia' => false,
+        ]);
+
+        $this->graphQL('
+            query($id: Mixed!) {
+                messages(where: { column: ID, operator: EQ, value: $id }, first: 1) {
+                    data { id is_unread }
+                }
+            }
+        ', ['id' => $message->getId()])
+            ->assertSuccessful()
+            ->assertJson([
+                'data' => [
+                    'messages' => [
+                        'data' => [
+                            ['id' => (string) $message->getId(), 'is_unread' => true],
+                        ],
+                    ],
+                ],
+            ]);
+    }
 }

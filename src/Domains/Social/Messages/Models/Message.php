@@ -252,6 +252,29 @@ class Message extends BaseModel
         ];
     }
 
+    /**
+     * Unread = chat message from an external party (not me, not AI) that is currently
+     * the latest message in any of its channels. The flags from_me / from_ia must be
+     * present in the JSON payload — feed posts that lack them never count as unread.
+     */
+    public function getIsUnread(): bool
+    {
+        $payload = $this->message;
+
+        if (! is_array($payload)
+            || ! array_key_exists('from_me', $payload)
+            || ! array_key_exists('from_ia', $payload)
+        ) {
+            return false;
+        }
+
+        if ((bool) $payload['from_me'] || (bool) $payload['from_ia']) {
+            return false;
+        }
+
+        return Channel::where('last_message_id', $this->id)->exists();
+    }
+
     public function searchableAs(): string
     {
         //$message = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
