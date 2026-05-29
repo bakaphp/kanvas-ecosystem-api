@@ -28,6 +28,7 @@ use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Tools\LeadIntentTool;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Users\Models\Users;
 use RuntimeException;
 use Throwable;
@@ -138,6 +139,14 @@ class CreateContentSessionAction
         $timezone = $lead->company->get('timezone') ?? 'UTC';
         $lastMessageTime = $lastMessage !== null ? Carbon::parse($lastMessage->created_at, $timezone)->toDateTimeString() : null;
 
+        $activeChannel = $lead->socialChannels()
+            ->pluck('slug')
+            ->map(fn (string $slug): string => ChannelCategoryEnum::getLeadChannelName($slug))
+            ->reject(fn (string $name): bool => $name === 'notes')
+            ->unique()
+            ->values()
+            ->all();
+
         return array_merge(
             [
                 'lead_id' => $lead->id,
@@ -161,6 +170,7 @@ class CreateContentSessionAction
                 'work_hours' => $lead->company->get('work_hours'),
                 'working_holiday_days' => $lead->company->get('working_holiday_days'),
                 'notes_channel_slug' => $lead->notes?->slug,
+                'active_channel' => $activeChannel,
             ],
             $this->mapPeople($lead->people, $lead),
             $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []
