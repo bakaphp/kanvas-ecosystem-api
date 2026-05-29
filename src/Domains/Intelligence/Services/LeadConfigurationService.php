@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Services;
 
-use Kanvas\Apps\Models\Apps;
+use Baka\Contracts\CompanyInterface;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
@@ -16,9 +16,9 @@ class LeadConfigurationService
     ) {
     }
 
-    public function isV2Enabled(Apps $app): bool
+    public function isV2Enabled(CompanyInterface $company): bool
     {
-        if ((bool) $app->get('intelligence_lead_type_mode_v2')) {
+        if ((bool) $company->get('intelligence_lead_type_mode_v2')) {
             return true;
         }
 
@@ -57,7 +57,7 @@ class LeadConfigurationService
 
     public function getAiModeKey(Lead $lead): string
     {
-        if (! $this->isV2Enabled($lead->app)) {
+        if (! $this->isV2Enabled($lead->company)) {
             return 'ai_mode';
         }
 
@@ -72,7 +72,7 @@ class LeadConfigurationService
 
     public function getFollowUpModeKey(Lead $lead): string
     {
-        if (! $this->isV2Enabled($lead->app)) {
+        if (! $this->isV2Enabled($lead->company)) {
             return IntelligenceModeEnum::AI_FOLLOW_UP->value;
         }
 
