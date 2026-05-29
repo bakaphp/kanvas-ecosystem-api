@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Attributes;
 
 use Attribute;
+use ReflectionAttribute;
+use ReflectionClass;
 
 /**
  * Marks an agent tool (Laravel or Neuron) for sync into the `nervous_system_tools`
@@ -28,5 +30,17 @@ final class AgentTool
         public readonly string $version = '1.0.0',
         public readonly ?array $requiresPermission = null,
     ) {
+    }
+
+    /**
+     * Read the attribute off a tool class or instance, or null if it carries none.
+     *
+     * @param class-string|object $tool
+     */
+    public static function fromClass(string|object $tool): ?self
+    {
+        $attributes = new ReflectionClass($tool)->getAttributes(self::class, ReflectionAttribute::IS_INSTANCEOF);
+
+        return $attributes === [] ? null : $attributes[0]->newInstance();
     }
 }
