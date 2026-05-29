@@ -107,7 +107,10 @@ class ProvisionDefaultAgentRuntimeActivity extends KanvasActivity implements Wor
 
                 $agentIds[] = $agent->getId();
 
-                $isReady = $readiness->isReady($agent);
+                $isReady = $readiness->isReady(
+                    $agent,
+                    $provider->name()->value
+                );
 
                 // Every provisioned agent gets the default Web Chat + Gemini
                 // config with runtime enabled so it can be deployed; the

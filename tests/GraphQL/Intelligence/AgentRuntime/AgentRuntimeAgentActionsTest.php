@@ -202,7 +202,7 @@ class AgentRuntimeAgentActionsTest extends TestCase
         $this->assertStringNotContainsString('## Team Structure', $agent->user_context);
     }
 
-    public function testHermesDeploymentRequiresSlackOrTelegramIntegration(): void
+    public function testOpenClawDeploymentRequiresSlackOrTelegramIntegration(): void
     {
         Queue::fake();
         Notification::fake();
@@ -213,15 +213,33 @@ class AgentRuntimeAgentActionsTest extends TestCase
         $machine = $this->createAgentMachine();
 
         try {
-            new DispatchHermesAgentDeploymentAction($agent, $machine, $app, $company)->execute();
+            new DispatchOpenClawAgentDeploymentAction($agent, $machine, $app, $company)->execute();
             $this->fail('Expected deployment to be blocked without Slack or Telegram credentials.');
         } catch (ValidationException $e) {
             $this->assertStringContainsString('Slack integration or Telegram integration', $e->getMessage());
         }
 
         $this->assertSame(0, AgentDeployment::where('agent_id', $agent->getId())->count());
-        Queue::assertNotPushed(HermesLaunchAgentJob::class);
+        Queue::assertNotPushed(OpenClawLaunchAgentJob::class);
         Notification::assertSentTo($agent->user, AgentDeploymentMissingChannelIntegrationNotification::class);
+    }
+
+    public function testHermesDeploymentLaunchesWithoutChannelIntegration(): void
+    {
+        Queue::fake();
+        Notification::fake();
+
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $agent = $this->createAgent();
+        $machine = $this->createAgentMachine();
+
+        $deployment = new DispatchHermesAgentDeploymentAction($agent, $machine, $app, $company)->execute();
+
+        $this->assertSame('provisioning', $deployment->status);
+        $this->assertSame(AgentProviderEnum::HERMES->value, $deployment->provider);
+        Queue::assertPushed(HermesLaunchAgentJob::class);
+        Notification::assertNothingSent();
     }
 
     public function testHermesDeploymentLaunchesWithSlackIntegration(): void
