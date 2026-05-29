@@ -11,6 +11,7 @@ use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
 use Kanvas\NervousSystem\Capability\DataTransferObject\Tool as ToolData;
 use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
+use Kanvas\NervousSystem\Capability\Models\ToolCategory;
 use Tests\TestCase;
 
 class AgentToolsGraphQLTest extends TestCase
@@ -352,6 +353,158 @@ class AgentToolsGraphQLTest extends TestCase
             $ids,
             'A global tool attached to the agent type must appear in nervousSystemAgentTools',
         );
+    }
+
+    public function testToolCategoriesFiltersByFramework(): void
+    {
+        $laravelCategory = $this->makeCategory();
+        $neuronCategory = $this->makeCategory();
+
+        $laravelTool = $this->makeTool(['laravel']);
+        $laravelTool->tool_category_id = $laravelCategory->getId();
+        $laravelTool->saveOrFail();
+
+        $neuronTool = $this->makeTool(['neuron']);
+        $neuronTool->tool_category_id = $neuronCategory->getId();
+        $neuronTool->saveOrFail();
+
+        $query = '
+            query($framework: String, $where: QueryNervousSystemToolCategoriesWhereWhereConditions) {
+                nervousSystemToolCategories(framework: $framework, where: $where) {
+                    data { id }
+                }
+            }
+        ';
+
+        $hit = $this->graphQL($query, [
+            'framework' => 'laravel',
+            'where' => ['column' => 'ID', 'operator' => 'EQ', 'value' => $laravelCategory->getId()],
+        ])->assertSuccessful();
+
+        $this->assertSame(
+            [(string) $laravelCategory->getId()],
+            array_column($hit->json('data.nervousSystemToolCategories.data'), 'id'),
+            'Category whose tools include the framework must appear',
+        );
+
+        $miss = $this->graphQL($query, [
+            'framework' => 'laravel',
+            'where' => ['column' => 'ID', 'operator' => 'EQ', 'value' => $neuronCategory->getId()],
+        ])->assertSuccessful();
+
+        $this->assertSame(
+            [],
+            array_column($miss->json('data.nervousSystemToolCategories.data'), 'id'),
+            'Category with only non-matching tools must be filtered out',
+        );
+    }
+
+    public function testToolCategoriesFiltersByAgentTypeId(): void
+    {
+        $type = $this->makeAgentType();
+        $type->provider = 'laravel';
+        $type->saveOrFail();
+
+        $laravelCategory = $this->makeCategory();
+        $neuronCategory = $this->makeCategory();
+
+        $laravelTool = $this->makeTool(['laravel']);
+        $laravelTool->tool_category_id = $laravelCategory->getId();
+        $laravelTool->saveOrFail();
+
+        $neuronTool = $this->makeTool(['neuron']);
+        $neuronTool->tool_category_id = $neuronCategory->getId();
+        $neuronTool->saveOrFail();
+
+        $query = '
+            query($agent_type_id: ID, $where: QueryNervousSystemToolCategoriesWhereWhereConditions) {
+                nervousSystemToolCategories(agent_type_id: $agent_type_id, where: $where) {
+                    data { id }
+                }
+            }
+        ';
+
+        $hit = $this->graphQL($query, [
+            'agent_type_id' => $type->getId(),
+            'where' => ['column' => 'ID', 'operator' => 'EQ', 'value' => $laravelCategory->getId()],
+        ])->assertSuccessful();
+
+        $this->assertSame(
+            [(string) $laravelCategory->getId()],
+            array_column($hit->json('data.nervousSystemToolCategories.data'), 'id'),
+            'Category with a laravel tool must appear when agent_type.provider=laravel',
+        );
+
+        $miss = $this->graphQL($query, [
+            'agent_type_id' => $type->getId(),
+            'where' => ['column' => 'ID', 'operator' => 'EQ', 'value' => $neuronCategory->getId()],
+        ])->assertSuccessful();
+
+        $this->assertSame(
+            [],
+            array_column($miss->json('data.nervousSystemToolCategories.data'), 'id'),
+            'Category with only neuron tools must NOT appear for a laravel agent type',
+        );
+    }
+
+    public function testNervousSystemToolsFiltersByAgentTypeId(): void
+    {
+        $type = $this->makeAgentType();
+        $type->provider = 'laravel';
+        $type->saveOrFail();
+
+        $laravelTool = $this->makeTool(['laravel']);
+        $laravelTool->apps_id = 0;
+        $laravelTool->saveOrFail();
+
+        $neuronTool = $this->makeTool(['neuron']);
+        $neuronTool->apps_id = 0;
+        $neuronTool->saveOrFail();
+
+        $query = '
+            query($agent_type_id: ID, $where: QueryNervousSystemToolsWhereWhereConditions) {
+                nervousSystemTools(agent_type_id: $agent_type_id, where: $where) {
+                    data { id }
+                }
+            }
+        ';
+
+        $hit = $this->graphQL($query, [
+            'agent_type_id' => $type->getId(),
+            'where' => ['column' => 'ID', 'operator' => 'EQ', 'value' => $laravelTool->getId()],
+        ])->assertSuccessful();
+
+        $this->assertSame(
+            [(string) $laravelTool->getId()],
+            array_column($hit->json('data.nervousSystemTools.data'), 'id'),
+            'Tool matching the agent type framework must appear',
+        );
+
+        $miss = $this->graphQL($query, [
+            'agent_type_id' => $type->getId(),
+            'where' => ['column' => 'ID', 'operator' => 'EQ', 'value' => $neuronTool->getId()],
+        ])->assertSuccessful();
+
+        $this->assertSame(
+            [],
+            array_column($miss->json('data.nervousSystemTools.data'), 'id'),
+            'Tool from a different framework than the agent type must NOT appear',
+        );
+    }
+
+    private function makeCategory(): ToolCategory
+    {
+        $cat = new ToolCategory();
+        $cat->slug = 'fw-test-' . uniqid();
+        $cat->name = 'Test Category ' . uniqid();
+        $cat->description = '';
+        $cat->icon = 'tag';
+        $cat->display_order = 999;
+        $cat->is_active = true;
+        $cat->is_deleted = false;
+        $cat->saveOrFail();
+
+        return $cat;
     }
 
     public function testAgentToolsQueryIncludesAgentTypesField(): void

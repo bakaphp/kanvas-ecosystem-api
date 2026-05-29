@@ -171,6 +171,8 @@ extend type Query @guard {
         )
 
     nervousSystemTools(
+        "Filter by the agent type's framework (read from `agent_type.provider`). Use this when you already have the agent_type_id and don't want to look up the framework manually. Explicit `framework` overrides this."
+        agent_type_id: ID
         framework: String
         where: _
             @whereConditions(
@@ -218,20 +220,14 @@ extend type Query @guard {
             resolver: "App\\GraphQL\\NervousSystem\\Queries\\CapabilityQuery@agentCapabilities"
         )
 
-    "Tool categories visible to the current app (platform-seeded apps_id=0 + this app's custom ones)."
     nervousSystemToolCategories(
-        where: _
-            @whereConditions(
-                columns: ["id", "slug", "name", "is_active"]
-            )
-        orderBy: _
-            @orderBy(
-                columns: ["id", "display_order", "name", "slug"]
-            )
+        agent_type_id: ID
+        framework: String
+        where: _ @whereConditions(columns: ["id", "slug", "name", "is_active"])
+        orderBy: _ @orderBy(columns: ["id", "display_order", "name", "slug"])
     ): [NervousSystemToolCategory!]!
         @paginate(
-            model: "Kanvas\\NervousSystem\\Capability\\Models\\ToolCategory"
-            scopes: ["fromAppOrGlobal", "active"]
+            builder: "App\\GraphQL\\Intelligence\\Builders\\NervousSystem\\ToolCategoriesBuilder@getCategories"
             defaultCount: 50
         )
 }
