@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions;
 
+use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentModel;
+use Kanvas\NervousSystem\Capability\Models\Tool;
 
 class UpdateAgentAction
 {
@@ -36,6 +38,16 @@ class UpdateAgentAction
             'parent_id' => $this->agent->parentAgent?->getId(),
         ]);
         $this->agentModel->communicationChannels()->sync($this->agent->communicationChannel);
+
+        if ($this->agentModel->is_sub_agent) {
+            Tool::query()
+                ->where('agents_id', $this->agentModel->getId())
+                ->first()
+                ?->update([
+                    'name' => Str::slug($this->agent->name),
+                    'description' => $this->agent->soul ?? $this->agent->description ?? $this->agent->name,
+                ]);
+        }
 
         return $this->agentModel;
     }

@@ -38,6 +38,14 @@ class AgentToolDiscoveryService extends AttributeClassDiscovery
     #[Override]
     protected function isCandidate(ReflectionClass $reflection): bool
     {
+        // Dynamic tools that need runtime state (e.g. DynamicSubAgent wraps an Agent
+        // record via a required constructor) aren't static catalog entries — they can't
+        // be synced, so they're not required to carry the attribute either.
+        $constructor = $reflection->getConstructor();
+        if ($constructor !== null && $constructor->getNumberOfRequiredParameters() > 0) {
+            return false;
+        }
+
         return $reflection->implementsInterface(KanvasToolInterface::class)
             || $reflection->isSubclassOf(NeuronTool::class)
             || $reflection->isSubclassOf(KanvasAgentAsTool::class);

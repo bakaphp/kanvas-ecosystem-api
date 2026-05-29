@@ -9,4 +9,5 @@ enum ToolTypeEnum: string
     case SYSTEM = 'system';
     case CUSTOM = 'custom';
     case PLUGIN = 'plugin';
+    case SUB_AGENT = 'sub_agent';
 }
