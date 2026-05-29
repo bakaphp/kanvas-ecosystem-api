@@ -12,9 +12,11 @@ use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Override;
 use Throwable;
 
+#[WorkflowAction]
 class ProcessElevenLabsProductShareWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]

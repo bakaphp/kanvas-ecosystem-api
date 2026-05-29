@@ -7,10 +7,12 @@ namespace Kanvas\Social\Messages\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class GenerateMessageTagsActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

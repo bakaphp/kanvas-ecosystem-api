@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\IPlus\Workflows\Activities;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\IPlus\Actions\SavePeopleToIPlusAction;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class SyncPeopleWithIPlusActivities extends KanvasActivity
 {
     public $tries = 3;

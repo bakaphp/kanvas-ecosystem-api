@@ -9,12 +9,14 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Event\Events\Actions\CreateScheduleRulesFromOperationDaysAction;
 use Kanvas\Event\Events\Models\ScheduleRules;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class ExpandProductSlotsActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

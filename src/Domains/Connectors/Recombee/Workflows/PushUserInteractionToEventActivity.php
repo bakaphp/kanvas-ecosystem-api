@@ -10,12 +10,14 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Recombee\Services\RecombeeInteractionService;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
 
+#[WorkflowAction]
 class PushUserInteractionToEventActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     /**

@@ -16,6 +16,7 @@ use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -23,6 +24,7 @@ use Override;
 use Throwable;
 use ValueError;
 
+#[WorkflowAction]
 class ProvisionDefaultAgentRuntimeActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     private const string DEFAULT_CHANNEL = 'Web Chat';

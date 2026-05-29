@@ -8,9 +8,11 @@ use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class ZohoLeadOwnerActivity extends KanvasActivity
 {
     public $tries = 3;

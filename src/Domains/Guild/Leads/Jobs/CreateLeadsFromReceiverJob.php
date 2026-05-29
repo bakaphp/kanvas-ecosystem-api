@@ -19,10 +19,12 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadAttempt;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class CreateLeadsFromReceiverJob extends ProcessWebhookJob
 {
     #[Override]

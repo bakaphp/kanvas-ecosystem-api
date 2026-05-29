@@ -9,11 +9,13 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Movipass\Actions\BulkRechargeOrderTagsAction;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class BulkRechargeTagsActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public $tries = 1;

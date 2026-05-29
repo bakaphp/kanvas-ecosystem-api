@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Azul\Webhook;
 
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
@@ -22,13 +23,14 @@ use Override;
  * frontend knows the fingerprinting step is complete and can call
  * startChallenge again with the azulOrderId to proceed to the challenge step.
  */
+#[WorkflowAction]
 class AzulMethodNotificationWebhookJob extends ProcessWebhookJob
 {
     #[Override]
     public function execute(): array
     {
         $methodData = $this->webhookRequest->payload['threeDSMethodData'] ?? null;
-        $transId    = null;
+        $transId = null;
 
         if (! empty($methodData)) {
             $decoded = json_decode(base64_decode($methodData), true);
@@ -40,29 +42,29 @@ class AzulMethodNotificationWebhookJob extends ProcessWebhookJob
         if ($paymentId && $transId) {
             $payment = Payments::where([
                 'apps_id' => $this->receiver->app->getId(),
-                'id'      => (int) $paymentId,
+                'id' => (int) $paymentId,
             ])->first();
 
             if ($payment) {
                 $payment->addMetadata([
                     'data' => [
-                        '3ds_server_trans_id'          => $transId,
+                        '3ds_server_trans_id' => $transId,
                         '3ds_method_notification_status' => 'RECEIVED',
                     ],
                 ]);
                 $payment->save();
 
                 $payment->addLog('3ds_method_notification_received', [
-                    'payment_id'            => $payment->id,
-                    '3ds_server_trans_id'   => $transId,
+                    'payment_id' => $payment->id,
+                    '3ds_server_trans_id' => $transId,
                 ]);
             }
         }
 
         return [
-            'message'  => '3DS method notification received for payment_id: ' . ($paymentId ?? 'unknown'),
+            'message' => '3DS method notification received for payment_id: ' . ($paymentId ?? 'unknown'),
             'received' => ! empty($methodData),
-            'html'     => $this->notifyParent($transId),
+            'html' => $this->notifyParent($transId),
         ];
     }
 
@@ -77,7 +79,7 @@ class AzulMethodNotificationWebhookJob extends ProcessWebhookJob
     private function notifyParent(?string $transId): string
     {
         $payload = json_encode([
-            'type'                 => '3ds_method_complete',
+            'type' => '3ds_method_complete',
             'threeDSServerTransID' => $transId,
         ]);
 

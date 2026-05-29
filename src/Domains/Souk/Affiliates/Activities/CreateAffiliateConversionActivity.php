@@ -9,9 +9,11 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Affiliates\Actions\CreateAffiliateConversionAction;
 use Kanvas\Souk\Affiliates\Models\AffiliateLink;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class CreateAffiliateConversionActivity extends KanvasActivity
 {
     public $tries = 3;

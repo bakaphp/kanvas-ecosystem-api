@@ -6,10 +6,14 @@ namespace Tests\Ecosystem\Integration\Notifications;
 
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Actions\CreateNotificationTypeAction;
+use Kanvas\Notifications\Channels\KanvasDatabase;
 use Kanvas\Notifications\DataTransferObject\NotificationType;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Notifications\Models\NotificationChannel;
+use Kanvas\Notifications\Models\Notifications;
+use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Notifications\Templates\DynamicKanvasNotification;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
@@ -70,6 +74,113 @@ final class DynamicNotificationTest extends TestCase
         Notification::assertSentTo(
             $user,
             DynamicKanvasNotification::class
+        );
+    }
+
+    /**
+     * Passing the 'database' slug must resolve to the KanvasDatabase channel and,
+     * when the notification is delivered, persist a row in the notifications table.
+     */
+    public function testDatabaseChannelBySlugPersistsNotification(): void
+    {
+        $this->assertSame(
+            KanvasDatabase::class,
+            NotificationChannelEnum::getNotificationChannelBySlug('database')
+        );
+
+        $user = auth()->user();
+        $app = app(Apps::class);
+
+        $template = new CreateTemplateAction(
+            TemplateInput::from([
+                'app' => $app,
+                'name' => 'test-notification-database-channel',
+                'template' => '<html><body>database channel {{ isset($dynamic) ? $dynamic : \'default\' }}</body></html>',
+            ])
+        )->execute();
+
+        $notificationType = new CreateNotificationTypeAction(
+            new NotificationType(
+                $app,
+                $user,
+                'test-notification-database-channel',
+                'test notification database channel',
+                $template
+            )
+        )->execute();
+
+        $notification = new DynamicKanvasNotification(
+            $notificationType,
+            ['dynamic' => 'value ' . time()]
+        );
+        $notification->setChannels('database');
+
+        $this->assertContains(KanvasDatabase::class, $notification->via($user));
+
+        $countBefore = Notifications::where('users_id', $user->getId())
+            ->where('notification_type_id', $notificationType->getId())
+            ->count();
+
+        new KanvasDatabase()->send($user, $notification);
+
+        $this->assertSame(
+            $countBefore + 1,
+            Notifications::where('users_id', $user->getId())
+                ->where('notification_type_id', $notificationType->getId())
+                ->count()
+        );
+    }
+
+    /**
+     * Regression for KANVAS-ECOSYSTEM-5PW: a Blank notification whose `data['message']`
+     * holds a model object (not a pre-rendered string) must still persist on the
+     * database channel. message() is the only consumer of data['message'] and is
+     * typed `: string`, so a model with no __toString previously threw a TypeError
+     * inside toKanvasDatabase(), killing the DB channel while mail/sms/push survived.
+     */
+    public function testDatabaseChannelPersistsWhenDataMessageIsModelObject(): void
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $lead = Lead::factory()
+            ->withAppAndCompany($app->getId(), $company->getId())
+            ->create();
+
+        new CreateTemplateAction(
+            TemplateInput::from([
+                'app' => $app,
+                'name' => 'agent-reply-manager-notification',
+                'template' => '<html><body>Agent replied to {{ $message->title ?? \'lead\' }}</body></html>',
+            ])
+        )->execute();
+
+        $notification = new Blank(
+            templateName: 'agent-reply-manager-notification',
+            data: [
+                'message' => $lead,
+                'company' => $company,
+                'app' => $app,
+                'user' => $user,
+            ],
+            via: ['database'],
+            entity: $lead
+        );
+
+        $this->assertContains(KanvasDatabase::class, $notification->via($user));
+
+        $countBefore = Notifications::where('users_id', $user->getId())
+            ->where('entity_id', $lead->getId())
+            ->count();
+
+        new KanvasDatabase()->send($user, $notification);
+
+        $this->assertSame(
+            $countBefore + 1,
+            Notifications::where('users_id', $user->getId())
+                ->where('entity_id', $lead->getId())
+                ->count()
         );
     }
 }

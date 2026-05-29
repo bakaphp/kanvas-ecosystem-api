@@ -8,9 +8,11 @@ use Baka\Contracts\AppInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\LicensePlateExtractor\Actions\ExtractLicensePlateAction;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class ExtractLicensePlateActivity extends KanvasActivity
 {
     public $tries = 3;

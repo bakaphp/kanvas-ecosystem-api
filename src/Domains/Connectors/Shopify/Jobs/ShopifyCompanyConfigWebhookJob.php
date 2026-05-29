@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Shopify\Jobs;
 
 use InvalidArgumentException;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class ShopifyCompanyConfigWebhookJob extends ProcessWebhookJob
 {
     #[Override]

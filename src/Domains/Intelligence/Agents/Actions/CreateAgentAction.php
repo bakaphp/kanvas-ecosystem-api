@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Actions;
 
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentModel;
+use Kanvas\NervousSystem\Capability\Models\Tool;
 
 class CreateAgentAction
 {
@@ -41,6 +42,16 @@ class CreateAgentAction
 
         if ($this->agent->communicationChannel) {
             $agent->communicationChannels()->sync($this->agent->communicationChannel);
+        }
+
+        if ($this->agent->tools !== null) {
+            $agent->selectedTools()->sync(
+                array_map(fn (Tool $tool): int => $tool->getId(), $this->agent->tools)
+            );
+        } elseif ($agent->selectedTools()->doesntExist()) {
+            $agent->selectedTools()->sync(
+                $this->agent->agentType->tools()->pluck('id')->all()
+            );
         }
 
         return $agent;

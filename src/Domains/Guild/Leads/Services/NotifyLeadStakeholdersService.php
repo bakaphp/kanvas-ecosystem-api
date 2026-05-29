@@ -314,9 +314,9 @@ class NotifyLeadStakeholdersService
 
         return match (true) {
             $onlySms => ['sms', 'database'],
-            $onlyMail => ['mail', 'database'],
+            $onlyMail => ['mail'],
             $onlyPush => ['push', 'expo', 'database'],
-            default => ['mail', 'database'],
+            default => ['mail'],
         };
     }
 

@@ -36,10 +36,12 @@ class LendflowService
      */
     public function buildApplicationPayload(Deal $deal): array
     {
+        $primaryPhone = $this->resolvePrimaryPhone($deal);
+
         $payload = [
             'workflow_template_id' => $this->getWorkflowTemplateId(),
             'prequal' => $this->buildPrequal($deal),
-            'business' => $this->buildBusiness($deal),
+            'business' => $this->buildBusiness($deal, $primaryPhone),
             'funding' => $this->buildFunding($deal),
         ];
 
@@ -50,6 +52,22 @@ class LendflowService
         return $payload;
     }
 
+    protected function resolvePrimaryPhone(Deal $deal): ?string
+    {
+        if ($deal->people_id === null || $deal->people_id <= 0 || $deal->people === null) {
+            return null;
+        }
+
+        foreach ($deal->people->getAllPhones() as $phone) {
+            $value = trim((string) $phone->value);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
     protected function buildPrequal(Deal $deal): array
     {
         return array_filter([
@@ -57,7 +75,7 @@ class LendflowService
         ]);
     }
 
-    protected function buildBusiness(Deal $deal): array
+    protected function buildBusiness(Deal $deal, ?string $primaryPhone = null): array
     {
         $address = [
             'address_line' => $this->toStr($deal->get('business_address_line')),
@@ -87,6 +105,14 @@ class LendflowService
         }
         if ($addressFilled) {
             $business['business_addresses'] = [$address];
+        }
+
+        if ($primaryPhone !== null && $primaryPhone !== '') {
+            $business['business_phone_numbers'] = [[
+                'phone_number' => $primaryPhone,
+                'is_primary' => true,
+                'line_type' => 'mobile',
+            ]];
         }
 
         return $business;
@@ -155,6 +181,7 @@ class LendflowService
         }
 
         if ($phones !== []) {
+            $personal['personal_telephone'] = ['telephone' => $phones[0]['phone_number']];
             $personal['personal_phone_numbers'] = $phones;
         }
 

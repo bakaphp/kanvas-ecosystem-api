@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\NetSuite\Webhooks;
 use Exception;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\ProcessNetSuiteSalesOrderAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class PullNetSuiteSalesOrderWebhookJob extends ProcessWebhookJob
 {
     #[Override]

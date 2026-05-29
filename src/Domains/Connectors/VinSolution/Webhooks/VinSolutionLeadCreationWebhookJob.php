@@ -6,9 +6,11 @@ namespace Kanvas\Connectors\VinSolution\Webhooks;
 
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class VinSolutionLeadCreationWebhookJob extends ProcessWebhookJob
 {
     #[Override]

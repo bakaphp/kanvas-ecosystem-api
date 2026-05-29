@@ -9,10 +9,12 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Shopify\Services\ShopifyOrderService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use PHPShopify\Exception\ApiException;
 
+#[WorkflowAction]
 class PushOrderActivity extends KanvasActivity
 {
     public function execute(Model $entity, Apps $app, array $params): array

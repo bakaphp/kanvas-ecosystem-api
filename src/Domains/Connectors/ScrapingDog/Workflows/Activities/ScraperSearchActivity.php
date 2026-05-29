@@ -14,11 +14,13 @@ use Kanvas\Connectors\ScrapingDog\Actions\ScraperProductAction;
 use Kanvas\Connectors\ScrapingDog\Enums\ConfigEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
 use function Sentry\captureException;
 
+#[WorkflowAction]
 class ScraperSearchActivity extends KanvasActivity
 {
     //public $tries = 3;

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Zoho\Jobs;
 
 use Kanvas\Connectors\Zoho\Actions\SyncZohoAgentAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Throwable;
 
+#[WorkflowAction]
 class SyncZohoAgentFromReceiverJob extends ProcessWebhookJob
 {
     #[Override]

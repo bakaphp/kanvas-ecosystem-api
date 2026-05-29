@@ -10,9 +10,11 @@ use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class CreateParticipantFromMeetingZoomJob extends ProcessWebhookJob
 {
     #[Override]
@@ -45,7 +47,7 @@ class CreateParticipantFromMeetingZoomJob extends ProcessWebhookJob
                     ],
                 ],
                 'address' => [],
-                'branch' => $company->defaultBranch
+                'branch' => $company->defaultBranch,
             ]);
             $action = new CreatePeopleAction($peopleDto);
             $people = $action->execute();

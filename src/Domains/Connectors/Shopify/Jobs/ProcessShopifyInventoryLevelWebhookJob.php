@@ -9,10 +9,12 @@ use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Connectors\Shopify\Services\ShopifyProductService;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class ProcessShopifyInventoryLevelWebhookJob extends ProcessWebhookJob
 {
     #[Override]

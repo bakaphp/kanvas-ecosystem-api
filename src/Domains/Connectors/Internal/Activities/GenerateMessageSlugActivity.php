@@ -12,6 +12,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -23,6 +24,7 @@ use function Laravel\Ai\agent;
 /**
  * @todo move to the social domain
  */
+#[WorkflowAction]
 class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
