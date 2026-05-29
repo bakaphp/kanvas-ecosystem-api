@@ -81,7 +81,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@cancel"
         )
-    reactiveSubscription(id: ID!): Boolean!
+    reactivateSubscription(id: ID!): Boolean!
         @requiresStripeConfiguration
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Subscriptions\\SubscriptionMutation@reactivate"

@@ -126,7 +126,6 @@ final class BulkRechargeTagsActivityTest extends TestCase
                 currency: $currency,
                 metadata: [
                     'tag_number' => $tag['tag_number'],
-                    'fiscal_credit' => false,
                     'bulk_recharge' => true,
                 ],
             ));

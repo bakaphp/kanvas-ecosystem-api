@@ -57,8 +57,10 @@ class AgentManagementMutation
             identity: $input['identity'] ?? null,
             userContext: $input['user_context'] ?? null,
             toolsConfig: $input['tools_config'] ?? null,
+            tools: isset($input['tool_ids']) ? $this->resolveTools($input['tool_ids'], $app) : null,
             parentAgent: $parentAgent,
             createdBy: auth()->user(),
+            isSubAgent: (bool) ($input['is_sub_agent'] ?? false),
         );
 
         $agent = new CreateAgentAction($agentDTO)->execute();
@@ -113,6 +115,7 @@ class AgentManagementMutation
             userContext: $input['user_context'] ?? null,
             toolsConfig: $input['tools_config'] ?? null,
             parentAgent: $parentAgent,
+            isSubAgent: (bool) ($input['is_sub_agent'] ?? false),
         );
 
         $agent = new UpdateAgentAction($agentDTO, $agent)->execute();
@@ -163,6 +166,26 @@ class AgentManagementMutation
         }
 
         return $input;
+    }
+
+    /**
+     * @param array<int, string> $toolIds
+     *
+     * @return array<int, Tool>
+     */
+    private function resolveTools(array $toolIds, AppInterface $app): array
+    {
+        $tools = [];
+        foreach ($toolIds as $toolId) {
+            /** @var Tool $tool */
+            $tool = Tool::query()
+                ->where('id', (int) $toolId)
+                ->whereIn('apps_id', [0, $app->getId()])
+                ->firstOrFail();
+            $tools[] = $tool;
+        }
+
+        return $tools;
     }
 
     /**

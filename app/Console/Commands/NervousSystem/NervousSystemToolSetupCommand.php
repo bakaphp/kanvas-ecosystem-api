@@ -6,12 +6,10 @@ namespace App\Console\Commands\NervousSystem;
 
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
+use Kanvas\Intelligence\Agents\Services\AgentToolDiscoveryService;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
-use ReflectionClass;
-use Symfony\Component\Finder\Finder;
 use Throwable;
 
 use function Laravel\Prompts\select;
@@ -22,7 +20,7 @@ class NervousSystemToolSetupCommand extends Command
 
     protected $description = 'Wizard to register a tool in the nervous system catalog';
 
-    public function handle(): int
+    public function handle(AgentToolDiscoveryService $discovery): int
     {
         $this->info('=== Nervous System Tool Setup ===');
         $this->newLine();
@@ -68,7 +66,7 @@ class NervousSystemToolSetupCommand extends Command
             default: ToolTypeEnum::CUSTOM->value,
         );
 
-        $handler = $this->resolveHandler($framework);
+        $handler = $this->resolveHandler($framework, $discovery);
 
         $version = $this->ask('Version', '1.0.0');
 
@@ -118,15 +116,20 @@ class NervousSystemToolSetupCommand extends Command
         );
     }
 
-    protected function resolveHandler(string $framework): ?string
+    protected function resolveHandler(string $framework, AgentToolDiscoveryService $discovery): ?string
     {
         if (! $this->confirm('Does this tool have a PHP handler class?', true)) {
             return null;
         }
 
-        $discovered = $this->discoverHandlers($framework);
+        $discovered = [];
+        foreach ($discovery->discover() as $entry) {
+            if (in_array($framework, $entry['frameworks'], true)) {
+                $discovered[$entry['class']] = $entry['name'] . ' — ' . class_basename($entry['class']);
+            }
+        }
 
-        if (! empty($discovered)) {
+        if ($discovered !== []) {
             $discovered['manual'] = 'Enter manually';
             $choice = select(
                 label: 'Select handler class',
@@ -154,56 +157,5 @@ class NervousSystemToolSetupCommand extends Command
         }
 
         return $handler;
-    }
-
-    protected function discoverHandlers(string $framework): array
-    {
-        $path = base_path('src/Domains/Intelligence/Agents/' . ucfirst(strtolower($framework)) . '/Tools');
-
-        if (! is_dir($path)) {
-            return [];
-        }
-
-        $classes = [];
-        $finder = (new Finder())->files()->name('*.php')->in($path);
-
-        foreach ($finder as $file) {
-            $class = $this->fileToClass($file->getRealPath());
-
-            if ($class === null || ! class_exists($class)) {
-                continue;
-            }
-
-            $ref = new ReflectionClass($class);
-
-            if ($ref->isAbstract() || $ref->isInterface()) {
-                continue;
-            }
-
-            if ($ref->implementsInterface(KanvasToolInterface::class)) {
-                $classes[$class] = class_basename($class);
-            }
-        }
-
-        return $classes;
-    }
-
-    protected function fileToClass(string $filePath): ?string
-    {
-        $content = file_get_contents($filePath);
-
-        if ($content === false) {
-            return null;
-        }
-
-        if (! preg_match('/^namespace\s+([^;]+);/m', $content, $nsMatch)) {
-            return null;
-        }
-
-        if (! preg_match('/^(?:abstract\s+)?class\s+(\w+)/m', $content, $classMatch)) {
-            return null;
-        }
-
-        return $nsMatch[1] . '\\' . $classMatch[1];
     }
 }

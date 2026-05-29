@@ -383,16 +383,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.382.1",
+            "version": "3.383.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "d506bdaab8e29b18d31a46be4fe4314af5945432"
+                "reference": "50be4b674a9969c0e0aba765dee534cb5e61d309"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/d506bdaab8e29b18d31a46be4fe4314af5945432",
-                "reference": "d506bdaab8e29b18d31a46be4fe4314af5945432",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/50be4b674a9969c0e0aba765dee534cb5e61d309",
+                "reference": "50be4b674a9969c0e0aba765dee534cb5e61d309",
                 "shasum": ""
             },
             "require": {
@@ -474,9 +474,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.382.1"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.383.0"
             },
-            "time": "2026-05-26T18:24:13+00:00"
+            "time": "2026-05-28T18:17:51+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -3441,16 +3441,16 @@
         },
         {
             "name": "imdhemy/google-play-billing",
-            "version": "1.13.0",
+            "version": "1.14.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/imdhemy/google-play-billing.git",
-                "reference": "f19980c67745967197cc410a06ac9835d7e10e67"
+                "reference": "680110f31de0b88cf74d2a7b9fea423ade08e6c3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/imdhemy/google-play-billing/zipball/f19980c67745967197cc410a06ac9835d7e10e67",
-                "reference": "f19980c67745967197cc410a06ac9835d7e10e67",
+                "url": "https://api.github.com/repos/imdhemy/google-play-billing/zipball/680110f31de0b88cf74d2a7b9fea423ade08e6c3",
+                "reference": "680110f31de0b88cf74d2a7b9fea423ade08e6c3",
                 "shasum": ""
             },
             "require": {
@@ -3490,9 +3490,9 @@
             "description": "Google Play Billing",
             "support": {
                 "issues": "https://github.com/imdhemy/google-play-billing/issues",
-                "source": "https://github.com/imdhemy/google-play-billing/tree/1.13.0"
+                "source": "https://github.com/imdhemy/google-play-billing/tree/1.14.0"
             },
-            "time": "2026-04-28T17:14:45+00:00"
+            "time": "2026-05-26T20:13:02+00:00"
         },
         {
             "name": "imdhemy/laravel-purchases",
@@ -4175,16 +4175,16 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v0.7.1",
+            "version": "v0.7.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "8b0db36ac3154b169834fad175bdaac3a9561fa8"
+                "reference": "9154118af9328132f5a17e41c70fdcd0a4f21eec"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/8b0db36ac3154b169834fad175bdaac3a9561fa8",
-                "reference": "8b0db36ac3154b169834fad175bdaac3a9561fa8",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/9154118af9328132f5a17e41c70fdcd0a4f21eec",
+                "reference": "9154118af9328132f5a17e41c70fdcd0a4f21eec",
                 "shasum": ""
             },
             "require": {
@@ -4241,7 +4241,7 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-05-26T16:32:37+00:00"
+            "time": "2026-05-28T19:11:59+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -7418,16 +7418,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.15.4",
+            "version": "3.15.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "2bb3ca1c252c03a8abfd33fd98a19896218c5a34"
+                "reference": "d8e826cdbc52a41539a10501428e4745f1702b31"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/2bb3ca1c252c03a8abfd33fd98a19896218c5a34",
-                "reference": "2bb3ca1c252c03a8abfd33fd98a19896218c5a34",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/d8e826cdbc52a41539a10501428e4745f1702b31",
+                "reference": "d8e826cdbc52a41539a10501428e4745f1702b31",
                 "shasum": ""
             },
             "require": {
@@ -7478,7 +7478,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.15.4"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.15.5"
             },
             "funding": [
                 {
@@ -7486,7 +7486,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-05-27T18:10:59+00:00"
+            "time": "2026-05-28T09:42:58+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
@@ -9803,16 +9803,16 @@
         },
         {
             "name": "quickbooks/v3-php-sdk",
-            "version": "v6.2.3",
+            "version": "V6.2.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/intuit/QuickBooks-V3-PHP-SDK.git",
-                "reference": "98223c9f9b9d2fdce6b42794d781944dab9f6379"
+                "reference": "308096c9c456dbf2d5c26561b410a082d7a187fd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/intuit/QuickBooks-V3-PHP-SDK/zipball/98223c9f9b9d2fdce6b42794d781944dab9f6379",
-                "reference": "98223c9f9b9d2fdce6b42794d781944dab9f6379",
+                "url": "https://api.github.com/repos/intuit/QuickBooks-V3-PHP-SDK/zipball/308096c9c456dbf2d5c26561b410a082d7a187fd",
+                "reference": "308096c9c456dbf2d5c26561b410a082d7a187fd",
                 "shasum": ""
             },
             "require": {
@@ -9857,9 +9857,9 @@
             ],
             "support": {
                 "issues": "https://github.com/intuit/QuickBooks-V3-PHP-SDK/issues",
-                "source": "https://github.com/intuit/QuickBooks-V3-PHP-SDK/tree/v6.2.3"
+                "source": "https://github.com/intuit/QuickBooks-V3-PHP-SDK/tree/V6.2.4"
             },
-            "time": "2026-04-22T11:18:43+00:00"
+            "time": "2026-05-28T16:18:58+00:00"
         },
         {
             "name": "ralouphie/getallheaders",
@@ -12030,16 +12030,16 @@
         },
         {
             "name": "spatie/laravel-health",
-            "version": "1.39.3",
+            "version": "1.40.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-health.git",
-                "reference": "88a0c13e9a64ad10509b2d274b7c99ca5d8b24ca"
+                "reference": "6fa735589c04fd99970b434fc22dddbdc716a264"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/88a0c13e9a64ad10509b2d274b7c99ca5d8b24ca",
-                "reference": "88a0c13e9a64ad10509b2d274b7c99ca5d8b24ca",
+                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/6fa735589c04fd99970b434fc22dddbdc716a264",
+                "reference": "6fa735589c04fd99970b434fc22dddbdc716a264",
                 "shasum": ""
             },
             "require": {
@@ -12056,7 +12056,6 @@
                 "spatie/enum": "^3.13",
                 "spatie/laravel-package-tools": "^1.12.1",
                 "spatie/regex": "^3.1.1|^3.1",
-                "spatie/temporary-directory": "^2.2",
                 "symfony/process": "^5.4|^6.0|^7.0|^8.0"
             },
             "require-dev": {
@@ -12072,6 +12071,7 @@
                 "spatie/laravel-ray": "^1.30",
                 "spatie/pest-plugin-snapshots": "^1.1|^2.3|^3.0",
                 "spatie/pest-plugin-test-time": "^1.1.1|^1.1|^2.0|^3.0",
+                "spatie/temporary-directory": "^2.2",
                 "spatie/test-time": "^1.3|^2.0"
             },
             "type": "library",
@@ -12111,7 +12111,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-health/issues",
-                "source": "https://github.com/spatie/laravel-health/tree/1.39.3"
+                "source": "https://github.com/spatie/laravel-health/tree/1.40.0"
             },
             "funding": [
                 {
@@ -12119,7 +12119,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-05-12T07:24:15+00:00"
+            "time": "2026-05-28T08:55:40+00:00"
         },
         {
             "name": "spatie/laravel-image-optimizer",
@@ -12788,16 +12788,16 @@
         },
         {
             "name": "symfony/cache",
-            "version": "v8.0.12",
+            "version": "v8.0.13",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/cache.git",
-                "reference": "11dc0681506ff07ca80bfb4cbf84c601c3cf04f7"
+                "reference": "75f92239836ce08bce4d19f2734737dae4276fe9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/cache/zipball/11dc0681506ff07ca80bfb4cbf84c601c3cf04f7",
-                "reference": "11dc0681506ff07ca80bfb4cbf84c601c3cf04f7",
+                "url": "https://api.github.com/repos/symfony/cache/zipball/75f92239836ce08bce4d19f2734737dae4276fe9",
+                "reference": "75f92239836ce08bce4d19f2734737dae4276fe9",
                 "shasum": ""
             },
             "require": {
@@ -12863,7 +12863,7 @@
                 "psr6"
             ],
             "support": {
-                "source": "https://github.com/symfony/cache/tree/v8.0.12"
+                "source": "https://github.com/symfony/cache/tree/v8.0.13"
             },
             "funding": [
                 {
@@ -12883,7 +12883,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-20T07:22:03+00:00"
+            "time": "2026-05-24T08:44:11+00:00"
         },
         {
             "name": "symfony/cache-contracts",
@@ -13725,16 +13725,16 @@
         },
         {
             "name": "symfony/http-client",
-            "version": "v8.0.9",
+            "version": "v8.0.13",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/http-client.git",
-                "reference": "537c7f164078975b800f3f1c56810791024e4c77"
+                "reference": "c7f40f9103233630167c25c9a4570acf805fdade"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/http-client/zipball/537c7f164078975b800f3f1c56810791024e4c77",
-                "reference": "537c7f164078975b800f3f1c56810791024e4c77",
+                "url": "https://api.github.com/repos/symfony/http-client/zipball/c7f40f9103233630167c25c9a4570acf805fdade",
+                "reference": "c7f40f9103233630167c25c9a4570acf805fdade",
                 "shasum": ""
             },
             "require": {
@@ -13797,7 +13797,7 @@
                 "http"
             ],
             "support": {
-                "source": "https://github.com/symfony/http-client/tree/v8.0.9"
+                "source": "https://github.com/symfony/http-client/tree/v8.0.13"
             },
             "funding": [
                 {
@@ -13817,7 +13817,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-29T15:02:55+00:00"
+            "time": "2026-05-24T09:58:02+00:00"
         },
         {
             "name": "symfony/http-client-contracts",
@@ -14559,16 +14559,16 @@
         },
         {
             "name": "symfony/polyfill-intl-icu",
-            "version": "v1.37.0",
+            "version": "v1.38.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/polyfill-intl-icu.git",
-                "reference": "3510b63d07376b04e57e27e82607d468bb134f78"
+                "reference": "445c90e341fccda10311019cf82ff73bb7343945"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/polyfill-intl-icu/zipball/3510b63d07376b04e57e27e82607d468bb134f78",
-                "reference": "3510b63d07376b04e57e27e82607d468bb134f78",
+                "url": "https://api.github.com/repos/symfony/polyfill-intl-icu/zipball/445c90e341fccda10311019cf82ff73bb7343945",
+                "reference": "445c90e341fccda10311019cf82ff73bb7343945",
                 "shasum": ""
             },
             "require": {
@@ -14623,7 +14623,7 @@
                 "shim"
             ],
             "support": {
-                "source": "https://github.com/symfony/polyfill-intl-icu/tree/v1.37.0"
+                "source": "https://github.com/symfony/polyfill-intl-icu/tree/v1.38.0"
             },
             "funding": [
                 {
@@ -14643,7 +14643,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-10T16:50:15+00:00"
+            "time": "2026-05-25T11:52:53+00:00"
         },
         {
             "name": "symfony/polyfill-intl-idn",
@@ -18001,16 +18001,16 @@
         },
         {
             "name": "larastan/larastan",
-            "version": "v3.9.6",
+            "version": "v3.10.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/larastan/larastan.git",
-                "reference": "9ad17e83e96b63536cb6ac39c3d40d29ff9cf636"
+                "reference": "2970f83398154178a739609c244577267c7ee8eb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/larastan/larastan/zipball/9ad17e83e96b63536cb6ac39c3d40d29ff9cf636",
-                "reference": "9ad17e83e96b63536cb6ac39c3d40d29ff9cf636",
+                "url": "https://api.github.com/repos/larastan/larastan/zipball/2970f83398154178a739609c244577267c7ee8eb",
+                "reference": "2970f83398154178a739609c244577267c7ee8eb",
                 "shasum": ""
             },
             "require": {
@@ -18024,17 +18024,17 @@
                 "illuminate/pipeline": "^11.44.2 || ^12.4.1 || ^13",
                 "illuminate/support": "^11.44.2 || ^12.4.1 || ^13",
                 "php": "^8.2",
-                "phpstan/phpstan": "^2.1.44"
+                "phpstan/phpstan": "^2.2.0"
             },
             "require-dev": {
-                "doctrine/coding-standard": "^13",
+                "doctrine/coding-standard": "^14",
                 "laravel/framework": "^11.44.2 || ^12.7.2 || ^13",
                 "mockery/mockery": "^1.6.12",
                 "nikic/php-parser": "^5.4",
                 "orchestra/canvas": "^v9.2.2 || ^10.0.1 || ^11",
                 "orchestra/testbench-core": "^9.12.0 || ^10.1 || ^11",
                 "phpstan/phpstan-deprecation-rules": "^2.0.1",
-                "phpunit/phpunit": "^10.5.35 || ^11.5.15 || ^12.5.8"
+                "phpunit/phpunit": "^10.5.35 || ^11.5.15 || ^12.5.8 || ^13.1.8"
             },
             "suggest": {
                 "orchestra/testbench": "Using Larastan for analysing a package needs Testbench",
@@ -18079,7 +18079,7 @@
             ],
             "support": {
                 "issues": "https://github.com/larastan/larastan/issues",
-                "source": "https://github.com/larastan/larastan/tree/v3.9.6"
+                "source": "https://github.com/larastan/larastan/tree/v3.10.0"
             },
             "funding": [
                 {
@@ -18087,7 +18087,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-04-16T10:02:43+00:00"
+            "time": "2026-05-28T08:00:58+00:00"
         },
         {
             "name": "laravel/boost",
@@ -18714,11 +18714,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.1.56",
+            "version": "2.2.1",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/93a603c9fc3be8c3c93bbc8d22170ad766685537",
-                "reference": "93a603c9fc3be8c3c93bbc8d22170ad766685537",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/dea9c8f2d25cc849391042b71e429c1a4bf82660",
+                "reference": "dea9c8f2d25cc849391042b71e429c1a4bf82660",
                 "shasum": ""
             },
             "require": {
@@ -18740,6 +18740,17 @@
             "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Ondřej Mirtes"
+                },
+                {
+                    "name": "Markus Staab"
+                },
+                {
+                    "name": "Vincent Langlet"
+                }
             ],
             "description": "PHPStan - PHP Static Analysis Tool",
             "keywords": [
@@ -18763,7 +18774,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-05-26T17:04:57+00:00"
+            "time": "2026-05-28T14:44:12+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",

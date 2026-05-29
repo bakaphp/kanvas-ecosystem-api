@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
@@ -14,6 +15,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
+#[AgentTool(name: 'Inventory Search')]
 class InventorySearchTool extends Tool
 {
     public function __construct()

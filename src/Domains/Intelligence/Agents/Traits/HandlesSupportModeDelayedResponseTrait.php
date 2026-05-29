@@ -49,7 +49,7 @@ trait HandlesSupportModeDelayedResponseTrait
             return null;
         }
 
-        if (! $configService->isV2Enabled($app)) {
+        if (! $configService->isV2Enabled($lead->company)) {
             if (UnrespondedLeadAgentMessageCache::exists($lead, $channel)) {
                 return [
                     'message' => 'There is already an unresponded message pending in this channel',
@@ -62,7 +62,7 @@ trait HandlesSupportModeDelayedResponseTrait
             CompanyConfigurationEnum::UN_RESPONDED_SALESPERSON_MESSAGES->value
         ) ?? 60;
 
-        if (! $configService->isV2Enabled($app)) {
+        if (! $configService->isV2Enabled($lead->company)) {
             UnrespondedLeadAgentMessageCache::set($lead, $channel, $message, $delayMinutes + 5);
         }
 
@@ -72,7 +72,7 @@ trait HandlesSupportModeDelayedResponseTrait
         }
 
         if ($agentIdForDispatch === null) {
-            if (! $configService->isV2Enabled($app)) {
+            if (! $configService->isV2Enabled($lead->company)) {
                 UnrespondedLeadAgentMessageCache::clear($lead, $channel);
             }
 
@@ -84,7 +84,7 @@ trait HandlesSupportModeDelayedResponseTrait
 
         $agentModel = Agent::getById($agentIdForDispatch, $app);
 
-        if ($configService->isV2Enabled($app)) {
+        if ($configService->isV2Enabled($lead->company)) {
             SendUnrespondedAgentMessageJob::dispatch(
                 $channel,
                 $message,

@@ -9,19 +9,11 @@ use Kanvas\Notifications\Models\Notifications as NotificationsModel;
 
 class CreateNotificationAction
 {
-    /**
-     * __construct.
-     *
-     * @return void
-     */
     public function __construct(
         protected NotificationsDto $dto
     ) {
     }
 
-    /**
-     * execute.
-     */
     public function execute(): void
     {
         $notification = new NotificationsModel();

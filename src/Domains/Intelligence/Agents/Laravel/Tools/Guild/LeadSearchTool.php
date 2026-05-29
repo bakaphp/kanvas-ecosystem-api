@@ -6,12 +6,14 @@ namespace Kanvas\Intelligence\Agents\Laravel\Tools\Guild;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
 
+#[AgentTool(name: 'Lead Search')]
 class LeadSearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;

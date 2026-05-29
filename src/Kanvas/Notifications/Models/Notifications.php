@@ -9,6 +9,7 @@ use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\RelationNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -147,7 +148,7 @@ class Notifications extends BaseModel
     /**
      * Get the entity related to the notification.
      */
-    public function getEntityData(): mixed
+    public function getEntityData(?array $fields = null): mixed
     {
         if ($this->entity_content !== null && Str::isJson($this->entity_content)) {
             return $this->entity_content;
@@ -160,7 +161,19 @@ class Notifications extends BaseModel
             /**
              * @todo cache
              */
-            return $modelName::getById($this->entity_id);
+            $entity = $modelName::getById($this->entity_id);
+
+            if ($entity !== null && is_array($fields) && ! empty($fields['relations'])) {
+                foreach ((array) $fields['relations'] as $relation) {
+                    try {
+                        $entity->loadMissing($relation);
+                    } catch (RelationNotFoundException) {
+                        // entity type doesn't define this relation — skip it, keep the rest
+                    }
+                }
+            }
+
+            return $entity;
         } catch (Throwable $e) {
         }
 
