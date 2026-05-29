@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\SubAgents;
 
 use Illuminate\Support\Str;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\KanvasAgentAsTool;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentRecord;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\NervousSystem\Capability\Services\CapabilityProvider;
 
+#[AgentTool(name: 'Dynamic Sub Agent')]
 class DynamicSubAgent extends KanvasAgentAsTool
 {
     public function __construct(private readonly AgentRecord $agentRecord)
