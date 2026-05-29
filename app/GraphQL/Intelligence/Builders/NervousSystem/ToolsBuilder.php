@@ -21,7 +21,7 @@ class ToolsBuilder
         $app = app(Apps::class);
 
         $query = Tool::query()
-            ->fromApp($app)
+            ->fromAppOrGlobal($app)
             ->active();
 
         if (isset($args['framework']) && $args['framework'] !== '') {

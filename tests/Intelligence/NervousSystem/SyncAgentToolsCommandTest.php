@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\UpsertLeadSourceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\HandOffTool;
 use Kanvas\Intelligence\Agents\Services\AgentToolDiscoveryService;
 use Kanvas\NervousSystem\Capability\Models\Tool;
+use stdClass;
 use Tests\TestCase;
 
 class SyncAgentToolsCommandTest extends TestCase
@@ -26,6 +28,19 @@ class SyncAgentToolsCommandTest extends TestCase
         $this->assertNotNull($neuronTool, 'Neuron CRM tool should be discovered');
         $this->assertSame(['neuron'], $neuronTool['frameworks']);
         $this->assertSame('crm', $neuronTool['category']);
+    }
+
+    public function testAgentToolFromClassReadsAttribute(): void
+    {
+        $meta = AgentTool::fromClass(HandOffTool::class);
+
+        $this->assertNotNull($meta);
+        $this->assertSame('Hand Off Lead', $meta->name);
+
+        $this->assertNull(
+            AgentTool::fromClass(stdClass::class),
+            'A class without the attribute returns null',
+        );
     }
 
     public function testSyncCreatesGlobalToolRow(): void
