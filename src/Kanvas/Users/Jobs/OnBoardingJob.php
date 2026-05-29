@@ -12,6 +12,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Auth;
+use Kanvas\ActionEngine\Support\Setup as ActionEngineSetup;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -57,7 +58,8 @@ class OnBoardingJob implements ShouldQueue
         $runOnboardingGuild = $this->app->get(AppSettingsEnums::ONBOARDING_GUILD_SETUP->getValue());
         $runOnboardingInventory = $this->app->get(AppSettingsEnums::ONBOARDING_INVENTORY_SETUP->getValue());
         $runOnboardingEvent = $this->app->get(AppSettingsEnums::ONBOARDING_EVENT_SETUP->getValue());
-        $runOnboarding = $runOnboardingGuild || $runOnboardingInventory;
+        $runOnboardingActionEngine = $this->app->get(AppSettingsEnums::ONBOARDING_ACTION_ENGINE_SETUP->getValue());
+        $runOnboarding = $runOnboardingGuild || $runOnboardingInventory || $runOnboardingActionEngine;
 
         if (! $runOnboarding) {
             return;
@@ -105,6 +107,19 @@ class OnBoardingJob implements ShouldQueue
                 $this->user,
                 $company,
                 $eventSetupType
+            )->run();
+        }
+
+        if ($runOnboardingActionEngine) {
+            $fromCompanyId = $this->app->get(AppSettingsEnums::ONBOARDING_ACTION_ENGINE_SETUP_FROM_COMPANY->getValue());
+            $fromCompany = $fromCompanyId ? Companies::getById((int) $fromCompanyId) : null;
+
+            new ActionEngineSetup(
+                $this->app,
+                $this->user,
+                $company,
+                [],
+                $fromCompany
             )->run();
         }
     }
