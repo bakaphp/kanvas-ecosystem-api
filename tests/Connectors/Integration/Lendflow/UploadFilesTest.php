@@ -19,15 +19,15 @@ final class UploadFilesTest extends TestCase
         if (getenv('GITHUB_ACTIONS')) {
             $this->markTestSkipped('Lendflow integration tests are skipped in CI');
         }
-        if (! getenv('TEST_LENDFLOW_API_KEY')) {
+        if ($this->lendflowApiKey() === null) {
             $this->markTestSkipped('TEST_LENDFLOW_API_KEY not set');
         }
     }
 
     public function testUploadFilesToSandboxApplication(): void
     {
-        $applicationId = getenv('TEST_LENDFLOW_APPLICATION_ID');
-        if (! $applicationId) {
+        $applicationId = $this->lendflowApplicationId();
+        if ($applicationId === null) {
             $this->markTestSkipped('TEST_LENDFLOW_APPLICATION_ID not set (need a sandbox application id to upload to)');
         }
 
@@ -37,14 +37,17 @@ final class UploadFilesTest extends TestCase
 
         $client = $this->getLendflowClient($app, $company);
 
+        // Lendflow rejects plain text; it accepts real document/image types (e.g. PNG/PDF).
         $tmp = tempnam(sys_get_temp_dir(), 'lendflow-test-');
-        file_put_contents($tmp, "Lendflow connector integration test file.\n");
+        file_put_contents($tmp, base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+        ));
 
         try {
             $response = $client->uploadMultipart(
                 '/api/v2/applications/' . $applicationId . '/files/multiple',
                 [[
-                    'name' => 'integration-test.txt',
+                    'name' => 'integration-test.png',
                     'contents' => Utils::tryFopen($tmp, 'r'),
                 ]]
             );
