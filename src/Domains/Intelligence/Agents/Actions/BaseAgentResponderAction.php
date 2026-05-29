@@ -77,7 +77,7 @@ class BaseAgentResponderAction
         Channel $channel,
         ?string $from = null
     ): Message {
-        if (! $text) {
+        if (empty($text)) {
             throw new Exception('Empty message was created');
         }
         $user = $this->channel->company->getAiAgentUser() ?? $message->user;
