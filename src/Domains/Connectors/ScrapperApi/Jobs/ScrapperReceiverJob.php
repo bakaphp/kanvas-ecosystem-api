@@ -8,9 +8,11 @@ use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class ScrapperReceiverJob extends ProcessWebhookJob
 {
     use KanvasJobsTrait;

@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\OpenClaw\Activities;
 use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\OpenClaw\Actions\UpdateAgentSwarmHierarchyAction;
 use Kanvas\Intelligence\Agents\Models\AgentSwarmMember;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -17,6 +18,7 @@ use Kanvas\Workflow\KanvasActivity;
  * The agent save in the action triggers the Agent "updated" event, which fires
  * the SyncOpenClawAgentWorkspaceActivity workflow if configured.
  */
+#[WorkflowAction]
 class SyncAgentSwarmContextActivity extends KanvasActivity
 {
     public $tries = 3;

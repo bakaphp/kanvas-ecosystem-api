@@ -10,9 +10,11 @@ use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelForContactAction;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class CreateSocialChannelActivity extends KanvasActivity
 {
     public function execute(

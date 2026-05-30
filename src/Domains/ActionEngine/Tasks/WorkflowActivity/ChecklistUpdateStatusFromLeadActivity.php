@@ -17,9 +17,11 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class ChecklistUpdateStatusFromLeadActivity extends KanvasActivity
 {
     public function execute(Lead $lead, AppInterface $app, array $params): array

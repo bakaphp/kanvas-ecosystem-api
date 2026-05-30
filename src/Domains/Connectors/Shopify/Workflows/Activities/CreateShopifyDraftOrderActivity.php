@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\Shopify\Workflows\Activities;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Actions\CreateShopifyDraftOrderAction;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class CreateShopifyDraftOrderActivity extends KanvasActivity
 {
     public function execute(Order $order, Apps $app, array $params): array

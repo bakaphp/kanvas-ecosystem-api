@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Actions\PayFromWalletAction;
@@ -34,19 +35,18 @@ class CreateOrderFromCartWalletAction extends CreateBaseOrderAction
 
     protected function hasEnoughWalletBalance(): void
     {
-        if (! isset($this->request['input']['metadata']['user_company_id'])) {
-            return;
-        }
-
-        $company = $this->user->getCurrentCompany();
-
         UsersRepository::belongsToThisApp(
             $this->user,
             $this->app,
-            $company
+            $this->user->getCurrentCompany()
         );
 
-        $walletHolder = $this->getWalletHolder($this->app, $this->user);
+        $providerCompanyId = $this->request['input']['metadata']['user_company_id'] ?? null;
+
+        $walletHolder = $providerCompanyId !== null
+            ? Companies::getById((int) $providerCompanyId)
+            : $this->getWalletHolder($this->app, $this->user);
+
         $tag = ConfigurationEnum::WALLET_DEFAULT_NAME->value;
         $wallet = $walletHolder->createAppWallet($this->app, ['name' => $tag]);
 

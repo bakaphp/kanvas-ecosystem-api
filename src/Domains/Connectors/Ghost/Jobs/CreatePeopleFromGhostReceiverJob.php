@@ -11,10 +11,12 @@ use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
+#[WorkflowAction]
 class CreatePeopleFromGhostReceiverJob extends ProcessWebhookJob
 {
     #[Override]

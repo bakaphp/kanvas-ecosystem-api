@@ -11,6 +11,7 @@ use Kanvas\Connectors\Zoho\Actions\SyncLeadToZohoAction;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -19,6 +20,7 @@ use Override;
 /**
  * @todo refactor move core logic to SyncLeadWithZohoAction
  */
+#[WorkflowAction]
 class ZohoLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     //public $tries = 5;

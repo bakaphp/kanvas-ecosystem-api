@@ -48,6 +48,15 @@ class ProductBuilder
             $query->filterByVariantAttributeValue($args['variantAttributeValue']);
         }
 
+        if (! empty($args['withAttributeSlug'])) {
+            $slug = $args['withAttributeSlug'];
+            $query->whereHas(
+                'attributeValues',
+                fn (Builder $q) => $q->where('is_deleted', 0)
+                    ->whereHas('attribute', fn (Builder $a) => $a->where('slug', $slug))
+            );
+        }
+
         if (! empty($args['variantAttributeOrderBy'])) {
             $order = $args['variantAttributeOrderBy'];
             $query->orderByVariantAttribute(

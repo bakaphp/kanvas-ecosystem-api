@@ -9,8 +9,10 @@ use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Override;
 
+#[WorkflowAction]
 class ProcessElevenLabsConversationInitiationWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]

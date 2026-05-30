@@ -37,11 +37,13 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
+#[WorkflowAction]
 class ProcessTwilioWebhookJob extends ProcessWebhookJob
 {
     protected bool $hijackSession = false;

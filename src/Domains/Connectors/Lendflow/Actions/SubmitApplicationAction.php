@@ -26,7 +26,7 @@ class SubmitApplicationAction
         $client = new Client($app, $company);
 
         $payload = $service->buildApplicationPayload($this->deal);
-        $response = $client->post('/api/v2/applications', $payload);
+        $response = $client->post('/api/v2/workflow/applications', $payload);
 
         $applicationId = $this->extractApplicationId($response);
         if ($applicationId === null) {

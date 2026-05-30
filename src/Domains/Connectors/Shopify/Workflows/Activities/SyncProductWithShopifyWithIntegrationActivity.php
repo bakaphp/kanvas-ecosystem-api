@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum as ShopifyStatusEnum;
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\AddEntityIntegrationHistoryAction;
@@ -17,6 +18,7 @@ use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
+#[WorkflowAction]
 class SyncProductWithShopifyWithIntegrationActivity extends KanvasActivity
 {
     public function execute(Products $product, Apps $app, array $params): array

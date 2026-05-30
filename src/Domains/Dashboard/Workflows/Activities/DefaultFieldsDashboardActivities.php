@@ -7,9 +7,11 @@ namespace Kanvas\Dashboard\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Dashboard\Actions\SetDefaultDashboardFieldAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class DefaultFieldsDashboardActivities extends KanvasActivity implements WorkflowActivityInterface
 {
     public function execute(Model $entity, AppInterface $app, array $params): array

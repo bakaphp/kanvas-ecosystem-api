@@ -20,11 +20,13 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
 
+#[WorkflowAction]
 class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     protected ?Companies $company = null;

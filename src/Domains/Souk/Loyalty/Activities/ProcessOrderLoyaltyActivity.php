@@ -9,9 +9,11 @@ use Kanvas\Souk\Loyalty\Actions\AssignLoyaltyProgramAction;
 use Kanvas\Souk\Loyalty\Actions\AwardPointsAction;
 use Kanvas\Souk\Loyalty\Actions\CheckOfferTriggersAction;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class ProcessOrderLoyaltyActivity extends KanvasActivity
 {
     public $tries = 3;

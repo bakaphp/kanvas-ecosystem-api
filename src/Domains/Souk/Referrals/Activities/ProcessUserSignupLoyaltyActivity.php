@@ -12,11 +12,13 @@ use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Souk\Loyalty\Actions\AssignLoyaltyProgramAction;
 use Kanvas\Souk\Referrals\Actions\GenerateReferralCodeAction;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class ProcessUserSignupLoyaltyActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public $tries = 3;

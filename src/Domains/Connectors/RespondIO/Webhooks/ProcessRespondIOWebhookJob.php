@@ -15,9 +15,11 @@ use Kanvas\Connectors\RespondIO\Actions\ProcessConversationOpenedAction;
 use Kanvas\Connectors\RespondIO\Actions\ProcessIncomingMessageAction;
 use Kanvas\Connectors\RespondIO\Actions\ProcessOutgoingMessageAction;
 use Kanvas\Connectors\RespondIO\Enums\WebhookEventEnum;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class ProcessRespondIOWebhookJob extends ProcessWebhookJob
 {
     #[Override]

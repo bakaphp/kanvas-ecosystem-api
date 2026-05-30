@@ -7,12 +7,14 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Carbon\Carbon;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 use Yasumi\Yasumi;
 
+#[AgentTool(name: 'Company Information')]
 class CompanyInformationTool extends Tool
 {
     public function __construct()

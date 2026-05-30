@@ -9,9 +9,11 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\DealerSocket\Services\DealerSocketWorkNoteService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class AddLeadKanvasChatLinkNoteActivity extends KanvasActivity
 {
     public $tries = 1;

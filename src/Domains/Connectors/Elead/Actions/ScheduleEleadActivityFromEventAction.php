@@ -12,7 +12,9 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 
+#[WorkflowAction]
 class ScheduleEleadActivityFromEventAction
 {
     public function __construct(

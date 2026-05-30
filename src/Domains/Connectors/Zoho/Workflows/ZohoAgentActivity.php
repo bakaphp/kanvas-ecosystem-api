@@ -16,11 +16,13 @@ use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     //public $tries = 10;

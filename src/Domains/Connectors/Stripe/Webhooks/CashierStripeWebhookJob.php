@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Stripe\Webhooks;
 use Illuminate\Http\Request;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Laravel\Cashier\Cashier;
@@ -17,6 +18,7 @@ use Stripe\Stripe;
 use Stripe\Webhook;
 use UnexpectedValueException;
 
+#[WorkflowAction]
 class CashierStripeWebhookJob extends ProcessWebhookJob
 {
     #[Override]

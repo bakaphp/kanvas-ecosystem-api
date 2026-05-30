@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Shopify\Workflows\Activities;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\AddEntityIntegrationHistoryAction;
@@ -16,6 +17,7 @@ use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
+#[WorkflowAction]
 class DeleteVariantFromShopifyActivity extends KanvasActivity
 {
     public function execute(Variants $variant, Apps $app, array $params): array

@@ -34,16 +34,22 @@ class AddFundsToCompanyWalletAction extends AddFundsToWalletActionBase
     }
 
     /**
+     * Legacy default ($order->user->getCurrentCompany()) preserves the hotfix from commit
+     * 84b870a8d (Jun 2025) which patched an unknown failure case in Companies::getById.
+     *
      * @throws Exception
      */
     private function getCompany(): Companies
     {
-        $userCompany = $this->order->getMetadata('user_company_id');
+        $userCompany = (int) $this->order->getMetadata('user_company_id');
         if (! $userCompany) {
             throw new Exception('User company not found in order metadata.');
         }
 
-        ///$company = Companies::getById($userCompany); hotfix while we figure it out
+        if ($this->resolveCompanyFromMetadata) {
+            return Companies::getById($userCompany);
+        }
+
         return $this->order->user->getCurrentCompany();
     }
 }

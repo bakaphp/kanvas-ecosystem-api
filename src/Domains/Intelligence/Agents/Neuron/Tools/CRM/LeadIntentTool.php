@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
+#[AgentTool(name: 'Lead Intent')]
 class LeadIntentTool extends Tool
 {
     public function __construct()

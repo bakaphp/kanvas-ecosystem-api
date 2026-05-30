@@ -13,9 +13,11 @@ use Kanvas\Event\Events\DataTransferObject\Event as EventData;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Support\Setup;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Override;
 
+#[WorkflowAction]
 class ProcessElevenLabsCalendarEventWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]

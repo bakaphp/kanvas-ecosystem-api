@@ -8,9 +8,11 @@ use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Souk\Actions\ConfigureB2BCompanyPricingAction;
 use Kanvas\Souk\Services\B2BConfigurationService;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class B2BCompanyPriceConfigurationActivity extends KanvasActivity
 {
     public function execute(Companies $buyerCompany, AppInterface $app, array $params): array

@@ -10,10 +10,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class SendEmailActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

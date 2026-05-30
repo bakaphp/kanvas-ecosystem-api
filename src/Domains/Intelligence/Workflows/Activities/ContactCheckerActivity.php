@@ -10,11 +10,13 @@ use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Intelligence\Tools\ContactCheckerTool;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class ContactCheckerActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

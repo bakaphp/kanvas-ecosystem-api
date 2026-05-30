@@ -18,11 +18,13 @@ use Kanvas\Social\Messages\Services\MessageInteractionService;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class LinkMessageToOrderActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public $tries = 3;

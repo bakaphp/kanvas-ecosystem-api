@@ -57,8 +57,10 @@ class AgentManagementMutation
             identity: $input['identity'] ?? null,
             userContext: $input['user_context'] ?? null,
             toolsConfig: $input['tools_config'] ?? null,
+            tools: isset($input['tool_ids']) ? $this->resolveTools($input['tool_ids'], $app) : null,
             parentAgent: $parentAgent,
             createdBy: auth()->user(),
+            isSubAgent: (bool) ($input['is_sub_agent'] ?? false),
         );
 
         $agent = new CreateAgentAction($agentDTO)->execute();
@@ -69,6 +71,7 @@ class AgentManagementMutation
 
         if (isset($input['tool_ids'])) {
             $this->syncTools($agent, $input['tool_ids'], $app);
+            $this->appendToolInstructions($agent, $input['tool_ids'], $app);
         }
 
         return $agent;
@@ -112,6 +115,7 @@ class AgentManagementMutation
             userContext: $input['user_context'] ?? null,
             toolsConfig: $input['tools_config'] ?? null,
             parentAgent: $parentAgent,
+            isSubAgent: (bool) ($input['is_sub_agent'] ?? false),
         );
 
         $agent = new UpdateAgentAction($agentDTO, $agent)->execute();
@@ -122,6 +126,7 @@ class AgentManagementMutation
 
         if (isset($input['tool_ids'])) {
             $this->syncTools($agent, $input['tool_ids'], $app);
+            $this->appendToolInstructions($agent, $input['tool_ids'], $app);
         }
 
         return $agent;
@@ -165,6 +170,69 @@ class AgentManagementMutation
 
     /**
      * @param array<int, string> $toolIds
+     *
+     * @return array<int, Tool>
+     */
+    private function resolveTools(array $toolIds, AppInterface $app): array
+    {
+        $tools = [];
+        foreach ($toolIds as $toolId) {
+            /** @var Tool $tool */
+            $tool = Tool::query()
+                ->where('id', (int) $toolId)
+                ->whereIn('apps_id', [0, $app->getId()])
+                ->firstOrFail();
+            $tools[] = $tool;
+        }
+
+        return $tools;
+    }
+
+    /**
+     * @param array<int, string> $toolIds
+     */
+    private function appendToolInstructions(Agent $agent, array $toolIds, AppInterface $app): void
+    {
+        $lines = [];
+
+        foreach ($toolIds as $toolId) {
+            $tool = Tool::query()
+                ->where('id', (int) $toolId)
+                ->whereIn('apps_id', [0, $app->getId()])
+                ->first();
+
+            if ($tool === null || $tool->handler === null || ! class_exists($tool->handler)) {
+                continue;
+            }
+
+            $instance = new $tool->handler();
+
+            if (method_exists($instance, 'instructions') && ($hint = $instance->instructions()) !== null && $hint !== '') {
+                $lines[] = '- ' . $hint;
+            }
+        }
+
+        $base = $agent->instructions ?? '';
+        $marker = "\n\n## Tool Usage Guidelines\n";
+        $pos = strpos($base, $marker);
+        if ($pos !== false) {
+            $base = substr($base, 0, $pos);
+        }
+
+        if (empty($lines)) {
+            $agent->instructions = $base !== '' ? $base : null;
+            $agent->save();
+
+            return;
+        }
+
+        $toolSection = "## Tool Usage Guidelines\n" . implode("\n", $lines);
+        $agent->instructions = $base !== '' ? $base . $marker . $toolSection : $toolSection;
+        $agent->save();
+    }
+
+    /**
+     * @param array<int, string> $toolIds
      */
     private function syncTools(Agent $agent, array $toolIds, AppInterface $app): void
     {
@@ -172,7 +240,7 @@ class AgentManagementMutation
         foreach ($toolIds as $toolId) {
             $tool = Tool::query()
                 ->where('id', (int) $toolId)
-                ->fromApp($app)
+                ->whereIn('apps_id', [0, $app->getId()])
                 ->firstOrFail();
             $ids[] = $tool->getId();
         }

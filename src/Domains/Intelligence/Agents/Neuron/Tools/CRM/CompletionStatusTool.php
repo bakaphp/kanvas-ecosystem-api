@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Laravel\Ai\Enums\Lab;
@@ -17,6 +18,7 @@ use Override;
 
 use function Laravel\Ai\agent;
 
+#[AgentTool(name: 'Completion Status')]
 class CompletionStatusTool extends Tool
 {
     public function __construct()

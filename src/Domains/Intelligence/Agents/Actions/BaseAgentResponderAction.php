@@ -46,7 +46,7 @@ class BaseAgentResponderAction
             ? $configService->getAiModeKey($lead)
             : 'ai_mode';
 
-        if ($lead instanceof Lead && ! $lead->get(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value) && $configService->isV2Enabled($lead->app)) {
+        if ($lead instanceof Lead && ! $lead->get(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value) && $configService->isV2Enabled($lead->company)) {
             try {
                 $isOpen = $lead->company->isWithinWorkingHours(now());
             } catch (InvalidArgumentException) {
@@ -77,6 +77,9 @@ class BaseAgentResponderAction
         Channel $channel,
         ?string $from = null
     ): Message {
+        if (empty($text)) {
+            throw new Exception('Empty message was created');
+        }
         $user = $this->channel->company->getAiAgentUser() ?? $message->user;
         $type = $this->getMessageType($message->app);
         $messageInput = new MessageInput(

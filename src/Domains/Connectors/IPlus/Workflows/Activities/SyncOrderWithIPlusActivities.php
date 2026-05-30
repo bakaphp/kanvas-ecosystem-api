@@ -9,9 +9,11 @@ use Kanvas\Connectors\IPlus\Actions\SaveOrderToIPlusAction;
 use Kanvas\Connectors\IPlus\Actions\SavePeopleToIPlusAction;
 use Kanvas\Connectors\IPlus\Enums\CustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class SyncOrderWithIPlusActivities extends KanvasActivity
 {
     public $tries = 3;

@@ -18,9 +18,11 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class ConvertTextToSpeechActivity extends KanvasActivity
 {
     protected ?string $apiUrl = null;
@@ -50,7 +52,7 @@ class ConvertTextToSpeechActivity extends KanvasActivity
                     return $this->failWorkflow([
                         'result' => false,
                         'message' => 'Failed to retrieve audio file',
-                        "message_id" => $entity->getId(),
+                        'message_id' => $entity->getId(),
                     ]);
                 }
 

@@ -10,9 +10,11 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Intelligence\Tools\LeadIntentTool;
 use Kanvas\Intelligence\Tools\VehicleInterestTool;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class MatchPipelineByIntentActivity extends KanvasActivity
 {
     public function execute(Lead $lead, Apps $app, array $params): array

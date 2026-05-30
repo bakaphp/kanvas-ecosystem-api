@@ -13,12 +13,14 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
 
+#[WorkflowAction]
 class RemixCreationActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
@@ -97,7 +99,7 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                             title: 'New Unlock! 🔓',
                             via: $endViaList,
                             templates: [
-                                'email_template' => "email-new-message-remix-unlocked",
+                                'email_template' => 'email-new-message-remix-unlocked',
                                 'push_template' => $params['push_template'],
                             ],
                         );
