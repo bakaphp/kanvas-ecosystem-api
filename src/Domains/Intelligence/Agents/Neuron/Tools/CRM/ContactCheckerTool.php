@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Blade;
 use InvalidArgumentException;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Messages\Models\Message;
@@ -16,6 +17,7 @@ use NeuronAI\Tools\Tool;
 
 use function Laravel\Ai\agent;
 
+#[AgentTool(name: 'Contact Checker')]
 class ContactCheckerTool extends Tool
 {
     protected Agent $agent;

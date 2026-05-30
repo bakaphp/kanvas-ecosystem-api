@@ -208,7 +208,7 @@ class AgentToolSelectionTest extends TestCase
         $this->assertNotContains($typeTool->id, $toolIds, 'Explicit tools must win over type inheritance');
     }
 
-    public function testCreateAgentWithEmptyExplicitToolsSelectsNone(): void
+    public function testCreateAgentWithEmptyToolsInheritsFromType(): void
     {
         $type = $this->makeAgentType('laravel');
         $typeTool = $this->makeTool(['laravel']);
@@ -218,10 +218,11 @@ class AgentToolSelectionTest extends TestCase
             $this->makeAgentData($type, []),
         )->execute();
 
-        $this->assertCount(
-            0,
-            $agent->selectedTools()->get(),
-            'An explicit empty tool list means no tools — not type inheritance',
+        $toolIds = $agent->selectedTools()->pluck('id')->all();
+        $this->assertContains(
+            $typeTool->id,
+            $toolIds,
+            'Empty tool_ids on create falls back to the agent type tools (the form sends [] when none picked)',
         );
     }
 

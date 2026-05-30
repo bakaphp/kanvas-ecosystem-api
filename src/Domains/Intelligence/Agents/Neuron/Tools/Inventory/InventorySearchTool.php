@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Inventory\Products\Models\Products;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
@@ -11,13 +12,17 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
+#[AgentTool(name: 'Inventory Search')]
 class InventorySearchTool extends Tool
 {
     public function __construct()
     {
         parent::__construct(
             name: 'inventory_search',
-            description: 'Search for products in the inventory using the search engine (Typesense/Algolia) over name, description and translations. Accepts free-form natural-language queries (e.g. "toyota azul 5 puertas"); the search engine ranks results by relevance even when not all terms map to indexed fields. Returns availability and stock levels.',
+            description: 'Search for products in the inventory using the search engine (Typesense/Algolia) '
+                . 'over name, description and translations. Accepts free-form natural-language queries '
+                . '(e.g. "toyota azul 5 puertas"); the search engine ranks results by relevance even when '
+                . 'not all terms map to indexed fields. Returns availability and stock levels.',
         );
     }
 
@@ -28,7 +33,8 @@ class InventorySearchTool extends Tool
             new ToolProperty(
                 name: 'product_name',
                 type: ToolsPropertyType::STRING,
-                description: 'The free-form search query. Can be a product name, keywords, or a natural-language phrase. The search engine matches across name, description and translations.',
+                description: 'The free-form search query. Can be a product name, keywords, or a natural-language phrase. '
+                    . 'The search engine matches across name, description and translations.',
                 required: true,
             ),
         ];

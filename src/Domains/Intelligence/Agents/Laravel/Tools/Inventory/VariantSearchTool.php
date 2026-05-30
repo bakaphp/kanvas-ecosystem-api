@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -12,6 +13,7 @@ use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
 
+#[AgentTool(name: 'Variant Search')]
 class VariantSearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;

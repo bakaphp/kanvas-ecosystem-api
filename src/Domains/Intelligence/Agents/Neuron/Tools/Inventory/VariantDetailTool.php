@@ -5,22 +5,29 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Inventory\Variants\Models\Variants;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use Override;
 use Throwable;
 
+#[AgentTool(name: 'Variant Detail')]
 class VariantDetailTool extends Tool
 {
     public function __construct()
     {
         parent::__construct(
             name: 'variant_detail',
-            description: 'Get the full detail of a single product variant: identifiers (SKU, EAN, barcode), descriptions, weight, publish state, parent product, inventory per warehouse (stock, price, cost, flags) including the channels priced on each warehouse, attributes and media. Use this after inventory_search/variant_search when the user wants the deep details of one specific variant.',
+            description: 'Get the full detail of a single product variant: identifiers (SKU, EAN, barcode), '
+                . 'descriptions, weight, publish state, parent product, inventory per warehouse '
+                . '(stock, price, cost, flags) including the channels priced on each warehouse, attributes and media. '
+                . 'Use this after inventory_search/variant_search when the user wants the deep details of one specific variant.',
         );
     }
 
+    #[Override]
     protected function properties(): array
     {
         return [

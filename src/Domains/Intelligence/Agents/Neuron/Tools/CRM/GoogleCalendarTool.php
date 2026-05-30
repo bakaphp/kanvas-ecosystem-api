@@ -7,22 +7,28 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Carbon\Carbon;
 use Kanvas\Connectors\Google\Actions\CreateGoogleCalendarMeetingAction;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use Override;
 use Throwable;
 
+#[AgentTool(name: 'Google Calendar')]
 class GoogleCalendarTool extends Tool
 {
     public function __construct()
     {
         parent::__construct(
             name: 'create_google_calendar_meeting',
-            description: 'Create a Google Calendar event with a Google Meet link and invite the given attendee emails. Use this when the lead agrees to schedule a meeting and you have the date, time and the list of participant emails.',
+            description: 'Create a Google Calendar event with a Google Meet link and invite the given attendee emails. '
+                . 'Use this when the lead agrees to schedule a meeting and you have the date, time and the list '
+                . 'of participant emails.',
         );
     }
 
+    #[Override]
     protected function properties(): array
     {
         return [
