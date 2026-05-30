@@ -17,6 +17,7 @@ use Kanvas\Intelligence\Agents\Exceptions\AgentProviderException;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
+use Kanvas\Intelligence\Sessions\Actions\PersistChatTurnToSocialAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
@@ -50,9 +51,36 @@ class ProcessAgentChatAction
 
         $durationMs = (microtime(true) - $startTime) * 1000.0;
         $this->trackUsage($response, $durationMs, $sessionId);
+        $this->persistConversationToSocial($response);
         $this->broadcastChatResponse($sessionId, $response);
 
         return $response;
+    }
+
+    /**
+     * Best-effort: a Social-side failure must never cost the user their already-computed
+     * answer, so we catch + report rather than throw.
+     */
+    protected function persistConversationToSocial(string $response): void
+    {
+        if ($this->session === null) {
+            return;
+        }
+
+        try {
+            new PersistChatTurnToSocialAction(
+                session: $this->session,
+                agent: $this->agent,
+                app: $this->app,
+                company: $this->company,
+                user: $this->user,
+                userMessage: $this->message,
+                assistantResponse: $response,
+                images: array_values($this->images),
+            )->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     protected function runHandler(): string

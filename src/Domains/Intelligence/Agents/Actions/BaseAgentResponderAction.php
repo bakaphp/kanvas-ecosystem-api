@@ -14,6 +14,7 @@ use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
+use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -86,14 +87,16 @@ class BaseAgentResponderAction
             app: $message->app,
             company: $message->company,
             user: $user,
-            message: [
-                    'content' => $text,
-                    'raw_data' => $text,
-                    'message_id' => '--',
-                    'chat_jid' => $to,
-                    'from_me' => true,
-                    'from_ia' => true,
-            ],
+            message: AiChatMessagePayload::from([
+                'content' => $text,
+                'from_me' => true,
+                'from_ia' => true,
+                'session_id' => $this->session?->uuid,
+                'agent_id' => (int) $this->agent->getId(),
+                'raw_data' => $text,
+                'message_id' => '--',
+                'chat_jid' => $to,
+            ])->toArray(),
             is_public: 1,
             tags: [$to],
             type: $type,

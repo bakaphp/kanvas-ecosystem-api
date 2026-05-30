@@ -246,8 +246,8 @@ class HermesProvider extends AbstractAgentRuntimeProvider
     }
 
     /**
-     * The Hermes API server's /v1/chat/completions endpoint is stateless, so $sessionKey
-     * is unused — cross-turn continuity comes from the agent's own persistent memory.
+     * Hermes /v1/chat/completions is stateless, so $sessionKey is unused — cross-turn
+     * continuity comes from the agent's own persistent memory.
      */
     #[Override]
     public function chat(

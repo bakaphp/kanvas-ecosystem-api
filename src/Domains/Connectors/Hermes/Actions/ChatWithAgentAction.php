@@ -14,21 +14,10 @@ use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
 
 /**
- * Chat with a deployed Hermes agent via SSH + `docker exec curl` against the
- * container's OpenAI-compatible API server (POST /v1/chat/completions on
- * 127.0.0.1:8642).
- *
- * Same transport as OpenClaw's ChatWithAgentAction (SSH → docker exec → loopback
- * HTTP) but it speaks the Chat Completions API rather than the Responses API,
- * because that is what the Hermes API server exposes. The API server binds to
- * loopback inside the container and authenticates with a bearer key that equals
- * the per-agent gateway token (API_SERVER_KEY == the HERMES_GATEWAY_TOKEN custom
- * field — see DockerComposeBuilderService::getApiServerEnvVars()).
- *
- * The endpoint is stateless — each call sends only the current user message.
- * Continuity across turns comes from Hermes's own persistent auto-memory; true
- * per-session message threading (Hermes /v1/responses + `conversation`) is a
- * deliberate follow-up, not wired here.
+ * SSH + `docker exec curl` against the container's OpenAI-compatible API server
+ * (POST /v1/chat/completions on 127.0.0.1:8642). API_SERVER_KEY == the per-agent
+ * HERMES_GATEWAY_TOKEN custom field (see DockerComposeBuilderService::getApiServerEnvVars()).
+ * Endpoint is stateless — cross-turn continuity is Hermes's own persistent auto-memory.
  */
 class ChatWithAgentAction
 {
@@ -53,20 +42,14 @@ class ChatWithAgentAction
         return $this->sendRequest($deployment, $this->resolveGatewayToken($deployment));
     }
 
-    /**
-     * Factory for the SSH transport — overridable in tests to inject a fake
-     * SshClient without touching the network.
-     */
     protected function openSshClient(AgentMachine $machine): SshClient
     {
         return SshClient::fromMachine($machine);
     }
 
     /**
-     * The API server bearer key is the per-agent gateway token. It is set on the
-     * agent custom field at launch (and backfilled by BackfillAgentGatewayTokenAction);
-     * the deployment custom field is checked as a fallback for older rows. Unlike
-     * OpenClaw there is no config-file fallback — the token is an env var
+     * Bearer key is the per-agent gateway token. Agent custom field first, deployment field
+     * as fallback for older rows. No config-file fallback — the token is an env var
      * (API_SERVER_KEY), never written into config.yaml.
      */
     private function resolveGatewayToken(AgentDeployment $deployment): string
@@ -89,8 +72,6 @@ class ChatWithAgentAction
 
     private function sendRequest(AgentDeployment $deployment, string $token): string
     {
-        // The container IS the agent (one Hermes instance per agent), so the model
-        // name is the fixed `hermes-agent` literal the API server expects.
         $payload = json_encode([
             'model' => 'hermes-agent',
             'messages' => [
@@ -105,10 +86,8 @@ class ChatWithAgentAction
 
         $client = $this->openSshClient($deployment->machine);
 
-        // phpseclib3's exec channel caps a single command around ~200 KB, so a 1+ MB
-        // payload (the base64-inlined image case) gets truncated mid-write — phpseclib
-        // raises "Only N of M bytes were sent" and the request never reaches Hermes.
-        // Stage the payload as a file via SFTP (which chunks properly), `docker cp` it
+        // phpseclib3's exec channel caps a single command around ~200 KB, so a 1+ MB payload
+        // (the base64-inlined image case) gets truncated mid-write. Stage via SFTP, `docker cp`
         // into the container, and have curl read it from disk with --data-binary.
         $hostTmp = '/tmp/hermes-chat-' . bin2hex(random_bytes(8)) . '.json';
         $containerTmp = '/tmp/hermes-chat-' . bin2hex(random_bytes(8)) . '.json';
@@ -132,8 +111,6 @@ class ChatWithAgentAction
                 600,
             );
         } finally {
-            // Best-effort cleanup of the host-side staging file — never mask the
-            // real response or exception with a cleanup failure.
             try {
                 $client->exec('rm -f ' . escapeshellarg($hostTmp), 5);
             } catch (Throwable) {
@@ -164,11 +141,8 @@ class ChatWithAgentAction
     }
 
     /**
-     * Hermes' vision pipeline expects the image bytes inlined as a base64 `data:` URI — its
-     * docs state the image is sent as `{ "url": "data:image/...;base64,..." }`. Handing the
-     * API a remote http(s) URL instead makes the Hermes server fetch the asset itself, which
-     * it does not do reliably for API requests, so the agent silently never sees the image.
-     * Inline the bytes here so the request is self-contained.
+     * Hermes' vision pipeline expects image bytes inlined as a base64 `data:` URI — handing it
+     * a remote http(s) URL makes the API silently never see the image.
      */
     private function toInlineImage(string $imageUrl): string
     {
@@ -183,9 +157,6 @@ class ChatWithAgentAction
         return 'data:' . $mimeType . ';base64,' . base64_encode($binary);
     }
 
-    /**
-     * Fetch the raw image bytes. Isolated so tests can supply canned bytes without network.
-     */
     protected function fetchImageBinary(string $url): string
     {
         $binary = @file_get_contents($url);
@@ -199,10 +170,8 @@ class ChatWithAgentAction
 
     private function parseResponse(string $response): string
     {
-        // The SSH transport can return bytes truncated mid-multi-byte (curl hitting
-        // --max-time, mixed stderr, etc.) — coerce to valid UTF-8 so neither the parsed
-        // content nor any exception message built from it can poison Laravel's JSON
-        // response with `InvalidArgumentException: Malformed UTF-8 characters`.
+        // SSH transport can return bytes truncated mid-multi-byte; coerce to valid UTF-8 so
+        // nothing built from it poisons Laravel's JSON response with malformed-UTF-8 errors.
         $response = (string) mb_convert_encoding($response, 'UTF-8', 'UTF-8');
 
         $lines = explode("\n", trim($response));

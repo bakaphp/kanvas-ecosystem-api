@@ -10,6 +10,7 @@ use Kanvas\Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -51,12 +52,10 @@ class RuntimeAgentChannelResponderAction
             throw new ValidationException('Message has no content or attachments to send to the agent');
         }
 
-        $sessionKey = 'kanvas-channel-' . (string) $this->channel->getId();
-
         $reply = $this->resolveProvider()->chat(
             agent: $this->agent,
             message: $messageContent,
-            sessionKey: $sessionKey,
+            sessionKey: $this->channel->uuid,
             images: $imageUrls,
         );
 
@@ -125,14 +124,15 @@ class RuntimeAgentChannelResponderAction
             company: $this->message->company,
             user: $this->agent->user,
             type: $messageType,
-            message: [
+            message: AiChatMessagePayload::from([
                 'content' => $reply,
+                'from_me' => true,
+                'from_ia' => true,
+                'agent_id' => (int) $this->agent->getId(),
                 'raw_data' => $reply,
                 'message_id' => '--',
                 'chat_jid' => $originalPayload['chat_jid'] ?? null,
-                'from_me' => true,
-                'from_ia' => true,
-            ],
+            ])->toArray(),
             is_public: 1,
             tags: [self::AGENT_RESPONSE_TYPE_VERB],
         );

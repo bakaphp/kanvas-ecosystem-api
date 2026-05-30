@@ -29,7 +29,7 @@ class ActionEngineSetupCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): void
     {
         /** @var Apps $app */
         $app = Apps::getById((int) $this->argument('app_id'));
