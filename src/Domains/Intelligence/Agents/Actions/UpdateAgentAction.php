@@ -36,6 +36,7 @@ class UpdateAgentAction
             'user_context' => $this->agent->userContext,
             'tools_config' => $this->agent->toolsConfig,
             'parent_id' => $this->agent->parentAgent?->getId(),
+            'is_sub_agent' => $this->agent->isSubAgent,
         ]);
         $this->agentModel->communicationChannels()->sync($this->agent->communicationChannel);
 
