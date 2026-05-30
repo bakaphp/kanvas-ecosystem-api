@@ -221,6 +221,77 @@ class UserAgentChatTest extends TestCase
         $this->assertEquals($lead->getId(), $session->entity_id);
     }
 
+    public function testUserChatMirrorsLeadConversationToLeadChannelAndMarksResponded(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $lead = Lead::factory()
+            ->withAppId($app->id)
+            ->withCompanyId($company->id)
+            ->create();
+
+        $response = $this->graphQL('
+            mutation($input: UserChatInput!) {
+                aiAgentUserChat(input: $input) {
+                    response
+                    session_id
+                }
+            }
+        ', [
+            'input' => [
+                'agent_id' => (string) $this->agent->getId(),
+                'message' => 'Hello from lead context',
+                'lead_id' => (string) $lead->getId(),
+            ],
+        ]);
+
+        $response->assertSuccessful();
+        $this->assertArrayNotHasKey('errors', $response->json(), 'GraphQL errors: ' . $response->getContent());
+
+        $sessionId = $response->json('data.aiAgentUserChat.session_id');
+        $session = Session::where('uuid', $sessionId)->first();
+        $channel = Channel::find($session->channel_id);
+        $this->assertNotNull($channel, 'Lead session should land on the lead channel created by createLeadSession');
+
+        $messages = $channel->messages()->get();
+        $this->assertCount(2, $messages, 'Lead channel should receive user prompt + assistant reply');
+
+        foreach ($messages as $message) {
+            $this->assertSame($sessionId, $message->getMessage()['session_id']);
+            $this->assertEquals($this->agent->getId(), $message->getMessage()['agent_id']);
+            $entity = $message->entity();
+            $this->assertInstanceOf(Lead::class, $entity, 'Lead-channel messages must be linked to the Lead');
+            $this->assertEquals($lead->getId(), $entity->getId());
+        }
+
+        $aiMessage = $messages->first(fn (Message $m): bool => (bool) ($m->getMessage()['from_ia'] ?? false));
+        $userMessage = $messages->first(fn (Message $m): bool => ! ($m->getMessage()['from_ia'] ?? false));
+        $this->assertNotNull($aiMessage);
+        $this->assertNotNull($userMessage);
+
+        $aiMessage->refresh();
+        $userMessage->refresh();
+
+        if ($this->agent->user) {
+            $this->assertEquals(
+                $this->agent->user->getId(),
+                $aiMessage->users_id,
+                'Assistant reply must be authored by the agent\'s own user',
+            );
+        }
+
+        $this->assertTrue(
+            (bool) $userMessage->is_un_response,
+            'MarkLeadMessagesAsRespondedAction should flip the user prompt to responded',
+        );
+        $this->assertEquals(
+            $aiMessage->getId(),
+            $userMessage->response_message_id,
+            'User prompt should point at the assistant reply as its response',
+        );
+    }
+
     public function testUserChatWithoutLeadIdCreatesUserSession(): void
     {
         $response = $this->graphQL('

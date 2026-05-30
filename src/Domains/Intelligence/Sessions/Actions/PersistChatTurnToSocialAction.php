@@ -7,13 +7,16 @@ namespace Kanvas\Intelligence\Sessions\Actions;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -49,14 +52,15 @@ class PersistChatTurnToSocialAction
         $entity = $this->resolveEntity();
         $channel = $this->resolveChannel($entity);
         $type = MessageTypeService::getOrCreate($this->app, $this->messageTypeVerb);
-        $aiUser = $this->company->getAiAgentUser() ?? $this->user;
+        // Agent's own user → company AI user → human (last resort): message always has an author.
+        $aiUser = $this->agent->user ?? $this->company->getAiAgentUser() ?? $this->user;
 
         $incoming = $this->createMessage(
             $type,
             $this->user,
             $this->userMessage,
             fromIa: false,
-            extra: $this->images === [] ? [] : ['images' => $this->images],
+            images: $this->images,
         );
 
         $reply = $this->createMessage(
@@ -78,6 +82,10 @@ class PersistChatTurnToSocialAction
         $channel->addMessage($incoming, $this->user);
         $channel->addMessage($reply, $aiUser);
 
+        if ($entity instanceof Lead) {
+            new MarkLeadMessagesAsRespondedAction($entity, $reply)->execute();
+        }
+
         return $reply;
     }
 
@@ -97,7 +105,10 @@ class PersistChatTurnToSocialAction
         }
 
         $entityId = (int) ($entity?->getId() ?? $this->user->getId());
-        $slug = SessionChannelService::createChannelSlug('ai-assist', (int) $this->agent->getId() . '-' . $entityId);
+        $slug = SessionChannelService::createChannelSlug(
+            'ai-assist',
+            (int) $this->agent->getId() . '-' . $entityId
+        );
 
         $channel = new CreateChannelAction(
             new ChannelDto(
@@ -119,7 +130,7 @@ class PersistChatTurnToSocialAction
     }
 
     /**
-     * @param array<string, mixed> $extra
+     * @param list<string> $images
      */
     protected function createMessage(
         MessageType $type,
@@ -127,21 +138,21 @@ class PersistChatTurnToSocialAction
         string $content,
         bool $fromIa,
         ?Message $parent = null,
-        array $extra = [],
+        array $images = [],
     ): Message {
         $input = new MessageInput(
             app: $this->app,
             company: $this->company,
             user: $author,
             type: $type,
-            message: [
+            message: AiChatMessagePayload::from([
                 'content' => $content,
                 'from_me' => $fromIa,
                 'from_ia' => $fromIa,
                 'session_id' => $this->session->uuid,
-                'agent_id' => $this->agent->getId(),
-                ...$extra,
-            ],
+                'agent_id' => (int) $this->agent->getId(),
+                'images' => $images,
+            ])->toArray(),
             parent_id: $parent?->getId(),
             is_public: 1,
         );
