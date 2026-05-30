@@ -21,12 +21,17 @@ trait NotificationRenderTrait
     protected ?string $pushMessageTemplateName = null;
     protected ?string $pushSubtitleTemplateName = null;
     protected ?string $smsTemplateName = null;
+    protected ?string $databaseTemplateName = null;
     public array $data = [];
 
     abstract public function getType(): NotificationTypes;
 
     public function message(): string
     {
+        if ($this->databaseTemplateName !== null) {
+            return $this->renderTemplate($this->databaseTemplateName);
+        }
+
         // data['message'] is also used as a template variable, so callers may set it
         // to a model object (e.g. a Social Message). Only treat it as ready-made content
         // when it is actually a string; otherwise fall back to the rendered email body.
@@ -86,6 +91,13 @@ trait NotificationRenderTrait
     public function setSmsTemplateName(string $name): self
     {
         $this->smsTemplateName = $name;
+
+        return $this;
+    }
+
+    public function setDatabaseTemplateName(string $name): self
+    {
+        $this->databaseTemplateName = $name;
 
         return $this;
     }
