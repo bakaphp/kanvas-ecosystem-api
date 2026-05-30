@@ -19,6 +19,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Sessions\Actions\PersistChatTurnToSocialAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 use Throwable;
@@ -27,6 +28,12 @@ class ProcessAgentChatAction
 {
     use LimitsBroadcastPayload;
 
+    protected ?Message $persistedReply = null;
+
+    /**
+     * @param list<\Kanvas\Filesystem\Models\Filesystem> $attachments
+     *        Freshly uploaded Filesystem records to attach to the persisted user Message.
+     */
     public function __construct(
         protected readonly Agent $agent,
         protected readonly ?Session $session,
@@ -35,7 +42,13 @@ class ProcessAgentChatAction
         protected readonly Companies $company,
         protected readonly Users $user,
         protected readonly array $images = [],
+        protected readonly array $attachments = [],
     ) {
+    }
+
+    public function persistedReply(): ?Message
+    {
+        return $this->persistedReply;
     }
 
     public function execute(): string
@@ -58,8 +71,8 @@ class ProcessAgentChatAction
     }
 
     /**
-     * Best-effort: a Social-side failure must never cost the user their already-computed
-     * answer, so we catch + report rather than throw.
+     * userChat's response contract promises a non-null message + channel, so failures here
+     * propagate rather than getting swallowed — a half-persisted turn is a real bug to surface.
      */
     protected function persistConversationToSocial(string $response): void
     {
@@ -67,20 +80,17 @@ class ProcessAgentChatAction
             return;
         }
 
-        try {
-            new PersistChatTurnToSocialAction(
-                session: $this->session,
-                agent: $this->agent,
-                app: $this->app,
-                company: $this->company,
-                user: $this->user,
-                userMessage: $this->message,
-                assistantResponse: $response,
-                images: array_values($this->images),
-            )->execute();
-        } catch (Throwable $e) {
-            report($e);
-        }
+        $this->persistedReply = new PersistChatTurnToSocialAction(
+            session: $this->session,
+            agent: $this->agent,
+            app: $this->app,
+            company: $this->company,
+            user: $this->user,
+            userMessage: $this->message,
+            assistantResponse: $response,
+            images: array_values($this->images),
+            attachments: $this->attachments,
+        )->execute();
     }
 
     protected function runHandler(): string
