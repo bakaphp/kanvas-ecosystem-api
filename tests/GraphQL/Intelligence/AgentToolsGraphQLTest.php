@@ -395,6 +395,63 @@ class AgentToolsGraphQLTest extends TestCase
         $this->assertContains((string) $toolB->getId(), $toolIds);
     }
 
+    public function testUpdateAgentPersistsIsSubAgentToggle(): void
+    {
+        $type = $this->makeAgentType();
+
+        $createResp = $this->graphQL('
+            mutation($input: AgentAiInput!) {
+                createAiAgent(input: $input) {
+                    id
+                    is_sub_agent
+                }
+            }
+        ', [
+            'input' => [
+                'agent_type_id' => $type->getId(),
+                'name' => 'Agent SubAgentToggle ' . uniqid(),
+                'description' => 'Test',
+                'config' => [],
+                'role' => 'test',
+                'is_active' => true,
+                'is_sub_agent' => false,
+            ],
+        ])->assertSuccessful();
+
+        $agentId = $createResp->json('data.createAiAgent.id');
+        $this->assertFalse($createResp->json('data.createAiAgent.is_sub_agent'));
+
+        $updateResp = $this->graphQL('
+            mutation($id: ID!, $input: AgentAiInput!) {
+                updateAiAgent(id: $id, input: $input) {
+                    id
+                    is_sub_agent
+                }
+            }
+        ', [
+            'id' => $agentId,
+            'input' => [
+                'agent_type_id' => $type->getId(),
+                'name' => 'Agent SubAgentToggle Updated',
+                'description' => 'Test',
+                'config' => [],
+                'role' => 'test',
+                'is_active' => true,
+                'is_sub_agent' => true,
+            ],
+        ])->assertSuccessful();
+
+        $this->assertTrue(
+            $updateResp->json('data.updateAiAgent.is_sub_agent'),
+            'updateAiAgent must reflect is_sub_agent in the response',
+        );
+        $this->assertDatabaseHas(
+            'agents',
+            ['id' => $agentId, 'is_sub_agent' => 1],
+            'intelligence',
+        );
+    }
+
     public function testNervousSystemToolsListIncludesGlobalTool(): void
     {
         $globalTool = $this->makeTool();
