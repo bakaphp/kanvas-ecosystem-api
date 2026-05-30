@@ -19,7 +19,10 @@ class HandOffTool extends Tool
     {
         parent::__construct(
             name: 'handoff_lead',
-            description: 'Transfer the lead to a human agent. Call this when the lead requests to speak with a human, when the conversation requires human intervention, or when the AI cannot resolve the lead\'s request.',
+            description: 'Transfer the lead to a human agent. '
+                . 'Call this when the lead requests to speak with a human, '
+                . 'when the conversation requires human intervention, '
+                . 'or when the AI cannot resolve the lead\'s request.',
         );
     }
 

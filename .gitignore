@@ -47,3 +47,4 @@ src/Baka/Search/
 docs/
 .claude/skills/Intelligence/
 app/Console/Commands/Inventory/SeedVehicleProductsCommand.php
+app/Console/Commands/local/

@@ -20,7 +20,8 @@ class VehicleInterestTool extends Tool
     {
         parent::__construct(
             name: 'get_vehicle_interest',
-            description: 'Get detailed information about the lead\'s vehicle of interest, including condition, year, make, model, VIN, stock number, price, and inventory status.',
+            description: 'Get detailed information about the lead\'s vehicle of interest'
+                . '  , including condition, year, make, model, VIN, stock number, price, and inventory status.',
         );
     }
 
