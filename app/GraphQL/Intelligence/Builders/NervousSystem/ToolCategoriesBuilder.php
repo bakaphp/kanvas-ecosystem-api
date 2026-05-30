@@ -8,12 +8,12 @@ use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\AgentType;
-use Kanvas\NervousSystem\Capability\Models\Tool;
+use Kanvas\NervousSystem\Capability\Models\ToolCategory;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
-class ToolsBuilder
+class ToolCategoriesBuilder
 {
-    public function getTools(
+    public function getCategories(
         mixed $root,
         array $args,
         GraphQLContext $context,
@@ -21,7 +21,7 @@ class ToolsBuilder
     ): Builder {
         $app = app(Apps::class);
 
-        $query = Tool::query()
+        $query = ToolCategory::query()
             ->fromAppOrGlobal($app)
             ->active();
 
