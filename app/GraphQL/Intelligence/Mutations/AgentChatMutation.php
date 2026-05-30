@@ -21,6 +21,7 @@ use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjec
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
@@ -47,7 +48,7 @@ class AgentChatMutation
         $sessionId = (string) $input['session_id'];
         $session = Session::fromApp($app)->fromCompany($company)->where('uuid', $sessionId)->first();
 
-        [$mergedImages, $mergedFiles] = $this->mergeUploadsWithUrls(
+        [$mergedImages, $mergedFiles, $attachments] = $this->mergeUploadsWithUrls(
             $input,
             $user,
             $app,
@@ -65,6 +66,7 @@ class AgentChatMutation
             company: $company,
             user: $user,
             images: $mergedImages,
+            attachments: $attachments,
         )->execute();
     }
 
@@ -151,14 +153,14 @@ class AgentChatMutation
             $company
         );
 
-        [$mergedImages, $mergedFiles] = $this->mergeUploadsWithUrls(
+        [$mergedImages, $mergedFiles, $attachments] = $this->mergeUploadsWithUrls(
             $input,
             $user,
             $app,
             $session
         );
 
-        $response = new ProcessAgentChatAction(
+        $processor = new ProcessAgentChatAction(
             agent: $agent,
             session: $session,
             message: AttachmentPromptBuilder::withAttachments(
@@ -169,11 +171,18 @@ class AgentChatMutation
             company: $company,
             user: $user,
             images: $mergedImages,
-        )->execute();
+            attachments: $attachments,
+        );
+        
+        $response = $processor->execute();
+        /** @var Message $reply userChat always supplies a Session, so persistence always runs and sets the reply (or throws). */
+        $reply = $processor->persistedReply();
 
         return [
             'response' => $response,
             'session_id' => $session->uuid,
+            'message' => $reply,
+            'channel' => $reply->channels()->first(),
         ];
     }
 
@@ -266,7 +275,7 @@ class AgentChatMutation
 
     /**
      * @param array<string, mixed> $input
-     * @return array{0: list<string>, 1: list<string>} `[$images, $files]`
+     * @return array{0: list<string>, 1: list<string>, 2: list<\Kanvas\Filesystem\Models\Filesystem>} `[$images, $files, $attachments]`
      */
     protected function mergeUploadsWithUrls(
         array $input,
@@ -278,6 +287,7 @@ class AgentChatMutation
         $images = $input['images'] ?? [];
         /** @var list<string> $files */
         $files = $input['files'] ?? [];
+        $attachments = [];
 
         $uploads = array_values(array_filter(
             $input['uploads'] ?? [],
@@ -285,7 +295,7 @@ class AgentChatMutation
         ));
 
         if ($uploads === [] || $attachTo === null) {
-            return [$images, $files];
+            return [$images, $files, $attachments];
         }
 
         foreach ($this->uploadFilesAndCollect($attachTo, $app, $user, $uploads) as $filesystem) {
@@ -294,8 +304,9 @@ class AgentChatMutation
             } else {
                 $files[] = $filesystem->url;
             }
+            $attachments[] = $filesystem;
         }
 
-        return [$images, $files];
+        return [$images, $files, $attachments];
     }
 }

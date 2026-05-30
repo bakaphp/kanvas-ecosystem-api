@@ -221,6 +221,145 @@ class UserAgentChatTest extends TestCase
         $this->assertEquals($lead->getId(), $session->entity_id);
     }
 
+    public function testUserChatResponseSurfacesPersistedMessageAndChannel(): void
+    {
+        $response = $this->graphQL('
+            mutation($input: UserChatInput!) {
+                aiAgentUserChat(input: $input) {
+                    response
+                    session_id
+                    message {
+                        id
+                        uuid
+                        message
+                        total_liked
+                        total_saved
+                        total_shared
+                        reactions_count
+                    }
+                    channel {
+                        id
+                        uuid
+                        slug
+                        last_message_id
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'agent_id' => (string) $this->agent->getId(),
+                'message' => 'expose me to social',
+            ],
+        ]);
+
+        $response->assertSuccessful();
+        $this->assertArrayNotHasKey('errors', $response->json(), 'GraphQL errors: ' . $response->getContent());
+
+        $sessionId = $response->json('data.aiAgentUserChat.session_id');
+        $messageNode = $response->json('data.aiAgentUserChat.message');
+        $channelNode = $response->json('data.aiAgentUserChat.channel');
+
+        $this->assertNotNull($messageNode, 'Response must carry the persisted assistant Message');
+        $this->assertNotNull($channelNode, 'Response must carry the persisted Channel');
+
+        $this->assertNotNull($messageNode['id']);
+        $this->assertNotNull($messageNode['uuid']);
+        $this->assertSame('This is a fake agent response.', $messageNode['message']['content']);
+        $this->assertTrue($messageNode['message']['from_ia']);
+        $this->assertSame($sessionId, $messageNode['message']['session_id']);
+        $this->assertEquals($this->agent->getId(), $messageNode['message']['agent_id']);
+
+        // The Social engagement surface is now reachable straight off the chat response —
+        // proves the chat plug into the Social graph is wired without an extra round-trip.
+        $this->assertSame(0, $messageNode['total_liked']);
+        $this->assertSame(0, $messageNode['total_saved']);
+        $this->assertSame(0, $messageNode['total_shared']);
+        $this->assertSame(0, $messageNode['reactions_count']);
+
+        $this->assertNotNull($channelNode['id']);
+        $this->assertNotNull($channelNode['uuid']);
+        $this->assertStringStartsWith(
+            'ai-assist-' . $this->agent->getId() . '-',
+            $channelNode['slug'],
+            'User-session channel must be the ai-assist channel keyed per (agent, user)',
+        );
+        $this->assertEquals($messageNode['id'], $channelNode['last_message_id'], 'Channel.last_message_id should point at the assistant reply we just persisted');
+
+        $session = Session::where('uuid', $sessionId)->first();
+        $this->assertEquals(
+            $session->channel_id,
+            $channelNode['id'],
+            'Response channel matches the session\'s channel',
+        );
+
+        $aiMessage = Channel::find($channelNode['id'])
+            ->messages()
+            ->orderByDesc('messages.id')
+            ->first();
+        $this->assertEquals(
+            $aiMessage->getId(),
+            $messageNode['id'],
+            'Response message is the assistant reply on the channel',
+        );
+    }
+
+    public function testUserChatKeepsEveryTurnOnTheSameChannel(): void
+    {
+        $prompts = ['turn one prompt', 'turn two prompt', 'turn three prompt'];
+        $sessionId = null;
+        $channelIds = [];
+
+        foreach ($prompts as $prompt) {
+            $input = [
+                'agent_id' => (string) $this->agent->getId(),
+                'message' => $prompt,
+            ];
+            if ($sessionId !== null) {
+                $input['session_id'] = $sessionId;
+            }
+
+            $turn = $this->graphQL('
+                mutation($input: UserChatInput!) {
+                    aiAgentUserChat(input: $input) {
+                        session_id
+                        channel { id slug }
+                        message { id }
+                    }
+                }
+            ', ['input' => $input]);
+
+            $turn->assertSuccessful();
+            $this->assertArrayNotHasKey('errors', $turn->json(), 'GraphQL errors: ' . $turn->getContent());
+
+            $sessionId = $turn->json('data.aiAgentUserChat.session_id');
+            $channelIds[] = $turn->json('data.aiAgentUserChat.channel.id');
+        }
+
+        $this->assertCount(1, array_unique($channelIds), 'All turns must land on the same channel');
+
+        $channel = Channel::find($channelIds[0]);
+        $this->assertCount(
+            count($prompts) * 2,
+            $channel->messages()->get(),
+            'Channel should hold one user prompt + one assistant reply per turn',
+        );
+
+        // Order check: assistant replies should match the order prompts were sent.
+        $assistantContents = $channel->messages()
+            ->orderBy('messages.id')
+            ->get()
+            ->filter(fn (Message $m): bool => (bool) ($m->getMessage()['from_ia'] ?? false))
+            ->map(fn (Message $m): string => (string) ($m->getMessage()['content'] ?? ''))
+            ->values()
+            ->all();
+
+        $this->assertSame(
+            array_fill(0, count($prompts), 'This is a fake agent response.'),
+            $assistantContents,
+            'Assistant replies must be present once per turn, in order',
+        );
+    }
+
     public function testUserChatMirrorsLeadConversationToLeadChannelAndMarksResponded(): void
     {
         $app = app(Apps::class);

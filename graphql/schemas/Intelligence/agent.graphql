@@ -165,6 +165,8 @@ input NeuronChatInput {
 type UserChatResponse {
     response: Mixed!
     session_id: String!
+    message: Message!
+    channel: SocialChannel!
 }
 
 extend type Mutation @guard {

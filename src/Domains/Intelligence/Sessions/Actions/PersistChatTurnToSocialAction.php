@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Sessions\Actions;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
@@ -34,6 +35,7 @@ class PersistChatTurnToSocialAction
 
     /**
      * @param list<string> $images
+     * @param list<Filesystem> $attachments Freshly uploaded files attached to the user prompt.
      */
     public function __construct(
         protected readonly Session $session,
@@ -44,6 +46,7 @@ class PersistChatTurnToSocialAction
         protected readonly string $userMessage,
         protected readonly string $assistantResponse,
         protected readonly array $images = [],
+        protected readonly array $attachments = [],
     ) {
     }
 
@@ -62,6 +65,13 @@ class PersistChatTurnToSocialAction
             fromIa: false,
             images: $this->images,
         );
+
+        // Use a unique tag per upload — AttachFilesystemAction replaces on tag collision, so
+        // a shared "attachment" tag would let later uploads silently overwrite earlier ones.
+        foreach ($this->attachments as $filesystem) {
+            $tag = $filesystem->name !== '' ? $filesystem->name : 'attachment-' . (string) $filesystem->getId();
+            $incoming->addFile($filesystem, $tag);
+        }
 
         $reply = $this->createMessage(
             $type,
