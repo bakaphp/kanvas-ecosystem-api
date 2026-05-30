@@ -57,37 +57,12 @@ class LeadConfigurationService
 
     public function getAiModeKey(Lead $lead): string
     {
-        if (! $this->isV2Enabled($lead->company)) {
-            return 'ai_mode';
-        }
-
-        $prefix = $this->getTypePrefix($lead->type()->first());
-
-        return match ($prefix) {
-            'showroom' => 'showroom_ai_mode',
-            'phone' => 'phone_ai_mode',
-            default => 'ai_mode',
-        };
+        return 'ai_mode';
     }
 
     public function getFollowUpModeKey(Lead $lead): string
     {
-        if (! $this->isV2Enabled($lead->company)) {
-            return IntelligenceModeEnum::AI_FOLLOW_UP->value;
-        }
-
-        $prefix = $this->getTypePrefix($lead->type()->first());
-        $statusSuffix = $this->getStatusSuffix($lead);
-
-        if ($statusSuffix !== '') {
-            return "{$prefix}_followup_{$statusSuffix}";
-        }
-
-        return match ($prefix) {
-            'showroom' => 'showroom_follow_up_mode',
-            'phone' => 'phone_follow_up_mode',
-            default => 'internet_follow_up_mode',
-        };
+        return IntelligenceModeEnum::AI_FOLLOW_UP->value;
     }
 
     public function getFirstMessageDefaultKey(Lead $lead): string
