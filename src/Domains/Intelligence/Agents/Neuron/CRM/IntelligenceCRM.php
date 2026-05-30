@@ -14,12 +14,17 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompletionStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ContactCheckerTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GoogleCalendarTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\HandOffTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadIntentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SimilarVehiclesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\VehicleInterestTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\VehicleTradeInTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\InventorySearchTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\ListAvailableProductsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\VariantDetailTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\VariantSearchTool;
 use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Agent\SystemPrompt;
 use NeuronAI\Chat\History\AbstractChatHistory;
@@ -84,12 +89,18 @@ class IntelligenceCRM extends BaseKanvasAgent
             new CompanyIsHolidayTool(),
             new CompanyWorkHoursTool(),
             new CompletionStatusTool(),
+            new GoogleCalendarTool(),
             new HandOffTool(),
             new LeadIntentTool(),
             new LeadRefTool(),
             new SimilarVehiclesTool(),
             new VehicleInterestTool(),
             new VehicleTradeInTool(),
+            new InventorySearchTool(),
+            new ListAvailableProductsTool(),
+            new VariantSearchTool(),
+            new VariantDetailTool(),
+            new GoogleCalendarTool(),
         ];
 
         if ($this->entity instanceof Message) {

@@ -20,7 +20,9 @@ class VariantSearchTool extends Tool
     {
         parent::__construct(
             name: 'variant_search',
-            description: 'Search product variants by name or SKU. Returns variant details including SKU, price, stock, and its parent product name. Use this when the user asks about a specific SKU or variant name.',
+            description: 'Search product variants by name or SKU. '
+                . 'Returns variant details including SKU, price, stock, and its parent product name. '
+                . 'Use this when the user asks about a specific SKU or variant name.',
         );
     }
 
