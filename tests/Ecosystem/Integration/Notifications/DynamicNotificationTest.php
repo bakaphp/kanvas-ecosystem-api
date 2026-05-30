@@ -183,4 +183,99 @@ final class DynamicNotificationTest extends TestCase
                 ->count()
         );
     }
+
+    /** Pins the no-override default so a future message() refactor can't silently regress it. */
+    public function testDatabaseContentFallsBackToEmailBodyWhenNoDatabaseTemplateSet(): void
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $lead = Lead::factory()
+            ->withAppAndCompany($app->getId(), $company->getId())
+            ->create();
+
+        $emailMarker = 'EMAIL-BODY-MARKER-' . time();
+        new CreateTemplateAction(
+            TemplateInput::from([
+                'app' => $app,
+                'name' => 'baseline-email-only-notification',
+                'template' => '<html><body>' . $emailMarker . '</body></html>',
+            ])
+        )->execute();
+
+        $notification = new Blank(
+            templateName: 'baseline-email-only-notification',
+            data: [
+                'message' => $lead,
+                'company' => $company,
+                'app' => $app,
+                'user' => $user,
+            ],
+            via: ['database'],
+            entity: $lead
+        );
+
+        new KanvasDatabase()->send($user, $notification);
+
+        $stored = Notifications::where('users_id', $user->getId())
+            ->where('entity_id', $lead->getId())
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($stored);
+        $this->assertStringContainsString($emailMarker, (string) $stored->content);
+    }
+
+    public function testDatabaseTemplateNameOverridesEmailContentInStoredRow(): void
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $lead = Lead::factory()
+            ->withAppAndCompany($app->getId(), $company->getId())
+            ->create();
+
+        new CreateTemplateAction(
+            TemplateInput::from([
+                'app' => $app,
+                'name' => 'agent-manager-notification-email',
+                'template' => '<html><body><h1>This is the long email body that must NOT land in notifications.content</h1></body></html>',
+            ])
+        )->execute();
+
+        $databaseBlurb = 'Short DB blurb ' . time();
+        new CreateTemplateAction(
+            TemplateInput::from([
+                'app' => $app,
+                'name' => 'agent-manager-notification-database',
+                'template' => $databaseBlurb,
+            ])
+        )->execute();
+
+        $notification = new Blank(
+            templateName: 'agent-manager-notification-email',
+            data: [
+                'message' => $lead,
+                'company' => $company,
+                'app' => $app,
+                'user' => $user,
+            ],
+            via: ['database'],
+            entity: $lead
+        );
+        $notification->setDatabaseTemplateName('agent-manager-notification-database');
+
+        new KanvasDatabase()->send($user, $notification);
+
+        $stored = Notifications::where('users_id', $user->getId())
+            ->where('entity_id', $lead->getId())
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($stored);
+        $this->assertSame($databaseBlurb, $stored->content);
+        $this->assertStringNotContainsString('long email body', (string) $stored->content);
+    }
 }
