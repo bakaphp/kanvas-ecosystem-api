@@ -230,6 +230,118 @@ class AgentToolsGraphQLTest extends TestCase
         );
     }
 
+    public function testSetAgentToolWithGlobalToolGrants(): void
+    {
+        $type = $this->makeAgentType();
+        $globalTool = $this->makeTool();
+        $globalTool->apps_id = 0;
+        $globalTool->saveOrFail();
+
+        $agentResponse = $this->graphQL('
+            mutation($input: AgentAiInput!) {
+                createAiAgent(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'agent_type_id' => $type->getId(),
+                'name' => 'Agent Grant ' . uniqid(),
+                'description' => 'Test',
+                'config' => [],
+                'role' => 'test',
+                'is_active' => true,
+            ],
+        ])->assertSuccessful();
+
+        $agentId = $agentResponse->json('data.createAiAgent.id');
+
+        $response = $this->graphQL('
+            mutation($agent_id: ID!, $tool_id: ID!, $enabled: Boolean!) {
+                setNervousSystemAgentTool(
+                    agent_id: $agent_id
+                    tool_id: $tool_id
+                    enabled: $enabled
+                ) {
+                    id
+                    is_active
+                    is_deleted
+                    tool { id }
+                }
+            }
+        ', [
+            'agent_id' => $agentId,
+            'tool_id' => $globalTool->getId(),
+            'enabled' => true,
+        ]);
+
+        $response->assertSuccessful();
+        $this->assertSame(
+            (string) $globalTool->getId(),
+            $response->json('data.setNervousSystemAgentTool.tool.id'),
+            'Global tools must be grantable via setNervousSystemAgentTool',
+        );
+        $this->assertTrue($response->json('data.setNervousSystemAgentTool.is_active'));
+        $this->assertFalse($response->json('data.setNervousSystemAgentTool.is_deleted'));
+    }
+
+    public function testAttachGlobalToolToAgentType(): void
+    {
+        $type = $this->makeAgentType();
+        $globalTool = $this->makeTool();
+        $globalTool->apps_id = 0;
+        $globalTool->saveOrFail();
+
+        $response = $this->graphQL('
+            mutation($tool_id: ID!, $agent_type_id: ID!) {
+                attachNervousSystemToolToAgentType(
+                    tool_id: $tool_id
+                    agent_type_id: $agent_type_id
+                ) { id }
+            }
+        ', [
+            'tool_id' => $globalTool->getId(),
+            'agent_type_id' => $type->getId(),
+        ]);
+
+        $response->assertSuccessful();
+        $this->assertDatabaseHas(
+            'nervous_system_tool_agent_types',
+            ['tool_id' => $globalTool->getId(), 'agent_type_id' => $type->getId()],
+            'intelligence',
+        );
+    }
+
+    public function testDetachGlobalToolFromAgentType(): void
+    {
+        $type = $this->makeAgentType();
+        $globalTool = $this->makeTool();
+        $globalTool->apps_id = 0;
+        $globalTool->saveOrFail();
+
+        new AttachToolToAgentTypeAction($globalTool, $type)->execute();
+
+        $response = $this->graphQL('
+            mutation($tool_id: ID!, $agent_type_id: ID!) {
+                detachNervousSystemToolFromAgentType(
+                    tool_id: $tool_id
+                    agent_type_id: $agent_type_id
+                )
+            }
+        ', [
+            'tool_id' => $globalTool->getId(),
+            'agent_type_id' => $type->getId(),
+        ]);
+
+        $response->assertSuccessful()->assertJson([
+            'data' => ['detachNervousSystemToolFromAgentType' => true],
+        ]);
+
+        $this->assertDatabaseMissing(
+            'nervous_system_tool_agent_types',
+            ['tool_id' => $globalTool->getId(), 'agent_type_id' => $type->getId()],
+            'intelligence',
+        );
+    }
+
     public function testUpdateAgentSyncsToolIds(): void
     {
         $type = $this->makeAgentType();

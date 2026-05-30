@@ -147,7 +147,7 @@ class CapabilityMutation
         /** @var Tool $tool */
         $tool = Tool::query()
             ->where('id', (int) $request['tool_id'])
-            ->fromApp($app)
+            ->fromAppOrGlobal($app)
             ->firstOrFail();
 
         /** @var AgentType $agentType */
@@ -163,7 +163,7 @@ class CapabilityMutation
         /** @var Tool $tool */
         $tool = Tool::query()
             ->where('id', (int) $request['tool_id'])
-            ->fromApp($app)
+            ->fromAppOrGlobal($app)
             ->firstOrFail();
 
         /** @var AgentType $agentType */
@@ -194,7 +194,7 @@ class CapabilityMutation
         // Lighthouse masks as a generic "Internal server error".
         $tool = Tool::query()
             ->where('id', (int) $request['tool_id'])
-            ->fromApp($app)
+            ->fromAppOrGlobal($app)
             ->first();
         if ($tool === null) {
             throw new ValidationException(sprintf(
