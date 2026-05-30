@@ -20,14 +20,14 @@ class MigrateCorporateUserVariantsJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public int $tries = 3;
-    public string $queue = 'workflow';
+    public $tries = 3;
 
     public function __construct(
         public readonly int $userId,
         public readonly int $sourceCompanyId,
         public readonly int $targetCompanyId,
     ) {
+        $this->onQueue('workflow');
     }
 
     public function handle(): void

@@ -18,10 +18,12 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Tools\VehicleInterestTool;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class FollowUpPromptActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

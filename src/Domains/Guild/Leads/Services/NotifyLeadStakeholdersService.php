@@ -152,6 +152,7 @@ class NotifyLeadStakeholdersService
         $notification->setSubject($peopleName . ' Engaged with Sally');
         $notification->setPushTemplateName('agent_manager_push_notification');
         $notification->setSmsTemplateName('agent_manager_sms_notification');
+        $notification->setDatabaseTemplateName('agent_manager_sms_notification');
 
         $recipients = $this->collectManagerRecipients($message, $includeOwner);
 

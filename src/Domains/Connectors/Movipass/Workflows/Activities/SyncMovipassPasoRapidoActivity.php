@@ -11,12 +11,14 @@ use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class SyncMovipassPasoRapidoActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

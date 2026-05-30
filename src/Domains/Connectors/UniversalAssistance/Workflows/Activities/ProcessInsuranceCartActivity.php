@@ -15,9 +15,11 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class ProcessInsuranceCartActivity extends KanvasActivity
 {
     /**
@@ -58,6 +60,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
 
         if ($this->orderHasExistingVouchers($order)) {
             $order->set('universal_assistance_processed', true);
+
             return [
                 'status' => 'skipped',
                 'message' => 'Order messages already contain vouchers',
@@ -120,6 +123,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                                     'message_id' => $messageId,
                                     'skipped_existing_voucher' => true,
                                 ];
+
                                 continue;
                             }
 
@@ -193,6 +197,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
             );
         } catch (Exception $e) {
             $order->set('universal_assistance_processing', false);
+
             throw $e;
         }
     }
@@ -347,6 +352,7 @@ class ProcessInsuranceCartActivity extends KanvasActivity
                         $pd = $this->convertObjectsToArrays($pd);
                         if (isset($pd['insurance']) && $this->hasEssentialInsuranceFields($pd['insurance'])) {
                             $insurance = $pd['insurance'];
+
                             break;
                         }
                     }

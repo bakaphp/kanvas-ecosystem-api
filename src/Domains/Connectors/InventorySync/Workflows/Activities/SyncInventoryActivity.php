@@ -7,10 +7,12 @@ namespace Kanvas\Connectors\InventorySync\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use GuzzleHttp\Client;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class SyncInventoryActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

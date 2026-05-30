@@ -283,6 +283,9 @@ jobs:
       - name: Setup Kanvas Workflow Actions
         run: php artisan kanvas:workflow-sync-actions
 
+      - name: Setup Kanvas Agent Tools
+        run: php artisan kanvas:nervous-system:sync-tools
+
       - name: create .env file
         run: echo '' > .env
 

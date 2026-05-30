@@ -9,10 +9,12 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Actions\RecalculateSlotCapacityAction;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class RecalculateSlotCapacityActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

@@ -58,4 +58,4 @@ VALUES ('{name}', UUID(), 0, '{"api_key": {"type": "text", "required": true}}', 
 
 ### Register workflow activities
 
-Add to `app/Console/Commands/Workflows/KanvasWorkflowSynActionCommand.php` (runs on deploy): (1) `use` import at top, (2) `ClassName::class` in the `$actions` array. Without registration, the activity won't appear in the workflow rules UI.
+Add `#[WorkflowAction]` (from `Kanvas\Workflow\Attributes\WorkflowAction`) on the class. The `kanvas:workflow-sync-actions` command (runs on deploy) auto-discovers every class that carries the attribute via `WorkflowActionDiscoveryService` — no manual registration needed. If the basename collides with another activity in a different connector, pass `#[WorkflowAction(name: 'Human Name')]` to disambiguate. A coverage test (`tests/Workflow/Integration/WorkflowActionCoverageTest.php`) fails if any `KanvasActivity` / `ProcessWebhookJob` subclass is missing the attribute.

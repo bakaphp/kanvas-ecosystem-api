@@ -6,9 +6,11 @@ namespace Kanvas\Connectors\Zoho\Jobs;
 
 use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class SyncZohoLeadFromReceiverJob extends ProcessWebhookJob
 {
     #[Override]

@@ -16,9 +16,11 @@ use Kanvas\Connectors\PromptMine\Services\VideoProcessingService;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class PromptVideoFilterActivity extends KanvasActivity
 {
     protected ?string $apiUrl = null;

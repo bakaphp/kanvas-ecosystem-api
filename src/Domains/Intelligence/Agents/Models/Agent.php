@@ -98,16 +98,9 @@ class Agent extends BaseModel
         'deployment_status',
         'agent_model_id',
         'is_active',
+        'is_sub_agent',
         'awake_state',
         'last_state_changed_at',
-    ];
-
-    protected $casts = [
-        'config' => Json::class,
-        'role' => Json::class,
-        'identity' => Json::class,
-        'is_active' => 'boolean',
-        'last_state_changed_at' => 'datetime',
     ];
 
     #[Override]
@@ -120,6 +113,19 @@ class Agent extends BaseModel
     public function getRelations(?string $modelClass = null): array
     {
         return func_num_args() > 0 ? [] : $this->relations;
+    }
+
+    #[Override]
+    public function casts(): array
+    {
+        return [
+            'config' => Json::class,
+            'role' => Json::class,
+            'identity' => Json::class,
+            'is_active' => 'boolean',
+            'is_sub_agent' => 'boolean',
+            'last_state_changed_at' => 'datetime',
+        ];
     }
 
     public function type(): BelongsTo

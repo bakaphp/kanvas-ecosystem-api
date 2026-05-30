@@ -228,6 +228,7 @@ extend type Query @guard {
     products(
         search: String @search
         variantAttributeValue: String
+        withAttributeSlug: String
         variantAttributeOrderBy: ProductAttributeOrderBy
         attributeOrderBy: ProductAttributeOrderBy
         nearByLocation: NearByLocationInput
@@ -254,6 +255,11 @@ extend type Query @guard {
         hasCategories: _
             @whereHasConditions(
                 relation: "categories"
+                columns: ["id", "name", "slug"]
+            )
+        hasProductsTypes: _
+            @whereHasConditions(
+                relation: "type"
                 columns: ["id", "name", "slug"]
             )
         hasWarehouses: _

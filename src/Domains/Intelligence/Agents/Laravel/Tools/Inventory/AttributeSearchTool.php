@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Kanvas\Inventory\Attributes\Models\Attributes;
@@ -13,6 +14,7 @@ use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
 
+#[AgentTool(name: 'Attribute Search')]
 class AttributeSearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;

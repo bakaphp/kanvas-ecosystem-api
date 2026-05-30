@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Laravel;
 
+use Kanvas\Intelligence\Agents\Laravel\SubAgents\DynamicSubAgent;
+use Kanvas\Intelligence\Agents\Models\Agent as AgentRecord;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\NervousSystem\Capability\Services\CapabilityProvider;
 use Override;
@@ -41,6 +43,14 @@ class KanvasGenericLaravelAgent extends KanvasLaravelAgent
 
         foreach (new CapabilityProvider()->getActiveTools($this->agentRecord) as $tool) {
             /** @var Tool $tool */
+            if ($tool->agents_id !== null) {
+                $subAgentRecord = AgentRecord::find($tool->agents_id);
+                if ($subAgentRecord) {
+                    $tools[] = new DynamicSubAgent($subAgentRecord);
+                }
+                continue;
+            }
+
             if ($tool->handler === null || ! class_exists($tool->handler)) {
                 continue;
             }

@@ -11,6 +11,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Enums\MessageRole;
 use NeuronAI\Chat\History\AbstractChatHistory;
+use NeuronAI\Chat\History\ChatHistoryInterface;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\UserMessage;
@@ -78,9 +79,40 @@ class KanvasMessageHistory extends AbstractChatHistory
             ->values()
             ->all();
 
-        if (! empty($messages)) {
-            $this->history = $messages;
+        $coalesced = [];
+        foreach ($messages as $m) {
+            $last = end($coalesced) ?: null;
+            if ($last !== null && $last->getRole() === $m->getRole()) {
+                $last->setContents($last->getContent() . "\n\n" . $m->getContent());
+
+                continue;
+            }
+            $coalesced[] = $m;
         }
+
+        while (! empty($coalesced) && $coalesced[0]->getRole() !== MessageRole::USER->value) {
+            array_shift($coalesced);
+        }
+
+        if (! empty($coalesced)) {
+            $this->history = array_values($coalesced);
+        }
+    }
+
+    #[Override]
+    public function addMessage(Message $message): ChatHistoryInterface
+    {
+        $last = end($this->history) ?: null;
+        if ($last !== null && $last->getRole() === $message->getRole()) {
+            $last->setContents($last->getContent() . "\n\n" . $message->getContent());
+            $this->trimHistory();
+            $this->onNewMessage($message);
+            $this->setMessages($this->history);
+
+            return $this;
+        }
+
+        return parent::addMessage($message);
     }
 
     #[Override]

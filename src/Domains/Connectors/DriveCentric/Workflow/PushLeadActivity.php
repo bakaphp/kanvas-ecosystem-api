@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\DriveCentric\Workflow;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\DriveCentric\Actions\PushLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class PushLeadActivity extends KanvasActivity
 {
     public $tries = 3;

@@ -89,7 +89,7 @@ class CapabilityQuery
 
         return Tool::query()
             ->whereIn('id', $finalIds)
-            ->fromApp($app)
+            ->fromAppOrGlobal($app)
             ->active()
             ->get();
     }

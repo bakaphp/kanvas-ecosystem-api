@@ -8,9 +8,11 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\ESim\Enums\CustomFieldEnum;
 use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class UpdateOrderStripePaymentActivity extends KanvasActivity
 {
     //public $tries = 2;

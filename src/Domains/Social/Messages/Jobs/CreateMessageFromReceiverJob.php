@@ -14,9 +14,11 @@ use Kanvas\Social\Messages\Enums\DistributionTypeEnum;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class CreateMessageFromReceiverJob extends ProcessWebhookJob
 {
     #[Override]

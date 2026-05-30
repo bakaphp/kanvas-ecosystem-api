@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Calendly\Jobs;
 
 use Kanvas\Connectors\Calendly\Actions\ProcessCalendlyInviteeAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class ProcessCalendlyWebhookJob extends ProcessWebhookJob
 {
     #[Override]

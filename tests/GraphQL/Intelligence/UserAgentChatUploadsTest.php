@@ -8,9 +8,11 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Messages\Models\Message;
 use Tests\Stubs\Intelligence\FakeAgentHandler;
 use Tests\TestCase;
 
@@ -88,6 +90,77 @@ class UserAgentChatUploadsTest extends TestCase
 
         $session = Session::where('uuid', $sessionId)->first();
         $this->assertNotNull($session, 'session should exist after chat');
+    }
+
+    public function testUploadsAttachToThePersistedUserMessageAsBackup(): void
+    {
+        $beforeId = (int) (Filesystem::max('id') ?? 0);
+
+        $operations = [
+            'query' => /** @lang GraphQL */ '
+                mutation($input: UserChatInput!) {
+                    aiAgentUserChat(input: $input) {
+                        message { id }
+                        channel { id }
+                    }
+                }
+            ',
+            'variables' => [
+                'input' => [
+                    'agent_id' => (string) $this->agent->getId(),
+                    'message' => 'here is the brief and a photo',
+                    'uploads' => [null, null],
+                ],
+            ],
+        ];
+
+        $map = [
+            '0' => ['variables.input.uploads.0'],
+            '1' => ['variables.input.uploads.1'],
+        ];
+        $files = [
+            '0' => UploadedFile::fake()->image('snapshot.png'),
+            '1' => UploadedFile::fake()->create('brief.pdf', 50, 'application/pdf'),
+        ];
+
+        $response = $this->multipartGraphQL($operations, $map, $files);
+        $response->assertSuccessful();
+        $this->assertArrayNotHasKey('errors', $response->json(), 'GraphQL errors: ' . $response->getContent());
+
+        $uploaded = Filesystem::where('id', '>', $beforeId)->orderBy('id')->get();
+        $this->assertCount(2, $uploaded, 'one image + one document should land in the filesystem table');
+
+        // The assistant reply is what the mutation returns; the human prompt is the message we
+        // want the backup attachments on — find it by walking the channel.
+        $assistantMessageId = $response->json('data.aiAgentUserChat.message.id');
+        $channelId = $response->json('data.aiAgentUserChat.channel.id');
+        $this->assertNotNull($assistantMessageId);
+        $this->assertNotNull($channelId);
+
+        $channelMessages = Message::join('channel_messages', 'channel_messages.messages_id', '=', 'messages.id')
+            ->where('channel_messages.channel_id', $channelId)
+            ->orderBy('messages.id')
+            ->select('messages.*')
+            ->get();
+
+        $userMessage = $channelMessages->first(fn (Message $m): bool => ! ($m->getMessage()['from_ia'] ?? false));
+        $this->assertNotNull($userMessage, 'user prompt message must exist on the channel');
+
+        $attachedFiles = $userMessage->getFiles();
+        $this->assertCount(
+            2,
+            $attachedFiles,
+            'Both uploads must be attached to the user prompt Message so it stands as the canonical record',
+        );
+
+        $imageCount = $attachedFiles
+            ->filter(fn (FilesystemEntities $f): bool => $f->filesystem->mediaType()->isImage())
+            ->count();
+        $docCount = $attachedFiles
+            ->filter(fn (FilesystemEntities $f): bool => ! $f->filesystem->mediaType()->isImage())
+            ->count();
+        $this->assertSame(1, $imageCount, 'one image attachment should be on the user message');
+        $this->assertSame(1, $docCount, 'one document attachment should be on the user message');
     }
 
     public function testUserChatWithDocumentUploadClassifiesAsFileNotImage(): void

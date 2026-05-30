@@ -9,11 +9,13 @@ use Kanvas\Connectors\Tookan\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Actions\SendOrderEmailsAction;
 use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Repositories\OrderRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class TookanChildOrderStatusActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
@@ -50,12 +52,12 @@ class TookanChildOrderStatusActivity extends KanvasActivity implements WorkflowA
                 ];
 
                 $providerSubjects = [
-                    OrderStatusEnum::RECEIVED->value         => "New Order · #{$orderNumber}",
-                    OrderStatusEnum::PREPARING->value        => "Order confirmed · Orden #{$orderNumber}",
+                    OrderStatusEnum::RECEIVED->value => "New Order · #{$orderNumber}",
+                    OrderStatusEnum::PREPARING->value => "Order confirmed · Orden #{$orderNumber}",
                     OrderStatusEnum::READY_FOR_PICKUP->value => "Pickup in Progress · Orden #{$orderNumber}",
-                    OrderStatusEnum::DISPATCHED->value       => "Shipped · Orden #{$orderNumber}",
-                    OrderStatusEnum::DELIVERED->value        => "Order Delivered · Orden #{$orderNumber}",
-                    OrderStatusEnum::CANCELLED->value        => "Order Canceled · #{$orderNumber}",
+                    OrderStatusEnum::DISPATCHED->value => "Shipped · Orden #{$orderNumber}",
+                    OrderStatusEnum::DELIVERED->value => "Order Delivered · Orden #{$orderNumber}",
+                    OrderStatusEnum::CANCELLED->value => "Order Canceled · #{$orderNumber}",
                 ];
 
                 if ($toStatus == OrderStatusEnum::READY_FOR_PICKUP->value) {
@@ -144,6 +146,7 @@ class TookanChildOrderStatusActivity extends KanvasActivity implements WorkflowA
                     $status
                 );
                 $transitionCompanyStatus->execute();
+
                 return true;
             }
         }

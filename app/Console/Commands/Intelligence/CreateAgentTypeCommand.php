@@ -238,14 +238,16 @@ class CreateAgentTypeCommand extends Command
         $this->newLine();
         $this->info('=== Assign Tools ===');
 
-        $resolvedApp = $app ?? app(Apps::class);
+        $query = Tool::query()->active()->forFramework($provider)->orderBy('id');
 
-        $tools = Tool::query()
-            ->fromApp($resolvedApp)
-            ->active()
-            ->forFramework($provider)
-            ->orderBy('id')
-            ->get();
+        if ($agentType->apps_id === 0) {
+            $query->where('apps_id', 0);
+        } else {
+            $resolvedApp = $app ?? app(Apps::class);
+            $query->fromApp($resolvedApp);
+        }
+
+        $tools = $query->get();
 
         if ($tools->isEmpty()) {
             $this->warn("No active {$provider} tools found for this app. Create tools first with nervous-system:tool-setup.");

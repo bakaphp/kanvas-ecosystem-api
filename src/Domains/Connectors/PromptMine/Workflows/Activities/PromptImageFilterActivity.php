@@ -30,6 +30,7 @@ use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -39,6 +40,7 @@ use Throwable;
 
 use function Laravel\Ai\agent;
 
+#[WorkflowAction]
 class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     protected ?string $apiUrl = null;
@@ -399,7 +401,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $entity->user,
                 entity: $entity,
-                message: "Your recent creation couldn’t be completed as it didn’t comply with the content provider’s policies.",
+                message: 'Your recent creation couldn’t be completed as it didn’t comply with the content provider’s policies.',
                 title: 'Error processing image',
                 via: $endViaList,
                 templates: [

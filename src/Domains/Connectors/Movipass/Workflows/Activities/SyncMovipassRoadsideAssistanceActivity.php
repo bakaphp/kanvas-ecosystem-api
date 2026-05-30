@@ -21,12 +21,14 @@ use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

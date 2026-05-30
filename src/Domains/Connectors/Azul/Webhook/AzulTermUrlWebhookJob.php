@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Azul\Webhook;
 
 use Exception;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
@@ -23,24 +24,25 @@ use Override;
  * The PaRes/cRes is stored in payment metadata so that when the frontend
  * calls the `finalizePaymentChallenge` mutation, the data is already there.
  */
+#[WorkflowAction]
 class AzulTermUrlWebhookJob extends ProcessWebhookJob
 {
     #[Override]
     public function execute(): array
     {
-        $payload   = $this->webhookRequest->payload;
+        $payload = $this->webhookRequest->payload;
         $paymentId = $this->getPaymentIdFromUrl() ?? $payload['MD'] ?? null;
 
         if (! $paymentId) {
             return [
                 'message' => 'No payment identifier found in callback',
-                'html'    => $this->notifyParent('error', 'No payment identifier'),
+                'html' => $this->notifyParent('error', 'No payment identifier'),
             ];
         }
 
         $payment = Payments::where([
             'apps_id' => $this->receiver->app->getId(),
-            'id'      => (int) $paymentId,
+            'id' => (int) $paymentId,
         ])->first();
 
         if (! $payment) {
@@ -49,7 +51,7 @@ class AzulTermUrlWebhookJob extends ProcessWebhookJob
 
         // Azul may send the field in different casings depending on the flow
         $paRes = $payload['PaRes'] ?? $payload['cRes'] ?? $payload['cres'] ?? $payload['pares'] ?? null;
-        $type  = match (true) {
+        $type = match (true) {
             isset($payload['cRes']), isset($payload['cres']) => 'cRes',
             default => 'PaRes',
         };
@@ -58,22 +60,22 @@ class AzulTermUrlWebhookJob extends ProcessWebhookJob
 
         $payment->addMetadata([
             'data' => [
-                '3ds_pa_res'          => $paRes,
-                '3ds_pa_res_type'     => $type,
-                '3ds_session_data'    => $sessionData,
+                '3ds_pa_res' => $paRes,
+                '3ds_pa_res_type' => $type,
+                '3ds_session_data' => $sessionData,
             ],
         ]);
         $payment->save();
 
         $payment->addLog('3ds_term_url_received', [
-            'payment_id'  => $payment->id,
-            'has_pa_res'  => ! empty($paRes),
-            'fields'      => array_keys($payload), // field names only (PCI)
+            'payment_id' => $payment->id,
+            'has_pa_res' => ! empty($paRes),
+            'fields' => array_keys($payload), // field names only (PCI)
         ]);
 
         return [
             'message' => '3DS challenge response stored — awaiting finalization',
-            'html'    => $this->notifyParent('success', '3DS authentication received'),
+            'html' => $this->notifyParent('success', '3DS authentication received'),
         ];
     }
 

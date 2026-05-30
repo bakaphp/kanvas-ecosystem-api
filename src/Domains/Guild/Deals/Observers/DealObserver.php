@@ -22,7 +22,7 @@ class DealObserver
         }
 
         if (! $deal->status_id) {
-            $deal->status_id = LeadStatus::getDefault($deal->app)->getId();
+            $deal->status_id = LeadStatus::getDefault($deal->app, $deal->company)->getId();
         }
 
         if (! $deal->pipeline_id) {

@@ -6,19 +6,22 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Inventory\Variants\Models\Variants;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
+#[AgentTool(name: 'Vehicle Interest')]
 class VehicleInterestTool extends Tool
 {
     public function __construct()
     {
         parent::__construct(
             name: 'get_vehicle_interest',
-            description: 'Get detailed information about the lead\'s vehicle of interest, including condition, year, make, model, VIN, stock number, price, and inventory status.',
+            description: 'Get detailed information about the lead\'s vehicle of interest'
+                . '  , including condition, year, make, model, VIN, stock number, price, and inventory status.',
         );
     }
 

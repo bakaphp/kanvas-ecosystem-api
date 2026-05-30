@@ -35,7 +35,11 @@ class RuntimeAgentChannelResponderActionTest extends TestCase
         $reply = $action->execute();
 
         $this->assertSame('hello agent', $provider->lastMessage);
-        $this->assertSame('kanvas-channel-' . $channel->getId(), $provider->lastSessionKey);
+        $this->assertSame(
+            $channel->uuid,
+            $provider->lastSessionKey,
+            'Runtime conversation must key on the channel uuid',
+        );
 
         $payload = $reply->getMessage();
         $this->assertSame('the agent reply', $payload['content']);

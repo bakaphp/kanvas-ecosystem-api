@@ -6,12 +6,14 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
+#[AgentTool(name: 'Lead Reference')]
 class LeadRefTool extends Tool
 {
     public function __construct()
@@ -51,6 +53,7 @@ class LeadRefTool extends Tool
         return json_encode([
             'lead_id' => $lead->id,
             'lead_uuid' => $lead->uuid,
+            'apps_id' => $lead->app->getId(),
             'title' => $lead->title,
             'firstname' => $lead->firstname,
             'lastname' => $lead->lastname,
@@ -63,7 +66,6 @@ class LeadRefTool extends Tool
             'pipeline' => $lead->pipeline()->first()?->name,
             'stage' => $lead->stage()->first()?->name,
             'is_handed_off' => (bool) ($lead->get(ConfigurationEnum::AGENT_HAND_OFF->value) ?? false),
-
             'owner' => $lead->owner ? [
                 'id' => $lead->owner->id,
                 'name' => trim($lead->owner->firstname . ' ' . $lead->owner->lastname),

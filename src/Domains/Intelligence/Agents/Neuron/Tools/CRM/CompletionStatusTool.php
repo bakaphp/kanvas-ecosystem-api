@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Laravel\Ai\Enums\Lab;
@@ -17,13 +18,16 @@ use Override;
 
 use function Laravel\Ai\agent;
 
+#[AgentTool(name: 'Completion Status')]
 class CompletionStatusTool extends Tool
 {
     public function __construct()
     {
         parent::__construct(
             name: 'get_lead_completion_status',
-            description: 'Analyze and return the completion status of the lead intent using AI, including evidence and confidence score. Use this to determine if the lead has completed their intended goal.',
+            description: 'Analyze and return the completion status of the lead intent using AI, '
+                . 'including evidence and confidence score. '
+                . 'Use this to determine if the lead has completed their intended goal.',
         );
     }
 
@@ -59,7 +63,7 @@ class CompletionStatusTool extends Tool
         /** @var StructuredAgentResponse $response */
         $response = agent(
             instructions: Blade::render(implode(' ', $neuronAgent->role['background']), $data),
-            schema: fn ($schema) => [
+            schema: fn ($schema): array => [
                 'lead_intent' => $schema->string()->description('Echo of the intent passed as input')->required(),
                 'intent_completion_status' => $schema->string()->enum(['COMPLETE', 'INCOMPLETE'])->description('Whether the intent is completed')->required(),
                 'completion_evidence' => $schema->array()

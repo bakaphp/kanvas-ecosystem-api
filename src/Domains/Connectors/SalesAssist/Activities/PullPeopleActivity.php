@@ -15,10 +15,12 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Actions\PullPeopleAction as ActionsPullPeopleAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class PullPeopleActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     protected ?Companies $company = null;

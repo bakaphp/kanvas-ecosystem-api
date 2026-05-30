@@ -10,12 +10,14 @@ use Kanvas\Connectors\Mailgun\Actions\CreateMessageFromEmailAction;
 use Kanvas\Connectors\Mailgun\Actions\VerifyMailgunWebhookSignatureAction;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
 
 use function Sentry\captureMessage;
 
+#[WorkflowAction]
 class AgentProcessEmailWebhookJob extends ProcessWebhookJob
 {
     #[Override]

@@ -7,9 +7,11 @@ namespace Kanvas\Souk\Orders\Activities;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Actions\SendUserNotificationAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class B2BUpdateCompanyOrderActivity extends KanvasActivity
 {
     public $tries = 3;

@@ -14,11 +14,13 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
 
+#[WorkflowAction]
 class GenerateCompanyDashboardActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

@@ -9,11 +9,13 @@ use Kanvas\Connectors\Tookan\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Actions\SendOrderEmailsAction;
 use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Repositories\OrderRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class TookanParentOrderStatusActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
@@ -49,11 +51,11 @@ class TookanParentOrderStatusActivity extends KanvasActivity implements Workflow
                 ];
 
                 $userSubjects = [
-                    OrderStatusEnum::RECEIVED->value   => "Ordered · Orden #{$orderNumber}",
-                    OrderStatusEnum::PREPARING->value  => "Order confirmed · Orden #{$orderNumber}",
+                    OrderStatusEnum::RECEIVED->value => "Ordered · Orden #{$orderNumber}",
+                    OrderStatusEnum::PREPARING->value => "Order confirmed · Orden #{$orderNumber}",
                     OrderStatusEnum::DISPATCHED->value => "Shipped · Orden #{$orderNumber}",
-                    OrderStatusEnum::DELIVERED->value  => "Delivered · Orden #{$orderNumber}",
-                    OrderStatusEnum::CANCELLED->value  => "Update · Orden #{$orderNumber}",
+                    OrderStatusEnum::DELIVERED->value => "Delivered · Orden #{$orderNumber}",
+                    OrderStatusEnum::CANCELLED->value => "Update · Orden #{$orderNumber}",
                 ];
 
                 $mainCompanyStatuses = [
@@ -63,7 +65,7 @@ class TookanParentOrderStatusActivity extends KanvasActivity implements Workflow
                 ];
 
                 $ownerSubjects = [
-                    OrderStatusEnum::RECEIVED->value  => "New Order Received · #{$orderNumber}",
+                    OrderStatusEnum::RECEIVED->value => "New Order Received · #{$orderNumber}",
                     OrderStatusEnum::DELIVERED->value => "Order Completed · Orden #{$orderNumber}",
                     OrderStatusEnum::CANCELLED->value => "Order Canceled · Orden #{$orderNumber}",
                 ];
