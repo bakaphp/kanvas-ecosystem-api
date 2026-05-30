@@ -42,10 +42,9 @@ class SessionChannelService
     }
 
     /**
-     * Canonical id for a channel-scoped agent conversation — the exact value
-     * CreateSessionAction writes to Session.uuid. Every runtime chat path keys on this so
-     * the OpenClaw/Hermes transcript, the Intelligence Session, and the Social channel all
-     * share one identifier and the conversation never loses context across paths.
+     * Canonical Session.uuid for a channel-scoped agent conversation. Every runtime chat path
+     * keys on this so OpenClaw/Hermes transcripts, the Intelligence Session, and the Social
+     * channel share one id.
      */
     public static function buildChannelSessionUuid(?Channel $channel, AppInterface $app, CompanyInterface $company): string
     {

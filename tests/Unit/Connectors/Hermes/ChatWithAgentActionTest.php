@@ -16,17 +16,8 @@ use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
 /**
- * Exercises the Hermes ChatWithAgentAction with no SSH / network — the SshClient
- * is injected via a test-only subclass that overrides openSshClient().
- *
- * We're testing:
- *  - command shape (curl hits the Hermes API server, OpenAI chat-completions path)
- *  - happy-path response parsing (choices[0].message.content)
- *  - gateway token resolution (agent custom field, deployment fallback)
- *  - multimodal content when images are attached
- *  - HTTP error surfacing
- *  - malformed JSON surfacing
- *  - missing deployment / missing token guard rails
+ * Canned response bodies use the Chat Completions shape, which the action's parser still
+ * accepts as a fallback alongside the Responses shape — so the same bodies pin both paths.
  */
 class ChatWithAgentActionTest extends TestCase
 {
@@ -51,20 +42,17 @@ class ChatWithAgentActionTest extends TestCase
 
         $this->assertSame('hello back', $result);
 
-        // The shell command stages the JSON via SFTP (writeFile) + `docker cp`, then
-        // curls with `--data-binary @<file>` — the payload no longer travels in argv.
         $command = $ssh->capturedCommand;
         $this->assertStringContainsString('docker cp', $command);
         $this->assertStringContainsString('docker exec', $command);
         $this->assertStringContainsString('hermes-bot', $command);
         $this->assertStringContainsString('curl -sS', $command);
-        $this->assertStringContainsString('http://127.0.0.1:8642/v1/chat/completions', $command);
+        $this->assertStringContainsString('http://127.0.0.1:8642/v1/responses', $command);
         $this->assertStringContainsString('Authorization: Bearer tok-agent', $command);
         $this->assertStringContainsString('--data-binary @', $command);
 
-        // The JSON body lives in the file SFTP wrote, captured here.
         $this->assertStringContainsString('"model":"hermes-agent"', $ssh->capturedPayload);
-        $this->assertStringContainsString('"content":"hello"', $ssh->capturedPayload);
+        $this->assertStringContainsString('"input":"hello"', $ssh->capturedPayload);
     }
 
     public function testFallsBackToDeploymentTokenWhenAgentHasNone(): void
@@ -104,11 +92,10 @@ class ChatWithAgentActionTest extends TestCase
 
         $action->execute();
 
-        // Hermes' vision pipeline expects the bytes inlined as a base64 `data:` URI — the
-        // raw URL must NOT appear in the wire payload anymore.
+        // Hermes' vision can't fetch remote URLs — image bytes must be inlined as a data: URI.
         $payload = $ssh->capturedPayload;
-        $this->assertStringContainsString('"type":"text"', $payload);
-        $this->assertStringContainsString('"type":"image_url"', $payload);
+        $this->assertStringContainsString('"type":"input_text"', $payload);
+        $this->assertStringContainsString('"type":"input_image"', $payload);
         $this->assertStringContainsString('data:image/png;base64,', $payload);
         $this->assertStringNotContainsString('https://cdn.example.com/pic.png', $payload);
     }
@@ -257,7 +244,7 @@ class TestableChatWithAgentAction extends ChatWithAgentAction
         private FakeSshClient $sshClient,
         private string $cannedImageBytes = '',
     ) {
-        parent::__construct($agent, $message, $images);
+        parent::__construct($agent, $message, null, $images);
     }
 
     protected function openSshClient(AgentMachine $machine): SshClient

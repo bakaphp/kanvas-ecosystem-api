@@ -52,9 +52,6 @@ class RuntimeAgentChannelResponderAction
             throw new ValidationException('Message has no content or attachments to send to the agent');
         }
 
-        // Key the runtime conversation on the channel's canonical Session.uuid so the
-        // OpenClaw/Hermes transcript lines up with any Intelligence Session for this channel
-        // and the interactive chat path — one id across every surface.
         $sessionKey = SessionChannelService::buildChannelSessionUuid(
             $this->channel,
             $this->message->app,

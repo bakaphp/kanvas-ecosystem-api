@@ -14,20 +14,12 @@ use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
 
 /**
- * Chat with a deployed Hermes agent via SSH + `docker exec curl` against the
- * container's OpenAI-compatible API server (POST /v1/responses on 127.0.0.1:8642).
- *
- * Same transport as OpenClaw's ChatWithAgentAction (SSH → docker exec → loopback
- * HTTP) and, like OpenClaw, it speaks the stateful Responses API. The API server
- * binds to loopback inside the container and authenticates with a bearer key that
- * equals the per-agent gateway token (API_SERVER_KEY == the HERMES_GATEWAY_TOKEN
- * custom field — see DockerComposeBuilderService::getApiServerEnvVars()).
- *
- * Cross-turn continuity comes from the `conversation` id we attach to every request:
- * it is the Kanvas `Session.uuid`, so the gateway's stateful /v1/responses store
- * threads the whole conversation under one id — the same value the chat UI, the
- * Social layer, and the on-disk transcript are keyed by. When no session is supplied
- * the field is omitted and Hermes falls back to its own persistent auto-memory.
+ * SSH + `docker exec curl` against the container's loopback /v1/responses on 127.0.0.1:8642
+ * (same transport shape as OpenClaw). The bearer key is API_SERVER_KEY == the
+ * HERMES_GATEWAY_TOKEN custom field (see DockerComposeBuilderService::getApiServerEnvVars()).
+ * Cross-turn continuity comes from the `conversation` id we attach — the Kanvas Session.uuid,
+ * shared with the chat UI, the Social layer, and the on-disk transcript. When no session is
+ * supplied the field is omitted and Hermes falls back to its own persistent auto-memory.
  */
 class ChatWithAgentAction
 {
@@ -134,9 +126,8 @@ class ChatWithAgentAction
     }
 
     /**
-     * The container IS the agent (one Hermes instance per agent), so the model name is the
-     * fixed `hermes-agent` literal the API server expects. `conversation` threads the turn
-     * onto the Kanvas Session — omitted when there's no session so Hermes uses its own memory.
+     * The container IS the agent (one Hermes instance per agent), so `model` is the fixed
+     * `hermes-agent` literal the API server expects.
      */
     protected function buildPayload(): string
     {

@@ -58,9 +58,8 @@ class ProcessAgentChatAction
     }
 
     /**
-     * Mirror the turn into the Social layer (channel + linked messages). Best-effort: a
-     * Social-side failure must never cost the user their already-computed answer, so it is
-     * caught and reported rather than thrown.
+     * Best-effort: a Social-side failure must never cost the user their already-computed
+     * answer, so we catch + report rather than throw.
      */
     protected function persistConversationToSocial(string $response): void
     {

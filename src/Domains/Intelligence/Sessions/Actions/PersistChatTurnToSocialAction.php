@@ -22,14 +22,8 @@ use Kanvas\Users\Models\Users;
 use Throwable;
 
 /**
- * Mirror one interactive agent⇄user chat turn into the Social layer: the user prompt and the
- * agent reply become two linked `Message` rows on the session's `Channel`, threaded via
- * `parent_id`/`response_message_id` and tagged with the originating `Session.uuid` so the
- * Social conversation stays tied to the Intelligence session.
- *
- * Workflows are intentionally NOT fired here — connectors persist inbound messages and fire
- * AFTER_ADDING_MESSAGE_TO_CHANNEL to trigger an auto-reply; this turn is already the reply, so
- * firing would loop.
+ * Workflows are NOT fired on these messages: connectors fire AFTER_ADDING_MESSAGE_TO_CHANNEL
+ * to trigger an auto-reply, but this turn is already the reply, so firing would loop.
  */
 class PersistChatTurnToSocialAction
 {
