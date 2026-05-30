@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Laravel\SubAgents;
 
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\KanvasAgentAsTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\LeadSearchTool;
 use Override;
 use Stringable;
 
+#[AgentTool(name: 'Check Lead Duplicate')]
 class CheckLeadDuplicateSubAgent extends KanvasAgentAsTool
 {
     #[Override]

@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions;
 
+use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentModel;
+use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
+use Kanvas\NervousSystem\Capability\DataTransferObject\Tool as ToolData;
+use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
+use Kanvas\NervousSystem\Capability\Models\Tool;
 
 class CreateAgentAction
 {
@@ -36,6 +41,7 @@ class CreateAgentAction
             'user_context' => $this->agent->userContext,
             'tools_config' => $this->agent->toolsConfig,
             'parent_id' => $this->agent->parentAgent?->getId(),
+            'is_sub_agent' => $this->agent->isSubAgent,
             'deployment_status' => 'pending',
         ]);
 
@@ -43,6 +49,43 @@ class CreateAgentAction
             $agent->communicationChannels()->sync($this->agent->communicationChannel);
         }
 
+        if ($this->agent->isSubAgent) {
+            $this->ensureSubAgentTool($agent);
+        }
+
+        if ($this->agent->tools !== null && $this->agent->tools !== []) {
+            $agent->selectedTools()->sync(
+                array_map(fn (Tool $tool): int => $tool->getId(), $this->agent->tools)
+            );
+        } elseif ($agent->selectedTools()->doesntExist()) {
+            $agent->selectedTools()->sync(
+                $this->agent->agentType->tools()->pluck('id')->all()
+            );
+        }
+
         return $agent;
+    }
+
+    private function ensureSubAgentTool(AgentModel $agent): void
+    {
+        $exists = Tool::query()
+            ->where('agents_id', $agent->getId())
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        $framework = $this->agent->agentType->provider ?? 'laravel';
+
+        $tool = new CreateToolAction(new ToolData(
+            app: $this->agent->app,
+            name: Str::slug($agent->name),
+            description: $agent->soul ?? $agent->description ?? $agent->name,
+            frameworks: [$framework],
+            toolType: ToolTypeEnum::SUB_AGENT,
+        ))->execute();
+
+        $tool->update(['agents_id' => $agent->getId()]);
     }
 }
