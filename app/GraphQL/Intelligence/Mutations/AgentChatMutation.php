@@ -173,7 +173,7 @@ class AgentChatMutation
             images: $mergedImages,
             attachments: $attachments,
         );
-        
+
         $response = $processor->execute();
         /** @var Message $reply userChat always supplies a Session, so persistence always runs and sets the reply (or throws). */
         $reply = $processor->persistedReply();
