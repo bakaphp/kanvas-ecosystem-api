@@ -36,9 +36,9 @@ class RuntimeAgentChannelResponderActionTest extends TestCase
 
         $this->assertSame('hello agent', $provider->lastMessage);
         $this->assertSame(
-            $channel->slug . '-' . $channel->apps_id . '-' . $channel->companies_id,
+            $channel->uuid,
             $provider->lastSessionKey,
-            'Runtime conversation must key on the canonical channel Session.uuid',
+            'Runtime conversation must key on the channel uuid',
         );
 
         $payload = $reply->getMessage();

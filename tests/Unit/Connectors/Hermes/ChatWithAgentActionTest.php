@@ -15,10 +15,6 @@ use Mockery;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
-/**
- * Canned response bodies use the Chat Completions shape, which the action's parser still
- * accepts as a fallback alongside the Responses shape — so the same bodies pin both paths.
- */
 class ChatWithAgentActionTest extends TestCase
 {
     protected function tearDown(): void
@@ -47,12 +43,12 @@ class ChatWithAgentActionTest extends TestCase
         $this->assertStringContainsString('docker exec', $command);
         $this->assertStringContainsString('hermes-bot', $command);
         $this->assertStringContainsString('curl -sS', $command);
-        $this->assertStringContainsString('http://127.0.0.1:8642/v1/responses', $command);
+        $this->assertStringContainsString('http://127.0.0.1:8642/v1/chat/completions', $command);
         $this->assertStringContainsString('Authorization: Bearer tok-agent', $command);
         $this->assertStringContainsString('--data-binary @', $command);
 
         $this->assertStringContainsString('"model":"hermes-agent"', $ssh->capturedPayload);
-        $this->assertStringContainsString('"input":"hello"', $ssh->capturedPayload);
+        $this->assertStringContainsString('"content":"hello"', $ssh->capturedPayload);
     }
 
     public function testFallsBackToDeploymentTokenWhenAgentHasNone(): void
@@ -94,8 +90,8 @@ class ChatWithAgentActionTest extends TestCase
 
         // Hermes' vision can't fetch remote URLs — image bytes must be inlined as a data: URI.
         $payload = $ssh->capturedPayload;
-        $this->assertStringContainsString('"type":"input_text"', $payload);
-        $this->assertStringContainsString('"type":"input_image"', $payload);
+        $this->assertStringContainsString('"type":"text"', $payload);
+        $this->assertStringContainsString('"type":"image_url"', $payload);
         $this->assertStringContainsString('data:image/png;base64,', $payload);
         $this->assertStringNotContainsString('https://cdn.example.com/pic.png', $payload);
     }
@@ -244,7 +240,7 @@ class TestableChatWithAgentAction extends ChatWithAgentAction
         private FakeSshClient $sshClient,
         private string $cannedImageBytes = '',
     ) {
-        parent::__construct($agent, $message, null, $images);
+        parent::__construct($agent, $message, $images);
     }
 
     protected function openSshClient(AgentMachine $machine): SshClient

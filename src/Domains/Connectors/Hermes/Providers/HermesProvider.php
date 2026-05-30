@@ -246,9 +246,8 @@ class HermesProvider extends AbstractAgentRuntimeProvider
     }
 
     /**
-     * Threads the Kanvas Session.uuid as the Hermes `conversation` id on /v1/responses so the
-     * gateway's stateful store keeps context across turns. Falls back to the agent's own
-     * persistent memory when no session is supplied.
+     * Hermes /v1/chat/completions is stateless, so $sessionKey is unused — cross-turn
+     * continuity comes from the agent's own persistent memory.
      */
     #[Override]
     public function chat(
@@ -260,7 +259,6 @@ class HermesProvider extends AbstractAgentRuntimeProvider
         return new ChatWithAgentAction(
             $agent,
             $message,
-            $sessionKey,
             $images
         )->execute();
     }

@@ -10,9 +10,9 @@ use Override;
 use Tests\TestCase;
 
 /**
- * Pins the /v1/responses payload Hermes produces: images inlined as base64 `data:` URIs (its
- * vision pipeline can't fetch remote URLs) and the Kanvas Session.uuid threaded as the
- * `conversation` id so the gateway's stateful store keeps cross-turn context.
+ * Hermes' vision pipeline only reliably accepts images inlined as base64 `data:` URIs — a
+ * remote http(s) URL leaves the agent unable to see the image. These tests pin the payload
+ * shape `buildContent()` produces.
  */
 class ChatWithAgentImageTest extends TestCase
 {
@@ -31,18 +31,13 @@ class ChatWithAgentImageTest extends TestCase
             $png,
         );
 
-        $input = $action->exposeBuildInput();
+        $content = $action->exposeBuildContent();
 
-        $this->assertIsArray($input);
-        $message = $input[0];
-        $this->assertSame('message', $message['type']);
-        $this->assertSame('user', $message['role']);
-
-        $content = $message['content'];
-        $this->assertSame(['type' => 'input_text', 'text' => 'what is in this image?'], $content[0]);
-        $this->assertSame('input_image', $content[1]['type']);
-        $this->assertStringStartsWith('data:image/png;base64,', $content[1]['image_url']);
-        $this->assertStringContainsString(base64_encode($png), $content[1]['image_url']);
+        $this->assertIsArray($content);
+        $this->assertSame(['type' => 'text', 'text' => 'what is in this image?'], $content[0]);
+        $this->assertSame('image_url', $content[1]['type']);
+        $this->assertStringStartsWith('data:image/png;base64,', $content[1]['image_url']['url']);
+        $this->assertStringContainsString(base64_encode($png), $content[1]['image_url']['url']);
     }
 
     public function testDataUriImagesArePassedThroughUnchanged(): void
@@ -51,45 +46,20 @@ class ChatWithAgentImageTest extends TestCase
 
         $action = new InlineImageChatWithAgentActionStub(new Agent(), 'hi', [$dataUri], 'unused');
 
-        $input = $action->exposeBuildInput();
+        $content = $action->exposeBuildContent();
 
-        $this->assertIsArray($input);
-        $this->assertSame($dataUri, $input[0]['content'][1]['image_url']);
+        $this->assertIsArray($content);
+        $this->assertSame($dataUri, $content[1]['image_url']['url']);
     }
 
     public function testTextOnlyMessagesStayPlainStrings(): void
     {
         $action = new InlineImageChatWithAgentActionStub(new Agent(), 'just text', [], 'unused');
 
-        $this->assertSame('just text', $action->exposeBuildInput());
-    }
-
-    public function testPayloadThreadsSessionAsConversation(): void
-    {
-        $action = new InlineImageChatWithAgentActionStub(new Agent(), 'hi', [], 'unused', 'sess-uuid-123');
-
-        $payload = json_decode($action->exposeBuildPayload(), true);
-
-        $this->assertSame('hermes-agent', $payload['model']);
-        $this->assertSame('hi', $payload['input']);
-        $this->assertSame('sess-uuid-123', $payload['conversation']);
-        $this->assertTrue($payload['store']);
-    }
-
-    public function testPayloadOmitsConversationWithoutSession(): void
-    {
-        $action = new InlineImageChatWithAgentActionStub(new Agent(), 'hi', [], 'unused');
-
-        $payload = json_decode($action->exposeBuildPayload(), true);
-
-        $this->assertArrayNotHasKey('conversation', $payload);
+        $this->assertSame('just text', $action->exposeBuildContent());
     }
 }
 
-/**
- * Supplies canned image bytes so the data-URI conversion is exercised without network, and
- * exposes the otherwise-protected payload builders.
- */
 class InlineImageChatWithAgentActionStub extends ChatWithAgentAction
 {
     /**
@@ -100,9 +70,8 @@ class InlineImageChatWithAgentActionStub extends ChatWithAgentAction
         string $message,
         array $images,
         private readonly string $cannedBinary,
-        ?string $sessionKey = null,
     ) {
-        parent::__construct($agent, $message, $sessionKey, $images);
+        parent::__construct($agent, $message, $images);
     }
 
     #[Override]
@@ -111,13 +80,8 @@ class InlineImageChatWithAgentActionStub extends ChatWithAgentAction
         return $this->cannedBinary;
     }
 
-    public function exposeBuildInput(): string|array
+    public function exposeBuildContent(): string|array
     {
-        return $this->buildInput();
-    }
-
-    public function exposeBuildPayload(): string
-    {
-        return $this->buildPayload();
+        return $this->buildContent();
     }
 }
