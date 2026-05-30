@@ -103,15 +103,6 @@ class Agent extends BaseModel
         'last_state_changed_at',
     ];
 
-    protected $casts = [
-        'config' => Json::class,
-        'role' => Json::class,
-        'identity' => Json::class,
-        'is_active' => 'boolean',
-        'is_sub_agent' => 'boolean',
-        'last_state_changed_at' => 'datetime',
-    ];
-
     #[Override]
     public function getGraphTypeName(): string
     {
@@ -122,6 +113,19 @@ class Agent extends BaseModel
     public function getRelations(?string $modelClass = null): array
     {
         return func_num_args() > 0 ? [] : $this->relations;
+    }
+
+    #[Override]
+    public function casts(): array
+    {
+        return [
+            'config' => Json::class,
+            'role' => Json::class,
+            'identity' => Json::class,
+            'is_active' => 'boolean',
+            'is_sub_agent' => 'boolean',
+            'last_state_changed_at' => 'datetime',
+        ];
     }
 
     public function type(): BelongsTo

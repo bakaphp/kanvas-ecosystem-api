@@ -31,6 +31,7 @@ use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -107,19 +108,19 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 )
             )->execute();
 
-            // Create the message using the action
             $messageInput = new MessageInput(
                 app: $this->receiver->app,
                 company: $this->receiver->company,
                 user: $this->receiver->user,
                 type: $messageTypeModel,
-                message: [
+                message: AiChatMessagePayload::from([
                     'content' => $request['Body'],
+                    'from_me' => $request['From'] === $request['To'],
+                    'from_ia' => false,
                     'raw_data' => $request,
                     'message_id' => $request['SmsMessageSid'],
                     'chat_jid' => $request['From'],
-                    'from_me' => $request['From'] === $request['To'],
-                ],
+                ])->toArray(),
                 is_public: 1,
                 slug: $messageSlug,
                 tags: [$request['From']]

@@ -15,19 +15,6 @@ use Mockery;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
-/**
- * Exercises the Hermes ChatWithAgentAction with no SSH / network — the SshClient
- * is injected via a test-only subclass that overrides openSshClient().
- *
- * We're testing:
- *  - command shape (curl hits the Hermes API server, OpenAI chat-completions path)
- *  - happy-path response parsing (choices[0].message.content)
- *  - gateway token resolution (agent custom field, deployment fallback)
- *  - multimodal content when images are attached
- *  - HTTP error surfacing
- *  - malformed JSON surfacing
- *  - missing deployment / missing token guard rails
- */
 class ChatWithAgentActionTest extends TestCase
 {
     protected function tearDown(): void
@@ -51,8 +38,6 @@ class ChatWithAgentActionTest extends TestCase
 
         $this->assertSame('hello back', $result);
 
-        // The shell command stages the JSON via SFTP (writeFile) + `docker cp`, then
-        // curls with `--data-binary @<file>` — the payload no longer travels in argv.
         $command = $ssh->capturedCommand;
         $this->assertStringContainsString('docker cp', $command);
         $this->assertStringContainsString('docker exec', $command);
@@ -62,7 +47,6 @@ class ChatWithAgentActionTest extends TestCase
         $this->assertStringContainsString('Authorization: Bearer tok-agent', $command);
         $this->assertStringContainsString('--data-binary @', $command);
 
-        // The JSON body lives in the file SFTP wrote, captured here.
         $this->assertStringContainsString('"model":"hermes-agent"', $ssh->capturedPayload);
         $this->assertStringContainsString('"content":"hello"', $ssh->capturedPayload);
     }
@@ -104,8 +88,7 @@ class ChatWithAgentActionTest extends TestCase
 
         $action->execute();
 
-        // Hermes' vision pipeline expects the bytes inlined as a base64 `data:` URI — the
-        // raw URL must NOT appear in the wire payload anymore.
+        // Hermes' vision can't fetch remote URLs — image bytes must be inlined as a data: URI.
         $payload = $ssh->capturedPayload;
         $this->assertStringContainsString('"type":"text"', $payload);
         $this->assertStringContainsString('"type":"image_url"', $payload);

@@ -14,6 +14,7 @@ use Kanvas\Connectors\RespondIO\Traits\HasLeadProcessing;
 use Kanvas\Connectors\RespondIO\Traits\HasMessageProcessing;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
+use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -114,11 +115,14 @@ class ProcessIncomingMessageAction extends BaseRespondIOAction
                 user: $this->user,
                 type: $messageTypeModel,
                 message: [
-                    'content' => $text,
-                    'raw_data' => $this->payload,
-                    'message_id' => $messageId,
-                    'chat_jid' => $identifier,
-                    'from_me' => false,
+                    ...AiChatMessagePayload::from([
+                        'content' => $text,
+                        'from_me' => false,
+                        'from_ia' => false,
+                        'raw_data' => $this->payload,
+                        'message_id' => $messageId,
+                        'chat_jid' => $identifier,
+                    ])->toArray(),
                     'respondio_channel' => $channelData['name'] ?? null,
                     'respondio_contact_id' => $contactId,
                     'respondio_source' => $senderData['source'] ?? null,
