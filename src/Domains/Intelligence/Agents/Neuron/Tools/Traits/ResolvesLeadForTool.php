@@ -29,12 +29,14 @@ trait ResolvesLeadForTool
     {
         try {
             return Lead::getById($leadId);
-        } catch (ModelNotFoundException $e) {
+        } catch (ModelNotFoundException) {
             return [
                 'status' => 'error',
-                'message' => "Lead {$leadId} not found. Do not pass a lead_id you have not received from a "
-                    . 'previous tool call or that was given to you in your context. If no lead is in scope, '
-                    . 'gather the prospect details and call create_lead first, then use the returned lead_id.',
+                'message' => "Lead {$leadId} does not exist. You invented this lead_id — never do that. "
+                    . 'DO NOT ask the prospect for their lead_id (they do not have one and do not know what that means). '
+                    . 'Instead, immediately call create_lead yourself with whatever prospect details you have gathered '
+                    . 'in the conversation (name, company, email or phone, what they said). create_lead will return a '
+                    . 'real lead_id — then retry this tool with that lead_id, in the SAME turn.',
             ];
         }
     }

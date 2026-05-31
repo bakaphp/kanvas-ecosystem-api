@@ -47,7 +47,7 @@ class HandOffTool extends Tool
         ];
     }
 
-    public function __invoke(int $lead_id, string $handoff_type = 'human'): array
+    public function __invoke(int $lead_id, ?string $handoff_type = null): array
     {
         $result = $this->resolveLeadOrError($lead_id);
         if (is_array($result)) {
@@ -58,7 +58,7 @@ class HandOffTool extends Tool
         return new HandOffAction(
             lead: $lead,
             app: $lead->app,
-            params: ['handoff_type' => $handoff_type],
+            params: ['handoff_type' => $handoff_type ?? 'human'],
         )->execute();
     }
 }

@@ -28,6 +28,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\InventorySearchTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\ListAvailableProductsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\VariantDetailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\VariantSearchTool;
+use Kanvas\Intelligence\Agents\Traits\HasTemporalContext;
 use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\Social\Messages\Models\Message;
@@ -38,6 +39,7 @@ use Override;
 
 class IntelligenceCRM extends BaseKanvasAgent
 {
+    use HasTemporalContext;
     use MergesRegisteredTools;
 
     #[Override]
@@ -67,17 +69,24 @@ class IntelligenceCRM extends BaseKanvasAgent
         $output = Blade::render($role['output'], ['lead' => $lead]);
         $background = explode('\n', $background);
 
-        $contextLines = $lead !== null
+        $timezone = $lead?->company?->timezone
+            ?? $this->company?->timezone
+            ?? 'UTC';
+
+        $contextLines = array_merge($this->temporalContextLines($timezone), $lead !== null
             ? [
                 "lead_id: {$lead->getId()}",
                 "companies_id: {$lead->companies_id}",
             ]
             : [
-                'No lead is currently in scope. Do NOT call lead-scoped tools '
-                . '(get_user_availability, create_calendar_event, get_lead_intent, '
-                . 'get_communication_channel, etc.) until the user provides a lead_id. '
-                . 'Ask the user which lead to work with first.',
-            ];
+                'No lead is currently in scope. The prospect you are chatting with is NOT a CRM lead yet '
+                . 'and does NOT know any lead_id — NEVER ask them for one. '
+                . 'When the prospect shows real intent (asks to schedule, requests a demo, asks about pricing), '
+                . 'YOU must call create_lead yourself using details gathered from the conversation '
+                . '(name, company, email or phone, what they said). The create_lead tool returns a lead_id — '
+                . 'use that returned lead_id for any subsequent lead-scoped tool calls (get_user_availability, '
+                . 'create_calendar_event, etc.) in the SAME turn. Never invent a lead_id.',
+            ]);
 
         return new SystemPrompt(
             background: [
