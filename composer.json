@@ -81,6 +81,7 @@
         "swoole/ide-helper": "*",
         "symfony/expression-language": "^8.0",
         "symfony/http-client": "^8.0",
+        "symfony/http-foundation": "~8.0.0",
         "symfony/mailgun-mailer": "^8.0",
         "symfony/yaml": "^8.0",
         "thiagoprz/eloquent-composite-key": "^1.0",
