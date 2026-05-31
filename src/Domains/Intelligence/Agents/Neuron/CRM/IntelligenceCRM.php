@@ -92,8 +92,11 @@ class IntelligenceCRM extends BaseKanvasAgent
     #[Override]
     protected function tools(): array
     {
-        // Always-available tools — work regardless of whether a lead is in scope.
-        // Inventory tools, CRM lookup tools that don't need a lead, etc.
+        // All lead-scoped and always-available tools are registered up-front so
+        // the LLM can complete a full create_lead -> schedule -> book flow in
+        // one turn. ResolvesLeadForTool catches hallucinated lead_ids and
+        // returns a structured error pointing the LLM at create_lead instead
+        // of crashing with "non-existing tool".
         $tools = [
             new CompanyInformationTool(),
             new CompanyWorkHoursTool(),
@@ -101,32 +104,24 @@ class IntelligenceCRM extends BaseKanvasAgent
             new ListAvailableProductsTool(),
             new VariantSearchTool(),
             new VariantDetailTool(),
+            new ArtifactsTool(),
+            new CommunicationChannelTool(),
+            new CompanyIsHolidayTool(),
+            new CompletionStatusTool(),
+            new CalendarEventTool(),
+            new UserAvailabilityTool(),
+            new HandOffTool(),
+            new LeadIntentTool(),
+            new LeadRefTool(),
+            new SimilarVehiclesTool(),
+            new VehicleInterestTool(),
+            new VehicleTradeInTool(),
         ];
-
-        // Lead-scoped tools — only exposed when the current session entity is
-        // an actual Lead. Hides them from the LLM when chatting user-scoped so
-        // it can't hallucinate a lead_id to satisfy a required parameter.
-        if ($this->entity instanceof Lead) {
-            $tools[] = new ArtifactsTool();
-            $tools[] = new CommunicationChannelTool();
-            $tools[] = new CompanyIsHolidayTool();
-            $tools[] = new CompletionStatusTool();
-            $tools[] = new CalendarEventTool();
-            $tools[] = new UserAvailabilityTool();
-            $tools[] = new HandOffTool();
-            $tools[] = new LeadIntentTool();
-            $tools[] = new LeadRefTool();
-            $tools[] = new SimilarVehiclesTool();
-            $tools[] = new VehicleInterestTool();
-            $tools[] = new VehicleTradeInTool();
-        }
 
         if ($this->entity instanceof Message) {
             $tools[] = new ContactCheckerTool($this->entity);
         }
 
-        // CreateLeadTool exposed whenever we have an authenticated context so
-        // user-scoped chats can promote into lead-scoped after the first call.
         if ($this->app !== null && $this->company !== null && $this->user !== null) {
             $tools[] = new CreateLeadTool($this->app, $this->company, $this->user, $this->session);
         }

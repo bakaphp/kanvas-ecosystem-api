@@ -135,14 +135,25 @@ class CreateLeadTool extends Tool
     }
 
     /**
-     * Repoint the chat session at the newly-created lead so the next turn's
-     * tools() resolution sees an entity instanceof Lead and unlocks the
-     * lead-scoped toolset.
+     * Repoint the chat session AND its channel at the newly-created lead so:
+     *  - future turns' session->entity() returns a Lead
+     *  - $lead->channels() / CRM sales-conversation views find this channel
+     *
+     * End-of-turn cross-linking (RunNeuronChatAction::backfillChannelMessagesToLead)
+     * handles attaching the existing social messages to the new Lead entity
+     * so the entity-keyed history loader stays in sync.
      */
     private function promoteSessionToLead(int $leadId): void
     {
         $this->session->entity_id = $leadId;
         $this->session->entity_namespace = Lead::class;
         $this->session->saveQuietly();
+
+        $channel = $this->session->channel;
+        if ($channel !== null) {
+            $channel->entity_id = $leadId;
+            $channel->entity_namespace = Lead::class;
+            $channel->saveQuietly();
+        }
     }
 }

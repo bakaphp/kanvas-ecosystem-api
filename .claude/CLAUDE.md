@@ -22,7 +22,7 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
       'photo'
   );
   ```
-- **PHP-CS-Fixer enforced** — config lives at `.php-cs-fixer.php`. A `PostToolUse` hook runs the fixer on every edited `.php` file automatically (see `.claude/settings.json`). If the binary isn't installed in the current environment, match the rules by hand:
+- **PHP-CS-Fixer enforced** — config lives at `.php-cs-fixer.php`. A `PostToolUse` hook runs the fixer on every edited `.php` file automatically (see `.claude/settings.json`). **The hook only fires on Edit/Write tool calls.** If you batch-edit via `sed`/`perl -i`/`awk`/any shell script, the hook does NOT run and StyleCI will fail the PR for import ordering, brace placement, etc. After any bash batch edit of `.php` files: run `php-cs-fixer fix <files>` (binary at `/Users/kaioken/Tools/php-cs-fixer/vendor/bin/php-cs-fixer` on host) on every touched file BEFORE finishing the task. Prefer Edit/Write tool calls over batch shell edits when possible. If the binary isn't installed in the current environment, match the rules by hand:
   - Anonymous classes: `new class () extends Foo {` (parentheses + space before brace, brace on same line)
   - Multi-line closures passed as method arguments: place the closure on a new line, e.g. `->whereHas('rel', fn ($q) => ...)` becomes `->whereHas(\n    'rel',\n    fn ($q) => ...\n)`
   - `use` imports: alphabetical order **across the entire use block** (not just within each namespace group) — e.g. `Connectors\Zoho\...` must come after `Connectors\WooCommerce\...`

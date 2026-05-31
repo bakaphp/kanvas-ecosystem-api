@@ -31,39 +31,50 @@ trait CreatesLeadTrait
         int $leadSourceId = 0,
         ?int $organizationId = null,
     ): array {
-        $branch = $company->defaultBranch;
-
-        $contacts = [];
-        if (filled($email)) {
-            $contacts[] = new Contact(value: $email);
-        }
-        if (filled($phone)) {
-            $contacts[] = new Contact(value: $phone);
-        }
-
-        $people = new People(
-            app: $app,
-            branch: $branch,
-            user: $user,
-            firstname: $firstname,
-            contacts: Contact::collect($contacts, DataCollection::class),
-            address: Address::collect([], DataCollection::class),
-            lastname: $lastname ?: null,
-        );
-
-        $leadData = new LeadData(
-            app: $app,
-            branch: $branch,
-            user: $user,
-            title: $title,
-            pipeline_stage_id: (int) $company->get('agent_lead_pipeline_stage_id', 0),
-            people: $people,
-            description: $description,
-            type_id: $leadTypeId,
-            source_id: $leadSourceId,
-        );
-
+        // Wrap the full body — including `$company->defaultBranch`, DTO
+        // construction, and Action execute — so any data-integrity issue
+        // (missing default branch, stale company FK, missing pipeline stage,
+        // etc.) returns a structured error to the LLM instead of bubbling.
         try {
+            $branch = $company->defaultBranch;
+
+            if ($branch === null) {
+                return [
+                    'error' => 'Company has no default branch configured. '
+                        . 'Cannot create a lead until the tenant has a default companies_branches row.',
+                ];
+            }
+
+            $contacts = [];
+            if (filled($email)) {
+                $contacts[] = new Contact(value: $email);
+            }
+            if (filled($phone)) {
+                $contacts[] = new Contact(value: $phone);
+            }
+
+            $people = new People(
+                app: $app,
+                branch: $branch,
+                user: $user,
+                firstname: $firstname,
+                contacts: Contact::collect($contacts, DataCollection::class),
+                address: Address::collect([], DataCollection::class),
+                lastname: $lastname ?: null,
+            );
+
+            $leadData = new LeadData(
+                app: $app,
+                branch: $branch,
+                user: $user,
+                title: $title,
+                pipeline_stage_id: (int) $company->get('agent_lead_pipeline_stage_id', 0),
+                people: $people,
+                description: $description,
+                type_id: $leadTypeId,
+                source_id: $leadSourceId,
+            );
+
             $lead = new CreateLeadAction($leadData)->execute();
 
             if ($organizationId !== null) {
@@ -71,7 +82,10 @@ trait CreatesLeadTrait
                 $lead->save();
             }
         } catch (Throwable $e) {
-            return ['error' => "Failed to create lead: {$e->getMessage()}"];
+            return [
+                'error' => $e::class,
+                'message' => "Failed to create lead: {$e->getMessage()}",
+            ];
         }
 
         return [

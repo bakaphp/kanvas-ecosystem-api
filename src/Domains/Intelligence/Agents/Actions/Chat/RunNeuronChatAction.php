@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\AgentHandler;
 use NeuronAI\Agent\AgentState;
@@ -49,13 +51,30 @@ class RunNeuronChatAction
             );
         }
 
+        $toolCalls = [];
+        $toolResults = [];
+        $usage = [];
+
         try {
+            // chat() returns immediately with an AgentHandler; the actual LLM
+            // round-trip happens inside run() / getMessage(). Both must be
+            // inside the try block so provider errors (e.g. Gemini returning
+            // STOP with no `parts`) don't bubble as 500s.
             $responseContent = $this->handler->chat($userMessage);
+
+            if ($responseContent instanceof AgentHandler) {
+                $state = $responseContent->run();
+                $responseMessage = $state->getMessage();
+                [$toolCalls, $toolResults, $usage] = $this->extractTurnTelemetry($state, $responseMessage);
+            } else {
+                $responseMessage = $responseContent;
+                if ($responseMessage instanceof Message && ($u = $responseMessage->getUsage())) {
+                    $usage = $u->jsonSerialize();
+                }
+            }
         } catch (Throwable $e) {
             report($e);
 
-            // Log the failed turn so we can debug, but return a graceful
-            // recovery message instead of bubbling 500 to the end user.
             $fallback = 'I ran into a hiccup processing that. Could you try rephrasing, '
                 . 'or let me know if you want me to hand off to a human?';
 
@@ -70,21 +89,6 @@ class RunNeuronChatAction
             );
 
             return $fallback;
-        }
-
-        $toolCalls = [];
-        $toolResults = [];
-        $usage = [];
-
-        if ($responseContent instanceof AgentHandler) {
-            $state = $responseContent->run();
-            $responseMessage = $state->getMessage();
-            [$toolCalls, $toolResults, $usage] = $this->extractTurnTelemetry($state, $responseMessage);
-        } else {
-            $responseMessage = $responseContent;
-            if ($responseMessage instanceof Message && ($u = $responseMessage->getUsage())) {
-                $usage = $u->jsonSerialize();
-            }
         }
 
         $content = $responseMessage->getContent() ?? '';
@@ -102,7 +106,44 @@ class RunNeuronChatAction
             usage: $usage,
         );
 
+        // Cross-link any channel message not yet linked to the session's Lead so
+        // the next turn's history loader (SalesAssistKanvasMessageHistory, which
+        // queries by entity) sees the full conversation. Runs every turn for
+        // lead-scoped sessions — idempotent, exits quickly when nothing to do.
+        $this->backfillChannelMessagesToLead();
+
         return $content;
+    }
+
+    private function backfillChannelMessagesToLead(): void
+    {
+        if ($this->session === null) {
+            return;
+        }
+
+        $freshSession = $this->session->fresh();
+        if ($freshSession === null || $freshSession->entity_namespace !== Lead::class || $freshSession->entity_id === null) {
+            return;
+        }
+
+        $lead = Lead::find($freshSession->entity_id);
+        $channel = $freshSession->channel;
+
+        if ($lead === null || $channel === null) {
+            return;
+        }
+
+        foreach ($channel->messages()->get() as $message) {
+            $alreadyLinked = AppModuleMessage::query()
+                ->where('message_id', $message->getId())
+                ->where('system_modules', Lead::class)
+                ->where('entity_id', $lead->getId())
+                ->exists();
+
+            if (! $alreadyLinked) {
+                $message->addEntity($lead);
+            }
+        }
     }
 
     /**

@@ -14,8 +14,8 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\GoogleADKService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Users\Models\Users;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 
 class ADKAgent
 {
