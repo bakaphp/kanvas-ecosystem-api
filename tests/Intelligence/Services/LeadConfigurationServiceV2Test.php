@@ -52,46 +52,34 @@ class LeadConfigurationServiceV2Test extends TestCase
         $this->assertTrue(new LeadConfigurationService(true)->isV2Enabled(auth()->user()->getCurrentCompany()));
     }
 
-    public function testGetAiModeKeyReturnsShowroomKeyForShowroomLeadType(): void
+    public function testGetAiModeKeyReturnsGenericAiModeForEveryLeadType(): void
     {
-        $lead = $this->createLead('Showroom');
+        $service = new LeadConfigurationService(true);
 
-        $this->assertEquals('showroom_ai_mode', new LeadConfigurationService(true)->getAiModeKey($lead));
+        foreach (['Internet', 'Showroom', 'Phone'] as $typeName) {
+            $lead = $this->createLead($typeName);
+
+            $this->assertEquals(
+                'ai_mode',
+                $service->getAiModeKey($lead),
+                "Lead key must be the generic 'ai_mode' regardless of lead type ({$typeName})"
+            );
+        }
     }
 
-    public function testGetAiModeKeyReturnsPhoneKeyForPhoneLeadType(): void
+    public function testGetFollowUpModeKeyReturnsGenericAiFollowUpForEveryLeadType(): void
     {
-        $lead = $this->createLead('Phone');
+        $service = new LeadConfigurationService(true);
 
-        $this->assertEquals('phone_ai_mode', new LeadConfigurationService(true)->getAiModeKey($lead));
-    }
+        foreach (['Internet', 'Showroom', 'Phone'] as $typeName) {
+            $lead = $this->createLead($typeName);
 
-    public function testGetAiModeKeyReturnsGenericKeyForInternetLeadType(): void
-    {
-        $lead = $this->createLead('Internet');
-
-        $this->assertEquals('ai_mode', new LeadConfigurationService(true)->getAiModeKey($lead));
-    }
-
-    public function testGetFollowUpModeKeyReturnsInternetFollowUpKeyForInternetType(): void
-    {
-        $lead = $this->createLead('Internet');
-
-        $this->assertEquals('internet_follow_up_mode', new LeadConfigurationService(true)->getFollowUpModeKey($lead));
-    }
-
-    public function testGetFollowUpModeKeyReturnsShowroomFollowUpKeyForShowroomType(): void
-    {
-        $lead = $this->createLead('Showroom');
-
-        $this->assertEquals('showroom_follow_up_mode', new LeadConfigurationService(true)->getFollowUpModeKey($lead));
-    }
-
-    public function testGetFollowUpModeKeyReturnsPhoneFollowUpKeyForPhoneType(): void
-    {
-        $lead = $this->createLead('Phone');
-
-        $this->assertEquals('phone_follow_up_mode', new LeadConfigurationService(true)->getFollowUpModeKey($lead));
+            $this->assertEquals(
+                'ai_follow_up',
+                $service->getFollowUpModeKey($lead),
+                "Lead key must be the generic 'ai_follow_up' regardless of lead type ({$typeName})"
+            );
+        }
     }
 
     public function testGetAiModeDefaultKeyReturnsOpenKeyWhenOpen(): void
