@@ -145,6 +145,7 @@ class ProcessAgentChatAction
 
         if ($handler instanceof BaseKanvasAgent) {
             $handler->setThreadId($threadId);
+            $handler->setSession($this->session);
         }
 
         return new RunNeuronChatAction(

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -16,6 +16,8 @@ use Override;
 #[AgentTool(name: 'Lead Reference')]
 class LeadRefTool extends Tool
 {
+    use ResolvesLeadForTool;
+
     public function __construct()
     {
         parent::__construct(
@@ -41,16 +43,20 @@ class LeadRefTool extends Tool
         ];
     }
 
-    public function __invoke(int $lead_id): string
+    public function __invoke(int $lead_id): array
     {
-        $lead = Lead::getById($lead_id);
+        $result = $this->resolveLeadOrError($lead_id);
+        if (is_array($result)) {
+            return $result;
+        }
+        $lead = $result;
         /** @var \Kanvas\Companies\Models\Companies|null $company */
         $company = $lead->company;
         $people = $lead->people;
 
         $additional_context_information = $lead->get(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value);
 
-        return json_encode([
+        return [
             'lead_id' => $lead->id,
             'lead_uuid' => $lead->uuid,
             'apps_id' => $lead->app->getId(),
@@ -118,6 +124,6 @@ class LeadRefTool extends Tool
                 'is_active' => (bool) $company->is_active,
                 'photo' => $company->getPhoto()?->url,
             ] : null,
-        ]);
+        ];
     }
 }

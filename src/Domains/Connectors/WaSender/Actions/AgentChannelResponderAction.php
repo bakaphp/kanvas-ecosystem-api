@@ -89,7 +89,9 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
 
         $currentAgent->setConfiguration(
             $this->agent,
-            $this->message->entity()->people
+            $this->message->entity()->people,
+            null,
+            $this->message->company->getAiAgentUserOrFail(),
         );
 
         $whatsAppMessageService = new MessageService(

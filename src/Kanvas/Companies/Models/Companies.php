@@ -36,6 +36,7 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
@@ -509,6 +510,23 @@ class Companies extends BaseModel implements CompanyInterface, Customer
         $agentUserId = $this->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
 
         return $agentUserId !== null ? Users::getById((int) $agentUserId) : null;
+    }
+
+    public function getAiAgentUserOrFail(): Users
+    {
+        $user = $this->getAiAgentUser();
+
+        if ($user === null) {
+            throw new ValidationException(sprintf(
+                'No AI agent user configured for company %d (%s). '
+                . 'Set %s in the company configuration.',
+                $this->getId(),
+                $this->name,
+                IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value,
+            ));
+        }
+
+        return $user;
     }
 
     public function hasCompanyPermission(UserInterface $user): void

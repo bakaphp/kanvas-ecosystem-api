@@ -231,6 +231,11 @@ class KanvasConversationStore implements ConversationStore
      * Same sessionId across two different agents must NOT collide — that's
      * what the agent_id scoping in findOrCreateConversationBySession enforces.
      */
+    /**
+     * @param array<int, mixed> $toolCalls
+     * @param array<int, mixed> $toolResults
+     * @param array<string, mixed> $usage
+     */
     public function logTurn(
         int $userId,
         string $sessionId,
@@ -238,13 +243,25 @@ class KanvasConversationStore implements ConversationStore
         string $userMessage,
         string $assistantResponse,
         ?int $agentId = null,
+        array $toolCalls = [],
+        array $toolResults = [],
+        array $usage = [],
     ): void {
         $conversationId = $sessionId !== ''
             ? $this->findOrCreateConversationBySession($userId, $sessionId, $agentId)
             : $this->storeConversationForAgent($userId, $agentId, 'agent-chat-' . now()->timestamp);
 
         $this->insertMessage($conversationId, $userId, $agentClass, 'user', $userMessage);
-        $this->insertMessage($conversationId, $userId, $agentClass, 'assistant', $assistantResponse);
+        $this->insertMessage(
+            $conversationId,
+            $userId,
+            $agentClass,
+            'assistant',
+            $assistantResponse,
+            $toolCalls,
+            $toolResults,
+            $usage,
+        );
     }
 
     protected function findOrCreateConversationBySession(int $userId, string $sessionId, ?int $agentId = null): string
@@ -270,12 +287,20 @@ class KanvasConversationStore implements ConversationStore
         return $this->storeConversationForAgent($userId, $agentId, $sessionId);
     }
 
+    /**
+     * @param array<int, mixed> $toolCalls
+     * @param array<int, mixed> $toolResults
+     * @param array<string, mixed> $usage
+     */
     protected function insertMessage(
         string $conversationId,
         int $userId,
         string $agentClass,
         string $role,
         string $content,
+        array $toolCalls = [],
+        array $toolResults = [],
+        array $usage = [],
     ): string {
         $messageId = (string) Str::uuid7();
 
@@ -287,9 +312,9 @@ class KanvasConversationStore implements ConversationStore
             'role' => $role,
             'content' => $content,
             'attachments' => '[]',
-            'tool_calls' => '[]',
-            'tool_results' => '[]',
-            'usage' => '[]',
+            'tool_calls' => json_encode($toolCalls),
+            'tool_results' => json_encode($toolResults),
+            'usage' => json_encode($usage),
             'meta' => '[]',
             'created_at' => now(),
             'updated_at' => now(),
