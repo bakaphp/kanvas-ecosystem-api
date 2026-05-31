@@ -17,6 +17,8 @@ type People {
     address: [Address!]! @hasMany
     created_at: DateTime!
     updated_at: DateTime
+    first_message_at: DateTime
+    last_message_at: DateTime
     photo: Filesystem @method(name: "getPhoto")
     employment_history: [PeopleEmploymentHistory!]
         @hasMany(relation: "employmentHistory")
@@ -199,7 +201,17 @@ extend type Query @guard {
                 columns: ["name", "value"]
             )
         orderBy: _
-            @orderBy(columns: ["id", "created_at", "updated_at", "name", "dob"])
+            @orderBy(
+                columns: [
+                    "id"
+                    "created_at"
+                    "updated_at"
+                    "name"
+                    "dob"
+                    "first_message_at"
+                    "last_message_at"
+                ]
+            )
     ): [People!]!
         @paginate(
             model: "Kanvas\\Guild\\Customers\\Models\\People"
