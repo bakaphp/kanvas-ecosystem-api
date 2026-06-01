@@ -7,6 +7,7 @@ namespace Tests\GraphQL\Intelligence;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
@@ -217,8 +218,10 @@ class UserAgentChatTest extends TestCase
 
         $session = Session::where('uuid', $sessionId)->first();
         $this->assertNotNull($session);
-        $this->assertEquals(Lead::class, $session->entity_namespace);
-        $this->assertEquals($lead->getId(), $session->entity_id);
+        // Post PR3 (People-as-session-entity): the session is People-keyed,
+        // not Lead-keyed. The current Lead is plumbed per-turn from the input.
+        $this->assertEquals(People::class, $session->entity_namespace);
+        $this->assertEquals($lead->people->getId(), $session->entity_id);
     }
 
     public function testUserChatResponseSurfacesPersistedMessageAndChannel(): void
@@ -391,17 +394,19 @@ class UserAgentChatTest extends TestCase
         $sessionId = $response->json('data.aiAgentUserChat.session_id');
         $session = Session::where('uuid', $sessionId)->first();
         $channel = Channel::find($session->channel_id);
-        $this->assertNotNull($channel, 'Lead session should land on the lead channel created by createLeadSession');
+        // Post PR3 (People-as-session-entity): the session's channel is the
+        // People channel created by PeopleChannelService, not the per-lead one.
+        $this->assertNotNull($channel, 'People session should land on the durable People channel');
 
         $messages = $channel->messages()->get();
-        $this->assertCount(2, $messages, 'Lead channel should receive user prompt + assistant reply');
+        $this->assertCount(2, $messages, 'People channel should receive user prompt + assistant reply');
 
         foreach ($messages as $message) {
             $this->assertSame($sessionId, $message->getMessage()['session_id']);
             $this->assertEquals($this->agent->getId(), $message->getMessage()['agent_id']);
             $entity = $message->entity();
-            $this->assertInstanceOf(Lead::class, $entity, 'Lead-channel messages must be linked to the Lead');
-            $this->assertEquals($lead->getId(), $entity->getId());
+            $this->assertInstanceOf(People::class, $entity, 'People-channel messages must be linked to the People entity');
+            $this->assertEquals($lead->people->getId(), $entity->getId());
         }
 
         $aiMessage = $messages->first(fn (Message $m): bool => (bool) ($m->getMessage()['from_ia'] ?? false));

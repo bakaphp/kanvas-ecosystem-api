@@ -55,6 +55,7 @@ class IntelligenceCRM extends BaseKanvasAgent
             user: $this->user,
             entity: $this->entity,
             threadId: $this->threadId,
+            currentLead: $this->currentLead,
         );
     }
 
@@ -62,7 +63,10 @@ class IntelligenceCRM extends BaseKanvasAgent
     public function instructions(): string
     {
         $role = $this->agent->role;
-        $lead = $this->entity instanceof Lead ? $this->entity : null;
+        // currentLead is plumbed per-turn via setCurrentLead(); the entity-as-Lead
+        // fallback covers legacy sessions that still point directly at a Lead row.
+        $lead = $this->currentLead
+            ?? ($this->entity instanceof Lead ? $this->entity : null);
 
         $background = Blade::render($role['background'], ['lead' => $lead]);
         $steps = Blade::render($role['steps'], ['lead' => $lead]);
@@ -153,7 +157,12 @@ class IntelligenceCRM extends BaseKanvasAgent
         }
 
         if ($this->app !== null && $this->company !== null && $this->user !== null) {
-            $tools[] = new CreateLeadTool($this->app, $this->company, $this->user, $this->session);
+            $tools[] = new CreateLeadTool(
+                $this->app,
+                $this->company,
+                $this->user,
+                $this->session
+            );
         }
 
         return $this->mergeRegisteredTools(

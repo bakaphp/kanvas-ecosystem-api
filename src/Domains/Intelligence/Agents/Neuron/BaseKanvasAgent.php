@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -28,6 +29,7 @@ class BaseKanvasAgent extends NeuronAIAgent
     protected ?Users $user = null;
     protected ?string $threadId = null;
     protected ?Session $session = null;
+    protected ?Lead $currentLead = null;
 
     public function setConfiguration(
         Agent $agent,
@@ -64,6 +66,16 @@ class BaseKanvasAgent extends NeuronAIAgent
         $this->session = $session;
     }
 
+    /**
+     * Per-turn "which deal is the conversation about right now" — independent
+     * of the session entity (People-keyed). Sourced from the request's lead_id
+     * by ProcessAgentChatAction every turn.
+     */
+    public function setCurrentLead(?Lead $lead): void
+    {
+        $this->currentLead = $lead;
+    }
+
     #[Override]
     protected function provider(): AIProviderInterface
     {
@@ -95,20 +107,4 @@ class BaseKanvasAgent extends NeuronAIAgent
             output: explode("\n", $role['output'] ?? ''),
         )->__toString();
     }
-
-    // #[Override]
-    // protected function chatHistory(): AbstractChatHistory
-    // {
-    //     if ($this->entity === null) {
-    //         throw new RuntimeException(
-    //             'Entity information not set. Make sure to call setConfiguration() with a valid entity.'
-    //         );
-    //     }
-
-    //     return new KanvasChatHistory(
-    //         entityClass: get_class($this->entity),
-    //         entityId: $this->entity->getKey(),
-    //         limit: 20,
-    //     );
-    // }
 }
