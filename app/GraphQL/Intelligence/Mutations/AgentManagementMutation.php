@@ -71,8 +71,9 @@ class AgentManagementMutation
 
         if (isset($input['tool_ids'])) {
             $this->syncTools($agent, $input['tool_ids'], $app);
-            $this->appendToolInstructions($agent, $input['tool_ids'], $app);
         }
+
+        $this->appendToolInstructions($agent, $agent->selectedTools()->pluck('id')->all(), $app);
 
         return $agent;
     }
@@ -126,7 +127,7 @@ class AgentManagementMutation
 
         if (isset($input['tool_ids'])) {
             $this->syncTools($agent, $input['tool_ids'], $app);
-            $this->appendToolInstructions($agent, $input['tool_ids'], $app);
+            $this->appendToolInstructions($agent, $agent->selectedTools()->pluck('id')->all(), $app);
         }
 
         return $agent;
@@ -212,11 +213,14 @@ class AgentManagementMutation
             }
         }
 
-        $base = $agent->instructions ?? '';
-        $marker = "\n\n## Tool Usage Guidelines\n";
-        $pos = strpos($base, $marker);
+        $base = $agent->instructions ?? $agent->type?->instructions ?? '';
+        $sectionHeader = '## Tool Usage Guidelines';
+
+        $pos = strpos($base, "\n\n" . $sectionHeader);
         if ($pos !== false) {
             $base = substr($base, 0, $pos);
+        } elseif (str_starts_with($base, $sectionHeader)) {
+            $base = '';
         }
 
         if (empty($lines)) {
@@ -226,8 +230,8 @@ class AgentManagementMutation
             return;
         }
 
-        $toolSection = "## Tool Usage Guidelines\n" . implode("\n", $lines);
-        $agent->instructions = $base !== '' ? $base . $marker . $toolSection : $toolSection;
+        $toolSection = $sectionHeader . "\n" . implode("\n", $lines);
+        $agent->instructions = $base !== '' ? $base . "\n\n" . $toolSection : $toolSection;
         $agent->save();
     }
 
