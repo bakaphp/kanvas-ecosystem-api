@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
-use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\AgentHandler;
 use NeuronAI\Agent\AgentState;
@@ -106,10 +107,8 @@ class RunNeuronChatAction
             usage: $usage,
         );
 
-        // Cross-link any channel message not yet linked to the session's Lead so
-        // the next turn's history loader (SalesAssistKanvasMessageHistory, which
-        // queries by entity) sees the full conversation. Runs every turn for
-        // lead-scoped sessions — idempotent, exits quickly when nothing to do.
+        // Idempotent backfill so SalesAssistKanvasMessageHistory (entity-keyed query)
+        // sees every channel message on the next turn.
         $this->backfillChannelMessagesToLead();
 
         return $content;
@@ -133,15 +132,27 @@ class RunNeuronChatAction
             return;
         }
 
-        foreach ($channel->messages()->get() as $message) {
-            $alreadyLinked = AppModuleMessage::query()
-                ->where('message_id', $message->getId())
-                ->where('system_modules', Lead::class)
-                ->where('entity_id', $lead->getId())
-                ->exists();
+        $people = $lead->people;
+        $peopleChannelService = $people !== null ? new PeopleChannelService() : null;
+        $leadChannelService = new LeadChannelService();
 
-            if (! $alreadyLinked) {
-                $message->addEntity($lead);
+        foreach ($channel->messages()->get() as $message) {
+            $leadChannelService->attachMessageToLeadChannel(
+                $message,
+                $lead,
+                $lead->app,
+                $lead->company,
+                $this->user,
+            );
+
+            if ($peopleChannelService !== null && $people !== null) {
+                $peopleChannelService->attachMessageToPeopleChannel(
+                    $message,
+                    $people,
+                    $lead->app,
+                    $lead->company,
+                    $this->user,
+                );
             }
         }
     }

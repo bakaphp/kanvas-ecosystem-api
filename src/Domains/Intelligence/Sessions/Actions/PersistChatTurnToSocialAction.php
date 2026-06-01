@@ -8,7 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -47,6 +50,7 @@ class PersistChatTurnToSocialAction
         protected readonly string $assistantResponse,
         protected readonly array $images = [],
         protected readonly array $attachments = [],
+        protected readonly ?Lead $currentLead = null,
     ) {
     }
 
@@ -92,8 +96,35 @@ class PersistChatTurnToSocialAction
         $channel->addMessage($incoming, $this->user);
         $channel->addMessage($reply, $aiUser);
 
-        if ($entity instanceof Lead) {
-            new MarkLeadMessagesAsRespondedAction($entity, $reply)->execute();
+        // Falls back to the People's active Lead so mid-turn create_lead
+        // (request started lead-less, tool fired) still hits the Lead channel.
+        $resolvedLead = $this->currentLead
+            ?? match (true) {
+                $entity instanceof Lead => $entity,
+                $entity instanceof People => LeadsRepository::getPeopleActiveLead($entity),
+                default => null,
+            };
+
+        if ($resolvedLead !== null && ! ($entity instanceof Lead)) {
+            $leadChannelService = new LeadChannelService();
+            $leadChannelService->attachMessageToLeadChannel(
+                $incoming,
+                $resolvedLead,
+                $this->app,
+                $this->company,
+                $this->user,
+            );
+            $leadChannelService->attachMessageToLeadChannel(
+                $reply,
+                $resolvedLead,
+                $this->app,
+                $this->company,
+                $aiUser,
+            );
+        }
+
+        if ($resolvedLead !== null) {
+            new MarkLeadMessagesAsRespondedAction($resolvedLead, $reply)->execute();
         }
 
         return $reply;

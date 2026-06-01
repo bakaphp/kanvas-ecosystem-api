@@ -37,7 +37,7 @@ use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\InMemoryChatHistory;
 use Override;
 
-class IntelligenceCRM extends BaseKanvasAgent
+class SalesAgent extends BaseKanvasAgent
 {
     use HasTemporalContext;
     use MergesRegisteredTools;
@@ -55,6 +55,7 @@ class IntelligenceCRM extends BaseKanvasAgent
             user: $this->user,
             entity: $this->entity,
             threadId: $this->threadId,
+            currentLead: $this->currentLead,
         );
     }
 
@@ -62,7 +63,10 @@ class IntelligenceCRM extends BaseKanvasAgent
     public function instructions(): string
     {
         $role = $this->agent->role;
-        $lead = $this->entity instanceof Lead ? $this->entity : null;
+        // currentLead is plumbed per-turn via setCurrentLead(); the entity-as-Lead
+        // fallback covers legacy sessions that still point directly at a Lead row.
+        $lead = $this->currentLead
+            ?? ($this->entity instanceof Lead ? $this->entity : null);
 
         $background = Blade::render($role['background'], ['lead' => $lead]);
         $steps = Blade::render($role['steps'], ['lead' => $lead]);
@@ -96,12 +100,9 @@ class IntelligenceCRM extends BaseKanvasAgent
     }
 
     /**
-     * Minimal lead context in the system prompt — IDs only. Full details
-     * (name, company, contact, description, source, stage, owner, etc.) come
-     * from get_lead_ref, which the LLM is directed to call once per
-     * conversation when it doesn't already know the prospect. Keeps per-turn
-     * token cost low for long sessions; trades one round-trip on turn 1 for
-     * the cleaner economy on every subsequent turn.
+     * Only IDs in the system prompt — full details come from get_lead_ref,
+     * called once per conversation. Trades one round-trip on turn 1 for
+     * lower per-turn token cost on every subsequent turn.
      *
      * @return list<string>
      */
@@ -122,11 +123,8 @@ class IntelligenceCRM extends BaseKanvasAgent
     #[Override]
     protected function tools(): array
     {
-        // All lead-scoped and always-available tools are registered up-front so
-        // the LLM can complete a full create_lead -> schedule -> book flow in
-        // one turn. ResolvesLeadForTool catches hallucinated lead_ids and
-        // returns a structured error pointing the LLM at create_lead instead
-        // of crashing with "non-existing tool".
+        // Register everything up-front so the LLM can run create_lead → schedule
+        // → book in one turn. Hallucinated lead_ids are caught by ResolvesLeadForTool.
         $tools = [
             new CompanyInformationTool(),
             new CompanyWorkHoursTool(),
@@ -153,7 +151,12 @@ class IntelligenceCRM extends BaseKanvasAgent
         }
 
         if ($this->app !== null && $this->company !== null && $this->user !== null) {
-            $tools[] = new CreateLeadTool($this->app, $this->company, $this->user, $this->session);
+            $tools[] = new CreateLeadTool(
+                $this->app,
+                $this->company,
+                $this->user,
+                $this->session
+            );
         }
 
         return $this->mergeRegisteredTools(

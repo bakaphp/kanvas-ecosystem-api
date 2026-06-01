@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Intelligence\Mutations;
 
-use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Actions\ProcessAgentChatAction;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -19,8 +22,6 @@ use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateUserSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
-use Kanvas\Social\Channels\Actions\CreateChannelAction;
-use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -91,13 +92,20 @@ class AgentChatMutation
             company: $company
         );
 
-        return $this->createLeadSession(
-            $lead,
-            $agent,
-            $user,
-            $app,
-            $company,
-            (string) $input['canal_id'],
+        $people = $lead->people;
+        if ($people === null) {
+            throw new ValidationException(
+                "Lead {$lead->getId()} has no people record; cannot create a People-keyed session."
+            );
+        }
+
+        return $this->findOrCreatePeopleSession(
+            people: $people,
+            agent: $agent,
+            user: $user,
+            app: $app,
+            company: $company,
+            canalId: (string) $input['canal_id'],
         )->uuid;
     }
 
@@ -145,13 +153,28 @@ class AgentChatMutation
             company: $company
         );
 
+        $currentLead = ! empty($input['lead_id'])
+            ? Lead::getByIdFromCompanyApp(id: (int) $input['lead_id'], app: $app, company: $company)
+            : null;
+
         $session = $this->resolveSession(
             $input,
+            $currentLead,
             $agent,
             $user,
             $app,
-            $company
+            $company,
         );
+
+        // Post-promote sessions are People-keyed and the frontend won't know
+        // the new lead_id — resolve it server-side so the agent's prompt has
+        // lead context (otherwise it would re-fire create_lead every turn).
+        if ($currentLead === null && $session->entity_namespace === People::class) {
+            $people = $session->entity();
+            if ($people instanceof People) {
+                $currentLead = LeadsRepository::getPeopleActiveLead($people);
+            }
+        }
 
         [$mergedImages, $mergedFiles, $attachments] = $this->mergeUploadsWithUrls(
             $input,
@@ -172,6 +195,7 @@ class AgentChatMutation
             user: $user,
             images: $mergedImages,
             attachments: $attachments,
+            currentLead: $currentLead,
         );
 
         $response = $processor->execute();
@@ -187,32 +211,21 @@ class AgentChatMutation
     }
 
     /**
+     *  - session_id explicit → continue that session (back-compat)
+     *  - lead_id → find or create the prospect's People-keyed session (one per
+     *    People + Agent for the lifetime of the prospect)
+     *  - neither → anonymous User-scoped session
+     *
      * @param array<string, mixed> $input
      */
     protected function resolveSession(
         array $input,
+        ?Lead $currentLead,
         Agent $agent,
         Users $user,
         Apps $app,
         Companies $company,
     ): Session {
-        if (! empty($input['lead_id'])) {
-            /** @var Lead $lead */
-            $lead = Lead::getByIdFromCompanyApp(
-                id: $input['lead_id'],
-                app: $app,
-                company: $company
-            );
-
-            return $this->createLeadSession(
-                $lead,
-                $agent,
-                $user,
-                $app,
-                $company
-            );
-        }
-
         if (! empty($input['session_id'])) {
             $session = Session::fromApp($app)
                 ->fromCompany($company)
@@ -224,6 +237,20 @@ class AgentChatMutation
             }
         }
 
+        if ($currentLead !== null) {
+            $people = $currentLead->people;
+
+            if ($people !== null) {
+                return $this->findOrCreatePeopleSession(
+                    people: $people,
+                    agent: $agent,
+                    user: $user,
+                    app: $app,
+                    company: $company,
+                );
+            }
+        }
+
         return new CreateUserSessionAction(
             agent: $agent,
             user: $user,
@@ -232,6 +259,53 @@ class AgentChatMutation
         )->execute();
     }
 
+    /**
+     * One session per (People, Agent, App, Company) — the durable thread that
+     * accumulates every conversation with this prospect across every Lead.
+     */
+    protected function findOrCreatePeopleSession(
+        People $people,
+        Agent $agent,
+        Users $user,
+        Apps $app,
+        Companies $company,
+        ?string $canalId = null,
+    ): Session {
+        $session = Session::fromApp($app)
+            ->fromCompany($company)
+            ->where('agents_id', $agent->getId())
+            ->where('entity_namespace', People::class)
+            ->where('entity_id', $people->getId())
+            ->first();
+
+        if ($session !== null) {
+            return $session;
+        }
+
+        $channel = new PeopleChannelService()->findOrCreateForPeople($people, $app, $company, $user);
+
+        return new CreateSessionAction(
+            DataTransferObjectSession::from([
+                'app' => $app,
+                'company' => $company,
+                'channel' => $channel,
+                'entity_namespace' => People::class,
+                'entity_id' => $people->getId(),
+                'canal_id' => $canalId ?? (string) $agent->getId(),
+                'user' => [
+                    'name' => $people->getName(),
+                    'id' => $people->getId(),
+                    'email' => $people->getEmails()->first()?->value,
+                ],
+                'agent' => $agent,
+            ])
+        )->execute();
+    }
+
+    /**
+     * @deprecated Thin alias around findOrCreatePeopleSession kept for any
+     *             external callers — delete once we confirm no one calls it.
+     */
     protected function createLeadSession(
         Lead $lead,
         Agent $agent,
@@ -240,37 +314,21 @@ class AgentChatMutation
         Companies $company,
         ?string $canalId = null,
     ): Session {
-        $channelName = 'Manual Channel for Lead ' . $lead->getId();
+        $people = $lead->people;
+        if ($people === null) {
+            throw new ValidationException(
+                "Lead {$lead->getId()} has no people record; cannot create a People-keyed session."
+            );
+        }
 
-        $channel = new CreateChannelAction(
-            new ChannelDto(
-                apps: $app,
-                companies: $company,
-                users: $user,
-                name: $channelName,
-                description: 'Channel for lead ' . $lead->getId(),
-                entity_id: $lead->getId(),
-                entity_namespace: Lead::class,
-                slug: Str::simpleSlug($channelName),
-            )
-        )->execute();
-
-        return new CreateSessionAction(
-            DataTransferObjectSession::from([
-                'app' => $app,
-                'company' => $company,
-                'channel' => $channel,
-                'entity_namespace' => Lead::class,
-                'entity_id' => $lead->getId(),
-                'canal_id' => $canalId ?? (string) $agent->getId(),
-                'user' => [
-                    'name' => $lead->people->getName(),
-                    'id' => $lead->people->getId(),
-                    'email' => $lead->people->getEmails()->first()?->value,
-                ],
-                'agent' => $agent,
-            ])
-        )->execute();
+        return $this->findOrCreatePeopleSession(
+            people: $people,
+            agent: $agent,
+            user: $user,
+            app: $app,
+            company: $company,
+            canalId: $canalId,
+        );
     }
 
     /**

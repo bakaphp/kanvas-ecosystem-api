@@ -6,7 +6,11 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\Traits\Guild\CreatesLeadTrait;
@@ -108,6 +112,23 @@ class CreateLeadTool extends Tool
         ?int $lead_source_id = null,
         ?int $organization_id = null,
     ): array {
+        // Refuse duplicate create_lead in the same session — return the
+        // existing lead_id instead.
+        if ($this->session?->entity_namespace === People::class && $this->session->entity_id) {
+            $people = $this->session->entity();
+            if ($people instanceof People) {
+                $existingLead = LeadsRepository::getPeopleActiveLead($people);
+                if ($existingLead !== null) {
+                    return [
+                        'lead_id' => $existingLead->getId(),
+                        'duplicate_prevented' => true,
+                        'note' => 'A lead already exists for this prospect. Use this lead_id '
+                            . 'for subsequent lead-scoped tool calls.',
+                    ];
+                }
+            }
+        }
+
         $result = $this->createLead(
             app: $this->app,
             company: $this->company,
@@ -124,39 +145,88 @@ class CreateLeadTool extends Tool
         );
 
         if (isset($result['lead_id']) && $this->session !== null) {
-            $this->promoteSessionToLead((int) $result['lead_id']);
+            $this->promoteSessionToPeople((int) $result['lead_id']);
             $result['session_promoted'] = true;
-            $result['next_step'] = 'On the next turn, lead-scoped tools (get_user_availability, '
-                . 'create_calendar_event, etc.) will be available for lead_id ' . $result['lead_id']
-                . '. Respond conversationally now; do not try to call lead-scoped tools yet.';
+            $result['next_step'] = 'You may now call lead-scoped tools '
+                . '(get_user_availability, create_calendar_event, get_lead_intent, etc.) '
+                . 'with lead_id ' . $result['lead_id'] . ' in this same turn.';
         }
 
         return $result;
     }
 
     /**
-     * Repoint the chat session AND its channel at the newly-created lead so:
-     *  - future turns' session->entity() returns a Lead
-     *  - $lead->channels() / CRM sales-conversation views find this channel
-     *
-     * End-of-turn cross-linking (RunNeuronChatAction::backfillChannelMessagesToLead)
-     * handles attaching the existing social messages to the new Lead entity
-     * so the entity-keyed history loader stays in sync.
+     * Repoint the anonymous session at the prospect's People row. If a People
+     * session already exists for this (people, agent), reuse its channel;
+     * otherwise promote the current session in place. Pre-existing channel
+     * messages are cross-linked to both People and Lead channels either way.
      */
-    private function promoteSessionToLead(int $leadId): void
+    private function promoteSessionToPeople(int $leadId): void
     {
-        $this->session->entity_id = $leadId;
-        $this->session->entity_namespace = Lead::class;
-        $this->session->saveQuietly();
+        $lead = Lead::find($leadId);
+        $people = $lead?->people;
 
-        $channel = $this->session->channel;
-        if ($channel !== null) {
-            $channel->entity_id = $leadId;
-            $channel->entity_namespace = Lead::class;
-
-            $base = preg_replace('/-lead-\d+$/', '', (string) $channel->slug) ?? $channel->slug;
-            $channel->slug = $base . '-lead-' . $leadId;
-            $channel->saveQuietly();
+        if ($lead === null || $people === null) {
+            return;
         }
+
+        $peopleChannelService = new PeopleChannelService();
+        $leadChannelService = new LeadChannelService();
+        $peopleChannel = $peopleChannelService->findOrCreateForPeople(
+            $people,
+            $lead->app,
+            $lead->company,
+            $this->user
+        );
+        $leadChannelService->findOrCreateForLead(
+            $lead,
+            $lead->app,
+            $lead->company,
+            $this->user
+        );
+
+        $currentChannel = $this->session->channel;
+        if ($currentChannel !== null) {
+            // The ai-assist channel is keyed by (agent, user), so it accumulates
+            // every anonymous chat this user ever had with this agent. Only
+            // backfill messages tagged with THIS session's UUID — otherwise we
+            // drag unrelated past conversations into the new People channel.
+            foreach ($currentChannel->messages()->get() as $message) {
+                $stored = $message->getMessage();
+                $msgSessionId = $stored['thread_id'] ?? $stored['session_id'] ?? null;
+                if ($msgSessionId !== $this->session->uuid) {
+                    continue;
+                }
+
+                $peopleChannelService->attachMessageToPeopleChannel(
+                    $message,
+                    $people,
+                    $lead->app,
+                    $lead->company,
+                    $this->user,
+                );
+                $leadChannelService->attachMessageToLeadChannel(
+                    $message,
+                    $lead,
+                    $lead->app,
+                    $lead->company,
+                    $this->user,
+                );
+            }
+        }
+
+        $existingPeopleSession = Session::query()
+            ->fromApp($lead->app)
+            ->fromCompany($lead->company)
+            ->where('agents_id', $this->session->agents_id)
+            ->where('entity_namespace', People::class)
+            ->where('entity_id', $people->getId())
+            ->where('id', '!=', $this->session->id)
+            ->first();
+
+        $this->session->entity_namespace = People::class;
+        $this->session->entity_id = $people->getId();
+        $this->session->channel_id = $existingPeopleSession?->channel_id ?? $peopleChannel->getId();
+        $this->session->saveQuietly();
     }
 }
