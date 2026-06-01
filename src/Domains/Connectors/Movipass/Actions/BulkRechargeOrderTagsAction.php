@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Actions;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum as EchoPayCustomFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmData;
 use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderItem;
 use Kanvas\Souk\Wallet\Actions\BuildWalletTransactionMetaAction;
 use Kanvas\Souk\Wallet\Enums\TransactionSourceEnum;
 use RuntimeException;
@@ -74,6 +76,7 @@ class BulkRechargeOrderTagsAction
                     'amount' => $amount,
                     'error' => 'PasoRapido service unavailable: ' . $serviceError,
                     'order_item_id' => $item->getId(),
+                    'reversed' => true,
                 ];
 
                 continue;
@@ -98,9 +101,11 @@ class BulkRechargeOrderTagsAction
                 $wallet->withdrawFloat($amount, $debitMeta);
                 $withdrawn = true;
 
+                $itemBankTransaction = $bankTransaction . '-' . $item->getId();
+
                 $confirmResponse = $service->confirmPayment(new PaymentConfirmData(
                     reference: $tagNumber,
-                    bankTransaction: $bankTransaction,
+                    bankTransaction: $itemBankTransaction,
                     amount: $amount,
                     fiscalCredit: $fiscalCredit,
                     dni: $dni,
@@ -141,6 +146,8 @@ class BulkRechargeOrderTagsAction
             } catch (Throwable $e) {
                 report($e);
 
+                $reversedSuccessfully = ! $withdrawn;
+
                 if ($withdrawn) {
                     try {
                         $wallet->depositFloat($amount, [
@@ -151,6 +158,7 @@ class BulkRechargeOrderTagsAction
                             'order_id' => $this->order->getId(),
                             'order_item_id' => $item->getId(),
                         ]);
+                        $reversedSuccessfully = true;
                     } catch (Throwable $reversalEx) {
                         report($reversalEx);
                         Log::error('BulkRechargeOrderTagsAction: reversal failed — manual intervention required', [
@@ -168,17 +176,58 @@ class BulkRechargeOrderTagsAction
                     'amount' => $amount,
                     'error' => $e->getMessage(),
                     'order_item_id' => $item->getId(),
+                    'reversed' => $reversedSuccessfully,
                 ];
             }
         }
+
+        $successCount = count(array_filter($results, fn ($r) => $r['status'] === 'success'));
+        $failCount = count($results) - $successCount;
+        $originalTotalGrossAmount = (float) $this->order->total_gross_amount;
 
         $metadata = $this->order->metadata ?? [];
         $metadata['corporate_recharge_results'] = $results;
         $this->order->metadata = $metadata;
         $this->order->saveOrFail();
 
-        $successCount = count(array_filter($results, fn ($r) => $r['status'] === 'success'));
-        $failCount = count($results) - $successCount;
+        $reversedItemIds = collect($results)
+            ->filter(fn ($r) => $r['status'] === 'failed' && ($r['reversed'] ?? false) === true)
+            ->pluck('order_item_id')
+            ->filter()
+            ->all();
+
+        if (! empty($reversedItemIds)) {
+            OrderItem::query()
+                ->whereIn('id', $reversedItemIds)
+                ->update(['is_deleted' => 1]);
+        }
+
+        $liveItems = $this->order->items()->where('is_deleted', 0)->get();
+        $newTotalGrossAmount = (float) $liveItems->sum(
+            fn ($item) => (float) $item->unit_price_gross_amount * (int) $item->quantity,
+        );
+
+        if ($newTotalGrossAmount !== $originalTotalGrossAmount) {
+            $metadata['data'] = $metadata['data'] ?? [];
+            $metadata['data']['original_total_gross_amount'] = $originalTotalGrossAmount;
+            $metadata['data']['adjusted_at'] = Carbon::now()->toIso8601String();
+            $metadata['data']['adjusted_reason'] = 'bulk_recharge_partial_failure';
+            $this->order->metadata = $metadata;
+        }
+
+        $this->order->total_gross_amount = $newTotalGrossAmount;
+
+        $liveItemCount = (int) $this->order->items()->where('is_deleted', 0)->count();
+
+        if ($liveItemCount === 0) {
+            $this->order->status = 'canceled';
+            $this->order->payment_status = 'refunded';
+            $this->order->fulfillment_status = 'canceled';
+        } else {
+            $this->order->fulfillment_status = $failCount === 0 ? 'fulfilled' : 'partial';
+        }
+
+        $this->order->saveOrFail();
 
         return [
             'result' => true,
@@ -186,6 +235,8 @@ class BulkRechargeOrderTagsAction
             'total' => count($results),
             'success' => $successCount,
             'failed' => $failCount,
+            'original_total_gross_amount' => $originalTotalGrossAmount,
+            'adjusted_total_gross_amount' => $newTotalGrossAmount,
         ];
     }
 
