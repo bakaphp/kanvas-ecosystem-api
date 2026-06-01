@@ -134,6 +134,66 @@ final class AppendToolInstructionsTest extends TestCase
         );
     }
 
+    public function testUpdateWithoutToolIdsDoesNotAppendToolGuidelines(): void
+    {
+        $agentType = $this->makeAgentType();
+
+        $agent = $this->createAgentViaMutation($agentType, ['instructions' => 'My own instructions.']);
+        $this->assertStringNotContainsString('## Tool Usage Guidelines', $agent->instructions ?? '');
+
+        new AgentManagementMutation()->update(null, [
+            'id' => $agent->getId(),
+            'input' => [
+                'agent_type_id' => $agentType->getId(),
+                'name' => $agent->name . ' renamed',
+                'is_active' => true,
+                'role' => [],
+                'config' => [],
+                'instructions' => 'My own instructions.',
+            ],
+        ]);
+
+        $this->assertStringNotContainsString('## Tool Usage Guidelines', $agent->fresh()->instructions ?? '');
+    }
+
+    public function testUpdateRegeneratesInstructionsWhenNewToolAdded(): void
+    {
+        $agentType = $this->makeAgentType();
+        $initialTools = array_slice($this->makeFmpTools(), 0, 2);
+        $this->attachTools($agentType, $initialTools);
+
+        $agent = $this->createAgentViaMutation($agentType);
+        $this->assertStringNotContainsString('FMP Company Rating', $agent->instructions ?? '');
+
+        $ratingTool = new CreateToolAction(new ToolData(
+            app: app(Apps::class),
+            name: 'fmp-rating-' . uniqid(),
+            frameworks: ['laravel'],
+            toolType: ToolTypeEnum::CUSTOM,
+            handler: FmpCompanyRatingTool::class,
+        ))->execute();
+
+        $allIds = array_merge(
+            array_map(fn (Tool $t) => $t->getId(), $initialTools),
+            [$ratingTool->getId()]
+        );
+
+        $updated = new AgentManagementMutation()->update(null, [
+            'id' => $agent->getId(),
+            'input' => [
+                'agent_type_id' => $agentType->getId(),
+                'name' => $agent->name,
+                'is_active' => true,
+                'role' => [],
+                'config' => [],
+                'tool_ids' => $allIds,
+            ],
+        ]);
+
+        $this->assertStringContainsString('FMP Company Rating', $updated->fresh()->instructions);
+        $this->assertSame(1, substr_count($updated->fresh()->instructions, '## Tool Usage Guidelines'));
+    }
+
     public function testAgentTypeInstructionsUsedAsBaseWhenAgentHasNone(): void
     {
         $agentType = $this->makeAgentType('These are the agent type base instructions.');

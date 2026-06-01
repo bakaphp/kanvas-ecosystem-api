@@ -127,9 +127,8 @@ class AgentManagementMutation
 
         if (isset($input['tool_ids'])) {
             $this->syncTools($agent, $input['tool_ids'], $app);
+            $this->appendToolInstructions($agent, $agent->selectedTools()->pluck('id')->all(), $app);
         }
-
-        $this->appendToolInstructions($agent, $agent->selectedTools()->pluck('id')->all(), $app);
 
         return $agent;
     }
