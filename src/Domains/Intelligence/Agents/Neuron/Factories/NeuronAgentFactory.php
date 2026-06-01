@@ -59,7 +59,12 @@ class NeuronAgentFactory
 
         /** @var BaseKanvasAgent $neuronAgent */
         $neuronAgent = new $handlerClass();
-        $neuronAgent->setConfiguration($agent, $entity, $externalReferenceId, $user);
+        $neuronAgent->setConfiguration(
+            agent: $agent,
+            entity: $entity,
+            externalReferenceId: $externalReferenceId,
+            user: $user,
+        );
 
         return $neuronAgent;
     }

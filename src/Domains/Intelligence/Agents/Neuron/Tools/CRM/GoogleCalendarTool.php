@@ -6,8 +6,8 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Carbon\Carbon;
 use Kanvas\Connectors\Google\Actions\CreateGoogleCalendarMeetingAction;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -18,6 +18,8 @@ use Throwable;
 #[AgentTool(name: 'Google Calendar')]
 class GoogleCalendarTool extends Tool
 {
+    use ResolvesLeadForTool;
+
     public function __construct()
     {
         parent::__construct(
@@ -84,7 +86,11 @@ class GoogleCalendarTool extends Tool
         string $end_datetime,
         ?string $description = null,
     ): array {
-        $lead = Lead::getById($lead_id);
+        $result = $this->resolveLeadOrError($lead_id);
+        if (is_array($result)) {
+            return $result;
+        }
+        $lead = $result;
         $timezone = $lead->company->timezone ?? 'UTC';
 
         try {

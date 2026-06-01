@@ -140,11 +140,16 @@ class ProcessAgentChatAction
             )->execute();
         }
 
-        $handler->setConfiguration($this->agent, $this->session?->entity(), null, $this->user);
+        $handler->setConfiguration(
+            agent: $this->agent,
+            entity: $this->session?->entity(),
+            user: $this->user,
+        );
         $threadId = $this->session?->uuid ?? Str::uuid()->toString();
 
         if ($handler instanceof BaseKanvasAgent) {
             $handler->setThreadId($threadId);
+            $handler->setSession($this->session);
         }
 
         return new RunNeuronChatAction(

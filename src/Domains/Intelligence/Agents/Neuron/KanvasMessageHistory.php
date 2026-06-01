@@ -14,7 +14,10 @@ use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\ChatHistoryInterface;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\ToolCallMessage;
+use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Tools\ToolInterface;
 use Override;
 
 class KanvasMessageHistory extends AbstractChatHistory
@@ -124,20 +127,35 @@ class KanvasMessageHistory extends AbstractChatHistory
             return;
         }
 
-        $content = (string) $message->getContent();
+        $content = (string) ($message->getContent() ?? '');
+        $isToolCall = $message instanceof ToolCallMessage;
+        $isToolResult = $message instanceof ToolResultMessage;
 
-        if ($content === '') {
+        if ($content === '' && ! $isToolCall && ! $isToolResult) {
             return;
         }
 
         if ($this->conversationId === null) {
-            $this->conversationId = $this->createConversation($content);
+            $this->conversationId = $this->createConversation($content !== '' ? $content : '[tool call]');
         } else {
             DB::connection(self::CONNECTION)
                 ->table(self::TABLE_CONVERSATIONS)
                 ->where('id', $this->conversationId)
                 ->update(['updated_at' => now()]);
         }
+
+        $toolCalls = $message instanceof ToolCallMessage
+            ? array_map(fn (ToolInterface $tool): array => $tool->jsonSerialize(), $message->getTools())
+            : [];
+
+        $toolResults = $message instanceof ToolResultMessage
+            ? array_map(fn (ToolInterface $tool): array => $tool->jsonSerialize(), $message->getTools())
+            : [];
+
+        $usage = $message->getUsage()?->jsonSerialize() ?? [];
+
+        $meta = $message->jsonSerialize();
+        unset($meta['role'], $meta['content'], $meta['usage'], $meta['tools']);
 
         DB::connection(self::CONNECTION)->table(self::TABLE_MESSAGES)->insert([
             'id' => (string) Str::uuid7(),
@@ -147,10 +165,10 @@ class KanvasMessageHistory extends AbstractChatHistory
             'role' => $role,
             'content' => $content,
             'attachments' => '[]',
-            'tool_calls' => '[]',
-            'tool_results' => '[]',
-            'usage' => '[]',
-            'meta' => '[]',
+            'tool_calls' => json_encode($toolCalls),
+            'tool_results' => json_encode($toolResults),
+            'usage' => json_encode($usage),
+            'meta' => json_encode($meta),
             'created_at' => now(),
             'updated_at' => now(),
         ]);

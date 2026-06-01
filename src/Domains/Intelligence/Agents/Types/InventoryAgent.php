@@ -16,6 +16,7 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -28,6 +29,7 @@ class InventoryAgent extends BaseAgent
         Agent $agent,
         ?Model $entity = null,
         ?string $externalReferenceId = null,
+        ?Users $user = null,
     ): void {
         /*   if (! $entity instanceof Companies) {
               throw new InvalidArgumentException('Entity must be an instance of Companies');

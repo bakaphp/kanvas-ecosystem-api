@@ -17,7 +17,10 @@ use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\ChatHistoryInterface;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\ToolCallMessage;
+use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Tools\ToolInterface;
 use Override;
 
 class SalesAssistKanvasMessageHistory extends AbstractChatHistory
@@ -82,10 +85,14 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
                 $channel = $socialMessage->channels()->first();
                 $isInternal = $channel?->isNoteChannel() || $channel?->isAiAssistChannel();
 
+                if ($fromIa) {
+                    $clean = preg_replace('/^(\[Assistant\]\s*)+/', '', $text) ?? $text;
+
+                    return new AssistantMessage($clean);
+                }
+
                 if ($isInternal) {
                     $prefixed = "[INTERNAL - {$channel->name}] {$text}";
-                } elseif ($fromIa) {
-                    $prefixed = "[Assistant] {$text}";
                 } elseif ($fromHuman) {
                     $owner = $socialMessage->user?->displayname ?: 'Owner';
                     $prefixed = "[Owner - {$owner}] {$text}";
@@ -93,9 +100,7 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
                     $prefixed = '[' . $this->entityIdentityLabel() . "] {$text}";
                 }
 
-                return $fromIa
-                    ? new AssistantMessage($prefixed)
-                    : new UserMessage($prefixed);
+                return new UserMessage($prefixed);
             })
             ->filter()
             ->values()
@@ -158,9 +163,11 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
             return;
         }
 
-        $content = (string) $message->getContent();
+        $content = (string) ($message->getContent() ?? '');
+        $isToolCall = $message instanceof ToolCallMessage;
+        $isToolResult = $message instanceof ToolResultMessage;
 
-        if ($content === '') {
+        if ($content === '' && ! $isToolCall && ! $isToolResult) {
             return;
         }
 
@@ -174,6 +181,24 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
             'from_ia' => $isAssistant,
             'from_human' => ! $isAssistant,
         ];
+
+        if ($isToolCall) {
+            $messageData['tool_calls'] = array_map(
+                fn (ToolInterface $tool): array => $tool->jsonSerialize(),
+                $message->getTools(),
+            );
+        }
+
+        if ($isToolResult) {
+            $messageData['tool_results'] = array_map(
+                fn (ToolInterface $tool): array => $tool->jsonSerialize(),
+                $message->getTools(),
+            );
+        }
+
+        if ($usage = $message->getUsage()) {
+            $messageData['usage'] = $usage->jsonSerialize();
+        }
 
         if ($this->threadId !== null) {
             $messageData['thread_id'] = $this->threadId;

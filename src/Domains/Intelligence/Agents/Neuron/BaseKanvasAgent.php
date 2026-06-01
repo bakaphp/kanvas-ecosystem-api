@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\Agent as NeuronAIAgent;
 use NeuronAI\Agent\SystemPrompt;
@@ -26,6 +27,7 @@ class BaseKanvasAgent extends NeuronAIAgent
     protected ?string $externalReferenceId = null;
     protected ?Users $user = null;
     protected ?string $threadId = null;
+    protected ?Session $session = null;
 
     public function setConfiguration(
         Agent $agent,
@@ -33,10 +35,21 @@ class BaseKanvasAgent extends NeuronAIAgent
         ?string $externalReferenceId = null,
         ?Users $user = null,
     ): void {
+        if ($user === null) {
+            throw new ValidationException(
+                'A Users instance is required to configure a Neuron agent. '
+                . 'Pass the authenticated user, or fall back to the AI agent user via '
+                . '$company->getAiAgentUserOrFail() when running in a non-request context '
+                . '(webhook, queued job, CLI).'
+            );
+        }
+
         $this->agent = $agent;
         $this->entity = $entity;
+        // Global agents (apps_id=0/companies_id=0) have no FK relation; fall back
+        // to the user's current company.
         $this->app = $agent->app;
-        $this->company = $agent->company;
+        $this->company = $agent->company ?? $user->getCurrentCompany();
         $this->externalReferenceId = $externalReferenceId;
         $this->user = $user;
     }
@@ -44,6 +57,11 @@ class BaseKanvasAgent extends NeuronAIAgent
     public function setThreadId(string $threadId): void
     {
         $this->threadId = $threadId;
+    }
+
+    public function setSession(?Session $session): void
+    {
+        $this->session = $session;
     }
 
     #[Override]
@@ -55,7 +73,8 @@ class BaseKanvasAgent extends NeuronAIAgent
 
         if (! is_string($key) || $key === '') {
             throw new ValidationException(
-                'Gemini API key is not configured for this agent or app. Set agent.config.key or the app ' . ConfigurationEnum::GEMINI_KEY->value . ' setting.'
+                'Gemini API key is not configured for this agent or app.'
+                . ' Set agent.config.key or the app ' . ConfigurationEnum::GEMINI_KEY->value . ' setting.'
             );
         }
 
