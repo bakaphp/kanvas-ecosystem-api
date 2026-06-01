@@ -28,8 +28,9 @@ class AIAssistAgentResponderAction extends BaseAgentResponderAction
 
         $currentAgent = new $this->agent->type->handler();
         $currentAgent->setConfiguration(
-            $this->agent,
-            $this->message->entity()
+            agent: $this->agent,
+            entity: $this->message->entity(),
+            user: $this->message->company->getAiAgentUserOrFail(),
         );
 
         $aiAssistAppName = $this->channel->company->get(ConfigurationEnum::ADK_AI_ASSIST_APP_NAME->value)
