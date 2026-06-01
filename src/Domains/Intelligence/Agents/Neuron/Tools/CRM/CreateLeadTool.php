@@ -187,7 +187,17 @@ class CreateLeadTool extends Tool
 
         $currentChannel = $this->session->channel;
         if ($currentChannel !== null) {
+            // The ai-assist channel is keyed by (agent, user), so it accumulates
+            // every anonymous chat this user ever had with this agent. Only
+            // backfill messages tagged with THIS session's UUID — otherwise we
+            // drag unrelated past conversations into the new People channel.
             foreach ($currentChannel->messages()->get() as $message) {
+                $stored = $message->getMessage();
+                $msgSessionId = $stored['thread_id'] ?? $stored['session_id'] ?? null;
+                if ($msgSessionId !== $this->session->uuid) {
+                    continue;
+                }
+
                 $peopleChannelService->attachMessageToPeopleChannel(
                     $message,
                     $people,
