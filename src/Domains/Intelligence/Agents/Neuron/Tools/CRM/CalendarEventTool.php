@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Carbon\Carbon;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventData;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use NeuronAI\Tools\ArrayProperty;
@@ -147,6 +148,12 @@ class CalendarEventTool extends Tool
             ]);
 
             $event = new CreateEventAction($eventData)->disableWorkflow()->execute();
+
+            // Tag the polymorphic event with the lead so LeadRefTool (and other
+            // lead-scoped queries) can list "appointments for this lead".
+            $event->resources_id = $lead->getId();
+            $event->resources_type = Lead::class;
+            $event->saveQuietly();
         } catch (Throwable $e) {
             return [
                 'status' => 'error',

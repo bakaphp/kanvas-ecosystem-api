@@ -153,6 +153,9 @@ class CreateLeadTool extends Tool
         if ($channel !== null) {
             $channel->entity_id = $leadId;
             $channel->entity_namespace = Lead::class;
+
+            $base = preg_replace('/-lead-\d+$/', '', (string) $channel->slug) ?? $channel->slug;
+            $channel->slug = $base . '-lead-' . $leadId;
             $channel->saveQuietly();
         }
     }

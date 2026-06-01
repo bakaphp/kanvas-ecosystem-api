@@ -196,17 +196,6 @@ class AgentChatMutation
         Apps $app,
         Companies $company,
     ): Session {
-        if (! empty($input['session_id'])) {
-            $session = Session::fromApp($app)
-                ->fromCompany($company)
-                ->where('uuid', (string) $input['session_id'])
-                ->first();
-
-            if ($session !== null) {
-                return $session;
-            }
-        }
-
         if (! empty($input['lead_id'])) {
             /** @var Lead $lead */
             $lead = Lead::getByIdFromCompanyApp(
@@ -222,6 +211,17 @@ class AgentChatMutation
                 $app,
                 $company
             );
+        }
+
+        if (! empty($input['session_id'])) {
+            $session = Session::fromApp($app)
+                ->fromCompany($company)
+                ->where('uuid', (string) $input['session_id'])
+                ->first();
+
+            if ($session !== null) {
+                return $session;
+            }
         }
 
         return new CreateUserSessionAction(

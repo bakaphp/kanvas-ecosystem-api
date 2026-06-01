@@ -74,10 +74,7 @@ class IntelligenceCRM extends BaseKanvasAgent
             ?? 'UTC';
 
         $contextLines = array_merge($this->temporalContextLines($timezone), $lead !== null
-            ? [
-                "lead_id: {$lead->getId()}",
-                "companies_id: {$lead->companies_id}",
-            ]
+            ? $this->leadContextLines($lead)
             : [
                 'No lead is currently in scope. The prospect you are chatting with is NOT a CRM lead yet '
                 . 'and does NOT know any lead_id — NEVER ask them for one. '
@@ -96,6 +93,30 @@ class IntelligenceCRM extends BaseKanvasAgent
             steps: explode('\n', $steps),
             output: explode('\n', $output),
         )->__toString();
+    }
+
+    /**
+     * Minimal lead context in the system prompt — IDs only. Full details
+     * (name, company, contact, description, source, stage, owner, etc.) come
+     * from get_lead_ref, which the LLM is directed to call once per
+     * conversation when it doesn't already know the prospect. Keeps per-turn
+     * token cost low for long sessions; trades one round-trip on turn 1 for
+     * the cleaner economy on every subsequent turn.
+     *
+     * @return list<string>
+     */
+    private function leadContextLines(Lead $lead): array
+    {
+        return [
+            "lead_id: {$lead->getId()}",
+            "companies_id: {$lead->companies_id}",
+            'A real lead is in scope for this conversation. Before you greet the prospect or ask them ANY question, '
+                . 'call get_lead_ref with the lead_id above ONCE — it returns the prospect name, contact info, '
+                . 'company, description / known context, source, pipeline stage, and owner. '
+                . 'NEVER ask the prospect to tell you their name, company, role, or contact info: '
+                . 'all of that is in the CRM and get_lead_ref returns it. '
+                . 'You only need to call get_lead_ref once per conversation; remember the facts for the rest of the chat.',
+        ];
     }
 
     #[Override]
