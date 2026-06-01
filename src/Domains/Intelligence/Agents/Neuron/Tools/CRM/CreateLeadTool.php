@@ -147,22 +147,19 @@ class CreateLeadTool extends Tool
         if (isset($result['lead_id']) && $this->session !== null) {
             $this->promoteSessionToPeople((int) $result['lead_id']);
             $result['session_promoted'] = true;
-            $result['next_step'] = 'On this same turn you may now call lead-scoped tools '
+            $result['next_step'] = 'You may now call lead-scoped tools '
                 . '(get_user_availability, create_calendar_event, get_lead_intent, etc.) '
-                . 'with lead_id ' . $result['lead_id'] . '. Subsequent conversations with '
-                . 'this same prospect will land in the same session automatically.';
+                . 'with lead_id ' . $result['lead_id'] . ' in this same turn.';
         }
 
         return $result;
     }
 
     /**
-     * Repoint an anonymous (User-scoped) session at the prospect's People row
-     * once create_lead resolves who they are. If a People-keyed session already
-     * exists for this (people, agent) pair, the current session is repointed at
-     * that channel so subsequent turns land in the canonical thread; otherwise
-     * the current session row is promoted in place. Existing messages on the
-     * anonymous channel are cross-linked to the People channel either way.
+     * Repoint the anonymous session at the prospect's People row. If a People
+     * session already exists for this (people, agent), reuse its channel;
+     * otherwise promote the current session in place. Pre-existing channel
+     * messages are cross-linked to both People and Lead channels either way.
      */
     private function promoteSessionToPeople(int $leadId): void
     {

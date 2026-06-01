@@ -153,8 +153,6 @@ class AgentChatMutation
             company: $company
         );
 
-        // Resolve the current lead once — used to key the People session AND
-        // to plumb the "current deal" through to the handler per turn.
         $currentLead = ! empty($input['lead_id'])
             ? Lead::getByIdFromCompanyApp(id: (int) $input['lead_id'], app: $app, company: $company)
             : null;
@@ -168,10 +166,9 @@ class AgentChatMutation
             $company,
         );
 
-        // When the session is People-keyed (post-promote) and the frontend
-        // didn't pass lead_id, resolve the active Lead from the People row.
-        // Otherwise the agent's prompt sees "no lead in scope" and re-fires
-        // create_lead every turn even though one already exists.
+        // Post-promote sessions are People-keyed and the frontend won't know
+        // the new lead_id — resolve it server-side so the agent's prompt has
+        // lead context (otherwise it would re-fire create_lead every turn).
         if ($currentLead === null && $session->entity_namespace === People::class) {
             $people = $session->entity();
             if ($people instanceof People) {

@@ -15,7 +15,7 @@ use ReflectionClass;
  *
  * Two access points:
  *  - mergeRegisteredTools(): for handlers that ship a hardcoded baseline
- *    (IntelligenceCRM, RealStateAgent, …). Adds registry tools on top,
+ *    (SalesAgent, RealStateAgent, …). Adds registry tools on top,
  *    deduped by handler class so a hardcoded tool is never re-instantiated
  *    via the registry.
  *  - resolveRegisteredTools(): for pure-registry handlers (KanvasGeneric*)
