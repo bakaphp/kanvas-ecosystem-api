@@ -23,6 +23,7 @@ class BulkRechargeOrderTagsAction
     public function __construct(
         protected readonly Order $order,
         protected readonly AppInterface $app,
+        protected readonly ?PasoRapidoService $injectedService = null,
     ) {
     }
 
@@ -49,14 +50,16 @@ class BulkRechargeOrderTagsAction
         $bankTransaction = $this->resolveBankTransaction();
         $fiscalCredit = (bool) ($this->order->metadata['data']['fiscal_credit'] ?? false);
 
-        $service = null;
+        $service = $this->injectedService;
         $serviceError = null;
 
-        try {
-            $service = new PasoRapidoService($this->app, $company);
-        } catch (Throwable $e) {
-            report($e);
-            $serviceError = $e->getMessage();
+        if ($service === null) {
+            try {
+                $service = new PasoRapidoService($this->app, $company);
+            } catch (Throwable $e) {
+                report($e);
+                $serviceError = $e->getMessage();
+            }
         }
 
         $results = [];
@@ -248,6 +251,8 @@ class BulkRechargeOrderTagsAction
             return explode(':', (string) $intentId)[1] ?? (string) $intentId;
         }
 
-        return 'wallet_bulk_' . $this->order->uuid;
+        // PasoRapido transaccionBanco max length = 50. Per-item suffix `-{id}` adds ~10 more,
+        // so cap the order prefix at 22 chars (BR + 20 hex from uuid, no separators).
+        return 'BR' . substr(str_replace('-', '', (string) $this->order->uuid), 0, 20);
     }
 }
