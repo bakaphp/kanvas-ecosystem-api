@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Movipass;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Movipass\Actions\BulkRechargeOrderTagsAction;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Workflows\Activities\BulkRechargeTagsActivity;
+use Kanvas\Connectors\PasoRapido\DataTransferObject\InvoiceDetails;
+use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmData;
+use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmResponse;
+use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Products\Models\Products;
@@ -17,6 +22,7 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Mockery;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\TestCase;
 
@@ -258,5 +264,58 @@ final class BulkRechargeTagsActivityTest extends TestCase
         $this->assertNotNull($entry);
         $this->assertSame('failed', $entry['status']);
         $this->assertTrue($entry['reversed'] ?? false);
+    }
+
+    public function testBankTransactionStaysWithinPasoRapidoFiftyCharLimit(): void
+    {
+        // PasoRapido rejects transaccionBanco > 50 chars. The wallet-paid bulk path
+        // is the only producer of this id (no EchoPay intent to crib from), so we
+        // need to keep its format short on every TAG.
+        [$tag1, $tag2, $tag3] = $this->createTagVariants(3);
+        $order = $this->createBulkRechargeOrder([
+            ['variant' => $tag1, 'tag_number' => '941001', 'amount' => 500.00],
+            ['variant' => $tag2, 'tag_number' => '941002', 'amount' => 1000.00],
+            ['variant' => $tag3, 'tag_number' => '941003', 'amount' => 250.00],
+        ]);
+
+        $captured = [];
+        $mockService = Mockery::mock(PasoRapidoService::class);
+        $mockService->shouldReceive('confirmPayment')
+            ->andReturnUsing(function (PaymentConfirmData $data) use (&$captured) {
+                $captured[] = $data;
+
+                return PaymentConfirmResponse::from([
+                    'message' => 'ok',
+                    'amount' => (int) round($data->amount),
+                    'order' => 'ord-' . $data->reference,
+                    'tag' => $data->reference,
+                    'account' => '1234',
+                    'creditDate' => '2026-06-01',
+                    'invoiceDetails' => InvoiceDetails::from([
+                        'commercialName' => '',
+                        'document' => '',
+                        'fiscalCredit' => false,
+                        'invoice' => '',
+                        'pdf' => '',
+                        'reference' => '',
+                    ]),
+                ]);
+            });
+
+        new BulkRechargeOrderTagsAction($order, $this->kanvasApp, $mockService)->execute();
+
+        $this->assertNotEmpty($captured, 'PasoRapidoService::confirmPayment was never called');
+
+        foreach ($captured as $data) {
+            $this->assertLessThanOrEqual(
+                50,
+                strlen($data->bankTransaction),
+                sprintf(
+                    'bankTransaction "%s" (length %d) exceeds PasoRapido limit of 50 chars',
+                    $data->bankTransaction,
+                    strlen($data->bankTransaction),
+                ),
+            );
+        }
     }
 }
