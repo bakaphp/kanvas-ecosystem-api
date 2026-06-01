@@ -88,10 +88,9 @@ class MicrosoftAgentChannelResponderAction extends BaseAgentResponderAction
     {
         $currentAgent = new $this->agent->type->handler();
         $currentAgent->setConfiguration(
-            $this->agent,
-            $this->message->entity()->people,
-            null,
-            $this->message->company->getAiAgentUserOrFail(),
+            agent: $this->agent,
+            entity: $this->message->entity()->people,
+            user: $this->message->company->getAiAgentUserOrFail(),
         );
 
         $messageConversation = $this->message->message['content'];

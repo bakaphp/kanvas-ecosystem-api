@@ -52,10 +52,9 @@ class TriggerIntelligenceActivity extends KanvasActivity
         foreach ($lead->aiSession as $session) {
             $handle = new $session->agent->type->handler();
             $handle->setConfiguration(
-                $session->agent,
-                $session->entity(),
-                null,
-                $lead->company->getAiAgentUserOrFail(),
+                agent: $session->agent,
+                entity: $session->entity(),
+                user: $lead->company->getAiAgentUserOrFail(),
             );
 
             try {

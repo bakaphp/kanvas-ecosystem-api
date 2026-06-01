@@ -114,7 +114,7 @@ class SalesNeuronAgentTest extends TestCase
     public function testNeuronAgentLoadsToolsFromCapabilityProvider(): void
     {
         $stub = new SalesNeuronAgentStub();
-        $stub->setConfiguration($this->agent, null, null, auth()->user());
+        $stub->setConfiguration(agent: $this->agent, user: auth()->user());
 
         // ContactCheckerTool requires a Message constructor arg and is skipped by the generic agent
         $instantiableCount = count(array_filter(
