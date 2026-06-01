@@ -94,6 +94,10 @@ class PullNetSuiteProductPriceAction
         $variantWarehouse->config = $config;
         $variantWarehouse->saveOrFail();
 
+        // Link NetSuite MAP PRICE (custitem40) to the variant's UMAP Price (cost) field
+        $variant->cost = (float) $product['map_price'];
+        $variant->saveOrFail();
+
         $variant->addAttributes($this->user, [
             [
                 'name' => 'color_code',
