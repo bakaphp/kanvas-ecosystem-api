@@ -130,7 +130,7 @@ class AgentManagementMutation
             $this->appendToolInstructions($agent, $agent->selectedTools()->pluck('id')->all(), $app);
         }
 
-        return $agent;
+        return $agent->refresh();
     }
 
     public function delete(mixed $root, array $req): bool
