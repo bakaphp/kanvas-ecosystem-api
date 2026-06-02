@@ -7,8 +7,10 @@ namespace Kanvas\Intelligence\Agents\Actions;
 use Baka\Contracts\AppInterface;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Capability\Models\Tool;
+use ReflectionClass;
+use Throwable;
 
-class AppendToolInstructionsAction
+class RebuildAgentToolInstructionsAction
 {
     public function __construct(
         private readonly Agent $agent,
@@ -31,10 +33,19 @@ class AppendToolInstructionsAction
                 continue;
             }
 
-            $instance = new $tool->handler();
+            // Skip handlers that need constructor args (e.g. DynamicSubAgent) — we have no context to pass.
+            $constructor = new ReflectionClass($tool->handler)->getConstructor();
+            if ($constructor !== null && $constructor->getNumberOfRequiredParameters() > 0) {
+                continue;
+            }
 
-            if (method_exists($instance, 'instructions') && ($hint = $instance->instructions()) !== null && $hint !== '') {
-                $lines[] = '- ' . $hint;
+            try {
+                $instance = new $tool->handler();
+                if (method_exists($instance, 'instructions') && ($hint = $instance->instructions()) !== null && $hint !== '') {
+                    $lines[] = '- ' . $hint;
+                }
+            } catch (Throwable) {
+                continue;
             }
         }
 

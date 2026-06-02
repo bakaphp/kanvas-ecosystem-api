@@ -7,7 +7,7 @@ namespace App\GraphQL\NervousSystem\Mutations;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Actions\AppendToolInstructionsAction;
+use Kanvas\Intelligence\Agents\Actions\RebuildAgentToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\NervousSystem\Capability\Actions\AttachToolToAgentTypeAction;
@@ -190,9 +190,7 @@ class CapabilityMutation
         /** @var Agent $agent */
         $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
 
-        // Surface a client-safe message when the tool isn't accessible to this
-        // app — `firstOrFail` would throw Laravel's ModelNotFoundException which
-        // Lighthouse masks as a generic "Internal server error".
+        // ModelNotFoundException would surface as a generic "Internal server error" through Lighthouse.
         $tool = Tool::query()
             ->where('id', (int) $request['tool_id'])
             ->fromAppOrGlobal($app)
@@ -204,7 +202,9 @@ class CapabilityMutation
             ));
         }
 
+        // withTrashed so soft-deleted rows are visible: toggling off then on must reactivate the same row, not insert a duplicate.
         $existing = AgentTool::query()
+            ->withTrashed()
             ->where('agent_id', $agent->getId())
             ->where('tool_id', $tool->getId())
             ->first();
@@ -218,17 +218,31 @@ class CapabilityMutation
             )->execute();
 
             $agent->selectedTools()->syncWithoutDetaching([$tool->getId()]);
-            new AppendToolInstructionsAction($agent, $app)->execute();
+            new RebuildAgentToolInstructionsAction($agent, $app)->execute();
 
             return $grant;
         }
 
-        // Always detach from selectedTools and refresh instructions on disable.
         $agent->selectedTools()->detach($tool->getId());
-        new AppendToolInstructionsAction($agent, $app)->execute();
+        new RebuildAgentToolInstructionsAction($agent, $app)->execute();
 
-        if ($existing === null || $existing->is_deleted) {
-            return null;
+        if ($existing !== null && $existing->is_deleted) {
+            return $existing;
+        }
+
+        if ($existing === null) {
+            // Tool was only "selected" via the agent type's defaults — persist an explicit revocation so the read query subtracts it.
+            return AgentTool::create([
+                'apps_id' => $agent->apps_id,
+                'companies_id' => $agent->companies_id,
+                'agent_id' => $agent->getId(),
+                'tool_id' => $tool->getId(),
+                'granted_by_users_id' => $user->getId(),
+                'granted_at' => Carbon::now(),
+                'is_active' => false,
+                'is_deleted' => true,
+                'config' => $config,
+            ]);
         }
 
         return new RevokeToolFromAgentAction(

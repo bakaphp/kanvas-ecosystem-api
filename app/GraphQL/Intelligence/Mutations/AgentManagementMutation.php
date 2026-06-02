@@ -8,8 +8,8 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Intelligence\Agents\Actions\AppendToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
+use Kanvas\Intelligence\Agents\Actions\RebuildAgentToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentDTO;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -74,7 +74,7 @@ class AgentManagementMutation
             $this->syncTools($agent, $input['tool_ids'], $app);
         }
 
-        new AppendToolInstructionsAction($agent, $app)->execute();
+        new RebuildAgentToolInstructionsAction($agent, $app)->execute();
 
         return $agent;
     }
@@ -128,7 +128,7 @@ class AgentManagementMutation
 
         if (isset($input['tool_ids'])) {
             $this->syncTools($agent, $input['tool_ids'], $app);
-            new AppendToolInstructionsAction($agent, $app)->execute();
+            new RebuildAgentToolInstructionsAction($agent, $app)->execute();
         }
 
         return $agent->refresh();

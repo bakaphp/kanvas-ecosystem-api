@@ -52,9 +52,7 @@ class CapabilityQuery
         /** @var Agent $agent */
         $agent = Agent::getByIdFromCompanyApp((int) $args['agent_id'], $company, $app);
 
-        // Union: tools attached to this agent's type (template defaults) +
-        // tools individually granted via setNervousSystemAgentTool, minus
-        // anything the agent has explicitly revoked.
+        // Effective = agent type defaults + grants − revocations.
         $effective = [];
         $revoked = [];
 
@@ -69,12 +67,17 @@ class CapabilityQuery
             }
         }
 
+        // Latest row wins per (agent_id, tool_id) so any historical duplicate doesn't poison the result via array_diff.
         $grantRows = DB::connection('intelligence')
             ->table('nervous_system_agent_tools')
             ->where('agent_id', $agent->getId())
+            ->orderBy('id')
             ->get(['tool_id', 'is_active', 'is_deleted']);
+        $latestByTool = [];
         foreach ($grantRows as $row) {
-            $toolId = (int) $row->tool_id;
+            $latestByTool[(int) $row->tool_id] = $row;
+        }
+        foreach ($latestByTool as $toolId => $row) {
             if (! $row->is_active || $row->is_deleted) {
                 $revoked[$toolId] = true;
             } else {
