@@ -7,6 +7,9 @@ namespace Kanvas\Intelligence\Agents\Actions;
 use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentModel;
+use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
+use Kanvas\NervousSystem\Capability\DataTransferObject\Tool as ToolData;
+use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 
 class UpdateAgentAction
@@ -41,15 +44,40 @@ class UpdateAgentAction
         $this->agentModel->communicationChannels()->sync($this->agent->communicationChannel);
 
         if ($this->agentModel->is_sub_agent) {
-            Tool::query()
-                ->where('agents_id', $this->agentModel->getId())
-                ->first()
-                ?->update([
-                    'name' => Str::slug($this->agent->name),
-                    'description' => $this->agent->soul ?? $this->agent->description ?? $this->agent->name,
-                ]);
+            $this->syncSubAgentTool();
         }
 
         return $this->agentModel;
+    }
+
+    private function syncSubAgentTool(): void
+    {
+        $existing = Tool::query()
+            ->where('agents_id', $this->agentModel->getId())
+            ->first();
+
+        $name = Str::slug($this->agent->name);
+        $description = $this->agent->soul ?? $this->agent->description ?? $this->agent->name;
+
+        if ($existing !== null) {
+            $existing->update([
+                'name' => $name,
+                'description' => $description,
+            ]);
+
+            return;
+        }
+
+        $framework = $this->agent->agentType->provider ?? 'laravel';
+
+        $tool = new CreateToolAction(new ToolData(
+            app: $this->agent->app,
+            name: $name,
+            description: $description,
+            frameworks: [$framework],
+            toolType: ToolTypeEnum::SUB_AGENT,
+        ))->execute();
+
+        $tool->update(['agents_id' => $this->agentModel->getId()]);
     }
 }

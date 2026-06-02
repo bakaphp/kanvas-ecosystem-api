@@ -7,6 +7,7 @@ namespace App\GraphQL\NervousSystem\Mutations;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Agents\Actions\AppendToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\NervousSystem\Capability\Actions\AttachToolToAgentTypeAction;
@@ -209,31 +210,40 @@ class CapabilityMutation
             ->first();
 
         if ($enabled) {
-            return new GrantToolToAgentAction(
+            $grant = new GrantToolToAgentAction(
                 agent: $agent,
                 tool: $tool,
                 grantedByUserId: $user->getId(),
                 config: $config,
             )->execute();
+
+            $agent->selectedTools()->syncWithoutDetaching([$tool->getId()]);
+            new AppendToolInstructionsAction($agent, $app)->execute();
+
+            return $grant;
         }
 
-        if ($existing === null || $existing->is_deleted) {
-            // Already revoked / never granted — return the (soft-deleted or
-            // synthesized) row so the resolver has something to return.
-            return $existing ?? new AgentTool([
-                'apps_id' => $agent->apps_id,
-                'companies_id' => $agent->companies_id,
-                'agent_id' => $agent->getId(),
-                'tool_id' => $tool->getId(),
-                'is_active' => false,
-                'is_deleted' => true,
-            ]);
+        if ($existing === null) {
+            throw new ValidationException(sprintf(
+                'Tool #%d is not granted to agent #%d.',
+                $tool->getId(),
+                $agent->getId(),
+            ));
         }
 
-        return new RevokeToolFromAgentAction(
+        if ($existing->is_deleted) {
+            return $existing;
+        }
+
+        $grant = new RevokeToolFromAgentAction(
             grant: $existing,
             actorUserId: $user->getId(),
         )->execute();
+
+        $agent->selectedTools()->detach($tool->getId());
+        new AppendToolInstructionsAction($agent, $app)->execute();
+
+        return $grant;
     }
 
     public function createToolCategory(mixed $rootValue, array $request): ToolCategory
