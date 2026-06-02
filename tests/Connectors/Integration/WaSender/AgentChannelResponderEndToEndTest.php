@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction;
-use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
@@ -142,7 +141,12 @@ class AgentChannelResponderEndToEndTest extends TestCase
         // as tests/Connectors/Integration/Twilio/AgentChannelResponderActionTest.php).
         // The outbound WaSender API call may throw in the test env (no real credentials),
         // but that happens AFTER persistence — which is what we care about.
-        $action = new AgentChannelResponderAction($channel, $inbound, $agent, $session);
+        $action = new AgentChannelResponderAction(
+            $channel,
+            $inbound,
+            $agent,
+            $session,
+        );
 
         try {
             $action->execute([]);

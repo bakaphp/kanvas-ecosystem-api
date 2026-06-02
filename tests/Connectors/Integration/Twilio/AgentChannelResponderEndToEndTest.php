@@ -122,7 +122,12 @@ class AgentChannelResponderEndToEndTest extends TestCase
             ])
         )->execute();
 
-        $action = new AgentChannelResponderAction($channel, $inbound, $agent, $session);
+        $action = new AgentChannelResponderAction(
+            $channel,
+            $inbound,
+            $agent,
+            $session,
+        );
 
         try {
             $action->execute(['from' => '+15555555555']);
