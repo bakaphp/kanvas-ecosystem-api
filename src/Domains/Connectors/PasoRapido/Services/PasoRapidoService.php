@@ -204,7 +204,9 @@ class PasoRapidoService
         $response = $this->client->post(ConfigurationEnum::CONFIRM_PAYMENT_PATH->value, [
             'referencia' => $data->reference,
             'transaccionBanco' => $data->bankTransaction,
-            'valorPagado' => $data->amount,
+            // PasoRapido validates valorPagado as .NET Int32. round() avoids losing
+            // a peso on 500.99 → 500; spec works in whole DOP, no cents.
+            'valorPagado' => (int) round($data->amount),
             'creditoFiscal' => $data->fiscalCredit,
             'rnc_Cedula' => $data->dni,
         ]);

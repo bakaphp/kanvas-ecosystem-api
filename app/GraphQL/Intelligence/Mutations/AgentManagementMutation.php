@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
+use Kanvas\Intelligence\Agents\Actions\RebuildAgentToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentDTO;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -71,8 +72,9 @@ class AgentManagementMutation
 
         if (isset($input['tool_ids'])) {
             $this->syncTools($agent, $input['tool_ids'], $app);
-            $this->appendToolInstructions($agent, $input['tool_ids'], $app);
         }
+
+        new RebuildAgentToolInstructionsAction($agent, $app)->execute();
 
         return $agent;
     }
@@ -126,10 +128,10 @@ class AgentManagementMutation
 
         if (isset($input['tool_ids'])) {
             $this->syncTools($agent, $input['tool_ids'], $app);
-            $this->appendToolInstructions($agent, $input['tool_ids'], $app);
+            new RebuildAgentToolInstructionsAction($agent, $app)->execute();
         }
 
-        return $agent;
+        return $agent->refresh();
     }
 
     public function delete(mixed $root, array $req): bool
@@ -186,49 +188,6 @@ class AgentManagementMutation
         }
 
         return $tools;
-    }
-
-    /**
-     * @param array<int, string> $toolIds
-     */
-    private function appendToolInstructions(Agent $agent, array $toolIds, AppInterface $app): void
-    {
-        $lines = [];
-
-        foreach ($toolIds as $toolId) {
-            $tool = Tool::query()
-                ->where('id', (int) $toolId)
-                ->whereIn('apps_id', [0, $app->getId()])
-                ->first();
-
-            if ($tool === null || $tool->handler === null || ! class_exists($tool->handler)) {
-                continue;
-            }
-
-            $instance = new $tool->handler();
-
-            if (method_exists($instance, 'instructions') && ($hint = $instance->instructions()) !== null && $hint !== '') {
-                $lines[] = '- ' . $hint;
-            }
-        }
-
-        $base = $agent->instructions ?? '';
-        $marker = "\n\n## Tool Usage Guidelines\n";
-        $pos = strpos($base, $marker);
-        if ($pos !== false) {
-            $base = substr($base, 0, $pos);
-        }
-
-        if (empty($lines)) {
-            $agent->instructions = $base !== '' ? $base : null;
-            $agent->save();
-
-            return;
-        }
-
-        $toolSection = "## Tool Usage Guidelines\n" . implode("\n", $lines);
-        $agent->instructions = $base !== '' ? $base . $marker . $toolSection : $toolSection;
-        $agent->save();
     }
 
     /**

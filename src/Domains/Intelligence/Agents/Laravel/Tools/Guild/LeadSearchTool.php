@@ -29,6 +29,7 @@ class LeadSearchTool implements KanvasToolInterface
     {
         $query = (string) $request->string('query');
         $daysBack = $request->integer('days_back') ?: 90;
+        $eventSubType = $request->string('event_sub_type') ? (string) $request->string('event_sub_type') : null;
 
         $leads = Lead::query()
             ->fromApp($this->app)
@@ -39,6 +40,10 @@ class LeadSearchTool implements KanvasToolInterface
                     ->orWhere('description', 'LIKE', "%{$query}%")
                     ->orWhere('firstname', 'LIKE', "%{$query}%");
             })
+            ->when($eventSubType, fn ($q) => $q->whereHas(
+                'customFields',
+                fn ($q) => $q->where('name', 'event_sub_type')->where('value', $eventSubType)
+            ))
             ->where('created_at', '>=', now()->subDays($daysBack))
             ->limit(10)
             ->get(['id', 'title', 'description', 'firstname', 'lastname', 'created_at']);
@@ -51,6 +56,11 @@ class LeadSearchTool implements KanvasToolInterface
                 'firstname' => $lead->firstname,
                 'lastname' => $lead->lastname,
                 'created_at' => $lead->created_at?->toIso8601String(),
+                'event_type' => $lead->get('event_type'),
+                'event_sub_type' => $lead->get('event_sub_type'),
+                'severity_score' => $lead->get('severity_score'),
+                'event_distress_score' => $lead->get('event_distress_score'),
+                'realized_impact' => $lead->get('realized_impact') ?? 'unknown',
             ])->values()->all(),
         ], JSON_PRETTY_PRINT);
     }
@@ -66,6 +76,9 @@ class LeadSearchTool implements KanvasToolInterface
             'days_back' => $schema
                 ->integer()
                 ->description('How many days back to search. Defaults to 90.'),
+            'event_sub_type' => $schema
+                ->string()
+                ->description('Filter results to leads with this event_sub_type custom field (e.g. "Chapter 11 Bankruptcy"). Use to find similar past events for scoring context.'),
         ];
     }
 }
