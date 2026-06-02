@@ -83,7 +83,8 @@ class CreateMessageFromEmailAction
                           $this->lead->email
                       ),
                   ]);
-            $channel = (new CreateChannelAction($channel))->execute();
+
+            $channel = new CreateChannelAction($channel)->execute();
             $leadSystemModule = SystemModulesRepository::getByModelName(get_class($this->lead), $this->lead->app);
             $newMessage = new CreateMessageAction(
                 $messageInput,
