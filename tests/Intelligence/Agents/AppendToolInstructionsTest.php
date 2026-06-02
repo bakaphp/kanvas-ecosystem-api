@@ -194,6 +194,119 @@ final class AppendToolInstructionsTest extends TestCase
         $this->assertSame(1, substr_count($updated->fresh()->instructions, '## Tool Usage Guidelines'));
     }
 
+    public function testUpdateAddToolAppearsInSelectedTools(): void
+    {
+        $agentType = $this->makeAgentType();
+        $tools = array_slice($this->makeFmpTools(), 0, 2);
+
+        $agent = $this->createAgentViaMutation($agentType, [
+            'tool_ids' => array_map(fn (Tool $t) => $t->getId(), $tools),
+        ]);
+
+        $this->assertCount(2, $agent->fresh()->selectedTools);
+
+        $newTool = new CreateToolAction(new ToolData(
+            app: app(Apps::class),
+            name: 'fmp-new-' . uniqid(),
+            frameworks: ['laravel'],
+            toolType: ToolTypeEnum::CUSTOM,
+            handler: FmpCompanyRatingTool::class,
+        ))->execute();
+
+        $allIds = array_merge(
+            array_map(fn (Tool $t) => $t->getId(), $tools),
+            [$newTool->getId()]
+        );
+
+        $updated = new AgentManagementMutation()->update(null, [
+            'id' => $agent->getId(),
+            'input' => [
+                'agent_type_id' => $agentType->getId(),
+                'name' => $agent->name,
+                'is_active' => true,
+                'role' => [],
+                'config' => [],
+                'tool_ids' => $allIds,
+            ],
+        ]);
+
+        $this->assertCount(3, $updated->fresh()->selectedTools);
+        $this->assertTrue(
+            $updated->fresh()->selectedTools->contains('id', $newTool->getId()),
+            'Newly added tool must appear in selectedTools after update.'
+        );
+    }
+
+    public function testUpdateRemoveToolDisappearsFromSelectedTools(): void
+    {
+        $agentType = $this->makeAgentType();
+        $tools = array_slice($this->makeFmpTools(), 0, 3);
+
+        $agent = $this->createAgentViaMutation($agentType, [
+            'tool_ids' => array_map(fn (Tool $t) => $t->getId(), $tools),
+        ]);
+
+        $this->assertCount(3, $agent->fresh()->selectedTools);
+
+        $toolToRemove = $tools[2];
+        $remainingIds = array_map(fn (Tool $t) => $t->getId(), array_slice($tools, 0, 2));
+
+        $updated = new AgentManagementMutation()->update(null, [
+            'id' => $agent->getId(),
+            'input' => [
+                'agent_type_id' => $agentType->getId(),
+                'name' => $agent->name,
+                'is_active' => true,
+                'role' => [],
+                'config' => [],
+                'tool_ids' => $remainingIds,
+            ],
+        ]);
+
+        $fresh = $updated->fresh();
+        $this->assertCount(2, $fresh->selectedTools);
+        $this->assertFalse(
+            $fresh->selectedTools->contains('id', $toolToRemove->getId()),
+            'Removed tool must not appear in selectedTools after update.'
+        );
+    }
+
+    public function testUpdateRemoveToolInstructionsAlsoRemoved(): void
+    {
+        $agentType = $this->makeAgentType();
+        $tools = $this->makeFmpTools();
+
+        $agent = $this->createAgentViaMutation($agentType, [
+            'tool_ids' => array_map(fn (Tool $t) => $t->getId(), $tools),
+        ]);
+
+        $this->assertStringContainsString('FMP Financial Ratios', $agent->instructions);
+
+        $withoutRatios = array_filter(
+            $tools,
+            fn (Tool $t) => $t->handler !== FmpFinancialRatiosTool::class
+        );
+
+        $updated = new AgentManagementMutation()->update(null, [
+            'id' => $agent->getId(),
+            'input' => [
+                'agent_type_id' => $agentType->getId(),
+                'name' => $agent->name,
+                'is_active' => true,
+                'role' => [],
+                'config' => [],
+                'tool_ids' => array_map(fn (Tool $t) => $t->getId(), $withoutRatios),
+            ],
+        ]);
+
+        $this->assertStringNotContainsString(
+            'FMP Financial Ratios',
+            $updated->fresh()->instructions ?? '',
+            'Removed tool instruction must not appear after update.'
+        );
+        $this->assertSame(1, substr_count($updated->fresh()->instructions, '## Tool Usage Guidelines'));
+    }
+
     public function testAgentTypeInstructionsUsedAsBaseWhenAgentHasNone(): void
     {
         $agentType = $this->makeAgentType('These are the agent type base instructions.');
