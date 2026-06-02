@@ -10,7 +10,7 @@ use Kanvas\NervousSystem\Capability\Models\Tool;
 use ReflectionClass;
 use Throwable;
 
-class AppendToolInstructionsAction
+class RebuildAgentToolInstructionsAction
 {
     public function __construct(
         private readonly Agent $agent,
@@ -33,13 +33,8 @@ class AppendToolInstructionsAction
                 continue;
             }
 
-            // Some handlers (e.g. DynamicSubAgent) require constructor args
-            // that aren't available here — skip them rather than crash the
-            // whole toggle. Reflect on the constructor first so we don't try
-            // to instantiate a handler that needs context, and wrap the
-            // instructions() call so a faulty hint doesn't break the action.
-            $reflection = new ReflectionClass($tool->handler);
-            $constructor = $reflection->getConstructor();
+            // Skip handlers that need constructor args (e.g. DynamicSubAgent) — we have no context to pass.
+            $constructor = new ReflectionClass($tool->handler)->getConstructor();
             if ($constructor !== null && $constructor->getNumberOfRequiredParameters() > 0) {
                 continue;
             }

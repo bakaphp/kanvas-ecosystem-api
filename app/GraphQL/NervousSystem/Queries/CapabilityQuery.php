@@ -52,9 +52,7 @@ class CapabilityQuery
         /** @var Agent $agent */
         $agent = Agent::getByIdFromCompanyApp((int) $args['agent_id'], $company, $app);
 
-        // Union: tools attached to this agent's type (template defaults) +
-        // tools individually granted via setNervousSystemAgentTool, minus
-        // anything the agent has explicitly revoked.
+        // Effective = agent type defaults + grants − revocations.
         $effective = [];
         $revoked = [];
 
@@ -69,11 +67,7 @@ class CapabilityQuery
             }
         }
 
-        // Pick the latest row per (agent_id, tool_id) so an older soft-deleted
-        // row from a prior off-cycle doesn't poison a later re-grant. The
-        // write side ought to reactivate in place (see GrantToolToAgentAction
-        // withTrashed lookup), but if any historical duplicate slipped
-        // through, the most recent row is the source of truth.
+        // Latest row wins per (agent_id, tool_id) so any historical duplicate doesn't poison the result via array_diff.
         $grantRows = DB::connection('intelligence')
             ->table('nervous_system_agent_tools')
             ->where('agent_id', $agent->getId())

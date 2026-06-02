@@ -7,7 +7,7 @@ namespace App\GraphQL\NervousSystem\Mutations;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Actions\AppendToolInstructionsAction;
+use Kanvas\Intelligence\Agents\Actions\RebuildAgentToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\NervousSystem\Capability\Actions\AttachToolToAgentTypeAction;
@@ -178,7 +178,7 @@ class CapabilityMutation
      * an existing grant); enabled=false revokes the existing grant if any.
      * No-op when called with the state the agent is already in.
      */
-    public function setAgentTool(mixed $rootValue, array $request): AgentTool
+    public function setAgentTool(mixed $rootValue, array $request): ?AgentTool
     {
         $app = app(Apps::class);
         /** @var Users $user */
@@ -190,9 +190,7 @@ class CapabilityMutation
         /** @var Agent $agent */
         $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
 
-        // Surface a client-safe message when the tool isn't accessible to this
-        // app — `firstOrFail` would throw Laravel's ModelNotFoundException which
-        // Lighthouse masks as a generic "Internal server error".
+        // ModelNotFoundException would surface as a generic "Internal server error" through Lighthouse.
         $tool = Tool::query()
             ->where('id', (int) $request['tool_id'])
             ->fromAppOrGlobal($app)
@@ -204,11 +202,7 @@ class CapabilityMutation
             ));
         }
 
-        // withTrashed() so a previously revoked row is found instead of being
-        // treated as "no grant exists" — without this, toggling off then on
-        // again triggers the "not granted" path on the revoke side, and on the
-        // grant side GrantToolToAgentAction's lookup also misses it and inserts
-        // a duplicate row that breaks CapabilityQuery::agentTools.
+        // withTrashed so soft-deleted rows are visible: toggling off then on must reactivate the same row, not insert a duplicate.
         $existing = AgentTool::query()
             ->withTrashed()
             ->where('agent_id', $agent->getId())
@@ -224,18 +218,21 @@ class CapabilityMutation
             )->execute();
 
             $agent->selectedTools()->syncWithoutDetaching([$tool->getId()]);
-            new AppendToolInstructionsAction($agent, $app)->execute();
+            new RebuildAgentToolInstructionsAction($agent, $app)->execute();
 
             return $grant;
         }
+
+        $agent->selectedTools()->detach($tool->getId());
+        new RebuildAgentToolInstructionsAction($agent, $app)->execute();
+
+        if ($existing !== null && $existing->is_deleted) {
+            return $existing;
+        }
+
         if ($existing === null) {
-            // No grant row yet — tool is only "selected" because the agent
-            // type carries it as a template default. Persist an explicit
-            // revoked row so the type-inherited tool is hidden for this
-            // agent on the next read (see CapabilityQuery::agentTools
-            // revoked set), and return a persisted model so the GraphQL
-            // response satisfies NervousSystemAgentTool.id (non-null).
-            $grant = AgentTool::create([
+            // Tool was only "selected" via the agent type's defaults — persist an explicit revocation so the read query subtracts it.
+            return AgentTool::create([
                 'apps_id' => $agent->apps_id,
                 'companies_id' => $agent->companies_id,
                 'agent_id' => $agent->getId(),
@@ -246,22 +243,12 @@ class CapabilityMutation
                 'is_deleted' => true,
                 'config' => $config,
             ]);
-
-            $agent->selectedTools()->detach($tool->getId());
-            new AppendToolInstructionsAction($agent, $app)->execute();
-
-            return $grant;
         }
 
-        $grant = new RevokeToolFromAgentAction(
+        return new RevokeToolFromAgentAction(
             grant: $existing,
             actorUserId: $user->getId(),
         )->execute();
-
-        $agent->selectedTools()->detach($tool->getId());
-        new AppendToolInstructionsAction($agent, $app)->execute();
-
-        return $grant;
     }
 
     public function createToolCategory(mixed $rootValue, array $request): ToolCategory

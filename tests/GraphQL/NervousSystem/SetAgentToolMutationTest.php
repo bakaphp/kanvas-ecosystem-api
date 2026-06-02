@@ -13,6 +13,7 @@ use Kanvas\NervousSystem\Capability\DataTransferObject\Tool as ToolData;
 use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
 use Kanvas\NervousSystem\Capability\Models\AgentTool;
 use Kanvas\NervousSystem\Capability\Models\Tool;
+use Tests\Stubs\Intelligence\FakeInstructionsToolHandler;
 use Tests\TestCase;
 
 class SetAgentToolMutationTest extends TestCase
@@ -208,11 +209,44 @@ class SetAgentToolMutationTest extends TestCase
         );
     }
 
+    public function testRevokingRemovesToolHintFromInstructionsBlock(): void
+    {
+        $agent = $this->makeAgent();
+        $tool = $this->makeTool();
+        $tool->handler = FakeInstructionsToolHandler::class;
+        $tool->saveOrFail();
+        $vars = ['agent_id' => (string) $agent->getId(), 'tool_id' => (string) $tool->getId()];
+
+        $this->graphQL('
+            mutation($agent_id: ID!, $tool_id: ID!) {
+                setNervousSystemAgentTool(agent_id: $agent_id, tool_id: $tool_id, enabled: true) { is_active }
+            }
+        ', $vars)->assertSuccessful();
+
+        $this->assertStringContainsString(
+            FakeInstructionsToolHandler::HINT,
+            (string) $agent->fresh()->instructions,
+            'Grant must add the tool hint to the instructions block.',
+        );
+
+        $this->graphQL('
+            mutation($agent_id: ID!, $tool_id: ID!) {
+                setNervousSystemAgentTool(agent_id: $agent_id, tool_id: $tool_id, enabled: false) { is_active }
+            }
+        ', $vars)->assertSuccessful();
+
+        $this->assertStringNotContainsString(
+            FakeInstructionsToolHandler::HINT,
+            (string) $agent->fresh()->instructions,
+            'Revoke must remove the tool hint from the instructions block.',
+        );
+    }
+
     public function testGrantToolWithSubAgentHandlerDoesNotCrash(): void
     {
         // DynamicSubAgent (the handler used for sub-agent tools created by
         // CreateAgentAction::ensureSubAgentTool) requires an AgentRecord in
-        // its constructor. AppendToolInstructionsAction historically did
+        // its constructor. RebuildAgentToolInstructionsAction historically did
         // `new $tool->handler()` and crashed with ArgumentCountError, which
         // killed the whole setNervousSystemAgentTool mutation. This test
         // pins the resilience — the mutation must succeed even when one of

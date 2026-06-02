@@ -27,13 +27,7 @@ class GrantToolToAgentAction
         $this->validateProviderCompatibility();
 
         return DB::connection('intelligence')->transaction(function (): AgentTool {
-            // The (agent_id, tool_id, is_deleted) unique key lets the table
-            // hold up to two rows per pair (one active + one soft-deleted).
-            // Historical bugs left both populated, so flipping is_deleted on
-            // either row would collide with its sibling. Normalize to a
-            // single row per pair on every write: hard-delete older siblings
-            // and transition the latest row in place. withTrashed() so the
-            // SoftDeletes global scope doesn't hide the soft-deleted side.
+            // The (agent_id, tool_id, is_deleted) unique key allows two rows per pair (one active + one soft-deleted), so legacy duplicates can collide on the next flip. Hard-delete siblings to keep at most one row.
             $rows = AgentTool::withTrashed()
                 ->where('agent_id', $this->agent->getId())
                 ->where('tool_id', $this->tool->getId())

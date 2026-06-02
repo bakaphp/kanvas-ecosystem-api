@@ -19,10 +19,7 @@ class RevokeToolFromAgentAction
     public function execute(): AgentTool
     {
         return DB::connection('intelligence')->transaction(function (): AgentTool {
-            // The (agent_id, tool_id, is_deleted) unique key would block this
-            // flip if a sibling soft-deleted row already exists for the same
-            // pair (a legacy duplicate). Hard-delete any sibling rows first so
-            // the table holds at most one row per (agent_id, tool_id).
+            // Sibling cleanup: the (agent_id, tool_id, is_deleted) unique key would otherwise reject this flip if a soft-deleted ghost exists.
             AgentTool::withTrashed()
                 ->where('agent_id', $this->grant->agent_id)
                 ->where('tool_id', $this->grant->tool_id)
