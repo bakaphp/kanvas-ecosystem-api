@@ -27,35 +27,45 @@ class GrantToolToAgentAction
         $this->validateProviderCompatibility();
 
         return DB::connection('intelligence')->transaction(function (): AgentTool {
-            // Don't filter by is_deleted here — a previously revoked row
-            // should be reactivated, not duplicated, when granting again.
-            $existing = AgentTool::query()
+            // The (agent_id, tool_id, is_deleted) unique key lets the table
+            // hold up to two rows per pair (one active + one soft-deleted).
+            // Historical bugs left both populated, so flipping is_deleted on
+            // either row would collide with its sibling. Normalize to a
+            // single row per pair on every write: hard-delete older siblings
+            // and transition the latest row in place. withTrashed() so the
+            // SoftDeletes global scope doesn't hide the soft-deleted side.
+            $rows = AgentTool::withTrashed()
                 ->where('agent_id', $this->agent->getId())
                 ->where('tool_id', $this->tool->getId())
-                ->first();
+                ->orderBy('id', 'desc')
+                ->get();
+
+            /** @var AgentTool|null $existing */
+            $existing = $rows->first();
+            if ($rows->count() > 1) {
+                AgentTool::withTrashed()
+                    ->whereIn('id', $rows->skip(1)->pluck('id')->all())
+                    ->forceDelete();
+            }
+
+            $attributes = [
+                'apps_id' => $this->agent->apps_id,
+                'companies_id' => $this->agent->companies_id,
+                'agent_id' => $this->agent->getId(),
+                'tool_id' => $this->tool->getId(),
+                'granted_by_users_id' => $this->grantedByUserId,
+                'granted_at' => Carbon::now(),
+                'expires_at' => $this->expiresAt,
+                'is_active' => true,
+                'is_deleted' => false,
+                'config' => $this->config,
+            ];
 
             if ($existing instanceof AgentTool) {
-                $existing->is_active = true;
-                $existing->is_deleted = false;
-                $existing->granted_by_users_id = $this->grantedByUserId;
-                $existing->granted_at = Carbon::now();
-                $existing->expires_at = $this->expiresAt;
-                $existing->config = $this->config;
-                $existing->saveOrFail();
+                $existing->fill($attributes)->saveOrFail();
                 $grant = $existing;
             } else {
-                $grant = new AgentTool();
-                $grant->apps_id = $this->agent->apps_id;
-                $grant->companies_id = $this->agent->companies_id;
-                $grant->agent_id = $this->agent->getId();
-                $grant->tool_id = $this->tool->getId();
-                $grant->granted_by_users_id = $this->grantedByUserId;
-                $grant->granted_at = Carbon::now();
-                $grant->expires_at = $this->expiresAt;
-                $grant->is_active = true;
-                $grant->is_deleted = false;
-                $grant->config = $this->config;
-                $grant->saveOrFail();
+                $grant = AgentTool::create($attributes);
             }
 
             $grant->emitLedgerEvent('tool.granted', payload: [

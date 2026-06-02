@@ -7,6 +7,8 @@ namespace Kanvas\Intelligence\Agents\Actions;
 use Baka\Contracts\AppInterface;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Capability\Models\Tool;
+use ReflectionClass;
+use Throwable;
 
 class AppendToolInstructionsAction
 {
@@ -31,10 +33,24 @@ class AppendToolInstructionsAction
                 continue;
             }
 
-            $instance = new $tool->handler();
+            // Some handlers (e.g. DynamicSubAgent) require constructor args
+            // that aren't available here — skip them rather than crash the
+            // whole toggle. Reflect on the constructor first so we don't try
+            // to instantiate a handler that needs context, and wrap the
+            // instructions() call so a faulty hint doesn't break the action.
+            $reflection = new ReflectionClass($tool->handler);
+            $constructor = $reflection->getConstructor();
+            if ($constructor !== null && $constructor->getNumberOfRequiredParameters() > 0) {
+                continue;
+            }
 
-            if (method_exists($instance, 'instructions') && ($hint = $instance->instructions()) !== null && $hint !== '') {
-                $lines[] = '- ' . $hint;
+            try {
+                $instance = new $tool->handler();
+                if (method_exists($instance, 'instructions') && ($hint = $instance->instructions()) !== null && $hint !== '') {
+                    $lines[] = '- ' . $hint;
+                }
+            } catch (Throwable) {
+                continue;
             }
         }
 

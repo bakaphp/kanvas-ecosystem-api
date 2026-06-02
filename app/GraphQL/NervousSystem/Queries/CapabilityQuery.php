@@ -69,12 +69,21 @@ class CapabilityQuery
             }
         }
 
+        // Pick the latest row per (agent_id, tool_id) so an older soft-deleted
+        // row from a prior off-cycle doesn't poison a later re-grant. The
+        // write side ought to reactivate in place (see GrantToolToAgentAction
+        // withTrashed lookup), but if any historical duplicate slipped
+        // through, the most recent row is the source of truth.
         $grantRows = DB::connection('intelligence')
             ->table('nervous_system_agent_tools')
             ->where('agent_id', $agent->getId())
+            ->orderBy('id')
             ->get(['tool_id', 'is_active', 'is_deleted']);
+        $latestByTool = [];
         foreach ($grantRows as $row) {
-            $toolId = (int) $row->tool_id;
+            $latestByTool[(int) $row->tool_id] = $row;
+        }
+        foreach ($latestByTool as $toolId => $row) {
             if (! $row->is_active || $row->is_deleted) {
                 $revoked[$toolId] = true;
             } else {

@@ -204,7 +204,13 @@ class CapabilityMutation
             ));
         }
 
+        // withTrashed() so a previously revoked row is found instead of being
+        // treated as "no grant exists" — without this, toggling off then on
+        // again triggers the "not granted" path on the revoke side, and on the
+        // grant side GrantToolToAgentAction's lookup also misses it and inserts
+        // a duplicate row that breaks CapabilityQuery::agentTools.
         $existing = AgentTool::query()
+            ->withTrashed()
             ->where('agent_id', $agent->getId())
             ->where('tool_id', $tool->getId())
             ->first();
@@ -222,17 +228,29 @@ class CapabilityMutation
 
             return $grant;
         }
-
         if ($existing === null) {
-            throw new ValidationException(sprintf(
-                'Tool #%d is not granted to agent #%d.',
-                $tool->getId(),
-                $agent->getId(),
-            ));
-        }
+            // No grant row yet — tool is only "selected" because the agent
+            // type carries it as a template default. Persist an explicit
+            // revoked row so the type-inherited tool is hidden for this
+            // agent on the next read (see CapabilityQuery::agentTools
+            // revoked set), and return a persisted model so the GraphQL
+            // response satisfies NervousSystemAgentTool.id (non-null).
+            $grant = AgentTool::create([
+                'apps_id' => $agent->apps_id,
+                'companies_id' => $agent->companies_id,
+                'agent_id' => $agent->getId(),
+                'tool_id' => $tool->getId(),
+                'granted_by_users_id' => $user->getId(),
+                'granted_at' => Carbon::now(),
+                'is_active' => false,
+                'is_deleted' => true,
+                'config' => $config,
+            ]);
 
-        if ($existing->is_deleted) {
-            return $existing;
+            $agent->selectedTools()->detach($tool->getId());
+            new AppendToolInstructionsAction($agent, $app)->execute();
+
+            return $grant;
         }
 
         $grant = new RevokeToolFromAgentAction(
