@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
-use Kanvas\Intelligence\Agents\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;

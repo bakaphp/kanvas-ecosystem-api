@@ -8,7 +8,7 @@ use Kanvas\Connectors\RespondIO\Client;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
-use Kanvas\Intelligence\Agents\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Override;
 

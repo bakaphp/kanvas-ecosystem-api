@@ -120,8 +120,15 @@ class BaseAgentChannelReplyAction
         $newMessage->set('communicationChannel', $this->communicationChannel);
         $newMessage->set('from_number', $from);
 
-        if ($message->entity() instanceof Model) {
-            $newMessage->addEntity($message->entity());
+        $entity = $message->entity();
+        if ($entity instanceof Model) {
+            $newMessage->addEntity($entity);
+            // People-keyed history (SalesAssistKanvasMessageHistory) queries by People;
+            // without this attachment the outbound disappears from cross-channel rollup
+            // and from the People profile UI.
+            if ($entity instanceof Lead && $entity->people !== null) {
+                $newMessage->addEntity($entity->people);
+            }
         }
 
         // $isWithinWorkingHours = $message->entity()->company->isWithinWorkingHours(now());

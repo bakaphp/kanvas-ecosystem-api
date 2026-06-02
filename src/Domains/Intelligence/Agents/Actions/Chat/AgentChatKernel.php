@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Chat;
+namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
 use Baka\Support\Str;
 use Baka\Traits\LimitsBroadcastPayload;
