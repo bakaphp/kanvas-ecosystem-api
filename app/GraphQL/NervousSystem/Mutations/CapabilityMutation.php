@@ -178,7 +178,7 @@ class CapabilityMutation
      * an existing grant); enabled=false revokes the existing grant if any.
      * No-op when called with the state the agent is already in.
      */
-    public function setAgentTool(mixed $rootValue, array $request): AgentTool
+    public function setAgentTool(mixed $rootValue, array $request): ?AgentTool
     {
         $app = app(Apps::class);
         /** @var Users $user */
@@ -223,27 +223,18 @@ class CapabilityMutation
             return $grant;
         }
 
-        if ($existing === null) {
-            throw new ValidationException(sprintf(
-                'Tool #%d is not granted to agent #%d.',
-                $tool->getId(),
-                $agent->getId(),
-            ));
-        }
-
-        if ($existing->is_deleted) {
-            return $existing;
-        }
-
-        $grant = new RevokeToolFromAgentAction(
-            grant: $existing,
-            actorUserId: $user->getId(),
-        )->execute();
-
+        // Always detach from selectedTools and refresh instructions on disable.
         $agent->selectedTools()->detach($tool->getId());
         new AppendToolInstructionsAction($agent, $app)->execute();
 
-        return $grant;
+        if ($existing === null || $existing->is_deleted) {
+            return null;
+        }
+
+        return new RevokeToolFromAgentAction(
+            grant: $existing,
+            actorUserId: $user->getId(),
+        )->execute();
     }
 
     public function createToolCategory(mixed $rootValue, array $request): ToolCategory
