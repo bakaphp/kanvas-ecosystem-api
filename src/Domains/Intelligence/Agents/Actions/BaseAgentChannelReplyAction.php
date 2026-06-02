@@ -25,7 +25,17 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
-class BaseAgentResponderAction
+/**
+ * Shared base for per-connector channel reply actions (WaSender, Mailgun, RespondIO,
+ * Twilio, Microsoft, SalesAssist). Owns AI-mode/responded guards, outbound message
+ * persistence via createMessage(), message-type-verb tagging, and the
+ * MarkLeadMessagesAsResponded + NotifyLeadStakeholders side effects.
+ *
+ * Subclasses' execute() extracts the inbound text, calls AgentChatKernel for the
+ * agent's reply, then persists + ships outbound via this base's createMessage()
+ * and their connector-specific outbound client.
+ */
+class BaseAgentChannelReplyAction
 {
     protected string $messageTypeVerb = 'text';
     protected string $communicationChannel = '';

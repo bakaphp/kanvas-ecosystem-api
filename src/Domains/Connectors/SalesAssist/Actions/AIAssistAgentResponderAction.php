@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\SalesAssist\Actions;
 
 use Illuminate\Support\Str;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Actions\BaseAgentResponderAction;
+use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Services\GoogleADKService;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
@@ -14,7 +14,7 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use NeuronAI\Chat\Messages\UserMessage;
 use Override;
 
-class AIAssistAgentResponderAction extends BaseAgentResponderAction
+class AIAssistAgentResponderAction extends BaseAgentChannelReplyAction
 {
     protected string $messageTypeVerb = 'ai-assist';
     protected string $communicationChannel = 'ai-assist';

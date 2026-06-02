@@ -2,30 +2,37 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Actions;
+namespace Kanvas\Intelligence\Agents\Chat;
 
 use Baka\Support\Str;
 use Baka\Traits\LimitsBroadcastPayload;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Actions\Chat\RunLaravelAgentChatAction;
-use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
-use Kanvas\Intelligence\Agents\Actions\Chat\RunRuntimeChatAction;
+use Kanvas\Intelligence\Agents\Actions\TrackAgentUsageAction;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Exceptions\AgentProviderException;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
+use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Sessions\Actions\PersistChatTurnToSocialAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 use Throwable;
 
-class ProcessAgentChatAction
+/**
+ * Single in-process entry point for "agent answers a message." Routes on $agent
+ * to Runtime (OpenClaw / Hermes), Laravel, ADK, or Neuron (default). Tenant
+ * (app + company) comes from $agent — agents are bound to one tenant.
+ *
+ * Connector callers pass sourceChannel + sourceMessage + persistConversation=false
+ * so ADK keeps its remote identity, Neuron threads by entity (cross-channel
+ * rollup), and the connector owns outbound persistence.
+ */
+class AgentChatKernel
 {
     use LimitsBroadcastPayload;
 
@@ -39,12 +46,13 @@ class ProcessAgentChatAction
         protected readonly Agent $agent,
         protected readonly ?Session $session,
         protected readonly string $message,
-        protected readonly Apps $app,
-        protected readonly Companies $company,
         protected readonly Users $user,
         protected readonly array $images = [],
         protected readonly array $attachments = [],
         protected readonly ?Lead $currentLead = null,
+        protected readonly ?Channel $sourceChannel = null,
+        protected readonly ?Message $sourceMessage = null,
+        protected readonly bool $persistConversation = true,
     ) {
     }
 
@@ -66,7 +74,11 @@ class ProcessAgentChatAction
 
         $durationMs = (microtime(true) - $startTime) * 1000.0;
         $this->trackUsage($response, $durationMs, $sessionId);
-        $this->persistConversationToSocial($response);
+
+        if ($this->persistConversation) {
+            $this->persistConversationToSocial($response);
+        }
+        
         $this->broadcastChatResponse($sessionId, $response);
 
         return $response;
@@ -85,8 +97,8 @@ class ProcessAgentChatAction
         $this->persistedReply = new PersistChatTurnToSocialAction(
             session: $this->session,
             agent: $this->agent,
-            app: $this->app,
-            company: $this->company,
+            app: $this->agent->app,
+            company: $this->agent->company,
             user: $this->user,
             userMessage: $this->message,
             assistantResponse: $response,
@@ -123,23 +135,32 @@ class ProcessAgentChatAction
         $handler = new $handlerClass();
 
         if ($handler instanceof KanvasLaravelAgent) {
-            // Pass the request-scoped app/company so tools get the correct tenant
-            // context even when the agent is global (companies_id = 0 / apps_id = 0).
             $handler->setConfiguration(
                 agent: $this->agent,
                 entity: $this->session?->entity(),
-                app: $this->app,
-                company: $this->company,
+                app: $this->agent->app,
+                company: $this->agent->company,
             );
 
             return new RunLaravelAgentChatAction(
                 agent: $this->agent,
                 session: $this->session,
                 message: $this->message,
-                app: $this->app,
-                company: $this->company,
+                app: $this->agent->app,
+                company: $this->agent->company,
                 user: $this->user,
                 handler: $handler,
+            )->execute();
+        }
+
+        if ($handler instanceof ADKAgent) {
+            return new RunADKChatAction(
+                agent: $this->agent,
+                session: $this->session,
+                message: $this->message,
+                user: $this->user,
+                sourceChannel: $this->sourceChannel,
+                sourceMessage: $this->sourceMessage,
             )->execute();
         }
 
@@ -148,10 +169,15 @@ class ProcessAgentChatAction
             entity: $this->session?->entity(),
             user: $this->user,
         );
-        $threadId = $this->session?->uuid ?? Str::uuid()->toString();
 
         if ($handler instanceof BaseKanvasAgent) {
-            $handler->setThreadId($threadId);
+            // userChat (sourceChannel === null): scope history to this thread.
+            // Channel agents: thread by entity — Lead+People IS the conversation,
+            // not the per-channel session. Cross-channel rollup is the design
+            // intent of SalesAssistKanvasMessageHistory.
+            if ($this->sourceChannel === null) {
+                $handler->setThreadId($this->session?->uuid ?? Str::uuid()->toString());
+            }
             $handler->setSession($this->session);
             $handler->setCurrentLead($this->currentLead);
         }
@@ -160,7 +186,7 @@ class ProcessAgentChatAction
             agent: $this->agent,
             session: $this->session,
             message: $this->message,
-            app: $this->app,
+            app: $this->agent->app,
             user: $this->user,
             handler: $handler,
             images: $this->images
@@ -174,8 +200,8 @@ class ProcessAgentChatAction
     ): void {
         new TrackAgentUsageAction(
             agent: $this->agent,
-            app: $this->app,
-            company: $this->company,
+            app: $this->agent->app,
+            company: $this->agent->company,
             message: $this->message,
             response: $response,
             durationMs: $durationMs,

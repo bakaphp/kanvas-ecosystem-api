@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Jobs;
 
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Actions\ProcessAgentChatAction;
+use Kanvas\Intelligence\Agents\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
@@ -37,12 +37,10 @@ class AgentReceiverJob extends ProcessWebhookJob
             ? (string) $payload[$messageField]
             : (string) json_encode($payload);
 
-        $response = new ProcessAgentChatAction(
+        $response = new AgentChatKernel(
             agent: $agent,
             session: null,
             message: $message,
-            app: $this->receiver->app,
-            company: $this->receiver->company,
             user: $this->receiver->user,
         )->execute();
 
