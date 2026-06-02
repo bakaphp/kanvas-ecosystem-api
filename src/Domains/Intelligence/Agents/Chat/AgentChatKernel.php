@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Chat;
 use Baka\Support\Str;
 use Baka\Traits\LimitsBroadcastPayload;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\TrackAgentUsageAction;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
@@ -38,10 +39,7 @@ class AgentChatKernel
 
     protected ?Message $persistedReply = null;
 
-    /**
-     * @param list<\Kanvas\Filesystem\Models\Filesystem> $attachments
-     *        Freshly uploaded Filesystem records to attach to the persisted user Message.
-     */
+    /** @param list<Filesystem> $attachments Freshly uploaded files to attach to the persisted user Message. */
     public function __construct(
         protected readonly Agent $agent,
         protected readonly ?Session $session,
@@ -78,7 +76,7 @@ class AgentChatKernel
         if ($this->persistConversation) {
             $this->persistConversationToSocial($response);
         }
-        
+
         $this->broadcastChatResponse($sessionId, $response);
 
         return $response;
