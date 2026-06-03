@@ -18,6 +18,7 @@ use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -237,7 +238,12 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                                 //     }
 
                                 $message = $engagement->message;
-                                $message->addFile($pdfReport, 'id-verification');
+                                if ($message instanceof Message) {
+                                    $message->addFile(
+                                        $pdfReport,
+                                        'id-verification'
+                                    );
+                                }
                             }
                         }
 
@@ -259,6 +265,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         'resultsFromIntellicheck' => $resultsFromIntellicheck,
                         'getDocsDriversLicense' => $getDocsDriversLicense ?? null,
                         'generatePdf' => $generatePdf,
+                        'engagement_id' => isset($engagement) ? $engagement->getId() : null,
                     ];
                 },
                 company: $company,
