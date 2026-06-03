@@ -7,6 +7,7 @@ namespace Tests\Intelligence\Agents;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
+use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentData;
 use Kanvas\Intelligence\Agents\Laravel\KanvasGenericLaravelAgent;
 use Kanvas\Intelligence\Agents\Laravel\SubAgents\DynamicSubAgent;
@@ -208,5 +209,91 @@ class DynamicSubAgentTest extends TestCase
 
         $this->assertCount(1, $tools);
         $this->assertInstanceOf(DynamicSubAgent::class, $tools[0]);
+    }
+
+    public function testUpdateAgentToSubAgentCreatesToolWhenNotExists(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $type = AgentType::factory()->withAppId($app->id)->create(['provider' => 'laravel']);
+
+        $agent = Agent::factory()
+            ->withAppId($app->id)
+            ->withCompanyId($company->id)
+            ->create([
+                'agent_type_id' => $type->id,
+                'is_sub_agent' => false,
+            ]);
+
+        $this->assertFalse(Tool::query()->where('agents_id', $agent->getId())->exists());
+
+        $dto = new AgentData(
+            app: $app,
+            company: $company,
+            user: $user,
+            agentType: $type,
+            name: $agent->name,
+            role: 'assistant',
+            is_active: true,
+            isSubAgent: true,
+            soul: 'You are a helpful sub-agent.',
+        );
+
+        $updated = new UpdateAgentAction($dto, $agent)->execute();
+
+        $this->assertTrue($updated->is_sub_agent);
+        $this->assertTrue(
+            Tool::query()->where('agents_id', $updated->getId())->exists(),
+            'Tool record must be created when agent is converted to sub-agent via update.'
+        );
+        $this->assertSame(
+            ToolTypeEnum::SUB_AGENT->value,
+            Tool::query()->where('agents_id', $updated->getId())->first()->tool_type
+        );
+    }
+
+    public function testUpdateSubAgentSyncsToolNameAndDescription(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $type = AgentType::factory()->withAppId($app->id)->create(['provider' => 'laravel']);
+
+        $dto = new AgentData(
+            app: $app,
+            company: $company,
+            user: $user,
+            agentType: $type,
+            name: 'Original Name',
+            role: 'assistant',
+            is_active: true,
+            isSubAgent: true,
+            soul: 'Original soul.',
+        );
+
+        $agent = new CreateAgentAction($dto)->execute();
+        $tool = Tool::query()->where('agents_id', $agent->getId())->first();
+        $this->assertSame('original-name', $tool->name);
+
+        $updateDto = new AgentData(
+            app: $app,
+            company: $company,
+            user: $user,
+            agentType: $type,
+            name: 'Updated Name',
+            role: 'assistant',
+            is_active: true,
+            isSubAgent: true,
+            soul: 'Updated soul.',
+        );
+
+        new UpdateAgentAction($updateDto, $agent)->execute();
+
+        $tool->refresh();
+        $this->assertSame('updated-name', $tool->name);
+        $this->assertSame('Updated soul.', $tool->description);
     }
 }

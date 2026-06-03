@@ -2188,16 +2188,16 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.442.0",
+            "version": "v0.443.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
-                "reference": "3afe7b5c9d1cebf2a5be018820ce62eeb906b81f"
+                "reference": "102aba0523d5105adaffdcac6c0c74a527f2bbfc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/3afe7b5c9d1cebf2a5be018820ce62eeb906b81f",
-                "reference": "3afe7b5c9d1cebf2a5be018820ce62eeb906b81f",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/102aba0523d5105adaffdcac6c0c74a527f2bbfc",
+                "reference": "102aba0523d5105adaffdcac6c0c74a527f2bbfc",
                 "shasum": ""
             },
             "require": {
@@ -2226,9 +2226,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.442.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.443.0"
             },
-            "time": "2026-05-25T01:34:24+00:00"
+            "time": "2026-05-29T01:56:23+00:00"
         },
         {
             "name": "google/auth",
@@ -2829,16 +2829,16 @@
         },
         {
             "name": "grpc/grpc",
-            "version": "1.80.0",
+            "version": "1.81.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/grpc/grpc-php.git",
-                "reference": "a0dc463d5d5064cdd7ff344f13f61d7e233f9b5a"
+                "reference": "47046d6b2a6cc7e68806a287d6a1fee57e0c40da"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/grpc/grpc-php/zipball/a0dc463d5d5064cdd7ff344f13f61d7e233f9b5a",
-                "reference": "a0dc463d5d5064cdd7ff344f13f61d7e233f9b5a",
+                "url": "https://api.github.com/repos/grpc/grpc-php/zipball/47046d6b2a6cc7e68806a287d6a1fee57e0c40da",
+                "reference": "47046d6b2a6cc7e68806a287d6a1fee57e0c40da",
                 "shasum": ""
             },
             "require": {
@@ -2867,9 +2867,9 @@
                 "rpc"
             ],
             "support": {
-                "source": "https://github.com/grpc/grpc-php/tree/v1.80.0"
+                "source": "https://github.com/grpc/grpc-php/tree/v1.81.0"
             },
-            "time": "2026-03-30T09:22:39+00:00"
+            "time": "2026-05-20T09:30:50+00:00"
         },
         {
             "name": "guzzlehttp/guzzle",
@@ -6239,12 +6239,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/SpartnerNL/Laravel-Excel.git",
-                "reference": "86cce13606e7cdf0f0b02007307c82d5c0b5fb3e"
+                "reference": "41d00212ac198d2bcda9c01ad73d5c897a1ea605"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/SpartnerNL/Laravel-Excel/zipball/86cce13606e7cdf0f0b02007307c82d5c0b5fb3e",
-                "reference": "86cce13606e7cdf0f0b02007307c82d5c0b5fb3e",
+                "url": "https://api.github.com/repos/SpartnerNL/Laravel-Excel/zipball/41d00212ac198d2bcda9c01ad73d5c897a1ea605",
+                "reference": "41d00212ac198d2bcda9c01ad73d5c897a1ea605",
                 "shasum": ""
             },
             "require": {
@@ -6322,7 +6322,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-05-24T11:02:38+00:00"
+            "time": "2026-05-31T16:55:45+00:00"
         },
         {
             "name": "maennchen/zipstream-php",
@@ -6591,16 +6591,16 @@
         },
         {
             "name": "mike-bronner/laravel-model-caching",
-            "version": "13.1.2",
+            "version": "13.1.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mike-bronner/laravel-model-caching.git",
-                "reference": "3e22fb6fdec1a3934e3e4e704d3f40edf4540bc5"
+                "reference": "f51b139b0be0fc0c7766252102cd4ae09774f980"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/3e22fb6fdec1a3934e3e4e704d3f40edf4540bc5",
-                "reference": "3e22fb6fdec1a3934e3e4e704d3f40edf4540bc5",
+                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/f51b139b0be0fc0c7766252102cd4ae09774f980",
+                "reference": "f51b139b0be0fc0c7766252102cd4ae09774f980",
                 "shasum": ""
             },
             "require": {
@@ -6663,9 +6663,9 @@
             "description": "Automatic caching for Eloquent models.",
             "support": {
                 "issues": "https://github.com/mike-bronner/laravel-model-caching/issues",
-                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.2"
+                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.3"
             },
-            "time": "2026-05-08T23:26:21+00:00"
+            "time": "2026-05-31T00:38:39+00:00"
         },
         {
             "name": "mikebronner/laravel-pivot-events",
@@ -11110,16 +11110,16 @@
         },
         {
             "name": "setasign/fpdf",
-            "version": "1.8.6",
+            "version": "1.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Setasign/FPDF.git",
-                "reference": "0838e0ee4925716fcbbc50ad9e1799b5edfae0a0"
+                "reference": "051b70e4c57dedc88df41b1eff1c62894e5f9ed0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Setasign/FPDF/zipball/0838e0ee4925716fcbbc50ad9e1799b5edfae0a0",
-                "reference": "0838e0ee4925716fcbbc50ad9e1799b5edfae0a0",
+                "url": "https://api.github.com/repos/Setasign/FPDF/zipball/051b70e4c57dedc88df41b1eff1c62894e5f9ed0",
+                "reference": "051b70e4c57dedc88df41b1eff1c62894e5f9ed0",
                 "shasum": ""
             },
             "require": {
@@ -11150,9 +11150,9 @@
                 "pdf"
             ],
             "support": {
-                "source": "https://github.com/Setasign/FPDF/tree/1.8.6"
+                "source": "https://github.com/Setasign/FPDF/tree/1.9.0"
             },
-            "time": "2023-06-26T14:44:25+00:00"
+            "time": "2026-05-31T14:25:29+00:00"
         },
         {
             "name": "setasign/fpdi",

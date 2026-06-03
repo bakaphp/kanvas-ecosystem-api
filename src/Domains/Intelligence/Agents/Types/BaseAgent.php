@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\ChatHistory\RedisAgentChatHistory;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\SystemPrompt;
 use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\ChatHistoryInterface;
@@ -42,12 +43,15 @@ class BaseAgent extends RAG
         Agent $agent,
         ?Model $entity = null,
         ?string $externalReferenceId = null,
+        ?Users $user = null,
     ): void {
         $this->agent = $agent;
         $this->entity = $entity;
         $this->app = $agent->app;
         $this->company = $agent->company;
         $this->externalReferenceId = $externalReferenceId;
+        // $user is accepted for signature parity with BaseKanvasAgent so polymorphic
+        // callers can pass it uniformly. Legacy handlers ignore it.
     }
 
     #[Override]

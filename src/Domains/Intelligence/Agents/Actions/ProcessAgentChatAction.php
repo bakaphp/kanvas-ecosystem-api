@@ -9,6 +9,7 @@ use Baka\Traits\LimitsBroadcastPayload;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunLaravelAgentChatAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunRuntimeChatAction;
@@ -43,6 +44,7 @@ class ProcessAgentChatAction
         protected readonly Users $user,
         protected readonly array $images = [],
         protected readonly array $attachments = [],
+        protected readonly ?Lead $currentLead = null,
     ) {
     }
 
@@ -90,6 +92,7 @@ class ProcessAgentChatAction
             assistantResponse: $response,
             images: array_values($this->images),
             attachments: $this->attachments,
+            currentLead: $this->currentLead,
         )->execute();
     }
 
@@ -140,11 +143,17 @@ class ProcessAgentChatAction
             )->execute();
         }
 
-        $handler->setConfiguration($this->agent, $this->session?->entity(), null, $this->user);
+        $handler->setConfiguration(
+            agent: $this->agent,
+            entity: $this->session?->entity(),
+            user: $this->user,
+        );
         $threadId = $this->session?->uuid ?? Str::uuid()->toString();
 
         if ($handler instanceof BaseKanvasAgent) {
             $handler->setThreadId($threadId);
+            $handler->setSession($this->session);
+            $handler->setCurrentLead($this->currentLead);
         }
 
         return new RunNeuronChatAction(

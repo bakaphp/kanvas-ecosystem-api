@@ -15,6 +15,7 @@ use Kanvas\Connectors\PasoRapido\Enums\ConfigurationEnum;
 use Kanvas\Connectors\PasoRapido\Enums\CustomFieldEnum;
 use Kanvas\Connectors\PasoRapido\Handlers\PasoRapidoHandler;
 use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -406,5 +407,35 @@ final class PasoRapidoOrderTest extends TestCase
         $this->assertInstanceOf(PaymentConfirmData::class, $capturedConfirmData);
         $this->assertFalse($capturedConfirmData->fiscalCredit);
         $this->assertSame($legacyDni, $capturedConfirmData->dni);
+    }
+
+    public function testCreatePasoRapidoOrderRejectsBulkRechargeOrders(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->create();
+
+        $order = Order::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->withPeopleId($people->getId())
+            ->create([
+                'metadata' => [
+                    'data' => ['is_bulk_recharge' => true],
+                ],
+            ]);
+
+        $result = new CreatePasoRapidoOrderAction($app, $order)->execute();
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('wallet', strtolower((string) $result['message']));
+        $this->assertSame('0', (string) $order->fresh()->get(EnumsCustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value));
     }
 }

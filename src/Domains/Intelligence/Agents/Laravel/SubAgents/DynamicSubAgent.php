@@ -8,12 +8,15 @@ use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\KanvasAgentAsTool;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentRecord;
+use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
+use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
-use Kanvas\NervousSystem\Capability\Services\CapabilityProvider;
 
 #[AgentTool(name: 'Dynamic Sub Agent')]
 class DynamicSubAgent extends KanvasAgentAsTool
 {
+    use MergesRegisteredTools;
+
     public function __construct(private readonly AgentRecord $agentRecord)
     {
     }
@@ -44,25 +47,25 @@ class DynamicSubAgent extends KanvasAgentAsTool
 
     public function agentTools(): iterable
     {
-        $tools = [];
+        return $this->resolveRegisteredTools(
+            $this->agentRecord,
+            CapabilityFrameworkEnum::LARAVEL
+        );
+    }
 
-        foreach (new CapabilityProvider()->getActiveTools($this->agentRecord) as $tool) {
-            /** @var Tool $tool */
-            if ($tool->agents_id !== null) {
-                $subRecord = AgentRecord::find($tool->agents_id);
-                if ($subRecord) {
-                    $tools[] = new self($subRecord);
-                }
-                continue;
-            }
+    /**
+     * Sub-agents can themselves point at further sub-agents — wrap recursively
+     * as another DynamicSubAgent so the chain works. Standard handlers fall
+     * through to the default resolver.
+     */
+    protected function resolveRegisteredTool(Tool $tool): ?object
+    {
+        if ($tool->agents_id !== null) {
+            $subRecord = AgentRecord::find($tool->agents_id);
 
-            if ($tool->handler === null || ! class_exists($tool->handler)) {
-                continue;
-            }
-
-            $tools[] = new $tool->handler();
+            return $subRecord !== null ? new self($subRecord) : null;
         }
 
-        return $tools;
+        return $this->defaultRegisteredToolResolver($tool);
     }
 }

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -15,6 +15,8 @@ use Override;
 #[AgentTool(name: 'Communication Channel')]
 class CommunicationChannelTool extends Tool
 {
+    use ResolvesLeadForTool;
+
     public function __construct(
     ) {
         parent::__construct(
@@ -38,7 +40,11 @@ class CommunicationChannelTool extends Tool
 
     public function __invoke(int $lead_id): array
     {
-        $lead = Lead::getById($lead_id);
+        $result = $this->resolveLeadOrError($lead_id);
+        if (is_array($result)) {
+            return $result;
+        }
+        $lead = $result;
 
         return [
             'selected_channel' => $lead->get(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value),

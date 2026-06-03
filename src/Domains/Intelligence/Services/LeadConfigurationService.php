@@ -95,4 +95,50 @@ class LeadConfigurationService
 
         return "{$prefix}_con_fu_active_default";
     }
+
+    public function getFollowUpActiveDefaultKey(Lead $lead): string
+    {
+        $prefix = $this->getTypePrefix($lead->type()->first());
+
+        return "{$prefix}_con_fu_active_default";
+    }
+
+    public function getFollowUpClosedNotSoldDefaultKey(Lead $lead): string
+    {
+        $prefix = $this->getTypePrefix($lead->type()->first());
+
+        return "{$prefix}_con_fu_cns_default";
+    }
+
+    public function getFollowUpClosedSoldDefaultKey(Lead $lead): string
+    {
+        $prefix = $this->getTypePrefix($lead->type()->first());
+
+        return "{$prefix}_con_fu_closed-sold_default";
+    }
+
+    public function getAllDefaultKeys(Lead $lead, bool $isOpen = true): array
+    {
+        $leadType = $lead->type()->first();
+        $leadTypeConfig = $leadType?->config ?? [];
+
+        $aiModeKey = $this->getAiModeDefaultKey($lead, $isOpen);
+        $followUpKey = $this->getFollowUpActiveDefaultKey($lead);
+        $firstMessageKey = $this->getFirstMessageDefaultKey($lead);
+
+        return [
+            'ai_mode' => [
+                'key' => $aiModeKey,
+                'value' => $leadTypeConfig[$aiModeKey] ?? null,
+            ],
+            'follow_up' => [
+                'key' => $followUpKey,
+                'value' => $leadTypeConfig[$followUpKey] ?? null,
+            ],
+            'first_message' => [
+                'key' => $firstMessageKey,
+                'value' => $leadTypeConfig[$firstMessageKey] ?? null,
+            ],
+        ];
+    }
 }

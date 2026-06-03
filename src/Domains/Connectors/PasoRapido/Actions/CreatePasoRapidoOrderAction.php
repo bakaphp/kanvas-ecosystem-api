@@ -25,11 +25,11 @@ class CreatePasoRapidoOrderAction
     public function execute(): array
     {
         if (($this->order->metadata['data']['is_bulk_recharge'] ?? false) === true) {
-            $this->order->set(EchoPayCustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value, 1);
+            $this->order->set(EchoPayCustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value, 0);
 
             return [
-                'status' => 'success',
-                'message' => 'Bulk recharge order — per-TAG processing deferred to BulkRechargeTagsActivity',
+                'status' => 'error',
+                'message' => 'Bulk recharge orders must be paid from wallet, not card.',
                 'data' => ['order' => $this->order->getId()],
             ];
         }

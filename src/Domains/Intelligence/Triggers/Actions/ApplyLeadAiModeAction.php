@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Triggers\Actions;
 
 use Exception;
+use InvalidArgumentException;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
@@ -82,7 +83,8 @@ class ApplyLeadAiModeAction
             TriggersEnum::MANUAL_FON->value => $this->applyManualFullOn(),
             TriggersEnum::FOLLOW_UP_ON->value => $this->setFollowUp(FollowUpValueEnum::ON()),
             TriggersEnum::FOLLOW_UP_OFF->value => $this->setFollowUp(FollowUpValueEnum::OFF()),
-
+            TriggersEnum::CLOSE_LEAD->value => $this->closeLead(),
+            TriggersEnum::SOLD_LEAD->value => $this->soldLead(),
             default => null,
         };
     }
@@ -93,6 +95,38 @@ class ApplyLeadAiModeAction
         $this->setMode($aiMode);
     }
 
+    public function closeLead(): void
+    {
+        $leadType = $this->lead->type()->first();
+        $configService = new LeadConfigurationService();
+        $aiFollowUpKey = $configService->getFollowUpModeKey($this->lead);
+
+        $leadTypeConfig = $leadType?->config ?? [];
+        $followUpDefaultKey = $configService->getFollowUpClosedNotSoldDefaultKey($this->lead);
+
+        $followUpRawValue = $leadTypeConfig[$followUpDefaultKey] ?? $this->lead->company->get($aiFollowUpKey);
+
+        if ($followUpRawValue !== null) {
+            $this->setFollowUp(FollowUpValueEnum::from($followUpRawValue));
+        }
+    }
+
+    public function soldLead(): void
+    {
+        $leadType = $this->lead->type()->first();
+        $configService = new LeadConfigurationService();
+        $aiFollowUpKey = $configService->getFollowUpModeKey($this->lead);
+
+        $leadTypeConfig = $leadType?->config ?? [];
+        $followUpDefaultKey = $configService->getFollowUpClosedSoldDefaultKey($this->lead);
+
+        $followUpRawValue = $leadTypeConfig[$followUpDefaultKey] ?? $this->lead->company->get($aiFollowUpKey);
+
+        if ($followUpRawValue !== null) {
+            $this->setFollowUp(FollowUpValueEnum::from($followUpRawValue));
+        }
+    }
+
     protected function applyNewLead(): void
     {
         $leadType = $this->lead->type()->first();
@@ -100,9 +134,11 @@ class ApplyLeadAiModeAction
         $aiModeKey = $configService->getAiModeKey($this->lead);
         $aiFollowUpKey = $configService->getFollowUpModeKey($this->lead);
 
+        $isOpen = $this->isCompanyWithinWorkingHours();
+
         $leadTypeConfig = $leadType?->config ?? [];
-        $aiModeDefaultKey = $configService->getAiModeDefaultKey($this->lead);
-        $followUpDefaultKey = $configService->getFollowUpDefaultKey($this->lead);
+        $aiModeDefaultKey = $configService->getAiModeDefaultKey($this->lead, $isOpen);
+        $followUpDefaultKey = $configService->getFollowUpActiveDefaultKey($this->lead);
 
         $aiModeValue = $leadTypeConfig[$aiModeDefaultKey] ?? $this->lead->company->get($aiModeKey);
         $followUpRawValue = $leadTypeConfig[$followUpDefaultKey] ?? $this->lead->company->get($aiFollowUpKey);
@@ -112,6 +148,17 @@ class ApplyLeadAiModeAction
         }
 
         $this->setMode($aiModeValue);
+
+        $this->lead->set('first_followup', $configService->getAllDefaultKeys($this->lead, $isOpen));
+    }
+
+    protected function isCompanyWithinWorkingHours(): bool
+    {
+        try {
+            return $this->lead->company->isWithinWorkingHours(now());
+        } catch (InvalidArgumentException $e) {
+            return false;
+        }
     }
 
     protected function applyManualFullOn(): void

@@ -13,6 +13,7 @@ use Kanvas\NervousSystem\Capability\DataTransferObject\Tool as ToolData;
 use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
 use Kanvas\NervousSystem\Capability\Models\AgentTool;
 use Kanvas\NervousSystem\Capability\Models\Tool;
+use Tests\Stubs\Intelligence\FakeInstructionsToolHandler;
 use Tests\TestCase;
 
 class SetAgentToolMutationTest extends TestCase
@@ -181,11 +182,228 @@ class SetAgentToolMutationTest extends TestCase
             ->assertSuccessful()
             ->assertJsonPath('data.setNervousSystemAgentTool.is_active', false)
             ->assertJsonPath('data.setNervousSystemAgentTool.is_deleted', true);
+    }
 
-        // No DB row created for a no-op revoke.
+    public function testEnabledTrueWritesToSelectedToolsPivot(): void
+    {
+        // `nervous_system_agent_selected_tools` is the runtime source of truth:
+        // CapabilityProvider::getActiveTools reads only from this pivot.
+        // setNervousSystemAgentTool MUST sync into it or the runtime can never
+        // pick up the tool, even though the AgentTool grant row exists.
+        $agent = $this->makeAgent();
+        $tool = $this->makeTool();
+
+        $this->graphQL('
+            mutation($agent_id: ID!, $tool_id: ID!) {
+                setNervousSystemAgentTool(agent_id: $agent_id, tool_id: $tool_id, enabled: true) {
+                    is_active
+                }
+            }
+        ', ['agent_id' => (string) $agent->getId(), 'tool_id' => (string) $tool->getId()])
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas(
+            'nervous_system_agent_selected_tools',
+            ['agent_id' => $agent->getId(), 'tool_id' => $tool->getId()],
+            'intelligence',
+        );
+    }
+
+    public function testRevokingRemovesToolHintFromInstructionsBlock(): void
+    {
+        $agent = $this->makeAgent();
+        $tool = $this->makeTool();
+        $tool->handler = FakeInstructionsToolHandler::class;
+        $tool->saveOrFail();
+        $vars = ['agent_id' => (string) $agent->getId(), 'tool_id' => (string) $tool->getId()];
+
+        $this->graphQL('
+            mutation($agent_id: ID!, $tool_id: ID!) {
+                setNervousSystemAgentTool(agent_id: $agent_id, tool_id: $tool_id, enabled: true) { is_active }
+            }
+        ', $vars)->assertSuccessful();
+
+        $this->assertStringContainsString(
+            FakeInstructionsToolHandler::HINT,
+            (string) $agent->fresh()->instructions,
+            'Grant must add the tool hint to the instructions block.',
+        );
+
+        $this->graphQL('
+            mutation($agent_id: ID!, $tool_id: ID!) {
+                setNervousSystemAgentTool(agent_id: $agent_id, tool_id: $tool_id, enabled: false) { is_active }
+            }
+        ', $vars)->assertSuccessful();
+
+        $this->assertStringNotContainsString(
+            FakeInstructionsToolHandler::HINT,
+            (string) $agent->fresh()->instructions,
+            'Revoke must remove the tool hint from the instructions block.',
+        );
+    }
+
+    public function testGrantToolWithSubAgentHandlerDoesNotCrash(): void
+    {
+        // DynamicSubAgent (the handler used for sub-agent tools created by
+        // CreateAgentAction::ensureSubAgentTool) requires an AgentRecord in
+        // its constructor. RebuildAgentToolInstructionsAction historically did
+        // `new $tool->handler()` and crashed with ArgumentCountError, which
+        // killed the whole setNervousSystemAgentTool mutation. This test
+        // pins the resilience — the mutation must succeed even when one of
+        // the agent's selected tools has a handler that can't be naively
+        // instantiated.
+        $agent = $this->makeAgent();
+        $tool = $this->makeTool();
+        $tool->handler = 'Kanvas\\Intelligence\\Agents\\Laravel\\SubAgents\\DynamicSubAgent';
+        $tool->saveOrFail();
+
+        $this->graphQL('
+            mutation($agent_id: ID!, $tool_id: ID!) {
+                setNervousSystemAgentTool(agent_id: $agent_id, tool_id: $tool_id, enabled: true) {
+                    is_active
+                }
+            }
+        ', ['agent_id' => (string) $agent->getId(), 'tool_id' => (string) $tool->getId()])
+            ->assertSuccessful()
+            ->assertJsonPath('data.setNervousSystemAgentTool.is_active', true);
+
+        $this->assertDatabaseHas(
+            'nervous_system_agent_selected_tools',
+            ['agent_id' => $agent->getId(), 'tool_id' => $tool->getId()],
+            'intelligence',
+        );
+    }
+
+    public function testToggleSurvivesLegacyDuplicateRows(): void
+    {
+        // Simulate the production data state seen in Sentry: a soft-deleted
+        // ghost row + an active row for the same (agent_id, tool_id) pair,
+        // both legal under the (agent_id, tool_id, is_deleted) unique key.
+        // Without sibling cleanup, revoking the active row collides with the
+        // ghost (1062 Duplicate entry on agent_tool_unique). The mutation
+        // must reconcile this on the fly.
+        $agent = $this->makeAgent();
+        $tool = $this->makeTool();
+
+        DB::connection('intelligence')->table('nervous_system_agent_tools')->insert([
+            [
+                'uuid' => (string) Str::uuid(),
+                'apps_id' => $agent->apps_id,
+                'companies_id' => $agent->companies_id,
+                'agent_id' => $agent->getId(),
+                'tool_id' => $tool->getId(),
+                'granted_by_users_id' => $agent->user_id,
+                'granted_at' => now()->subMinutes(10),
+                'is_active' => 0,
+                'is_deleted' => 1,
+                'created_at' => now()->subMinutes(10),
+                'updated_at' => now()->subMinutes(10),
+            ],
+            [
+                'uuid' => (string) Str::uuid(),
+                'apps_id' => $agent->apps_id,
+                'companies_id' => $agent->companies_id,
+                'agent_id' => $agent->getId(),
+                'tool_id' => $tool->getId(),
+                'granted_by_users_id' => $agent->user_id,
+                'granted_at' => now()->subMinutes(5),
+                'is_active' => 1,
+                'is_deleted' => 0,
+                'created_at' => now()->subMinutes(5),
+                'updated_at' => now()->subMinutes(5),
+            ],
+        ]);
+
         $this->assertSame(
-            0,
-            AgentTool::query()->where('agent_id', $agent->getId())->where('tool_id', $tool->getId())->count(),
+            2,
+            AgentTool::query()
+                ->withTrashed()
+                ->where('agent_id', $agent->getId())
+                ->where('tool_id', $tool->getId())
+                ->count(),
+            'Setup precondition: two legacy rows must exist before the mutation runs.',
+        );
+
+        $this->graphQL('
+            mutation($agent_id: ID!, $tool_id: ID!) {
+                setNervousSystemAgentTool(agent_id: $agent_id, tool_id: $tool_id, enabled: false) {
+                    id
+                    is_deleted
+                }
+            }
+        ', ['agent_id' => (string) $agent->getId(), 'tool_id' => (string) $tool->getId()])
+            ->assertSuccessful()
+            ->assertJsonPath('data.setNervousSystemAgentTool.is_deleted', true);
+
+        $this->assertSame(
+            1,
+            AgentTool::query()
+                ->withTrashed()
+                ->where('agent_id', $agent->getId())
+                ->where('tool_id', $tool->getId())
+                ->count(),
+            'After the revoke, only one row must remain — the ghost sibling is hard-deleted.',
+        );
+    }
+
+    public function testToggleOffThenOnReturnsAgentToOnState(): void
+    {
+        // Reproduces the production duplicate-row bug: without withTrashed on
+        // the existence lookup, toggling off then on creates a SECOND grant row
+        // instead of reactivating the first; the read query then sees both
+        // rows and array_diff drops the tool. The pivot also drifts.
+        $agent = $this->makeAgent();
+        $tool = $this->makeTool();
+        $vars = ['agent_id' => (string) $agent->getId(), 'tool_id' => (string) $tool->getId()];
+
+        foreach ([true, false, true] as $enabled) {
+            $this->graphQL('
+                mutation($agent_id: ID!, $tool_id: ID!, $enabled: Boolean!) {
+                    setNervousSystemAgentTool(agent_id: $agent_id, tool_id: $tool_id, enabled: $enabled) {
+                        is_active
+                    }
+                }
+            ', $vars + ['enabled' => $enabled])->assertSuccessful();
+        }
+
+        $this->assertSame(
+            1,
+            AgentTool::query()
+                ->withTrashed()
+                ->where('agent_id', $agent->getId())
+                ->where('tool_id', $tool->getId())
+                ->count(),
+            'Toggle cycles must reactivate the existing row, never produce duplicates.',
+        );
+
+        $finalRow = AgentTool::query()
+            ->withTrashed()
+            ->where('agent_id', $agent->getId())
+            ->where('tool_id', $tool->getId())
+            ->first();
+        $this->assertTrue($finalRow->is_active, 'After grant→revoke→grant the row must be active again.');
+        $this->assertFalse($finalRow->is_deleted, 'After grant→revoke→grant the row must not be soft-deleted.');
+
+        $this->assertDatabaseHas(
+            'nervous_system_agent_selected_tools',
+            ['agent_id' => $agent->getId(), 'tool_id' => $tool->getId()],
+            'intelligence',
+            'After re-grant the pivot must contain the tool — runtime reads from this table.',
+        );
+
+        // And the agentTools read query must include it — not get killed by a
+        // stale revoked row in array_diff.
+        $visible = $this->graphQL('
+            query($agent_id: ID!) {
+                nervousSystemAgentTools(agent_id: $agent_id) { id }
+            }
+        ', ['agent_id' => (string) $agent->getId()])
+            ->assertSuccessful()
+            ->json('data.nervousSystemAgentTools');
+        $this->assertContains(
+            (string) $tool->getId(),
+            array_column($visible, 'id'),
+            'After re-grant the tool must appear in nervousSystemAgentTools.',
         );
     }
 }

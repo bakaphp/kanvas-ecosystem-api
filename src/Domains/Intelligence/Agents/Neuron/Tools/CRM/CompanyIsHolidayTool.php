@@ -6,8 +6,8 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Carbon\Carbon;
 use Kanvas\Companies\Enums\ConfigurationEnum;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -17,6 +17,8 @@ use Yasumi\Yasumi;
 #[AgentTool(name: 'Company Is Holiday')]
 class CompanyIsHolidayTool extends Tool
 {
+    use ResolvesLeadForTool;
+
     public function __construct(
     ) {
         parent::__construct(
@@ -40,7 +42,11 @@ class CompanyIsHolidayTool extends Tool
 
     public function __invoke(int $lead_id): array
     {
-        $lead = Lead::getById($lead_id);
+        $result = $this->resolveLeadOrError($lead_id);
+        if (is_array($result)) {
+            return $result;
+        }
+        $lead = $result;
         $today = Carbon::today();
         $companyObservedHolidays = $lead->company->get(ConfigurationEnum::WORKING_HOLIDAY_DAYS->value) ?? [];
         // Example: ['Memorial Day', 'Independence Day', 'Labor Day', 'Thanksgiving', 'Christmas', 'New Year\'s Day']

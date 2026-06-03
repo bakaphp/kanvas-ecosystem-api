@@ -300,7 +300,7 @@ extend type Mutation @guardByAdmin {
         tool_id: ID!
         enabled: Boolean!
         config: Mixed
-    ): NervousSystemAgentTool!
+    ): NervousSystemAgentTool
         @field(
             resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@setAgentTool"
         )

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use Kanvas\Inventory\Variants\Models\Variants;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
@@ -16,6 +16,8 @@ use Override;
 #[AgentTool(name: 'Vehicle Interest')]
 class VehicleInterestTool extends Tool
 {
+    use ResolvesLeadForTool;
+
     public function __construct()
     {
         parent::__construct(
@@ -40,7 +42,11 @@ class VehicleInterestTool extends Tool
 
     public function __invoke(int $lead_id): array
     {
-        $lead = Lead::getById($lead_id);
+        $result = $this->resolveLeadOrError($lead_id);
+        if (is_array($result)) {
+            return $result;
+        }
+        $lead = $result;
 
         $vehicleInterest = $lead->get(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value);
         if (! $vehicleInterest) {

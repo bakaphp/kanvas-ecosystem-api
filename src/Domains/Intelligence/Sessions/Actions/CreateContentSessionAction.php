@@ -314,8 +314,12 @@ class CreateContentSessionAction
      * @todo we need to combine both link and status
      * @throws InvalidArgumentException
      */
-    protected function getCheckListStatus(Lead $lead): array
+    protected function getCheckListStatus(?Lead $lead): array
     {
+        if ($lead === null) {
+            return [];
+        }
+
         try {
             $checkList = $lead->get('check_list_status');
             $checkListId = $lead->company->get('default_checklist_id');

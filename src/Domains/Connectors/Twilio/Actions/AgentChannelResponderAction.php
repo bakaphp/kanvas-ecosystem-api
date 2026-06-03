@@ -47,8 +47,9 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
         //$currentAgent = $this->agent;
 
         $currentAgent->setConfiguration(
-            $this->agent,
-            $this->message->entity()->people
+            agent: $this->agent,
+            entity: $this->message->entity()->people,
+            user: $this->message->company->getAiAgentUserOrFail(),
         );
 
         $to = Str::toE164(Str::replace('twilio-', '', $this->channel->slug));
