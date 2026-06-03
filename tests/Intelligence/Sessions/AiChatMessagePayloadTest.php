@@ -137,4 +137,44 @@ class AiChatMessagePayloadTest extends TestCase
         $this->assertSame('subject line preview', $message['content']);
         $this->assertSame('email-jdoe-at-example-com', $message['chat_jid']);
     }
+
+    public function testNullContentIsAcceptedAndCoercedToEmptyStringInStoredJson(): void
+    {
+        $payload = new AiChatMessagePayload(
+            content: null,
+            from_me: false,
+            from_ia: false,
+        );
+
+        $array = $payload->toArray();
+
+        $this->assertArrayHasKey('content', $array, 'content key must always be present, even when null');
+        $this->assertSame('', $array['content'], 'null content is coerced to empty string so downstream readers stay safe');
+    }
+
+    public function testFromArrayAcceptsNullContentForMediaOnlyWebhooks(): void
+    {
+        // Sentry KANVAS-ECOSYSTEM-5QA — Twilio MMS image-only payload has Body=null.
+        $twilioMmsRequest = [
+            'Body' => null,
+            'From' => '+13177719667',
+            'To' => '+12192442176',
+            'NumMedia' => 1,
+            'MediaUrl0' => 'https://api.twilio.com/.../Media/ME7faf8667484d507d9c29153f4290fb6e',
+            'SmsMessageSid' => 'MMa1f3c622cb7b7004f9c93b9beb4aabea',
+        ];
+
+        $array = AiChatMessagePayload::from([
+            'content' => $twilioMmsRequest['Body'],
+            'from_me' => false,
+            'from_ia' => false,
+            'raw_data' => $twilioMmsRequest,
+            'message_id' => $twilioMmsRequest['SmsMessageSid'],
+            'chat_jid' => $twilioMmsRequest['From'],
+        ])->toArray();
+
+        $this->assertSame('', $array['content']);
+        $this->assertSame($twilioMmsRequest, $array['raw_data']);
+        $this->assertSame('MMa1f3c622cb7b7004f9c93b9beb4aabea', $array['message_id']);
+    }
 }
