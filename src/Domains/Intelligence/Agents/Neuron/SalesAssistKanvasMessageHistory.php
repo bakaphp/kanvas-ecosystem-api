@@ -45,7 +45,7 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
     private const string AGENT_VERB = 'agent';
     private const string USER_VERB = 'user';
 
-    // Verbos never expose to the lead
+    // Verbs never expose to the lead
     private const array INTERNAL_VERBS = ['notes', 'ai_assist', 'internal'];
 
     public function __construct(
@@ -64,6 +64,9 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
 
     private function load(): void
     {
+        /**
+         * @todo move this to channels
+         */
         $rawRows = AppModuleMessage::query()
             ->where('system_modules', get_class($this->entity))
             ->where('entity_id', $this->entity->getKey())

@@ -69,7 +69,7 @@ class BaseKanvasAgent extends NeuronAIAgent
     /**
      * Per-turn "which deal is the conversation about right now" — independent
      * of the session entity (People-keyed). Sourced from the request's lead_id
-     * by ProcessAgentChatAction every turn.
+     * by AgentChatKernel every turn.
      */
     public function setCurrentLead(?Lead $lead): void
     {
