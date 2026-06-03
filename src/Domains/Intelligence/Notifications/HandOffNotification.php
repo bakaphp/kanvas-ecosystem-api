@@ -18,7 +18,7 @@ class HandOffNotification extends Notification
         array $data
     ) {
         parent::__construct($lead, $data);
-        $this->setType(EnumsEmailTemplateEnum::BLANK->value);
+        $this->setType('handoff_notification');
         $this->setTemplateName($templateName);
         $this->setData($data);
         $this->setSubject('Lead Handoff Notification - ' . $lead->people->name);
