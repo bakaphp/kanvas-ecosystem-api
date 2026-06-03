@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Intelligence;
 
+use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Hermes\Jobs\DeployAgentIntegrationConfigJob;
 use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Tests\TestCase;
@@ -68,6 +70,50 @@ class AgentIntegrationConfigTest extends TestCase
 
         $this->assertSame($googleConfig, $rows['integration_google'] ?? null);
         $this->assertSame($jiraConfig, $rows['integration_jira'] ?? null);
+    }
+
+    public function testSetAgentIntegrationConfigDispatchesDeployJobWithChangedKeys(): void
+    {
+        Bus::fake([DeployAgentIntegrationConfigJob::class]);
+
+        $agent = $this->makeAgent();
+
+        $this->graphQL('
+            mutation($input: SetAgentIntegrationConfigInput!) {
+                setAgentIntegrationConfig(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => [
+                'agent_id' => (string) $agent->getId(),
+                'config' => [
+                    ['key' => 'GOOGLE', 'value' => [
+                        'client_id' => 'cid',
+                        'client_secret' => 'csecret',
+                        'refresh_token' => 'rtok',
+                    ]],
+                ],
+            ],
+        ])->assertSuccessful();
+
+        Bus::assertDispatched(
+            DeployAgentIntegrationConfigJob::class,
+            function (DeployAgentIntegrationConfigJob $job) use ($agent): bool {
+                $reflection = new \ReflectionClass($job);
+
+                $agentProp = $reflection->getProperty('agent');
+                $keysProp = $reflection->getProperty('changedKeys');
+
+                /** @var Agent $jobAgent */
+                $jobAgent = $agentProp->getValue($job);
+                /** @var array<int, string> $jobKeys */
+                $jobKeys = $keysProp->getValue($job);
+
+                return $jobAgent->getId() === $agent->getId()
+                    && $jobKeys === ['integration_google'];
+            }
+        );
     }
 
     public function testSetAgentIntegrationConfigRejectsUnknownKey(): void
