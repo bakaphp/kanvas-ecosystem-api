@@ -171,4 +171,65 @@ class HermesDockerComposeBuilderTelegramTest extends TestCase
         // slack tuning block is inert (no token => Slack never activates); telegram is absent.
         $this->assertArrayNotHasKey('telegram', $parsed['platforms']);
     }
+
+    public function testApprovalsModeDefaultsToOffForDockerIsolatedDeployment(): void
+    {
+        $app = app(Apps::class);
+        $agent = $this->makeAgent();
+        $app->del(ConfigurationEnum::APPROVALS_MODE->value);
+
+        $yaml = (new DockerComposeBuilderService())->buildRuntimeConfig(
+            $agent,
+            'gateway-token-abc',
+            $app,
+        );
+
+        $parsed = Yaml::parse($yaml);
+
+        // Must survive the PHP-dump → YAML → PHP-parse round-trip as the literal string "off",
+        // because upstream's tools/approval.py compares with `approval_mode == "off"`. Symfony
+        // auto-quotes YAML 1.1 boolean-alias tokens so PyYAML (used by Hermes) reads it back
+        // as a string rather than coercing to boolean false.
+        $this->assertSame('off', $parsed['approvals']['mode']);
+    }
+
+    public function testApprovalsModeAppOverrideTakesEffect(): void
+    {
+        $app = app(Apps::class);
+        $agent = $this->makeAgent();
+        $app->set(ConfigurationEnum::APPROVALS_MODE->value, 'smart');
+
+        try {
+            $yaml = (new DockerComposeBuilderService())->buildRuntimeConfig(
+                $agent,
+                'gateway-token-abc',
+                $app,
+            );
+
+            $this->assertSame('smart', Yaml::parse($yaml)['approvals']['mode']);
+        } finally {
+            $app->del(ConfigurationEnum::APPROVALS_MODE->value);
+        }
+    }
+
+    public function testApprovalsModeInvalidValueFallsBackToDefault(): void
+    {
+        $app = app(Apps::class);
+        $agent = $this->makeAgent();
+        $app->set(ConfigurationEnum::APPROVALS_MODE->value, 'yolo');
+
+        try {
+            $yaml = (new DockerComposeBuilderService())->buildRuntimeConfig(
+                $agent,
+                'gateway-token-abc',
+                $app,
+            );
+
+            // Garbage in must not silently become Hermes's `manual` (which reintroduces prompts
+            // in a headless container) — we fall back to our connector default.
+            $this->assertSame('off', Yaml::parse($yaml)['approvals']['mode']);
+        } finally {
+            $app->del(ConfigurationEnum::APPROVALS_MODE->value);
+        }
+    }
 }

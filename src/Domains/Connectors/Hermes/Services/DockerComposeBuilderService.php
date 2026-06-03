@@ -37,6 +37,20 @@ class DockerComposeBuilderService extends BaseDockerComposeBuilderService
         'reply_in_thread' => false,
     ];
 
+    /**
+     * Allowed values for `approvals.mode` per upstream `tools/approval.py` (`approval_mode == "off"`
+     * is a literal string comparison there, so PyYAML must read it as a string — Symfony's Yaml
+     * dumper auto-quotes these YAML 1.1 boolean-alias tokens, which keeps the round-trip safe).
+     */
+    private const array ALLOWED_APPROVALS_MODES = ['manual', 'smart', 'off'];
+
+    /**
+     * Default mode for our Docker-isolated deployment: skip the approval gate.
+     * See ConfigurationEnum::APPROVALS_MODE docblock for the rationale (containerized backend,
+     * upstream's own approval module already exempts host-damaging commands here).
+     */
+    private const string DEFAULT_APPROVALS_MODE = 'off';
+
     // Compile-time fallback pin — used when the app-level `hermes_base_image` config is unset.
     //
     // Intentionally tracks `:latest`. Upstream Hermes (nousresearch/hermes-agent) has been
@@ -184,6 +198,9 @@ class DockerComposeBuilderService extends BaseDockerComposeBuilderService
                 'base_url' => $baseUrl,
             ],
             'platforms' => $platforms,
+            'approvals' => [
+                'mode' => $this->resolveApprovalsMode($app),
+            ],
         ];
 
         // inline=4 keeps the top-three levels (root → model/platforms → platforms.slack → fields)
@@ -203,6 +220,22 @@ class DockerComposeBuilderService extends BaseDockerComposeBuilderService
      *
      * @return array<string, mixed>  shaped `{extra: {...fields}}` ready for emission under `platforms.slack:`
      */
+    /**
+     * Resolve the approval-gate mode from app config, falling back to our connector default.
+     * Invalid values are dropped (logged via the fall-through) rather than passed to Hermes,
+     * which would silently coerce to `manual` and reintroduce prompts in a headless container.
+     */
+    private function resolveApprovalsMode(AppInterface $app): string
+    {
+        $override = $app->get(ConfigurationEnum::APPROVALS_MODE->value);
+
+        if (is_string($override) && in_array($override, self::ALLOWED_APPROVALS_MODES, true)) {
+            return $override;
+        }
+
+        return self::DEFAULT_APPROVALS_MODE;
+    }
+
     private function resolveSlackConfig(AppInterface $app): array
     {
         $override = $app->get(ConfigurationEnum::SLACK_CONFIG->value);
