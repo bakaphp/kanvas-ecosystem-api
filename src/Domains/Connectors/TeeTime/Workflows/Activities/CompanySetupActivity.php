@@ -7,11 +7,13 @@ namespace Kanvas\Connectors\TeeTime\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class CompanySetupActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
@@ -30,7 +32,7 @@ class CompanySetupActivity extends KanvasActivity implements WorkflowActivityInt
                 ProductsTypes::firstOrCreate([
                     'apps_id' => $app->getId(),
                     'companies_id' => $company->getId(),
-                    'name' => 'golf course'
+                    'name' => 'golf course',
                 ], [
                     'users_id' => $company->users_id,
                     'description' => 'TeeTime Golf Course Product Type',

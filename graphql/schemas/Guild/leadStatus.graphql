@@ -10,9 +10,13 @@ input LeadStatusInput {
 }
 
 extend type Query @guard {
-    leadStatuses: [LeadStatus!]!
+    leadStatuses(
+        where: _ @whereConditions(columns: ["name", "is_default", "companies_id"])
+        orderBy: _ @orderBy(columns: ["id", "name", "is_default", "created_at"])
+    ): [LeadStatus!]!
         @paginate(
             model: "Kanvas\\Guild\\Leads\\Models\\LeadStatus"
+            scopes: ["fromPublicOrCurrentApp", "fromCompanyAndGlobal", "notDeleted"]
             defaultCount: 25
         )
 }

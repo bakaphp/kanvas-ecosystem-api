@@ -53,6 +53,27 @@ class TestCase extends BaseTestCase
         return new RegisterUsersAction($dto)->execute();
     }
 
+    /**
+     * Returns the Stripe test secret key from env, or marks the test skipped
+     * when no real key is available. Use in setUp() of any test that hits
+     * live Stripe — keeps the suite green in environments without secrets.
+     *
+     * Checks $_ENV / $_SERVER / getenv() in that order because Dotenv::createImmutable
+     * (used in this codebase's TestCase) populates $_ENV/$_SERVER but not getenv().
+     */
+    protected function requireStripeTestKey(): string
+    {
+        $key = $_ENV['TEST_STRIPE_SECRET_KEY']
+            ?? $_SERVER['TEST_STRIPE_SECRET_KEY']
+            ?? getenv('TEST_STRIPE_SECRET_KEY');
+
+        if (! is_string($key) || ! str_starts_with($key, 'sk_') || strlen($key) < 20) {
+            $this->markTestSkipped('TEST_STRIPE_SECRET_KEY env var not set; skipping live-Stripe test.');
+        }
+
+        return $key;
+    }
+
     protected function graphQLEndpointUrl(array $routeParams = []): string
     {
         $config = Container::getInstance()->make(ConfigRepository::class);

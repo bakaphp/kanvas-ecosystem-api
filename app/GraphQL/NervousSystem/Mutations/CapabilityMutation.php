@@ -7,6 +7,7 @@ namespace App\GraphQL\NervousSystem\Mutations;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Agents\Actions\RebuildAgentToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\NervousSystem\Capability\Actions\AttachToolToAgentTypeAction;
@@ -147,7 +148,7 @@ class CapabilityMutation
         /** @var Tool $tool */
         $tool = Tool::query()
             ->where('id', (int) $request['tool_id'])
-            ->fromApp($app)
+            ->fromAppOrGlobal($app)
             ->firstOrFail();
 
         /** @var AgentType $agentType */
@@ -163,7 +164,7 @@ class CapabilityMutation
         /** @var Tool $tool */
         $tool = Tool::query()
             ->where('id', (int) $request['tool_id'])
-            ->fromApp($app)
+            ->fromAppOrGlobal($app)
             ->firstOrFail();
 
         /** @var AgentType $agentType */
@@ -177,7 +178,7 @@ class CapabilityMutation
      * an existing grant); enabled=false revokes the existing grant if any.
      * No-op when called with the state the agent is already in.
      */
-    public function setAgentTool(mixed $rootValue, array $request): AgentTool
+    public function setAgentTool(mixed $rootValue, array $request): ?AgentTool
     {
         $app = app(Apps::class);
         /** @var Users $user */
@@ -189,12 +190,10 @@ class CapabilityMutation
         /** @var Agent $agent */
         $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
 
-        // Surface a client-safe message when the tool isn't accessible to this
-        // app — `firstOrFail` would throw Laravel's ModelNotFoundException which
-        // Lighthouse masks as a generic "Internal server error".
+        // ModelNotFoundException would surface as a generic "Internal server error" through Lighthouse.
         $tool = Tool::query()
             ->where('id', (int) $request['tool_id'])
-            ->fromApp($app)
+            ->fromAppOrGlobal($app)
             ->first();
         if ($tool === null) {
             throw new ValidationException(sprintf(
@@ -203,30 +202,46 @@ class CapabilityMutation
             ));
         }
 
+        // withTrashed so soft-deleted rows are visible: toggling off then on must reactivate the same row, not insert a duplicate.
         $existing = AgentTool::query()
+            ->withTrashed()
             ->where('agent_id', $agent->getId())
             ->where('tool_id', $tool->getId())
             ->first();
 
         if ($enabled) {
-            return new GrantToolToAgentAction(
+            $grant = new GrantToolToAgentAction(
                 agent: $agent,
                 tool: $tool,
                 grantedByUserId: $user->getId(),
                 config: $config,
             )->execute();
+
+            $agent->selectedTools()->syncWithoutDetaching([$tool->getId()]);
+            new RebuildAgentToolInstructionsAction($agent, $app)->execute();
+
+            return $grant;
         }
 
-        if ($existing === null || $existing->is_deleted) {
-            // Already revoked / never granted — return the (soft-deleted or
-            // synthesized) row so the resolver has something to return.
-            return $existing ?? new AgentTool([
+        $agent->selectedTools()->detach($tool->getId());
+        new RebuildAgentToolInstructionsAction($agent, $app)->execute();
+
+        if ($existing !== null && $existing->is_deleted) {
+            return $existing;
+        }
+
+        if ($existing === null) {
+            // Tool was only "selected" via the agent type's defaults — persist an explicit revocation so the read query subtracts it.
+            return AgentTool::create([
                 'apps_id' => $agent->apps_id,
                 'companies_id' => $agent->companies_id,
                 'agent_id' => $agent->getId(),
                 'tool_id' => $tool->getId(),
+                'granted_by_users_id' => $user->getId(),
+                'granted_at' => Carbon::now(),
                 'is_active' => false,
                 'is_deleted' => true,
+                'config' => $config,
             ]);
         }
 

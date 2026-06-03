@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\OpenClaw\Actions\SyncAgentWorkspaceAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -15,6 +16,7 @@ use Kanvas\Workflow\KanvasActivity;
  * Workflow activity that syncs an agent's workspace files to its running
  * deployment. Delegates to SyncAgentWorkspaceAction for the actual logic.
  */
+#[WorkflowAction]
 class SyncOpenClawWorkspaceActivity extends KanvasActivity
 {
     public $tries = 3;

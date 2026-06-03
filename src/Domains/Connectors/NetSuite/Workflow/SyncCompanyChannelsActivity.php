@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\NetSuite\Workflow;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetsuiteCustomerItemChannels;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class SyncCompanyChannelsActivity extends KanvasActivity
 {
     public function execute(Companies $buyerCompany, Apps $app, array $params): array

@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class PromptIAPOrderActivity extends KanvasActivity
 {
     public $tries = 2;

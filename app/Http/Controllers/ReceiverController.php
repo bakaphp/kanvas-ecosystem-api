@@ -11,8 +11,8 @@ use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\App;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
+use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
-use Sentry\Laravel\Facade as Sentry;
 
 class ReceiverController extends BaseController
 {
@@ -26,14 +26,6 @@ class ReceiverController extends BaseController
         $receiver = ReceiverWebhook::where('uuid', $uuid)->notDeleted()->first();
 
         if (! $receiver) {
-            /* Sentry::withScope(function ($scope) use ($uuid, $request) {
-                $scope->setContext('Request Data', [
-                    'uuid' => $uuid,
-                    'payload' => $request->all(),
-                ]);
-                Sentry::captureMessage("Receiver not found for UUID: {$uuid}");
-            }); */
-
             return response()->json(['message' => 'Receiver not found'], 404);
         }
 
@@ -43,8 +35,22 @@ class ReceiverController extends BaseController
             App::scoped(Apps::class, fn () => $receiver->app);
         }
 
-        $webhookRequest = (new ProcessWebhookAttemptAction($receiver, $request))->execute();
-        $jobClass = $receiver->action->model_name;
+        $jobClass = $receiver->action?->model_name;
+        if (! is_string($jobClass)) {
+            return response()->json(['message' => 'Receiver has no action configured'], 500);
+        }
+
+        if (is_a($jobClass, ProcessWebhookJob::class, true)
+            && ! $jobClass::authenticateRequest($request, $receiver)
+        ) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $webhookRequest = new ProcessWebhookAttemptAction(
+            $receiver,
+            $request
+        )->execute();
+
         $job = new $jobClass($webhookRequest);
 
         if ($receiver->runAsync()) {

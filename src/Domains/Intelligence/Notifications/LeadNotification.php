@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Notifications;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Notification;
 use Kanvas\Users\Models\Users;
+use Override;
 
 class LeadNotification extends Notification
 {
@@ -24,16 +25,19 @@ class LeadNotification extends Notification
         $this->channels = $enabledChannels;
     }
 
+    #[Override]
     public function getNotificationTitle(): string
     {
         return 'Reminder Notification - ' . $this->lead->people->name;
     }
 
+    #[Override]
     public function getEmailContent(): string
     {
         return $this->message;
     }
 
+    #[Override]
     protected function getSmsTemplate(): string
     {
         return $this->message;

@@ -9,6 +9,7 @@ use Kanvas\Connectors\RespondIO\BaseRespondIOAction;
 use Kanvas\Connectors\RespondIO\Enums\MessageTypeEnum;
 use Kanvas\Connectors\RespondIO\Traits\HasChannelProcessing;
 use Kanvas\Connectors\RespondIO\Traits\HasMessageProcessing;
+use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -66,11 +67,14 @@ class ProcessOutgoingMessageAction extends BaseRespondIOAction
                 user: $this->user,
                 type: $messageTypeModel,
                 message: [
-                    'content' => $text,
-                    'raw_data' => $this->payload,
-                    'message_id' => $messageId,
-                    'chat_jid' => $identifier,
-                    'from_me' => true,
+                    ...AiChatMessagePayload::from([
+                        'content' => $text,
+                        'from_me' => true,
+                        'from_ia' => false,
+                        'raw_data' => $this->payload,
+                        'message_id' => $messageId,
+                        'chat_jid' => $identifier,
+                    ])->toArray(),
                     'respondio_source' => $senderData['source'] ?? null,
                     'respondio_user_id' => $senderData['userId'] ?? null,
                 ],

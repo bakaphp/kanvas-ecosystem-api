@@ -10,6 +10,7 @@ use Kanvas\Connectors\DealerAppCenter\Services\CloudSyncResponseMerger;
 use Kanvas\Connectors\DealerAppCenter\Services\InventoryCsvParser;
 use Kanvas\Connectors\DealerAppCenter\Services\InventorySftpClient;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Throwable;
@@ -45,6 +46,7 @@ use Throwable;
  *     ]
  *   }
  */
+#[WorkflowAction]
 class ProcessDealerAppCenterCloudSyncWebhookJob extends ProcessWebhookJob
 {
     /**

@@ -26,9 +26,7 @@ final class CompanySubscriptionTest extends TestCase
         parent::setUp();
         $this->company = Companies::factory()->create();
         $this->appModel = app(Apps::class);
-        if (empty($this->appModel->get(ConfigurationEnum::STRIPE_SECRET_KEY->value))) {
-            $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
-        }
+        $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, $this->requireStripeTestKey());
         $this->paymentMethodId = $this->createPaymentMethod();
         $this->seedAppPlansPrices();
         $this->plan = Plan::where('apps_id', $this->appModel->getId())->firstOrFail();

@@ -7,6 +7,10 @@ namespace Kanvas\Intelligence\Agents\Neuron;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Services\PeopleChannelService;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
@@ -17,15 +21,31 @@ use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\ChatHistoryInterface;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\ToolCallMessage;
+use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Tools\ToolInterface;
 use Override;
 
+/**
+ * Loads chat history via entity-keyed AppModuleMessage lookup (polymorphic
+ * many-to-many) rather than reading from the channel pivot. Chosen so the
+ * agent's memory rolls up every comms channel for the same Lead/People —
+ * AI chat + Mailgun emails + Twilio SMS + WhatsApp etc. — into one timeline.
+ *
+ * TODO(revisit): with the People + Lead channels now populated and backfilled
+ * by Pe/LeadChannelService, this loader could switch to reading directly from
+ * the People channel pivot for a simpler single-source-of-truth model. Cost
+ * of switching: lose external-connector message rollup (anything attached
+ * via addEntity but never put in a channel). Worth a fresh look once the
+ * channel population is proven stable in prod.
+ */
 class SalesAssistKanvasMessageHistory extends AbstractChatHistory
 {
     private const string AGENT_VERB = 'agent';
     private const string USER_VERB = 'user';
 
-    // Verbos que nunca deben exponerse al lead
+    // Verbs never expose to the lead
     private const array INTERNAL_VERBS = ['notes', 'ai_assist', 'internal'];
 
     public function __construct(
@@ -35,6 +55,7 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
         private readonly Model $entity,
         private readonly ?string $threadId = null,
         private readonly bool $includeInternal = false,
+        private readonly ?Lead $currentLead = null,
         int $contextWindow = 50000,
     ) {
         parent::__construct($contextWindow);
@@ -43,15 +64,24 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
 
     private function load(): void
     {
-        $messages = AppModuleMessage::query()
+        /**
+         * @todo move this to channels
+         */
+        $rawRows = AppModuleMessage::query()
             ->where('system_modules', get_class($this->entity))
             ->where('entity_id', $this->entity->getKey())
             ->where('apps_id', $this->app->getId())
             ->whereHas('message', fn ($q) => $q->where('is_deleted', 0))
             ->with(['message.messageType'])
             ->orderBy('id', 'asc')
-            ->get()
-            ->map(function (AppModuleMessage $appModuleMessage): ?Message {
+            ->get();
+
+        $leadTitleByMessage = $this->buildLeadTitleByMessage(
+            $rawRows->pluck('message_id')->filter()->unique()->all(),
+        );
+
+        $messages = $rawRows
+            ->map(function (AppModuleMessage $appModuleMessage) use ($leadTitleByMessage): ?Message {
                 $socialMessage = $appModuleMessage->message;
 
                 if (! $socialMessage) {
@@ -60,7 +90,12 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
 
                 $stored = $socialMessage->getMessage();
 
-                if ($this->threadId !== null && ($stored['thread_id'] ?? null) !== $this->threadId) {
+                // PersistChatTurnToSocialAction writes the session UUID under
+                // `session_id`; onNewMessage writes it under `thread_id`. Both
+                // refer to the same value — accept either so promoted-session
+                // history loads the full pre-promote conversation.
+                $messageThreadId = $stored['thread_id'] ?? $stored['session_id'] ?? null;
+                if ($this->threadId !== null && $messageThreadId !== $this->threadId) {
                     return null;
                 }
 
@@ -82,10 +117,18 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
                 $channel = $socialMessage->channels()->first();
                 $isInternal = $channel?->isNoteChannel() || $channel?->isAiAssistChannel();
 
+                $leadPrefix = $this->buildLeadPrefix(
+                    $leadTitleByMessage[$socialMessage->getId()] ?? null,
+                );
+
+                if ($fromIa) {
+                    $clean = preg_replace('/^(\[Assistant\]\s*)+/', '', $text) ?? $text;
+
+                    return new AssistantMessage($leadPrefix . $clean);
+                }
+
                 if ($isInternal) {
                     $prefixed = "[INTERNAL - {$channel->name}] {$text}";
-                } elseif ($fromIa) {
-                    $prefixed = "[Assistant] {$text}";
                 } elseif ($fromHuman) {
                     $owner = $socialMessage->user?->displayname ?: 'Owner';
                     $prefixed = "[Owner - {$owner}] {$text}";
@@ -93,9 +136,7 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
                     $prefixed = '[' . $this->entityIdentityLabel() . "] {$text}";
                 }
 
-                return $fromIa
-                    ? new AssistantMessage($prefixed)
-                    : new UserMessage($prefixed);
+                return new UserMessage($leadPrefix . $prefixed);
             })
             ->filter()
             ->values()
@@ -146,7 +187,62 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
             }
         }
 
+        if ($this->entity instanceof People) {
+            $name = (string) $this->entity->getName();
+            if ($name !== '') {
+                return "Prospect - {$name}";
+            }
+        }
+
         return class_basename($this->entity) . ':' . $this->entity->getKey();
+    }
+
+    /**
+     * Bulk-fetch the Lead title for each message_id so a People-scoped history
+     * can prefix every turn with [Lead: <title>] — lets the LLM separate
+     * cross-deal threads. No-op on Lead-scoped sessions.
+     *
+     * @param list<int> $messageIds
+     * @return array<int, string> message_id => lead title
+     */
+    private function buildLeadTitleByMessage(array $messageIds): array
+    {
+        if ($messageIds === [] || ! ($this->entity instanceof People)) {
+            return [];
+        }
+
+        $messageToLeadId = AppModuleMessage::query()
+            ->whereIn('message_id', $messageIds)
+            ->where('system_modules', Lead::class)
+            ->pluck('entity_id', 'message_id')
+            ->all();
+
+        if ($messageToLeadId === []) {
+            return [];
+        }
+
+        $leadTitles = Lead::query()
+            ->whereIn('id', array_unique(array_values($messageToLeadId)))
+            ->pluck('title', 'id')
+            ->all();
+
+        $out = [];
+        foreach ($messageToLeadId as $messageId => $leadId) {
+            if (isset($leadTitles[$leadId])) {
+                $out[(int) $messageId] = (string) $leadTitles[$leadId];
+            }
+        }
+
+        return $out;
+    }
+
+    private function buildLeadPrefix(?string $leadTitle): string
+    {
+        if ($leadTitle === null || $leadTitle === '' || ! ($this->entity instanceof People)) {
+            return '';
+        }
+
+        return "[Lead: {$leadTitle}] ";
     }
 
     #[Override]
@@ -158,9 +254,11 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
             return;
         }
 
-        $content = (string) $message->getContent();
+        $content = (string) ($message->getContent() ?? '');
+        $isToolCall = $message instanceof ToolCallMessage;
+        $isToolResult = $message instanceof ToolResultMessage;
 
-        if ($content === '') {
+        if ($content === '' && ! $isToolCall && ! $isToolResult) {
             return;
         }
 
@@ -174,6 +272,24 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
             'from_ia' => $isAssistant,
             'from_human' => ! $isAssistant,
         ];
+
+        if ($isToolCall) {
+            $messageData['tool_calls'] = array_map(
+                fn (ToolInterface $tool): array => $tool->jsonSerialize(),
+                $message->getTools(),
+            );
+        }
+
+        if ($isToolResult) {
+            $messageData['tool_results'] = array_map(
+                fn (ToolInterface $tool): array => $tool->jsonSerialize(),
+                $message->getTools(),
+            );
+        }
+
+        if ($usage = $message->getUsage()) {
+            $messageData['usage'] = $usage->jsonSerialize();
+        }
 
         if ($this->threadId !== null) {
             $messageData['thread_id'] = $this->threadId;
@@ -192,5 +308,49 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
         $createMessageAction->runWorkflow = false;
         $socialMessage = $createMessageAction->execute();
         $socialMessage->addEntity($this->entity);
+
+        $people = $this->resolvePeopleForDualWrite();
+        if ($people !== null) {
+            new PeopleChannelService()->attachMessageToPeopleChannel(
+                $socialMessage,
+                $people,
+                $this->app,
+                $this->company,
+                $this->user,
+            );
+        }
+
+        $lead = $this->resolveLeadForDualWrite();
+        if ($lead !== null) {
+            new LeadChannelService()->attachMessageToLeadChannel(
+                $socialMessage,
+                $lead,
+                $this->app,
+                $this->company,
+                $this->user,
+            );
+        }
+    }
+
+    private function resolveLeadForDualWrite(): ?Lead
+    {
+        if ($this->entity instanceof Lead) {
+            return $this->entity;
+        }
+
+        return $this->currentLead;
+    }
+
+    private function resolvePeopleForDualWrite(): ?People
+    {
+        if ($this->entity instanceof People) {
+            return $this->entity;
+        }
+
+        if ($this->entity instanceof Lead) {
+            return $this->entity->people;
+        }
+
+        return null;
     }
 }

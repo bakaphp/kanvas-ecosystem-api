@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Sessions\Models;
 
 use Baka\Casts\Json;
-use Exception ;
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\Social\Channels\Models\Channel;
@@ -61,6 +62,13 @@ class Session extends BaseModel
         $legacyClassMap = SystemModules::convertLegacySystemModules($this->entity_namespace);
 
         return $legacyClassMap::getById($this->entity_id);
+    }
+
+    public function people(): ?People
+    {
+        return $this->entity_namespace === People::class
+            ? $this->entity()
+            : null;
     }
 
     public function getChannel(): string

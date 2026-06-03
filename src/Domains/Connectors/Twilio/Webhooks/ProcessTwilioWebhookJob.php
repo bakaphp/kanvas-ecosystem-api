@@ -31,17 +31,20 @@ use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
+#[WorkflowAction]
 class ProcessTwilioWebhookJob extends ProcessWebhookJob
 {
     protected bool $hijackSession = false;
@@ -105,19 +108,19 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 )
             )->execute();
 
-            // Create the message using the action
             $messageInput = new MessageInput(
                 app: $this->receiver->app,
                 company: $this->receiver->company,
                 user: $this->receiver->user,
                 type: $messageTypeModel,
-                message: [
-                    'content' => $request['Body'],
+                message: AiChatMessagePayload::from([
+                    'content' => $request['Body'] ?? null,
+                    'from_me' => $request['From'] === $request['To'],
+                    'from_ia' => false,
                     'raw_data' => $request,
                     'message_id' => $request['SmsMessageSid'],
                     'chat_jid' => $request['From'],
-                    'from_me' => $request['From'] === $request['To'],
-                ],
+                ])->toArray(),
                 is_public: 1,
                 slug: $messageSlug,
                 tags: [$request['From']]
@@ -130,7 +133,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 $this->cancelPendingWorkflow($batchKey);
                 // Add current message to batch
                 $batch['messages'][] = [
-                    'body' => $request['Body'],
+                    'body' => $request['Body'] ?? '', //photos or media may not have body
                     'message_sid' => $request['SmsMessageSid'],
                     'timestamp' => now(),
                     'raw_data' => $request,
@@ -146,6 +149,11 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         if (isset($lead) && $lead instanceof Lead) {
             $message->addEntity($lead);
+            // Polymorphic People attach so People-keyed history loaders (Neuron's
+            // SalesAssistKanvasMessageHistory) find this turn. Harmless for ADK.
+            if ($lead->people !== null) {
+                $message->addEntity($lead->people);
+            }
             $message->addTag('engagement');
         }
 

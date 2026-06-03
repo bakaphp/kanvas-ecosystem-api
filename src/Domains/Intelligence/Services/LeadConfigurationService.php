@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Services;
 
-use Kanvas\Apps\Models\Apps;
+use Baka\Contracts\CompanyInterface;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
@@ -16,9 +16,9 @@ class LeadConfigurationService
     ) {
     }
 
-    public function isV2Enabled(Apps $app): bool
+    public function isV2Enabled(CompanyInterface $company): bool
     {
-        if ((bool) $app->get('intelligence_lead_type_mode_v2')) {
+        if ((bool) $company->get('intelligence_lead_type_mode_v2')) {
             return true;
         }
 
@@ -57,37 +57,12 @@ class LeadConfigurationService
 
     public function getAiModeKey(Lead $lead): string
     {
-        if (! $this->isV2Enabled($lead->app)) {
-            return 'ai_mode';
-        }
-
-        $prefix = $this->getTypePrefix($lead->type()->first());
-
-        return match ($prefix) {
-            'showroom' => 'showroom_ai_mode',
-            'phone' => 'phone_ai_mode',
-            default => 'ai_mode',
-        };
+        return 'ai_mode';
     }
 
     public function getFollowUpModeKey(Lead $lead): string
     {
-        if (! $this->isV2Enabled($lead->app)) {
-            return IntelligenceModeEnum::AI_FOLLOW_UP->value;
-        }
-
-        $prefix = $this->getTypePrefix($lead->type()->first());
-        $statusSuffix = $this->getStatusSuffix($lead);
-
-        if ($statusSuffix !== '') {
-            return "{$prefix}_followup_{$statusSuffix}";
-        }
-
-        return match ($prefix) {
-            'showroom' => 'showroom_follow_up_mode',
-            'phone' => 'phone_follow_up_mode',
-            default => 'internet_follow_up_mode',
-        };
+        return IntelligenceModeEnum::AI_FOLLOW_UP->value;
     }
 
     public function getFirstMessageDefaultKey(Lead $lead): string
@@ -119,5 +94,51 @@ class LeadConfigurationService
         }
 
         return "{$prefix}_con_fu_active_default";
+    }
+
+    public function getFollowUpActiveDefaultKey(Lead $lead): string
+    {
+        $prefix = $this->getTypePrefix($lead->type()->first());
+
+        return "{$prefix}_con_fu_active_default";
+    }
+
+    public function getFollowUpClosedNotSoldDefaultKey(Lead $lead): string
+    {
+        $prefix = $this->getTypePrefix($lead->type()->first());
+
+        return "{$prefix}_con_fu_cns_default";
+    }
+
+    public function getFollowUpClosedSoldDefaultKey(Lead $lead): string
+    {
+        $prefix = $this->getTypePrefix($lead->type()->first());
+
+        return "{$prefix}_con_fu_closed-sold_default";
+    }
+
+    public function getAllDefaultKeys(Lead $lead, bool $isOpen = true): array
+    {
+        $leadType = $lead->type()->first();
+        $leadTypeConfig = $leadType?->config ?? [];
+
+        $aiModeKey = $this->getAiModeDefaultKey($lead, $isOpen);
+        $followUpKey = $this->getFollowUpActiveDefaultKey($lead);
+        $firstMessageKey = $this->getFirstMessageDefaultKey($lead);
+
+        return [
+            'ai_mode' => [
+                'key' => $aiModeKey,
+                'value' => $leadTypeConfig[$aiModeKey] ?? null,
+            ],
+            'follow_up' => [
+                'key' => $followUpKey,
+                'value' => $leadTypeConfig[$followUpKey] ?? null,
+            ],
+            'first_message' => [
+                'key' => $firstMessageKey,
+                'value' => $leadTypeConfig[$firstMessageKey] ?? null,
+            ],
+        ];
     }
 }

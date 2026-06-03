@@ -60,10 +60,6 @@ class ChatWithAgentImageTest extends TestCase
     }
 }
 
-/**
- * Supplies canned image bytes so the data-URI conversion is exercised without network, and
- * exposes the otherwise-protected payload builder.
- */
 class InlineImageChatWithAgentActionStub extends ChatWithAgentAction
 {
     /**

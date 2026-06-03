@@ -7,6 +7,7 @@ namespace App\GraphQL\Intelligence\Builders\NervousSystem;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -21,13 +22,29 @@ class ToolsBuilder
         $app = app(Apps::class);
 
         $query = Tool::query()
-            ->fromApp($app)
+            ->fromAppOrGlobal($app)
             ->active();
 
-        if (isset($args['framework']) && $args['framework'] !== '') {
-            $query->forFramework((string) $args['framework']);
+        $framework = $this->resolveFramework($args, $app);
+        if ($framework !== null && $framework !== '') {
+            $query->forFramework($framework);
         }
 
         return $query;
+    }
+
+    private function resolveFramework(array $args, Apps $app): ?string
+    {
+        if (isset($args['framework']) && $args['framework'] !== '') {
+            return (string) $args['framework'];
+        }
+
+        if (! isset($args['agent_type_id'])) {
+            return null;
+        }
+
+        $type = AgentType::getById((int) $args['agent_type_id'], app: $app);
+
+        return $type->provider;
     }
 }

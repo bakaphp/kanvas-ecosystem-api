@@ -14,15 +14,17 @@ use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
 use Kanvas\Inventory\Attributes\Actions\CreateAttributeType;
 use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributeDto;
 use Kanvas\Inventory\Attributes\DataTransferObject\AttributesType;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class CovertMapsCoordinatesToImageActivity extends KanvasActivity
 {
     public function execute(Model $entity, AppInterface $app, array $params = []): array
     {
         $this->overwriteAppService($app);
 
-        $mapCoordinates = json_decode($entity->getAttributeBySlug("coordinates")->attribute->value, true);
+        $mapCoordinates = json_decode($entity->getAttributeBySlug('coordinates')->attribute->value, true);
 
         if (empty($mapCoordinates)) {
             return [

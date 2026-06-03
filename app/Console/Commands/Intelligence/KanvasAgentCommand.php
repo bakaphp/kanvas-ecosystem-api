@@ -77,7 +77,11 @@ class KanvasAgentCommand extends Command
         $entity = $this->argument('entity_id');
         $namespace = $this->argument('namespace');
         $entity = $namespace::getById($entity);
-        $crm->setConfiguration($agent, $entity);
+        $crm->setConfiguration(
+            agent: $agent,
+            entity: $entity,
+            user: $entity->company->getAiAgentUserOrFail(),
+        );
 
         if ($this->option('interactive')) {
             $this->startInteractiveChat($crm, $entity);

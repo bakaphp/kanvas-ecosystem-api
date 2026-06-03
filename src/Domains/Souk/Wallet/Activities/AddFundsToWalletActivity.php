@@ -9,9 +9,11 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Actions\AddFundsToCompanyWalletAction;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Souk\Wallet\Enums\TransactionSourceEnum;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class AddFundsToWalletActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -61,7 +63,9 @@ class AddFundsToWalletActivity extends KanvasActivity
 
                 $transaction = new AddFundsToCompanyWalletAction(
                     order: $order,
+                    useOrderTotal: (bool) $app->get(ConfigurationEnum::WALLET_USE_ORDER_TOTAL->value),
                     source: TransactionSourceEnum::RECHARGE_MANUAL,
+                    resolveCompanyFromMetadata: (bool) $app->get(ConfigurationEnum::WALLET_RESOLVE_COMPANY_FROM_METADATA->value),
                 )->execute();
 
                 return [
@@ -70,6 +74,7 @@ class AddFundsToWalletActivity extends KanvasActivity
                     'order_id' => $order->getId(),
                     'transaction_id' => $transaction->getKey(),
                     'amount' => $transaction->amountFloat ?? 0,
+                    'company_id' => $transaction->wallet?->holder_id,
                 ];
             },
             company: $order->company,

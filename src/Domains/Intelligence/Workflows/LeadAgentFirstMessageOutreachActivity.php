@@ -38,10 +38,25 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use RuntimeException;
 
+/**
+ * @deprecated Pre-kernel outbound-first orchestrator. Generates first-touch messages
+ *   via template + CreateLeadFirstEngagementMessageAction — bypasses AgentChatKernel,
+ *   so new backends added to the kernel don't automatically work here, no cross-channel
+ *   memory rollup, dealer-specific code (Elead / VinSolution / hardcoded "Sally Takes Over")
+ *   is baked in.
+ *
+ *   Stays running in prod (SalesAssist tenants depend on it). Do NOT modify behavior here.
+ *   New outbound-first work belongs in the kernel-backed AgentReachOut* family — see
+ *   src/Domains/Intelligence/Agents/CLAUDE.md for the canonical chat flow.
+ *
+ *   Remove this class once all tenants have been migrated to the new flow.
+ */
+#[WorkflowAction]
 class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 {
     public $tries = 3;

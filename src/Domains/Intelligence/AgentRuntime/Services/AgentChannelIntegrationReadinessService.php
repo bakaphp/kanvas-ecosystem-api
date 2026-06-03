@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Services;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\AgentRuntime\Notifications\AgentDeploymentMissingChannelIntegrationNotification;
+use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Users\Models\Users;
 
@@ -14,7 +15,7 @@ class AgentChannelIntegrationReadinessService
 {
     public function assertReadyForDeployment(Agent $agent, string $provider): void
     {
-        if ($this->isReady($agent)) {
+        if ($this->isReady($agent, $provider)) {
             return;
         }
 
@@ -25,9 +26,23 @@ class AgentChannelIntegrationReadinessService
         );
     }
 
-    public function isReady(Agent $agent): bool
+    public function isReady(Agent $agent, ?string $provider = null): bool
     {
+        if ($provider !== null && $this->supportsChannelLessDeployment($provider)) {
+            return true;
+        }
+
         return $this->hasSlackIntegration($agent) || $this->hasTelegramIntegration($agent);
+    }
+
+    /**
+     * Hermes always boots its loopback HTTP API server (API_SERVER_ENABLED), so a deployed
+     * Hermes agent is reachable via ChatWithAgentAction with no Slack/Telegram channel. Other
+     * runtimes still require a messaging channel to be considered launch-ready.
+     */
+    private function supportsChannelLessDeployment(string $provider): bool
+    {
+        return strtolower($provider) === AgentProviderEnum::HERMES->value;
     }
 
     public function hasSlackIntegration(Agent $agent): bool

@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\UniversalAssistance\Webhooks;
 use Exception;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
@@ -16,6 +17,7 @@ use Override;
  * Receives and processes insurance data from external webhook for any insurance product.
  * Supports multiple eSIMs per order, each with its own titular and dependents.
  */
+#[WorkflowAction]
 class ProcessUniversalAssistanceOrderWebhookJob extends ProcessWebhookJob
 {
     #[Override]

@@ -12,10 +12,12 @@ use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerItemsListAction;
 use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerWithCompanyAction;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use SoapFault;
 
+#[WorkflowAction]
 class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
 {
     #[Override]

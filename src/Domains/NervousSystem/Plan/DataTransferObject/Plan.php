@@ -43,10 +43,6 @@ class Plan extends Data
     ) {
     }
 
-    /**
-     * Defaults `user` to the requesting user when no `users_id` is in the
-     * input — matches "plan owned by whoever created it" semantics.
-     */
     public static function fromMultiple(
         AppInterface $app,
         Users $requestingUser,
@@ -96,11 +92,6 @@ class Plan extends Data
         );
     }
 
-    /**
-     * Identity columns (`plan_type`, `agent`, `user`, `parent_plan`,
-     * `entity_*`) are intentionally preserved from the existing plan and
-     * not editable through update.
-     */
     public static function forUpdate(
         PlanModel $plan,
         AppInterface $app,

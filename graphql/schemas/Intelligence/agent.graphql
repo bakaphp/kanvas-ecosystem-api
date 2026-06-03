@@ -26,6 +26,7 @@ type AgentAi {
     agent_model_id: ID
     parent_id: ID
     is_active: Boolean!
+    is_sub_agent: Boolean!
     selectedTools: [NervousSystemTool!]!
         @belongsToMany(relation: "selectedTools")
     kanvasModules: [AgentKanvasModule!]! @hasMany(relation: "kanvasModules")
@@ -120,12 +121,28 @@ input AgentAiInput {
     communication_channels: [CommunicationChannelPivot!]
     swarm_ids: [ID!]
     tool_ids: [ID!]
+    is_sub_agent: Boolean
 }
 
 input CommunicationChannelPivot {
     communication_channel_id: Int!
     entry_point: String
     config: String
+}
+
+enum AgentIntegrationConfigKey {
+    GOOGLE
+    JIRA
+}
+
+input AgentIntegrationConfigEntryInput {
+    key: AgentIntegrationConfigKey!
+    value: Mixed
+}
+
+input SetAgentIntegrationConfigInput {
+    agent_id: ID!
+    config: [AgentIntegrationConfigEntryInput!]!
 }
 
 input ChatSimpleInput {
@@ -164,6 +181,8 @@ input NeuronChatInput {
 type UserChatResponse {
     response: Mixed!
     session_id: String!
+    message: Message!
+    channel: SocialChannel!
 }
 
 extend type Mutation @guard {
@@ -194,6 +213,10 @@ extend type Mutation @guard {
     aiAgentNeuronChat(input: NeuronChatInput!): String!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@neuronChat"
+        )
+    setAgentIntegrationConfig(input: SetAgentIntegrationConfigInput!): AgentAi!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentIntegrationConfigMutation@set"
         )
 }
 

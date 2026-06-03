@@ -7,9 +7,11 @@ namespace Kanvas\Social\Follows\Workflows;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Social\Messages\Jobs\SendMessageNotificationsToAllFollowersJob;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class SendMessageNotificationToFollowersActivity extends KanvasActivity
 {
     /**

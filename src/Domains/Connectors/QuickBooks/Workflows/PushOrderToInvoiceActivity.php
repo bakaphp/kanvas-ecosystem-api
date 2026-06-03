@@ -9,9 +9,11 @@ use Kanvas\Connectors\QuickBooks\Services\QuickBooksDepositService;
 use Kanvas\Connectors\QuickBooks\Services\QuickBooksInvoiceService;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Services\B2BConfigurationService;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class PushOrderToInvoiceActivity extends KanvasActivity
 {
     public function execute(Order $order, AppInterface $app, array $params): array

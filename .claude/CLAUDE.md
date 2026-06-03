@@ -22,7 +22,25 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
       'photo'
   );
   ```
-- **PHP-CS-Fixer enforced** — config lives at `.php-cs-fixer.php`. A `PostToolUse` hook runs the fixer on every edited `.php` file automatically (see `.claude/settings.json`). If the binary isn't installed in the current environment, match the rules by hand:
+- **Use PHP 8+ named arguments to skip optional positional `null`s.** When you would otherwise pass `null` for an optional middle parameter just to reach a later one, switch to named arguments instead. The positional `null` is a readability and refactor-safety footgun (rename a parameter or add a new optional in between, every caller silently breaks).
+  ```php
+  // WRONG — null in the middle just to reach $user
+  $handler->setConfiguration(
+      $this->agent,
+      $this->message->entity()->people,
+      null,
+      $this->message->company->getAiAgentUserOrFail(),
+  );
+
+  // CORRECT — named args, skip the optional you don't need
+  $handler->setConfiguration(
+      agent: $this->agent,
+      entity: $this->message->entity()->people,
+      user: $this->message->company->getAiAgentUserOrFail(),
+  );
+  ```
+  Apply the same rule to LLM-tool param defaults: prefer `?type $param = null` over `type $param = 'default'` so the LLM can pass explicit `null` without a TypeError (see [no-non-nullable-defaults rule](#)). Normalize the default inside the body: `$param ?? 'default'`.
+- **PHP-CS-Fixer enforced** — config lives at `.php-cs-fixer.php`. A `PostToolUse` hook runs the fixer on every edited `.php` file automatically (see `.claude/settings.json`). **The hook only fires on Edit/Write tool calls.** If you batch-edit via `sed`/`perl -i`/`awk`/any shell script, the hook does NOT run and StyleCI will fail the PR for import ordering, brace placement, etc. After any bash batch edit of `.php` files: run `php-cs-fixer fix <files>` (binary at `/Users/kaioken/Tools/php-cs-fixer/vendor/bin/php-cs-fixer` on host) on every touched file BEFORE finishing the task. Prefer Edit/Write tool calls over batch shell edits when possible. If the binary isn't installed in the current environment, match the rules by hand:
   - Anonymous classes: `new class () extends Foo {` (parentheses + space before brace, brace on same line)
   - Multi-line closures passed as method arguments: place the closure on a new line, e.g. `->whereHas('rel', fn ($q) => ...)` becomes `->whereHas(\n    'rel',\n    fn ($q) => ...\n)`
   - `use` imports: alphabetical order **across the entire use block** (not just within each namespace group) — e.g. `Connectors\Zoho\...` must come after `Connectors\WooCommerce\...`
@@ -254,6 +272,16 @@ class Plan extends Data
 }
 ```
 
+**Call via Spatie's `::from()` magic, NOT `::fromMultiple()` directly.**
+
+Spatie Data's `BaseData::from(mixed ...$payloads)` is the public factory. When you call `Plan::from($app, $user, $company, $request['input'])`, Spatie's creation pipeline inspects the runtime types of the args and routes to whichever `from*` magic method on the class has a matching signature. Our `fromMultiple` method is one of those magic methods — naming it `fromMultiple` makes it the canonical entry for the "multiple typed-objects + data array" shape.
+
+**Do NOT try to rename `fromMultiple` to `from`.** PHP will fatal at class load because Spatie's parent signature `from(mixed ...$payloads): static` cannot be narrowed to a fixed typed signature (LSP violation: child can't have more required params than parent, and can't narrow variadic mixed to specific types).
+
+**Do NOT call `Plan::fromMultiple(...)` directly from outside the class** — use `Plan::from(...)`. Spatie's pipeline handles the routing. Direct calls work but bypass any Spatie-side normalization/casting and are non-idiomatic.
+
+`forUpdate` is NOT a Spatie magic method (magic methods are `from*` prefixed, not `for*`). Call it directly: `Plan::forUpdate($existing, $app, $user, $data)`.
+
 **Mutation resolver becomes a 3-liner:**
 
 ```php
@@ -264,7 +292,7 @@ public function create(mixed $rootValue, array $request): Plan
     $company = $user->getCurrentCompany();
 
     return new CreatePlanAction(
-        PlanData::fromMultiple($app, $user, $company, $request['input']),
+        PlanData::from($app, $user, $company, $request['input']),
     )->execute();
 }
 

@@ -124,13 +124,14 @@ class AddOutBoundPhoneCallActivityToLeadAction
                 'title' => 'Sally Stopped the Clock',
                 'message' => $this->message,
             ],
-            via: ['sms', 'push', 'expo', 'mail'],
+            via: ['sms', 'push', 'expo', 'mail', 'database'],
             entity: $this->lead
         );
 
         $notification->setSubject('Sally stop the clock for lead ' . $this->lead->people->name);
         $notification->setPushTemplateName('agent_manager_push_notification');
         $notification->setSmsTemplateName('agent_manager_sms_notification');
+        $notification->setDatabaseTemplateName('agent_manager_sms_notification');
 
         $this->configureNotificationChannels($notification);
 

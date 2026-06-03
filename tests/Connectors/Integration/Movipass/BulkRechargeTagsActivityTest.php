@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Movipass;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Movipass\Actions\BulkRechargeOrderTagsAction;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Workflows\Activities\BulkRechargeTagsActivity;
+use Kanvas\Connectors\PasoRapido\DataTransferObject\InvoiceDetails;
+use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmData;
+use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmResponse;
+use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Products\Models\Products;
@@ -17,6 +22,7 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Mockery;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\TestCase;
 
@@ -126,7 +132,6 @@ final class BulkRechargeTagsActivityTest extends TestCase
                 currency: $currency,
                 metadata: [
                     'tag_number' => $tag['tag_number'],
-                    'fiscal_credit' => false,
                     'bulk_recharge' => true,
                 ],
             ));
@@ -206,5 +211,111 @@ final class BulkRechargeTagsActivityTest extends TestCase
 
         $this->assertTrue(($result['skipped'] ?? false));
         $this->assertSame('already processed', $result['reason'] ?? null);
+    }
+
+    public function testActivityCancelsOrderAndZeroesTotalWhenAllItemsFailAndReverse(): void
+    {
+        [$tag1, $tag2] = $this->createTagVariants(2);
+        $order = $this->createBulkRechargeOrder([
+            ['variant' => $tag1, 'tag_number' => '941001', 'amount' => 500.00],
+            ['variant' => $tag2, 'tag_number' => '941002', 'amount' => 1000.00],
+        ]);
+
+        $this->makeActivity()->execute($order, $this->kanvasApp, []);
+
+        $order->refresh();
+
+        $this->assertSame(0.0, (float) $order->total_gross_amount);
+        $this->assertSame('canceled', $order->status);
+        $this->assertSame('refunded', $order->payment_status);
+        $this->assertSame('canceled', $order->fulfillment_status);
+        $this->assertSame(0, $order->items()->where('is_deleted', 0)->count());
+    }
+
+    public function testActivityPreservesOriginalTotalAndAdjustmentReasonInMetadata(): void
+    {
+        [$tag1] = $this->createTagVariants(1);
+        $order = $this->createBulkRechargeOrder([
+            ['variant' => $tag1, 'tag_number' => '941001', 'amount' => 750.00],
+        ]);
+
+        $this->makeActivity()->execute($order, $this->kanvasApp, []);
+
+        $order->refresh();
+
+        $this->assertSame(750.0, (float) ($order->metadata['data']['original_total_gross_amount'] ?? null));
+        $this->assertSame('bulk_recharge_partial_failure', $order->metadata['data']['adjusted_reason'] ?? null);
+        $this->assertArrayHasKey('adjusted_at', $order->metadata['data'] ?? []);
+    }
+
+    public function testActivityMarksReversedFlagOnFailedItems(): void
+    {
+        [$tag1] = $this->createTagVariants(1);
+        $order = $this->createBulkRechargeOrder([
+            ['variant' => $tag1, 'tag_number' => '941001', 'amount' => 500.00],
+        ]);
+
+        $this->makeActivity()->execute($order, $this->kanvasApp, []);
+
+        $order->refresh();
+
+        $entry = $order->metadata['corporate_recharge_results']['941001'] ?? null;
+
+        $this->assertNotNull($entry);
+        $this->assertSame('failed', $entry['status']);
+        $this->assertTrue($entry['reversed'] ?? false);
+    }
+
+    public function testBankTransactionStaysWithinPasoRapidoFiftyCharLimit(): void
+    {
+        // PasoRapido rejects transaccionBanco > 50 chars. The wallet-paid bulk path
+        // is the only producer of this id (no EchoPay intent to crib from), so we
+        // need to keep its format short on every TAG.
+        [$tag1, $tag2, $tag3] = $this->createTagVariants(3);
+        $order = $this->createBulkRechargeOrder([
+            ['variant' => $tag1, 'tag_number' => '941001', 'amount' => 500.00],
+            ['variant' => $tag2, 'tag_number' => '941002', 'amount' => 1000.00],
+            ['variant' => $tag3, 'tag_number' => '941003', 'amount' => 250.00],
+        ]);
+
+        $captured = [];
+        $mockService = Mockery::mock(PasoRapidoService::class);
+        $mockService->shouldReceive('confirmPayment')
+            ->andReturnUsing(function (PaymentConfirmData $data) use (&$captured) {
+                $captured[] = $data;
+
+                return PaymentConfirmResponse::from([
+                    'message' => 'ok',
+                    'amount' => (int) round($data->amount),
+                    'order' => 'ord-' . $data->reference,
+                    'tag' => $data->reference,
+                    'account' => '1234',
+                    'creditDate' => '2026-06-01',
+                    'invoiceDetails' => InvoiceDetails::from([
+                        'commercialName' => '',
+                        'document' => '',
+                        'fiscalCredit' => false,
+                        'invoice' => '',
+                        'pdf' => '',
+                        'reference' => '',
+                    ]),
+                ]);
+            });
+
+        new BulkRechargeOrderTagsAction($order, $this->kanvasApp, $mockService)->execute();
+
+        $this->assertNotEmpty($captured, 'PasoRapidoService::confirmPayment was never called');
+
+        foreach ($captured as $data) {
+            $this->assertLessThanOrEqual(
+                50,
+                strlen($data->bankTransaction),
+                sprintf(
+                    'bankTransaction "%s" (length %d) exceeds PasoRapido limit of 50 chars',
+                    $data->bankTransaction,
+                    strlen($data->bankTransaction),
+                ),
+            );
+        }
     }
 }

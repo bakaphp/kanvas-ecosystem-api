@@ -21,10 +21,13 @@ use Kanvas\NervousSystem\Pulse\Jobs\RollupDailyPulseMetricsJob;
 final class NervousSystemSchedule
 {
     /**
-     * Timing map at a glance (UTC, all `withoutOverlapping()` so a slow run
-     * skips the next slot rather than stacking):
+     * Timing map at a glance. All `dailyAt(...)` slots run in
+     * `America/New_York` so the daily-learning pipeline fires after every US
+     * tenant's "yesterday" is fully elapsed (Laravel's ->timezone() modifier
+     * handles DST). Interval-based slots (`everyN`, `hourlyAt`) stay
+     * UTC-anchored. All slots `withoutOverlapping()`.
      *
-     * ── Sub-hourly ─────────────────────────────────────────────────────
+     * ── Sub-hourly (interval-based, TZ-irrelevant) ────────────────────
      *   every 5m   DetectStalledPlanTasks    (idempotent ledger sweep)
      *   every 10m  CheckAgentRuntimeHealth   (per-deployment SSH ping)
      *
@@ -33,14 +36,14 @@ final class NervousSystemSchedule
      *   :05     RefreshAgentLiveCounters     (full-fleet DB scan)
      *   :10     CollectAgentSessionTranscripts (SSH ingest, runs in bg)
      *
-     * ── Daily ─────────────────────────────────────────────────────────
-     *   00:30   RollupDailyDashboardMetrics
-     *   00:35   RollupDailyPulseMetrics      (+5min after dashboard)
-     *   02:00   ArchiveOldLedgerEvents
-     *   02:30   SyncModelPricing
-     *   06:04   RecordAgentDailyCycles       ← daily-learning pipeline
-     *   06:30   SummarizeAgentDailyLearning  ← 26min buffer for record
-     *   07:30   SendDailyLearningDigest      ← 60min buffer for queue
+     * ── Daily (America/New_York) ──────────────────────────────────────
+     *   00:30 NY   RollupDailyDashboardMetrics
+     *   00:35 NY   RollupDailyPulseMetrics      (+5min after dashboard)
+     *   02:00 NY   ArchiveOldLedgerEvents
+     *   02:30 NY   SyncModelPricing
+     *   06:04 NY   RecordAgentDailyCycles       ← daily-learning pipeline
+     *   06:30 NY   SummarizeAgentDailyLearning  ← 26min buffer for record
+     *   07:30 NY   SendDailyLearningDigest      ← 60min buffer for queue
      *
      * Daily-learning pipeline buffers depend on:
      *  - RecordAgentDailyCycles finishing in <26min for all active agents
@@ -55,6 +58,7 @@ final class NervousSystemSchedule
         // Ledger maintenance — keep the events table from unbounded growth.
         $schedule->command(ArchiveOldLedgerEventsCommand::class)
             ->dailyAt('02:00')
+            ->timezone('America/New_York')
             ->withoutOverlapping();
 
         // Plan + capability lifecycle. ExpireCapabilities stays at :00 —
@@ -71,21 +75,26 @@ final class NervousSystemSchedule
         // Staggered by 5min so they don't slam the DB simultaneously.
         $schedule->job(new RollupDailyDashboardMetricsJob())
             ->dailyAt('00:30')
+            ->timezone('America/New_York')
             ->withoutOverlapping();
         $schedule->job(new RollupDailyPulseMetricsJob())
             ->dailyAt('00:35')
+            ->timezone('America/New_York')
             ->withoutOverlapping();
 
         // Daily-learning pipeline — strict order, see timing map above.
         $schedule->command(RecordAgentDailyCyclesCommand::class)
             ->dailyAt('06:04')
+            ->timezone('America/New_York')
             ->withoutOverlapping();
         $schedule->command(SummarizeAgentDailyLearningCommand::class)
             ->dailyAt('06:30')
+            ->timezone('America/New_York')
             ->withoutOverlapping()
             ->onOneServer();
         $schedule->command(SendDailyLearningDigestCommand::class)
             ->dailyAt('07:30')
+            ->timezone('America/New_York')
             ->withoutOverlapping()
             ->onOneServer();
 
@@ -112,6 +121,7 @@ final class NervousSystemSchedule
         // figures from current pricing.
         $schedule->command(SyncModelPricingCommand::class)
             ->dailyAt('02:30')
+            ->timezone('America/New_York')
             ->withoutOverlapping()
             ->onOneServer();
     }

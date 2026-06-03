@@ -15,6 +15,7 @@ use Kanvas\Intelligence\Agents\Services\GoogleADKService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 
 class ADKAgent
 {
@@ -29,11 +30,14 @@ class ADKAgent
         Agent $agent,
         ?Model $entity = null,
         ?string $externalReferenceId = null,
+        ?Users $user = null,
     ): void {
         $this->agent = $agent;
         $this->entity = $entity;
         $this->app = $agent->app;
         $this->company = $agent->company;
+        // $user is accepted for signature parity with BaseKanvasAgent. ADK handlers
+        // don't currently use it but callers pass it uniformly.
     }
 
     public function chat(

@@ -11,9 +11,11 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Services\B2BConfigurationService;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class CreateAeroAmbulanciaB2BSubscriptionActivity extends KanvasActivity
 {
     public function execute(Order $order, AppInterface $app, array $params): array

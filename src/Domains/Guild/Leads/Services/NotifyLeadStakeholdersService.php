@@ -152,6 +152,7 @@ class NotifyLeadStakeholdersService
         $notification->setSubject($peopleName . ' Engaged with Sally');
         $notification->setPushTemplateName('agent_manager_push_notification');
         $notification->setSmsTemplateName('agent_manager_sms_notification');
+        $notification->setDatabaseTemplateName('agent_manager_sms_notification');
 
         $recipients = $this->collectManagerRecipients($message, $includeOwner);
 
@@ -313,9 +314,9 @@ class NotifyLeadStakeholdersService
         $onlyPush = (bool) $this->lead->company->get('ai_manager_notification_only_push');
 
         return match (true) {
-            $onlySms => ['sms'],
+            $onlySms => ['sms', 'database'],
             $onlyMail => ['mail'],
-            $onlyPush => ['push', 'expo'],
+            $onlyPush => ['push', 'expo', 'database'],
             default => ['mail'],
         };
     }

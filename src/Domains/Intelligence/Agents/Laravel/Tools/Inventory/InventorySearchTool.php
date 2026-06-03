@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Kanvas\Inventory\Products\Models\Products;
@@ -14,6 +15,7 @@ use Override;
 use Stringable;
 use Throwable;
 
+#[AgentTool(name: 'Inventory Search')]
 class InventorySearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;

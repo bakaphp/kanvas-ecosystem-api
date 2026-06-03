@@ -44,7 +44,7 @@ class LeadObserver
 
         // set the default status if not specified
         if (! $lead->leads_status_id) {
-            $lead->leads_status_id = LeadStatus::getDefault($lead->app)->getId();
+            $lead->leads_status_id = LeadStatus::getDefault($lead->app, $lead->company)->getId();
         }
 
         // if no pipeline assign one
@@ -160,9 +160,7 @@ class LeadObserver
             $channel->delete();
         }
 
-        if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
-            new DeleteSessionAction($lead)->execute();
-        }
+        new DeleteSessionAction($lead)->execute();
     }
 
     public function softDeleted(Lead $lead): void
@@ -173,8 +171,6 @@ class LeadObserver
             'updated_at' => now(),
         ]);
 
-        if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
-            new DeleteSessionAction($lead)->execute();
-        }
+        new DeleteSessionAction($lead)->execute();
     }
 }

@@ -20,6 +20,7 @@ use Kanvas\Souk\Orders\Actions\CalculateOrderCommissionAction;
 use Kanvas\Souk\Orders\Actions\RecalculateSlotCapacityAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -27,6 +28,7 @@ use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
 
+#[WorkflowAction]
 class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
@@ -49,7 +51,7 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                 }
 
                 $eventName = $additionalParams['currentEventTypeName'] ?? null;
-                $toStatus  = $params['to_status'] ?? null;
+                $toStatus = $params['to_status'] ?? null;
 
                 if ($eventName === WorkflowEnum::CREATED->value) {
                     if ($order->reference && ! str_contains($order->reference, '#' . $order->order_number)) {
@@ -91,7 +93,7 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                 }
 
                 if ($eventName === WorkflowEnum::UPDATED->value) {
-                    $endAt    = $order->metadata['data']['end_at'] ?? null;
+                    $endAt = $order->metadata['data']['end_at'] ?? null;
                     $isManual = $order->metadata['data']['is_manual'] ?? false;
 
                     if ($isManual && $endAt && ! $order->orderStatus?->is_final) {

@@ -10,9 +10,11 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Connectors\PromptMine\Enums\NotificationTypesEnum;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Social\Messages\Notifications\NewMessageNotification;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class MessageOwnerChildNotificationActivity extends KanvasActivity
 {
     public $tries = 2;

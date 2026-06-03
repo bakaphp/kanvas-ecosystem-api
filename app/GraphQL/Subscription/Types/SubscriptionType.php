@@ -11,7 +11,7 @@ class SubscriptionType
 {
     public function id(Subscription $subscription): ?int
     {
-        return $this->getCustomer($subscription)?->id;
+        return $subscription->id;
     }
 
     public function provider(Subscription $subscription): ?string

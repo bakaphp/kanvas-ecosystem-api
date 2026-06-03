@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
@@ -13,6 +14,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
+#[AgentTool(name: 'List Available Products')]
 class ListAvailableProductsTool extends Tool
 {
     public function __construct()
@@ -65,13 +67,15 @@ class ListAvailableProductsTool extends Tool
     public function __invoke(
         int $companies_id,
         int $apps_id,
-        bool $is_published = true,
-        bool $only_in_stock = false,
-        int $limit = 20
+        ?bool $is_published = null,
+        ?bool $only_in_stock = null,
+        ?int $limit = null
     ): array {
         $app = Apps::getById($apps_id);
         $company = Companies::getById($companies_id);
-        $limit = min($limit, 50);
+        $is_published = $is_published ?? true;
+        $only_in_stock = $only_in_stock ?? false;
+        $limit = min($limit ?? 20, 50);
         $allowCrossCompany = (bool) $app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
 
         $builder = Products::fromApp($app)

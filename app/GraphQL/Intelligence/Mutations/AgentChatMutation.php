@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Intelligence\Mutations;
 
-use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Actions\ProcessAgentChatAction;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Factories\NeuronAgentFactory;
@@ -18,8 +22,7 @@ use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateUserSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
-use Kanvas\Social\Channels\Actions\CreateChannelAction;
-use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
@@ -46,19 +49,23 @@ class AgentChatMutation
         $sessionId = (string) $input['session_id'];
         $session = Session::fromApp($app)->fromCompany($company)->where('uuid', $sessionId)->first();
 
-        [$mergedImages, $mergedFiles] = $this->mergeUploadsWithUrls($input, $user, $app, $session ?? $agent);
+        [$mergedImages, $mergedFiles, $attachments] = $this->mergeUploadsWithUrls(
+            $input,
+            $user,
+            $app,
+            $session ?? $agent
+        );
 
-        return new ProcessAgentChatAction(
+        return new AgentChatKernel(
             agent: $agent,
             session: $session,
             message: AttachmentPromptBuilder::withAttachments(
                 (string) $input['message'],
                 $mergedFiles,
             ),
-            app: $app,
-            company: $company,
             user: $user,
             images: $mergedImages,
+            attachments: $attachments,
         )->execute();
     }
 
@@ -66,54 +73,38 @@ class AgentChatMutation
     {
         $app = app(Apps::class);
         $user = auth()->user();
+        /** @var Companies $company */
         $company = $user->getCurrentCompany();
         $input = $req['input'] ?? [];
+        /** @var Agent $agent */
         $agent = Agent::getByIdFromCompanyApp(
             id: $input['agent_id'],
             app: $app,
             company: $company
         );
 
+        /** @var Lead $lead */
         $lead = Lead::getByIdFromCompanyApp(
             id: $input['lead_id'],
             app: $app,
             company: $company
         );
 
-        $channelName = 'Manual Channel for Lead ' . $lead->getId();
-        $slug = Str::simpleSlug($channelName);
+        $people = $lead->people;
+        if ($people === null) {
+            throw new ValidationException(
+                "Lead {$lead->getId()} has no people record; cannot create a People-keyed session."
+            );
+        }
 
-        $channel = new CreateChannelAction(
-            new ChannelDto(
-                apps: $app,
-                companies: $company,
-                users: $user,
-                name: $channelName,
-                description: 'Channel for lead ' . $lead->getId(),
-                entity_id: $lead->getId(),
-                entity_namespace: Lead::class,
-                slug: $slug,
-            )
-        )->execute();
-
-        $chatSession = new CreateSessionAction(
-            DataTransferObjectSession::from([
-                'app' => $app,
-                'company' => $company,
-                'channel' => $channel,
-                'entity_namespace' => Lead::class,
-                'entity_id' => $lead->getId(),
-                'canal_id' => $input['canal_id'],
-                'user' => [
-                    'name' => $lead->people->getName(),
-                    'id' => $lead->people->getId(),
-                    'email' => $lead->people->getEmails()->first()?->value,
-                ],
-                'agent' => $agent,
-            ])
-        )->execute();
-
-        return $chatSession->uuid;
+        return $this->findOrCreatePeopleSession(
+            people: $people,
+            agent: $agent,
+            user: $user,
+            app: $app,
+            company: $company,
+            canalId: (string) $input['canal_id'],
+        )->uuid;
     }
 
     public function neuronChat(mixed $root, array $req): string
@@ -149,6 +140,7 @@ class AgentChatMutation
     {
         $app = app(Apps::class);
         $user = auth()->user();
+        /** @var Companies $company */
         $company = $user->getCurrentCompany();
         /** @var array<string, mixed> $input */
         $input = $req['input'] ?? [];
@@ -159,95 +151,185 @@ class AgentChatMutation
             company: $company
         );
 
-        if (! empty($input['session_id'])) {
-            $session = Session::fromApp($app)
-                ->fromCompany($company)
-                ->where('uuid', (string) $input['session_id'])
-                ->firstOrFail();
-        } elseif (! empty($input['lead_id'])) {
-            $lead = Lead::getByIdFromCompanyApp(
-                id: $input['lead_id'],
-                app: $app,
-                company: $company
-            );
+        $currentLead = ! empty($input['lead_id'])
+            ? Lead::getByIdFromCompanyApp(id: (int) $input['lead_id'], app: $app, company: $company)
+            : null;
 
-            $channelName = 'Manual Channel for Lead ' . $lead->getId();
-            $slug = Str::simpleSlug($channelName);
+        $session = $this->resolveSession(
+            $input,
+            $currentLead,
+            $agent,
+            $user,
+            $app,
+            $company,
+        );
 
-            $channel = new CreateChannelAction(
-                new ChannelDto(
-                    apps: $app,
-                    companies: $company,
-                    users: $user,
-                    name: $channelName,
-                    description: 'Channel for lead ' . $lead->getId(),
-                    entity_id: $lead->getId(),
-                    entity_namespace: Lead::class,
-                    slug: $slug,
-                )
-            )->execute();
-
-            $session = new CreateSessionAction(
-                DataTransferObjectSession::from([
-                    'app' => $app,
-                    'company' => $company,
-                    'channel' => $channel,
-                    'entity_namespace' => Lead::class,
-                    'entity_id' => $lead->getId(),
-                    'canal_id' => $agent->getId(),
-                    'user' => [
-                        'name' => $lead->people->getName(),
-                        'id' => $lead->people->getId(),
-                        'email' => $lead->people->getEmails()->first()?->value,
-                    ],
-                    'agent' => $agent,
-                ])
-            )->execute();
-        } else {
-            $session = new CreateUserSessionAction(
-                agent: $agent,
-                user: $user,
-                app: $app,
-                company: $company,
-            )->execute();
+        // Post-promote sessions are People-keyed and the frontend won't know
+        // the new lead_id — resolve it server-side so the agent's prompt has
+        // lead context (otherwise it would re-fire create_lead every turn).
+        if ($currentLead === null && $session->entity_namespace === People::class) {
+            $people = $session->entity();
+            if ($people instanceof People) {
+                $currentLead = LeadsRepository::getPeopleActiveLead($people);
+            }
         }
 
-        [$mergedImages, $mergedFiles] = $this->mergeUploadsWithUrls(
+        [$mergedImages, $mergedFiles, $attachments] = $this->mergeUploadsWithUrls(
             $input,
             $user,
             $app,
             $session
         );
 
-        $response = new ProcessAgentChatAction(
+        $processor = new AgentChatKernel(
             agent: $agent,
             session: $session,
             message: AttachmentPromptBuilder::withAttachments(
                 (string) $input['message'],
                 $mergedFiles,
             ),
-            app: $app,
-            company: $company,
             user: $user,
             images: $mergedImages,
-        )->execute();
+            attachments: $attachments,
+            currentLead: $currentLead,
+        );
+
+        $response = $processor->execute();
+        /** @var Message $reply userChat always supplies a Session, so persistence always runs and sets the reply (or throws). */
+        $reply = $processor->persistedReply();
 
         return [
             'response' => $response,
             'session_id' => $session->uuid,
+            'message' => $reply,
+            'channel' => $reply->channels()->first(),
         ];
     }
 
     /**
-     * Push uploaded files through `HasMutationUploadFiles::uploadFilesAndCollect` — which
-     * uses the canonical FilesystemServices pipeline AND records the attachment on the
-     * given entity (session preferred, agent as fallback) for chat-history purposes — then
-     * classify each result via {@see Filesystem::mediaType} and merge the URLs with the
-     * client-supplied `images` / `files` lists. Downstream code doesn't need to know
-     * whether an attachment arrived as a pre-existing URL or as an `Upload`.
+     *  - session_id explicit → continue that session (back-compat)
+     *  - lead_id → find or create the prospect's People-keyed session (one per
+     *    People + Agent for the lifetime of the prospect)
+     *  - neither → anonymous User-scoped session
      *
      * @param array<string, mixed> $input
-     * @return array{0: list<string>, 1: list<string>} `[$images, $files]`
+     */
+    protected function resolveSession(
+        array $input,
+        ?Lead $currentLead,
+        Agent $agent,
+        Users $user,
+        Apps $app,
+        Companies $company,
+    ): Session {
+        if (! empty($input['session_id'])) {
+            $session = Session::fromApp($app)
+                ->fromCompany($company)
+                ->where('uuid', (string) $input['session_id'])
+                ->first();
+
+            if ($session !== null) {
+                return $session;
+            }
+        }
+
+        if ($currentLead !== null) {
+            $people = $currentLead->people;
+
+            if ($people !== null) {
+                return $this->findOrCreatePeopleSession(
+                    people: $people,
+                    agent: $agent,
+                    user: $user,
+                    app: $app,
+                    company: $company,
+                );
+            }
+        }
+
+        return new CreateUserSessionAction(
+            agent: $agent,
+            user: $user,
+            app: $app,
+            company: $company,
+        )->execute();
+    }
+
+    /**
+     * One session per (People, Agent, App, Company) — the durable thread that
+     * accumulates every conversation with this prospect across every Lead.
+     */
+    protected function findOrCreatePeopleSession(
+        People $people,
+        Agent $agent,
+        Users $user,
+        Apps $app,
+        Companies $company,
+        ?string $canalId = null,
+    ): Session {
+        $session = Session::fromApp($app)
+            ->fromCompany($company)
+            ->where('agents_id', $agent->getId())
+            ->where('entity_namespace', People::class)
+            ->where('entity_id', $people->getId())
+            ->first();
+
+        if ($session !== null) {
+            return $session;
+        }
+
+        $channel = new PeopleChannelService()->findOrCreateForPeople($people, $app, $company, $user);
+
+        return new CreateSessionAction(
+            DataTransferObjectSession::from([
+                'app' => $app,
+                'company' => $company,
+                'channel' => $channel,
+                'entity_namespace' => People::class,
+                'entity_id' => $people->getId(),
+                'canal_id' => $canalId ?? (string) $agent->getId(),
+                'user' => [
+                    'name' => $people->getName(),
+                    'id' => $people->getId(),
+                    'email' => $people->getEmails()->first()?->value,
+                ],
+                'agent' => $agent,
+            ])
+        )->execute();
+    }
+
+    /**
+     * @deprecated Thin alias around findOrCreatePeopleSession kept for any
+     *             external callers — delete once we confirm no one calls it.
+     */
+    protected function createLeadSession(
+        Lead $lead,
+        Agent $agent,
+        Users $user,
+        Apps $app,
+        Companies $company,
+        ?string $canalId = null,
+    ): Session {
+        $people = $lead->people;
+        if ($people === null) {
+            throw new ValidationException(
+                "Lead {$lead->getId()} has no people record; cannot create a People-keyed session."
+            );
+        }
+
+        return $this->findOrCreatePeopleSession(
+            people: $people,
+            agent: $agent,
+            user: $user,
+            app: $app,
+            company: $company,
+            canalId: $canalId,
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @return array{0: list<string>, 1: list<string>, 2: list<\Kanvas\Filesystem\Models\Filesystem>} `[$images, $files, $attachments]`
      */
     protected function mergeUploadsWithUrls(
         array $input,
@@ -259,6 +341,7 @@ class AgentChatMutation
         $images = $input['images'] ?? [];
         /** @var list<string> $files */
         $files = $input['files'] ?? [];
+        $attachments = [];
 
         $uploads = array_values(array_filter(
             $input['uploads'] ?? [],
@@ -266,7 +349,7 @@ class AgentChatMutation
         ));
 
         if ($uploads === [] || $attachTo === null) {
-            return [$images, $files];
+            return [$images, $files, $attachments];
         }
 
         foreach ($this->uploadFilesAndCollect($attachTo, $app, $user, $uploads) as $filesystem) {
@@ -275,8 +358,9 @@ class AgentChatMutation
             } else {
                 $files[] = $filesystem->url;
             }
+            $attachments[] = $filesystem;
         }
 
-        return [$images, $files];
+        return [$images, $files, $attachments];
     }
 }

@@ -13,11 +13,13 @@ use Kanvas\Connectors\ScrapperApi\Actions\ScrapperAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
 use function Sentry\captureException;
 
+#[WorkflowAction]
 class ScrapperSearchActivity extends KanvasActivity
 {
     //public $tries = 3;

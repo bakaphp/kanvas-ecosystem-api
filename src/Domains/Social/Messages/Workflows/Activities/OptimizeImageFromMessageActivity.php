@@ -15,6 +15,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Laravel\Ai\Enums\Lab;
@@ -26,6 +27,7 @@ use function Laravel\Ai\agent;
  * this as turn into a fix all image related issue , we need to
  * regroup to fix the root cause
  */
+#[WorkflowAction]
 class OptimizeImageFromMessageActivity extends KanvasActivity
 {
     public $tries = 3;

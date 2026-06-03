@@ -27,7 +27,7 @@ class TriggerIntelligenceActivityTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        app(Apps::class)->set('intelligence_lead_type_mode_v2', 0);
+        auth()->user()->getCurrentCompany()->set('intelligence_lead_type_mode_v2', 0);
     }
 
     private function createLead(string $leadTypeName = ''): Lead

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Stripe\Webhooks;
 
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class StripePaymentIntentWebhookJob extends ProcessWebhookJob
 {
     #[Override]

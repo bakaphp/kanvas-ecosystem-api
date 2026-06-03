@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
+use Kanvas\Intelligence\Agents\Actions\RebuildAgentToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentDTO;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -57,8 +58,10 @@ class AgentManagementMutation
             identity: $input['identity'] ?? null,
             userContext: $input['user_context'] ?? null,
             toolsConfig: $input['tools_config'] ?? null,
+            tools: isset($input['tool_ids']) ? $this->resolveTools($input['tool_ids'], $app) : null,
             parentAgent: $parentAgent,
             createdBy: auth()->user(),
+            isSubAgent: (bool) ($input['is_sub_agent'] ?? false),
         );
 
         $agent = new CreateAgentAction($agentDTO)->execute();
@@ -70,6 +73,8 @@ class AgentManagementMutation
         if (isset($input['tool_ids'])) {
             $this->syncTools($agent, $input['tool_ids'], $app);
         }
+
+        new RebuildAgentToolInstructionsAction($agent, $app)->execute();
 
         return $agent;
     }
@@ -112,6 +117,7 @@ class AgentManagementMutation
             userContext: $input['user_context'] ?? null,
             toolsConfig: $input['tools_config'] ?? null,
             parentAgent: $parentAgent,
+            isSubAgent: (bool) ($input['is_sub_agent'] ?? false),
         );
 
         $agent = new UpdateAgentAction($agentDTO, $agent)->execute();
@@ -122,9 +128,10 @@ class AgentManagementMutation
 
         if (isset($input['tool_ids'])) {
             $this->syncTools($agent, $input['tool_ids'], $app);
+            new RebuildAgentToolInstructionsAction($agent, $app)->execute();
         }
 
-        return $agent;
+        return $agent->refresh();
     }
 
     public function delete(mixed $root, array $req): bool
@@ -165,6 +172,26 @@ class AgentManagementMutation
 
     /**
      * @param array<int, string> $toolIds
+     *
+     * @return array<int, Tool>
+     */
+    private function resolveTools(array $toolIds, AppInterface $app): array
+    {
+        $tools = [];
+        foreach ($toolIds as $toolId) {
+            /** @var Tool $tool */
+            $tool = Tool::query()
+                ->where('id', (int) $toolId)
+                ->whereIn('apps_id', [0, $app->getId()])
+                ->firstOrFail();
+            $tools[] = $tool;
+        }
+
+        return $tools;
+    }
+
+    /**
+     * @param array<int, string> $toolIds
      */
     private function syncTools(Agent $agent, array $toolIds, AppInterface $app): void
     {
@@ -172,7 +199,7 @@ class AgentManagementMutation
         foreach ($toolIds as $toolId) {
             $tool = Tool::query()
                 ->where('id', (int) $toolId)
-                ->fromApp($app)
+                ->whereIn('apps_id', [0, $app->getId()])
                 ->firstOrFail();
             $ids[] = $tool->getId();
         }

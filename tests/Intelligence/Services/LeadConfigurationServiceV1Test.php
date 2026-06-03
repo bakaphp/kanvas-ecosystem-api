@@ -18,7 +18,7 @@ class LeadConfigurationServiceV1Test extends TestCase
         parent::setUp();
         $app = app(Apps::class);
         $app->set('search_engine', 'database');
-        $app->set('intelligence_lead_type_mode_v2', false);
+        auth()->user()->getCurrentCompany()->set('intelligence_lead_type_mode_v2', false);
     }
 
     private function createLead(string $leadTypeName = ''): Lead
@@ -51,7 +51,7 @@ class LeadConfigurationServiceV1Test extends TestCase
 
     public function testIsV2EnabledReturnsFalseByDefault(): void
     {
-        $this->assertFalse(new LeadConfigurationService(false)->isV2Enabled(app(Apps::class)));
+        $this->assertFalse(new LeadConfigurationService(false)->isV2Enabled(auth()->user()->getCurrentCompany()));
     }
 
     public function testGetAiModeKeyReturnsGenericKeyWhenV1(): void

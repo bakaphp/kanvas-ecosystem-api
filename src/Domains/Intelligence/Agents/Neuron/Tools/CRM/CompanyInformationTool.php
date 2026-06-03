@@ -7,19 +7,24 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Carbon\Carbon;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 use Yasumi\Yasumi;
 
+#[AgentTool(name: 'Company Information')]
 class CompanyInformationTool extends Tool
 {
     public function __construct()
     {
         parent::__construct(
             name: 'get_company_information',
-            description: 'Get the full company profile (name, contact details, address, timezone, language, photo) together with the work schedule: weekly hours, working days, observed holidays, current open/closed status, next open time, and the holiday calendar for the current year (federal holidays + whether the company stays open on each).',
+            description: 'Get the full company profile (name, contact details, address, timezone, language, photo) '
+                . 'together with the work schedule: weekly hours, working days, observed holidays, '
+                . 'current open/closed status, next open time, and the holiday calendar for the current year '
+                . '(federal holidays + whether the company stays open on each).',
         );
     }
 
@@ -45,7 +50,11 @@ class CompanyInformationTool extends Tool
 
         $tz = $company->timezone ?? 'UTC';
         $today = Carbon::today($tz);
-        $holidaysCalendar = $this->buildHolidaysCalendar($today, $observedHolidays, (bool) $company->get('holiday_epiphany'));
+        $holidaysCalendar = $this->buildHolidaysCalendar(
+            $today,
+            $observedHolidays,
+            (bool) $company->get('holiday_epiphany')
+        );
         $todayHoliday = $this->getTodayHoliday($today, $holidaysCalendar);
 
         return [

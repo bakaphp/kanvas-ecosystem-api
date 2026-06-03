@@ -10,9 +10,11 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventResource;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class ScheduleActivityFromEventActivity extends KanvasActivity
 {
     public $tries = 3;

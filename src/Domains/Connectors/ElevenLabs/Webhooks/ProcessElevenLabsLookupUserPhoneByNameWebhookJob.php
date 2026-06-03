@@ -7,8 +7,10 @@ namespace Kanvas\Connectors\ElevenLabs\Webhooks;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Override;
 
+#[WorkflowAction]
 class ProcessElevenLabsLookupUserPhoneByNameWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]

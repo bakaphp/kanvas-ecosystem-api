@@ -6,19 +6,23 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Inventory\Variants\Models\Variants;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
+#[AgentTool(name: 'Variant Search')]
 class VariantSearchTool extends Tool
 {
     public function __construct()
     {
         parent::__construct(
             name: 'variant_search',
-            description: 'Search product variants by name or SKU. Returns variant details including SKU, price, stock, and its parent product name. Use this when the user asks about a specific SKU or variant name.',
+            description: 'Search product variants by name or SKU. '
+                . 'Returns variant details including SKU, price, stock, and its parent product name. '
+                . 'Use this when the user asks about a specific SKU or variant name.',
         );
     }
 

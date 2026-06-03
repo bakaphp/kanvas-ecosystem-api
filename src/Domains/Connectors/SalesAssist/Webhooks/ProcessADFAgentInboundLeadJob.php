@@ -17,6 +17,7 @@ use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDTO;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kiwilan\XmlReader\XmlReader;
@@ -27,6 +28,7 @@ use Spatie\LaravelData\DataCollection;
  * @todo this is tied right now to Dealer Socket
  * we have to make this agonistic
  */
+#[WorkflowAction]
 class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
 {
     #[Override]
