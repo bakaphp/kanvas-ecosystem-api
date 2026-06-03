@@ -15,6 +15,7 @@ enum ChannelCategoryEnum: string
     case MAILGUN = 'mailgun-email';
     case SMS = 'sms';
     case WHATSAPP = 'whatsapp';
+    case RESPONDIO = 'respondio';
     case INTERNAL_NOTES = 'internal_notes';
     case SYSTEM_NOTES = 'system_notes';
 

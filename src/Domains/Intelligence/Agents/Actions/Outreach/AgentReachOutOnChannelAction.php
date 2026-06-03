@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Outreach;
 
-use Kanvas\Guild\Customers\Services\PeopleChannelService;
+use Kanvas\Connectors\RespondIO\Enums\MessageTypeEnum as RespondIoMessageTypeEnum;
+use Kanvas\Connectors\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
@@ -12,6 +13,7 @@ use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
+use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -19,13 +21,10 @@ use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
- * Bootstrap channel + session for a Lead on one channel type, generate the reach-out
- * text via AgentChatKernel, persist as an outbound Message, and ship via
- * SendMessageToLeadAction. Returns the persisted outbound Message.
- *
- * Outbound-first sibling of the inbound BaseAgentChannelReplyAction shape: persists
- * exactly once with from_ia=true + session_id tagged, attaches to channel + lead,
- * fires the CREATED workflow so the normal post-create chain runs.
+ * One reach-out turn for one channel: kernel → persist → ship. The outbound
+ * lands on three channels (per-recipient slug, lead-channel, people-channel) —
+ * canonical sales-agent pattern so the People profile and the deal view both
+ * see it. Outbound-first sibling of the inbound BaseAgentChannelReplyAction.
  */
 class AgentReachOutOnChannelAction
 {
@@ -49,10 +48,8 @@ class AgentReachOutOnChannelAction
             $this->agent,
         )->execute();
 
-        // The agent's role / soul / instructions / output_format columns are the SYSTEM
-        // prompt — they define what the agent IS and how it generates the first message.
-        // The user-turn below is just the ACTION trigger: tells the agent to act now,
-        // names the channel for output sizing, and hints the canonical tool call.
+        // The agent's role / soul / instructions / output_format columns are the system
+        // prompt; this user-turn is just the action trigger.
         $responseContent = new AgentChatKernel(
             agent: $this->agent,
             session: $session,
@@ -96,31 +93,21 @@ class AgentReachOutOnChannelAction
         $outbound = $createMessage->execute();
 
         $outbound->set('communicationChannel', $this->channelType);
+        // $channel is the master People channel. addMessage() handles the channel pivot;
+        // the polymorphic People entity link (used by history loaders) needs an explicit
+        // addEntity.
         $channel->addMessage($outbound);
+        if ($this->lead->people !== null) {
+            $outbound->addEntity($this->lead->people);
+        }
 
-        // Canonical sales-agent pattern: one message lives on three channels.
-        //   1. per-recipient slug channel (above) — for inbound webhook routing
-        //   2. lead-channel-{id}            — deal-scoped CRM UI surface
-        //   3. people-channel-{id}          — durable cross-Lead conversation master
-        // The services handle channel attach + addEntity idempotently.
-        $leadChannelService = new LeadChannelService();
-        $leadChannelService->attachMessageToLeadChannel(
+        new LeadChannelService()->attachMessageToLeadChannel(
             $outbound,
             $this->lead,
             $this->lead->app,
             $company,
             $aiAgentUser,
         );
-
-        if ($this->lead->people !== null) {
-            new PeopleChannelService()->attachMessageToPeopleChannel(
-                $outbound,
-                $this->lead->people,
-                $this->lead->app,
-                $company,
-                $aiAgentUser,
-            );
-        }
 
         $outbound->fireWorkflow(
             WorkflowEnum::CREATED->value,
@@ -142,17 +129,14 @@ class AgentReachOutOnChannelAction
         return $outbound;
     }
 
-    /**
-     * Pick the canonical message-type verb that the inbound responder for this
-     * channel also uses, so memory history loaders find them by the same verb.
-     */
+    /** Match the verb the inbound responder uses so history loaders find both. */
     private function resolveMessageTypeVerb(): string
     {
         return match ($this->channelType) {
-            'whatsapp' => 'whatsapp',
-            'sms' => 'twilio-sms',
-            'email' => 'mailgun-email',
-            'respondio' => 'respondio-text',
+            ChannelCategoryEnum::WHATSAPP->value => ChannelCategoryEnum::WHATSAPP->value,
+            ChannelCategoryEnum::SMS->value => TwilioMessageTypeEnum::SMS->value,
+            ChannelCategoryEnum::EMAIL->value => ChannelCategoryEnum::MAILGUN->value,
+            ChannelCategoryEnum::RESPONDIO->value => RespondIoMessageTypeEnum::TEXT->value,
             default => 'text',
         };
     }

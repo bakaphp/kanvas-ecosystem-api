@@ -8,10 +8,13 @@ use Exception;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
@@ -154,6 +157,30 @@ class BaseAgentChannelReplyAction
         if ($lead instanceof Lead) {
             new MarkLeadMessagesAsRespondedAction($lead, $newMessage)->execute();
             new NotifyLeadStakeholdersService($lead)->onAgentReply($newMessage, isHuman: false);
+
+            // Non-ADK agents (Neuron / Laravel / Runtime) get the master Lead + People
+            // channel dual-write so the CRM deal view and People profile show the actual
+            // delivery message (verb='twilio-sms', 'mailgun-email', etc.). ADK is left
+            // alone — its remote memory and existing legacy behavior depend on the
+            // per-protocol channel only.
+            if ($this->agent->type?->handler !== ADKAgent::class) {
+                new LeadChannelService()->attachMessageToLeadChannel(
+                    $newMessage,
+                    $lead,
+                    $message->app,
+                    $message->company,
+                    $user,
+                );
+                if ($lead->people !== null) {
+                    new PeopleChannelService()->attachMessageToPeopleChannel(
+                        $newMessage,
+                        $lead->people,
+                        $message->app,
+                        $message->company,
+                        $user,
+                    );
+                }
+            }
         }
 
         return $newMessage;

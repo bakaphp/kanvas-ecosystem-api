@@ -90,22 +90,16 @@ class AgentReachOutActivityEndToEndTest extends TestCase
             // Persistence + kernel ran first — that's what we verify below.
         }
 
+        // Outreach uses the master People channel only — conversations are per-Person.
+        // Legacy per-protocol channels are handled by LeadAgentFirstMessageOutreachActivity
+        // for the legacy flow, not here.
         $channel = Channel::query()
             ->where('apps_id', $app->getId())
             ->where('companies_id', $company->getId())
-            ->where('slug', 'like', 'twilio-%')
+            ->where('slug', 'people-channel-' . $lead->people->getId())
             ->first();
-        $this->assertNotNull($channel, 'BootstrapChannelForLeadAction must create the SMS channel');
-        $this->assertSame(
-            People::class,
-            $channel->entity_namespace,
-            'Channel must be People-keyed (durable across sales cycles)',
-        );
-        $this->assertSame(
-            (int) $lead->people->getId(),
-            (int) $channel->entity_id,
-            'Channel entity_id must match the Lead\'s People row',
-        );
+        $this->assertNotNull($channel, 'BootstrapChannelForLeadAction must reuse the People channel');
+        $this->assertSame(People::class, $channel->entity_namespace);
 
         $outbound = Message::query()
             ->where('apps_id', $app->getId())
@@ -136,20 +130,18 @@ class AgentReachOutActivityEndToEndTest extends TestCase
             'Outbound must ALSO be attached to People (for cross-channel rollup + UI)',
         );
 
-        // Canonical sales-agent pattern: outbound lives on THREE channels:
-        //   1. per-recipient slug channel (verified above)
-        //   2. lead-channel-{id}    — deal-scoped CRM surface
-        //   3. people-channel-{id}  — durable cross-Lead conversation master
+        // Outbound lives on TWO channels: People (master) and lead-channel-{id} (deal-scoped).
+        // Legacy per-protocol channels are handled by LeadAgentFirstMessageOutreachActivity.
         $attachedChannelSlugs = $outbound->channels()->pluck('slug')->all();
-        $this->assertContains(
-            'lead-channel-' . $lead->getId(),
-            $attachedChannelSlugs,
-            'Outbound must also be on the Lead channel (LeadChannelService dual-write)',
-        );
         $this->assertContains(
             'people-channel-' . $lead->people->getId(),
             $attachedChannelSlugs,
-            'Outbound must also be on the People channel (PeopleChannelService dual-write)',
+            'Outbound must be on the People channel (one conversation per person)',
+        );
+        $this->assertContains(
+            'lead-channel-' . $lead->getId(),
+            $attachedChannelSlugs,
+            'Outbound must also be on the Lead channel (deal-scoped CRM view)',
         );
         $this->assertSame(
             'agent-reach-out',
