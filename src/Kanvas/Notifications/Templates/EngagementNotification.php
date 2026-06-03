@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Templates;
 
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Notifications\Notification;
 
-class Blank extends Notification
+class EngagementNotification extends Blank
 {
     public function __construct(
         string $templateName,
@@ -16,8 +15,14 @@ class Blank extends Notification
         Model $entity,
         public ?array $pathAttachment = null
     ) {
-        parent::__construct($entity, $data);
-        $this->setType('blank');
+        parent::__construct(
+            $templateName,
+            $data,
+            $via,
+            $entity,
+            $pathAttachment
+        );
+        $this->setType('engagement_notification');
         $this->setTemplateName($templateName);
         $this->setData($data);
 
