@@ -51,6 +51,7 @@ enum WorkflowEnum: string
     case DEBUG = 'debug';
     case NOTIFICATION = 'notify';
     case AFTER_ONBOARDING = 'after-onboarding';
+    case AFTER_CONFIGURATION = 'after-configuration';
 
     /**
      * Get the enum case by its value.

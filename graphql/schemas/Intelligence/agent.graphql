@@ -129,6 +129,21 @@ input CommunicationChannelPivot {
     config: String
 }
 
+enum AgentIntegrationConfigKey {
+    GOOGLE
+    JIRA
+}
+
+input AgentIntegrationConfigEntryInput {
+    key: AgentIntegrationConfigKey!
+    value: Mixed
+}
+
+input SetAgentIntegrationConfigInput {
+    agent_id: ID!
+    config: [AgentIntegrationConfigEntryInput!]!
+}
+
 input ChatSimpleInput {
     agent_id: ID!
     session_id: String!
@@ -197,6 +212,10 @@ extend type Mutation @guard {
     aiAgentNeuronChat(input: NeuronChatInput!): String!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@neuronChat"
+        )
+    setAgentIntegrationConfig(input: SetAgentIntegrationConfigInput!): AgentAi!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentIntegrationConfigMutation@set"
         )
 }
 
