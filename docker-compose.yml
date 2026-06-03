@@ -236,6 +236,21 @@ services:
         networks:
             - sail
 
+    otel-collector:
+        image: otel/opentelemetry-collector-contrib:0.102.0
+        container_name: otel-collector
+        command: ["--config=/etc/otel/config.yaml"]
+        environment:
+            OTEL_INTERNAL_TOKEN: "${OTEL_INTERNAL_TOKEN}"
+        volumes:
+            - ./docker/otel/collector.yaml:/etc/otel/config.yaml:ro
+        ports:
+            - "4317:4317"
+            - "4318:4318"
+        networks:
+            - sail
+        restart: unless-stopped
+
     puppeteer:
         image: browserless/chrome
         container_name: puppeteer${APP_CONTAINER_NAME}

@@ -34,6 +34,12 @@ class CollectDeploymentUsageCommand extends Command
 
     public function handle(): void
     {
+        if (config('otel.enabled', false)) {
+            $this->info('OTel is active — token usage is collected via the collector pipeline. Skipping SSH poll.');
+
+            return;
+        }
+
         /** @var Apps $app */
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);

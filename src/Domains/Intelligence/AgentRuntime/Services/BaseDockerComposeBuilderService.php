@@ -235,6 +235,15 @@ abstract class BaseDockerComposeBuilderService
             $envVars['TELEGRAM_ALLOWED_USERS'] = (string) $telegramAllowedUsers;
         }
 
+        // OTel env vars — injected when otel.enabled is true so the container's
+        // otel-init.js can export spans to the collector on the same Docker network.
+        // KANVAS_DEPLOYMENT_ID is already set above and reused by otel-init.js as
+        // the agent.deployment_id resource attribute.
+        if (config('otel.enabled', false)) {
+            $envVars['OTEL_EXPORTER_OTLP_ENDPOINT'] = config('otel.collector_endpoint', 'http://otel-collector:4317');
+            $envVars['OTEL_SERVICE_NAME'] = $envVars['OTEL_SERVICE_NAME'] ?? $this->getProviderConfig()->providerName;
+        }
+
         $envLines = '';
         foreach ($envVars as $key => $value) {
             $envLines .= "      - {$key}={$value}\n";

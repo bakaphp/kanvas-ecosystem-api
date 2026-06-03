@@ -6,6 +6,7 @@ use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
 use App\Console\Commands\Connectors\Movipass\CheckExpiringOrdersCommand;
 use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
+use App\Console\Commands\Intelligence\CollectAllDeploymentsUsageCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
 use App\Console\Commands\NervousSystem\Schedules\NervousSystemSchedule;
@@ -50,10 +51,17 @@ class Kernel extends ConsoleKernel
         // rollups, plan + capability sweeps, the daily-learning loop.
         NervousSystemSchedule::register($schedule);
 
-        /*         $schedule->command(CollectAgentTelemetryCommand::class)
-                    ->everyMinute()
-                    ->withoutOverlapping(5)
-                    ->runInBackground(); */
+        // OpenClaw runtime telemetry — health, gateway, sessions, events (every minute).
+        $schedule->command(CollectAgentTelemetryCommand::class)
+            ->everyMinute()
+            ->withoutOverlapping(5)
+            ->runInBackground();
+
+        // Token usage snapshots — input/output/cache tokens per deployment (hourly).
+        $schedule->command(CollectAllDeploymentsUsageCommand::class)
+            ->hourly()
+            ->withoutOverlapping(10)
+            ->runInBackground();
         //$schedule->command(SendBookingRemindersCommand::class)->everyFiveMinutes();
         #$schedule->command(ScoutMessageReindexCommand::class, [env('MESSAGE_REINDEX_SCOUT_APP_ID', '13'), env('MESSAGE_REINDEX_SCOUT_MESSAGE_TYPES_ID', '572')])->everyTenMinutes();
         #$schedule->command(MailunregisteredUsersCampaignCommand::class)->weeklyOn(2, '2:30'); //@todo move this to normal cron
