@@ -23,10 +23,6 @@ class DeployGoogleCredentialsAction
     }
 
     /**
-     * Push the agent's stored Google OAuth credentials to its running Hermes
-     * container as on-disk files, then restart the container so the runtime
-     * picks them up.
-     *
      * @return array<string, mixed>
      */
     public function execute(): array
