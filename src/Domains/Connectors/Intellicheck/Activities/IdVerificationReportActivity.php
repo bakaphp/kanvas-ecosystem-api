@@ -237,13 +237,10 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                                 //  PeopleService::updatePeopleInformation($engagement->people, $verificationData);
                                 //     }
 
-                                $message = $engagement->message;
-                                if ($message instanceof Message) {
-                                    $message->addFile(
-                                        $pdfReport,
-                                        'id-verification'
-                                    );
-                                }
+                                $engagement?->message?->addFile(
+                                    $pdfReport,
+                                    'id-verification'
+                                );
                             }
                         }
 
