@@ -91,7 +91,7 @@ abstract class BaseTerminateAgentOnMachineAction
             $this->deployment->terminated_at = new Carbon();
             $this->deployment->saveOrFail();
 
-            $this->deployment->agent->update(['deployment_status' => 'pending']);
+            $this->deployment->agent?->update(['deployment_status' => 'pending']);
 
             $this->afterTerminate($client);
         } finally {
