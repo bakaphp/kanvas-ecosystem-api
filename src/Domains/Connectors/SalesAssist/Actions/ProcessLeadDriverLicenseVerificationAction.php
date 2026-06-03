@@ -402,8 +402,7 @@ class ProcessLeadDriverLicenseVerificationAction
             );
 
             if ($engagement) {
-                $message = $engagement->message;
-                $message->addFile($pdfReport, 'id-verification');
+                $engagement->message?->addFile($pdfReport, 'id-verification');
             } else {
                 $lead->addFile($pdfReport, 'id-verification');
             }

@@ -12,12 +12,12 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
-use Kanvas\Connectors\Intellicheck\Services\PeopleService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -230,15 +230,10 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                                 ActionStatusEnum::SUBMITTED->value,
                             );
 
-                            if ($engagement) {
-                                //update people name
-                                // if ($engagement->people instanceof People) {
-                                //  PeopleService::updatePeopleInformation($engagement->people, $verificationData);
-                                //     }
-
-                                $message = $engagement->message;
-                                $message->addFile($pdfReport, 'id-verification');
-                            }
+                            $engagement?->message?->addFile(
+                                $pdfReport,
+                                'id-verification'
+                            );
                         }
 
                         //$entity->addFile($pdfReport, 'id-verification');
@@ -259,6 +254,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         'resultsFromIntellicheck' => $resultsFromIntellicheck,
                         'getDocsDriversLicense' => $getDocsDriversLicense ?? null,
                         'generatePdf' => $generatePdf,
+                        'engagement_id' => isset($engagement) ? $engagement->getId() : null,
                     ];
                 },
                 company: $company,

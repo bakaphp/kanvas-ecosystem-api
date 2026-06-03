@@ -114,7 +114,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 user: $this->receiver->user,
                 type: $messageTypeModel,
                 message: AiChatMessagePayload::from([
-                    'content' => $request['Body'],
+                    'content' => $request['Body'] ?? null,
                     'from_me' => $request['From'] === $request['To'],
                     'from_ia' => false,
                     'raw_data' => $request,
@@ -133,7 +133,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 $this->cancelPendingWorkflow($batchKey);
                 // Add current message to batch
                 $batch['messages'][] = [
-                    'body' => $request['Body'],
+                    'body' => $request['Body'] ?? '', //photos or media may not have body
                     'message_sid' => $request['SmsMessageSid'],
                     'timestamp' => now(),
                     'raw_data' => $request,
