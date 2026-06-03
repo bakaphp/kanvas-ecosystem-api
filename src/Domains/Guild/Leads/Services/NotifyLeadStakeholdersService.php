@@ -145,7 +145,7 @@ class NotifyLeadStakeholdersService
                 'user' => $message->user,
             ],
             via: $channels,
-            entity: $message
+            entity: $this->lead
         );
 
         $peopleName = (string) ($this->lead->people->name ?? '');
