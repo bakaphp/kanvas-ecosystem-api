@@ -41,10 +41,15 @@ class ChannelMessageCreatedEvent implements ShouldBroadcast
         $channelSlug = SystemModules::getSlugBySystemModuleNameSpace($entityNamespace);
 
         return [
-            new Channel('new-message-channel-' . $channelSlug . '-' . ($this->channel->entity_id ?? $this->channel->id)),
-            new Channel('app-' . $this->channel->apps_id . '-new-message-channel-' . $this->channel->slug . '-' . $this->channel->id),
-            new Channel('app-' . $this->channel->apps_id . $this->channel->slug),
+            new Channel($this->sanitizePusherChannelName('new-message-channel-' . $channelSlug . '-' . ($this->channel->entity_id ?? $this->channel->id))),
+            new Channel($this->sanitizePusherChannelName('app-' . $this->channel->apps_id . '-new-message-channel-' . $this->channel->slug . '-' . $this->channel->id)),
+            new Channel($this->sanitizePusherChannelName('app-' . $this->channel->apps_id . $this->channel->slug)),
         ];
+    }
+
+    private function sanitizePusherChannelName(string $name): string
+    {
+        return (string) preg_replace('/[^A-Za-z0-9_=@,.;\-]+/', '-', $name);
     }
 
     public function broadcastAs(): string
