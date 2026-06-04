@@ -8,8 +8,7 @@ use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
-use App\Console\Commands\Lead\DispatchLeadFollowUpsCommand;
-use App\Console\Commands\Lead\LeadFollowUpDailySummaryCommand;
+use App\Console\Commands\Lead\Schedules\LeadFollowUpSchedule;
 use App\Console\Commands\NervousSystem\Schedules\NervousSystemSchedule;
 use App\Console\Commands\Social\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
@@ -52,24 +51,9 @@ class Kernel extends ConsoleKernel
         // rollups, plan + capability sweeps, the daily-learning loop.
         NervousSystemSchedule::register($schedule);
 
-        // Lead follow-up v2 — hourly tick fans out per-tenant work-hours-gated
-        // candidate scans; daily rollup emits a summary ledger event per
-        // (app, company). At 2 entries; extract into
-        // App\Console\Schedules\LeadFollowUpSchedule when this grows past 3.
-        $schedule->command(DispatchLeadFollowUpsCommand::class)
-            ->hourly()
-            ->withoutOverlapping(10)
-            ->onOneServer()
-            ->runInBackground();
-
-        // 30 min after midnight (UTC) so yesterday's last hour of events
-        // has settled. The action computes "yesterday" per tenant timezone
-        // internally so a UTC fire still aggregates correct local-day data.
-        $schedule->command(LeadFollowUpDailySummaryCommand::class)
-            ->dailyAt('00:30')
-            ->withoutOverlapping()
-            ->onOneServer()
-            ->runInBackground();
+        // Lead follow-up v2 — hourly fan-out + daily summary. Timing map +
+        // rationale live in LeadFollowUpSchedule.
+        LeadFollowUpSchedule::register($schedule);
 
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()
