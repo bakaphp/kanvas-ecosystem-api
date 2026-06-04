@@ -89,7 +89,7 @@ V1 ships Lead-only, WhatsApp-only, `time_based` mode only. See the [v1 spec](../
 
 ```php
 $agentName = $config?->agentName ?? AgentEnum::FOLLOW_UP_ENGAGER->value;
-$agent     = Agent::getByName($agentName, $this->app);
+$agent     = Agent::getByNameFromCompanyApp($agentName, $this->company, $this->app);
 ```
 
 …then passes the `Agent` into the action constructor. The action never knows about `AgentEnum` — it just uses the agent it was given. Stage config can override per stage via `follow_up.agent_name`.
@@ -113,7 +113,7 @@ The job would resolve via:
 ```php
 $role      = $config?->agentRole ?? 'follow_up';                              // role from stage config
 $agentName = $company->get('agent_roles')[$role] ?? AgentEnum::FOLLOW_UP_ENGAGER->value;
-$agent     = Agent::getByName($agentName, $this->app);
+$agent     = Agent::getByNameFromCompanyApp($agentName, $this->company, $this->app);
 ```
 
 Action signature doesn't change. Job's resolution gains a role-mapping lookup. Stage config keeps an optional `agent_name` for direct override (skip the role table) AND/OR an `agent_role` for tenant-mapped lookup.

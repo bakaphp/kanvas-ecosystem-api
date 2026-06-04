@@ -44,7 +44,7 @@ class FollowUpLeadMutation
         $agentName = $config?->agentName ?? AgentEnum::FOLLOW_UP_ENGAGER->value;
 
         /** @var Agent $agent */
-        $agent = Agent::getByName($agentName, $app);
+        $agent = Agent::getByNameFromCompanyApp($agentName, $company, $app);
 
         $outcome = new FollowUpLeadAction(
             app: $app,

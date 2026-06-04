@@ -47,7 +47,11 @@ final class LeadFollowUpJob implements ShouldQueue
         $agentName = $this->resolveAgentName();
 
         /** @var Agent $agent */
-        $agent = Agent::getByName($agentName, $this->app);
+        $agent = Agent::getByNameFromCompanyApp(
+            $agentName,
+            $this->company,
+            $this->app
+        );
 
         new FollowUpLeadAction(
             app: $this->app,
