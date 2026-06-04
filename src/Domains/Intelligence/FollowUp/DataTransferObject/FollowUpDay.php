@@ -8,6 +8,10 @@ use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 use Spatie\LaravelData\Data;
 
+/**
+ * @deprecated v1 follow-up engine reads stage config via FollowUpConfig DTO
+ *             — see docs/intelligence/follow-up-deprecation-spec.md kill list.
+ */
 class FollowUpDay extends Data
 {
     public function __construct(

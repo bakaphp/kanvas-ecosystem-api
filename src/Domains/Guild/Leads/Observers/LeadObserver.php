@@ -13,6 +13,7 @@ use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\FollowUp\Actions\WriteLeadStageChangeThreadMessageAction;
 use Kanvas\Intelligence\Sessions\Actions\DeleteSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\UpdateLeadSessionsAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
@@ -68,6 +69,31 @@ class LeadObserver
                 ->first();
 
             $lead->leads_receivers_id = $receiver ? $receiver->id : 0;
+        }
+    }
+
+    // Stage changes can originate from many call sites (UI, deal-won actions,
+    // workflows, FollowUpLeadAction's auto-advance). Centralizing the reaction
+    // here means every path triggers the same audit + state reset.
+    public function updating(Lead $lead): void
+    {
+        if ($lead->isDirty('pipeline_stage_id')) {
+            $fromStageId = $lead->getOriginal('pipeline_stage_id');
+            $toStageId = $lead->pipeline_stage_id;
+
+            $lead->resetFollowUpState();
+            $lead->emitLedgerEvent('lead.stage.changed', payload: [
+                'from_stage_id' => $fromStageId,
+                'to_stage_id' => $toStageId,
+            ]);
+
+            // Social-side failures are swallowed by the action — Ledger event
+            // above is the audit truth; never block the Lead update.
+            new WriteLeadStageChangeThreadMessageAction(
+                lead: $lead,
+                fromStageId: $fromStageId !== null ? (int) $fromStageId : null,
+                toStageId: (int) $toStageId,
+            )->execute();
         }
     }
 

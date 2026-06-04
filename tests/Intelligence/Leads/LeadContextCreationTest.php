@@ -57,7 +57,7 @@ final class LeadContextCreationTest extends TestCase
         $agent->saveOrFail();
 
         $leadType = LeadType::firstOrCreate([
-            'name' => 'Internet ',
+            'name' => 'Internet',
             'companies_id' => $company->getId(),
             'apps_id' => $app->getId(),
         ], [
@@ -157,7 +157,7 @@ final class LeadContextCreationTest extends TestCase
 
         $context = new CreateLeadContextInfoAction($lead)->execute([
             'pipelinesMapping' => [
-                'Internet ' => $lead->pipeline_id,
+                'Internet' => $lead->pipeline_id,
             ],
         ]);
         $this->assertIsArray($context);

@@ -112,6 +112,21 @@ trait KanvasModelTrait
         }
     }
 
+    public static function getByNameFromCompanyApp(string $name, CompanyInterface $company, AppInterface $app): self
+    {
+        try {
+            return self::where('name', $name)
+                ->notDeleted()
+                ->fromCompany($company)
+                ->fromApp($app)
+                ->firstOrFail();
+        } catch (ModelNotFoundException $e) {
+            throw new ExceptionsModelNotFoundException(
+                sprintf('No %s record found with name %s for Company ID %s', get_called_class(), $name, $company->getId())
+            );
+        }
+    }
+
     public static function getByIdFromCompanyAppOrGlobal(mixed $id, CompanyInterface $company, AppInterface $app): self
     {
         try {

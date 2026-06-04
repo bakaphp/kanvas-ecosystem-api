@@ -63,10 +63,7 @@ class SalesAgent extends BaseKanvasAgent
     public function instructions(): string
     {
         $role = $this->agent->role;
-        // currentLead is plumbed per-turn via setCurrentLead(); the entity-as-Lead
-        // fallback covers legacy sessions that still point directly at a Lead row.
-        $lead = $this->currentLead
-            ?? ($this->entity instanceof Lead ? $this->entity : null);
+        $lead = $this->resolveLeadForTurn();
 
         $background = Blade::render($role['background'], ['lead' => $lead]);
         $steps = Blade::render($role['steps'], ['lead' => $lead]);
