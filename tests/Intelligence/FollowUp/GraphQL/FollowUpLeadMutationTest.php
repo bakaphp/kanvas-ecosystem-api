@@ -56,6 +56,7 @@ class FollowUpLeadMutationTest extends TestCase
             'name' => AgentEnum::FOLLOW_UP_ENGAGER->value,
             'agent_type_id' => $agentType->getId(),
             'user_id' => $user->getId(),
+            'role' => ['background' => [], 'steps' => [], 'output' => ''],
         ]);
 
         $pipeline = Pipeline::create([

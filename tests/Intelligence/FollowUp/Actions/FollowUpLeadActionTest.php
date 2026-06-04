@@ -486,7 +486,7 @@ class FollowUpLeadActionTest extends TestCase
                 'agent_type_id' => $agentType->getId(),
                 'user_id' => $this->user->getId(),
                 'is_active' => true,
-                'role' => ['background' => '', 'steps' => '', 'output' => ''],
+                'role' => ['background' => [], 'steps' => [], 'output' => ''],
             ]);
     }
 

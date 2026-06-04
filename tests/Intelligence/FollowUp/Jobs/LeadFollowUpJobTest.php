@@ -46,11 +46,13 @@ class LeadFollowUpJobTest extends TestCase
             'name' => AgentEnum::FOLLOW_UP_ENGAGER->value,
             'agent_type_id' => $agentType->getId(),
             'user_id' => $user->getId(),
+            'role' => ['background' => [], 'steps' => [], 'output' => ''],
         ]);
         $overrideAgent = Agent::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create([
             'name' => 'CustomNudgeAgent',
             'agent_type_id' => $agentType->getId(),
             'user_id' => $user->getId(),
+            'role' => ['background' => [], 'steps' => [], 'output' => ''],
         ]);
 
         $pipeline = Pipeline::create([
@@ -119,6 +121,7 @@ class LeadFollowUpJobTest extends TestCase
             'name' => AgentEnum::FOLLOW_UP_ENGAGER->value,
             'agent_type_id' => $agentType->getId(),
             'user_id' => $user->getId(),
+            'role' => ['background' => [], 'steps' => [], 'output' => ''],
         ]);
 
         $pipeline = Pipeline::create([
