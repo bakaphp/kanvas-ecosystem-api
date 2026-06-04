@@ -83,7 +83,8 @@ class CreateMessageFromEmailAction
                           $this->lead->email
                       ),
                   ]);
-            $channel = (new CreateChannelAction($channel))->execute();
+
+            $channel = new CreateChannelAction($channel)->execute();
             $leadSystemModule = SystemModulesRepository::getByModelName(get_class($this->lead), $this->lead->app);
             $newMessage = new CreateMessageAction(
                 $messageInput,
@@ -99,6 +100,11 @@ class CreateMessageFromEmailAction
         //$newMessage->addEntity($lead);
 
         if ($channel !== null) {
+            // Polymorphic People attach so People-keyed history loaders (Neuron's
+            // SalesAssistKanvasMessageHistory) find this turn. Harmless for ADK.
+            if ($this->lead?->people !== null) {
+                $newMessage->addEntity($this->lead->people);
+            }
             $channel->addMessage($newMessage);
             $newMessage->addTag('engagement');
 

@@ -10,7 +10,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
-use Kanvas\Intelligence\Agents\Actions\ProcessAgentChatAction;
+use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
@@ -34,7 +34,7 @@ use Throwable;
  *   plan.agent.replied      — after the reply is posted on the channel
  *
  * And one on failure:
- *   plan.agent.invocation_failed — when ProcessAgentChatAction throws
+ *   plan.agent.invocation_failed — when AgentChatKernel throws
  */
 class WakeAgentForPlanJob implements ShouldQueue
 {
@@ -69,12 +69,10 @@ class WakeAgentForPlanJob implements ShouldQueue
         $startedAt = microtime(true);
 
         try {
-            $response = new ProcessAgentChatAction(
+            $response = new AgentChatKernel(
                 agent: $agent,
                 session: $session,
                 message: $message,
-                app: $this->plan->app,
-                company: $this->plan->company,
                 user: $owner,
             )->execute();
         } catch (Throwable $e) {

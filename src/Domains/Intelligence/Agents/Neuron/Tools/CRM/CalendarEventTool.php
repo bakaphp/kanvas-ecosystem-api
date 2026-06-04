@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Carbon\Carbon;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventData;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use NeuronAI\Tools\ArrayProperty;
@@ -134,25 +133,37 @@ class CalendarEventTool extends Tool
         $fullDescription = trim(($description ?? '') . $attendeeBlock);
 
         try {
-            $eventData = EventData::fromMultiple($lead->app, $owner, $company, [
-                'name' => $title,
-                'description' => $fullDescription !== '' ? $fullDescription : null,
-                'meeting_link' => $meeting_link,
-                'dates' => [
-                    [
-                        'date' => $start->format('Y-m-d'),
-                        'start_time' => $start->format('H:i'),
-                        'end_time' => $end->format('H:i'),
+            $eventData = EventData::from(
+                $lead->app,
+                $owner,
+                $company,
+                [
+                    'name' => $title,
+                    'description' => $fullDescription !== '' ? $fullDescription : null,
+                    'meeting_link' => $meeting_link,
+                    'dates' => [
+                        [
+                            'date' => $start->format('Y-m-d'),
+                            'start_time' => $start->format('H:i'),
+                            'end_time' => $end->format('H:i'),
+                        ],
                     ],
-                ],
-            ]);
+                    'resources' => [
+                        [
+                            'resources_id' => $lead->getId(),
+                            'resources_type' => 'lead',
+                        ],
+                    ],
+                ]
+            );
 
             $event = new CreateEventAction($eventData)->disableWorkflow()->execute();
 
-            // Tag the polymorphic event with the lead so LeadRefTool (and other
-            // lead-scoped queries) can list "appointments for this lead".
+            // CreateEventAction::storeEventResources() writes the lead into the
+            // event_resources pivot, but LeadRefTool queries the singular
+            // events.resources_id / events.resources_type columns. Mirror it.
             $event->resources_id = $lead->getId();
-            $event->resources_type = Lead::class;
+            $event->resources_type = $lead->getMorphClass();
             $event->saveQuietly();
         } catch (Throwable $e) {
             return [

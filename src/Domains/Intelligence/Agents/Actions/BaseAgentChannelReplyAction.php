@@ -8,10 +8,13 @@ use Exception;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
@@ -25,7 +28,17 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
-class BaseAgentResponderAction
+/**
+ * Shared base for per-connector channel reply actions (WaSender, Mailgun, RespondIO,
+ * Twilio, Microsoft, SalesAssist). Owns AI-mode/responded guards, outbound message
+ * persistence via createMessage(), message-type-verb tagging, and the
+ * MarkLeadMessagesAsResponded + NotifyLeadStakeholders side effects.
+ *
+ * Subclasses' execute() extracts the inbound text, calls AgentChatKernel for the
+ * agent's reply, then persists + ships outbound via this base's createMessage()
+ * and their connector-specific outbound client.
+ */
+class BaseAgentChannelReplyAction
 {
     protected string $messageTypeVerb = 'text';
     protected string $communicationChannel = '';
@@ -110,8 +123,15 @@ class BaseAgentResponderAction
         $newMessage->set('communicationChannel', $this->communicationChannel);
         $newMessage->set('from_number', $from);
 
-        if ($message->entity() instanceof Model) {
-            $newMessage->addEntity($message->entity());
+        $entity = $message->entity();
+        if ($entity instanceof Model) {
+            $newMessage->addEntity($entity);
+            // People-keyed history (SalesAssistKanvasMessageHistory) queries by People;
+            // without this attachment the outbound disappears from cross-channel rollup
+            // and from the People profile UI.
+            if ($entity instanceof Lead && $entity->people !== null) {
+                $newMessage->addEntity($entity->people);
+            }
         }
 
         // $isWithinWorkingHours = $message->entity()->company->isWithinWorkingHours(now());
@@ -137,6 +157,30 @@ class BaseAgentResponderAction
         if ($lead instanceof Lead) {
             new MarkLeadMessagesAsRespondedAction($lead, $newMessage)->execute();
             new NotifyLeadStakeholdersService($lead)->onAgentReply($newMessage, isHuman: false);
+
+            // Non-ADK agents (Neuron / Laravel / Runtime) get the master Lead + People
+            // channel dual-write so the CRM deal view and People profile show the actual
+            // delivery message (verb='twilio-sms', 'mailgun-email', etc.). ADK is left
+            // alone — its remote memory and existing legacy behavior depend on the
+            // per-protocol channel only.
+            if ($this->agent->type?->handler !== ADKAgent::class) {
+                new LeadChannelService()->attachMessageToLeadChannel(
+                    $newMessage,
+                    $lead,
+                    $message->app,
+                    $message->company,
+                    $user,
+                );
+                if ($lead->people !== null) {
+                    new PeopleChannelService()->attachMessageToPeopleChannel(
+                        $newMessage,
+                        $lead->people,
+                        $message->app,
+                        $message->company,
+                        $user,
+                    );
+                }
+            }
         }
 
         return $newMessage;
