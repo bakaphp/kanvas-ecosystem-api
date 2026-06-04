@@ -276,6 +276,18 @@ class Plan extends Data
 
 Spatie Data's `BaseData::from(mixed ...$payloads)` is the public factory. When you call `Plan::from($app, $user, $company, $request['input'])`, Spatie's creation pipeline inspects the runtime types of the args and routes to whichever `from*` magic method on the class has a matching signature. Our `fromMultiple` method is one of those magic methods — naming it `fromMultiple` makes it the canonical entry for the "multiple typed-objects + data array" shape.
 
+**Exact routing rules** (verified in `Spatie\LaravelData\Resolvers\DataFromSomethingResolver::createFromCustomCreationMethod` + `Spatie\LaravelData\Support\DataMethod::accepts`):
+
+1. Method must be `public static`, name must start with `from`, return type must be `self` / `static` / the class itself (anything else is skipped as a candidate).
+2. Spatie iterates the candidates and calls `accepts(...$payloads)` on each — that returns true when arg count ≤ required param count AND every runtime arg's type satisfies the declared parameter type (or the parameter has a default).
+3. **First matching method wins** in declaration order. Iteration stops.
+4. The matched method is invoked as `$class::$methodName(...$payloads)`.
+
+So:
+- The name `fromMultiple` carries no special meaning — `fromRequest`, `fromLead`, `fromImport`, etc. all work the same. A DTO can declare several `from*` methods with different signatures and Spatie routes each `::from(...)` call to the right one by parameter types.
+- You only call `Foo::fromMultiple(...)` directly when you specifically want to bypass the Spatie router (which also skips pre-pipeline normalization/casting). For normal use, `Foo::from(...)` is the entry point and the router does the dispatch.
+- Spatie's iteration order = PHP's class method declaration order. If two `from*` methods could both accept the same args, the one declared **earlier** wins — keep their signatures disjoint to avoid silent routing surprises.
+
 **Do NOT try to rename `fromMultiple` to `from`.** PHP will fatal at class load because Spatie's parent signature `from(mixed ...$payloads): static` cannot be narrowed to a fixed typed signature (LSP violation: child can't have more required params than parent, and can't narrow variadic mixed to specific types).
 
 **Do NOT call `Plan::fromMultiple(...)` directly from outside the class** — use `Plan::from(...)`. Spatie's pipeline handles the routing. Direct calls work but bypass any Spatie-side normalization/casting and are non-idiomatic.
