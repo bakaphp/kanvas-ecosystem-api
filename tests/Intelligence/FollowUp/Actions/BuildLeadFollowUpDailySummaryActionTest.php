@@ -41,24 +41,69 @@ class BuildLeadFollowUpDailySummaryActionTest extends TestCase
         $occurredAt = $yesterday->copy()->setTimezone($tz)->setTime(12, 0, 0)->utc();
 
         // Seed a variety of events on yesterday.
-        $this->seedEvent($app, $company, 'lead.follow_up.sent',
-            ['channels' => ['whatsapp'], 'stage_id' => 7], $occurredAt);
-        $this->seedEvent($app, $company, 'lead.follow_up.sent',
-            ['channels' => ['whatsapp'], 'stage_id' => 7], $occurredAt);
-        $this->seedEvent($app, $company, 'lead.follow_up.sent',
-            ['channels' => ['sms'], 'stage_id' => 9], $occurredAt);
-        $this->seedEvent($app, $company, 'lead.follow_up.skipped',
-            ['reason' => 'too_soon'], $occurredAt);
-        $this->seedEvent($app, $company, 'lead.follow_up.exhausted',
-            ['reason' => 'agent: lead disengaged'], $occurredAt);
-        $this->seedEvent($app, $company, 'lead.follow_up.exhausted',
-            ['reason' => 'agent: different reason'], $occurredAt);
-        $this->seedEvent($app, $company, 'lead.follow_up.exhausted',
-            ['reason' => 'max_retries'], $occurredAt);
-        $this->seedEvent($app, $company, 'lead.follow_up.resumed',
-            ['reason' => 'inbound_reply'], $occurredAt);
-        $this->seedEvent($app, $company, 'lead.pipeline.completed',
-            ['reason' => 'agent_advanced_to_terminal'], $occurredAt);
+        $this->seedEvent(
+            $app,
+            $company,
+            'lead.follow_up.sent',
+            ['channels' => ['whatsapp'], 'stage_id' => 7],
+            $occurredAt
+        );
+        $this->seedEvent(
+            $app,
+            $company,
+            'lead.follow_up.sent',
+            ['channels' => ['whatsapp'], 'stage_id' => 7],
+            $occurredAt
+        );
+        $this->seedEvent(
+            $app,
+            $company,
+            'lead.follow_up.sent',
+            ['channels' => ['sms'], 'stage_id' => 9],
+            $occurredAt
+        );
+        $this->seedEvent(
+            $app,
+            $company,
+            'lead.follow_up.skipped',
+            ['reason' => 'too_soon'],
+            $occurredAt
+        );
+        $this->seedEvent(
+            $app,
+            $company,
+            'lead.follow_up.exhausted',
+            ['reason' => 'agent: lead disengaged'],
+            $occurredAt
+        );
+        $this->seedEvent(
+            $app,
+            $company,
+            'lead.follow_up.exhausted',
+            ['reason' => 'agent: different reason'],
+            $occurredAt
+        );
+        $this->seedEvent(
+            $app,
+            $company,
+            'lead.follow_up.exhausted',
+            ['reason' => 'max_retries'],
+            $occurredAt
+        );
+        $this->seedEvent(
+            $app,
+            $company,
+            'lead.follow_up.resumed',
+            ['reason' => 'inbound_reply'],
+            $occurredAt
+        );
+        $this->seedEvent(
+            $app,
+            $company,
+            'lead.pipeline.completed',
+            ['reason' => 'agent_advanced_to_terminal'],
+            $occurredAt
+        );
 
         $summary = new BuildLeadFollowUpDailySummaryAction(
             app: $app,
@@ -99,8 +144,13 @@ class BuildLeadFollowUpDailySummaryActionTest extends TestCase
         $twoDaysAgo = Carbon::today($tz)->subDays(2)->setTime(12, 0, 0)->utc();
 
         // This event is 2 days old — should NOT be in yesterday's summary.
-        $this->seedEvent($app, $company, 'lead.follow_up.sent',
-            ['channels' => ['sms'], 'stage_id' => 1], $twoDaysAgo);
+        $this->seedEvent(
+            $app,
+            $company,
+            'lead.follow_up.sent',
+            ['channels' => ['sms'], 'stage_id' => 1],
+            $twoDaysAgo
+        );
 
         $summary = new BuildLeadFollowUpDailySummaryAction(
             app: $app,

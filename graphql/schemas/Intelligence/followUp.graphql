@@ -88,34 +88,71 @@ input UpdateFollowUpTemplateInput {
     template: String
 }
 
+"Discrete outcome kinds for a followUpLead trigger. Mirrors FollowUpOutcomeKindEnum."
+enum FollowUpLeadOutcomeKind {
+    SENT @enum(value: "sent")
+    SKIPPED @enum(value: "skipped")
+    EXHAUSTED @enum(value: "exhausted")
+    COMPLETED @enum(value: "completed")
+    ERROR @enum(value: "error")
+}
+
+"Outcome of a manual followUpLead trigger. Mirrors the FollowUpOutcome DTO."
+type FollowUpLeadOutcome {
+    kind: FollowUpLeadOutcomeKind!
+    reason: String
+    message: String
+}
+
 extend type Mutation @guard {
     createFollowUp(input: FollowUpInput!): FollowUp!
+        @deprecated(
+            reason: "Replaced by stage.config.follow_up — see docs/intelligence/follow-up-v1-spec.md."
+        )
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpMutation@create"
         )
     updateFollowUp(id: ID!, input: UpdateFollowUpInput!): FollowUp!
+        @deprecated(
+            reason: "Replaced by stage.config.follow_up — see docs/intelligence/follow-up-v1-spec.md."
+        )
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpMutation@update"
         )
     deleteFollowUp(id: ID!): Boolean!
+        @deprecated(
+            reason: "Replaced by stage.config.follow_up — see docs/intelligence/follow-up-v1-spec.md."
+        )
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpMutation@delete"
         )
 
     createFollowUpDay(input: FollowUpDayInput!): FollowUpDay!
+        @deprecated(
+            reason: "Replaced by stage.config.follow_up.time_based — see docs/intelligence/follow-up-v1-spec.md."
+        )
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpDayMutation@create"
         )
     updateFollowUpDay(id: ID!, input: UpdateFollowUpDayInput!): FollowUpDay!
+        @deprecated(
+            reason: "Replaced by stage.config.follow_up.time_based — see docs/intelligence/follow-up-v1-spec.md."
+        )
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpDayMutation@update"
         )
     deleteFollowUpDay(id: ID!): Boolean!
+        @deprecated(
+            reason: "Replaced by stage.config.follow_up.time_based — see docs/intelligence/follow-up-v1-spec.md."
+        )
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpDayMutation@delete"
         )
 
     createFollowUpTemplate(input: FollowUpTemplateInput!): FollowUpTemplate!
+        @deprecated(
+            reason: "Replaced by Templates row referenced from stage.config.follow_up.channels[].template_name — see docs/intelligence/follow-up-v1-spec.md."
+        )
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpTemplateMutation@create"
         )
@@ -123,12 +160,32 @@ extend type Mutation @guard {
         id: ID!
         input: UpdateFollowUpTemplateInput!
     ): FollowUpTemplate!
+        @deprecated(
+            reason: "Replaced by Templates row referenced from stage.config.follow_up.channels[].template_name — see docs/intelligence/follow-up-v1-spec.md."
+        )
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpTemplateMutation@update"
         )
     deleteFollowUpTemplate(id: ID!): Boolean!
+        @deprecated(
+            reason: "Replaced by Templates row referenced from stage.config.follow_up.channels[].template_name — see docs/intelligence/follow-up-v1-spec.md."
+        )
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpTemplateMutation@delete"
+        )
+}
+
+# Manual trigger for the v1 follow-up engine. Bypasses the 'too_soon' silence
+# gate (force=true) but honors all other gates. Runs INLINE in the GraphQL
+# request — does not enqueue. See docs/intelligence/follow-up-v1-spec.md.
+extend type Mutation @guardByAdmin {
+    """
+    Trigger an immediate follow-up for the given lead. Returns the outcome
+    of the run so callers can render success/skipped/exhausted/completed.
+    """
+    followUpLead(leadId: ID!): FollowUpLeadOutcome!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpLeadMutation@execute"
         )
 }
 
@@ -140,6 +197,9 @@ extend type Query @guard {
             )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [FollowUp!]!
+        @deprecated(
+            reason: "Replaced by stage.config.follow_up — see docs/intelligence/follow-up-v1-spec.md."
+        )
         @paginate(
             model: "Kanvas\\Intelligence\\FollowUp\\Models\\FollowUp"
             scopes: ["fromCompany", "fromApp", "notDeleted"]
@@ -154,6 +214,9 @@ extend type Query @guard {
         orderBy: _
             @orderBy(columns: ["id", "created_at", "updated_at", "weight"])
     ): [FollowUpDay!]!
+        @deprecated(
+            reason: "Replaced by stage.config.follow_up.time_based — see docs/intelligence/follow-up-v1-spec.md."
+        )
         @paginate(
             model: "Kanvas\\Intelligence\\FollowUp\\Models\\FollowUpDay"
             scopes: ["notDeleted"]
@@ -172,6 +235,9 @@ extend type Query @guard {
             )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
     ): [FollowUpTemplate!]!
+        @deprecated(
+            reason: "Replaced by Templates row referenced from stage.config.follow_up.channels[].template_name — see docs/intelligence/follow-up-v1-spec.md."
+        )
         @paginate(
             model: "Kanvas\\Intelligence\\FollowUp\\Models\\FollowUpTemplate"
             scopes: ["notDeleted"]

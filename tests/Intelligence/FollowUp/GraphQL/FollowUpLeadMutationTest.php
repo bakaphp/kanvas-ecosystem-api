@@ -64,7 +64,6 @@ class FollowUpLeadMutationTest extends TestCase
             'name' => 'P',
 
             'is_default' => 0,
-
         ]);
         // Stage with NO follow_up config → action returns skipped(follow_up_disabled).
         $stage = PipelineStage::create([
@@ -77,7 +76,6 @@ class FollowUpLeadMutationTest extends TestCase
         $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
             'pipeline_id' => $pipeline->getId(),
             'pipeline_stage_id' => $stage->getId(),
-
         ]);
 
         $this->graphQL('
@@ -93,7 +91,7 @@ class FollowUpLeadMutationTest extends TestCase
             ->assertJson([
                 'data' => [
                     'followUpLead' => [
-                        'kind' => 'skipped',
+                        'kind' => 'SKIPPED',
                         'reason' => 'follow_up_disabled',
                         'message' => null,
                     ],

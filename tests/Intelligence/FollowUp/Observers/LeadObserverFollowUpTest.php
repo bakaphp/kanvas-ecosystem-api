@@ -38,7 +38,6 @@ class LeadObserverFollowUpTest extends TestCase
             'name' => 'Pipe',
 
             'is_default' => 0,
-
         ]);
         $stageA = PipelineStage::create(['pipelines_id' => $pipeline->getId(), 'name' => 'A', 'weight' => 1]);
         $stageB = PipelineStage::create(['pipelines_id' => $pipeline->getId(), 'name' => 'B', 'weight' => 2]);
@@ -46,7 +45,6 @@ class LeadObserverFollowUpTest extends TestCase
         $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
             'pipeline_id' => $pipeline->getId(),
             'pipeline_stage_id' => $stageA->getId(),
-
         ]);
 
         // Pre-populate follow_up_state so we can prove it was reset.

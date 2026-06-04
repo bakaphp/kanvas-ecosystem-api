@@ -19,7 +19,6 @@ use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Actions\FollowUpLeadAction;
-use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpOutcome;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpOutcomeKindEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Models\Event;
@@ -27,7 +26,6 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
-use Kanvas\Templates\Models\Templates;
 use Tests\Stubs\FollowUp\FollowUpAgentStub;
 use Tests\TestCase;
 
@@ -500,7 +498,6 @@ class FollowUpLeadActionTest extends TestCase
             'name' => 'Test Pipeline',
 
             'is_default' => 0,
-
         ]);
 
         $stage = PipelineStage::create([
@@ -515,7 +512,6 @@ class FollowUpLeadActionTest extends TestCase
             ->create([
                 'pipeline_id' => $pipeline->getId(),
                 'pipeline_stage_id' => $stage->getId(),
-
             ]);
     }
 
@@ -532,7 +528,6 @@ class FollowUpLeadActionTest extends TestCase
             'name' => 'Test Pipeline',
 
             'is_default' => 0,
-
         ]);
 
         $stage1 = PipelineStage::create([
@@ -554,7 +549,6 @@ class FollowUpLeadActionTest extends TestCase
             ->create([
                 'pipeline_id' => $pipeline->getId(),
                 'pipeline_stage_id' => $stage1->getId(),
-
             ]);
 
         return [$lead, $stage1, $stage2];

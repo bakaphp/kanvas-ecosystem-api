@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Intelligence\FollowUp\Integration;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -122,14 +121,12 @@ class BaseAgentChannelReplyActionReengagementTest extends TestCase
             'name' => 'P',
 
             'is_default' => 0,
-
         ]);
         $stage = PipelineStage::create(['pipelines_id' => $pipeline->getId(), 'name' => 'S', 'weight' => 1]);
 
         $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
             'pipeline_id' => $pipeline->getId(),
             'pipeline_stage_id' => $stage->getId(),
-
         ]);
 
         $messageType = MessageType::firstOrCreate(

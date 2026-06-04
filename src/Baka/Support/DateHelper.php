@@ -50,15 +50,7 @@ class DateHelper
         }
     }
 
-    /**
-     * Defensive Carbon::parse — returns null instead of throwing on garbage,
-     * non-strings, or empty input. Use this when reading user-provided or
-     * stored-as-JSON timestamps that might be missing or malformed.
-     *
-     * Distinct from {@see normalizeDate} (returns formatted string|null) and
-     * {@see normalizeTime} (same, time-only). Use this when the caller wants
-     * the Carbon object back to do further work on it.
-     */
+    // Returns null instead of throwing on garbage / non-strings / empty input.
     public static function tryParseCarbon(mixed $value): ?Carbon
     {
         if (! is_string($value) || $value === '') {

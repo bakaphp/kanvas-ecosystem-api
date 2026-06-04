@@ -59,7 +59,6 @@ class LeadFollowUpJobTest extends TestCase
             'name' => 'Test',
 
             'is_default' => 0,
-
         ]);
         $stage = PipelineStage::create([
             'pipelines_id' => $pipeline->getId(),
@@ -87,7 +86,6 @@ class LeadFollowUpJobTest extends TestCase
         $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
             'pipeline_id' => $pipeline->getId(),
             'pipeline_stage_id' => $stage->getId(),
-
         ]);
 
         // No session → action will short-circuit at gate 3. We just need the
@@ -129,7 +127,6 @@ class LeadFollowUpJobTest extends TestCase
             'name' => 'Test',
 
             'is_default' => 0,
-
         ]);
         $stage = PipelineStage::create([
             'pipelines_id' => $pipeline->getId(),
@@ -157,7 +154,6 @@ class LeadFollowUpJobTest extends TestCase
         $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
             'pipeline_id' => $pipeline->getId(),
             'pipeline_stage_id' => $stage->getId(),
-
         ]);
 
         // No CustomNudgeAgent exists. If the job tried to resolve any name

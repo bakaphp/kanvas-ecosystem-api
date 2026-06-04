@@ -43,7 +43,6 @@ class DispatchAppLeadFollowUpsJobTest extends TestCase
             'name' => 'Pipe',
 
             'is_default' => 0,
-
         ]);
 
         $enabledStage = PipelineStage::create([
@@ -77,17 +76,14 @@ class DispatchAppLeadFollowUpsJobTest extends TestCase
         $shouldQueue = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
             'pipeline_id' => $pipeline->getId(),
             'pipeline_stage_id' => $enabledStage->getId(),
-
         ]);
         Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
             'pipeline_id' => $pipeline->getId(),
             'pipeline_stage_id' => $terminalStage->getId(),
-
         ]);
         Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
             'pipeline_id' => $pipeline->getId(),
             'pipeline_stage_id' => $disabledStage->getId(),
-
         ]);
         new DispatchAppLeadFollowUpsJob(app: $app, company: $company)->handle();
 
