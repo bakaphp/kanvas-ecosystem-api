@@ -22,7 +22,7 @@ class AiChatMessagePayload extends Data
      * @param list<string> $images
      */
     public function __construct(
-        public readonly string $content,
+        public readonly ?string $content,
         public readonly bool $from_me,
         public readonly bool $from_ia,
         public readonly ?string $session_id = null,
@@ -36,13 +36,19 @@ class AiChatMessagePayload extends Data
 
     /**
      * Drop null fields so stored JSON only carries keys the writer actually populated.
+     * `content` is exempt — it's a hard contract for downstream readers, so a null content
+     * (image-only MMS, sticker, reaction) is coerced to an empty string rather than stripped.
      */
     #[Override]
     public function toArray(): array
     {
-        return array_filter(
+        $array = array_filter(
             parent::toArray(),
             static fn (mixed $value): bool => $value !== null,
         );
+
+        $array['content'] ??= '';
+
+        return $array;
     }
 }

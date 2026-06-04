@@ -29,6 +29,7 @@ use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
 use Override;
 
@@ -63,6 +64,7 @@ use Override;
 class Agent extends BaseModel
 {
     use AsTree;
+    use CanUseWorkflow;
     use CascadeSoftDeletes;
     use SlugTrait;
     use UuidTrait;
