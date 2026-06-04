@@ -46,4 +46,15 @@ enum ConfigurationEnum: string
     // are per-agent (see AgentChannelTokenEnum) so the block here only carries behavior
     // tuning. We emit the block only when set — Hermes does not require it.
     case TELEGRAM_CONFIG = 'hermes_telegram_config';
+
+    // Approval gate for dangerous commands — emitted into `approvals.mode:` in config.yaml.
+    // Allowed values (from upstream `hermes_cli/config.py` and `tools/approval.py`):
+    //   manual — always prompt (Hermes default, requires interactive surface)
+    //   smart  — auxiliary LLM auto-approves low-risk, prompts on high-risk
+    //   off    — skip all approval prompts (equivalent to --yolo / HERMES_YOLO_MODE=1)
+    // Our connector default is `off` because the agent runs Docker-isolated — upstream's own
+    // approval module notes containerized backends already bypass the dangerous-command layer
+    // since nothing the agent does can touch the host. The prompt was designed for the
+    // developer-on-laptop scenario, not our sandboxed deployment.
+    case APPROVALS_MODE = 'hermes_approvals_mode';
 }
