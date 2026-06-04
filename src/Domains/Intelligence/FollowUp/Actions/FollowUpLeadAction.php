@@ -102,7 +102,12 @@ final class FollowUpLeadAction
             return $this->skip('too_soon');
         }
 
-        [$template, $metaTemplate, $skipReason] = $this->resolveTemplateForChannel($channelType, $channelConfig, $lastInboundAt);
+        [$template, $metaTemplate, $skipReason] = $this->resolveTemplateForChannel(
+            $channelType,
+            $channelConfig,
+            $lastInboundAt
+        );
+
         if ($skipReason !== null) {
             return $this->skip($skipReason);
         }
@@ -151,7 +156,13 @@ final class FollowUpLeadAction
 
         $advanced = $result->advanceStage && $this->advanceLeadStage();
 
-        $this->emitSent($channelType, $template?->name, $metaTemplate, $result->reason, $advanced);
+        $this->emitSent(
+            $channelType,
+            $template?->name,
+            $metaTemplate,
+            $result->reason,
+            $advanced
+        );
 
         return FollowUpOutcome::sent($sentBody);
     }
