@@ -119,3 +119,58 @@ $agent     = Agent::getByName($agentName, $this->app);
 Action signature doesn't change. Job's resolution gains a role-mapping lookup. Stage config keeps an optional `agent_name` for direct override (skip the role table) AND/OR an `agent_role` for tenant-mapped lookup.
 
 When implementing v1.5: add the `agent_roles` company config, add `agent_role` to `FollowUpConfig` DTO + stage JSON, update the job to do the two-step lookup. Action stays unchanged.
+
+## Pipeline configuration patterns
+
+A pipeline's `stage.config.follow_up` JSON drives behavior. Two canonical shapes the engine is built to handle — keep both in mind when designing for a new tenant. The full worked configs live in [`docs/intelligence/follow-up-setup-guide.md`](../../../../docs/intelligence/follow-up-setup-guide.md) §7; the rules below are the durable ones.
+
+### Pattern A — Sales funnel (one stage = one funnel position)
+
+Stages model *intent state* (New / Qualified / Demo Scheduled / Pending Commitment / In Negotiation / Won). Each stage can take multiple touches (`max_retries > 1`); the agent's `advance_stage` decision is what drives forward motion within the funnel, not the calendar.
+
+Typical config per stage:
+- `interval_minutes`: hours-to-days, varies per stage (faster early, slower late)
+- `max_retries`: 2–5 sends, varies per stage
+- `exhausted_action`: usually `STOP` (let the operator decide what happens next), occasionally `ADVANCE` on the earliest stage (auto-bump cold leads out of "New")
+- `prompt_template`: optional per-stage voice tweak (e.g. negotiation = surface blockers, don't push)
+
+The engine reads conversation history and lets the agent judge readiness. Calendar is a gate, not a driver.
+
+### Pattern B — Date-based drip (one stage = one day)
+
+Stages model *time elapsed* (Day 1 / Day 2 / Day 3 / Day 4 / …). Each stage takes exactly one touch; advancement happens on schedule, not on agent judgment.
+
+Required config per stage:
+- `interval_minutes`: 1440 (or whatever the drip cadence is)
+- `max_retries`: **1** — the mechanism that triggers the auto-advance
+- `exhausted_action`: **`ADVANCE`** — moves to the next day-stage on exhaust
+- `prompt_template`: instruct the agent to always return `advance_stage: true` on its single send. This collapses send-and-advance into one tick instead of two, and avoids spamming `lead.follow_up.exhausted` events per day-transition.
+
+**Caveats unique to Pattern B:**
+- **One-hour lag without the "always advance" prompt nudge** — without it, send happens on tick N (`count=0→1`), advance happens on tick N+1 (`count=1≥1` fires the exhaust gate). The ledger then carries one `lead.follow_up.exhausted` per day-stage with `reason: max_retries`.
+- **Customer inbound pauses the day clock** — `followUpSilenceMinutesSince` uses `last_inbound_at` as the reference. A reply during Day 2 resets `silence_minutes`, so the Day 2 nudge waits another 24h. Usually desired (don't pile on the engaged customer). If you need strict calendar advance regardless of conversation activity, swap the silence reference to `stage_entered_at` — this is the only line that needs changing.
+- **Last-stage exhaust is a no-op** — `moveToNextPipelineStage()` silently does nothing when there's no next stage. The lead just parks there exhausted.
+
+### What the infra does NOT do today
+
+**"Always advance every calendar day, send or no send."** The advance gate is coupled to `count >= max_retries`, and `count` only bumps on a successful send. A lead that misses Day 1's send (work hours, AI manual mode, agent declined) will NOT auto-tick to Day 2 the next morning — it'll wait in Day 1 until a send actually happens.
+
+If a tenant needs pure calendar-driven walking regardless of message outcome, that's a separate cron/command (~50 lines): iterate drip-enabled leads at midnight, bump `pipeline_stage_id` based on `stage_entered_at + N days`. Not in v1.
+
+## `exhausted_action` is an enum — extend it deliberately
+
+[`ExhaustedActionEnum`](Enums/ExhaustedActionEnum.php) currently has **two** cases. Always type-hint against the enum (DTOs already do); don't compare against raw strings in new code.
+
+| Case | Value | Behavior |
+|---|---|---|
+| `STOP` | `'stop'` | Lead exhausts in current stage. `exhausted_at` set, no advance. Operator (or customer reply) is the only way out. Default. |
+| `ADVANCE` | `'advance'` | Lead exhausts in current stage AND `moveToNextPipelineStage()` is called. Used by drip pipelines + first-touch "auto-bump cold leads" shape. |
+
+**Likely future cases — discuss before adding, but keep them in mind so we don't reinvent:**
+
+- `ADVANCE_TO_STAGE` — jump to a specific named/id'd stage (not just next-by-weight). Needs a companion `exhausted_target_stage_id` config field. Use case: "if 4 retries in Pending Commitment exhaust, jump straight to Lost (not the next-by-weight stage)."
+- `MARK_LOST` — set `leads_status_id` to a closed-lost status + emit `lead.pipeline.lost`. Use case: drip ended without engagement → operationally distinct from "stuck at end of pipeline".
+- `LOOP_BACK` — go back to a previous stage (re-qualify). Niche; might be solvable with `ADVANCE_TO_STAGE` instead.
+- `HAND_OFF_TO_HUMAN` — set `agent_hand_off: true` + notify the lead owner. The "soft escalation" path that's currently expressed only via the agent's `should_respond: false, advance_stage: false` decision.
+
+When adding any new case: update the enum, update `FollowUpLeadAction::handleExhaustedAction()` to handle it, update [`docs/intelligence/follow-up-setup-guide.md`](../../../../docs/intelligence/follow-up-setup-guide.md) §1f, and add a test class under `tests/Intelligence/FollowUp/Actions/` covering the new behavior path.
