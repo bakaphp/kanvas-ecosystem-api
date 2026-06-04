@@ -12,8 +12,6 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
 /**
- * Class Variants Price Channel History.
- *
  * @property int $channel_id
  * @property int $products_variants_id
  * @property int $product_variants_warehouse_id
@@ -25,10 +23,6 @@ use Kanvas\Users\Models\Users;
  */
 class VariantChannelPriceHistory extends BaseModel
 {
-    // Required because Kanvas\Inventory\Variants\Models\VariantsChannels::pricesHistory()
-    // declares a multi-column HasMany on ['product_variants_warehouse_id', 'channels_id'].
-    // Awobaz\Compoships rejects multi-column relations whose target model does not
-    // also use this trait (Awobaz\Compoships\HasRelationships::validateRelatedModel).
     use Compoships;
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;

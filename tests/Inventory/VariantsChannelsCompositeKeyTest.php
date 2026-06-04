@@ -6,8 +6,8 @@ namespace Tests\Inventory;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Channels\Actions\CreatePriceHistoryAction;
 use Kanvas\Inventory\Channels\Actions\CreateChannel;
+use Kanvas\Inventory\Channels\Actions\CreatePriceHistoryAction;
 use Kanvas\Inventory\Channels\DataTransferObject\Channels as ChannelsDto;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Models\VariantChannelPriceHistory;
