@@ -162,7 +162,6 @@ class CalendarEventTool extends Tool
             $event->resources_id = $lead->getId();
             $event->resources_type = Lead::class;
             $event->saveQuietly();
-            
         } catch (Throwable $e) {
             return [
                 'status' => 'error',
