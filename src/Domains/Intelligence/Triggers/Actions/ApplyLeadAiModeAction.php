@@ -157,7 +157,7 @@ class ApplyLeadAiModeAction
         try {
             return $this->lead->company->isWithinWorkingHours(now());
         } catch (InvalidArgumentException $e) {
-            return false;
+            return true;
         }
     }
 
@@ -230,6 +230,7 @@ class ApplyLeadAiModeAction
                     'content' => $noteContent,
                     'from_me' => true,
                 ],
+                is_public: 0,
             )
         );
         $createMessageAction->runWorkflow = true;

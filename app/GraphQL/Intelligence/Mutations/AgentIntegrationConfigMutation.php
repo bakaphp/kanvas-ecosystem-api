@@ -26,6 +26,9 @@ class AgentIntegrationConfigMutation
             $input['config'],
         );
 
-        return new SetAgentIntegrationConfigAction($agent, $entries)->execute();
+        return new SetAgentIntegrationConfigAction(
+            $agent,
+            $entries
+        )->execute();
     }
 }
