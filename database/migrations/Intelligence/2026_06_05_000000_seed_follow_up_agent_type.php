@@ -28,7 +28,7 @@ return new class () extends Migration {
             'apps_id' => 0,
             'uuid' => Str::uuid()->toString(),
             'name' => 'Follow-Up Engager Agent',
-            'description' => 'Decides whether to follow up with an idle lead, what to say, and whether to advance the pipeline stage. Returns strict JSON. Tenants can override role/soul/instructions/output_format on their Agent row to tune voice; the local handler defaults are used when those are empty.',
+            'description' => 'Decides whether to follow up with an idle lead, what to say, and whether to advance the pipeline stage. Returns strict JSON. Override role on the Agent row to tune voice.',
             'provider' => 'neuron',
             'handler' => $handler,
             'config' => json_encode([]),
