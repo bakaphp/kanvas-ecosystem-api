@@ -149,6 +149,11 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         if (isset($lead) && $lead instanceof Lead) {
             $message->addEntity($lead);
+            // Polymorphic People attach so People-keyed history loaders (Neuron's
+            // SalesAssistKanvasMessageHistory) find this turn. Harmless for ADK.
+            if ($lead->people !== null) {
+                $message->addEntity($lead->people);
+            }
             $message->addTag('engagement');
         }
 

@@ -19,6 +19,11 @@ class UserRecommendationTest extends TestCase
     public function setUp(): void
     {
         parent::setUp();
+
+        if (empty(getenv('TEST_RECOMBEE_DATABASE')) || empty(getenv('TEST_RECOMBEE_API_KEY')) || empty(getenv('TEST_RECOMBEE_REGION'))) {
+            $this->markTestSkipped('Recombee test credentials not set.');
+        }
+
         $app = app(Apps::class);
         $app->set(ConfigurationEnum::RECOMBEE_DATABASE->value, getenv('TEST_RECOMBEE_DATABASE'));
         $app->set(ConfigurationEnum::RECOMBEE_API_KEY->value, getenv('TEST_RECOMBEE_API_KEY'));
