@@ -17,17 +17,6 @@ use Kanvas\Inventory\Support\Setup as InventorySetup;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
-/**
- * Regression coverage for the composite-key plumbing on
- * Kanvas\Inventory\Products\Models\ProductsCategories.
- *
- * The pivot uses thiagoprz/eloquent-composite-key (HasCompositeKey) with
- * primaryKey = ['products_id', 'categories_id'], plus awobaz/compoships for
- * multi-column relationships, with the trait collision on setKeysForSaveQuery
- * resolved in favor of HasCompositeKey. If either package is dropped or the
- * trait resolution changes, save()/find()/delete() build a wrong UPDATE WHERE
- * clause and these tests fail.
- */
 class ProductsCategoriesCompositeKeyTest extends TestCase
 {
     use DatabaseTransactions;
@@ -79,7 +68,7 @@ class ProductsCategoriesCompositeKeyTest extends TestCase
             $this->categoryA->getId(),
         ]);
 
-        $this->assertNotNull($found, 'Composite-key find() should return the row just saved');
+        $this->assertNotNull($found);
         $this->assertSame($this->product->getId(), (int) $found->products_id);
         $this->assertSame($this->categoryA->getId(), (int) $found->categories_id);
     }
@@ -98,9 +87,6 @@ class ProductsCategoriesCompositeKeyTest extends TestCase
         ]);
         $rowB->save();
 
-        // delete() runs SoftDeletesTrait::runSoftDelete(), which builds the
-        // UPDATE WHERE via setKeysForSaveQuery — the contested method behind
-        // the HasCompositeKey vs Compoships trait conflict.
         $rowA->delete();
 
         $aRefetched = ProductsCategories::withoutGlobalScopes()
@@ -114,11 +100,8 @@ class ProductsCategoriesCompositeKeyTest extends TestCase
 
         $this->assertNotNull($aRefetched);
         $this->assertNotNull($bRefetched);
-        $this->assertTrue((bool) $aRefetched->is_deleted, 'Row A should be soft-deleted');
-        $this->assertFalse(
-            (bool) $bRefetched->is_deleted,
-            'Row B must NOT be touched — proves the composite-key WHERE matched only row A'
-        );
+        $this->assertTrue((bool) $aRefetched->is_deleted);
+        $this->assertFalse((bool) $bRefetched->is_deleted);
     }
 
     private function createCategory(string $name): Categories

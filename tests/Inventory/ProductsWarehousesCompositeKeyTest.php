@@ -18,19 +18,6 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
-/**
- * Regression coverage for the composite-key plumbing on
- * Kanvas\Inventory\Products\Models\ProductsWarehouses.
- *
- * Uses thiagoprz/eloquent-composite-key (HasCompositeKey) with primaryKey =
- * ['products_id', 'warehouses_id']. Unlike its sibling pivots this model does
- * NOT layer Compoships, so the contract is narrower: HasCompositeKey alone
- * must provide save() / find() / delete() with the correct composite WHERE.
- *
- * CreateProductAction auto-creates a ProductsWarehouses row tied to the default
- * Setup warehouse (via VariantsWarehouseObserver fan-out). Test rows therefore
- * use TWO fresh, non-default warehouses to avoid PK collisions on insert.
- */
 class ProductsWarehousesCompositeKeyTest extends TestCase
 {
     use DatabaseTransactions;
@@ -55,6 +42,9 @@ class ProductsWarehousesCompositeKeyTest extends TestCase
 
         new InventorySetup($this->kanvasApp, $user, $company)->run();
 
+        // CreateProductAction auto-creates a ProductsWarehouses row on the default
+        // Setup warehouse (via VariantsWarehouseObserver); use fresh warehouses
+        // here so the test rows don't collide on the composite PK.
         $this->product = $this->createProduct('PivotPWProduct');
         $this->warehouseX = $this->createWarehouse('PivotPWX');
         $this->warehouseY = $this->createWarehouse('PivotPWY');
@@ -72,7 +62,7 @@ class ProductsWarehousesCompositeKeyTest extends TestCase
             $this->warehouseX->getId(),
         ]);
 
-        $this->assertNotNull($found, 'Composite-key find() should return the row just saved');
+        $this->assertNotNull($found);
         $this->assertSame($this->product->getId(), (int) $found->products_id);
         $this->assertSame($this->warehouseX->getId(), (int) $found->warehouses_id);
     }
@@ -91,9 +81,6 @@ class ProductsWarehousesCompositeKeyTest extends TestCase
         $rowB->vendor = 'vendor-B';
         $rowB->save();
 
-        // Mutate row A and persist — proves setKeysForSaveQuery built a
-        // composite WHERE rather than a single-column one that would have
-        // touched both rows (they share products_id).
         $rowA->vendor = 'vendor-A-updated';
         $rowA->save();
 
@@ -109,11 +96,7 @@ class ProductsWarehousesCompositeKeyTest extends TestCase
         $this->assertNotNull($aRefetched);
         $this->assertNotNull($bRefetched);
         $this->assertSame('vendor-A-updated', $aRefetched->vendor);
-        $this->assertSame(
-            'vendor-B',
-            $bRefetched->vendor,
-            'Row B must be unchanged — proves the composite-key WHERE matched only row A'
-        );
+        $this->assertSame('vendor-B', $bRefetched->vendor);
     }
 
     public function testSoftDeleteScopesByCompositeKeyOnly(): void
@@ -142,10 +125,7 @@ class ProductsWarehousesCompositeKeyTest extends TestCase
         $this->assertNotNull($aRefetched);
         $this->assertNotNull($bRefetched);
         $this->assertTrue((bool) $aRefetched->is_deleted);
-        $this->assertFalse(
-            (bool) $bRefetched->is_deleted,
-            'Row B must not be soft-deleted — proves the composite-key WHERE on the soft-delete UPDATE'
-        );
+        $this->assertFalse((bool) $bRefetched->is_deleted);
     }
 
     private function createProduct(string $name): Products

@@ -22,19 +22,6 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
-/**
- * Regression coverage for the composite-key + multi-column relationship
- * plumbing on Kanvas\Inventory\Variants\Models\VariantsChannels.
- *
- * This is the canonical sibling of ProductsCategories — it carries the same
- * HasCompositeKey + Compoships trait conflict resolution (with HasCompositeKey
- * winning on setKeysForSaveQuery) and additionally exercises Compoships's
- * multi-column relationship support via pricesHistory(['product_variants_warehouse_id','channels_id']).
- *
- * The model declares $forceDeleting = true, so delete() is a hard DELETE
- * (not a soft delete) — this still routes through setKeysForSaveQuery via
- * Model::performDeleteOnModel.
- */
 class VariantsChannelsCompositeKeyTest extends TestCase
 {
     use DatabaseTransactions;
@@ -97,7 +84,7 @@ class VariantsChannelsCompositeKeyTest extends TestCase
             $this->channelA->getId(),
         ]);
 
-        $this->assertNotNull($found, 'Composite-key find() should return the row just saved');
+        $this->assertNotNull($found);
         $this->assertSame($this->variantWarehouse->getId(), (int) $found->product_variants_warehouse_id);
         $this->assertSame($this->channelA->getId(), (int) $found->channels_id);
         $this->assertTrue((bool) $found->is_published);
@@ -126,10 +113,7 @@ class VariantsChannelsCompositeKeyTest extends TestCase
         $this->assertNotNull($aRefetched);
         $this->assertNotNull($bRefetched);
         $this->assertFalse((bool) $aRefetched->is_published);
-        $this->assertTrue(
-            (bool) $bRefetched->is_published,
-            'Row B must be unchanged — proves the composite-key WHERE on UPDATE matched only row A'
-        );
+        $this->assertTrue((bool) $bRefetched->is_published);
     }
 
     public function testHardDeleteScopesByCompositeKeyOnly(): void
@@ -140,8 +124,6 @@ class VariantsChannelsCompositeKeyTest extends TestCase
         $rowB = $this->makeRow($this->variantWarehouse, $this->channelB);
         $rowB->save();
 
-        // $forceDeleting = true on VariantsChannels — delete() is a hard DELETE,
-        // still routed through setKeysForSaveQuery by Model::performDeleteOnModel.
         $rowA->delete();
 
         $aRefetched = VariantsChannels::find([
@@ -153,47 +135,31 @@ class VariantsChannelsCompositeKeyTest extends TestCase
             $this->channelB->getId(),
         ]);
 
-        $this->assertNull($aRefetched, 'Row A should be hard-deleted');
-        $this->assertNotNull(
-            $bRefetched,
-            'Row B must survive — proves the composite-key WHERE on DELETE matched only row A'
-        );
+        $this->assertNull($aRefetched);
+        $this->assertNotNull($bRefetched);
     }
 
     public function testComposhipsTraitOverridesAreActive(): void
     {
-        // Compoships overrides getAttribute() and qualifyColumn() to also accept
-        // array arguments (vanilla Eloquent only accepts a scalar). Hitting both
-        // proves the Compoships trait is actually loaded on this model and the
-        // `HasCompositeKey::setKeysForSaveQuery insteadof Compoships` conflict
-        // resolution didn't accidentally exclude the rest of the trait.
         $row = $this->makeRow($this->variantWarehouse, $this->channelA);
         $row->save();
 
         $values = $row->getAttribute(['product_variants_warehouse_id', 'channels_id']);
-        $this->assertIsArray($values, 'Compoships::getAttribute should accept an array of column names');
+        $this->assertIsArray($values);
         $this->assertSame($this->variantWarehouse->getId(), (int) $values[0]);
         $this->assertSame($this->channelA->getId(), (int) $values[1]);
 
         $qualified = $row->qualifyColumn(['product_variants_warehouse_id', 'channels_id']);
-        $this->assertIsArray($qualified, 'Compoships::qualifyColumn should accept an array of column names');
+        $this->assertIsArray($qualified);
         $this->assertSame('products_variants_channels.product_variants_warehouse_id', $qualified[0]);
         $this->assertSame('products_variants_channels.channels_id', $qualified[1]);
     }
 
     public function testPricesHistoryMultiColumnRelationResolves(): void
     {
-        // Regression for the pricesHistory() multi-column HasMany on
-        // ['product_variants_warehouse_id', 'channels_id']. Until VariantChannelPriceHistory
-        // adopted the Compoships trait, calling this relation threw
-        // Awobaz\Compoships\Exceptions\InvalidUsageException at relation build time.
         $row = $this->makeRow($this->variantWarehouse, $this->channelA);
         $row->save();
 
-        // Seed two history rows under (variantWarehouse, channelA) and one
-        // unrelated history row under channelB, all sharing the same
-        // product_variants_warehouse_id — proves the relation matches on the
-        // full composite pair, not just the warehouse column.
         new CreatePriceHistoryAction(
             variantsWarehouses: $this->variantWarehouse,
             channel: $this->channelA,
@@ -215,7 +181,7 @@ class VariantsChannelsCompositeKeyTest extends TestCase
 
         $history = $row->pricesHistory()->get();
 
-        $this->assertCount(2, $history, 'Multi-column relation should match only the channelA rows');
+        $this->assertCount(2, $history);
         foreach ($history as $entry) {
             $this->assertInstanceOf(VariantChannelPriceHistory::class, $entry);
             $this->assertSame($this->variantWarehouse->getId(), (int) $entry->product_variants_warehouse_id);
