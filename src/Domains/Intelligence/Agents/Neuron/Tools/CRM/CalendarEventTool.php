@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Carbon\Carbon;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventData;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use NeuronAI\Tools\ArrayProperty;
@@ -158,13 +159,10 @@ class CalendarEventTool extends Tool
             );
 
             $event = new CreateEventAction($eventData)->disableWorkflow()->execute();
-
-            // CreateEventAction::storeEventResources() writes the lead into the
-            // event_resources pivot, but LeadRefTool queries the singular
-            // events.resources_id / events.resources_type columns. Mirror it.
             $event->resources_id = $lead->getId();
-            $event->resources_type = $lead->getMorphClass();
+            $event->resources_type = Lead::class;
             $event->saveQuietly();
+            
         } catch (Throwable $e) {
             return [
                 'status' => 'error',
