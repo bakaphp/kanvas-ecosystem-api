@@ -21,6 +21,8 @@ class DispatchLeadFollowUpsCommandTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected array $connectionsToTransact = ['mysql', 'crm', 'intelligence', 'social'];
+
     public function testDoesNotDispatchOutsideWorkHours(): void
     {
         Queue::fake();

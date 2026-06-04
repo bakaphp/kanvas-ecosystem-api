@@ -24,6 +24,8 @@ class LeadObserverFollowUpTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected array $connectionsToTransact = ['mysql', 'crm', 'intelligence', 'social'];
+
     public function testStageChangeResetsFollowUpStateAndEmitsLedgerEvent(): void
     {
         $app = app(Apps::class);

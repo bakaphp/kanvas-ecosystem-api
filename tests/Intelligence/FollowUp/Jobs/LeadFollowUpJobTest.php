@@ -28,6 +28,8 @@ class LeadFollowUpJobTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected array $connectionsToTransact = ['mysql', 'crm', 'intelligence', 'social'];
+
     public function testResolvesAgentFromStageConfigOverride(): void
     {
         FollowUpAgentStub::reset();

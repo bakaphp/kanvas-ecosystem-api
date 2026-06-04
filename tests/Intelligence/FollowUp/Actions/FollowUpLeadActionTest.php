@@ -44,6 +44,8 @@ class FollowUpLeadActionTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected array $connectionsToTransact = ['mysql', 'crm', 'intelligence', 'social'];
+
     private Apps $testApp;
 
     private \Kanvas\Companies\Models\Companies $company;
