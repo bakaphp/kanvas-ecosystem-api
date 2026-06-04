@@ -28,6 +28,11 @@ use Kanvas\Social\Channels\Models\Channel;
 
 use function Sentry\captureException;
 
+/**
+ * @deprecated v1 follow-up engine replaced this. Use FollowUpLeadAction in
+ *             Kanvas\Intelligence\FollowUp\Actions\ — see
+ *             docs/intelligence/follow-up-deprecation-spec.md kill list.
+ */
 class FollowUpEngagementAction
 {
     protected ?FollowUp $followUp = null;

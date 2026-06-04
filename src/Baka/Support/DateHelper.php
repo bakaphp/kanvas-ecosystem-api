@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Baka\Support;
 
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
 use Throwable;
 
 class DateHelper
@@ -45,6 +45,28 @@ class DateHelper
 
         try {
             return Carbon::parse($time)->format($format);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Defensive Carbon::parse — returns null instead of throwing on garbage,
+     * non-strings, or empty input. Use this when reading user-provided or
+     * stored-as-JSON timestamps that might be missing or malformed.
+     *
+     * Distinct from {@see normalizeDate} (returns formatted string|null) and
+     * {@see normalizeTime} (same, time-only). Use this when the caller wants
+     * the Carbon object back to do further work on it.
+     */
+    public static function tryParseCarbon(mixed $value): ?Carbon
+    {
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value);
         } catch (Throwable) {
             return null;
         }

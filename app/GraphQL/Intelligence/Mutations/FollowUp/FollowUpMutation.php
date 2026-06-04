@@ -12,6 +12,12 @@ use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUp as FollowUpData;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 
+/**
+ * @deprecated GraphQL resolver for the legacy follow-up CRUD. v1 reads
+ *             stage.config.follow_up directly. Mutations marked
+ *             @deprecated in graphql/schemas/Intelligence/followUp.graphql.
+ *             Slated for deletion — see docs/intelligence/follow-up-deprecation-spec.md.
+ */
 class FollowUpMutation
 {
     public function create(mixed $rootValue, array $request): FollowUp

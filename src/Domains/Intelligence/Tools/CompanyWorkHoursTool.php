@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Tools;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Enums\ConfigurationEnum;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Override;
 use Yasumi\Yasumi;
@@ -21,18 +22,27 @@ class CompanyWorkHoursTool implements ContextToolInterface
     protected ?array $workingDays = null;
     protected array $companyObservedHolidays = [];
 
+    /**
+     * Accepts either a Companies row directly, or any Eloquent model with a
+     * `->company` relation (Lead, Deal, etc.). The follow-up dispatcher calls
+     * with Companies; legacy agent-tool callers pass entities-with-company.
+     */
     public function __construct(
         protected Model $entity
     ) {
-        $tz = $this->entity->company->timezone ?? 'UTC';
+        $company = $this->entity instanceof Companies
+            ? $this->entity
+            : $this->entity->company;
+
+        $tz = $company->timezone ?? 'UTC';
         log($tz);
         $this->now = Carbon::now($tz);
 
-        $this->simpleHours = $this->entity->company->get(ConfigurationEnum::WORKING_HOURS->value) ?? null;
+        $this->simpleHours = $company->get(ConfigurationEnum::WORKING_HOURS->value) ?? null;
         $this->workingDays = $this->normalizeDays(
-            $this->entity->company->get(ConfigurationEnum::WORKING_DAYS->value) ?? []
+            $company->get(ConfigurationEnum::WORKING_DAYS->value) ?? []
         );
-        $this->companyObservedHolidays = $this->entity->company->get(ConfigurationEnum::WORKING_HOLIDAY_DAYS->value) ?? [];
+        $this->companyObservedHolidays = $company->get(ConfigurationEnum::WORKING_HOLIDAY_DAYS->value) ?? [];
 
         if ($this->looksLikeWeeklyMap($this->simpleHours ?? [])) {
             $this->weeklyHours = $this->simpleHours;

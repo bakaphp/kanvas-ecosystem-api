@@ -10,6 +10,11 @@ use Kanvas\Intelligence\Models\BaseModel;
 
 /**
  * Class FollowUpTemplate
+ *
+ * @deprecated v1 follow-up engine (Templates row referenced from
+ *             stage.config.follow_up.channels[].template.name) replaced this.
+ *             Slated for deletion — see docs/intelligence/follow-up-deprecation-spec.md.
+ *
  * @property int $id
  * @property int $follow_up_days_id
  * @property string $communication_channel
