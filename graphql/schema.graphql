@@ -39,3 +39,5 @@ scalar Money @scalar(class: "App\\GraphQL\\Scalars\\MoneyScalar")
 #import schemas/Subscription/*.graphql
 #import schemas/Event/*.graphql
 #import schemas/Intelligence/*.graphql
+#import schemas/NervousSystem/*.graphql
+#import schemas/Analytics/*.graphql

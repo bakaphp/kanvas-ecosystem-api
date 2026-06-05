@@ -6,15 +6,15 @@ namespace Kanvas\Intelligence\Triggers\Workflows;
 
 use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Models\LeadStatus;
-use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
-use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
-use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
+use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
+use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeV1Action;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class TriggerIntelligenceActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -27,109 +27,35 @@ class TriggerIntelligenceActivity extends KanvasActivity
             entity: $lead,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
-            integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
-                // Trigger IA Logic Here
+            integrationOperation: function ($lead, $app) use ($params) {
                 $triggerType = $params['trigger_type'] ?? null;
                 if (! $triggerType) {
-                    return $this->failWorkflow([
-                        'error' => 'Invalid trigger type',
-                    ]);
-                }
-                $modsPrevious = [
-                    'ai_mode' => $lead->get('ai_mode'),
-                    'ai_follow_up' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
-                ];
-                if ($lead->get('ai_mode') == IntelligenceModeEnum::OFF->value && ! in_array($triggerType, [7, 8])) {
-                    return [
-                        'message' => 'Currently Lead is in OFF mode',
-                    ];
-                }
-                switch ($triggerType) {
-                    case TriggersEnum::NEW_LEAD->value:
-                        $defaultAiMode = $lead->company->get(ConfigurationEnum::AI_MODE->value) ?? IntelligenceModeEnum::FULL_ON->value;
-                        $lead->set('ai_mode', $defaultAiMode);
-                        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpTypeEnum::LEAD_FOLLOW_UP->value);
-
-                        break;
-                    case TriggersEnum::HUMAN_HANDOFF->value:
-                        $lead->set('ai_mode', IntelligenceModeEnum::SUPPORT->value);
-                        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpTypeEnum::NO_FOLLOW_UP->value);
-
-                        break;
-                    case TriggersEnum::HUMAN_TAKEOVER->value:
-                        $lead->set('ai_mode', IntelligenceModeEnum::SUPPORT->value);
-                        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpTypeEnum::NO_FOLLOW_UP->value);
-
-                        break;
-                    case TriggersEnum::AI_TAKEOVER->value:
-                        $lead->set('ai_mode', IntelligenceModeEnum::FULL_ON->value);
-                        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpTypeEnum::LEAD_FOLLOW_UP->value);
-
-                        // Logic for AI takeover trigger
-                        break;
-                    case TriggersEnum::SOLD_LEAD->value:
-                        $lead->set('ai_mode', IntelligenceModeEnum::FULL_ON->value);
-                        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpTypeEnum::SOLD_LEAD_FOLLOW_UP->value);
-
-                        // Logic for sold lead trigger
-                        break;
-                    case TriggersEnum::CLOSE_LEAD->value:
-                        $lead->set('ai_mode', IntelligenceModeEnum::SUPPORT->value);
-                        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpTypeEnum::NO_FOLLOW_UP->value);
-
-                        // Logic for close lead trigger
-                        break;
-                    case TriggersEnum::MANUAL_OFF->value:
-                        $lead->set('ai_mode', IntelligenceModeEnum::OFF->value);
-                        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpTypeEnum::NO_FOLLOW_UP->value);
-
-                        // Logic for manual off trigger
-                        break;
-                    case TriggersEnum::MANUAL_SUPPORT->value:
-                        $lead->set('ai_mode', IntelligenceModeEnum::SUPPORT->value);
-
-                        // Logic for manual support trigger
-                        break;
-                    case TriggersEnum::MANUAL_FON->value:
-                        $lead->set('ai_mode', IntelligenceModeEnum::FULL_ON->value);
-                        $status = LeadStatus::getByName('Sold');
-
-                        if ($lead->leads_status_id === $status->getId()) {
-                            $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpTypeEnum::SOLD_LEAD_FOLLOW_UP->value);
-                        } else {
-                            $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpTypeEnum::LEAD_FOLLOW_UP->value);
-                        }
-
-                        // Logic for manual fon trigger
-                        break;
-                    case TriggersEnum::HANDOFF->value:
-                        $lead->set('ai_mode', IntelligenceModeEnum::SUPPORT->value);
-                        $lead->set(IntelligenceModeEnum::AI_FOLLOW_UP->value, FollowUpTypeEnum::NO_FOLLOW_UP->value);
+                    return $this->failWorkflow(['error' => 'Invalid trigger type']);
                 }
 
-                $modsCurrent = [
-                    'ai_mode' => $lead->get('ai_mode'),
-                    'ai_follow_up' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
-                ];
-                $this->sentDataToOrchestration($lead, $lead->get('ai_mode'));
+                $configService = new LeadConfigurationService();
+                $actionClass = $configService->isV2Enabled($lead->company)
+                    ? ApplyLeadAiModeAction::class
+                    : ApplyLeadAiModeV1Action::class;
+                $result = new $actionClass($lead, $triggerType)->execute();
 
-                // Post handoff note with state changes
+                $this->sendDataToOrchestration($lead, $lead->get($configService->getAiModeKey($lead)));
 
-                return [
-                    'Trigger IA executed',
-                    'mods_previous' => $modsPrevious,
-                    'mods_current' => $modsCurrent,
-                ];
+                return array_merge(['Trigger IA executed'], $result);
             }
         );
     }
 
-    protected function sentDataToOrchestration(Lead $lead, string $aiMode): void
+    protected function sendDataToOrchestration(Lead $lead, string $aiMode): void
     {
         $data = ['stateDelta' => ['mode' => $aiMode]];
         foreach ($lead->aiSession as $session) {
             $handle = new $session->agent->type->handler();
-            $handle->setConfiguration($session->agent, $session->entity());
+            $handle->setConfiguration(
+                agent: $session->agent,
+                entity: $session->entity(),
+                user: $lead->company->getAiAgentUserOrFail(),
+            );
 
             try {
                 $handle->sendDataToAgent($session->uuid, $data);

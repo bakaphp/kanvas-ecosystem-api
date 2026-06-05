@@ -5,23 +5,38 @@ declare(strict_types=1);
 namespace Kanvas\AccessControlList\Templates;
 
 use Kanvas\AccessControlList\Models\ModulePermission;
+use Kanvas\ActionEngine\Actions\Models\CompanyAction;
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Tasks\Models\TaskList;
+use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\ModuleEnum;
+use Kanvas\Event\Events\Models\Event;
+use Kanvas\Event\Events\Models\EventType;
+use Kanvas\Event\Events\Models\EventVersion;
+use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Rotations\Models\Rotation;
+use Kanvas\Intelligence\Agents\Models\Agent as AIAgent;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Tags\Models\Tag;
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
 
 class ModulesRepositories
@@ -40,6 +55,9 @@ class ModulesRepositories
             ModuleEnum::SOCIAL,
             ModuleEnum::WORKFLOW,
             ModuleEnum::ACTION_ENGINE,
+            ModuleEnum::AI,
+            ModuleEnum::COMMERCE,
+            ModuleEnum::EVENT,
         ];
 
         $permissions = [];
@@ -58,118 +76,65 @@ class ModulesRepositories
 
     public static function getAbilitiesByModule(): array
     {
-        return [
+        $crud = [
+            'view',
+            'create',
+            'edit',
+            'delete',
+        ];
+
+        $moduleModels = [
             ModuleEnum::ECOSYSTEM->value => [
-                Apps::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                ],
-                Companies::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                ],
-                Users::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                    'invite',
-                ],
-                Regions::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                ],
+                Apps::class => $crud,
+                Companies::class => $crud,
+                Users::class => [...$crud, 'invite'],
+                Regions::class => $crud,
             ],
             ModuleEnum::INVENTORY->value => [
-                Products::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                    'is_published',
-                ],
-                ProductsTypes::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                ],
-                Warehouses::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                ],
-                Channels::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                ],
-                Attributes::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                ],
-                Status::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                ],
-                Categories::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                ],
+                Products::class => [...$crud, 'is_published'],
+                ProductsTypes::class => $crud,
+                Variants::class => $crud,
+                Warehouses::class => $crud,
+                Channels::class => $crud,
+                Attributes::class => $crud,
+                Status::class => $crud,
+                Categories::class => $crud,
             ],
             ModuleEnum::CRM->value => [
-                People::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                ],
-                Lead::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                ],
-                LeadReceiver::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                ],
-                Rotation::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                ],
-                LeadType::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                ],
-                Pipeline::class => [
-                    'view',
-                    'create',
-                    'edit',
-                    'delete',
-                ],
+                People::class => $crud,
+                Lead::class => $crud,
+                LeadReceiver::class => $crud,
+                Rotation::class => $crud,
+                LeadType::class => $crud,
+                Pipeline::class => $crud,
+                Agent::class => $crud,
+                Organization::class => $crud,
+            ],
+            ModuleEnum::SOCIAL->value => [
+                Channel::class => $crud,
+                Message::class => $crud,
+                Tag::class => $crud,
+            ],
+            ModuleEnum::ACTION_ENGINE->value => [
+                CompanyAction::class => $crud,
+                Engagement::class => $crud,
+                TaskList::class => $crud,
+                TaskListItem::class => $crud,
+            ],
+            ModuleEnum::AI->value => [
+                AIAgent::class => $crud,
+            ],
+            ModuleEnum::COMMERCE->value => [
+                Order::class => $crud,
+            ],
+            ModuleEnum::EVENT->value => [
+                Event::class => $crud,
+                EventVersion::class => $crud,
+                EventType::class => $crud,
             ],
         ];
+
+        return $moduleModels;
     }
 
     public static function getAllAbilities(): array

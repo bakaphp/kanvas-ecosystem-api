@@ -6,11 +6,13 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Tookan\Enums\OrderTypeEnum;
 use Kanvas\Souk\Orders\Actions\CreateExternalOrderAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class CreateTookanOrderActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

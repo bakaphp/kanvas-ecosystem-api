@@ -15,6 +15,12 @@ enum ConfigurationEnum: string
     case EVENT_LARAVEL_CART_ADDED = 'LaravelCart.Added';
     case EVENT_LARAVEL_CART_UPDATED = 'LaravelCart.Updated';
     case CHECK_EXPIRED_ORDERS = 'souk_check_expired_orders';
+    case SEND_EXPIRING_ORDER_NOTIFICATION = 'souk_send_expiring_order_notification';
+    case EXPIRING_ORDER_NOTIFICATION_MINUTES = 'souk_expiring_order_notification_minutes';
+    case SEND_EXPIRED_ORDER_FINISHED_NOTIFICATION = 'souk_send_expired_order_finished_notification';
     case ALLOW_NO_PAYMENT_ORDER = 'allow_no_payment_order';
     case VALIDATE_METADATA_DUPLICATED_ENABLED = 'validate_metadata_duplicated_enabled';
+    case CANCEL_STALE_PAYMENTS = 'souk_cancel_stale_payments';
+    case STALE_PAYMENT_TTL_MINUTES = 'souk_stale_payment_ttl_minutes';
+    case DEFAULT_COMMISSION_RATE = 'default_commission_rate';
 }

@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Sessions\Actions;
 
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Intelligence\Sessions\Models\Session as SessionModel;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 
 class CreateSessionAction
 {
@@ -21,7 +22,7 @@ class CreateSessionAction
         $existingSession = SessionModel::query()
             ->where('apps_id', $this->session->app->getId())
             ->where('agents_id', $this->session->agent->getId())
-            ->where('channel_id', $this->session->channel->getId())
+            ->where('channel_id', $this->session->channel?->getId())
             ->where('companies_id', $this->session->company->getId())
             ->where('entity_namespace', $this->session->entity_namespace)
             ->where('entity_id', $this->session->entity_id)
@@ -47,15 +48,17 @@ class CreateSessionAction
             'uuid' => $this->buildSessionUuid(),
             'apps_id' => $this->session->app->getId(),
             'agents_id' => $this->session->agent->getId(),
-            'channel_id' => $this->session->channel->getId(),
+            'channel_id' => $this->session->channel?->getId(),
             'companies_id' => $this->session->company->getId(),
         ]);
     }
 
     protected function buildSessionUuid(): string
     {
-        return $this->session->channel->slug
-            . '-' . $this->session->app->getId()
-            . '-' . $this->session->company->getId();
+        return SessionChannelService::buildChannelSessionUuid(
+            $this->session->channel,
+            $this->session->app,
+            $this->session->company,
+        );
     }
 }

@@ -10,16 +10,17 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\PromptMine\Notifications\MessageOwnerPushNotification;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
 
+#[WorkflowAction]
 class RemixCreationActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
@@ -72,10 +73,7 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                 }
 
                 //Send notification to the original message owner
-                $endViaList = array_map(
-                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                    $params['via'] ?? ['database']
-                );
+                $endViaList = $params['via'] ?? ['database'];
 
                 try {
                     $remixMessage = Message::find($entity->message['remix_parent_id']);
@@ -101,7 +99,7 @@ class RemixCreationActivity extends KanvasActivity implements WorkflowActivityIn
                             title: 'New Unlock! 🔓',
                             via: $endViaList,
                             templates: [
-                                'email_template' => "email-new-message-remix-unlocked",
+                                'email_template' => 'email-new-message-remix-unlocked',
                                 'push_template' => $params['push_template'],
                             ],
                         );

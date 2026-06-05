@@ -11,6 +11,7 @@ use GuzzleHttp\Exception\RequestException;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Souk\Wallet\Transaction;
@@ -82,8 +83,9 @@ class WalletManagementQuery
 
         $wallet = $company->createAppWallet($app, ['name' => $tag]);
 
-        return Transaction::query()
-            ->where('wallet_id', $wallet->getKey());
+        $query = Transaction::query()->where('wallet_id', $wallet->getKey());
+
+        return $this->applyMetaFilter($query, $args['hasMeta'] ?? null);
     }
 
     public function getUserTransactions(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
@@ -100,8 +102,72 @@ class WalletManagementQuery
 
         $wallet = $user->createAppWallet($app, ['name' => $tag]);
 
-        return Transaction::query()
-            ->where('wallet_id', $wallet->getKey());
+        $query = Transaction::query()->where('wallet_id', $wallet->getKey());
+
+        return $this->applyMetaFilter($query, $args['hasMeta'] ?? null);
+    }
+
+    public function getCompanyWalletBalance(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): float|array
+    {
+        $tag = strtolower($args['tag']);
+        $app = app(Apps::class);
+        $company = Companies::getById((int) $args['company_id']);
+
+        CompaniesRepository::hasAccessToThisApp($company, $app);
+        CompaniesRepository::userAssociatedToCompany($company, auth()->user());
+
+        if (! $company->hasWallet($tag) && $tag !== 'default') {
+            throw new ModelNotFoundException(
+                'Wallet not found for the given tag.',
+            );
+        }
+
+        $wallet = $company->createAppWallet($app, ['name' => $tag]);
+
+        return [
+            'balance' => (float) $wallet->balanceFloatNum,
+            'message' => '',
+        ];
+    }
+
+    public function getCompanyTransactions(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
+    {
+        $tag = strtolower($args['tag']);
+        $app = app(Apps::class);
+        $company = Companies::getById((int) $args['company_id']);
+
+        CompaniesRepository::hasAccessToThisApp($company, $app);
+        CompaniesRepository::userAssociatedToCompany($company, auth()->user());
+
+        if (! $company->hasWallet($tag) && $tag !== 'default') {
+            throw new ModelNotFoundException(
+                'Wallet not found for the given tag.',
+            );
+        }
+
+        $wallet = $company->createAppWallet($app, ['name' => $tag]);
+
+        $query = Transaction::query()->where('wallet_id', $wallet->getKey());
+
+        return $this->applyMetaFilter($query, $args['hasMeta'] ?? null);
+    }
+
+    private function applyMetaFilter(Builder $query, ?array $hasMeta): Builder
+    {
+        if (empty($hasMeta['path']) || ! isset($hasMeta['value'])) {
+            return $query;
+        }
+
+        $operator = match ($hasMeta['operator'] ?? 'EQ') {
+            'LIKE' => 'LIKE',
+            default => '=',
+        };
+        $query->whereRaw(
+            "JSON_UNQUOTE(JSON_EXTRACT(meta, ?)) {$operator} ?",
+            ['$.' . $hasMeta['path'], $hasMeta['value']],
+        );
+
+        return $query;
     }
 
     private function getPasoRapidoBalance(AppInterface $app, Companies $company, string $tag): array
@@ -115,6 +181,8 @@ class WalletManagementQuery
                 'data' => $customer->toArray(),
             ];
         } catch (RequestException $e) {
+            report($e);
+
             if ($e->hasResponse()) {
                 $response = $e->getResponse();
                 $body = json_decode((string) $response->getBody());
@@ -128,6 +196,8 @@ class WalletManagementQuery
                 'data' => null,
             ];
         } catch (Exception $e) {
+            report($e);
+
             return [
                 'message' => $e->getMessage(),
                 'data' => null,

@@ -53,8 +53,8 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
 use Override;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * Class Attributes.
@@ -97,7 +97,6 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     use HasWallet;
     use LogsActivity;
 
-    protected $is_deleted;
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
     public $translatable = ['name','description','short_description','html_description'];
 
@@ -124,8 +123,9 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     ];
 
     protected $casts = [
-        'is_published' => 'boolean',
         'is_deleted' => 'boolean',
+        'is_published' => 'boolean',
+        'rating' => 'float',
     ];
 
     protected $guarded = [];
@@ -148,7 +148,6 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         return 'variant-' . $this->companies_id . '-' . $this->apps_id;
     }
 
-    #[Override]
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -230,7 +229,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             VariantsWarehouses::class,
             'products_variants_id',
             'warehouses_id'
-        );
+        )->where('products_variants_warehouses.is_deleted', 0);
     }
 
     /**
@@ -434,9 +433,9 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     {
         $variant = [
             'objectID' => $this->uuid,
-            'id' => (string)$this->id,
+            'id' => (string) $this->id,
             'products_id' => $this->products_id,
-            'name' => $this->name,
+            'name' => (string) $this->name,
             'files' => $this->getFiles()->take(5)->map(function ($files) {
                 return [
                     'uuid' => $files->uuid,
@@ -452,10 +451,10 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 'name' => $this?->product?->company?->name,
             ],
             'uuid' => $this->uuid,
-            'slug' => $this->slug,
-            'sku' => $this->sku,
-            'ean' => $this->ean,
-            'barcode' => $this->barcode,
+            'slug' => (string) $this->slug,
+            'sku' => (string) $this->sku,
+            'ean' => $this->ean !== null ? (string) $this->ean : null,
+            'barcode' => $this->barcode !== null ? (string) $this->barcode : null,
             'status' => [
                 'id' => $this->status->id ?? null,
                 'name' => $this->status->name ?? null,
@@ -484,6 +483,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             'short_description' => null, //$this->short_description,
             'attributes' => [],
             'apps_id' => $this->apps_id,
+            'rating' => (float) $this->rating,
         ];
         $attributes = $this->searchableAttributes();
         foreach ($attributes as $attribute) {
@@ -780,6 +780,12 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 ],
                 [
                     'name' => 'weight',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'rating',
                     'type' => 'float',
                     'optional' => true,
                     'sort' => true,

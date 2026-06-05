@@ -6,10 +6,12 @@ namespace Kanvas\Connectors\Shopify\Jobs;
 
 use Kanvas\Connectors\Shopify\Services\ShopifyOrderService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class ShopifyOrderNotesWebhookJob extends ProcessWebhookJob
 {
     #[Override]

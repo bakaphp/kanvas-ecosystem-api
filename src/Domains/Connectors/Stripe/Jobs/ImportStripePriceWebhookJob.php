@@ -8,9 +8,11 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Stripe\Services\StripePriceService;
 use Kanvas\Subscription\Importer\Actions\PriceImporterAction;
 use Kanvas\Subscription\Importer\DataTransferObjects\PriceImporter;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class ImportStripePriceWebhookJob extends ProcessWebhookJob
 {
     public array $data = [];
@@ -20,6 +22,7 @@ class ImportStripePriceWebhookJob extends ProcessWebhookJob
     {
         if (! in_array($this->webhookRequest->payload['type'], ['price.created', 'price.updated'])) {
             Log::error('Webhook type not found', ['type' => $this->webhookRequest->payload['type']]);
+
             return [];
         }
 

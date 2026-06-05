@@ -68,6 +68,7 @@ class RecalculateSlotCapacityAction
                 'availableParkingSpaces' => $totalAvailable,
                 'totalParkingSpaces'     => $totalMax,
             ]);
+            $product->save();
         } else {
             $channel = $variant->variantChannels()->first();
             $capacity = $product->getAttributeByName('capacity')?->value;
@@ -75,6 +76,10 @@ class RecalculateSlotCapacityAction
             $newSlots = $product->getAttributeByName('slots')?->value;
             $slots = $newSlots ?? $legacySlots;
             $variantWarehouse = $channel?->productVariantWarehouse()->first();
+
+            if (! $variantWarehouse) {
+                return;
+            }
 
             $activeOrders = new GetSlotAvailabilityAction($variant, $this->app)->countOccupied();
             $available = $slots - $activeOrders;

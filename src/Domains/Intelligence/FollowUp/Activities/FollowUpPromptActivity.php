@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\FollowUp\Repositories\FollowUpRepository;
@@ -17,10 +18,12 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Tools\VehicleInterestTool;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class FollowUpPromptActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
@@ -139,7 +142,7 @@ class FollowUpPromptActivity extends KanvasActivity implements WorkflowActivityI
     {
         return Agent::fromApp($lead->app)
             ->fromCompany($lead->company)
-            ->where('name', 'FollowUpEngagerAgent')
+            ->where('name', AgentEnum::FOLLOW_UP_ENGAGER->value)
             ->first();
     }
 

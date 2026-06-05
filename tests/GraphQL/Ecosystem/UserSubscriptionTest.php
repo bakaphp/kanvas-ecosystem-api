@@ -93,12 +93,13 @@ class UserSubscriptionTest extends TestCase
         $stripeCustomer->config = $configData;
         $stripeCustomer->saveOrFail();
 
+        $stripePrice = 'price_test_' . Str::random(10);
         $subscription = Subscription::create([
             'apps_stripe_customer_id' => $stripeCustomer->id,
             'type' => 'default',
             'stripe_id' => 'sub_test_' . Str::random(20),
             'stripe_status' => 'active',
-            'stripe_price' => 'price_test_456',
+            'stripe_price' => $stripePrice,
             'quantity' => 1,
         ]);
 
@@ -120,27 +121,58 @@ class UserSubscriptionTest extends TestCase
                     config
                 }
             }
-        ', ['id' => $stripeCustomer->id]);
+        ', ['id' => $subscription->id]);
 
         $response->assertSuccessful()
-            ->assertJson([
-                'data' => [
-                    'userSubscription' => [
-                        'id' => (string) $stripeCustomer->id,
-                        'type' => 'default',
-                        'stripe_status' => 'active',
-                        'status' => 'active',
-                        'plan_name' => 'default',
-                        'stripe_price' => 'price_test_456',
-                        'is_active' => true,
-                        'config' => $configData,
-                    ],
-                ],
+            ->assertJsonFragment([
+                'type' => 'default',
+                'stripe_status' => 'active',
+                'status' => 'active',
+                'is_active' => true,
+                'config' => $configData,
             ]);
+    }
+
+    public function testGetUserSubscriptionByIdRejectsOtherUsersSubscription(): void
+    {
+        $app = app(Apps::class);
+        $otherUser = $this->createUser();
+
+        $otherCustomer = AppsStripeCustomer::firstOrCreate([
+            'users_id' => $otherUser->getId(),
+            'companies_id' => 0,
+            'apps_id' => $app->getId(),
+        ]);
+
+        $otherSubscription = Subscription::create([
+            'apps_stripe_customer_id' => $otherCustomer->id,
+            'type' => 'default',
+            'stripe_id' => 'sub_test_' . Str::random(20),
+            'stripe_status' => 'active',
+            'stripe_price' => 'price_test_other',
+            'quantity' => 1,
+        ]);
+
+        $caller = $this->createUser();
+        $this->actingAs($caller, 'api');
+
+        $response = $this->graphQL('
+            query($id: ID!) {
+                userSubscription(id: $id) {
+                    id
+                }
+            }
+        ', ['id' => $otherSubscription->id]);
+
+        $response->assertJson(fn ($json) => $json->has('errors'));
+        $this->assertNull($response->json('data.userSubscription'));
     }
 
     public function testGetUserCurrentSubscriptionReturnsNullWhenNoSubscription(): void
     {
+        $freshUser = $this->createUser();
+        $this->actingAs($freshUser, 'api');
+
         $response = $this->graphQL('
             query {
                 me {

@@ -16,11 +16,11 @@ class Session extends Data
     public function __construct(
         public Apps $app,
         public Companies $company,
-        public Channel $channel,
         public Agent $agent,
         public string $entity_namespace,
         public string $entity_id,
         public array $user,
+        public ?Channel $channel = null,
         public ?string $canal_id = null,
         public ?int $communication_channels_id = null,
         public array $content = [],

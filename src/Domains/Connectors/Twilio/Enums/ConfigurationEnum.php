@@ -14,4 +14,9 @@ enum ConfigurationEnum: string
     case TWILIO_2FA_VERIFY_RATE_LIMIT = 'TWILIO_2FA_VERIFY_RATE_LIMIT';
     case TWILIO_2FA_SEND_RATE_LIMIT_DECAY = 'TWILIO_2FA_SEND_RATE_LIMIT_DECAY';
     case TWILIO_2FA_VERIFY_RATE_LIMIT_DECAY = 'TWILIO_2FA_VERIFY_RATE_LIMIT_DECAY';
+    case TWILIO_2FA_SEND_COOLDOWN_SECONDS = 'TWILIO_2FA_SEND_COOLDOWN_SECONDS';
+    case TWILIO_FROM_PHONE_NUMBER = 'twilio_from_phone_number';
+    case TWILIO_PHONE_NUMBER = 'twilio_phone_number';
+    case TWILIO_MMS_BATCH_SIZE = 'twilio-mms-batch-size';
+    case TWILIO_MMS_MAX_TOTAL_MEDIA = 'twilio-mms-max-total-media';
 }

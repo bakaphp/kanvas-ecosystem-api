@@ -6,7 +6,6 @@ namespace Kanvas\Event\Events\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\DataTransferObject\Event;
 use Kanvas\Event\Events\DataTransferObject\EventVersion;
@@ -58,7 +57,8 @@ class CreateEventAction
                 $slug = $slug . '-' . $this->metadata['slug_suffix'];
             }
 
-            // $this->validateSlug($slug);
+            $slug = $this->ensureUniqueSlug($slug);
+
             $event = ModelsEvent::updateOrCreate([
                 'slug' => $slug,
                 'apps_id' => $this->event->app->getId(),
@@ -144,6 +144,8 @@ class CreateEventAction
                 )->execute();
             }
 
+            new ScheduleEventReminderAction($eventVersion)->execute();
+
             return $event;
         });
 
@@ -168,29 +170,39 @@ class CreateEventAction
         return $this;
     }
 
-    protected function validateSlug(string $slug): void
+    protected function ensureUniqueSlug(string $slug): string
     {
-        Validator::make(
-            ['slug' => $slug],
-            [
-                'slug' => [
-                    'required',
-                    // Custom rule using DB to specify the connection and validate uniqueness.
-                    function ($attribute, $value, $fail) {
-                        $exists = DB::connection('event') // Replace with your DB connection name.
-                            ->table('events')
-                            ->where('slug', $value)
-                            ->where('apps_id', $this->event->app->getId())
-                            ->where('companies_id', $this->event->company->getId())
-                            ->exists();
+        $appId = $this->event->app->getId();
+        $companyId = $this->event->company->getId();
 
-                        if ($exists) {
-                            $fail('The ' . $attribute . ' has already been taken.');
-                        }
-                    },
-                ],
-            ]
-        )->validate();
+        $liveSlugExists = fn (string $candidate): bool => ModelsEvent::where('slug', $candidate)
+            ->where('apps_id', $appId)
+            ->where('companies_id', $companyId)
+            ->exists();
+
+        $softDeletedSlugExists = fn (string $candidate): bool => ModelsEvent::withTrashed()
+            ->where('slug', $candidate)
+            ->where('apps_id', $appId)
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', '!=', 0)
+            ->exists();
+
+        // Live match = updateOrCreate will update it — leave slug alone for idempotency.
+        if ($liveSlugExists($slug) || ! $softDeletedSlugExists($slug)) {
+            return $slug;
+        }
+
+        // Only a soft-deleted row collides with the unique index; append counter until free.
+        $baseSlug = $slug;
+        $counter = 1;
+        while (
+            $liveSlugExists($baseSlug . '-' . $counter)
+            || $softDeletedSlugExists($baseSlug . '-' . $counter)
+        ) {
+            $counter++;
+        }
+
+        return $baseSlug . '-' . $counter;
     }
 
     protected function createEventOrder(ModelsEventVersion $eventVersion, array $orderItemsData = []): void

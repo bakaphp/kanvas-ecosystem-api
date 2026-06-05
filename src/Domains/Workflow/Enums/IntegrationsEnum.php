@@ -28,10 +28,12 @@ enum IntegrationsEnum: string
     case WASENDER = 'wa_sender';
     case DRIVE_CENTRIC = 'drive_centric';
     case PASO_RAPIDO = 'paso_rapido';
+    case PAYWAY = 'payway';
     case PLATE_RECOGNIZER = 'plate_recognizer';
     case MINDEE = 'mindee';
     case SALESASSIST = 'salesassist';
     case ECHO_PAY = 'echo_pay';
+    case AZUL = 'azul';
     case PLUSVAL = 'plusval';
     case MOVIPASS = 'movipass';
     case QUICKBOOKS = 'quickbooks';
@@ -44,5 +46,14 @@ enum IntegrationsEnum: string
     case TOOKAN = 'tookan';
     case CHROMEDATA = 'chromedata';
     case TRIGGER_AI = 'trigger-ai';
+    case RESPOND_IO = 'respond_io';
     case CALENDLY = 'calendly';
+    case CARDNET = 'cardnet';
+    case CONTACT_CHECKER = 'contact_checker';
+    case OPENCLAW = 'openclaw';
+    case HERMES = 'hermes';
+    case MICROSOFT = 'microsoft';
+    case INTRAS = 'intras';
+    case LICENSE_PLATE_EXTRACTOR = 'license_plate_extractor';
+    case LENDFLOW = 'lendflow';
 }

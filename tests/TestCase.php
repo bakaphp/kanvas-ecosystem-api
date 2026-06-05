@@ -12,6 +12,7 @@ use Kanvas\Apps\DataTransferObject\AppInput;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Guild\Support\Setup;
 use Kanvas\Inventory\Support\Setup as SupportSetup;
 use Kanvas\Roles\Models\Roles;
@@ -25,17 +26,21 @@ class TestCase extends BaseTestCase
 
     protected string $graphqlVersion = 'graphql';
 
+    protected static ?Users $cachedUser = null;
+    protected static bool $domainSetupComplete = false;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->app->instance('env', 'testing');
 
-        Dotenv::createImmutable(base_path())->load(); //load .env not .env.testing
+        Dotenv::createImmutable(base_path())->load();
+
+        if (static::$cachedUser) {
+            $this->actingAs(static::$cachedUser, 'api');
+        }
     }
 
-    /**
-     * createUser.
-     */
     public function createUser(): Users
     {
         $dto = RegisterPostDataDto::from([
@@ -44,9 +49,29 @@ class TestCase extends BaseTestCase
             'firstname' => fake()->firstName,
             'lastname' => fake()->lastName,
         ]);
-        $user = (new RegisterUsersAction($dto))->execute();
 
-        return $user;
+        return new RegisterUsersAction($dto)->execute();
+    }
+
+    /**
+     * Returns the Stripe test secret key from env, or marks the test skipped
+     * when no real key is available. Use in setUp() of any test that hits
+     * live Stripe — keeps the suite green in environments without secrets.
+     *
+     * Checks $_ENV / $_SERVER / getenv() in that order because Dotenv::createImmutable
+     * (used in this codebase's TestCase) populates $_ENV/$_SERVER but not getenv().
+     */
+    protected function requireStripeTestKey(): string
+    {
+        $key = $_ENV['TEST_STRIPE_SECRET_KEY']
+            ?? $_SERVER['TEST_STRIPE_SECRET_KEY']
+            ?? getenv('TEST_STRIPE_SECRET_KEY');
+
+        if (! is_string($key) || ! str_starts_with($key, 'sk_') || strlen($key) < 20) {
+            $this->markTestSkipped('TEST_STRIPE_SECRET_KEY env var not set; skipping live-Stripe test.');
+        }
+
+        return $key;
     }
 
     protected function graphQLEndpointUrl(array $routeParams = []): string
@@ -68,71 +93,49 @@ class TestCase extends BaseTestCase
 
         $app->make(Kernel::class)->bootstrap();
 
-        //  $kanvasApp = Apps::factory(1)->create();
-
-        /*    $app->bind(Apps::class, function () use ($kanvasApp) {
-               return $kanvasApp;
-           }); */
-
-        //$user = Users::where('id', '>', 0)->first();
-        //$user = Users::factory(1)->create()->first();
         $this->app = $app;
         $currentApp = app(Apps::class);
 
-        $data = AppInput::from(
-            [
-               'name' => $currentApp->name,
-               'url' => $currentApp->url,
-               'description' => $currentApp->description,
-               'domain' => $currentApp->domain ?? 'kanvas-ecosystem-api.test',
-               'is_actived' => 1,
-               'ecosystem_auth' => 1,
-               'payments_active' => 0,
-               'is_public' => 1,
-               'domain_based' => 0,
-            ]
-        );
-        $createApp = new CreateAppsAction($data, new Users());
-        //$app = $createApp->execute();
-        $createApp->acl($currentApp);
+        if (! static::$domainSetupComplete) {
+            $data = AppInput::from([
+                'name' => $currentApp->name,
+                'url' => $currentApp->url,
+                'description' => $currentApp->description,
+                'domain' => $currentApp->domain ?? 'kanvas-ecosystem-api.test',
+                'is_actived' => 1,
+                'ecosystem_auth' => 1,
+                'payments_active' => 0,
+                'is_public' => 1,
+                'domain_based' => 0,
+            ]);
+            new CreateAppsAction($data, new Users())->acl($currentApp);
 
-        //legacy needs this
-        Roles::firstOrCreate([
-            'name' => 'Admins',
-            'apps_id' => $currentApp->getId(),
-        ], [
-            'companies_id' => 1,
-            'is_active' => 1,
-            'scope' => 0,
-        ]);
+            $currentApp->set(AppSettingsEnums::ONE_SIGNAL_APP_ID->getValue(), 'test-onesignal-app-id');
+            $currentApp->set(AppSettingsEnums::ONE_SIGNAL_REST_API_KEY->getValue(), 'test-onesignal-rest-api-key');
 
-        $user = $this->createUser();
-        $this->actingAs($user, 'api');
+            Roles::firstOrCreate([
+                'name' => 'Admins',
+                'apps_id' => $currentApp->getId(),
+            ], [
+                'companies_id' => 1,
+                'is_active' => 1,
+                'scope' => 0,
+            ]);
 
-        //setup CRM
-        $company = $user->getCurrentCompany();
-        $setupGuild = new Setup(
-            $currentApp,
-            $user,
-            $company
-        );
-        $setupGuild->run();
+            $user = $this->createUser();
 
-        //setup inventory
-        $setupInventory = new SupportSetup(
-            $currentApp,
-            $user,
-            $company
-        );
-        $setupInventory->run();
+            $company = $user->getCurrentCompany();
+            new Setup($currentApp, $user, $company)->run();
+            new SupportSetup($currentApp, $user, $company)->run();
+            new SocialSupportSetup($currentApp, $user, $company)->run();
 
-        //setup social
-        $setupSocial = new SocialSupportSetup(
-            $currentApp,
-            $user,
-            $company
-        );
-        $setupSocial->run();
+            static::$cachedUser = $user;
+            static::$domainSetupComplete = true;
+        }
+
+        if (static::$cachedUser) {
+            $this->actingAs(static::$cachedUser, 'api');
+        }
 
         return $app;
     }

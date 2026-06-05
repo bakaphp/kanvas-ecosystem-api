@@ -5,23 +5,14 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Kanvas\Health\Checks\QueueSizeCheck;
 use Override;
 use Spatie\Health\Checks\Checks\DatabaseCheck;
-use Spatie\Health\Checks\Checks\MeiliSearchCheck;
-use Spatie\Health\Checks\Checks\OptimizedAppCheck;
-use Spatie\Health\Checks\Checks\QueueCheck;
 use Spatie\Health\Checks\Checks\RedisCheck;
-use Spatie\Health\Checks\Checks\RedisMemoryUsageCheck;
-use Spatie\Health\Checks\Checks\ScheduleCheck;
 use Spatie\Health\Facades\Health;
 
 class HealthProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     *
-     * @return void
-     */
     #[Override]
     public function register()
     {
@@ -33,11 +24,22 @@ class HealthProvider extends ServiceProvider
            DatabaseCheck::new()->name('content_engine')->connectionName('content_engine'),
            DatabaseCheck::new()->name('workflow')->connectionName('workflow'),
            RedisCheck::new()->name('redis'),
-           RedisMemoryUsageCheck::new()->failWhenAboveMb(5000),
-           //QueueCheck::new(),
-           //MeiliSearchCheck::new()->url(config('scout.meilisearch.host') . '/health'),
-           //ScheduleCheck::new()->heartbeatMaxAgeInMinutes(5),
-          /* OptimizedAppCheck::new()->if(app()->isProduction()), */
+           QueueSizeCheck::new()
+               ->name('queue-sizes')
+               ->thresholds([
+                   'default' => 5000,
+                   'scout' => 5000,
+                   'agent-runtime' => 2000,
+                   'batch-logger' => 5000,
+                   'ledger' => 5000,
+               ])
+               ->warnings([
+                   'default' => 1000,
+                   'scout' => 1000,
+                   'agent-runtime' => 500,
+                   'batch-logger' => 1000,
+                   'ledger' => 1000,
+               ]),
         ]);
     }
 }

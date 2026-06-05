@@ -10,11 +10,13 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\ChatHistory\RedisAgentChatHistory;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\SystemPrompt;
 use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\ChatHistoryInterface;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\HttpClient\GuzzleHttpClient;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Providers\Anthropic\Anthropic;
 use NeuronAI\Providers\Gemini\Gemini;
@@ -27,6 +29,7 @@ use NeuronAI\RAG\VectorStore\PineconeVectorStore;
 use NeuronAI\RAG\VectorStore\VectorStoreInterface;
 use NeuronAI\Tools\Tool;
 use Override;
+use RuntimeException;
 
 class BaseAgent extends RAG
 {
@@ -40,12 +43,15 @@ class BaseAgent extends RAG
         Agent $agent,
         ?Model $entity = null,
         ?string $externalReferenceId = null,
+        ?Users $user = null,
     ): void {
         $this->agent = $agent;
         $this->entity = $entity;
         $this->app = $agent->app;
         $this->company = $agent->company;
         $this->externalReferenceId = $externalReferenceId;
+        // $user is accepted for signature parity with BaseKanvasAgent so polymorphic
+        // callers can pass it uniformly. Legacy handlers ignore it.
     }
 
     #[Override]
@@ -54,20 +60,50 @@ class BaseAgent extends RAG
         // return an AI provider (Anthropic, OpenAI, Gemini, Ollama, etc.)
         return new Gemini(
             key: $this->app->get(ConfigurationEnum::GEMINI_KEY->value),
-            model: $this->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-2.0-flash-lite',
+            model: $this->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-2.5-flash-lite',
+            httpClient: new GuzzleHttpClient(timeout: 220, connectTimeout: 220),
         );
     }
 
     #[Override]
     public function instructions(): string
     {
-        $role = $this->agent->role;
+        if ($this->agent === null) {
+            throw new RuntimeException(
+                'Agent not set. Make sure to call setConfiguration() before invoking the agent.',
+            );
+        }
 
-        return new SystemPrompt(
-            background: $role['background'],
-            steps: $role['steps'],
-            output: $role['output'],
-        )->__toString();
+        // Prefer the per-field shape (soul/instructions/output_format) on the
+        // agent, falling back per-field to the AgentType so a type acts as the
+        // base persona. This is the supported shape going forward — the legacy
+        // structured `role` JSON path below stays for older agents only.
+        $type = $this->agent->type;
+        $coalesce = static fn (?string $a, ?string $b): ?string => ($a !== null && $a !== '') ? $a : $b;
+
+        $parts = array_filter([
+            $coalesce($this->agent->soul, $type?->soul),
+            $coalesce($this->agent->instructions, $type?->instructions),
+            $coalesce($this->agent->output_format, $type?->output_format),
+        ]);
+
+        if ($parts !== []) {
+            return implode("\n\n", $parts);
+        }
+
+        // Legacy: role stored as a structured array { background, steps, output }
+        // where each field MUST be an array — NeuronAI's SystemPrompt rejects
+        // strings. Cast defensively so a string field doesn't TypeError here.
+        $role = $this->agent->role;
+        if (is_array($role) && isset($role['background'])) {
+            return (string) new SystemPrompt(
+                background: (array) $role['background'],
+                steps: (array) ($role['steps'] ?? []),
+                output: (array) ($role['output'] ?? []),
+            );
+        }
+
+        return '';
     }
 
     #[Override]
@@ -110,8 +146,8 @@ class BaseAgent extends RAG
     {
         // Check if we have the required entity information
         if ($this->entity === null) {
-            throw new \RuntimeException(
-                'Entity information not set. Make sure to call setConfiguration() with a valid entity.'
+            throw new RuntimeException(
+                'Entity information not set. Make sure to call setConfiguration() with a valid entity.',
             );
         }
 

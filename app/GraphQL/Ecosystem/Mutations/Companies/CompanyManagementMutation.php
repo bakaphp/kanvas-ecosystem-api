@@ -53,13 +53,13 @@ class CompanyManagementMutation
         $authUser = auth()->user();
         $app = app(Apps::class);
 
-        (new SetupService())->onBoarding(
+        new SetupService()->onBoarding(
             $user,
             app(Apps::class),
             $company
         );
 
-        (new AddAdminsToCompanyAction($app, $authUser, $company, $branch))->execute();
+        new AddAdminsToCompanyAction($app, $authUser, $company, $branch)->execute();
 
         return $company;
     }

@@ -19,9 +19,11 @@ use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class PushLeadNotesActivity extends KanvasActivity
 {
     public $tries = 3;

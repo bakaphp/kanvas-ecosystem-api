@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Payments\Providers;
 
+use Baka\Support\IPInfo;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
@@ -185,7 +186,7 @@ class PortalPaymentProcessor
             $consumerData = ConsumerAuthentication::from($enrollmentData['consumerAuthenticationInformation']);
 
             if ($this->isValidEci($consumerData, $enrollmentData)) {
-                $payment->updateQuietly([
+                $payment->update([
                     'status' => PaymentStatusEnum::WAITING_DEVICE_DATA->value,
                 ]);
 
@@ -274,7 +275,7 @@ class PortalPaymentProcessor
             $consumerData = ConsumerAuthentication::from($validatedData['consumerAuthenticationInformation']);
 
             if ($this->isValidEci($consumerData, $validatedData)) {
-                $payment->updateQuietly([
+                $payment->update([
                     'status' => PaymentStatusEnum::WAITING_DEVICE_DATA->value,
                 ]);
 
@@ -386,7 +387,6 @@ class PortalPaymentProcessor
 
         $payment->order->updateQuietly([
             'status' => $paymentStatus === PaymentStatusEnum::PENDING_AUTHORIZATION->value ? OrderStatusEnum::PENDING->value : OrderStatusEnum::FAILED->value,
-            'payment_status' => $paymentStatus,
         ]);
 
         $errors = $this->extractErrorsFromEnrollment($enrollmentData);
@@ -463,7 +463,7 @@ class PortalPaymentProcessor
                 'billTo' => $this->setCustomerBillingAddress($payment, $order),
             ]),
             'deviceInformation' => DeviceInformation::from([
-                'ipAddress' => $order->metadata['data']['user_ip'] ?? request()->ip(),
+                'ipAddress' => $order->metadata['data']['user_ip'] ?? IPInfo::getClientIp(),
                 'fingerprintSessionId' => $merchantAuthentication->id . $order->id,
             ]),
             'consumerAuthenticationInformation' => ConsumerAuthenticationInformation::from([
@@ -500,7 +500,6 @@ class PortalPaymentProcessor
 
             $payment->status = PaymentStatusEnum::FAILED->value;
             $order->updateQuietly([
-                'payment_status' => PaymentStatusEnum::FAILED->value,
                 'status' => OrderStatusEnum::FAILED->value,
                 'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
             ]);
@@ -546,7 +545,6 @@ class PortalPaymentProcessor
 
             $payment->status = PaymentStatusEnum::FAILED->value;
             $order->updateQuietly([
-                'payment_status' => PaymentStatusEnum::FAILED->value,
                 'status' => OrderStatusEnum::FAILED->value,
                 'fulfillment_status' => OrderFulfillmentStatusEnum::CANCELLED->value,
             ]);

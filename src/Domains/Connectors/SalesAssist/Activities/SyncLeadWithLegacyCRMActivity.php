@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\SalesAssist\Activities;
 use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\SalesAssist\Actions\SyncLeadWithLegacyCRMAction;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class SyncLeadWithLegacyCRMActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -26,7 +28,7 @@ class SyncLeadWithLegacyCRMActivity extends KanvasActivity
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams): array {
                 $action = new SyncLeadWithLegacyCRMAction($lead);
 
-                $result =  $action->execute();
+                $result = $action->execute();
 
                 return $result['success'] ? $result : $this->failWorkflow($result);
             },

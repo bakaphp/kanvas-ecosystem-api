@@ -11,9 +11,11 @@ use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventType;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
 {
     #[Override]

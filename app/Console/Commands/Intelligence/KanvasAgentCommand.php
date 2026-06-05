@@ -9,8 +9,6 @@ use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
-use Inspector\Configuration;
-use Inspector\Inspector;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
@@ -73,20 +71,17 @@ class KanvasAgentCommand extends Command
         }
         // Initialize the agent
         $crm = new $agent->type->handler();
-        $inspector = new Inspector(
-            new Configuration($app->get('inspector-key'))
-        );
 
         // Assuming the People model is correctly set up
         //$person = People::getById(57626); // You might want to make this configurable
         $entity = $this->argument('entity_id');
         $namespace = $this->argument('namespace');
         $entity = $namespace::getById($entity);
-        $crm->setConfiguration($agent, $entity);
-
-        /* $crm->observe(
-            new AgentMonitoring($inspector)
-        ); */
+        $crm->setConfiguration(
+            agent: $agent,
+            entity: $entity,
+            user: $entity->company->getAiAgentUserOrFail(),
+        );
 
         if ($this->option('interactive')) {
             $this->startInteractiveChat($crm, $entity);

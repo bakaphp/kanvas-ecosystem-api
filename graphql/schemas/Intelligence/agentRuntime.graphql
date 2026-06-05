@@ -1,0 +1,184 @@
+input MigrateAgentWorkspaceInput {
+    source_deployment_id: ID!
+    destination_machine_id: ID!
+    "Full path to the workspace directory on the source server (defaults to ~/.openclaw)"
+    source_path: String
+    "Parent directory to extract into on the destination server (defaults to agent home directory)"
+    destination_path: String
+}
+
+input MigrateAgentToProviderInput {
+    source_deployment_id: ID!
+    destination_machine_id: ID!
+    target_provider: AgentProvider!
+    source_path: String
+    destination_path: String
+}
+
+type AgentDeploymentEvent {
+    id: ID!
+    deployment_id: ID!
+    "One of: gateway_down | gateway_up | health_fail | health_recover | session_started | agent_unreachable"
+    event_type: String!
+    payload: String
+    occurred_at: String!
+}
+
+type AgentLogEntry {
+    ts: String!
+    level: String!
+    msg: String!
+    meta: String
+}
+
+extend type Query @guardByAdmin {
+    agentCurrentTelemetry(deployment_id: ID!): AgentTelemetryData
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\AgentRuntime\\AgentTelemetryQuery"
+        )
+
+    agentDeploymentLogs(deployment_id: ID!, limit: Int): [AgentLogEntry!]!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\AgentRuntime\\AgentDeploymentLogsQuery"
+        )
+
+    agentDeploymentEvents(
+        deployment_id: ID!
+        limit: Int
+    ): [AgentDeploymentEvent!]!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\AgentRuntime\\AgentDeploymentEventsQuery"
+        )
+}
+
+extend type Subscription {
+    agentTelemetry(deployment_id: ID!): AgentTelemetryData
+        @subscription(
+            class: "App\\GraphQL\\Intelligence\\Subscriptions\\AgentRuntime\\AgentTelemetrySubscription"
+        )
+}
+
+extend type Mutation @guard {
+    agentRuntimeCreateMachine(input: AgentMachineInput!): AgentMachineType!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentMachineMutation@create"
+        )
+    agentRuntimeUpdateMachine(
+        id: ID!
+        input: UpdateAgentMachineInput!
+    ): AgentMachineType!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentMachineMutation@update"
+        )
+    agentRuntimeDeleteMachine(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentMachineMutation@delete"
+        )
+    agentRuntimeUpdateMachineContainers(machine_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentMachineMutation@updateContainers"
+        )
+    agentRuntimePingMachine(machine_id: ID!): AgentMachineType!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentMachineMutation@ping"
+        )
+
+    agentRuntimeBackupAgent(
+        deployment_id: ID!
+        include_workspace: Boolean
+    ): AgentBackupType!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@backup"
+        )
+
+    agentRuntimeLaunchAgent(input: LaunchAgentInput!): AgentDeploymentType!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@launch"
+        )
+    agentRuntimeTerminateAgent(deployment_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@terminate"
+        )
+
+    agentRuntimeDeleteDeployment(deployment_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@delete"
+        )
+
+    agentRuntimeRestartContainer(deployment_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@restart"
+        )
+    agentRuntimeContainerLogs(deployment_id: ID!, lines: Int): String!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@logs"
+        )
+    agentRuntimeContainerStatus(deployment_id: ID!): AgentDeploymentType!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@status"
+        )
+    agentRuntimeCollectUsage(deployment_id: ID!): AgentUsageSnapshot!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@collectUsage"
+        )
+    "Pull conversation transcripts out of the deployment runtime and persist into agent_conversations / agent_conversation_messages. Returns the count of newly persisted messages. Routes via AgentRuntimeProviderFactory — runtimes that don't support transcript collection throw a clear LogicException."
+    agentRuntimeCollectSessionTranscripts(
+        deployment_id: ID!
+        since: DateTime
+    ): Int!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@collectSessionTranscripts"
+        )
+
+    agentRuntimeSetSlackTokens(
+        agent_id: ID!
+        slack_bot_token: String!
+        slack_app_token: String!
+    ): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@setSlackTokens"
+        )
+
+    agentRuntimeSetTelegramToken(
+        agent_id: ID!
+        telegram_bot_token: String!
+        telegram_allowed_users: String
+    ): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@setTelegramToken"
+        )
+
+    agentRuntimeMigrateAgentWorkspace(
+        input: MigrateAgentWorkspaceInput!
+    ): AgentDeploymentType!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@migrateWorkspace"
+        )
+
+    "Cross-runtime adoption — replaces the old per-provider migration mutations."
+    agentRuntimeMigrateAgentToProvider(
+        input: MigrateAgentToProviderInput!
+    ): AgentDeploymentType!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@migrateToProvider"
+        )
+}
+
+extend type Mutation @guardByAppKey {
+    agentRuntimeExecCommand(
+        deployment_id: ID!
+        command: String!
+        session_id: String!
+    ): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@execCommand"
+        )
+    agentRuntimeGetConfig(deployment_id: ID!): String!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@getConfig"
+        )
+    agentRuntimeUpdateConfig(deployment_id: ID!, config: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@updateConfig"
+        )
+}

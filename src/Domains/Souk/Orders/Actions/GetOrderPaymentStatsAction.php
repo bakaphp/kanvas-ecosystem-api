@@ -24,6 +24,10 @@ class GetOrderPaymentStatsAction
         protected array $providers = [],
         protected ?int $productId = null,
         protected array $providerCompanyIds = [],
+        protected ?string $userEmail = null,
+        protected ?string $reference = null,
+        protected ?string $orderNumber = null,
+        protected ?array $metadataFilter = null,
     ) {
         $this->repository = new OrderPaymentRepository($app);
 
@@ -82,7 +86,11 @@ class GetOrderPaymentStatsAction
             $timezone,
             $this->orderTypeNames,
             $this->productVariantIds,
-            $this->providerCompanyIds
+            $this->providerCompanyIds,
+            $this->userEmail,
+            $this->reference,
+            $this->orderNumber,
+            $this->metadataFilter,
         );
 
         $daysInRange = collect(DateHelper::generateDateList($start, $end, $timezone))
@@ -102,6 +110,7 @@ class GetOrderPaymentStatsAction
             return [
                 'date' => $date,
                 'count' => $total,
+                'totalAmount' => (float) $amount,
                 'states' => [
                     'total' => $total,
                     'card' => $card,
@@ -131,7 +140,11 @@ class GetOrderPaymentStatsAction
                 $this->providers,
                 $this->variantId,
                 $this->productVariantIds,
-                $this->providerCompanyIds
+                $this->providerCompanyIds,
+                $this->userEmail,
+                $this->reference,
+                $this->orderNumber,
+                $this->metadataFilter,
             );
             $byProvider = $providerResults->map(fn ($row) => [
                 'name' => $row->provider_name,
@@ -167,7 +180,11 @@ class GetOrderPaymentStatsAction
             $this->orderTypeNames,
             $this->variantId,
             $this->productVariantIds,
-            $this->providerCompanyIds
+            $this->providerCompanyIds,
+            $this->userEmail,
+            $this->reference,
+            $this->orderNumber,
+            $this->metadataFilter,
         );
 
         return $rows->map(fn ($row) => [
@@ -214,7 +231,11 @@ class GetOrderPaymentStatsAction
             $this->variantId,
             $this->orderTypeNames,
             $this->productVariantIds,
-            $this->providerCompanyIds
+            $this->providerCompanyIds,
+            $this->userEmail,
+            $this->reference,
+            $this->orderNumber,
+            $this->metadataFilter,
         );
 
         if ($orderIds->isEmpty()) {

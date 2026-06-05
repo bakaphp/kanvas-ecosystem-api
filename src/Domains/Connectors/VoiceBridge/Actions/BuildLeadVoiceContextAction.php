@@ -9,6 +9,8 @@ use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
+use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\SystemModules\Models\SystemModules;
 
 class BuildLeadVoiceContextAction
 {
@@ -61,11 +63,18 @@ class BuildLeadVoiceContextAction
         $leadContext = $this->lead->get(IntelligenceConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [];
 
         $task = $leadContext;
-        if ($this->instructions !== null) {
-            $task = array_merge(['instructions' => $this->instructions], $task);
-        }
+        unset($task['instructions']);
 
-        return [
+        $company = $this->lead->company;
+
+        $defaultChannel = Channels::getDefault($company, $app);
+        $defaultBranch = $company->defaultBranch()->first();
+        $channelSlugs = $this->lead->socialChannels()->pluck('slug')->toArray();
+        $systemModule = SystemModules::where('model_name', Lead::class)
+            ->where('apps_id', 0)
+            ->first();
+
+        $context = [
             'company_id' => (string) $app->get(ConfigurationEnum::COMPANY_ID->value),
             'customer' => $customer,
             'kanvas_prompts' => [
@@ -73,6 +82,18 @@ class BuildLeadVoiceContextAction
                 'steps' => $steps,
             ],
             'task' => $task,
+            'inventory_channel' => $defaultChannel?->uuid,
+            'kanvas_context_headers' => [
+                'X-Kanvas-Location' => $defaultBranch?->uuid,
+            ],
+            'channel_slugs' => $channelSlugs,
+            'system_modules_id' => (string) ($systemModule?->getId() ?? ''),
         ];
+
+        if ($this->instructions !== null) {
+            $context['call_mission'] = $this->instructions;
+        }
+
+        return $context;
     }
 }

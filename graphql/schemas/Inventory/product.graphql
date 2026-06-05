@@ -185,6 +185,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addAttribute"
         )
+    addAttributeToProduct(id: ID!, input: ProductAttributesInput!): Product
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@addAttributeToProduct"
+        )
     removeAttribute(id: ID!, attribute_id: ID!): Product
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Products\\Products@removeAttribute"
@@ -224,9 +228,11 @@ extend type Query @guard {
     products(
         search: String @search
         variantAttributeValue: String
+        withAttributeSlug: String
         variantAttributeOrderBy: ProductAttributeOrderBy
         attributeOrderBy: ProductAttributeOrderBy
         nearByLocation: NearByLocationInput
+        nearByWarehouseLocation: NearByLocationInput
         where: _
             @whereConditions(
                 columns: [
@@ -249,6 +255,11 @@ extend type Query @guard {
         hasCategories: _
             @whereHasConditions(
                 relation: "categories"
+                columns: ["id", "name", "slug"]
+            )
+        hasProductsTypes: _
+            @whereHasConditions(
+                relation: "type"
                 columns: ["id", "name", "slug"]
             )
         hasWarehouses: _

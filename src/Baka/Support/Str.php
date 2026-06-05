@@ -19,7 +19,7 @@ class Str extends IlluminateStr
     /**
      * Given a json string decode it into array.
      */
-    public static function jsonToArray($string): mixed
+    public static function jsonToArray(mixed $string): mixed
     {
         return is_string($string) && self::isJson($string) ? json_decode($string, true) : $string;
     }
@@ -32,9 +32,18 @@ class Str extends IlluminateStr
         return strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $string)));
     }
 
+    /**
+     * Strip all non-digit characters from a string.
+     * Useful for normalizing phone numbers, EINs, SSNs, ZIPs, etc.
+     */
+    public static function digitsOnly(?string $value): string
+    {
+        return $value === null ? '' : ((string) preg_replace('/\D+/', '', $value));
+    }
+
     public static function sanitizePhoneNumber(?string $phone = null): string
     {
-        return (string) ($phone !== null ? preg_replace('/\D+/', '', $phone) : '');
+        return self::digitsOnly($phone);
     }
 
     public static function cleanJsonString(string $json): string
@@ -45,6 +54,39 @@ class Str extends IlluminateStr
     public static function normalizePhoneNumber(string $phone): string
     {
         return (string) preg_replace('/^\+?1/', '', $phone);
+    }
+
+    /**
+     * Ensure a phone number has the international '+' prefix (E.164 format) for API calls.
+     */
+    public static function ensurePhonePrefix(string $phone): string
+    {
+        $phone = ltrim($phone);
+
+        if (! self::startsWith($phone, '+')) {
+            $phone = '+' . $phone;
+        }
+
+        return $phone;
+    }
+
+    /**
+     * Convert a phone number to strict E.164 (digits-only with leading '+').
+     * Assumes 10-digit numbers belong to the given default country code (US/DR by default).
+     */
+    public static function toE164(?string $phone, string $defaultCountryCode = '1'): string
+    {
+        $digits = self::digitsOnly($phone);
+
+        if ($digits === '') {
+            return '';
+        }
+
+        if (strlen($digits) === 10) {
+            return '+' . $defaultCountryCode . $digits;
+        }
+
+        return '+' . $digits;
     }
 
     public static function sanitizeEmail(string $email): string
@@ -58,8 +100,11 @@ class Str extends IlluminateStr
      *
      * @return array{firstname: string, lastname: string}
      */
-    public static function parseFullName(string $fullName, string $firstname = '', string $lastname = ''): array
-    {
+    public static function parseFullName(
+        string $fullName,
+        string $firstname = '',
+        string $lastname = ''
+    ): array {
         if ($firstname !== '' || $lastname !== '' || $fullName === '') {
             return ['firstname' => $firstname, 'lastname' => $lastname];
         }

@@ -7,12 +7,13 @@ namespace Kanvas\Intelligence\Workflows;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
-use Kanvas\Intelligence\Enums\NotificationChannelEnum;
 use Kanvas\Intelligence\Notifications\LeadNotification;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class SendNotificationActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -58,9 +59,7 @@ class SendNotificationActivity extends KanvasActivity
                 $notification = new LeadNotification(
                     lead: $lead,
                     message: $text,
-                    enabledChannels: $enabledChannels,
-                    app: $app,
-                    company: $company
+                    enabledChannels: $enabledChannels
                 );
 
                 $user->notify($notification);
@@ -88,9 +87,6 @@ class SendNotificationActivity extends KanvasActivity
             $configuredChannels = json_decode($configuredChannels, true) ?? [];
         }
 
-        return array_filter(
-            $configuredChannels,
-            fn ($channel) => NotificationChannelEnum::isSupported($channel)
-        );
+        return $configuredChannels;
     }
 }

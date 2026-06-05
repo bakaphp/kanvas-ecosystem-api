@@ -13,9 +13,11 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class PeopleProcessDriverLicenseImageActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -40,22 +42,6 @@ class PeopleProcessDriverLicenseImageActivity extends KanvasActivity
             ];
         }
 
-        /**
-        * @todo for now it will only work with lead participants
-        * combine with processlead cause we have a lot of repeated code
-        */
-
-        /*      $leadParticipant = LeadParticipant::where('peoples_id', $people->getId())
-                 ->whereHas('lead', function (Builder $query) {
-                     $query->where('is_deleted', 0)
-                         ->whereHas('status', function (Builder $query) {
-                             $query->whereIn('name', ['active', 'created']);
-                         });
-                 })
-                 ->with('lead')
-                 ->orderBy('created_at', 'desc')
-                 ->first(); */
-
         $leadParticipant = LeadParticipant::where('peoples_id', $sentParticipants['peopleId'])
            ->whereHas('lead', function (Builder $query) {
                $query->where('is_deleted', 0)
@@ -67,7 +53,6 @@ class PeopleProcessDriverLicenseImageActivity extends KanvasActivity
            ->orderBy('created_at', 'desc')
            ->first();
 
-        //$people = People::fromApp($app)->fromCompany($people->company)->where('id', $sentParticipants[0]['peopleId'])->firstOrFail();
         $lead = $leadParticipant ? $leadParticipant->lead : null;
         $people = $leadParticipant ? $leadParticipant->people : null;
 
@@ -90,15 +75,14 @@ class PeopleProcessDriverLicenseImageActivity extends KanvasActivity
             entity: $people,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
-            integrationOperation: function ($people, $app, $integrationCompany, $additionalParams) use ($params) {
-                // Use the new action class
-                sleep(30); // wait for 30 seconds to make sure the image is processed
-                $action = new ProcessPeopleDriverLicenseVerificationAction(
-                    $people,
-                    $params
-                );
+            integrationOperation: function ($people, $app, $integrationCompany, $additionalParams) use ($params, $lead) {
+                sleep(30);
 
-                return $action->execute();
+                return new ProcessPeopleDriverLicenseVerificationAction(
+                    $people,
+                    $params,
+                    $lead,
+                )->execute();
             },
             company: $people->company,
         );

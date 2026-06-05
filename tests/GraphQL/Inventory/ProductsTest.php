@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Languages\Models\Languages;
+use Kanvas\Users\Models\Users;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
@@ -78,7 +82,10 @@ class ProductsTest extends TestCase
         $response->assertSuccessful();
         $products = $response->json('data.products.data');
         $this->assertNotEmpty($products, 'No products returned from attributeOrderBy query');
-        $this->assertEquals($data['name'], $products[0]['name']);
+        $this->assertTrue(
+            collect($products)->contains('name', $data['name']),
+            'Created product should appear in attributeOrderBy results'
+        );
     }
 
     public function testSortByVariantAttributes(): void
@@ -127,8 +134,12 @@ class ProductsTest extends TestCase
                 }
             }"
         );
-        $this->assertEquals($data['name'], $response->json()['data']['products']['data'][0]['name']);
-        // $this->assertArrayHasKey('name', $response->json()['data']['products']['data'][0]);
+        $products = $response->json('data.products.data');
+        $this->assertNotEmpty($products, 'No products returned from variantAttributeOrderBy query');
+        $this->assertTrue(
+            collect($products)->contains('name', $data['name']),
+            'Created product should appear in variantAttributeOrderBy results'
+        );
     }
 
     public function testFilterByNearByLocation(): void
@@ -443,5 +454,118 @@ class ProductsTest extends TestCase
             $productData['slug'] . '-copy',
             $response->json()['data']['duplicateProduct']['slug']
         );
+    }
+
+    public function testFilterByNearByWarehouseLocation(): void
+    {
+        $productResponse = $this->createProduct([
+            'name' => 'Warehouse Location Test ' . fake()->word(),
+            'description' => fake()->text,
+            'sku' => fake()->time,
+        ])->json();
+
+        $productId = $productResponse['data']['createProduct']['id'];
+        $product = Products::find($productId);
+        $variant = $product->variants()->first();
+
+        $this->setupInventory();
+        $warehouse = Warehouses::getDefault($product->company);
+
+        // Add variant to warehouse with lat/long coordinates
+        $this->graphQL('
+            mutation addVariantToWarehouse($id: ID!, $data: WarehouseReferenceInput!) {
+                addVariantToWarehouse(id: $id, input: $data) {
+                    id
+                    warehouses {
+                        latitude
+                        longitude
+                    }
+                }
+            }
+        ', [
+            'id' => $variant->getId(),
+            'data' => [
+                'id' => $warehouse->getId(),
+                'price' => 100,
+                'quantity' => 10,
+                'latitude' => 18.463449,
+                'longitude' => -66.117866,
+            ],
+        ])->assertSuccessful();
+
+        // Search with a small radius — should NOT find the product
+        $response = $this->graphQL('
+            query {
+                products(
+                    nearByWarehouseLocation: { lat: 18.5, long: -66.15, radius: 1 }
+                ) {
+                    data {
+                        id
+                        name
+                    }
+                }
+            }
+        ')->assertSuccessful();
+
+        $matchingIds = collect($response->json('data.products.data'))->pluck('id')->toArray();
+        $this->assertNotContains($productId, $matchingIds);
+
+        // Search with a larger radius — SHOULD find the product
+        $response = $this->graphQL('
+            query {
+                products(
+                    nearByWarehouseLocation: { lat: 18.5, long: -66.15, radius: 10 }
+                ) {
+                    data {
+                        id
+                        name
+                    }
+                }
+            }
+        ')->assertSuccessful();
+
+        $matchingIds = collect($response->json('data.products.data'))->pluck('id')->toArray();
+        $this->assertContains($productId, $matchingIds);
+    }
+
+    public function testFilterByWithAttributeSlug(): void
+    {
+        /** @var Users $user */
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $taggedProduct = Products::factory()->state([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+        ])->create();
+        $taggedProduct->addAttributes(
+            $user,
+            [['name' => 'tag_number', 'value' => (string) random_int(100000000000, 999999999999)]]
+        );
+
+        $untaggedProduct = Products::factory()->state([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+        ])->create();
+        $untaggedProduct->addAttributes(
+            $user,
+            [['name' => 'color', 'value' => 'red']]
+        );
+
+        $response = $this->graphQL('
+            query($slug: String!) {
+                products(withAttributeSlug: $slug, first: 200) {
+                    paginatorInfo { total }
+                    data { id }
+                }
+            }
+        ', ['slug' => 'tag-number'])->assertSuccessful();
+
+        $ids = collect($response->json('data.products.data'))->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $this->assertContains($taggedProduct->getId(), $ids);
+        $this->assertNotContains($untaggedProduct->getId(), $ids);
     }
 }

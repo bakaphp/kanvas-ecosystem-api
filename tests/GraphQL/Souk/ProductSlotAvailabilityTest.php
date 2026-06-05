@@ -220,9 +220,11 @@ class ProductSlotAvailabilityTest extends TestCase
 
     private function buildMovipassVariantWithCapacity(int $maxCapacity): Variants
     {
-        $productResponse = $this->createProduct(attributes: [
+        $response = $this->createProduct(attributes: [
             ['name' => 'slots', 'value' => $maxCapacity],
-        ])->json()['data']['createProduct'];
+        ]);
+        $response->assertSuccessful();
+        $productResponse = $response->json('data.createProduct');
 
         $variantResponse = $this->createVariant(
             productId: $productResponse['id'],

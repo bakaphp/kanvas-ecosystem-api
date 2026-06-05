@@ -101,7 +101,7 @@ class Discount extends BaseModel
     {
         $date = $date ?? now();
 
-        if (empty($this->end_dat)) {
+        if (empty($this->end_date)) {
             return true;
         }
 

@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Wallet\Actions;
 
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Models\PaymentLogs;
 use Kanvas\Souk\Wallet\DataTransferObject\WalletRefund;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
+use Kanvas\Souk\Wallet\Enums\TransactionSourceEnum;
 use Kanvas\Souk\Wallet\Traits\HasWalletHolderTrait;
 use Kanvas\Souk\Wallet\Wallet;
 
@@ -16,6 +19,7 @@ class RefundOrderToWalletAction
 
     public function __construct(
         protected readonly WalletRefund $data,
+        protected readonly ?TransactionSourceEnum $source = null,
     ) {
     }
 
@@ -44,14 +48,22 @@ class RefundOrderToWalletAction
         $walletHolder = $this->getWalletHolder($this->data->app, $order->user);
         $wallet = $walletHolder->createAppWallet($this->data->app, ['name' => $this->data->tag]);
 
-        $wallet->depositFloat($refundAmount, [
-            'order_id' => $order->getId(),
-            'order_number' => (string) $order->number,
-            'type' => 'order_refund',
-            'description' => 'Wallet refund for order #' . (string) $order->number,
-            'reason' => $this->data->reason,
-            'refunded_by' => $this->data->user->getId(),
-        ]);
+        $audit = new BuildWalletTransactionMetaAction(
+            source: $this->source ?? TransactionSourceEnum::REFUND_TECHNICAL,
+            actorUserId: $this->data->user->getId(),
+            externalReference: $order->uuid ?? (string) $order->getId(),
+            reason: $this->data->reason,
+            additional: [
+                'service' => $order->orderType?->name,
+                'order_id' => $order->getId(),
+                'order_number' => (string) $order->number,
+                'type' => 'order_refund',
+                'description' => 'Wallet refund for order #' . (string) $order->number,
+                'refunded_by' => $this->data->user->getId(),
+            ],
+        )->execute();
+
+        $wallet->depositFloat($refundAmount, $audit);
 
         $totalRefunded = $previouslyRefunded + $refundAmount;
 
@@ -69,6 +81,8 @@ class RefundOrderToWalletAction
         $order->set('wallet_refunds', $refundHistory);
 
         $order->addTag('wallet_refunded');
+
+        $this->logRefundEvent($order, $refundAmount);
 
         return $wallet->refresh();
     }
@@ -91,5 +105,25 @@ class RefundOrderToWalletAction
         $totalRefunded = $order->get('wallet_refund_total');
 
         return $totalRefunded !== null ? (float) $totalRefunded : 0.0;
+    }
+
+    protected function logRefundEvent(Order $order, float $refundAmount): void
+    {
+        PaymentLogs::create([
+            'apps_id' => $this->data->app->getId(),
+            'companies_id' => $order->companies_id,
+            'users_id' => $this->data->user->getId(),
+            'payments_id' => 0,
+            'payment_methods_id' => 0,
+            'payable_id' => $order->getId(),
+            'payable_type' => $order::class,
+            'status' => 'wallet_refund',
+            'metadata' => [
+                'amount' => $refundAmount,
+                'reason' => $this->data->reason,
+                'tag' => $this->data->tag,
+                'refunded_by' => $this->data->user->getId(),
+            ],
+        ]);
     }
 }

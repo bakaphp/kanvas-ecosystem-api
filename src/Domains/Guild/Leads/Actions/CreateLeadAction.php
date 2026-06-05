@@ -63,6 +63,7 @@ class CreateLeadAction
             $newLead->leads_receivers_id = $this->leadData->receiver_id;
             $newLead->leads_types_id = $this->leadData->type_id;
             $newLead->leads_sources_id = $this->leadData->source_id;
+            $newLead->leads_sub_sources_id = $this->leadData->sub_source_id;
             $newLead->title = $this->leadData->title ?? $this->leadData->people->firstname . ' ' . $this->leadData->people->lastname;
             $newLead->firstname = $this->leadData->people->firstname;
             $newLead->lastname = $this->leadData->people->lastname;
@@ -177,7 +178,7 @@ class CreateLeadAction
             ->notDeleted(StateEnums::NO->getValue())
             ->where([
                 ['people_id', $people->getId()],
-                ['leads_status_id', $this->leadData->status_id ?: LeadStatus::getDefault()->getId()],
+                ['leads_status_id', $this->leadData->status_id ?: LeadStatus::getDefault($this->leadData->app, $this->company)->getId()],
             ])
             ->lockForUpdate()
             ->exists();

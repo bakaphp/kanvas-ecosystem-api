@@ -5,11 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Wallet\Actions;
 
 use Bavix\Wallet\Objects\Cart;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Models\PaymentLogs;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
+use Kanvas\Souk\Wallet\Enums\TransactionSourceEnum;
 use Kanvas\Souk\Wallet\Traits\HasWalletHolderTrait;
 use Kanvas\Souk\Wallet\Wallet;
+use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class PayFromWalletAction
 {
@@ -17,6 +23,11 @@ class PayFromWalletAction
 
     public function __construct(
         protected Order $order,
+        protected readonly ?TransactionSourceEnum $source = null,
+        protected readonly ?string $idempotencyKey = null,
+        protected readonly ?int $actorUserId = null,
+        protected readonly ?string $externalReference = null,
+        protected readonly ?string $reason = null,
     ) {
     }
 
@@ -30,7 +41,7 @@ class PayFromWalletAction
             $company
         );
 
-        $walletHolder = $this->getWalletHolder($this->order->app, $this->order->user);
+        $walletHolder = $this->resolveWalletHolder();
         $tag = ConfigurationEnum::WALLET_DEFAULT_NAME->value;
         $wallet = $walletHolder->createAppWallet($this->order->app, ['name' => $tag]);
         $cart = app(Cart::class);
@@ -63,17 +74,78 @@ class PayFromWalletAction
             );
         }
 
-        $cart = $cart->withMeta([
-            'order_id' => $this->order->getId(),
-            'order_number' => (string) $this->order->number,
-            'type' => 'order_payment',
-            'description' => 'Wallet payment for order #' . (string) $this->order->number,
-        ]);
+        $audit = new BuildWalletTransactionMetaAction(
+            source: $this->source ?? TransactionSourceEnum::PAYMENT,
+            idempotencyKey: $this->idempotencyKey,
+            actorUserId: $this->actorUserId ?? $this->order->user->getId(),
+            externalReference: $this->externalReference ?? $this->order->uuid ?? (string) $this->order->getId(),
+            reason: $this->reason,
+            additional: [
+                'service' => $this->order->orderType?->name,
+                'order_id' => $this->order->getId(),
+                'order_number' => (string) $this->order->number,
+                'type' => 'order_payment',
+                'description' => 'Wallet payment for order #' . (string) $this->order->number,
+            ],
+        )->execute();
+
+        $cart = $cart->withMeta($audit);
 
         $wallet->payCart($cart);
 
         $this->order->addTag(ConfigurationEnum::WALLET_CREDIT_TAG->value);
 
+        $this->logPaymentEvent();
+
+        $this->order->payment_status = 'paid';
+        $this->order->saveOrFail();
+
+        $this->order->fireWorkflow(
+            WorkflowEnum::AFTER_PAYMENT_INTENT->value,
+            true,
+            [
+                'app' => $this->order->app,
+                'company' => $this->order->company,
+            ]
+        );
+
         return $wallet;
+    }
+
+    protected function resolveWalletHolder(): Users|Companies
+    {
+        $providers = $this->order->providerCompanies()->get();
+
+        if ($providers->count() > 1) {
+            throw new ValidationException(
+                'Order has multiple provider companies — cannot resolve a single wallet holder.',
+                'ambiguous_wallet_holder'
+            );
+        }
+
+        if ($providers->count() === 1) {
+            return $providers->first();
+        }
+
+        return $this->getWalletHolder($this->order->app, $this->order->user);
+    }
+
+    protected function logPaymentEvent(): void
+    {
+        PaymentLogs::create([
+            'apps_id' => $this->order->apps_id,
+            'companies_id' => $this->order->companies_id,
+            'users_id' => $this->order->users_id,
+            'payments_id' => 0,
+            'payment_methods_id' => 0,
+            'payable_id' => $this->order->getId(),
+            'payable_type' => $this->order::class,
+            'status' => 'wallet_payment',
+            'metadata' => [
+                'amount' => (float) $this->order->total_gross_amount,
+                'tag' => ConfigurationEnum::WALLET_DEFAULT_NAME->value,
+                'order_number' => (string) $this->order->number,
+            ],
+        ]);
     }
 }

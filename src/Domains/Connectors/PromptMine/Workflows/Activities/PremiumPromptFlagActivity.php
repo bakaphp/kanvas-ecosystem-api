@@ -13,11 +13,13 @@ use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class PremiumPromptFlagActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public $tries = 3;

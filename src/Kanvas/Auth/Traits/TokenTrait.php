@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Traits;
 
+use Baka\Support\IPInfo;
 use DateTimeImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -130,7 +131,7 @@ trait TokenTrait
      */
     protected function generateToken(Request $request): array
     {
-        $userIp = $request->ip();
+        $userIp = IPInfo::getClientIp($request);
         $pageId = 1;
         $tokenResponse = $this->getToken();
 

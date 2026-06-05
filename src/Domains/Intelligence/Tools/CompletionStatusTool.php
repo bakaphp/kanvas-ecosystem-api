@@ -9,14 +9,11 @@ use Illuminate\Support\Facades\Blade;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Laravel\Ai\Enums\Lab;
+use Laravel\Ai\Responses\StructuredAgentResponse;
 use Override;
-use Prism\Prism\Enums\Provider;
-use Prism\Prism\Facades\Prism;
-use Prism\Prism\Schema\ArraySchema;
-use Prism\Prism\Schema\EnumSchema;
-use Prism\Prism\Schema\NumberSchema;
-use Prism\Prism\Schema\ObjectSchema;
-use Prism\Prism\Schema\StringSchema;
+
+use function Laravel\Ai\agent;
 
 class CompletionStatusTool implements ContextToolInterface
 {
@@ -41,53 +38,25 @@ class CompletionStatusTool implements ContextToolInterface
             'additional_context_information' => $this->entity->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
         ];
 
-        $schema = new ObjectSchema(
-            name: 'lead_quick',
-            description: 'Lead intent status and evidence',
-            properties: [
-                new StringSchema(
-                    name: 'lead_intent',
-                    description: 'Echo of the intent passed as input'
-                ),
-
-                new EnumSchema(
-                    name: 'intent_completion_status',
-                    description: 'Whether the intent is completed',
-                    options: ['COMPLETE', 'INCOMPLETE']
-                ),
-
-                new ArraySchema(
-                    name: 'completion_evidence',
-                    description: 'Short evidence strings from CRM/ADF/forms/notes/status/tags/integrations',
-                    items: new StringSchema('evidence', 'Evidence string')
-                ),
-
-                new NumberSchema(
-                    name: 'confidence',
-                    description: 'Confidence score between 0.0 and 1.0'
-                ),
-
-                new StringSchema(
-                    name: 'internal_notes',
-                    description: 'One concise CRM note; no PII beyond artifacts'
-                ),
+        /** @var StructuredAgentResponse $response */
+        $response = agent(
+            instructions: Blade::render(implode(' ', $this->agent->role['background']), $data),
+            schema: fn ($schema) => [
+                'lead_intent' => $schema->string()->description('Echo of the intent passed as input')->required(),
+                'intent_completion_status' => $schema->string()->enum(['COMPLETE', 'INCOMPLETE'])->description('Whether the intent is completed')->required(),
+                'completion_evidence' => $schema->array()
+                    ->items($schema->string()->description('Evidence string'))
+                    ->description('Short evidence strings from CRM/ADF/forms/notes/status/tags/integrations')
+                    ->required(),
+                'confidence' => $schema->number()->description('Confidence score between 0.0 and 1.0')->required(),
+                'internal_notes' => $schema->string()->description('One concise CRM note; no PII beyond artifacts')->required(),
             ],
-            requiredFields: [
-                'lead_intent',
-                'intent_completion_status',
-                'completion_evidence',
-                'confidence',
-                'internal_notes',
-            ]
+        )->prompt(
+            Blade::render(implode('\n', $this->agent->role['steps']), $data),
+            provider: Lab::Gemini,
+            model: 'gemini-2.5-pro',
+            timeout: 220,
         );
-
-        $response = Prism::structured()
-                   ->using(Provider::Gemini, 'gemini-2.5-pro')
-                   ->withSchema($schema)
-                   ->withSystemPrompt(Blade::render(implode(' ', $this->agent->role['background']), $data))
-                   ->withPrompt(Blade::render(implode('\n', $this->agent->role['steps']), $data))
-                    ->withMaxTokens(7000)
-                   ->asStructured();
 
         return $response->structured;
     }

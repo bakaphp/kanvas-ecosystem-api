@@ -8,11 +8,12 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
-use Kanvas\Notifications\Enums\NotificationChannelEnum;
 use Kanvas\Social\Messages\Notifications\MessageInteractionNotification;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class MessageOwnerInteractionNotifierActivity extends KanvasActivity
 {
     public $tries = 2;
@@ -66,11 +67,7 @@ class MessageOwnerInteractionNotifierActivity extends KanvasActivity
                 $subject = $params['subject'] ?? $notificationTitle . ' from %s';
                 $viaList = $params['via'] ?? ['database'];
 
-                // Map notification channels
-                $endViaList = array_map(
-                    [NotificationChannelEnum::class, 'getNotificationChannelBySlug'],
-                    $viaList
-                );
+                $endViaList = $viaList;
 
                 $metaData = $message->getMessage();
                 $keysToUnset = ['ai_nugged', 'nugget'];

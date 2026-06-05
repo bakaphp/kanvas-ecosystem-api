@@ -17,9 +17,11 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
+#[WorkflowAction]
 class PullPeopleLeadFromSearchActivity extends KanvasActivity
 {
     protected ?Companies $company = null;

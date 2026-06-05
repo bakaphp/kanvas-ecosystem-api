@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Companies\Models\Companies;
@@ -49,7 +50,7 @@ use Spatie\LaravelData\DataCollection;
  *
  * @property int $id
  * @property int $apps_id
- * @property int companies_id
+ * @property int $companies_id
  * @property int $region_id
  * @property int|null $channel_id
  * @property string $uuid
@@ -71,6 +72,9 @@ use Spatie\LaravelData\DataCollection;
  * @property float|null $shipping_price_net_amount
  * @property float|null $discount_amount
  * @property float|null $tax_amount
+ * @property float|null $commission_rate
+ * @property float|null $commission_amount
+ * @property float|null $provider_amount
  * @property string|null $discount_name
  * @property int|null $voucher_id
  * @property string|null $language_code
@@ -78,7 +82,6 @@ use Spatie\LaravelData\DataCollection;
  * @property string|null $payment_status
  * @property string|null $fulfillment_status
  * @property string|null $shipping_method_name
- * @property string|null $fulfillment_status
  * @property int|null $shipping_method_id
  * @property bool $display_gross_prices
  * @property string|null $translated_discount_name
@@ -93,8 +96,8 @@ use Spatie\LaravelData\DataCollection;
  * @property string|null $payment_gateway_names
  * @property bool $is_deleted
  * @property string|null $reference
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  */
 #[ObservedBy(OrderObserver::class)]
 class Order extends BaseModel
@@ -119,6 +122,9 @@ class Order extends BaseModel
         'shipping_price_gross_amount' => 'float',
         'shipping_price_net_amount' => 'float',
         'discount_amount' => 'float',
+        'commission_rate' => 'float',
+        'commission_amount' => 'float',
+        'provider_amount' => 'float',
         'weight' => 'float',
         'payment_gateway_names' => Json::class,
         'metadata' => Json::class,
@@ -302,7 +308,28 @@ class Order extends BaseModel
 
         // to keep the legacy support
         $this->payment_status = PaymentStatusEnum::PAID->value;
+        $this->firePaidSideEffects();
+    }
+
+    public function markAsReversed(UserInterface $user): void
+    {
+        $this->transitionToStatus($user, PaymentStatusEnum::REVERSED->value);
+
+        $this->payment_status = PaymentStatusEnum::REVERSED->value;
+        $this->saveQuietly();
+    }
+
+    protected function firePaidSideEffects(): void
+    {
         $this->completed();
+
+        $this->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'app' => $this->app,
+            ]
+        );
     }
 
     public function scopeWhereNotCompleted(Builder $query): Builder
@@ -695,18 +722,8 @@ class Order extends BaseModel
 
     public function checkPayments(): void
     {
-        if ($this && ($this->payments)) {
-            if ($this->isPaid()) {
-                $this->completed();
-
-                $this->fireWorkflow(
-                    WorkflowEnum::UPDATED->value,
-                    true,
-                    [
-                        'app' => $this->app,
-                    ]
-                );
-            }
+        if ($this->isPaid()) {
+            $this->firePaidSideEffects();
         }
     }
 
@@ -790,6 +807,12 @@ class Order extends BaseModel
         $this->total_net_amount = $orderTotal - $discountAmount;
         $this->shipping_price_gross_amount = (float) $this->shipping_price_gross_amount;
         $this->shipping_price_net_amount = (float) $this->shipping_price_net_amount;
+
+        if ($this->commission_rate !== null) {
+            $netAmount = (float) $this->total_net_amount;
+            $this->commission_amount = $netAmount > 0 ? round($netAmount * $this->commission_rate / 100, 2) : 0.0;
+            $this->provider_amount = $netAmount > 0 ? $netAmount - $this->commission_amount : 0.0;
+        }
 
         if ($autoSave) {
             $this->saveOrFail();

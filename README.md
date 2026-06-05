@@ -8,95 +8,121 @@
 [![static analysis](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/static-analysis.yml)
 [![CI](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml/badge.svg)](https://github.com/bakaphp/kanvas-ecosystem-api/actions/workflows/tests.yml)
 
-**Kanvas is an operational engine for commerce.**  
-It sits between your products and your systems — unifying data, automating workflows, and enabling AI agents to run real operations.
+**Kanvas is the nervous system for modern operations.**  
+It connects your systems, orchestrates workflows, and enables AI agents and humans to execute real operational work across your business.
 
-Think of Kanvas as **the backend where operations live.**
+Think of Kanvas as the layer where operations become executable.
 
-Not a store.  
-Not a CRM.  
-Not an automation toy.
+Not a storefront.  
+Not just a CRM.  
+Not another automation tool.
 
-Kanvas is the **core execution layer** that connects and runs them all.
+Kanvas is the **operational execution layer** that unifies your stack and allows intelligence to act on it.
 
 ## Why Kanvas Exists
 
-Modern commerce stacks are fragmented:
+Modern companies operate across fragmented systems:
 
-- Shopify for products  
+- Shopify for commerce  
 - NetSuite for operations  
 - HubSpot for CRM  
-- Custom services everywhere  
-- Automation glued together with brittle tools  
+- Slack for communication  
+- Internal tools and spreadsheets everywhere  
+- AI tools disconnected from execution  
 
-Every project ends up rebuilding the same logic: authentication, inventory sync, lead routing, workflows, permissions, integrations.
+Every company ends up rebuilding the same operational infrastructure: authentication, permissions, product synchronization, lead routing, workflow orchestration, integrations, event pipelines, operational APIs.
 
-Kanvas was built to stop that.
+And even with AI, most systems still stop at conversation instead of execution.
 
-It provides a **modular operational backend** where execution is first-class: APIs, workflows, events, and agent-ready infrastructure.
+Kanvas was built to solve that.
+
+It provides a **modular operational nervous system** where APIs, workflows, events, and AI agents work together to run real operations.
 
 ## What Kanvas Is
 
-Kanvas is a **Laravel + GraphQL operational backend** that provides:
+Kanvas is a **Laravel + GraphQL operational backend** designed to unify operational logic across systems.
+
+It provides:
 
 - Unified operational APIs  
 - Cross-system workflows  
-- Multi-tenant infrastructure  
-- Event-driven execution  
-- Agent-ready primitives  
+- Event-driven infrastructure  
+- Multi-tenant architecture  
+- Agent-ready execution primitives  
+- Operational memory and orchestration layers  
 
 So you can build systems where:
 
 - Products sync automatically  
-- Leads route themselves  
 - Inventory propagates across channels  
-- Agents can act, not just chat  
+- Leads route themselves  
+- Teams operate from unified data  
+- AI agents execute operational tasks  
 - Business logic lives in one place  
+
+## The Nervous System Model
+
+Without a nervous system, AI is just a chatbot.
+
+Kanvas gives AI agents operational awareness and execution capabilities by connecting products, customers, inventory, CRMs, internal APIs, workflows, and operational events.
+
+This allows agents to move from:
+
+```text
+"Here's what you should do"
+```
+
+to:
+
+```text
+"I've already done it."
+```
 
 ## Core Domains
 
 Kanvas is composed of operational building blocks:
 
-- **Ecosystem** – auth, apps, teams, multi-tenancy  
-- **Inventory** – products, variants, distribution channels  
-- **CRM** – people, leads, pipelines  
-- **Social** – messaging, follows, reactions  
-- **Workflow** – automations, actions, integrations  
-- **Commerce** – orders, customers, operational logic  
+- **Ecosystem** – authentication, apps, teams, multi-tenancy  
+- **Inventory** – products, variants, channels, catalogs  
+- **CRM** – people, leads, pipelines, organizations  
+- **Workflow** – actions, automations, orchestration  
+- **Commerce** – orders, fulfillment, operational logic  
+- **Social** – messaging, feeds, interactions  
+- **Agents** – execution, orchestration, operational memory  
 
-You don’t install “features.”  
-You assemble an **operating system for your product.**
-
+You don’t install disconnected features.  
+You assemble an **operational nervous system** for your business.
 
 ## What People Use Kanvas For
 
 - 🚘 Dealer platforms (inventory + CRM + lead routing)  
-- 🛍 Marketplaces (products, vendors, workflows)  
-- 🏪 B2B commerce systems (approvals, pricing, operations)  
-- 🧩 Product bundlers (dynamic SKUs, fulfillment logic)  
-- 📱 Headless apps (custom frontends, unified backend)  
-- 🤖 Agent-driven operations (AI that executes)  
+- 🛍 Marketplaces (products, vendors, fulfillment workflows)  
+- 🏪 B2B commerce systems (pricing, approvals, operations)  
+- 🧩 Product configurators and bundlers  
+- 📱 Headless commerce applications  
+- 🤖 AI agent infrastructure and execution systems  
+- 🧠 Internal operational platforms and AI desks  
 
 ## The Mental Model
 
 Kanvas is not your app.
 
-Kanvas is the **engine your app runs on.**
+Kanvas is the **operational layer your apps, agents, and teams run on.**
 
-Your frontends, dashboards, AI agents, and services connect to Kanvas — and Kanvas connects to the rest of your stack.
+Your frontends, dashboards, workflows, and AI agents connect to Kanvas — and Kanvas connects to the rest of your infrastructure.
 
 ```text
-UI / Mobile / Agents / Admin
-            ↓
-        Kanvas API
-            ↓
-Shopify • NetSuite • CRMs • Internal systems
+UI / Mobile / Dashboards / AI Agents
+                 ↓
+             Kanvas
+                 ↓
+Shopify • NetSuite • CRMs • Internal APIs • Workflows
 ```
 
 ## Prerequisites
 
-- PHP ^8.4
-- Laravel ^12.0
+- PHP ^8.5
+- Laravel ^13.0
 
 ## Initial Setup
 

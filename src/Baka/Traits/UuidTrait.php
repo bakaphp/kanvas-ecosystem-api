@@ -8,15 +8,10 @@ use Illuminate\Support\Str;
 
 trait UuidTrait
 {
-    /**
-     * Boot function from laravel.
-     *
-     * @return void
-     */
-    public static function bootUuidTrait()
+    public static function bootUuidTrait(): void
     {
         static::creating(function ($model) {
-            $model->uuid = $model->uuid ?? Str::uuid();
+            $model->uuid = $model->uuid ?? (string) Str::uuid7();
         });
     }
 }

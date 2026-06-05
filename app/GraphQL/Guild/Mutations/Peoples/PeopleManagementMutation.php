@@ -54,6 +54,8 @@ class PeopleManagementMutation
             'peopleEmploymentHistory' => $data['peopleEmploymentHistory'] ?? [],
             'organization' => $data['organization'] ?? null,
             'license_number' => $data['license_number'] ?? null,
+            'license_expiration_date' => $data['license_expiration_date'] ?? null,
+            'people_type_id' => isset($data['people_type_id']) ? (int) $data['people_type_id'] : null,
         ]);
 
         $createPeople = new CreatePeopleAction($people);
@@ -100,6 +102,8 @@ class PeopleManagementMutation
             'custom_fields' => $data['custom_fields'] ?? [],
             'organization' => $data['organization'] ?? null,
             'license_number' => $data['license_number'] ?? null,
+            'license_expiration_date' => $data['license_expiration_date'] ?? null,
+            'people_type_id' => isset($data['people_type_id']) ? (int) $data['people_type_id'] : null,
         ]);
 
         $updatePeople = new UpdatePeopleAction($people, $peopleData);
@@ -117,7 +121,7 @@ class PeopleManagementMutation
 
         $people = $this->getPeopleById((int) $req['id'], $user, $app, $user->getCurrentCompany());
 
-        return $people->softDelete();
+        return (bool) $people->delete();
     }
 
     public function attachFile(mixed $root, array $req): ModelsPeople
@@ -143,7 +147,7 @@ class PeopleManagementMutation
         $user = auth()->user();
         $app = app(Apps::class);
 
-        $peopleQuery = ModelsPeople::query()->where('id', (int) $req['id']);
+        $peopleQuery = ModelsPeople::withTrashed()->where('id', (int) $req['id']);
 
         if (! $user->isAppOwner()) {
             $peopleQuery->where('companies_id', $user->getCurrentCompany()->getId());
@@ -226,5 +230,25 @@ class PeopleManagementMutation
         );
 
         return $deleted;
+    }
+
+    public function updatePeoplePhoto(mixed $root, array $req): ModelsPeople
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        /** @var ModelsPeople $people */
+        $people = ModelsPeople::getByIdFromCompanyApp((int) $req['id'], $company, $app);
+
+        $this->uploadImageToEntity(
+            $people,
+            $app,
+            $user,
+            $req['file'],
+            'photo'
+        );
+
+        return $people;
     }
 }

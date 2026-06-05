@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Repositories;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
@@ -46,5 +50,29 @@ class MessagesRepository
             ->first();
 
         return $popularMessage ?? null;
+    }
+
+    public static function getLastMessageByEntity(Model $entity, AppInterface $app): ?Message
+    {
+        $appModuleMessage = AppModuleMessage::where('apps_id', $app->getId())
+            ->where('system_modules', get_class($entity))
+            ->where('entity_id', $entity->getId())
+            ->where('is_deleted', 0)
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        return $appModuleMessage?->message;
+    }
+
+    public static function getUnrespondedMessagesByLead(int $leadId, AppInterface $app): Collection
+    {
+        return Message::fromApp($app)
+            ->join('app_module_message', 'messages.id', '=', 'app_module_message.message_id')
+            ->where('app_module_message.entity_id', $leadId)
+            ->where('app_module_message.system_modules', Lead::class)
+            ->where('messages.is_un_response', false)
+            ->where('messages.is_deleted', 0)
+            ->select('messages.*')
+            ->get();
     }
 }

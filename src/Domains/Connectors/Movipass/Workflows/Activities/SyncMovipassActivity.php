@@ -14,15 +14,21 @@ use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Souk\Discounts\Actions\ApplyDiscountToOrderAction;
+use Kanvas\Souk\Discounts\Models\Discount;
+use Kanvas\Souk\Orders\Actions\CalculateOrderCommissionAction;
 use Kanvas\Souk\Orders\Actions\RecalculateSlotCapacityAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
+use Throwable;
 
+#[WorkflowAction]
 class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
@@ -45,11 +51,13 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                 }
 
                 $eventName = $additionalParams['currentEventTypeName'] ?? null;
-                $toStatus  = $params['to_status'] ?? null;
+                $toStatus = $params['to_status'] ?? null;
 
                 if ($eventName === WorkflowEnum::CREATED->value) {
                     if ($order->reference && ! str_contains($order->reference, '#' . $order->order_number)) {
-                        $order->reference = $order->reference . ' ' . $order->metadata['data']['vehiclePlate'] ?? '' . ' - #' . $order->order_number;
+                        $vehiclePlate = $order->metadata['data']['vehiclePlate'] ?? '';
+                        $referenceParts = array_filter([$vehiclePlate, '#' . $order->order_number]);
+                        $order->reference = $order->reference . ' ' . implode(' - ', $referenceParts);
                     }
 
                     $qrHost = $app->get(ConfigurationEnum::QR_CODE_HOST->value) ?? 'https://go-parking-web.vercel.app';
@@ -74,11 +82,18 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                         // recalculation handled by STATUS_TRANSITION → active event
                     }
 
+                    $this->applyDiscountFromMetadata($order);
+
                     $order->saveQuietly();
+
+                    if (! ($order->metadata['data']['is_manual'] ?? false)) {
+                        $order->refresh();
+                        new CalculateOrderCommissionAction($order)->execute();
+                    }
                 }
 
                 if ($eventName === WorkflowEnum::UPDATED->value) {
-                    $endAt    = $order->metadata['data']['end_at'] ?? null;
+                    $endAt = $order->metadata['data']['end_at'] ?? null;
                     $isManual = $order->metadata['data']['is_manual'] ?? false;
 
                     if ($isManual && $endAt && ! $order->orderStatus?->is_final) {
@@ -88,6 +103,9 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                             MovipassOrderStatusEnum::COMPLETED->value
                         );
                         $order->saveQuietly();
+
+                        $order->refresh();
+                        new CalculateOrderCommissionAction($order)->execute();
                     } elseif (! $isManual && $endAt
                         && $order->payment_status === PaymentStatusEnum::PAID->value
                         && $order->orderStatus?->slug === MovipassOrderStatusEnum::CREATED->value
@@ -123,6 +141,27 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
             },
             company: $order->company,
         );
+    }
+
+    private function applyDiscountFromMetadata(Order $order): void
+    {
+        try {
+            $discountId = $order->metadata['data']['discount_id'] ?? null;
+
+            if (empty($discountId) || ! is_numeric($discountId)) {
+                return;
+            }
+
+            $discount = Discount::getByIdFromCompanyApp(
+                (int) $discountId,
+                $order->company,
+                $order->app
+            );
+
+            new ApplyDiscountToOrderAction($order, $discount)->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     private function uploadQrCode(Order $order, AppInterface $app, string $url): ModelsFilesystem

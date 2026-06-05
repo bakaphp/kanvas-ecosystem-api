@@ -194,10 +194,17 @@ class GenerateTimeSlotsJobTest extends TestCase
         );
         $job->handle();
 
-        $finalCount = TimeSlots::where('schedule_rules_id', $scheduleRule->id)->count();
+        // Verify no duplicate time slots exist (same resource + start_at)
+        $duplicates = TimeSlots::where('schedule_rules_id', $scheduleRule->id)
+            ->selectRaw('resources_id, resources_type, start_at, COUNT(*) as cnt')
+            ->groupBy('resources_id', 'resources_type', 'start_at')
+            ->having('cnt', '>', 1)
+            ->count();
 
-        // Count should remain the same (no duplicates)
-        $this->assertEquals($initialCount, $finalCount);
+        $this->assertEquals(0, $duplicates, 'Upsert should not create duplicate time slots');
+
+        $finalCount = TimeSlots::where('schedule_rules_id', $scheduleRule->id)->count();
+        $this->assertEquals($initialCount, $finalCount, 'Slot count should remain the same after upsert');
 
         // Initial capacity should be updated to 20
         $slots = TimeSlots::where('schedule_rules_id', $scheduleRule->id)->get();

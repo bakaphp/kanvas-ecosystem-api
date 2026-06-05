@@ -5,20 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Notifications;
 
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
-use Kanvas\Notifications\Channels\TwilioSmsChannel;
 use Kanvas\Notifications\Notification;
-use Kanvas\Templates\Enums\EmailTemplateEnum as EnumsEmailTemplateEnum;
-use NotificationChannels\Expo\ExpoChannel;
 
 class HandOffNotification extends Notification
 {
-    public array $channels = [
-        'mail',
-        OneSignalNotificationChannel::class,
-        ExpoChannel::class,
-        TwilioSmsChannel::class,
-    ];
+    public array $channels = ['mail', 'push', 'expo', 'sms', 'database'];
 
     public function __construct(
         Lead $lead,
@@ -26,19 +17,17 @@ class HandOffNotification extends Notification
         array $data
     ) {
         parent::__construct($lead, $data);
-        $this->setType(EnumsEmailTemplateEnum::BLANK->value);
+        $this->setType('handoff_notification');
         $this->setTemplateName($templateName);
         $this->setData($data);
         $this->setSubject('Lead Handoff Notification - ' . $lead->people->name);
         $this->setPushTemplateName('lead_handoff_push_notification');
         $this->setSmsTemplateName('lead_handoff_sms_notification');
+        $this->setDatabaseTemplateName('lead_handoff_sms_notification');
     }
 
     public function setChannelOnlyPush(): void
     {
-        $this->channels = [
-            OneSignalNotificationChannel::class,
-            ExpoChannel::class,
-        ];
+        $this->channels = ['push', 'expo'];
     }
 }

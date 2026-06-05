@@ -29,7 +29,9 @@ class VariantsWarehouses extends Data
         public bool $is_new = false,
         public ?array $config = null,
         public float $cost = 0.00,
-        public ?float $max_capacity = null
+        public ?float $max_capacity = null,
+        public ?float $latitude = null,
+        public ?float $longitude = null
     ) {
     }
 
@@ -55,6 +57,8 @@ class VariantsWarehouses extends Data
             $request['config'] ?? null,
             isset($request['cost']) ? (float) $request['cost'] : 0.00,
             isset($request['max_capacity']) ? (float) $request['max_capacity'] : null,
+            isset($request['latitude']) ? (float) $request['latitude'] : null,
+            isset($request['longitude']) ? (float) $request['longitude'] : null,
         );
     }
 }

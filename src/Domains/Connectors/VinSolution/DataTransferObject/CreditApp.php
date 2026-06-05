@@ -62,6 +62,9 @@ class CreditApp extends Data
             'personalInformation' => [
                 'ContactId' => 0,
                 'Ssn' => $formData['personal']['ssn'] ?? '',
+                'PersonalDates' => $contactDOB instanceof DateTime
+                    ? [['DateType' => 'DateOfBirth', 'DateValue' => $contactDOB->format('Y-m-d\TH:i:s\Z')]]
+                    : [],
                 'HousingInformation' => [
                     'HousingType' => static::homeTypeMapper($formData['housing']['residence_type'] ?? ''),
                     'DurationYears' => (int) ($durationAtAddress[0] ?? 0),
@@ -103,10 +106,12 @@ class CreditApp extends Data
                     'OtherMonthlyIncomeSource' => ! empty($formData['financial']['other_income_source']) ? substr($formData['financial']['other_income_source'], 0, 50) : '',
                 ],
             ],
-            'licenseData' => [
-                'DateOfBirth' => $contactDOB instanceof DateTime ? $contactDOB->format('Y-m-d\TH:i:s\Z') : '',
-            ],
+            'licenseData' => [],
         ];
+
+        if ($contactDOB instanceof DateTime) {
+            $result['licenseData']['DateOfBirth'] = $contactDOB->format('Y-m-d\TH:i:s\Z');
+        }
 
         if (isset($formData['personal']['drivers_license']) && isset($formData['personal']['drivers_license_state'])) {
             $result['licenseData']['LicenseID'] = $formData['personal']['drivers_license'];

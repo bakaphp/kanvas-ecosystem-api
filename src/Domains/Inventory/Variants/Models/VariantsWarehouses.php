@@ -42,6 +42,8 @@ use Override;
  * @property int $can_pre_order
  * @property int $is_coming_soon
  * @property int $is_new
+ * @property float|null $latitude
+ * @property float|null $longitude
  * @property string $created_at
  * @property string $updated_at
  * @property bool $is_deleted
@@ -62,9 +64,11 @@ class VariantsWarehouses extends BaseModel
     protected function casts(): array
     {
         return [
-            'price' => 'decimal:2',
+            'price' => 'decimal:4',
             'quantity' => 'integer',
             'max_capacity' => 'integer',
+            'latitude' => 'decimal:6',
+            'longitude' => 'decimal:6',
             'config' => Json::class
         ];
     }

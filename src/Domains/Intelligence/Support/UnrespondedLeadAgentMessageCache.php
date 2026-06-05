@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Support;
 
+use Illuminate\Cache\ArrayStore;
+use Illuminate\Cache\RedisStore;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Models\Channel;
@@ -23,9 +25,44 @@ class UnrespondedLeadAgentMessageCache
 
     public static function clear(Lead $lead, Channel $channel): bool
     {
-        $key = self::generateKey($lead, $channel);
-        if (Cache::has($key)) {
-            return Cache::forget($key);
+        $store = Cache::getStore();
+
+        if ($store instanceof RedisStore) {
+            $pattern = "*unresponded_agent_message:{$lead->getId()}:*";
+
+            $redis = $store->connection();
+            $keys = $redis->keys($pattern);
+
+            if (empty($keys)) {
+                return false;
+            }
+
+            $deletedCount = 0;
+            foreach ($keys as $fullKey) {
+                $pos = strpos($fullKey, 'unresponded_agent_message');
+                if ($pos !== false) {
+                    $cacheKey = substr($fullKey, $pos);
+                    if (Cache::forget($cacheKey)) {
+                        $deletedCount++;
+                    }
+                }
+            }
+
+            return $deletedCount > 0;
+        }
+
+        if ($store instanceof ArrayStore) {
+            $prefix = "unresponded_agent_message:{$lead->getId()}:";
+            $deletedCount = 0;
+
+            foreach (Channel::all() as $channelItem) {
+                $key = "{$prefix}{$channelItem->getId()}";
+                if (Cache::has($key) && Cache::forget($key)) {
+                    $deletedCount++;
+                }
+            }
+
+            return $deletedCount > 0;
         }
 
         return false;

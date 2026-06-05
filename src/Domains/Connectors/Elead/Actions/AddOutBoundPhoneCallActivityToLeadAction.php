@@ -13,9 +13,12 @@ use Kanvas\Connectors\Elead\Entities\SalesActivities;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
-use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
+use Kanvas\Notifications\Channels\TwilioSmsChannel;
+use Kanvas\Notifications\Templates\EngagementNotification;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Repositories\UsersRepository;
+use NotificationChannels\Expo\ExpoChannel;
 
 class AddOutBoundPhoneCallActivityToLeadAction
 {
@@ -110,7 +113,7 @@ class AddOutBoundPhoneCallActivityToLeadAction
             return;
         }
 
-        $notification = new Blank(
+        $notification = new EngagementNotification(
             templateName: 'agent-manager-notification',
             data: [
                 //'message' => $message,
@@ -120,14 +123,22 @@ class AddOutBoundPhoneCallActivityToLeadAction
                 'content' => 'Sally just stopped the clock for lead ' . $this->lead->people->name,
                 'title' => 'Sally Stopped the Clock',
                 'message' => $this->message,
+                'lead_info' => [
+                    'lead_name' => $this->lead->people->name,
+                    'lead_id' => $this->lead->getId(),
+                    'people_id' => $this->lead->people->getId(),
+                ],
             ],
-            via: ['sms', 'push', 'expo', 'mail'],
+            via: ['sms', 'push', 'expo', 'mail', 'database'],
             entity: $this->lead
         );
 
         $notification->setSubject('Sally stop the clock for lead ' . $this->lead->people->name);
         $notification->setPushTemplateName('agent_manager_push_notification');
         $notification->setSmsTemplateName('agent_manager_sms_notification');
+        $notification->setDatabaseTemplateName('agent_manager_sms_notification');
+
+        $this->configureNotificationChannels($notification);
 
         //managers
         $managers = UsersRepository::getCompanyAppUserByRole(
@@ -137,5 +148,23 @@ class AddOutBoundPhoneCallActivityToLeadAction
         )->get();
 
         Notification::send($managers, $notification);
+    }
+
+    protected function configureNotificationChannels(EngagementNotification $notification): void
+    {
+        $onlySms = (bool) $this->lead->company->get('ai_stop_clock_notification_only_sms');
+        $onlyMail = (bool) $this->lead->company->get('ai_stop_clock_notification_only_mail');
+        $onlyPush = (bool) $this->lead->company->get('ai_stop_clock_notification_only_push');
+
+        if ($onlySms) {
+            $notification->channels = [TwilioSmsChannel::class];
+        } elseif ($onlyMail) {
+            $notification->channels = ['mail'];
+        } elseif ($onlyPush) {
+            $notification->channels = [
+                OneSignalNotificationChannel::class,
+                ExpoChannel::class,
+            ];
+        }
     }
 }

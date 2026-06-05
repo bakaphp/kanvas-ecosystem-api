@@ -86,8 +86,9 @@ class InAppPurchaseGooglePlayOrderTest extends TestCase
 
         $region = Regions::fromApp($app)->fromCompany($company)->first();
 
+        $productId = 'premium_prompt_cf_' . fake()->uuid();
         $receipt = [
-            'product_id' => 'premium_prompt_10',
+            'product_id' => $productId,
             'order_id' => 'GPA.3368-8891-7367-12318',
             'purchase_token' => 'test_token_' . fake()->uuid(),
             'custom_fields' => [
@@ -130,8 +131,10 @@ class InAppPurchaseGooglePlayOrderTest extends TestCase
 
         $region = Regions::fromApp($app)->fromCompany($company)->first();
 
+        $productId = 'premium_prompt_var_' . fake()->uuid();
+        $variantSku = 'variant_gp_' . fake()->uuid();
         $receipt = [
-            'product_id' => 'premium_prompt_10',
+            'product_id' => $productId,
             'order_id' => 'GPA.3368-8891-7367-12318',
             'purchase_token' => 'test_token_' . fake()->uuid(),
             'custom_fields' => [
@@ -142,7 +145,7 @@ class InAppPurchaseGooglePlayOrderTest extends TestCase
                 [
                     'name' => 'variants_skus',
                     'value' => [
-                        ['sku' => 'variant_2223', 'quantity' => 2],
+                        ['sku' => $variantSku, 'quantity' => 2],
                     ],
                 ],
             ],
@@ -166,8 +169,8 @@ class InAppPurchaseGooglePlayOrderTest extends TestCase
             app: $app,
             company: $company,
             user: $user,
-            name: 'variant_2223',
-            sku: 'variant_2223',
+            name: $variantSku,
+            sku: $variantSku,
             warehouses: [[
                 'quantity' => 10,
                 'price' => 10.50,

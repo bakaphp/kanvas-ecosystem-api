@@ -35,7 +35,7 @@ class CreateFilesystemAction
         $fileSystem->users_id = $this->user->getKey();
         $fileSystem->path = $uploadPath;
         $fileSystem->url = $uploadUrl;
-        $fileSystem->file_type = $this->file->guessExtension() ?? $this->file->getClientOriginalExtension() ?? 'unknown';
+        $fileSystem->file_type = $this->file->getClientOriginalExtension() ?: 'unknown';
         $fileSystem->size = $this->file->getSize();
         $fileSystem->saveOrFail();
 
@@ -45,6 +45,8 @@ class CreateFilesystemAction
                 true
             );
         }
+
+        $fileSystem->refresh();
 
         return $fileSystem;
     }

@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\PipelinesStages\Actions;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Blade;
+use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
@@ -14,10 +15,12 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
+use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
 use Kanvas\Intelligence\FollowUp\Exceptions\FollowUpException;
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
 use Kanvas\Intelligence\FollowUp\Repositories\FollowUpRepository;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Services\DailyReportService;
@@ -33,11 +36,20 @@ class FollowUpEngagementAction
 
     public function __construct(
         public Lead $lead,
-        ?FollowUpLog $log = null
+        ?FollowUpLog $log = null,
+        bool $isV2 = false,
     ) {
         $this->log = $log;
+        $followUpKey = new LeadConfigurationService($isV2)->getFollowUpModeKey($lead);
+        $followUpValue = $lead->get($followUpKey);
+
+        if ($followUpValue == FollowUpValueEnum::OFF()->value) {
+            throw new FollowUpException('Follow up is disabled for this lead type');
+        }
+
         $aiFollowUpType = $this->lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
 
+        // @todo: create new logic for old field IntelligenceModeEnum::DEFAULT_AI_FOLLOW_UP_TYPE
         if (! $aiFollowUpType) {
             $aiFollowUpType = $this->lead->get(IntelligenceModeEnum::DEFAULT_AI_FOLLOW_UP_TYPE->value)
                 ?? FollowUpTypeEnum::LEAD_FOLLOW_UP->value;
@@ -201,7 +213,6 @@ class FollowUpEngagementAction
                 $contacted = $this->lead->hasBeenContacted();
                 $isActive = $this->lead->isActive();
             }
-
             if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
                 && $timeDiff > $followUpDay->time_value
                 && $contacted === false
@@ -248,7 +259,7 @@ class FollowUpEngagementAction
                     new SendMessageToLeadAction($this->lead)->execute(
                         $messageTemplateChannel,
                         $messageToSend,
-                        $this->lead->company->get('twilio_phone_number'),
+                        $this->lead->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value),
                         $emailTitle
                     );
 

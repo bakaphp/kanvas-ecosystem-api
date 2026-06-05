@@ -9,12 +9,14 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Event\Events\Actions\CreateScheduleRulesFromOperationDaysAction;
 use Kanvas\Event\Events\Models\ScheduleRules;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class ExpandProductSlotsActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
@@ -128,7 +130,7 @@ class ExpandProductSlotsActivity extends KanvasActivity implements WorkflowActiv
         $scheduleRules = ScheduleRules::where('resources_id', $variant->getId())
             ->where('resources_type', $variant->getMorphClass())
             ->where('apps_id', $app->getId())
-            ->whereJsonContains('metadata->created_from', 'operation_days')
+            ->whereNotNull('operation_day')
             ->get();
 
         foreach ($scheduleRules as $rule) {

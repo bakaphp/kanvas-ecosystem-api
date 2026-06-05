@@ -46,8 +46,12 @@ class Event extends Data
     ) {
     }
 
-    public static function fromMultiple(AppInterface $app, UserInterface $user, CompanyInterface $company, array $data): self
-    {
+    public static function fromMultiple(
+        AppInterface $app,
+        UserInterface $user,
+        CompanyInterface $company,
+        array $data
+    ): self {
         $category = self::getEntityByIdOrDefault(
             EventCategory::class,
             $app,
@@ -92,7 +96,7 @@ class Event extends Data
         string $entityClass,
         $app,
         $company,
-        string| int|null $idField,
+        string|int|null $idField,
         string $defaultCondition = 'is_default',
         int $defaultValue = 1
     ): Model {

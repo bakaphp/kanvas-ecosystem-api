@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Subscription\Plans\Models\Plan;
 use Laravel\Cashier\Subscription;
+use Stripe\Exception\RateLimitException;
 use Tests\TestCase;
 
 final class CompanySubscriptionTest extends TestCase
@@ -25,9 +26,7 @@ final class CompanySubscriptionTest extends TestCase
         parent::setUp();
         $this->company = Companies::factory()->create();
         $this->appModel = app(Apps::class);
-        if (empty($this->appModel->get(ConfigurationEnum::STRIPE_SECRET_KEY->value))) {
-            $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
-        }
+        $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, $this->requireStripeTestKey());
         $this->paymentMethodId = $this->createPaymentMethod();
         $this->seedAppPlansPrices();
         $this->plan = Plan::where('apps_id', $this->appModel->getId())->firstOrFail();
@@ -86,14 +85,30 @@ final class CompanySubscriptionTest extends TestCase
 
     private function createSubscription(?int $trialDays = null): Subscription
     {
-        $subscription = $this->company->getStripeAccount($this->appModel)
-            ->newSubscription($this->plan->stripe_plan, $this->price->stripe_id);
+        return $this->retryOnRateLimit(function () use ($trialDays) {
+            $subscription = $this->company->getStripeAccount($this->appModel)
+                ->newSubscription($this->plan->stripe_plan, $this->price->stripe_id);
 
-        if ($trialDays) {
-            $subscription->trialDays($trialDays);
+            if ($trialDays) {
+                $subscription->trialDays($trialDays);
+            }
+
+            return $subscription->create($this->paymentMethodId);
+        });
+    }
+
+    private function retryOnRateLimit(callable $callback, int $maxRetries = 3): mixed
+    {
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            try {
+                return $callback();
+            } catch (RateLimitException $e) {
+                if ($attempt === $maxRetries) {
+                    throw $e;
+                }
+                sleep($attempt * 2);
+            }
         }
-
-        return $subscription->create($this->paymentMethodId);
     }
 
     public function testCreateSubscription()
@@ -118,9 +133,11 @@ final class CompanySubscriptionTest extends TestCase
     {
         $this->createSubscription();
 
-        $cancelSubscription = $this->company->getStripeAccount($this->appModel)
-            ->subscriptions()->where('type', $this->plan->stripe_plan)->first()
-            ->cancel();
+        $cancelSubscription = $this->retryOnRateLimit(
+            fn () => $this->company->getStripeAccount($this->appModel)
+                ->subscriptions()->where('type', $this->plan->stripe_plan)->first()
+                ->cancel()
+        );
 
         $this->assertInstanceOf(Subscription::class, $cancelSubscription);
         $this->assertNotNull($cancelSubscription->ends_at);
@@ -133,9 +150,11 @@ final class CompanySubscriptionTest extends TestCase
 
         $newPrice = $this->plan->price()->where('id', '!=', $this->price->id)->firstOrFail();
 
-        $upgradeSubscription = $this->company->getStripeAccount($this->appModel)
-            ->subscriptions()->where('type', $this->plan->stripe_plan)->first()
-            ->swap($newPrice->stripe_id);
+        $upgradeSubscription = $this->retryOnRateLimit(
+            fn () => $this->company->getStripeAccount($this->appModel)
+                ->subscriptions()->where('type', $this->plan->stripe_plan)->first()
+                ->swap($newPrice->stripe_id)
+        );
 
         $this->assertInstanceOf(Subscription::class, $upgradeSubscription);
         $this->assertEquals('active', $upgradeSubscription->stripe_status);
@@ -144,14 +163,15 @@ final class CompanySubscriptionTest extends TestCase
 
     public function testReactivateSubscription()
     {
-        // Create and cancel a subscription
         $subscription = $this->createSubscription();
-        $subscription->cancel();
 
-        // Reactivate the subscription
-        $reactivatedSubscription = $this->company->getStripeAccount($this->appModel)
-            ->subscriptions()->where('type', $this->plan->stripe_plan)->first()
-            ->resume();
+        $this->retryOnRateLimit(fn () => $subscription->cancel());
+
+        $reactivatedSubscription = $this->retryOnRateLimit(
+            fn () => $this->company->getStripeAccount($this->appModel)
+                ->subscriptions()->where('type', $this->plan->stripe_plan)->first()
+                ->resume()
+        );
 
         $this->assertInstanceOf(Subscription::class, $reactivatedSubscription);
         $this->assertEquals('active', $reactivatedSubscription->stripe_status);

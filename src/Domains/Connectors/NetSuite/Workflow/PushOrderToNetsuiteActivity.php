@@ -8,12 +8,17 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\NetSuite\Actions\PushOrderToNetSuiteQuoteAction;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
+use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Users\Actions\SendUserNotificationAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use RuntimeException;
+use Throwable;
 
+#[WorkflowAction]
 class PushOrderToNetsuiteActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
@@ -21,7 +26,7 @@ class PushOrderToNetsuiteActivity extends KanvasActivity implements WorkflowActi
     {
         $this->overwriteAppService($app);
 
-        $response = $this->executeIntegration(
+        return $this->executeIntegration(
             entity: $order,
             app: $app,
             integration: IntegrationsEnum::NETSUITE,
@@ -44,19 +49,47 @@ class PushOrderToNetsuiteActivity extends KanvasActivity implements WorkflowActi
                 ];
 
                 if ($result['success'] === false) {
+                    $errorMessage = $result['data']['error'] ?? $result['message'] ?? '';
+
+                    if ($this->isNetSuiteRateLimitError($errorMessage)) {
+                        throw new RuntimeException('NetSuite rate limit hit, retrying: ' . $errorMessage);
+                    }
+
                     return $this->failWorkflow($responseData);
                 }
 
                 return $responseData;
             },
             company: $order->company,
+            throwException: true,
         );
+    }
 
-        if ($this->isNetSuiteRateLimitError($response['error'] ?? $response['message'] ?? '')) {
-            throw new RuntimeException('NetSuite concurrent request limit exceeded. Retrying...');
+    #[Override]
+    public function failed(Throwable $throwable): void
+    {
+        [$order, $app] = $this->arguments + [null, null];
+
+        if ($order instanceof Order) {
+            report(new RuntimeException(sprintf(
+                'NetSuite order sync exhausted retries for order %d: %s',
+                $order->getId(),
+                $throwable->getMessage()
+            )));
         }
 
-        return $response;
+        if ($order instanceof Order && $app instanceof AppInterface) {
+            new SendUserNotificationAction(
+                $app,
+                $order->company,
+                $order->user
+            )->execute('netsuite-order-sync-failed', [
+                'order' => $order,
+                'error' => $throwable->getMessage(),
+            ]);
+        }
+
+        parent::failed($throwable);
     }
 
     protected function isNetSuiteRateLimitError(string $message): bool

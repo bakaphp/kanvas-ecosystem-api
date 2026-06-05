@@ -27,6 +27,7 @@ enum AllowedFileExtensionEnum
                 'text',
                 'heic',
                 'heif',
+                'avif',
             ],
 
             self::WORK_FILES => [
@@ -51,6 +52,7 @@ enum AllowedFileExtensionEnum
                 'json',
                 'heic',
                 'heif',
+                'avif',
                 'mp4',
                 'mov',
                 'avi',
@@ -62,6 +64,16 @@ enum AllowedFileExtensionEnum
                 '3gp',
                 'mpeg',
                 'mpg',
+                'mp3',
+                'm4a',
+                'wav',
+                'ogg',
+                'oga',
+                'aac',
+                'flac',
+                'wma',
+                'opus',
+                'amr',
             ],
 
             self::MEDIA_FILES => [
@@ -74,6 +86,7 @@ enum AllowedFileExtensionEnum
                 'webp',
                 'heic',
                 'heif',
+                'avif',
                 'json',
                 'pdf',
                 'txt',

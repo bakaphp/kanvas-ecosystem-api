@@ -65,15 +65,23 @@ class OneSignalService
         ?string $headings = null,
         ?string $subtitle = null
     ): void {
-        $contents = [
-            'en' => $message,
-        ];
-
         $devicesIds = $this->getDevicesIds($user);
 
         if (empty($devicesIds)) {
             return;
         }
+
+        if (empty(trim($message)) && ! empty($headings)) {
+            $message = $headings;
+        }
+
+        if (empty(trim($message))) {
+            return;
+        }
+
+        $contents = [
+            'en' => $message,
+        ];
 
         $params = [
             'app_id' => $this->oneSignalAppId,

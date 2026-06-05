@@ -8,7 +8,7 @@ type Notification {
     interaction_id: Int
     types(filter: NotificationTypeFilterInput): NotificationType! @belongsTo
     entity_id: String!
-    entity(fields: JSON): Mixed @method(name: "getEntityData")
+    entity(fields: Mixed): Mixed @method(name: "getEntityData")
     entity_children(fields: JSON): Mixed @method(name: "getEntityChildrenData")
     content: String
     read: Int!
@@ -111,7 +111,7 @@ extend type Query @guard {
     ): [Notification!]!
         @paginate(
             model: "Kanvas\\Notifications\\Models\\Notifications"
-            scopes: ["allNotifications"]
+            scopes: ["allNotifications", "fromCompany"]
             defaultCount: 25
         )
     notificationTypes(

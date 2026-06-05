@@ -26,6 +26,8 @@ class ExportOrderPaymentsAction
         protected readonly ?string $endDate = null,
         protected readonly ?array $fieldMapper = null,
         protected readonly string $language = 'en',
+        protected readonly ?string $userEmail = null,
+        protected readonly array $providerCompanyIds = [],
     ) {
     }
 
@@ -43,6 +45,8 @@ class ExportOrderPaymentsAction
             app: $this->app,
             paidStates: $this->paidStates,
             orderTypeNames: $this->orderTypeNames,
+            userEmail: $this->userEmail,
+            providerCompanyIds: $this->providerCompanyIds,
         )->execute(
             startDate: $this->startDate,
             endDate: $this->endDate,
@@ -55,6 +59,7 @@ class ExportOrderPaymentsAction
         ];
 
         $orders = Order::query()
+            ->select('orders.*')
             ->where('orders.apps_id', $this->app->getId())
             ->whereIn('orders.payment_status', $this->paidStates)
             ->when(! empty($this->orderTypeNames), function ($q) {
@@ -64,6 +69,11 @@ class ExportOrderPaymentsAction
             ->where('orders.total_net_amount', '>', 0)
             ->when($start, fn ($q) => $q->where('orders.created_at', '>=', $start))
             ->when($end, fn ($q) => $q->where('orders.created_at', '<=', $end))
+            ->when($this->userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $this->userEmail))
+            ->when(! empty($this->providerCompanyIds), fn ($q) => $q->whereHas(
+                'providerCompanies',
+                fn ($qq) => $qq->whereIn('companies.id', $this->providerCompanyIds)
+            ))
             ->with('user')
             ->orderBy('orders.created_at', 'asc')
             ->get();

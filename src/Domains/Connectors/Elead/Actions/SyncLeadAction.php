@@ -106,7 +106,7 @@ class SyncLeadAction
         if (! empty($eLeadOpportunity->tradeIns)) {
             $lead->set(
                 LeadCustomFieldEnum::TRADE_IN->value,
-                current($eLeadOpportunity->tradeIns)
+                end($eLeadOpportunity->tradeIns)
             );
         }
 
@@ -141,8 +141,10 @@ class SyncLeadAction
 
         //update status
         if (! $eLeadOpportunity->isActive()) {
+            $lead->disableWorkflows();
             $lead->close();
         } elseif ($eLeadOpportunity->isActive() && ! $lead->isActive()) {
+            $lead->disableWorkflows();
             $lead->open();
         }
 

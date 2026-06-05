@@ -4,27 +4,20 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Intelligence\Mutations;
 
-use Baka\Support\Str;
-use Inspector\Configuration;
-use Inspector\Inspector;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
+use Kanvas\Intelligence\Agents\Actions\RebuildAgentToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentDTO;
-use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
+use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
-use Kanvas\Intelligence\Agents\Types\ADKAgent;
-use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
-use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
-use Kanvas\Intelligence\Sessions\Models\Session;
-use Kanvas\Social\Channels\Actions\CreateChannelAction;
-use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
-use NeuronAI\Chat\Messages\UserMessage;
-use NeuronAI\Observability\InspectorObserver;
+use Kanvas\NervousSystem\Capability\Models\Tool;
+use Kanvas\Users\Repositories\UsersRepository;
 
 class AgentManagementMutation
 {
@@ -32,51 +25,113 @@ class AgentManagementMutation
     {
         $input = $req['input'] ?? [];
         $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
         $agentType = AgentTypeModel::getById($input['agent_type_id'], app: $app);
         $agentModel = isset($input['agent_model_id']) ? AgentModel::getById($input['agent_model_id'], app: $app) : null;
         $task = isset($input['company_task_list_id']) ? TaskList::getById($input['company_task_list_id'], app: $app) : null;
+        $parentAgent = isset($input['parent_agent_id'])
+            ? Agent::getByIdFromCompanyApp((int) $input['parent_agent_id'], $company, $app)
+            : null;
+
+        $input = $this->mapRoleToFields($input);
+
+        $personaUser = isset($input['user_id'])
+            ? UsersRepository::getUserOfAppById((int) $input['user_id'], $app)
+            : auth()->user();
+
         $agentDTO = new AgentDTO(
             app: $app,
-            company: auth()->user()->getCurrentCompany(),
-            user: auth()->user(),
+            company: $company,
+            user: $personaUser,
             agentModel: $agentModel,
             agentType: $agentType,
             name: $input['name'],
             role: $input['role'],
             is_active: $input['is_active'],
-            description: $input['description'],
+            description: $input['description'] ?? null,
             config: $input['config'],
             task: $task,
-            communicationChannel: $input['communication_channels'] ?? []
+            communicationChannel: $input['communication_channels'] ?? [],
+            soul: $input['soul'] ?? null,
+            instructions: $input['instructions'] ?? null,
+            outputFormat: $input['output_format'] ?? null,
+            identity: $input['identity'] ?? null,
+            userContext: $input['user_context'] ?? null,
+            toolsConfig: $input['tools_config'] ?? null,
+            tools: isset($input['tool_ids']) ? $this->resolveTools($input['tool_ids'], $app) : null,
+            parentAgent: $parentAgent,
+            createdBy: auth()->user(),
+            isSubAgent: (bool) ($input['is_sub_agent'] ?? false),
         );
 
-        return new CreateAgentAction($agentDTO)->execute();
+        $agent = new CreateAgentAction($agentDTO)->execute();
+
+        if (! empty($input['swarm_ids'])) {
+            $this->syncSwarms($agent, $input['swarm_ids'], $company, $app);
+        }
+
+        if (isset($input['tool_ids'])) {
+            $this->syncTools($agent, $input['tool_ids'], $app);
+        }
+
+        new RebuildAgentToolInstructionsAction($agent, $app)->execute();
+
+        return $agent;
     }
 
     public function update(mixed $root, array $req): Agent
     {
         $input = $req['input'] ?? [];
-        $agent = Agent::findOrFail($req['id']);
         $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $agent = Agent::getByIdFromCompanyApp((int) $req['id'], $company, $app);
         $agentType = AgentTypeModel::getById($input['agent_type_id'], app: $app);
         $agentModel = isset($input['agent_model_id']) ? AgentModel::getById($input['agent_model_id'], app: $app) : null;
         $task = isset($input['company_task_list_id']) ? TaskList::getById($input['company_task_list_id'], app: $app) : null;
+        $parentAgent = isset($input['parent_agent_id'])
+            ? Agent::getByIdFromCompanyApp((int) $input['parent_agent_id'], $company, $app)
+            : null;
+
+        $input = $this->mapRoleToFields($input);
+        $personaUser = isset($input['user_id'])
+            ? UsersRepository::getUserOfAppById((int) $input['user_id'], $app)
+            : ($agent->user ?? auth()->user());
+
         $agentDTO = new AgentDTO(
             app: $app,
-            company: auth()->user()->getCurrentCompany(),
-            user: auth()->user(),
+            company: $company,
+            user: $personaUser,
             agentType: $agentType,
             agentModel: $agentModel,
             name: $input['name'],
             role: $input['role'],
             is_active: $input['is_active'],
-            description: $input['description'],
+            description: $input['description'] ?? null,
             config: $input['config'],
             task: $task,
-            communicationChannel: $input['communication_channels'] ?? []
+            communicationChannel: $input['communication_channels'] ?? [],
+            soul: $input['soul'] ?? null,
+            instructions: $input['instructions'] ?? null,
+            outputFormat: $input['output_format'] ?? null,
+            identity: $input['identity'] ?? null,
+            userContext: $input['user_context'] ?? null,
+            toolsConfig: $input['tools_config'] ?? null,
+            parentAgent: $parentAgent,
+            isSubAgent: (bool) ($input['is_sub_agent'] ?? false),
         );
 
-        return new UpdateAgentAction($agentDTO, $agent)->execute();
+        $agent = new UpdateAgentAction($agentDTO, $agent)->execute();
+
+        if (isset($input['swarm_ids'])) {
+            $this->syncSwarms($agent, $input['swarm_ids'], $company, $app);
+        }
+
+        if (isset($input['tool_ids'])) {
+            $this->syncTools($agent, $input['tool_ids'], $app);
+            new RebuildAgentToolInstructionsAction($agent, $app)->execute();
+        }
+
+        return $agent->refresh();
     }
 
     public function delete(mixed $root, array $req): bool
@@ -90,102 +145,87 @@ class AgentManagementMutation
         return (bool) $agent->delete();
     }
 
-    public function chat(mixed $root, array $req): string
+    /**
+     * When role is provided and soul/instructions are not explicitly set,
+     * auto-populate them from role['background'] and role['steps'] for backward compatibility.
+     */
+    private function mapRoleToFields(array $input): array
     {
-        $req = $req['input'] ?? [];
-        $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
-        $agent = Agent::getByIdFromCompanyApp(
-            id: $req['agent_id'],
-            app: $app,
-            company: $company
-        );
+        $role = $input['role'] ?? null;
 
-        $useInspector = $app->get('inspector-key') !== null;
-
-        $currentAgent = new $agent->type->handler();
-        //$currentAgent = $this->agent;
-        $sessionEntity = Session::fromApp($app)->fromCompany($company)->where('uuid', (string) $req['session_id'])->first()?->entity();
-
-        $currentAgent->setConfiguration(
-            $agent,
-            $sessionEntity
-        );
-
-        if ($useInspector) {
-            $inspector = new Inspector(
-                new Configuration($app->get('inspector-key'))
-            );
-            $currentAgent->observe(
-                new InspectorObserver($inspector)
-            );
+        if (! is_array($role)) {
+            return $input;
         }
 
-        $responseContent = $currentAgent instanceof ADKAgent ?
-        $currentAgent->chatSimple(
-            $app,
-            $agent->company,
-            (string) auth()->user()->getId(),
-            $req['session_id'],
-            $req['message']
-        ) : $currentAgent->chat(new UserMessage($req['message']));
+        if (empty($input['soul']) && ! empty($role['background'])) {
+            $background = $role['background'];
+            $input['soul'] = is_array($background) ? implode("\n", $background) : (string) $background;
+        }
 
-        $responseText = ChatHelper::extractTextFromResponse($responseContent->getContent());
+        if (empty($input['instructions']) && ! empty($role['steps'])) {
+            $steps = $role['steps'];
+            $input['instructions'] = is_array($steps) ? implode("\n", $steps) : (string) $steps;
+        }
 
-        return $responseText;
+        return $input;
     }
 
-    public function createSession(mixed $root, array $req): string
+    /**
+     * @param array<int, string> $toolIds
+     *
+     * @return array<int, Tool>
+     */
+    private function resolveTools(array $toolIds, AppInterface $app): array
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-        $input = $req['input'] ?? [];
-        $agent = Agent::getByIdFromCompanyApp(
-            id: $input['agent_id'],
-            app: $app,
-            company: $company
-        );
+        $tools = [];
+        foreach ($toolIds as $toolId) {
+            /** @var Tool $tool */
+            $tool = Tool::query()
+                ->where('id', (int) $toolId)
+                ->whereIn('apps_id', [0, $app->getId()])
+                ->firstOrFail();
+            $tools[] = $tool;
+        }
 
-        $lead = Lead::getByIdFromCompanyApp(
-            id: $input['lead_id'],
-            app: $app,
-            company: $company
-        );
+        return $tools;
+    }
 
-        $channelName = 'Manual Channel for Lead ' . $lead->getId();
-        $slug = Str::simpleSlug($channelName);
+    /**
+     * @param array<int, string> $toolIds
+     */
+    private function syncTools(Agent $agent, array $toolIds, AppInterface $app): void
+    {
+        $ids = [];
+        foreach ($toolIds as $toolId) {
+            $tool = Tool::query()
+                ->where('id', (int) $toolId)
+                ->whereIn('apps_id', [0, $app->getId()])
+                ->firstOrFail();
+            $ids[] = $tool->getId();
+        }
 
-        $channel = new CreateChannelAction(
-            new ChannelDto(
-                apps: $app,
-                companies: $company,
-                users: $user,
-                name: $channelName,
-                description: 'Channel for lead ' . $lead->getId(),
-                entity_id: $lead->getId(),
-                entity_namespace: Lead::class,
-                slug: $slug,
-            )
-        )->execute();
+        $agent->selectedTools()->sync($ids);
+    }
 
-        $chatSession = new CreateSessionAction(
-            DataTransferObjectSession::from([
-                'app' => $app,
-                'company' => $company,
-                'channel' => $channel,
-                'entity_namespace' => Lead::class,
-                'entity_id' => $lead->getId(),
-                'canal_id' => $input['canal_id'],
-                'user' => [
-                    'name' => $lead->people->getName(),
-                    'id' => $lead->people->getId(),
-                    'email' => $lead->people->getEmails()->first()?->value,
-                ],
-                'agent' => $agent,
-            ])
-        )->execute();
+    /**
+     * @param array<int, string> $swarmIds
+     */
+    private function syncSwarms(
+        Agent $agent,
+        array $swarmIds,
+        CompanyInterface $company,
+        AppInterface $app
+    ): void {
+        $agent->swarms()->detach();
 
-        return $chatSession->uuid;
+        foreach ($swarmIds as $swarmId) {
+            AgentSwarm::getByIdFromCompanyApp(
+                (int) $swarmId,
+                $company,
+                $app
+            );
+
+            $agent->swarms()->attach((int) $swarmId);
+        }
     }
 }

@@ -36,8 +36,8 @@ type WorkflowRule {
         @hasMany(relation: "workflowActivities")
     company: Company @belongsTo
     apps_id: ID!
-    created_at: DateTime
-    updated_at: DateTime
+    created_at: DateTime!
+    updated_at: DateTime!
 }
 
 type WorkflowRuleType {
@@ -81,6 +81,7 @@ input runWorkflowEntityInput {
     entity_id: ID!
     action: String!
     params: Mixed
+    activity_class: String
 }
 
 input RuleConditionInput {
@@ -166,8 +167,7 @@ extend type Query @guard {
                     "apps_id"
                 ]
             )
-        orderBy: _
-            @orderBy(columns: ["id", "name", "created_at", "updated_at"])
+        orderBy: _ @orderBy(columns: ["id", "name", "created_at", "updated_at"])
     ): [WorkflowRule!]!
         @paginate(
             model: "Kanvas\\Workflow\\Rules\\Models\\Rule"

@@ -9,11 +9,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Support\Setup;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadFirstEngagementMessageAction;
-use Prism\Prism\Enums\FinishReason;
-use Prism\Prism\Facades\Prism;
-use Prism\Prism\Testing\StructuredResponseFake;
-use Prism\Prism\ValueObjects\Meta;
-use Prism\Prism\ValueObjects\Usage;
+use Laravel\Ai\StructuredAnonymousAgent;
 use Tests\TestCase;
 
 class CreateLeadFirstEngagementMessageActionTest extends TestCase
@@ -46,21 +42,12 @@ class CreateLeadFirstEngagementMessageActionTest extends TestCase
             ],
         ]);
 
-        // Create fake response
         $fakeStructuredData = [
             'title' => 'Welcome to Our Service!',
             'message' => 'Hi there! We noticed you\'re interested in our services. We\'d love to help you get started on your journey.',
         ];
 
-        $fakeResponse = StructuredResponseFake::make()
-            ->withText(json_encode($fakeStructuredData, JSON_THROW_ON_ERROR))
-            ->withStructured($fakeStructuredData)
-            ->withFinishReason(FinishReason::Stop)
-            ->withUsage(new Usage(100, 50))
-            ->withMeta(new Meta('fake-response-id', 'gemini-2.0-flash'));
-
-        // Set up the fake
-        Prism::fake([$fakeResponse]);
+        StructuredAnonymousAgent::fake([$fakeStructuredData]);
 
         // Execute the action
         $action = new CreateLeadFirstEngagementMessageAction($lead);
@@ -86,7 +73,12 @@ class CreateLeadFirstEngagementMessageActionTest extends TestCase
 
         $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
 
-        // Create the agent with empty role
+        // Ensure agent exists with empty role
+        Agent::fromApp($app)
+            ->fromCompany($company)
+            ->where('name', 'firstMessageEngagerAgent')
+            ->delete();
+
         Agent::factory()->create([
             'name' => 'firstMessageEngagerAgent',
             'apps_id' => $lead->apps_id,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Social\Mutations\Messages;
 
+use Baka\Support\IPInfo;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -20,6 +21,7 @@ use Kanvas\Social\Messages\Actions\UpdateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Enums\DistributionTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Services\MessageFileConstrainerService;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
@@ -72,7 +74,7 @@ class MessageManagementMutation
             $systemModule = $systemModuleId ? SystemModules::getById((int)$systemModuleId, $app) : null;
         }
 
-        $messageData['ip_address'] = request()->ip();
+        $messageData['ip_address'] = IPInfo::getClientIp();
         $data = MessageInput::fromArray(
             $messageData,
             $user,
@@ -228,6 +230,19 @@ class MessageManagementMutation
             throw new Exception('The message does not belong to the authenticated user');
         }
 
+        $files = isset($request['file']) ? [$request['file']] : ($request['files'] ?? []);
+        $files = MessageFileConstrainerService::constrain(
+            $app,
+            (string) $message->messageType->verb,
+            $files,
+        );
+
+        if (isset($request['file'])) {
+            $request['file'] = $files[0];
+        } else {
+            $request['files'] = $files;
+        }
+
         return $this->uploadFileToEntity(
             model: $message,
             app: $app,
@@ -240,7 +255,10 @@ class MessageManagementMutation
     {
         $user = auth()->user();
         $app = app(Apps::class);
-        $message = Message::withTrashed()->where('id', $request['id'])->where('users_id', $user->getId())->fromApp($app)->firstOrFail();
+        $message = Message::withTrashed()
+            ->where('id', $request['id'])
+            ->where('users_id', $user->getId())
+            ->fromApp($app)->firstOrFail();
         $message->restore();
 
         return $message;

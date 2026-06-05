@@ -11,6 +11,7 @@ use Exception;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
+use Webleit\ZohoCrmApi\Models\Model as ZohoModel;
 use Webleit\ZohoCrmApi\Models\Record;
 use Webleit\ZohoCrmApi\ZohoCrm;
 
@@ -18,7 +19,8 @@ class ZohoService
 {
     protected ZohoCrm $zohoCrm;
     protected string $zohoAgentModule;
-    private const DEFAULT_AGENT_MODULE = 'agents';
+    protected ?array $lastCreateAgentRequest = null;
+    private const string DEFAULT_AGENT_MODULE = 'agents';
 
     public function __construct(
         protected AppInterface $app,
@@ -67,24 +69,104 @@ class ZohoService
             'Office_Phone' => str_replace(['+', '-', '(', ')', ' '], '', $user->phone_number ?? ''),
         ];
 
+        $data = $this->applySponsorData($agentInfo, $data);
+
         if ($zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
-            $data['Lead_Routing'] = $zohoOwnerAgent ? $zohoOwnerAgent->Lead_Routing : (string) $this->company->get('default_lead_routing');
+            if ($zohoOwnerAgent instanceof Agent && $zohoOwnerAgent->users_linked_source_id) {
+                $zohoOwnerAgent = $this->zohoCrm->agents->get($zohoOwnerAgent->users_linked_source_id);
+            }
+
+            $data['Lead_Routing'] = $zohoOwnerAgent !== null ? $zohoOwnerAgent->Lead_Routing : (string) $this->company->get('default_lead_routing');
+
+            $this->lastCreateAgentRequest = $data;
+            $this->lastCreateAgentRequest['zohoOwnerAgent'] = $zohoOwnerAgent instanceof ZohoModel
+                ? $zohoOwnerAgent->getData()
+                : $zohoOwnerAgent;
 
             $zohoAgent = $this->zohoCrm->agents->create($data);
         } else {
             $data['Vendor_Name'] = $agentInfo->name;
             $data['Phone'] = str_replace(['+', '-', '(', ')', ' '], '', $user->phone_number ?? '');
+            $data['Inactive'] = 'Active';
+
             if ($agentInfo->sponsor_user_id !== null) {
-                /*  $data['Sponsor_Name'] = Agent::where('users_id', $agentInfo->sponsor_user_id)
-                     ->where('apps_id', $this->app->getId())
-                     ->where('companies_id', $this->company->getId())
-                     ->first()?->users_linked_source_id ?? ''; */
+                $sponsorAgent = Agent::where('users_id', $agentInfo->sponsor_user_id)
+                    ->where('apps_id', $this->app->getId())
+                    ->where('companies_id', $this->company->getId())
+                    ->where('is_deleted', false)
+                    ->where('status_id', 1)
+                    ->first();
+
+                if ($sponsorAgent && $sponsorAgent->users_linked_source_id) {
+                    $data['Sponsor_Name'] = $sponsorAgent->users_linked_source_id;
+                    $data['Sponsor'] = (string) $sponsorAgent->member_id;
+                }
             }
 
+            $this->lastCreateAgentRequest = $data;
             $zohoAgent = $this->zohoCrm->vendors->create($data);
         }
 
         return $zohoAgent;
+    }
+
+    public function getLastCreateAgentRequest(): ?array
+    {
+        return $this->lastCreateAgentRequest;
+    }
+
+    public function updateAgent(Agent $agent): object
+    {
+        $zohoAgentId = $agent->users_linked_source_id;
+
+        $data = [
+            'Sponsor' => ! empty($agent->owner_id) ? (string) $agent->owner_id : '1001',
+        ];
+
+        $data = $this->applySponsorData($agent, $data);
+
+        if ($this->zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
+            return $this->zohoCrm->agents->update($zohoAgentId, $data);
+        }
+
+        return $this->zohoCrm->vendors->update($zohoAgentId, $data);
+    }
+
+    private function applySponsorData(Agent $agent, array $data): array
+    {
+        if ($agent->sponsor_user_id === null) {
+            return $data;
+        }
+
+        $sponsorAgent = Agent::where('users_id', $agent->sponsor_user_id)
+            ->where('apps_id', $this->app->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('is_deleted', false)
+            ->where('status_id', 1)
+            ->first();
+
+        if ($sponsorAgent && $sponsorAgent->users_linked_source_id) {
+            $data['Sponsor_Name'] = $sponsorAgent->users_linked_source_id; //it the zoho agent uuid
+            $data['Sponsor'] = (string) $sponsorAgent->member_id;
+            $data['Inactive'] = 'Active';
+        }
+
+        return $data;
+    }
+
+    public function updateAgentMemberNumber(Agent $agent): object
+    {
+        $zohoAgentId = $agent->users_linked_source_id;
+
+        $data = [
+            'Member_Number' => $agent->getMemberNumber(),
+        ];
+
+        if ($this->zohoAgentModule == self::DEFAULT_AGENT_MODULE) {
+            return $this->zohoCrm->agents->update($zohoAgentId, $data);
+        }
+
+        return $this->zohoCrm->vendors->update($zohoAgentId, $data);
     }
 
     public function getLeadById(string $leadId): Record

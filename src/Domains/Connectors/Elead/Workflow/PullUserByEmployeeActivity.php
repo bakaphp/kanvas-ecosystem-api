@@ -10,10 +10,12 @@ use Kanvas\Connectors\Elead\Entities\Employee;
 use Kanvas\Connectors\Elead\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
+#[WorkflowAction]
 class PullUserByEmployeeActivity extends KanvasActivity
 {
     protected array $employeePositions = [

@@ -224,20 +224,13 @@ class UserTest extends TestCase
                 ],
             ]
         );
-        $response->assertJson([
-            'data' => [
-                'updateUser' => [
-                    'addresses' => [
-                        [
-                            'address' => $address['address'],
-                            'city' => $address['city'],
-                            'state' => $address['state'],
-                        ],
-                    ],
-                ],
-            ],
+        $response->assertJsonFragment([
+            'address' => $address['address'],
+            'city' => $address['city'],
+            'state' => $address['state'],
         ]);
-        $addressId = $response->json('data.updateUser.addresses.0.id');
+        $addresses = collect($response->json('data.updateUser.addresses'));
+        $addressId = $addresses->firstWhere('address', $address['address'])['id'];
 
         $response = $this->graphQL( /** @lang GraphQL */
             '
@@ -261,7 +254,8 @@ class UserTest extends TestCase
                         ],
                     ]
         );
-        $addressIdDuplicate = $response->json('data.updateUser.addresses.0.id');
+        $addressesDuplicate = collect($response->json('data.updateUser.addresses'));
+        $addressIdDuplicate = $addressesDuplicate->firstWhere('address', $address['address'])['id'];
         $this->assertEquals($addressId, $addressIdDuplicate);
     }
 
@@ -323,20 +317,13 @@ class UserTest extends TestCase
                 ],
             ]
         );
-        $response->assertJson([
-            'data' => [
-                'updateUser' => [
-                    'addresses' => [
-                        [
-                            'address' => $address['address'],
-                            'city' => $address['city'],
-                            'state' => $address['state'],
-                        ],
-                    ],
-                ],
-            ],
+        $response->assertJsonFragment([
+            'address' => $address['address'],
+            'city' => $address['city'],
+            'state' => $address['state'],
         ]);
-        $addressId = $response->json('data.updateUser.addresses.0.id');
+        $addresses = collect($response->json('data.updateUser.addresses'));
+        $addressId = $addresses->firstWhere('address', $address['address'])['id'];
         $address['id'] = $addressId;
         $address['address'] = fake()->address();
         $response = $this->graphQL( /** @lang GraphQL */
@@ -361,18 +348,10 @@ class UserTest extends TestCase
                         ],
                     ]
         );
-        $response->assertJson([
-            'data' => [
-                'updateUser' => [
-                    'addresses' => [
-                        [
-                            'address' => $address['address'],
-                            'city' => $address['city'],
-                            'state' => $address['state'],
-                        ],
-                    ],
-                ],
-            ],
+        $response->assertJsonFragment([
+            'address' => $address['address'],
+            'city' => $address['city'],
+            'state' => $address['state'],
         ]);
     }
 
@@ -452,10 +431,13 @@ class UserTest extends TestCase
 
     public function testChangePassword()
     {
+        $freshUser = $this->createUser();
+        $this->actingAs($freshUser, 'api');
+
         $newPassword = 'abc123456';
         $currentPassword = 'abcabc123456';
         $userData = $this->graphQL(/** @lang GraphQL */ '
-            { 
+            {
                 me {
                     id,
                     uuid,

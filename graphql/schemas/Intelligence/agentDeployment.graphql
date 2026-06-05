@@ -1,0 +1,196 @@
+type AgentBackupType {
+    id: ID!
+    uuid: String!
+    agent_deployment_id: ID!
+    status: String!
+    file_path: String
+    file_size_bytes: Int
+    notes: String
+    error_message: String
+    completed_at: DateTime
+    created_at: DateTime!
+    updated_at: DateTime!
+    deployment: AgentDeploymentType @belongsTo
+    download_url: String
+}
+
+type AgentTelemetryData {
+    deployment_id: ID!
+    collected_at: String!
+    runtime_version: String
+    gateway_reachable: Boolean
+    gateway_latency_ms: Int
+    session_count: Int
+    default_model: String
+    memory_files: Int
+    memory_chunks: Int
+    os_label: String
+    security_critical: Int
+    security_warn: Int
+    raw: String
+    tools: String
+}
+
+type AgentUsageSnapshot {
+    id: ID!
+    uuid: String!
+    agent_deployment_id: ID
+    snapshot_date: String!
+    source: String!
+    input_tokens: Int!
+    output_tokens: Int!
+    total_tokens: Int!
+    cache_read_tokens: Int!
+    cache_write_tokens: Int!
+    provider: String
+    model: String
+    total_sessions: Int!
+    raw_output: String!
+    parsed_data: JSON
+    created_at: DateTime!
+    deployment: AgentDeploymentType @belongsTo
+}
+
+type AgentMachineType {
+    id: ID!
+    uuid: String!
+    name: String!
+    slug: String!
+    host: String @adminOnlyField
+    ssh_port: Int @adminOnlyField
+    ssh_user: String @adminOnlyField
+    region: String
+    port_range_start: Int @adminOnlyField
+    port_range_end: Int @adminOnlyField
+    max_agents: Int!
+    is_active: Boolean!
+    is_connected: Boolean!
+    last_ping_at: DateTime
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type AgentDeploymentType {
+    id: ID!
+    uuid: String!
+    agent_id: ID!
+    agent_machine_id: ID!
+    system_user: String @adminOnlyField
+    home_directory: String @adminOnlyField
+    gateway_port: Int @adminOnlyField
+    proxy_port: Int @adminOnlyField
+    container_name: String @adminOnlyField
+    provider: String!
+    status: String!
+    launched_at: DateTime
+    terminated_at: DateTime
+    last_health_check: DateTime
+    error_message: String
+    created_at: DateTime!
+    updated_at: DateTime!
+    agent: AgentAi @belongsTo
+    machine: AgentMachineType @belongsTo
+}
+
+input AgentMachineInput {
+    name: String!
+    host: String!
+    ssh_port: Int
+    ssh_user: String!
+    ssh_private_key: String!
+    region: String
+    port_range_start: Int
+    port_range_end: Int
+    max_agents: Int
+}
+
+input UpdateAgentMachineInput {
+    name: String
+    host: String
+    ssh_port: Int
+    ssh_user: String
+    ssh_private_key: String
+    region: String
+    port_range_start: Int
+    port_range_end: Int
+    max_agents: Int
+    is_active: Boolean
+}
+
+enum AgentProvider {
+    OPENCLAW
+    HERMES
+}
+
+input LaunchAgentInput {
+    agent_id: ID!
+    machine_id: ID!
+    provider: AgentProvider = OPENCLAW
+}
+
+extend type Query @guard {
+    agentUsageSnapshots(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "agent_deployment_id"
+                    "snapshot_date"
+                    "source"
+                    "provider"
+                    "model"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: ["id", "snapshot_date", "total_tokens", "created_at"]
+            )
+    ): [AgentUsageSnapshot!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentUsageSnapshot"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+
+    agentMachines(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: ["id", "name", "slug", "region", "is_active"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "name"])
+    ): [AgentMachineType!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentMachine"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+
+    agentDeployments(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: ["id", "agent_id", "agent_machine_id", "status"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "launched_at"])
+    ): [AgentDeploymentType!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentDeployment"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+}
+
+extend type Query @guardByAdmin {
+    agentBackups(
+        where: _
+            @whereConditions(columns: ["id", "agent_deployment_id", "status"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "completed_at"])
+    ): [AgentBackupType!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentBackup"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+}

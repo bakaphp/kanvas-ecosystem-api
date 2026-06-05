@@ -6,15 +6,21 @@ namespace Kanvas\Guild\Customers\Models;
 
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
+use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -41,10 +47,11 @@ use Override;
  * @property int $users_id
  * @property int $companies_id
  * @property string $name
- * @property string $firstname
+ * @property string|null $firstname
  * @property string|null $middlename = null
- * @property string $lastname
+ * @property string|null $lastname
  * @property string $license_number
+ * @property string|null $license_expiration_date
  * @property string|null $dob = null
  * @property string|null $google_contact_id
  * @property string|null $facebook_contact_id
@@ -65,13 +72,26 @@ class People extends BaseModel
     use Notifiable;
     use HasLightHouseCache;
     use LikableTrait;
+    use SoftDeletesTrait;
+    use CascadeSoftDeletes;
+
+    public const DELETED_AT = 'is_deleted';
 
     protected $table = 'peoples';
     protected $guarded = [];
 
+    protected $cascadeDeletes = ['contacts', 'address'];
+
     protected $casts = [
         'dob' => 'datetime:Y-m-d',
+        'license_expiration_date' => 'datetime:Y-m-d',
+        'is_deleted' => 'boolean',
     ];
+
+    public function trashed()
+    {
+        return (bool) $this->{$this->getDeletedAtColumn()};
+    }
 
     #[Override]
     public function getGraphTypeName(): string
@@ -113,6 +133,11 @@ class People extends BaseModel
             'peoples_id',
             'id'
         )->orderBy('created_at', 'desc');
+    }
+
+    public function peopleType(): BelongsTo
+    {
+        return $this->belongsTo(PeopleType::class, 'people_types_id');
     }
 
     public function emails(): HasMany
@@ -469,6 +494,36 @@ class People extends BaseModel
             ->first();
     }
 
+    /**
+     * Get all people by phone matching (strips non-numeric characters for comparison).
+     */
+    public static function getAllByPhoneMatchingValue(string $phone, Companies $company, Apps $app): Collection
+    {
+        return self::whereHas(
+            'contacts',
+            fn ($query) => $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', '')", [$phone])
+                ->whereIn('contacts_types_id', [
+                    ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
+                    ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+                ])
+        )->where('apps_id', $app->getId())
+          ->where('companies_id', $company?->getId())
+          ->where('is_deleted', 0)
+          ->get();
+    }
+
+    public static function getAllByMatchingValue(string $value, Companies $company, Apps $app): Collection
+    {
+        return self::whereHas(
+            'contacts',
+            fn ($query) => $query->where('value', $value)
+        )
+            ->where('companies_id', $company->getId())
+            ->where('apps_id', $app->getId())
+            ->where('is_deleted', 0)
+            ->get();
+    }
+
     #[Override]
     public function shouldBeSearchable(): bool
     {
@@ -738,5 +793,13 @@ class People extends BaseModel
             'driversLicenseNumber' => $licenseNumber,
             'driversLicenseState' => $licenseState,
         ];
+    }
+
+    public function getPhoto(): ?FilesystemEntities
+    {
+        $app = app(Apps::class);
+        $defaultAvatarId = $app->get(AppSettingsEnums::DEFAULT_USER_AVATAR->getValue());
+
+        return $this->getFileByName('photo') ?: ($defaultAvatarId ? FilesystemEntitiesRepository::getFileFromEntityById($defaultAvatarId) : null);
     }
 }

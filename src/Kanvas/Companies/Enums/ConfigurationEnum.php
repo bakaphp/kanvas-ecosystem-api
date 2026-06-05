@@ -16,7 +16,13 @@ enum ConfigurationEnum: string
     case MAPPING_STATUS_CRM = 'mapping_status_crm';
     case UN_RESPONDED_SALESPERSON_MESSAGES = 'un_responded_salesperson_messages';
     case AI_MODE = 'ai_mode';
+    case AI_WORKING_HOURS_DEFAULT_MODE = 'ai_working_hours_default_mode';
     case ALLOW_CALL_APPOINTMENTS = 'allow_call_appointments';
     case GIF_DURATION_SECONDS = 'engagement_gif_duration_seconds';
     case ENABLE_VIDEO_GIF_GENERATION = 'engagement_enable_video_gif_generation';
+    case DATE_ADK_AGENT_RESPONSES = 'date_adk_agent_responses';
+    case CHANNEL_ORDER = 'guild_channel_order';
+    case FOLLOW_UP_ON_IS_CONTACTED = 'follow_up_on_is_contacted';
+    case DEFAULT_SELECTED_CHANNEL = 'guild_default_selected_channel';
+    case AGENT_REACH_OUT_DEFAULT_AGENT_ID = 'agent_reach_out_default_agent_id';
 }

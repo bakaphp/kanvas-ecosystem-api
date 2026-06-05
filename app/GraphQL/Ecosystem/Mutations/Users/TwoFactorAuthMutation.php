@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Users;
 
+use Baka\Support\IPInfo;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -43,10 +44,21 @@ class TwoFactorAuthMutation
             return true;
         }
 
-        $sendRateLimit = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_RATE_LIMIT->value) ?: 2);
+        $sendRateLimit = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_RATE_LIMIT->value) ?: 4);
         $rateLimitDecaySeconds = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_RATE_LIMIT_DECAY->value) ?: 28800); // 8 hours
+        $cooldownSeconds = (int) ($app->get(ConfigurationEnum::TWILIO_2FA_SEND_COOLDOWN_SECONDS->value) ?: 60);
 
         $rateLimitKey = 'two-factor-send:' . $app->getId() . ':' . $user->getId();
+        $cooldownKey = 'two-factor-send-cooldown:' . $app->getId() . ':' . $user->getId();
+
+        if ($cooldownSeconds > 0 && RateLimiter::tooManyAttempts($cooldownKey, 1)) {
+            $availableIn = RateLimiter::availableIn($cooldownKey);
+
+            throw new ValidationException(
+                'Verification code already sent. Please wait ' . $availableIn . ' seconds before requesting a new code.'
+            );
+        }
+
         if (RateLimiter::tooManyAttempts($rateLimitKey, $sendRateLimit)) {
             $this->logRateLimitExceeded('2FA SMS send rate limit exceeded - possible abuse', $user, $app, $phoneNumber);
 
@@ -56,6 +68,9 @@ class TwoFactorAuthMutation
         }
 
         RateLimiter::hit($rateLimitKey, $rateLimitDecaySeconds);
+        if ($cooldownSeconds > 0) {
+            RateLimiter::hit($cooldownKey, $cooldownSeconds);
+        }
 
         $twilio = Client::getInstance($app);
 
@@ -119,6 +134,7 @@ class TwoFactorAuthMutation
                 ]);
 
                 RateLimiter::clear($rateLimitKey);
+                RateLimiter::clear('two-factor-send-cooldown:' . $app->getId() . ':' . $user->getId());
 
                 return true;
             }
@@ -136,7 +152,7 @@ class TwoFactorAuthMutation
                 'email' => $user->email,
                 'app_id' => $app->getId(),
                 'app_name' => $app->name,
-                'ip' => request()->ip(),
+                'ip' => IPInfo::getClientIp(),
             ]);
             captureMessage('2FA verification failed - invalid code');
         });
@@ -172,7 +188,7 @@ class TwoFactorAuthMutation
                 'phone' => $phoneNumber,
                 'app_id' => $app->getId(),
                 'app_name' => $app->name,
-                'ip' => request()->ip(),
+                'ip' => IPInfo::getClientIp(),
             ]);
             captureMessage($message);
         });

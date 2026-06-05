@@ -10,6 +10,7 @@ use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\CustomFields\Traits\HasCustomFields;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\NervousSystem\Ledger\Traits\EmitsNervousSystemEvents;
 use Kanvas\Traits\SoftDeletes;
 
 class BaseModel extends EloquentModel
@@ -18,6 +19,7 @@ class BaseModel extends EloquentModel
     use KanvasScopesTrait;
     use HasCustomFields;
     use HasFilesystemTrait;
+    use EmitsNervousSystemEvents;
     //use Cachable;
 
     //use SoftDeletes;

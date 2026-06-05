@@ -10,12 +10,14 @@ use Kanvas\Connectors\TeeTime\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Actions\SendEventEmailsAction;
 use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Passes\Actions\CreatePassAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class SyncTeeTimeEventActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

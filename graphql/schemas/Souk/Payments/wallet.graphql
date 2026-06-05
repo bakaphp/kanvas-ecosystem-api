@@ -7,7 +7,7 @@ type WalletResult {
 type WalletTransaction {
     id: ID!
     uuid: String!
-    type: String!
+    type: String! @method(name: "getTypeStringAttribute")
     amount: Money! @method(name: "getAmountFloatAttribute")
     confirmed: Boolean!
     status: String
@@ -22,6 +22,12 @@ input WalletRefundInput {
     tag: String
 }
 
+input WalletMetaFilter {
+    path: String!
+    value: String!        # When operator is LIKE, the caller must supply SQL wildcards (e.g., "paso%")
+    operator: MetadataFilterOperator
+}
+
 extend type Query @guard {
     getWalletBalance(tag: String!): WalletResult
         @field(
@@ -33,6 +39,7 @@ extend type Query @guard {
         )
     getWalletTransactions(
         tag: String!
+        hasMeta: WalletMetaFilter
         where: _
             @whereConditions(
                 columns: ["id", "uuid", "type", "amount", "confirmed", "status"]
@@ -45,6 +52,7 @@ extend type Query @guard {
         )
     getUserWalletTransactions(
         tag: String!
+        hasMeta: WalletMetaFilter
         where: _
             @whereConditions(
                 columns: ["id", "uuid", "type", "amount", "confirmed", "status"]
@@ -53,6 +61,24 @@ extend type Query @guard {
     ): [WalletTransaction!]!
         @paginate(
             builder: "App\\GraphQL\\Souk\\Queries\\Payments\\WalletManagementQuery@getUserTransactions"
+            defaultCount: 25
+        )
+    getCompanyWallet(tag: String!, company_id: ID!, metadata: Mixed): WalletResult
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Queries\\Payments\\WalletManagementQuery@getCompanyWalletBalance"
+        )
+    getCompanyWalletTransactions(
+        tag: String!
+        company_id: ID!
+        hasMeta: WalletMetaFilter
+        where: _
+            @whereConditions(
+                columns: ["id", "uuid", "type", "amount", "confirmed", "status"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "status", "created_at"])
+    ): [WalletTransaction!]!
+        @paginate(
+            builder: "App\\GraphQL\\Souk\\Queries\\Payments\\WalletManagementQuery@getCompanyTransactions"
             defaultCount: 25
         )
 }

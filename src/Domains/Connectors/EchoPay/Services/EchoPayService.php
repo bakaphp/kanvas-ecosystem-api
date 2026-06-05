@@ -6,6 +6,8 @@ namespace Kanvas\Connectors\EchoPay\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Users\Contracts\UserInterface;
+use Exception;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\EchoPay\Client;
 use Kanvas\Connectors\EchoPay\DataTransferObject\CardTokenization;
@@ -16,11 +18,15 @@ use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentCaptureInput;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentDetail;
 use Kanvas\Connectors\EchoPay\DataTransferObject\PaymentResponse;
 use Kanvas\Connectors\EchoPay\Enums\ConfigurationEnum;
+use Kanvas\Connectors\EchoPay\MockClient;
 use Kanvas\Payments\DataTransferObjet\PaymentMethod;
+use Kanvas\Souk\Payments\Contracts\HttpClientInterface;
+use Kanvas\Souk\Payments\Contracts\TokenizationProcessorInterface;
+use Kanvas\Souk\Payments\DataTransferObject\TokenizeResult;
 
-class EchoPayService
+class EchoPayService implements TokenizationProcessorInterface
 {
-    protected Client $client;
+    protected HttpClientInterface $client;
     protected MerchantDetail $merchant;
 
     public function __construct(
@@ -28,12 +34,29 @@ class EchoPayService
         protected CompanyInterface $company,
         protected array $config = []
     ) {
-        $this->client = (new Client($app, $company, $config));
+        $this->client = self::shouldUseMock($app)
+            ? new MockClient($app, $company, $config)
+            : new Client($app, $company, $config);
         $this->merchant = MerchantDetail::from([
             'id' => $app->get(ConfigurationEnum::MERCHANT_ID->value),
             'key' => $app->get(ConfigurationEnum::MERCHANT_KEY->value),
             'secretKey' => $app->get(ConfigurationEnum::MERCHANT_SECRET->value),
         ]);
+    }
+
+    public static function shouldUseMock(AppInterface $app): bool
+    {
+        $raw = $app->get(ConfigurationEnum::USE_MOCK->value);
+        $enabled = filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) === true;
+
+        if ($enabled) {
+            Log::warning('EchoPay MockClient is enabled', [
+                'app' => $app->getId(),
+                'raw_flag_value' => $raw,
+            ]);
+        }
+
+        return $enabled;
     }
 
     public function consultService(ConsultServiceQuery $data): array
@@ -66,6 +89,42 @@ class EchoPayService
             'instrumentIdentifierId' => $response['data']['instrumentIdentifierId'],
             'paymentInstrumentId' => $response['data']['paymentInstrumentId'],
         ];
+    }
+
+    public function tokenize(array $cardDetails, UserInterface $user): TokenizeResult
+    {
+        try {
+            $card = CardTokenization::fromRequest($cardDetails, $this->app, $user);
+            $tokenizedCard = $this->addCard($card);
+
+            return new TokenizeResult(
+                success: true,
+                message: 'Card tokenized successfully.',
+                token: $tokenizedCard['paymentInstrumentId'],
+                lastFour: substr($cardDetails['number'], -4),
+                brand: $cardDetails['brand'] ?? '',
+                raw: $tokenizedCard,
+            );
+        } catch (Exception $e) {
+            return new TokenizeResult(
+                success: false,
+                message: $e->getMessage(),
+                token: '',
+                lastFour: '',
+                brand: '',
+            );
+        }
+    }
+
+    public function deleteToken(string $token): bool
+    {
+        try {
+            $this->deleteCard($token);
+
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     public function addCardFromRequest(array $request, $user): PaymentMethod
@@ -115,7 +174,7 @@ class EchoPayService
         ];
     }
 
-    public function updateCardFromRequest(PaymentMethod $paymentMethod, array $request): PaymentMethod
+    public function updateToken(PaymentMethod $paymentMethod, array $request): PaymentMethod
     {
         $card = CardTokenization::fromRequest($request, $this->app, $paymentMethod->user);
         $cardId = $paymentMethod->metadata['instrumentIdentifierId'] ?? $paymentMethod->instrument_identifier_id;

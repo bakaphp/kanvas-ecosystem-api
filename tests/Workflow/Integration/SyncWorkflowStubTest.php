@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Workflow\Integration;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Actions\ProcessWorkflowEventAction;
@@ -17,6 +18,10 @@ use Tests\TestCase;
 
 final class SyncWorkflowStubTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected $connectionsToTransact = ['workflow'];
+
     public function testMakeCreatesStoredWorkflow(): void
     {
         $stub = SyncWorkflowStub::make(DynamicRuleWorkflow::class);

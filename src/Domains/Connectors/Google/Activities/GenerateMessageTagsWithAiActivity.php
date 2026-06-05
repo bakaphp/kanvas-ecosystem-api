@@ -7,11 +7,15 @@ namespace Kanvas\Connectors\Google\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Google\Actions\GenerateMessageTagAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
+use Override;
 
+#[WorkflowAction]
 class GenerateMessageTagsWithAiActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    #[Override]
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);

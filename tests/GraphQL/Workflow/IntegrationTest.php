@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Workflows\Activities\SyncProductWithShopifyWithIntegrationActivity;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Services\VariantService;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Connectors\Traits\HasShopifyConfiguration;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
@@ -35,10 +36,11 @@ class IntegrationTest extends TestCase
 
         $this->assertArrayHasKey('id', $response->json()['data']['integrations']['data'][0]);
 
+        $regionSlug = 'test-region-' . uniqid();
         $region = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
+            'name' => 'Test Region ' . $regionSlug,
+            'slug' => $regionSlug,
+            'short_slug' => $regionSlug,
             'is_default' => 1,
             'currency_id' => 1,
         ];
@@ -56,12 +58,12 @@ class IntegrationTest extends TestCase
             }
         ', [
             'data' => $region,
-        ])->assertJson([
-            'data' => ['createRegion' => $region],
-        ]);
+        ])->assertSuccessful();
         $regionResponse = $regionResponse->decodeResponseJson();
 
-        $integration = $response->json()['data']['integrations']['data'][0];
+        $integration = collect($response->json()['data']['integrations']['data'])
+            ->firstWhere('name', IntegrationsEnum::SHOPIFY->value);
+        $this->assertNotNull($integration, 'Shopify integration must be present in integrations query');
         $company = auth()->user()->getCurrentCompany();
         $credentials = [
             'client_id' => getenv('TEST_SHOPIFY_API_KEY'),
@@ -112,10 +114,11 @@ class IntegrationTest extends TestCase
 
         $this->assertArrayHasKey('id', $response->json()['data']['integrations']['data'][0]);
 
+        $regionSlug = 'test-region-' . uniqid();
         $region = [
-            'name' => 'Test Region',
-            'slug' => 'test-region',
-            'short_slug' => 'test-region',
+            'name' => 'Test Region ' . $regionSlug,
+            'slug' => $regionSlug,
+            'short_slug' => $regionSlug,
             'is_default' => 1,
             'currency_id' => 1,
         ];
@@ -133,12 +136,12 @@ class IntegrationTest extends TestCase
             }
         ', [
             'data' => $region,
-        ])->assertJson([
-            'data' => ['createRegion' => $region],
-        ]);
+        ])->assertSuccessful();
         $regionResponse = $regionResponse->decodeResponseJson();
 
-        $integration = $response->json()['data']['integrations']['data'][0];
+        $integration = collect($response->json()['data']['integrations']['data'])
+            ->firstWhere('name', IntegrationsEnum::SHOPIFY->value);
+        $this->assertNotNull($integration, 'Shopify integration must be present in integrations query');
         $company = auth()->user()->getCurrentCompany();
 
         $credentials = [

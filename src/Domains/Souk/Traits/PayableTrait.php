@@ -6,13 +6,26 @@ namespace Kanvas\Souk\Traits;
 
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Models\PaymentLogs;
 use Kanvas\Souk\Payments\Models\Payments;
 
 trait PayableTrait
 {
     public function payments(): MorphMany
     {
-        return $this->morphMany(Payments::class, 'payable')->latest();
+        return $this->morphMany(Payments::class, 'payable')
+            ->where('is_deleted', 0)
+            ->latest();
+    }
+
+    public function paymentLogs(): MorphMany
+    {
+        return $this->morphMany(PaymentLogs::class, 'payable')
+            ->where(function ($q) {
+                $q->whereHas('payment', fn ($p) => $p->where('is_deleted', 0))
+                  ->orWhere('payments_id', 0);
+            })
+            ->latest();
     }
 
     public function isPaid(): bool
@@ -40,6 +53,14 @@ trait PayableTrait
         $paidAmount = $this->payments()->where('status', PaymentStatusEnum::PAID->value)->sum('amount');
 
         return (float) $paidAmount;
+    }
+
+    public function getRefundedAmount(): float
+    {
+        return (float) $this->payments()
+            ->where('status', PaymentStatusEnum::PAID->value)
+            ->get()
+            ->sum(fn ($payment) => $payment->getRefundedAmount());
     }
 
     /**

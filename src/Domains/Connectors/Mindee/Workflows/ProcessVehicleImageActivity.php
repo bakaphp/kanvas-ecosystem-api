@@ -14,9 +14,11 @@ use Kanvas\Connectors\PlateRecognizer\DataTransferObject\Vehicle;
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class ProcessVehicleImageActivity extends KanvasActivity
 {
     public $tries = 3;

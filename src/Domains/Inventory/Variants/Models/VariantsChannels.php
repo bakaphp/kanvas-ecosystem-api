@@ -6,7 +6,6 @@ namespace Kanvas\Inventory\Variants\Models;
 
 use Awobaz\Compoships\Compoships;
 use Baka\Casts\Json;
-use Baka\Traits\HasCompositePrimaryKeyTrait;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,6 +15,7 @@ use Kanvas\Inventory\Channels\Models\VariantChannelPriceHistory;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Override;
+use Thiagoprz\CompositeKey\HasCompositeKey;
 
 /**
  * Class Variants Channels.
@@ -35,10 +35,12 @@ use Override;
  */
 class VariantsChannels extends BaseModel
 {
-    use HasCompositePrimaryKeyTrait;
+    use HasCompositeKey;
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
-    use Compoships;
+    use Compoships {
+        HasCompositeKey::setKeysForSaveQuery insteadof Compoships;
+    }
 
     protected $table = 'products_variants_channels';
     protected $guarded = [];
@@ -50,8 +52,8 @@ class VariantsChannels extends BaseModel
     protected function casts(): array
     {
         return [
-            'price' => 'decimal:2',
-            'discounted_price' => 'decimal:2',
+            'price' => 'decimal:4',
+            'discounted_price' => 'decimal:4',
             'config' => Json::class,
         ];
     }

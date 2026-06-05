@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Guild\Mutations\Leads;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\IPInfo;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -35,7 +36,7 @@ class LeadManagementMutation
             request()->headers->all(),
             $user->getCurrentCompany(),
             $app,
-            request()->ip(),
+            IPInfo::getClientIp(),
             'API - Create'
         );
         $attempt = $leadAttempt->execute();
@@ -79,10 +80,18 @@ class LeadManagementMutation
             request()->headers->all(),
             $user->getCurrentCompany(),
             $app,
-            request()->ip(),
+            IPInfo::getClientIp(),
             'API - Update'
         );
         $attempt = $leadAttempt->execute();
+
+        if (empty($req['input']['title'])) {
+            $req['input']['title'] = $lead->title ?? ($lead->people?->name ? $lead->people->name . ' Opp' : 'No title');
+        }
+
+        if (empty($req['input']['branch_id'])) {
+            $req['input']['branch_id'] = $lead->companies_branches_id;
+        }
 
         $leadInputData = LeadUpdateInput::from($req['input']);
         $updateLeadAction = new UpdateLeadAction(
@@ -106,6 +115,7 @@ class LeadManagementMutation
         );
 
         $lead->deleteAllCustomFields();
+
         return $lead->softDelete();
     }
 

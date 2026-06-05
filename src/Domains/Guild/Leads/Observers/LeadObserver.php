@@ -12,10 +12,13 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\DeleteSessionAction;
+use Kanvas\Intelligence\Sessions\Actions\UpdateLeadSessionsAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 
@@ -41,7 +44,7 @@ class LeadObserver
 
         // set the default status if not specified
         if (! $lead->leads_status_id) {
-            $lead->leads_status_id = LeadStatus::getDefault($lead->app)->getId();
+            $lead->leads_status_id = LeadStatus::getDefault($lead->app, $lead->company)->getId();
         }
 
         // if no pipeline assign one
@@ -70,7 +73,6 @@ class LeadObserver
 
     public function created(Lead $lead): void
     {
-        //$lead->fireWorkflow(WorkflowEnum::CREATED->value);
         if ($lead->user) {
             (
                 new CreateChannelAction(
@@ -80,9 +82,9 @@ class LeadObserver
                         $lead->user,
                         (string)$lead->getKey(),
                         Lead::class,
-                        'Default Channel',
-                        ! empty($lead->description) ? $lead->description : $lead->uuid->toString(),
-                        $lead->uuid->toString()
+                        ChannelNameEnum::DEFAULT->value,
+                        ! empty($lead->description) ? $lead->description : (string) $lead->uuid,
+                        (string) $lead->uuid
                     )
                 )
             )->execute();
@@ -97,7 +99,7 @@ class LeadObserver
                         $lead->user,
                         (string)$lead->getKey(),
                         Lead::class,
-                        'Notes',
+                        ChannelNameEnum::NOTES->value,
                         'AI Notes Channel',
                         Str::uuid()->toString()
                     )
@@ -118,21 +120,32 @@ class LeadObserver
 
     public function updated(Lead $lead): void
     {
-        //$lead->fireWorkflow(WorkflowEnum::UPDATED->value);
         //Subscription::broadcast('leadUpdate', $lead, true);
         LeadUpdateEvent::dispatch($lead);
         LeadCompanyUpdateEvent::dispatch($lead);
 
+        if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
+            new UpdateLeadSessionsAction($lead)->execute();
+        }
+
         if ($lead->wasChanged('leads_status_id')) {
             $leadStatus = $lead->status()->first();
             if (strtolower($leadStatus->name) === 'sold') {
-                $lead->fireWorkflow(WorkflowEnum::TRIGGER_AI->value, true, [
-                    'trigger_type' => TriggersEnum::SOLD_LEAD->value,
-                ]);
+                $lead->fireWorkflow(
+                    WorkflowEnum::TRIGGER_AI->value,
+                    true,
+                    [
+                        'trigger_type' => TriggersEnum::SOLD_LEAD->value,
+                    ]
+                );
             } elseif (strtolower($leadStatus->name) === 'close') {
-                $lead->fireWorkflow(WorkflowEnum::TRIGGER_AI->value, true, [
-                    'trigger_type' => TriggersEnum::CLOSE_LEAD->value,
-                ]);
+                $lead->fireWorkflow(
+                    WorkflowEnum::TRIGGER_AI->value,
+                    true,
+                    [
+                        'trigger_type' => TriggersEnum::CLOSE_LEAD->value,
+                    ]
+                );
             }
         }
         //$lead->clearLightHouseCacheJob();
@@ -146,16 +159,18 @@ class LeadObserver
         if ($channel) {
             $channel->delete();
         }
+
         new DeleteSessionAction($lead)->execute();
     }
 
     public function softDeleted(Lead $lead): void
     {
-        //delete social channel related to this lead
-        $channels = $lead->socialChannels;
-        foreach ($channels as $channel) {
-            $channel->delete();
-        }
+        //delete social channels related to this lead
+        $lead->socialChannels()->update([
+            'is_deleted' => 1,
+            'updated_at' => now(),
+        ]);
+
         new DeleteSessionAction($lead)->execute();
     }
 }

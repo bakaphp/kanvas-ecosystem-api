@@ -8,9 +8,11 @@ use Exception;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class PullPaymentChallengeWebhookJob extends ProcessWebhookJob
 {
     #[Override]
@@ -19,7 +21,6 @@ class PullPaymentChallengeWebhookJob extends ProcessWebhookJob
         $payload = $this->webhookRequest->payload;
         $orderId = $this->webhookRequest->payload['MD'];
         $transactionId = $this->webhookRequest->payload['TransactionId'];
-
 
         if (! $orderId) {
             return [

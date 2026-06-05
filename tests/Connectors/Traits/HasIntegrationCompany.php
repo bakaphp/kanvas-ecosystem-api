@@ -25,12 +25,18 @@ trait HasIntegrationCompany
         Companies $company,
         UserInterface $user
     ): void {
-        $integration = Integrations::firstOrCreate([
-            'apps_id' => $app->getId(),
-            'name' => $integrationEnum->value,
-            'config' => [],
-            'handler' => $handler,
-        ]);
+        // Key on name only so this resolves to the same row IntegrationsCompany::getByIntegration()
+        // picks via its un-scoped where('name', ...) lookup — IntegrationsSeeder seeds integrations as apps_id=0.
+        $integration = Integrations::firstOrCreate(
+            [
+                'name' => $integrationEnum->value,
+            ],
+            [
+                'apps_id' => 0,
+                'config' => [],
+                'handler' => $handler,
+            ]
+        );
 
         $company->associateUser(
             $user,

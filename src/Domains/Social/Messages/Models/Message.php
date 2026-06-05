@@ -44,7 +44,6 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
 use Override;
-use Rennokki\QueryCache\Traits\QueryCacheable;
 
 /**
  *  Class Message
@@ -70,6 +69,8 @@ use Rennokki\QueryCache\Traits\QueryCacheable;
  *  @property int $total_saved
  *  @property int $total_shared
  *  @property string|null ip_address
+ *  @property bool $is_un_response
+ *  @property int|null $response_message_id
  */
 // Company, User and App Relationship is defined in KanvasModelTrait,
 #[ObservedBy([MessageObserver::class])]
@@ -89,12 +90,8 @@ class Message extends BaseModel
     use HasLightHouseCache;
     use HasFilesystemTrait;
     use HasCategoriesTrait;
-    use QueryCacheable;
 
     protected $table = 'messages';
-    public $cacheFor = null;
-    public $cacheDriver = 'redis';
-    protected static $flushCacheOnUpdate = true;
 
     protected $guarded = [
         'uuid',
@@ -105,6 +102,8 @@ class Message extends BaseModel
         'message_types_id' => 'integer',
         'is_public' => 'integer',
         'is_deleted' => 'boolean',
+        'is_un_response' => 'boolean',
+        'response_message_id' => 'integer',
     ];
 
     #[Override]

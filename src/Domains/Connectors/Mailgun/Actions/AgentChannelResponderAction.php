@@ -6,16 +6,15 @@ namespace Kanvas\Connectors\Mailgun\Actions;
 
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Actions\BaseAgentResponderAction;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
+use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
-use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
-use NeuronAI\Chat\Messages\UserMessage;
 use Override;
 
-class AgentChannelResponderAction extends BaseAgentResponderAction
+class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 {
     protected string $messageTypeVerb = 'mailgun-email';
     protected string $communicationChannel = 'email';
@@ -23,63 +22,58 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
     #[Override]
     public function execute(array $params = []): array
     {
-        //$messageConversation = $this->message->message['raw_data']['message']['conversation'] ?? null;
-        $messageConversation = $this->message->message['content'];
-
-        $channelId = $this->hijackMessagePhone($this->message->message['from_email']);
+        $messageConversation = $this->message->message['content'] ?? null;
 
         if ($messageConversation === null) {
             throw new ValidationException('No conversation found');
         }
 
-        //entity is a lead
-        if ($this->message->entity() === null) {
+        $entity = $this->message->entity();
+        if ($entity === null) {
             throw new ValidationException('No entity found');
         }
 
-        $currentAgent = new $this->agent->type->handler();
-        //$currentAgent = $this->agent;
-
-        $currentAgent->setConfiguration(
-            $this->agent,
-            $this->message->entity()->people
-        );
+        $channelId = $this->hijackMessagePhone($this->message->message['from_email']);
 
         $emailRequest = [
             'template_name' => 'agent-email-response',
-            'email' => $channelId, //$this->message->message['from_email'],
-            'subject' => $this->message->entity()->get('title_email_follow_up') ?? 'Re: ' . ($this->message->message['subject'] ?? 'No subject'),
+            'email' => $channelId,
+            'subject' => $entity->get('title_email_follow_up')
+                ?? 'Re: ' . ($this->message->message['subject'] ?? 'No subject'),
         ];
 
-        // Define the callback to send each chunk in real time
-        /*    $onChunk = function ($text, $data) use ($emailRequest): void {
-               //$whatsAppMessageService->sendTextMessage($channelId, $text);
-               $this->sendEmail($emailRequest, ['content' => $text], $this->message->user);
-           }; */
-        $onChunk = null;
-        $question = $currentAgent instanceof ADKAgent ?
-        $currentAgent->chat(
-            $this->channel,
-            $this->message,
-            $messageConversation,
-            $onChunk,
-            $this->session
-        ) : $currentAgent->chat(new UserMessage($messageConversation));
+        $responseContent = new AgentChatKernel(
+            agent: $this->agent,
+            session: $this->session,
+            message: $messageConversation,
+            user: $this->message->company->getAiAgentUserOrFail(),
+            currentLead: $entity instanceof Lead ? $entity : null,
+            sourceChannel: $this->channel,
+            sourceMessage: $this->message,
+            persistConversation: false,
+        )->execute();
 
-        $responseContent = $question->getContent();
-
-        // Extract text from response that might be formatted with markdown code blocks
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
 
         $emailData = [
             'content' => $responseText,
-            'lead' => $this->message->entity(),
+            'lead' => $entity,
             'company' => $this->message->company,
         ];
 
-        $messageResponse = $this->createMessage($responseText, $channelId, $this->message, $this->channel);
+        $messageResponse = $this->createMessage(
+            $responseText,
+            $channelId,
+            $this->message,
+            $this->channel
+        );
+
         if (! $messageResponse->is_locked) {
-            $this->sendEmail($emailRequest, $emailData, $this->message);
+            $this->sendEmail(
+                $emailRequest,
+                $emailData,
+                $this->message
+            );
         }
 
         return [
@@ -116,6 +110,7 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
             ['mail'],
             $message
         );
+
         $notification->setFromUser($message->user);
         $notification->setSubject($request['subject']);
         Notification::route('mail', $request['email'])->notify($notification);

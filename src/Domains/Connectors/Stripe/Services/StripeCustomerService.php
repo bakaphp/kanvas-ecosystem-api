@@ -28,7 +28,7 @@ class StripeCustomerService
         if (empty($email)) {
             throw new ValidationException('Email is required to create a Stripe customer');
         }
-        $name = $people->name;
+        $name = $people->getName();
 
         // Optional: check if you already saved stripe_customer_id in your DB
         if (! empty($people->get(CustomFieldEnum::STRIPE_ID->value))) {

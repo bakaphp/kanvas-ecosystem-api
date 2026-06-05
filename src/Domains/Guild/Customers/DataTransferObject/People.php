@@ -30,6 +30,8 @@ class People extends Data
         #[WithCast(DateTimeInterfaceCast::class, format: 'Y-m-d')]
         public ?DateTime $dob = null,
         public ?string $license_number = null,
+        #[WithCast(DateTimeInterfaceCast::class, format: 'Y-m-d')]
+        public ?DateTime $license_expiration_date = null,
         public ?string $facebook_contact_id = null,
         public ?string $google_contact_id = null,
         public ?string $apple_contact_id = null,
@@ -39,6 +41,7 @@ class People extends Data
         public array $tags = [],
         public array $peopleEmploymentHistory = [],
         public ?string $organization = null,
+        public ?int $people_type_id = null,
         public ?string $created_at = null,
         public ?bool $flushPreviousAddress = false,
         public ?bool $runWorkflow = true,

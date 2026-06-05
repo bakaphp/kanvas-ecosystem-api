@@ -12,6 +12,7 @@ type Lead {
     status: LeadStatus @belongsTo(relation: "status")
     type: LeadType @belongsTo(relation: "type")
     source: LeadSource @belongsTo(relation: "source")
+    subSource: LeadSubSource @belongsTo(relation: "subSource")
     firstname: String
     lastname: String
     email: String
@@ -24,7 +25,8 @@ type Lead {
     channels: [SocialChannel]! @hasMany(relation: "socialChannels")
     systemModule: SystemModule @belongsTo(relation: "systemModule")
     events: [Event!]! @morphToMany(relation: "events")
-    ai_session: [AIAgentSession!]! @hasMany(relation: "aiSession", type: PAGINATOR)
+    ai_session: [AIAgentSession!]!
+        @hasMany(relation: "aiSession", type: PAGINATOR)
     tags: [Tag!]
         @paginate(
             defaultCount: 25
@@ -152,6 +154,7 @@ input LeadInput {
     status_id: ID
     type_id: ID
     source_id: ID
+    sub_source_id: ID
     description: String
     reason_lost: String
     pipeline_stage_id: ID!
@@ -160,7 +163,7 @@ input LeadInput {
 }
 
 input LeadUpdateInput {
-    branch_id: ID!
+    branch_id: ID
     title: String
     people_id: ID!
     leads_owner_id: ID
@@ -169,6 +172,7 @@ input LeadUpdateInput {
     status_id: ID
     type_id: ID
     source_id: ID
+    sub_source_id: ID
     description: String
     reason_lost: String
     pipeline_stage_id: ID
@@ -258,6 +262,7 @@ extend type Query @guard {
                     "people_id"
                     "lead_types_id"
                     "status"
+                    "created_at"
                 ]
             )
         hasCustomFields: _
@@ -307,4 +312,24 @@ extend type Query @guard {
         @paginate(
             builder: "App\\GraphQL\\Guild\\Builders\\Leads\\DashboardBuilder@getCompanyInfo"
         )
+
+    leadAnalytics(
+        from: Date
+        to: Date
+        bucket: AnalyticsBucket = WEEK
+        timezone: String
+        pipeline_id: ID
+    ): LeadAnalytics!
+        @field(
+            resolver: "App\\GraphQL\\Analytics\\Queries\\LeadAnalyticsQuery"
+        )
+}
+
+type LeadAnalytics {
+    periods: [AnalyticsPoint!]!
+    total: Int!
+    by_status: [AnalyticsCategoryPoint!]!
+    by_source: [AnalyticsCategoryPoint!]!
+    by_pipeline: [AnalyticsCategoryPoint!]!
+    by_user: [AnalyticsCategoryPoint!]!
 }

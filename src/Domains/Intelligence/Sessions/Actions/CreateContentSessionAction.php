@@ -10,19 +10,17 @@ use Carbon\Exceptions\InvalidFormatException;
 use Carbon\Exceptions\InvalidTimeZoneException;
 use Exception;
 use Illuminate\Support\Facades\Blade;
-use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
-use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
-use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement;
-use Kanvas\ActionEngine\Engagements\Models\Engagement as ModelsEngagement;
+use Kanvas\ActionEngine\Engagements\Traits\GeneratesChecklistEngagementUrls;
 use Kanvas\ActionEngine\Tasks\Repositories\TaskEngagementItemRepository;
 use Kanvas\Companies\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
@@ -30,8 +28,10 @@ use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Tools\LeadIntentTool;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Users\Models\Users;
 use RuntimeException;
+use Throwable;
 use Yasumi\Exception\InvalidYearException;
 use Yasumi\Exception\MissingTranslationException;
 use Yasumi\Exception\ProviderNotFoundException;
@@ -39,7 +39,9 @@ use Yasumi\Exception\UnknownLocaleException;
 
 class CreateContentSessionAction
 {
-    protected Lead|People $entity;
+    use GeneratesChecklistEngagementUrls;
+
+    protected Lead|People|Users $entity;
 
     public function __construct(
         protected Session|DataTransferObjectSession $session
@@ -48,6 +50,7 @@ class CreateContentSessionAction
         $this->entity = match ($this->session->entity_namespace) {
             People::class => People::getByIdFromCompanyApp($this->session->entity_id, $this->session->company, $this->session->app),
             Lead::class => Lead::getByIdFromCompanyApp($this->session->entity_id, $this->session->company, $this->session->app),
+            Users::class => Users::getById($this->session->entity_id),
         };
     }
 
@@ -56,6 +59,7 @@ class CreateContentSessionAction
         $result = match ($this->session->entity_namespace) {
             People::class => $this->mapPeople($this->entity),
             Lead::class => $this->mapLead($this->entity),
+            Users::class => $this->mapUser($this->entity),
             default => [],
         };
 
@@ -64,20 +68,68 @@ class CreateContentSessionAction
         return $result;
     }
 
-    protected function generateBackground(array $data): mixed
+    protected function generateBackground(array $data): ?array
     {
-        $data = array_merge($data, $this->generateValuesForRole($this->entity instanceof Lead ? $this->entity : null));
+        $role = $this->session->agent?->role;
 
-        try {
-            $background = $this->session->agent?->role !== null && is_array($this->session->agent->role)
-                ? Blade::render(json_encode($this->session->agent->role), $data)
-                : null;
-        } catch (Exception $e) {
-            report($e);
-            $background = $this->session->agent?->role;
+        if (! is_array($role)) {
+            return null;
         }
 
-        return Str::isJson($background) ? json_decode($background) : $background;
+        $roleData = $this->entity instanceof Lead
+            ? $this->generateValuesForRole($this->entity)
+            : [];
+        $data = array_merge($data, $roleData);
+
+        return array_map(
+            fn (mixed $section): ?array => $this->renderRoleSection($section, $data),
+            $role
+        );
+    }
+
+    /**
+     * Agents store each role section (background/steps/output) either as a plain string
+     * or as an array of lines (with nulls for blank lines). Render Blade variables on each
+     * line and return the section as an array of rendered lines (null blank-line markers
+     * preserved); a string section is split on newlines first. A null section stays null.
+     */
+    protected function renderRoleSection(mixed $section, array $data): ?array
+    {
+        if ($section === null) {
+            return null;
+        }
+
+        $lines = is_array($section) ? array_values($section) : explode("\n", (string) $section);
+
+        return array_map(
+            fn (mixed $line): ?string => is_string($line) ? $this->renderTemplate($line, $data) : null,
+            $lines
+        );
+    }
+
+    /**
+     * Blade fatals on a variable that was never defined (unlike a defined-but-null
+     * variable, which renders empty). Seed every referenced variable so an unknown one
+     * renders blank instead of leaving raw {{ }} syntax in the prompt the agent receives.
+     * Fall back to the raw template only if rendering still throws for another reason.
+     */
+    protected function renderTemplate(string $template, array $data): string
+    {
+        preg_match_all('/\$([a-zA-Z_]\w*)/', $template, $matches);
+
+        foreach ($matches[1] as $variableName) {
+            if (! array_key_exists($variableName, $data)) {
+                $data[$variableName] = '';
+            }
+        }
+
+        try {
+            return Blade::render($template, $data);
+        } catch (Throwable $e) {
+            report($e);
+
+            return $template;
+        }
     }
 
     protected function mapLead(Lead $lead): array
@@ -86,6 +138,14 @@ class CreateContentSessionAction
         $lastMessage = $channel?->getLastMessage();
         $timezone = $lead->company->get('timezone') ?? 'UTC';
         $lastMessageTime = $lastMessage !== null ? Carbon::parse($lastMessage->created_at, $timezone)->toDateTimeString() : null;
+
+        $activeChannel = $lead->socialChannels()
+            ->pluck('slug')
+            ->map(fn (string $slug): string => ChannelCategoryEnum::getLeadChannelName($slug))
+            ->reject(fn (string $name): bool => $name === 'notes')
+            ->unique()
+            ->values()
+            ->all();
 
         return array_merge(
             [
@@ -104,9 +164,13 @@ class CreateContentSessionAction
                 'company_language' => $lead->company->get('lang', 'en'),
                 'is_service_lead' => $lead->get('is_service_lead') ?? 0,
                 'guild_first_message' => $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? null,
-                'ai_mode' => $lead->get('ai_mode'),
+                'ai_mode' => $lead->get(new LeadConfigurationService()->getAiModeKey($lead)),
                 'follow_up_mode' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
                 'allow_call_appointments' => $lead->company->get(EnumsConfigurationEnum::ALLOW_CALL_APPOINTMENTS->value) ?? true,
+                'work_hours' => $lead->company->get('work_hours'),
+                'working_holiday_days' => $lead->company->get('working_holiday_days'),
+                'notes_channel_slug' => $lead->notes?->slug,
+                'active_channel' => $activeChannel,
             ],
             $this->mapPeople($lead->people, $lead),
             $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? []
@@ -115,7 +179,7 @@ class CreateContentSessionAction
 
     protected function mapPeople(People $people, ?Lead $lead = null): array
     {
-        $checkList = $this->generateCheckListUrls();
+        $checkList = $lead !== null ? $this->generateChecklistEngagementUrls($lead) : [];
         $data = array_merge([
             'customerName' => null,
             'leadEmail' => null,
@@ -145,7 +209,7 @@ class CreateContentSessionAction
             'lastname' => $people->lastname,
             'middlename' => $people->middlename,
             'inventory_channel' => Channels::getDefault($people->company, $people->app)?->uuid,
-            'leads' => $people->leads->toArray(),
+            'leads' => [LeadsRepository::getPeopleActiveLead($people)?->toArray()],
             'address' => $people->address->toArray(),
             'contacts' => $people->contacts->toArray(),
             'checklist' => $checkList,
@@ -160,75 +224,23 @@ class CreateContentSessionAction
         return array_merge($data, $result);
     }
 
-    /**
-     * @todo this has to be based on the checklist this agent is tied to
-     */
-    protected function generateCheckListUrls(): array
+    protected function mapUser(Users $user): array
     {
-        if ($this->entity instanceof People) {
-            return [];
-        }
+        $company = $user->getCurrentCompany();
+        $branch = $company->branch;
 
-        $actions = [
-            'creditApp' => 'credit-app',
-            'tradeIn' => 'add-trade',
+        return [
+            'user_id' => $user->id,
+            'firstname' => $user->firstname,
+            'lastname' => $user->lastname,
+            'email' => $user->email,
+            'company_name' => $company->name,
+            'branch' => $branch,
+            'branch_city' => $branch?->city,
+            'branch_state' => $branch?->state,
+            'branch_address' => $branch ? ($branch->address . ' ' . $branch->address2) : null,
+            'company_timezone' => $company->get('timezone', 'UTC'),
         ];
-
-        $results = [];
-        $aiAgentUserId = (int) $this->entity->company->get('ai-agent-user-id');
-        $user = $aiAgentUserId ? Users::getById($aiAgentUserId) : $this->entity->user;
-
-        foreach ($actions as $key => $action) {
-            try {
-                // Try to get or create engagement with retry logic
-                $engagement = $this->getOrCreateEngagementWithLock($action, $user);
-                if ($engagement === null) {
-                    //$results[$key] = null;
-                    continue;
-                }
-
-                //hide the msg
-                $engagement->message->is_public = 0;
-                $engagement->message->saveQuietly();
-
-                $results[$key] = $engagement->message->message['action_link'] ?? null;
-            } catch (Exception $e) {
-                //report($e);
-                $results[$key] = null;
-            }
-        }
-
-        return $results;
-    }
-
-    private function getOrCreateEngagementWithLock(string $action, Users $user): ?ModelsEngagement
-    {
-        $lockKey = "engagement_creation:{$this->entity->id}:{$action}";
-
-        // Use Laravel's cache lock - block() waits for lock to become available
-        return Cache::lock($lockKey, 10)->block(10, function () use ($action, $user): ModelsEngagement {
-            // CreateEngagementAction with allowDuplicate=false will check for existing
-            // engagements and return them instead of creating duplicates
-            $engagementAction = new CreateEngagementAction(
-                Engagement::from(
-                    $this->session->app,
-                    $this->session->company,
-                    $user,
-                    $this->entity,
-                    [
-                        'action' => $action,
-                        'request_id' => Str::uuid()->toString(),
-                        'source' => 'ai',
-                        'status' => 'sent',
-                        'data' => [],
-                    ],
-                    $this->entity->people
-                ),
-                false // allowDuplicate = false
-            );
-
-            return $engagementAction->execute();
-        });
     }
 
     /**
@@ -302,8 +314,12 @@ class CreateContentSessionAction
      * @todo we need to combine both link and status
      * @throws InvalidArgumentException
      */
-    protected function getCheckListStatus(Lead $lead): array
+    protected function getCheckListStatus(?Lead $lead): array
     {
+        if ($lead === null) {
+            return [];
+        }
+
         try {
             $checkList = $lead->get('check_list_status');
             $checkListId = $lead->company->get('default_checklist_id');

@@ -1,0 +1,233 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Connectors\Integration\OpenClaw;
+
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\OpenClaw\Actions\DeployAgentAction;
+use Kanvas\Connectors\OpenClaw\Actions\GetGatewayLogsAction;
+use Kanvas\Connectors\OpenClaw\Actions\GetHealthAction;
+use Kanvas\Connectors\OpenClaw\Actions\GetUsageAction;
+use Kanvas\Connectors\OpenClaw\Actions\ListAgentsAction;
+use Kanvas\Connectors\OpenClaw\Actions\RemoveAgentAction;
+use Kanvas\Connectors\OpenClaw\Actions\UpdateAgentDeploymentAction;
+use Kanvas\Connectors\OpenClaw\Enums\CustomFieldEnum;
+use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilderService;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Tests\Connectors\Traits\HasOpenClawConfiguration;
+use Tests\TestCase;
+
+class OpenClawTest extends TestCase
+{
+    use HasOpenClawConfiguration;
+
+    /** @var array<int, Agent> */
+    private array $deployedAgents = [];
+
+    protected function tearDown(): void
+    {
+        if (! empty($this->deployedAgents) && $this->hasAgentRuntimeCredentials()) {
+            $app = app(Apps::class);
+            $company = auth()->user()->getCurrentCompany();
+            $this->setupAgentRuntimeConfiguration($company);
+
+            foreach ($this->deployedAgents as $agent) {
+                try {
+                    new RemoveAgentAction($agent, $app, $company)->execute();
+                } catch (\Throwable) {
+                }
+            }
+            $this->deployedAgents = [];
+        }
+
+        parent::tearDown();
+    }
+
+    protected function createTestAgent(array $overrides = []): Agent
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        return Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(array_merge([
+                'soul' => 'You are a helpful test assistant.',
+                'instructions' => 'Step 1: Greet. Step 2: Help.',
+                'output_format' => 'Respond in plain text.',
+                'identity' => ['name' => 'TestBot', 'emoji' => '🤖', 'vibe' => 'friendly'],
+                'user_context' => 'User is testing the system.',
+                'tools_config' => 'Use search tool for lookups.',
+                'deployment_status' => 'pending',
+            ], $overrides));
+    }
+
+    public function testWorkspaceFileBuilderSoulMd()
+    {
+        $agent = $this->createTestAgent();
+        $content = WorkspaceFileBuilderService::buildSoulMd($agent);
+
+        $this->assertStringContainsString('# SOUL', $content);
+        $this->assertStringContainsString('You are a helpful test assistant.', $content);
+        $this->assertStringContainsString('## Output Format', $content);
+        $this->assertStringContainsString('Respond in plain text.', $content);
+    }
+
+    public function testWorkspaceFileBuilderAgentsMd()
+    {
+        $agent = $this->createTestAgent();
+        $content = WorkspaceFileBuilderService::buildAgentsMd($agent);
+
+        $this->assertStringContainsString('# AGENTS', $content);
+        $this->assertStringContainsString('Step 1: Greet. Step 2: Help.', $content);
+    }
+
+    public function testWorkspaceFileBuilderIdentityMd()
+    {
+        $agent = $this->createTestAgent();
+        $content = WorkspaceFileBuilderService::buildIdentityMd($agent);
+
+        $this->assertStringContainsString('# IDENTITY', $content);
+        $this->assertStringContainsString('**Name:** TestBot', $content);
+        $this->assertStringContainsString('**Vibe:** friendly', $content);
+    }
+
+    public function testWorkspaceFileBuilderUserMd()
+    {
+        $agent = $this->createTestAgent();
+        $content = WorkspaceFileBuilderService::buildUserMd($agent);
+
+        $this->assertStringContainsString('# USER', $content);
+        $this->assertStringContainsString('User is testing the system.', $content);
+    }
+
+    public function testWorkspaceFileBuilderToolsMd()
+    {
+        $agent = $this->createTestAgent();
+        $content = WorkspaceFileBuilderService::buildToolsMd($agent);
+
+        $this->assertStringContainsString('# TOOLS', $content);
+        $this->assertStringContainsString('Use search tool for lookups.', $content);
+    }
+
+    public function testWorkspaceFileBuilderBuildAll()
+    {
+        $agent = $this->createTestAgent();
+        $files = WorkspaceFileBuilderService::buildAll($agent);
+
+        $this->assertArrayHasKey('SOUL.md', $files);
+        $this->assertArrayHasKey('AGENTS.md', $files);
+        $this->assertArrayHasKey('IDENTITY.md', $files);
+        $this->assertArrayHasKey('USER.md', $files);
+        $this->assertArrayHasKey('TOOLS.md', $files);
+    }
+
+    public function testWorkspaceFileBuilderSkipsEmptyUserAndTools()
+    {
+        $agent = $this->createTestAgent([
+            'user_context' => null,
+            'tools_config' => null,
+        ]);
+
+        $files = WorkspaceFileBuilderService::buildAll($agent);
+
+        $this->assertArrayHasKey('SOUL.md', $files);
+        $this->assertArrayHasKey('AGENTS.md', $files);
+        $this->assertArrayHasKey('IDENTITY.md', $files);
+        $this->assertArrayNotHasKey('USER.md', $files);
+        $this->assertArrayNotHasKey('TOOLS.md', $files);
+    }
+
+    public function testWorkspaceFileBuilderFallsBackToLegacyRole()
+    {
+        $agent = $this->createTestAgent();
+
+        // AgentObserver's `saving` hook syncs soul/instructions/output_format down
+        // into role.background/steps/output. To exercise the legacy fallback path
+        // we need soul/instructions/output_format to be null AND role to carry the
+        // legacy values — use saveQuietly() to bypass the observer.
+        $agent->soul = null;
+        $agent->instructions = null;
+        $agent->output_format = null;
+        $agent->role = [
+            'background' => 'Legacy background text',
+            'steps' => 'Legacy step instructions',
+        ];
+        $agent->saveQuietly();
+
+        $soulMd = WorkspaceFileBuilderService::buildSoulMd($agent);
+        $agentsMd = WorkspaceFileBuilderService::buildAgentsMd($agent);
+
+        $this->assertStringContainsString('Legacy background text', $soulMd);
+        $this->assertStringContainsString('Legacy step instructions', $agentsMd);
+        $this->assertStringNotContainsString('## Output Format', $soulMd);
+    }
+
+    public function testDeployUpdateAndRemoveAgent()
+    {
+        if (! $this->hasAgentRuntimeCredentials()) {
+            $this->markTestSkipped('OpenClaw SSH credentials not configured');
+        }
+
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $this->setupAgentRuntimeConfiguration($company);
+
+        $agent = $this->createTestAgent();
+        $this->deployedAgents[] = $agent;
+
+        $result = new DeployAgentAction($agent, $app, $company)->execute();
+
+        $this->assertEquals('deployed', $result->deployment_status);
+        $this->assertNotEmpty($result->get(CustomFieldEnum::OPENCLAW_AGENT_ID->value));
+        $this->assertNotEmpty($result->get(CustomFieldEnum::OPENCLAW_WORKSPACE_PATH->value));
+
+        $agent->update(['soul' => 'Updated soul content for testing.']);
+        $updateResult = new UpdateAgentDeploymentAction($agent, $app, $company)->execute();
+        $this->assertEquals('deployed', $updateResult->deployment_status);
+
+        $removeResult = new RemoveAgentAction($agent, $app, $company)->execute();
+        $this->assertTrue($removeResult);
+        $agent->refresh();
+        $this->assertEquals('pending', $agent->deployment_status);
+
+        $this->deployedAgents = [];
+    }
+
+    public function testGatewayOperations()
+    {
+        if (! $this->hasAgentRuntimeCredentials()) {
+            $this->markTestSkipped('OpenClaw SSH credentials not configured');
+        }
+
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $this->setupAgentRuntimeConfiguration($company);
+
+        $logs = new GetGatewayLogsAction($app, $company, 10)->execute();
+        $this->assertIsString($logs);
+
+        $agents = new ListAgentsAction($app, $company)->execute();
+        $this->assertIsArray($agents);
+
+        $usage = new GetUsageAction($app, $company)->execute();
+        $this->assertIsString($usage);
+        $this->assertNotEmpty($usage);
+
+        $health = new GetHealthAction($app, $company)->execute();
+        $this->assertIsString($health);
+        $this->assertNotEmpty($health);
+    }
+
+    public function testRemoveAgentWithoutOpenClawIdReturnsTrue()
+    {
+        $app = app(Apps::class);
+        $agent = $this->createTestAgent();
+        $company = auth()->user()->getCurrentCompany();
+
+        $result = new RemoveAgentAction($agent, $app, $company)->execute();
+
+        $this->assertTrue($result);
+    }
+}

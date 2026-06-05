@@ -7,6 +7,7 @@ namespace Kanvas\Subscription\Prices\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Subscription\Models\BaseModel;
 use Kanvas\Subscription\Plans\Models\Plan;
+use Override;
 
 /**
  * Class Price.
@@ -26,9 +27,17 @@ class Price extends BaseModel
     protected $table = 'apps_plans_prices';
     protected $guarded = [];
 
-    /**
-     * Plan relationship.
-     */
+    #[Override]
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+            'is_default' => 'boolean',
+            'is_deleted' => 'boolean',
+            'amount' => 'float',
+        ];
+    }
+
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class, 'apps_plans_id');

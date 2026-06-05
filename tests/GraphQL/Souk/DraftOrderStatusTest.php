@@ -50,7 +50,7 @@ class DraftOrderStatusTest extends TestCase
             company: $company,
             user: $user,
             name: fake()->name(),
-            sku: fake()->unique()->word(),
+            sku: fake()->unique()->uuid(),
             warehouses: [[
                 'quantity' => 10,
                 'price' => 10.00,

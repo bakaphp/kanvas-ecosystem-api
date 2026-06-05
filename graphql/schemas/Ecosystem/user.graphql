@@ -51,7 +51,9 @@ type User {
             builder: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\HashFieldsQuery@getAllByGraphType"
         )
     currentSubscription: UserSubscription
-        @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@currentSubscription")
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@currentSubscription"
+        )
 }
 
 type AddressType {
@@ -234,6 +236,15 @@ extend type Mutation {
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@reset"
         )
+    verifyEmail(token: String!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@verifyEmail"
+        )
+    resendVerificationEmail: Boolean!
+        @guard
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Auth\\AuthManagementMutation@resendVerificationEmail"
+        )
     updateUser(id: ID!, data: UpdateUserInput!): User!
         @guard
         @field(
@@ -333,10 +344,7 @@ extend type Query @guard {
         search: String @search
         where: _ @whereConditions(columnsEnum: UserAppEnumColumn)
         hasRoles: _
-            @whereHasConditions(
-                relation: "roles"
-                columns: ["id", "name"]
-            )
+            @whereHasConditions(relation: "roles", columns: ["id", "name"])
         orderBy: _
             @orderBy(
                 columns: [

@@ -4,6 +4,7 @@ namespace Kanvas\Souk\Payments\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,6 +12,8 @@ use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Payments\Actions\LogPaymentEventAction;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
+use Kanvas\Souk\Payments\Observers\PaymentObserver;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 
 /**
@@ -25,9 +28,16 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  * @property string $currency_code
  * @property float $currency_rate
  * @property string $status
+ * @property string|null $processor
+ * @property string|null $payment_intent_id
+ * @property string|null $authorization_code
+ * @property string|null $number
+ * @property string|null $payment_method_brand
+ * @property string|null $payment_method_last_four
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
+#[ObservedBy([PaymentObserver::class])]
 class Payments extends BaseModel
 {
     use CanUseWorkflow;
@@ -50,9 +60,31 @@ class Payments extends BaseModel
         return $this->hasMany(PaymentLogs::class, 'payments_id', 'id');
     }
 
+    public function refunds(): HasMany
+    {
+        return $this->hasMany(PaymentRefund::class, 'payments_id', 'id');
+    }
+
+    public function getRefundedAmount(): float
+    {
+        return (float) $this->refunds()
+            ->where('status', RefundStatusEnum::COMPLETED->value)
+            ->sum('amount');
+    }
+
+    public function isFullyRefunded(): bool
+    {
+        return $this->getRefundedAmount() >= (float) $this->amount;
+    }
+
     public function order(): BelongsTo
     {
         return $this->morphTo('payable');
+    }
+
+    public function getMetadata(string $key): mixed
+    {
+        return $this->metadata['data'][$key] ?? null;
     }
 
     public function addMetadata(array $metadata): void
@@ -67,20 +99,29 @@ class Payments extends BaseModel
         ];
     }
 
-    public function addLog(string $event, array $context = []): void
+    public function addLog(
+        string $event,
+        array $context = [],
+        ?string $errorCode = null,
+        ?string $errorMessage = null,
+    ): void {
+        app(LogPaymentEventAction::class)->execute(
+            $this,
+            $event,
+            $context,
+            $errorCode,
+            $errorMessage,
+        );
+    }
+
+    public function isPaid(): bool
     {
-        app(LogPaymentEventAction::class)->execute($this, $event, $context);
+        return $this->status === PaymentStatusEnum::PAID->value;
     }
 
     public function markAsPaid(array $metadata = []): void
     {
         $this->status = PaymentStatusEnum::PAID->value;
-
-        if ($this->payable) {
-            $this->payable->updateQuietly([
-                'payment_status' => PaymentStatusEnum::PAID->value,
-            ]);
-        }
 
         if (! empty($metadata)) {
             $this->addMetadata($metadata);
@@ -88,7 +129,13 @@ class Payments extends BaseModel
 
         $this->save();
 
-        if ($this->payable && method_exists($this->payable, 'checkPayments')) {
+        if (! $this->payable) {
+            return;
+        }
+
+        if (method_exists($this->payable, 'markAsPaid')) {
+            $this->payable->markAsPaid($this->user);
+        } elseif (method_exists($this->payable, 'checkPayments')) {
             $this->payable->checkPayments();
         }
     }

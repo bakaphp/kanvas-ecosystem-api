@@ -9,10 +9,12 @@ use Kanvas\Connectors\Shopify\Services\ShopifyProductService;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class ProcessShopifyProductWebhookJob extends ProcessWebhookJob
 {
     #[Override]

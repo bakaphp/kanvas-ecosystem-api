@@ -22,7 +22,22 @@ type Message {
     total_purchase: Int
     parent: Message @cacheRedis
     user: User!
-    children: [Message!] @hasMany(type: PAGINATOR)
+    children(
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                    "total_view"
+                    "total_liked"
+                    "total_shared"
+                    "total_saved"
+                    "total_children"
+                    "total_disliked"
+                ]
+            )
+    ): [Message!] @hasMany(relation: "children", type: PAGINATOR)
     messageType: MessageType! @cacheRedis
     appModuleMessage: AppModuleMessage @cacheRedis
     myInteraction: myInteraction @method(name: "getMyInteraction")
@@ -556,4 +571,21 @@ extend type Query @guard {
             defaultCount: 25
             builder: "App\\GraphQL\\Social\\Builders\\Messages\\MessageBuilder@viewMessageHistory"
         )
+
+    messageAnalytics(
+        from: Date
+        to: Date
+        bucket: AnalyticsBucket = DAY
+        timezone: String
+        message_type_id: ID
+    ): MessageAnalytics!
+        @field(
+            resolver: "App\\GraphQL\\Analytics\\Queries\\MessageAnalyticsQuery"
+        )
+}
+
+type MessageAnalytics {
+    periods: [AnalyticsPoint!]!
+    total: Int!
+    by_type: [AnalyticsCategoryPoint!]!
 }

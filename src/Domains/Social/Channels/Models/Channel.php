@@ -14,6 +14,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Inventory\Categories\Traits\HasCategoriesTrait;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Events\ChannelMessageCreatedEvent;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
@@ -36,6 +37,7 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  *  @property int $companies_id
  *  @property int|null $entity_id
  *  @property string|null $entity_namespace
+ *  @property array|null $metadata
  */
 class Channel extends BaseModel
 {
@@ -125,12 +127,17 @@ class Channel extends BaseModel
         $this->last_message_id = $message->id;
         $this->saveOrFail();
 
-        $this->fireWorkflow(WorkflowEnum::UPDATED->value, true, [
-           'message' => $message,
-           'user' => $user,
-           'app' => $message->app,
-           'company' => $message->company,
-        ]);
+        $this->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true,
+            [
+                'message' => $message,
+                'user' => $user,
+                'app' => $message->app,
+                'company' => $message->company,
+            ]
+        );
+
         if ($message->isPublic() && ! $message->isLocked()) {
             ChannelMessageCreatedEvent::dispatch($this, $message);
         }
@@ -170,5 +177,20 @@ class Channel extends BaseModel
             ->where('apps_id', $app->getId())
             ->notDeleted()
             ->first();
+    }
+
+    public function isNoteChannel(): bool
+    {
+        return $this->name === ChannelNameEnum::NOTES->value;
+    }
+
+    public function isAiAssistChannel(): bool
+    {
+        return $this->name == ChannelNameEnum::AI_ASSIST->value;
+    }
+
+    public function isDefaultChannel(): bool
+    {
+        return $this->name === ChannelNameEnum::DEFAULT->value;
     }
 }

@@ -8,9 +8,11 @@ use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Actions\ModelWizardModelChooserAction;
 use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class ModelWizardReceiverJob extends ProcessWebhookJob
 {
     #[Override]

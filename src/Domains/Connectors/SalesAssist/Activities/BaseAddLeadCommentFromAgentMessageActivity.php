@@ -4,17 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Activities;
 
-use Baka\Support\Url;
-use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
-use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
-use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
@@ -47,15 +41,6 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
     ): mixed;
 
     /**
-     * Get the enum key for tracking manager notification timestamp.
-     * Return null if not tracking notification timestamps.
-     */
-    protected function getManagerNotifiedAtKey(): ?string
-    {
-        return null;
-    }
-
-    /**
      * Whether to append AI chat link before adding the prefix.
      * Override to true for connectors that need link before prefix (e.g., Elead).
      */
@@ -80,7 +65,6 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
             default => 'Customer',
         };
 
-        //return ($fromAgent ? $agentChannel . 'Sally: ' : 'Customer: ') . $note;
         return $fromWho . ': ' . $note;
     }
 
@@ -94,13 +78,6 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
             return $note;
         }
 
-        //$shortUrl = Url::getShortUrl($aiChatLink, $app) . '?openInSa=true';
-        //$linkText = "\nView Full Conversation here: {$shortUrl}";
-
-        //if (strlen($note) + strlen($linkText) > 200) {
-        //    return substr($note, 0, 200 - strlen($linkText) - 5) . '...' . $linkText;
-        //}
-
         return $note;
     }
 
@@ -110,6 +87,12 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
     public function execute(Message $message, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
+
+        // Optional delay for testing purposes
+        if (isset($params['delay_seconds'])) {
+            sleep((int) $params['delay_seconds']);
+        }
+
         $company = $message->company;
 
         // Validate company integration
@@ -176,70 +159,13 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
 
                 $message->set('sent_to_crm', true);
 
-                // Notify managers
-                $sentManagerNotification = false;
-                if (! $fromAgent && $lead->company->get('ai_manager_notifications')) {
-                    $this->notifyManagers($message, $lead);
-                    $sentManagerNotification = true;
-                }
-
                 return [
                     'note' => $externalResult,
                     'from_agent' => $fromAgent,
                     'lead' => $lead->getId(),
-                    'sent_manager_notification' => $sentManagerNotification,
                 ];
             },
             company: $company,
         );
-    }
-
-    /**
-     * Notify managers about customer engagement.
-     */
-    protected function notifyManagers(Message $message, Lead $lead): void
-    {
-        $hoursTool = new CompanyWorkHoursTool($message)->execute();
-        if ($hoursTool['status'] !== 'work_hours') {
-            return;
-        }
-
-        // Check if we should only notify once
-        $notifiedAtKey = $this->getManagerNotifiedAtKey();
-        if ($notifiedAtKey !== null
-            && $lead->company->get(IntelligenceConfigurationEnum::AI_ENGAGEMENT_MESSAGE_ONLY_ONE_NOTIFICATION->value)
-            && $lead->get($notifiedAtKey)) {
-            return;
-        }
-
-        $notification = new Blank(
-            templateName: 'agent-manager-notification',
-            data: [
-                'message' => $message,
-                'company' => $message->company,
-                'app' => $message->app,
-                'user' => $message->user,
-            ],
-            via: ['sms', 'push', 'expo', 'mail'],
-            entity: $message
-        );
-
-        $notification->setSubject($lead->people->name . ' Engaged with Sally');
-        $notification->setPushTemplateName('agent_manager_push_notification');
-        $notification->setSmsTemplateName('agent_manager_sms_notification');
-
-        // Get managers
-        $managers = UsersRepository::getCompanyAppUserByRole(
-            $message->company,
-            $message->app,
-            'BDCManager'
-        )->get();
-
-        Notification::send($managers, $notification);
-
-        // Track notification timestamp if key is provided
-        if ($notifiedAtKey !== null) {
-            $lead->set($notifiedAtKey, date('Y-m-d H:i:s'));
-        }
     }
 }

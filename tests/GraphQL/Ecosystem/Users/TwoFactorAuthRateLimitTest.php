@@ -30,8 +30,8 @@ class TwoFactorAuthRateLimitTest extends TestCase
         $user = auth()->user();
         $rateLimitKey = 'two-factor-send:' . $app->getId() . ':' . $user->getId();
 
-        // Default limit is 3
-        for ($i = 0; $i < 3; $i++) {
+        // Default limit is 4
+        for ($i = 0; $i < 4; $i++) {
             RateLimiter::hit($rateLimitKey, 600);
         }
 

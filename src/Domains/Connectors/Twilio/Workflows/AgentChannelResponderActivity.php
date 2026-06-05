@@ -12,9 +12,11 @@ use Kanvas\Intelligence\Agents\Traits\HandlesSupportModeDelayedResponseTrait;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class AgentChannelResponderActivity extends KanvasActivity
 {
     use HandlesSupportModeDelayedResponseTrait;
@@ -31,7 +33,7 @@ class AgentChannelResponderActivity extends KanvasActivity
         $allowedChannels = $params['channelId'] ?? [];
         $channelAgentMapping = $params['channelAgentMapping'] ?? [];
 
-        return $this->executeIntegration(
+        $result = $this->executeIntegration(
             entity: $channel,
             app: $app,
             integration: IntegrationsEnum::TWILIO,
@@ -132,5 +134,7 @@ class AgentChannelResponderActivity extends KanvasActivity
             },
             company: $channel->company,
         );
+
+        return $result;
     }
 }

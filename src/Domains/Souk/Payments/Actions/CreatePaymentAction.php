@@ -1,8 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Kanvas\Souk\Payments\Actions;
 
 use Exception;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Str;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
@@ -24,6 +29,18 @@ class CreatePaymentAction
 
     public function execute($formData = []): Payments
     {
+        $idempotencyKey = $formData['idempotency_key'] ?? Str::uuid()->toString();
+
+        if ($idempotencyKey) {
+            $existing = Payments::where('idempotency_key', $idempotencyKey)
+                ->where('apps_id', $this->order->apps_id)
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+        }
+
         $paymentMethodId = $formData['payment_methods_id'] ?? $this->order->payment_method_id;
         $paymentMethod = $paymentMethodId ? PaymentMethods::fromApp($this->order->app)->where('id', $paymentMethodId)->first() : null;
         $paymentIntent = $formData['payment_intent_id'] ?? null;
@@ -42,6 +59,18 @@ class CreatePaymentAction
             throw new Exception('Order already paid');
         }
 
+        $paymentCurrency = $formData['currency'] ?? $this->order->currency;
+
+        if (
+            $this->order->currency
+            && $paymentCurrency
+            && strtoupper($paymentCurrency) !== strtoupper($this->order->currency)
+        ) {
+            throw new ValidationException(
+                "Payment currency ({$paymentCurrency}) does not match order currency ({$this->order->currency})"
+            );
+        }
+
         if ($this->hasPendingPayments()) {
             $this->order->payments()->pending()->forceDelete();
         }
@@ -52,15 +81,32 @@ class CreatePaymentAction
             "concept" => $formData['concept'] ?? "Payment {$this->order->reference}",
             "payment_methods_id" => $paymentMethodId,
             'payment_intent_id' => $paymentIntent,
+            'idempotency_key' => $idempotencyKey,
             'users_id' => $this->user->getId(),
             'companies_id' => $this->order->companies_id,
-            'currency' => $this->order->currency,
+            'currency' => $paymentCurrency,
             'status' => $formData['status'] ?? PaymentStatusEnum::PENDING->value,
             'payment_method' => $paymentMethodType ?? 'card',
-            'metadata' => $paymentMethodType ? ['payment_method_type' => $paymentMethodType] : null,
+            'payment_method_brand' => $paymentMethod?->payment_methods_brand,
+            'payment_method_last_four' => $paymentMethod?->payment_ending_numbers,
+            'processor' => $paymentMethod?->processor,
+            'metadata' => array_filter([
+                'payment_method_type' => $paymentMethodType ?: null,
+                'use_hold' => isset($formData['use_hold']) ? (bool) $formData['use_hold'] : null,
+            ]),
         ];
 
-        $payment = $this->order->payments()->create($paymentFormData);
+        try {
+            $payment = $this->order->payments()->create($paymentFormData);
+        } catch (UniqueConstraintViolationException $e) {
+            if ($idempotencyKey) {
+                return Payments::where('idempotency_key', $idempotencyKey)
+                    ->where('apps_id', $this->order->apps_id)
+                    ->firstOrFail();
+            }
+
+            throw $e;
+        }
 
         if ($payment->status === PaymentStatusEnum::PAID->value) {
             $this->order->markAsPaid($this->user);
