@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\FollowUp\Actions;
 
+use Carbon\CarbonInterface;
+use Carbon\CarbonInterval;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
-use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
@@ -99,7 +100,7 @@ final class FollowUpLeadAction
             return $this->skip('no_session');
         }
 
-        $lastInboundAt = $this->getLastInboundAt($session);
+        $lastInboundAt = $this->getLastInboundForLead();
         $targets = $this->selectTargets($candidates, $config);
         // Primary target drives prompt + template + ledger summary. For
         // FAN_OUT_ALL the same body is dispatched to every target below.
@@ -127,6 +128,7 @@ final class FollowUpLeadAction
             $config,
             $channelType,
             $template?->name,
+            $template !== null ? $this->renderTemplateForStyleReference($template) : null,
             $metaTemplate,
             $silenceMin
         );
@@ -221,21 +223,39 @@ final class FollowUpLeadAction
             ->first();
     }
 
-    private function getLastInboundAt(Session $session): ?Carbon
+    // Last inbound across ALL of the person's channels (lead-scoped). The
+    // previous session-scoped version missed inbound messages that landed
+    // on a different channel than the picked session.
+    private function getLastInboundForLead(): ?Carbon
     {
-        $channel = $session->channel;
-        if (! $channel instanceof Channel) {
+        if (! $this->lead->people_id) {
             return null;
         }
 
-        $message = $channel->messages()
+        $channelIds = Channel::query()
+            ->where('entity_namespace', People::class)
+            ->where('entity_id', $this->lead->people_id)
+            ->where('is_deleted', 0)
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->pluck('id');
+
+        if ($channelIds->isEmpty()) {
+            return null;
+        }
+
+        // No verb filter — `from_me = false` on a People-keyed channel is a
+        // strong-enough signal that this is the customer's inbound. The old
+        // verb=whatsapp-text filter excluded non-WhatsApp inbound (email/SMS)
+        // when the query went cross-channel.
+        $message = Message::query()
             ->where('message->from_me', false)
-            ->where('messages.is_deleted', 0)
+            ->where('is_deleted', 0)
             ->whereHas(
-                'messageType',
-                fn ($q) => $q->where('verb', MessageTypeEnum::TEXT->value),
+                'channels',
+                fn ($q) => $q->whereIn('channels.id', $channelIds),
             )
-            ->latest('messages.created_at')
+            ->latest('created_at')
             ->first();
 
         return $message?->created_at ? Carbon::parse($message->created_at) : null;
@@ -297,6 +317,7 @@ final class FollowUpLeadAction
         FollowUpConfig $config,
         string $channelType,
         ?string $templateName,
+        ?string $templateBody,
         ?string $metaTemplate,
         int $silenceMin,
     ): string {
@@ -313,6 +334,7 @@ final class FollowUpLeadAction
             'config' => $config,
             'channel' => $channelType,
             'template_name' => $templateName,
+            'template_body' => $templateBody,
             'meta_template' => $metaTemplate,
             'template_locked' => $metaTemplate !== null,
             'silence_minutes' => $silenceMin,
@@ -338,33 +360,86 @@ final class FollowUpLeadAction
     {
         $templateLocked = (bool) $context['template_locked'];
         $templateName = $context['template_name'];
+        $templateBody = $context['template_body'] ?? null;
+        $silenceMin = (int) $context['silence_minutes'];
 
-        return implode("\n", [
+        $silenceLine = $silenceMin === PHP_INT_MAX
+            ? 'Silence since last inbound: no prior inbound on file (cold lead OR no message stream yet).'
+            : 'Silence since last inbound: ' . CarbonInterval::minutes($silenceMin)
+                ->cascade()
+                ->forHumans(['parts' => 1, 'syntax' => CarbonInterface::DIFF_ABSOLUTE]) . '.';
+
+        $lines = [
             'Decide what to do for this lead in pipeline stage "' . $context['stage_name'] . '".',
-            'Silence since last inbound: ' . $context['silence_minutes'] . ' minutes.',
+            $silenceLine,
             'Follow-up count so far in this stage: ' . $context['follow_up_count'] . ' of ' . $context['max_retries'] . '.',
             'Outbound channel: ' . $context['channel'] . '.',
             $templateName !== null
                 ? 'Stage template configured: ' . $templateName . '.'
                 : 'No template configured for this stage.',
-            $templateLocked
-                ? 'CONSTRAINT: outside WhatsApp 24h window. Use a tone consistent with the registered template (meta_name: ' . $context['meta_template'] . ').'
-                : 'CONSTRAINT: inside WhatsApp 24h window (or non-WhatsApp). Free body allowed.',
-            'Use conversation history to decide should_respond / advance_stage / message / reason.',
-            'Respond with the JSON object only.',
-        ]);
+        ];
+
+        if (is_string($templateBody) && $templateBody !== '') {
+            $lines[] = '';
+            $lines[] = 'Tone reference — compose your `message` to match this voice (placeholders pre-rendered):';
+            $lines[] = '---';
+            $lines[] = $templateBody;
+            $lines[] = '---';
+            $lines[] = 'If the reference contains `[agent message slot]`, write only the inner content for that slot; otherwise write a full message in the reference\'s tone.';
+            $lines[] = '';
+        }
+
+        $lines[] = $templateLocked
+            ? 'CONSTRAINT: outside WhatsApp 24h window. Use a tone consistent with the registered template (meta_name: ' . $context['meta_template'] . ').'
+            : 'CONSTRAINT: inside WhatsApp 24h window (or non-WhatsApp). Free body allowed.';
+        $lines[] = 'Use conversation history to decide should_respond / advance_stage / message / reason.';
+        $lines[] = 'Respond with the JSON object only.';
+
+        return implode("\n", $lines);
     }
 
-    // For WhatsApp outside 24h, the rendered Blade is the LOCAL thread record;
-    // Meta substitutes its own registered body server-side from the meta name.
+    // Renders the template body with the lead/people/company context so the
+    // agent prompt sees actual text. Where the template has a `$agent_message`
+    // slot, we substitute a sentinel so the agent knows where its content lands.
+    private function renderTemplateForStyleReference(Templates $template): ?string
+    {
+        $body = (string) ($template->template ?? '');
+        if ($body === '') {
+            return null;
+        }
+
+        try {
+            return Blade::render($body, [
+                'lead' => $this->lead,
+                'people' => $this->lead->people ?? null,
+                'company' => $this->company,
+                'agent_message' => '[agent message slot]',
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return null;
+        }
+    }
+
+    // For templates with a `$agent_message` slot, render the template (agent
+    // message wrapped). For static templates without the slot, send the agent
+    // message directly — the template was a style guide only.
     private function resolveOutboundBody(
         string $channelType,
         ?Templates $template,
         string $agentMessage,
     ): string {
-        return $template !== null
-            ? $this->renderTemplateBlade($template, $agentMessage)
-            : $agentMessage;
+        if ($template === null) {
+            return $agentMessage;
+        }
+
+        $body = (string) ($template->template ?? '');
+        if (! str_contains($body, 'agent_message')) {
+            return $agentMessage;
+        }
+
+        return $this->renderTemplateBlade($template, $agentMessage);
     }
 
     private function renderTemplateBlade(Templates $template, string $agentMessage): string

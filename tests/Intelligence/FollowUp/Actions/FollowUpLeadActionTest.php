@@ -809,4 +809,172 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertContains('email', $event->payload['channels']);
         $this->assertContains('sms', $event->payload['channels']);
     }
+
+    public function testColdLeadPromptDoesNotLeakPhpIntMax(): void
+    {
+        // Cold lead, no inbound history → silence should render as
+        // "no prior inbound on file", never the raw PHP_INT_MAX value.
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Hi.',
+            reason: 'cold_lead',
+        );
+
+        new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $prompt = FollowUpAgentStub::lastPromptText();
+        $this->assertStringNotContainsString('9223372036854775807', $prompt);
+        $this->assertStringContainsString('no prior inbound', $prompt);
+    }
+
+    public function testPromptIncludesRenderedTemplateAsToneReferenceWhenTemplateConfigured(): void
+    {
+        // Template body contains Blade placeholders + an agent_message slot.
+        // Prompt should show the rendered body with placeholders resolved
+        // and the slot replaced with [agent message slot] sentinel.
+        $template = \Kanvas\Templates\Models\Templates::create([
+            'apps_id' => $this->testApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => $this->user->getId(),
+            'name' => 'fup_style_v1',
+            'title' => 'Following up with {{ $lead->company->name }}',
+            'template' => 'Hey {{ $people?->firstname ?? \'there\' }}, {{ $agent_message }} — Sales',
+        ]);
+
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => $template->name],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'circling back on pricing',
+            reason: 'style_ref',
+        );
+
+        new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $prompt = FollowUpAgentStub::lastPromptText();
+        $this->assertStringContainsString('Tone reference', $prompt);
+        $this->assertStringContainsString('Hey ', $prompt);
+        $this->assertStringContainsString('[agent message slot]', $prompt);
+        $this->assertStringContainsString('— Sales', $prompt);
+    }
+
+    public function testStaticTemplateDispatchesAgentMessageDirectlyAndAgentMessageSlotTemplateWraps(): void
+    {
+        // STATIC template (no $agent_message placeholder) → outbound dispatches
+        // agent message directly; template was a style guide only.
+        $staticTemplate = \Kanvas\Templates\Models\Templates::create([
+            'apps_id' => $this->testApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => $this->user->getId(),
+            'name' => 'fup_static_v1',
+            'title' => 'Static template',
+            'template' => 'Hi {{ $lead->people->firstname ?? \'there\' }}, static body.',
+        ]);
+
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => $staticTemplate->name],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'agent-composed body in template style',
+            reason: 'static_template',
+        );
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        // Agent's message is what gets sent, NOT the rendered static template.
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
+        $this->assertSame('agent-composed body in template style', $outcome->message);
+    }
+
+    public function testLastInboundIsFoundOnDifferentChannelThanPickedSession(): void
+    {
+        // Person has an inbound on channel A (email) from 30 min ago, but the
+        // picked session is on channel B (sms). With interval_minutes = 60,
+        // the lead-scoped query finds the email inbound and skips with too_soon.
+        // The old session-scoped code would have missed it.
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['mode'] = 'time_based';
+        $cfg['follow_up']['time_based'] = ['interval_minutes' => 60, 'advance_after_max_retries' => false];
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $smsSession = $this->seedSessionAndChannel($lead, 'sms');
+
+        // Create an inbound message on a DIFFERENT channel (email) for the same person.
+        $emailChannel = Channel::firstOrCreate(
+            [
+                'apps_id' => $this->testApp->getId(),
+                'companies_id' => $this->company->getId(),
+                'slug' => 'recent-inbound-email-' . $lead->getId(),
+            ],
+            [
+                'name' => 'Email channel',
+                'description' => 'test',
+                'users_id' => $this->user->getId(),
+                'entity_namespace' => \Kanvas\Guild\Customers\Models\People::class,
+                'entity_id' => $lead->people_id,
+            ]
+        );
+        $messageType = MessageType::firstOrCreate(
+            ['apps_id' => $this->testApp->getId(), 'languages_id' => 1, 'verb' => 'text'],
+            ['name' => 'Text']
+        );
+        $message = Message::create([
+            'apps_id' => $this->testApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => $this->user->getId(),
+            'message_types_id' => $messageType->getId(),
+            'message' => ['content' => 'hi', 'from_me' => false],
+            'created_at' => now()->subMinutes(30),
+            'updated_at' => now()->subMinutes(30),
+        ]);
+        $emailChannel->addMessage($message);
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        // 30 min of silence < 60 min interval → too_soon.
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertSame('too_soon', $outcome->reason);
+    }
 }

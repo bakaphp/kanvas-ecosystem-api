@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Stubs\FollowUp;
 
+use Generator;
 use Kanvas\Intelligence\Agents\Neuron\CRM\FollowUpAgent;
 use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\InMemoryChatHistory;
+use NeuronAI\Chat\Messages\AssistantMessage;
+use NeuronAI\Chat\Messages\Message;
+use NeuronAI\HttpClient\HttpClientInterface;
 use NeuronAI\Providers\AIProviderInterface;
+use NeuronAI\Providers\MessageMapperInterface;
+use NeuronAI\Providers\ToolMapperInterface;
 use Override;
-use Tests\Stubs\Intelligence\FakeNeuronProvider;
 
 /**
  * Test double for the real FollowUpAgent. Returns a canned JSON response
@@ -36,9 +41,32 @@ class FollowUpAgentStub extends FollowUpAgent
      */
     public static string $cannedResponse = '{"should_respond": false, "advance_stage": false, "message": null, "reason": "stub-default"}';
 
+    /**
+     * Captures the last batch of messages the provider was asked to chat on.
+     * Tests inspect this to assert prompt content (humanized silence,
+     * template-as-style-reference, etc.).
+     *
+     * @var Message[]
+     */
+    public static array $lastReceivedMessages = [];
+
     public static function reset(): void
     {
         self::$cannedResponse = '{"should_respond": false, "advance_stage": false, "message": null, "reason": "stub-default"}';
+        self::$lastReceivedMessages = [];
+    }
+
+    public static function lastPromptText(): string
+    {
+        $parts = [];
+        foreach (self::$lastReceivedMessages as $m) {
+            $content = $m->getContent();
+            if (is_string($content)) {
+                $parts[] = $content;
+            }
+        }
+
+        return implode("\n", $parts);
     }
 
     public static function configure(
@@ -58,7 +86,68 @@ class FollowUpAgentStub extends FollowUpAgent
     #[Override]
     protected function provider(): AIProviderInterface
     {
-        return new FakeNeuronProvider(self::$cannedResponse);
+        return new class (self::$cannedResponse) implements AIProviderInterface {
+            public function __construct(private readonly string $response)
+            {
+            }
+
+            public function systemPrompt(?string $prompt): AIProviderInterface
+            {
+                return $this;
+            }
+
+            public function setTools(array $tools): AIProviderInterface
+            {
+                return $this;
+            }
+
+            public function messageMapper(): MessageMapperInterface
+            {
+                return new class () implements MessageMapperInterface {
+                    public function map(array $messages): array
+                    {
+                        return [];
+                    }
+                };
+            }
+
+            public function toolPayloadMapper(): ToolMapperInterface
+            {
+                return new class () implements ToolMapperInterface {
+                    public function map(array $tools): array
+                    {
+                        return [];
+                    }
+                };
+            }
+
+            public function chat(Message ...$messages): Message
+            {
+                FollowUpAgentStub::$lastReceivedMessages = $messages;
+
+                return new AssistantMessage($this->response);
+            }
+
+            public function stream(Message ...$messages): Generator
+            {
+                FollowUpAgentStub::$lastReceivedMessages = $messages;
+                yield new AssistantMessage($this->response);
+
+                return new AssistantMessage($this->response);
+            }
+
+            public function structured(array|Message $messages, string $class, array $response_schema): Message
+            {
+                FollowUpAgentStub::$lastReceivedMessages = is_array($messages) ? $messages : [$messages];
+
+                return new AssistantMessage($this->response);
+            }
+
+            public function setHttpClient(HttpClientInterface $client): AIProviderInterface
+            {
+                return $this;
+            }
+        };
     }
 
     #[Override]
