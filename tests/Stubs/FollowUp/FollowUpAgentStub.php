@@ -50,10 +50,18 @@ class FollowUpAgentStub extends FollowUpAgent
      */
     public static array $lastReceivedMessages = [];
 
+    /**
+     * When non-null, the inline provider throws this on chat() — simulates a
+     * provider-level failure (Gemini safety filter, timeout, etc.) so we can
+     * exercise the RunNeuronChatAction catch + fallback path end-to-end.
+     */
+    public static ?\Throwable $throwOnChat = null;
+
     public static function reset(): void
     {
         self::$cannedResponse = '{"should_respond": false, "advance_stage": false, "message": null, "reason": "stub-default"}';
         self::$lastReceivedMessages = [];
+        self::$throwOnChat = null;
     }
 
     public static function lastPromptText(): string
@@ -124,6 +132,9 @@ class FollowUpAgentStub extends FollowUpAgent
             public function chat(Message ...$messages): Message
             {
                 FollowUpAgentStub::$lastReceivedMessages = $messages;
+                if (FollowUpAgentStub::$throwOnChat !== null) {
+                    throw FollowUpAgentStub::$throwOnChat;
+                }
 
                 return new AssistantMessage($this->response);
             }

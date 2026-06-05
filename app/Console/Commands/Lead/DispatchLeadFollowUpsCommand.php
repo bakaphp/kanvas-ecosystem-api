@@ -7,6 +7,8 @@ namespace App\Console\Commands\Lead;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Apps\Repositories\AppsRepository;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\FollowUp\Jobs\DispatchAppLeadFollowUpsJob;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Throwable;
@@ -40,8 +42,9 @@ class DispatchLeadFollowUpsCommand extends Command
             $this->info("Processing app {$app->id} - {$app->name}...");
             $this->overwriteAppService($app);
 
-            $companies = $app->companies()->get();
+            $companies = AppsRepository::getActiveCompaniesForAppBuilder($app)->cursor();
 
+            /** @var Companies $company */
             foreach ($companies as $company) {
                 $this->info("Checking work hours for company {$company->id} - {$company->name}...");
                 if (! $this->insideWorkHours($company)) {
@@ -64,7 +67,7 @@ class DispatchLeadFollowUpsCommand extends Command
         return (bool) $app->get('use_lead_follow_up_v2');
     }
 
-    private function insideWorkHours(object $company): bool
+    private function insideWorkHours(Companies $company): bool
     {
         try {
             $tool = new CompanyWorkHoursTool($company);
