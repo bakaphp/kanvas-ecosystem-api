@@ -876,10 +876,14 @@ class FollowUpLeadActionTest extends TestCase
         )->execute();
 
         $prompt = FollowUpAgentStub::lastPromptText();
-        $this->assertStringContainsString('Tone reference', $prompt);
+        $this->assertStringContainsString('Tone & voice reference', $prompt);
         $this->assertStringContainsString('Hey ', $prompt);
         $this->assertStringContainsString('[agent message slot]', $prompt);
         $this->assertStringContainsString('— Sales', $prompt);
+        // Anti-pattern guidance reaches the LLM.
+        $this->assertStringContainsString('Do NOT use generic phrases', $prompt);
+        // Positive direction: leverage conversation history concretely.
+        $this->assertStringContainsString('reiterate that offer CONCRETELY', $prompt);
     }
 
     public function testStaticTemplateDispatchesAgentMessageDirectlyAndAgentMessageSlotTemplateWraps(): void
@@ -1008,7 +1012,7 @@ class FollowUpLeadActionTest extends TestCase
         $prompt = FollowUpAgentStub::lastPromptText();
 
         // The default reference is always rendered when no template is configured.
-        $this->assertStringContainsString('Tone reference', $prompt);
+        $this->assertStringContainsString('Tone & voice reference', $prompt);
         $this->assertStringContainsString('neutral default tone reference', $prompt);
         $this->assertStringNotContainsString('No template configured for this stage.', $prompt);
         // Email default has "Best," sign-off in the body.
