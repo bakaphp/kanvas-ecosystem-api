@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
@@ -41,10 +42,12 @@ class TypesenseProductRecommendationTool implements KanvasToolInterface
     #[Override]
     public function description(): Stringable|string
     {
-        return 'Recommend products from a free-form, conversational request using Typesense '
-            . 'Natural Language Search. Pass the customer message VERBATIM (in their language) — '
-            . 'Typesense\'s LLM parses intent (recipient, occasion, budget, "expensive/cheap") into '
-            . 'filters and sorting on its own, so you do NOT need to pre-extract keywords or price. '
+        return 'Search the catalog for a CONCRETE product concept via Typesense Natural Language '
+            . 'Search. Pass a query that contains a product noun (optionally with gender / style / '
+            . 'budget), e.g. "reloj de lujo para hombre", "perfume para mujer menos de $50". '
+            . 'For a vague gift request, FIRST brainstorm 2-4 concrete concepts and call this tool '
+            . 'once per concept — a vague sentence with no product type returns nothing. '
+            . 'Typesense\'s LLM turns "caro/expensive" and budgets into price filters/sorts. '
             . 'Returns each product with its files, categories and full variant data (price, stock, '
             . 'channel.is_available). Out-of-stock / unpriced products are still returned, flagged '
             . 'is_available=false. Only usable when the tenant is on Typesense with an NL model set.';
@@ -106,18 +109,34 @@ class TypesenseProductRecommendationTool implements KanvasToolInterface
         try {
             return Products::search($query)
                 ->options([
-                    'query_by' => 'name,description,categories_flat',
+                    // query_by MUST list only string / string[] fields that exist
+                    // in this tenant's collection — an object field (e.g.
+                    // categories_flat) makes Typesense reject the whole search.
+                    'query_by' => $this->queryByFields(),
                     'nl_query' => true,
                     'nl_model_id' => $this->nlModelId(),
                 ])
                 ->take($poolSize)
                 ->keys()
                 ->all();
-        } catch (Throwable) {
-            // Unreachable engine / misconfigured NL model — surface as no-results
-            // rather than throwing into the agent loop.
+        } catch (Throwable $e) {
+            // Unreachable engine / misconfigured NL model / bad query_by — degrade
+            // to no-results rather than throwing into the agent loop, but log it
+            // so it isn't silently indistinguishable from a genuine empty result.
+            Log::warning('TypesenseProductRecommendationTool search failed', [
+                'app_id' => $this->app->getId(),
+                'message' => $e->getMessage(),
+            ]);
+
             return [];
         }
+    }
+
+    private function queryByFields(): string
+    {
+        $fields = $this->app->get('typesense_product_query_by');
+
+        return is_string($fields) && $fields !== '' ? $fields : 'name,description,categories.name';
     }
 
     private function typesenseConfigured(): bool
@@ -281,9 +300,12 @@ class TypesenseProductRecommendationTool implements KanvasToolInterface
         return [
             'query' => $schema
                 ->string()
-                ->description('The customer\'s request, VERBATIM and in their original language '
-                    . '(e.g. "un regalo para mi hermano mayor que le gustan las cosas caras"). '
-                    . 'Do not pre-parse it — Typesense\'s LLM extracts budget, recipient and intent.')
+                ->description('A CONCRETE product-intent query that contains a product noun, in the '
+                    . 'user\'s language, optionally with gender / style / budget — e.g. '
+                    . '"reloj de lujo para hombre", "perfume para mujer menos de $50". '
+                    . 'Do NOT pass a vague gift sentence with no product type ("cosas para mi hermano") '
+                    . '— it returns nothing. Expand vague requests into concrete concepts first and '
+                    . 'call this tool once per concept.')
                 ->required(),
             'limit' => $schema
                 ->integer()
