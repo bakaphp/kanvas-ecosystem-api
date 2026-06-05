@@ -15,6 +15,7 @@ use Laravel\Ai\Responses\Data\Meta;
 use Laravel\Ai\Responses\Data\ToolCall;
 use Laravel\Ai\Responses\Data\ToolResult;
 use Laravel\Ai\Responses\Data\Usage;
+use Laravel\Ai\Responses\StructuredAgentResponse;
 use Mockery;
 use Tests\TestCase;
 
@@ -73,5 +74,41 @@ class RunLaravelAgentChatActionTest extends TestCase
 
         $this->assertSame(10, $usage['prompt_tokens']);
         $this->assertSame(20, $usage['completion_tokens']);
+    }
+
+    public function testReturnsStructuredPayloadAsContentForStructuredAgent(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+
+        // A HasStructuredOutput agent puts its answer in ->structured and leaves
+        // ->text empty in JSON mode. The action must surface the JSON, not "".
+        $structured = ['recommendations' => [['product' => ['id' => 42]]]];
+        $response = new StructuredAgentResponse('inv-2', $structured, '', new Usage(1, 2), new Meta());
+
+        $handler = Mockery::mock(KanvasLaravelAgent::class);
+        $handler->shouldReceive('promptWithConfig')->once()->andReturn($response);
+
+        $result = new RunLaravelAgentChatAction(
+            agent: $agent,
+            session: null,
+            message: 'un regalo para mi esposo',
+            app: $app,
+            company: $company,
+            user: $user,
+            handler: $handler,
+        )->execute();
+
+        $this->assertNotSame('', $result, 'Structured agent reply must not be empty.');
+        $this->assertJson($result);
+
+        $decoded = json_decode($result, true);
+        $this->assertSame(42, $decoded['recommendations'][0]['product']['id']);
     }
 }

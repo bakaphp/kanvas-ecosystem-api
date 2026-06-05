@@ -20,7 +20,7 @@ class AgentInventoryRecommendationInstructionsTest extends TestCase
         $handler->setConfiguration($agent);
 
         $this->assertStringContainsString(
-            'inventory product-recommendation engine',
+            'gift-recommendation engine',
             (string) $handler->instructions(),
         );
     }
