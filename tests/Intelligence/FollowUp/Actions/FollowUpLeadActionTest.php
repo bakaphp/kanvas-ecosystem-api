@@ -756,4 +756,53 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
         $this->assertSame('no_reachable_channel', $outcome->reason);
     }
+
+    public function testFanOutAllDispatchesToEveryReachableChannelOnSingleTouch(): void
+    {
+        // Stage enables [email, sms]. Person has both contacts. fan_out_all
+        // should dispatch the same body to BOTH channels and bump count by 1.
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'email', 'enabled' => true, 'template_name' => null],
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $cfg['follow_up']['channel_selection'] = 'fan_out_all';
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Cross-channel ping.',
+            reason: 'fan_out',
+        );
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
+
+        $lead->refresh();
+        // One touch — count bumps by 1, not 2.
+        $this->assertSame(1, $lead->getFollowUpStateCount());
+        // Both channels recorded in follow_up_state.channels_used.
+        $this->assertContains('email', $lead->getFollowUpChannelsUsed());
+        $this->assertContains('sms', $lead->getFollowUpChannelsUsed());
+
+        // Ledger event lists both channels in payload.
+        $event = Event::query()
+            ->where('apps_id', $this->testApp->getId())
+            ->where('event_type', 'lead.follow_up.sent')
+            ->where('source_entity_id', $lead->getId())
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($event);
+        $this->assertSame('fan_out_all', $event->payload['channel_selection_strategy']);
+        $this->assertContains('email', $event->payload['channels']);
+        $this->assertContains('sms', $event->payload['channels']);
+    }
 }

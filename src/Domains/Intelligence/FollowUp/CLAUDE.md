@@ -159,34 +159,37 @@ If a tenant needs pure calendar-driven walking regardless of message outcome, th
 
 ## Channel resolution lives on the Lead, NOT the Session
 
-**The lead's reachable channels are decided by the person's `Contact` rows + the stage's enabled channels + opt-outs.** Not by which channel happened to have the most recent inbound. `Session::getChannel()` is `@deprecated for outbound channel selection` — it stays valid for "what channel did this conversation happen on?" inspection but does NOT drive outbound decisions.
+Reachable channels come from the person's `Contact` rows + stage-enabled channels + opt-outs — never from `Session::getChannel()` (which stays valid for inspection but is `@deprecated for outbound channel selection`).
 
-The flow lives in [`LeadOutboundChannelResolver`](Services/LeadOutboundChannelResolver.php):
+Resolved in [`LeadOutboundChannelResolver`](Services/LeadOutboundChannelResolver.php) — contact-type priority per channel:
 
-1. Read all non-opted-out `Contact` rows for the lead's person.
-2. For each `stage.config.follow_up.channels[].enabled` channel type, pick the best-matching contact:
-   - **`email`** → `PRIMARY_EMAIL` (9) → `EMAIL` (1) → `SECONDARY_EMAIL` (10), then `weight DESC`, then `id DESC`
-   - **`sms`** → `CELLPHONE` (3) → `PHONE` (2) → `WORK_PHONE` (8), then `weight DESC`, then `id DESC`
-   - **`whatsapp`** → only `CELLPHONE` (3) (need a mobile), then `weight DESC`, then `id DESC`
-3. Return ordered `ResolvedChannel[]` (stage-config order). Empty when nothing matches.
+| Channel | Eligible contact types (best → fallback) |
+|---|---|
+| `email` | `PRIMARY_EMAIL` (9) → `EMAIL` (1) → `SECONDARY_EMAIL` (10) |
+| `sms` | `CELLPHONE` (3) → `PHONE` (2) → `WORK_PHONE` (8) |
+| `whatsapp` | `CELLPHONE` (3) only |
 
-`channel_selection` strategy then picks one from the resolved list:
+Within each type, ordered by `weight DESC`, then `id DESC`. Opt-outs (`is_opt_out = 1`) excluded. Returns `ResolvedChannel[]` in stage-config order.
+
+`channel_selection` strategies:
 
 | Strategy | Behavior |
 |---|---|
-| `priority_only` | Always pick `candidates[0]` — stage config's first enabled-and-reachable channel wins. Past inbound history ignored. |
-| `sticky_then_priority` (default) | If `Session::getChannel()` matches a candidate, prefer that. Else fall back to `candidates[0]`. |
-| `agent_picks` | v1.5 — currently aliases to `sticky_then_priority`. See "Open v1.5 work" below. |
+| `priority_only` | One channel per touch — always `candidates[0]`. |
+| `sticky_then_priority` (default) | One channel per touch — sticky to last inbound channel if it's in candidates; else `candidates[0]`. |
+| `agent_picks` | v1.5 — currently aliases to `sticky_then_priority`. |
+| `fan_out_all` | **All reachable channels per touch.** Same agent message dispatched to every candidate. One touch = one bump (does NOT consume N retry slots for N channels). Same template + same body across channels — if you need per-channel templates, use a pick-one strategy instead. Reserved for high-urgency stages (demo reminder, deal closing). Tenants opt in per stage; default stays pick-one to avoid accidental cross-channel spam / TCPA-class compliance exposure. |
 
-**Skip reasons that depend on channel resolution:**
-- `no_session` — no Session row exists at all for the person. Still the gate for agent memory continuity.
-- `no_reachable_channel` — every stage-enabled channel has zero matching non-opted-out contacts. Replaces the old `channel_not_configured` skip (which was a session-driven false positive and is now dead).
+**Skip reasons:** `no_session` (no Session row for the person), `no_reachable_channel` (no stage-enabled channel has a matching non-opted-out contact). The old `channel_not_configured` skip is dead — was a session-driven false positive.
 
-**Opt-outs are now respected at the resolver level.** A `Contact` with `is_opt_out = 1` is silently filtered out. This is a behavior change from pre-fix: leads who had unsubscribed but were still being nudged on opted-out contacts will now skip with `no_reachable_channel` (assuming no other channel is reachable).
+**Opt-out behavior change:** leads who unsubscribed but were still being nudged on opted-out contacts will now skip with `no_reachable_channel` if no other channel is reachable. Pre-fix the action didn't consult opt-outs at all.
 
-### Open v1.5 work — agent-aware channel routing
+### Open v1.5 work — channel routing intelligence
 
-`ChannelSelectionEnum::AGENT_PICKS` is reserved but currently aliases to `sticky_then_priority`. The v1.5 spec: the resolver should consult per-channel agent decision history (`should_respond: false` outcomes from prior touches in this stage) and de-prioritize channels the agent has already declined. This requires a new "per-channel decision" sub-state in `follow_up_state`. Don't implement piecemeal — design it alongside the v1.5 role-mapping work in [`Agent resolution — current design + planned evolution`](#agent-resolution--current-design--planned-evolution).
+1. **Agent-aware routing.** `ChannelSelectionEnum::AGENT_PICKS` should consult per-channel agent decision history (`should_respond: false` outcomes from prior touches in this stage) and de-prioritize channels the agent already declined. Needs a "per-channel decision" sub-state in `follow_up_state`. Design alongside the v1.5 role-mapping work above.
+2. **Touch-number rotation.** Add `ChannelSelectionEnum::ROTATE_BY_TOUCH` — `$candidates[$lead->getFollowUpStateCount() % count($candidates)]`. Deterministic "email first, sms second, whatsapp third, wrap" pattern. No sticky/priority signal consulted.
+
+Both can ship independently — enum case + branch in `selectTargets` + test. Don't pre-build before a tenant actually needs it.
 
 ## `exhausted_action` is an enum — extend it deliberately
 

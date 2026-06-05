@@ -88,9 +88,7 @@ final class FollowUpLeadAction
             return $this->skip('ai_mode_manual');
         }
 
-        // Channel resolution lives on the Lead's contacts, NOT the Session. The
-        // session is agent memory (channel-agnostic). What we CAN reach the
-        // person on is decided by their contact rows + stage config + opt-outs.
+        // Channel resolution lives on the Lead's contacts
         $candidates = new LeadOutboundChannelResolver()->resolve($this->lead, $config);
         if ($candidates === []) {
             return $this->skip('no_reachable_channel');
@@ -102,10 +100,12 @@ final class FollowUpLeadAction
         }
 
         $lastInboundAt = $this->getLastInboundAt($session);
-        $picked = $this->selectByStrategy($candidates, $config, $session);
-        $channelType = $picked->channelType;
+        $targets = $this->selectTargets($candidates, $config, $session);
+        // Primary target drives prompt + template + ledger summary. For
+        // FAN_OUT_ALL the same body is dispatched to every target below.
+        $primary = $targets[0];
+        $channelType = $primary->channelType;
         $channelConfig = $config->channelByType($channelType);
-        $outboundContact = $picked->contact;
 
         $silenceMin = $this->lead->followUpSilenceMinutesSince($lastInboundAt);
 
@@ -153,6 +153,7 @@ final class FollowUpLeadAction
         }
 
         $sentBody = null;
+        $channelsForBump = [];
         if ($result->shouldRespond && $result->message !== null) {
             $sentBody = $this->resolveOutboundBody(
                 channelType: $channelType,
@@ -160,20 +161,25 @@ final class FollowUpLeadAction
                 agentMessage: $result->message,
             );
 
-            $this->persistMessage($session, $channelType, $sentBody);
-            $this->dispatchOutbound($channelType, $sentBody, $outboundContact);
-            $this->lead->bumpFollowUp([$channelType], $template?->name);
+            foreach ($targets as $target) {
+                $this->persistMessage($session, $target->channelType, $sentBody);
+                $this->dispatchOutbound($target->channelType, $sentBody, $target->contact);
+                $channelsForBump[] = $target->channelType;
+            }
+
+            // One touch = one bump regardless of N channels dispatched.
+            $this->lead->bumpFollowUp($channelsForBump, $template?->name);
         }
 
         $advanced = $result->advanceStage && $this->advanceLeadStage();
 
         $this->emitSent(
-            $channelType,
+            $channelsForBump !== [] ? $channelsForBump : [$channelType],
             $template?->name,
             $metaTemplate,
             $result->reason,
             $advanced,
-            $picked,
+            $primary,
             $config->channelSelection,
         );
 
@@ -182,14 +188,16 @@ final class FollowUpLeadAction
 
     /**
      * @param ResolvedChannel[] $candidates
+     * @return ResolvedChannel[] single-element for pick-one strategies, all candidates for fan_out_all
      */
-    private function selectByStrategy(array $candidates, FollowUpConfig $config, Session $session): ResolvedChannel
+    private function selectTargets(array $candidates, FollowUpConfig $config, Session $session): array
     {
+        // AGENT_PICKS aliases to sticky_then_priority pending v1.5 (see FollowUp CLAUDE.md).
         return match ($config->channelSelection) {
-            ChannelSelectionEnum::PRIORITY_ONLY => $candidates[0],
-            // v1.5 — agent-aware routing aliases to sticky_then_priority for now.
+            ChannelSelectionEnum::FAN_OUT_ALL => $candidates,
+            ChannelSelectionEnum::PRIORITY_ONLY => [$candidates[0]],
             ChannelSelectionEnum::STICKY_THEN_PRIORITY,
-            ChannelSelectionEnum::AGENT_PICKS => $this->pickStickyOrFallback($candidates, $session),
+            ChannelSelectionEnum::AGENT_PICKS => [$this->pickStickyOrFallback($candidates, $session)],
         };
     }
 
@@ -198,9 +206,6 @@ final class FollowUpLeadAction
      */
     private function pickStickyOrFallback(array $candidates, Session $session): ResolvedChannel
     {
-        // Sticky = the most recent inbound's channel, IF it matches a candidate.
-        // Channel-on-session is OK as a "last seen on" signal (not as the
-        // outbound decision driver — that's the resolver's job).
         $stickyChannel = (string) $session->getChannel();
 
         foreach ($candidates as $candidate) {
@@ -497,18 +502,21 @@ final class FollowUpLeadAction
         return FollowUpOutcome::exhausted($reason);
     }
 
+    /**
+     * @param string[] $channels  one element for pick-one strategies, N for fan_out_all
+     */
     private function emitSent(
-        string $channelType,
+        array $channels,
         ?string $templateName,
         ?string $metaTemplate,
         ?string $reason,
         bool $advanced,
-        ResolvedChannel $picked,
+        ResolvedChannel $primary,
         ChannelSelectionEnum $strategy,
     ): void {
         $this->lead->emitLedgerEvent('lead.follow_up.sent', payload: [
             'stage_id' => $this->lead->pipeline_stage_id,
-            'channels' => [$channelType],
+            'channels' => $channels,
             'template' => $templateName,
             'meta_template' => $metaTemplate,
             'follow_up_count' => $this->lead->getFollowUpStateCount(),
@@ -516,8 +524,8 @@ final class FollowUpLeadAction
             'reason' => $reason,
             'advanced_stage' => $advanced,
             'channel_selection_strategy' => $strategy->value,
-            'channel_selection_reason' => $picked->reason,
-            'contact_id' => $picked->contact->getKey(),
+            'channel_selection_reason' => $primary->reason,
+            'contact_id' => $primary->contact->getKey(),
         ]);
     }
 }

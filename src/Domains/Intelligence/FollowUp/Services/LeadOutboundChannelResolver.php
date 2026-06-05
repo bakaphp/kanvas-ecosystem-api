@@ -12,17 +12,9 @@ use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpConfig;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ResolvedChannel;
 
 /**
- * Maps a Lead's reachable contacts (email/phone) against a stage's enabled
- * channels to produce an ORDERED list of outbound options. The first item
- * is what `priority_only` picks; `sticky_then_priority` may override based
- * on inbound history.
- *
- * Opt-outs are filtered out — never returned in candidates.
- *
- * @todo v1.5 — agent-aware routing: take prior `should_respond: false`
- *       outcomes per channel into account so the resolver can de-prioritize
- *       channels the agent already declined this stage. Today the resolver
- *       has no view of agent decision history.
+ * Maps a Lead's reachable contacts against a stage's enabled channels.
+ * Opt-outs (`is_opt_out = 1`) are filtered out. See FollowUp CLAUDE.md
+ * "Channel resolution lives on the Lead" + v1.5 TODOs.
  */
 final class LeadOutboundChannelResolver
 {
