@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
+use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
@@ -21,8 +22,11 @@ use Kanvas\Intelligence\FollowUp\DataTransferObject\AgentFollowUpResult;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ChannelConfig;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpConfig;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpOutcome;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\ResolvedChannel;
+use Kanvas\Intelligence\FollowUp\Enums\ChannelSelectionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\ExhaustedActionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpModeEnum;
+use Kanvas\Intelligence\FollowUp\Services\LeadOutboundChannelResolver;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
@@ -84,18 +88,25 @@ final class FollowUpLeadAction
             return $this->skip('ai_mode_manual');
         }
 
+        // Channel resolution lives on the Lead's contacts, NOT the Session. The
+        // session is agent memory (channel-agnostic). What we CAN reach the
+        // person on is decided by their contact rows + stage config + opt-outs.
+        $candidates = new LeadOutboundChannelResolver()->resolve($this->lead, $config);
+        if ($candidates === []) {
+            return $this->skip('no_reachable_channel');
+        }
+
         $session = $this->resolveSession();
         if (! $session) {
             return $this->skip('no_session');
         }
 
-        $channelType = (string) $session->getChannel();
-        $channelConfig = $config->channelByType($channelType);
-        if (! $channelConfig) {
-            return $this->skip('channel_not_configured');
-        }
-
         $lastInboundAt = $this->getLastInboundAt($session);
+        $picked = $this->selectByStrategy($candidates, $config, $session);
+        $channelType = $picked->channelType;
+        $channelConfig = $config->channelByType($channelType);
+        $outboundContact = $picked->contact;
+
         $silenceMin = $this->lead->followUpSilenceMinutesSince($lastInboundAt);
 
         if (! $this->force && $silenceMin < $config->timeBased->intervalMinutes) {
@@ -150,7 +161,7 @@ final class FollowUpLeadAction
             );
 
             $this->persistMessage($session, $channelType, $sentBody);
-            $this->dispatchOutbound($channelType, $sentBody);
+            $this->dispatchOutbound($channelType, $sentBody, $outboundContact);
             $this->lead->bumpFollowUp([$channelType], $template?->name);
         }
 
@@ -161,10 +172,44 @@ final class FollowUpLeadAction
             $template?->name,
             $metaTemplate,
             $result->reason,
-            $advanced
+            $advanced,
+            $picked,
+            $config->channelSelection,
         );
 
         return FollowUpOutcome::sent($sentBody);
+    }
+
+    /**
+     * @param ResolvedChannel[] $candidates
+     */
+    private function selectByStrategy(array $candidates, FollowUpConfig $config, Session $session): ResolvedChannel
+    {
+        return match ($config->channelSelection) {
+            ChannelSelectionEnum::PRIORITY_ONLY => $candidates[0],
+            // v1.5 — agent-aware routing aliases to sticky_then_priority for now.
+            ChannelSelectionEnum::STICKY_THEN_PRIORITY,
+            ChannelSelectionEnum::AGENT_PICKS => $this->pickStickyOrFallback($candidates, $session),
+        };
+    }
+
+    /**
+     * @param ResolvedChannel[] $candidates
+     */
+    private function pickStickyOrFallback(array $candidates, Session $session): ResolvedChannel
+    {
+        // Sticky = the most recent inbound's channel, IF it matches a candidate.
+        // Channel-on-session is OK as a "last seen on" signal (not as the
+        // outbound decision driver — that's the resolver's job).
+        $stickyChannel = (string) $session->getChannel();
+
+        foreach ($candidates as $candidate) {
+            if ($candidate->channelType === $stickyChannel) {
+                return $candidate;
+            }
+        }
+
+        return $candidates[0];
     }
 
     // Sessions are keyed to People (not Lead) in the new sales-agent infra —
@@ -387,7 +432,7 @@ final class FollowUpLeadAction
         return $message;
     }
 
-    private function dispatchOutbound(string $channelType, string $body): void
+    private function dispatchOutbound(string $channelType, string $body, Contact $outboundContact): void
     {
         $emailTitle = (string) ($this->lead->get('title_email_follow_up') ?? $this->company->name);
         $twilioFrom = (string) $this->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value);
@@ -398,6 +443,7 @@ final class FollowUpLeadAction
                 message: $body,
                 from: $twilioFrom,
                 title: $emailTitle,
+                to: (string) $outboundContact->value,
             );
         } catch (Throwable $e) {
             // Outbound failure does NOT roll back the persisted message — the
@@ -457,6 +503,8 @@ final class FollowUpLeadAction
         ?string $metaTemplate,
         ?string $reason,
         bool $advanced,
+        ResolvedChannel $picked,
+        ChannelSelectionEnum $strategy,
     ): void {
         $this->lead->emitLedgerEvent('lead.follow_up.sent', payload: [
             'stage_id' => $this->lead->pipeline_stage_id,
@@ -467,6 +515,9 @@ final class FollowUpLeadAction
             'by_agent_id' => $this->agent->getId(),
             'reason' => $reason,
             'advanced_stage' => $advanced,
+            'channel_selection_strategy' => $strategy->value,
+            'channel_selection_reason' => $picked->reason,
+            'contact_id' => $picked->contact->getKey(),
         ]);
     }
 }

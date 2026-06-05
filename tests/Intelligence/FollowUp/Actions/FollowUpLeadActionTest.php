@@ -223,15 +223,19 @@ class FollowUpLeadActionTest extends TestCase
     // ─────────────────────────────────────────────────────────────────────
     // Gate 4: session channel not in stage config → channel_not_configured
     // ─────────────────────────────────────────────────────────────────────
-    public function testSkipsWhenChannelNotConfigured(): void
+    public function testSkipsWhenLeadHasNoReachableContactForEnabledChannels(): void
     {
-        // Stage config only enables 'email' but session is on 'whatsapp'.
+        // Stage enables ONLY whatsapp. Person has only an email contact (no
+        // phones). Resolver returns zero candidates → no_reachable_channel.
         $cfg = $this->defaultStageConfig();
         $cfg['follow_up']['channels'] = [
-            ['type' => 'email', 'enabled' => true, 'template_name' => null],
+            ['type' => 'whatsapp', 'enabled' => true, 'template_name' => null],
         ];
         $lead = $this->seedLeadWithStageConfig($cfg);
         $this->seedSessionAndChannel($lead, 'whatsapp');
+
+        // Strip all phone contacts so the person can only be emailed.
+        $lead->people->contacts()->whereIn('contacts_types_id', [2, 3, 8])->delete();
 
         $outcome = new FollowUpLeadAction(
             app: $this->testApp,
@@ -241,7 +245,7 @@ class FollowUpLeadActionTest extends TestCase
         )->execute();
 
         $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
-        $this->assertSame('channel_not_configured', $outcome->reason);
+        $this->assertSame('no_reachable_channel', $outcome->reason);
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -592,5 +596,164 @@ class FollowUpLeadActionTest extends TestCase
             'content' => [],
             'is_deleted' => 0,
         ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Channel resolution — multi-channel selection via the resolver path.
+    // Regression coverage for the bug where Session::getChannel() drove the
+    // outbound choice and skipped leads whose latest session was on a
+    // non-configured channel even when other channels were reachable.
+    // ─────────────────────────────────────────────────────────────────────
+
+    public function testSessionFromOtherChannelStillProvidesMemoryWhileResolverPicksConfiguredChannel(): void
+    {
+        // Stage enables ONLY email. Session is on whatsapp (memory continuity).
+        // Old code skipped with channel_not_configured; new code resolves
+        // email from the person's contacts and proceeds.
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'email', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'whatsapp');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Hi via email despite whatsapp memory.',
+            reason: 'happy_path_multi_channel',
+        );
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
+        $lead->refresh();
+        $this->assertContains('email', $lead->getFollowUpChannelsUsed());
+    }
+
+    public function testStickyThenPriorityPicksStickyChannelWhenMatchingConfig(): void
+    {
+        // Stage enables [email, sms]. Last inbound (session) is on sms.
+        // sticky_then_priority should pick sms even though email is config[0].
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'email', 'enabled' => true, 'template_name' => null],
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $cfg['follow_up']['channel_selection'] = 'sticky_then_priority';
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Sticky sms wins.',
+            reason: 'sticky_match',
+        );
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
+        $lead->refresh();
+        $this->assertContains('sms', $lead->getFollowUpChannelsUsed());
+        $this->assertNotContains('email', $lead->getFollowUpChannelsUsed());
+    }
+
+    public function testPriorityOnlyHonorsConfigOrderRegardlessOfStickyChannel(): void
+    {
+        // Stage enables [email, sms]. Last inbound is on sms. priority_only
+        // ignores the sticky signal and picks email (config[0]).
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'email', 'enabled' => true, 'template_name' => null],
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $cfg['follow_up']['channel_selection'] = 'priority_only';
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Priority wins over sticky.',
+            reason: 'priority_only',
+        );
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
+        $lead->refresh();
+        $this->assertContains('email', $lead->getFollowUpChannelsUsed());
+        $this->assertNotContains('sms', $lead->getFollowUpChannelsUsed());
+    }
+
+    public function testStickyFallsBackToPriorityWhenStickyChannelNotInConfig(): void
+    {
+        // Stage enables only [email]. Last inbound on whatsapp. sticky has
+        // no match → falls back to priority → picks email.
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'email', 'enabled' => true, 'template_name' => null],
+        ];
+        $cfg['follow_up']['channel_selection'] = 'sticky_then_priority';
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'whatsapp');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Falls back cleanly.',
+            reason: 'sticky_fallback',
+        );
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
+    }
+
+    public function testRespectsOptOutOnContact(): void
+    {
+        // Person's email contact is opted out + no phones eligible →
+        // no_reachable_channel skip.
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'email', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'email');
+
+        // Wipe phones, opt out the email.
+        $lead->people->contacts()->whereIn('contacts_types_id', [2, 3, 8])->delete();
+        $lead->people->contacts()->where('contacts_types_id', 1)->update(['is_opt_out' => 1]);
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertSame('no_reachable_channel', $outcome->reason);
     }
 }
