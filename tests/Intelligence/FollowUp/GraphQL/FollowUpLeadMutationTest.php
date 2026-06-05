@@ -101,4 +101,85 @@ class FollowUpLeadMutationTest extends TestCase
                 ],
             ]);
     }
+
+    public function testResetLeadFollowUpMutationClearsExhaustionAndCount(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $company->set(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value, $user->getId());
+
+        SystemModules::firstOrCreate(
+            ['model_name' => Lead::class],
+            ['name' => 'Leads', 'slug' => 'leads', 'description' => 'tests']
+        );
+
+        $pipeline = Pipeline::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'system_modules_id' => 0,
+            'name' => 'Reset',
+            'is_default' => 0,
+        ]);
+        $stage = PipelineStage::create(['pipelines_id' => $pipeline->getId(), 'name' => 'S', 'weight' => 1, 'config' => null]);
+        $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
+            'pipeline_id' => $pipeline->getId(),
+            'pipeline_stage_id' => $stage->getId(),
+        ]);
+        $lead->markFollowUpExhausted('agent: stub');
+        $lead->bumpFollowUp(['email'], null);
+
+        $this->assertTrue($lead->isFollowUpExhausted());
+        $this->assertSame(1, $lead->getFollowUpStateCount());
+
+        $this->graphQL('
+            mutation($leadId: ID!) { resetLeadFollowUp(leadId: $leadId) }
+        ', ['leadId' => (string) $lead->getId()])
+            ->assertSuccessful()
+            ->assertJson(['data' => ['resetLeadFollowUp' => true]]);
+
+        $lead->refresh();
+        $this->assertFalse($lead->isFollowUpExhausted());
+        $this->assertSame(0, $lead->getFollowUpStateCount());
+    }
+
+    public function testResumeLeadFollowUpMutationClearsExhaustionAndCount(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $company->set(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value, $user->getId());
+
+        SystemModules::firstOrCreate(
+            ['model_name' => Lead::class],
+            ['name' => 'Leads', 'slug' => 'leads', 'description' => 'tests']
+        );
+
+        $pipeline = Pipeline::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'system_modules_id' => 0,
+            'name' => 'Resume',
+            'is_default' => 0,
+        ]);
+        $stage = PipelineStage::create(['pipelines_id' => $pipeline->getId(), 'name' => 'S', 'weight' => 1, 'config' => null]);
+        $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
+            'pipeline_id' => $pipeline->getId(),
+            'pipeline_stage_id' => $stage->getId(),
+        ]);
+        $lead->markFollowUpExhausted('agent: stub');
+        $lead->bumpFollowUp(['email'], null);
+
+        $this->graphQL('
+            mutation($leadId: ID!) { resumeLeadFollowUp(leadId: $leadId) }
+        ', ['leadId' => (string) $lead->getId()])
+            ->assertSuccessful()
+            ->assertJson(['data' => ['resumeLeadFollowUp' => true]]);
+
+        $lead->refresh();
+        $this->assertFalse($lead->isFollowUpExhausted());
+        $this->assertSame(0, $lead->getFollowUpStateCount());
+    }
 }

@@ -1015,6 +1015,57 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertStringContainsString('Best,', $prompt);
     }
 
+    public function testSentMessageIsAttachedToLeadDefaultChannelForUiVisibility(): void
+    {
+        // The action persists the outbound body to the session's channel AND
+        // to the Lead's default channel (via LeadChannelService) so the
+        // customer-facing thread shows what went out, not just the agent's
+        // JSON in agent_histories. Without this attach, operators have to
+        // guess what was sent.
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'follow-up body the operator must see',
+            reason: 'lead_channel_visibility',
+        );
+
+        new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        // LeadChannelService creates/uses the Lead's default channel. Find it.
+        $leadChannel = Channel::query()
+            ->where('apps_id', $this->testApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('entity_namespace', Lead::class)
+            ->where('entity_id', $lead->getId())
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($leadChannel, 'Lead default channel must exist after the send.');
+
+        $messageBodies = $leadChannel->messages()
+            ->get()
+            ->pluck('message.content')
+            ->filter()
+            ->all();
+        $this->assertContains(
+            'follow-up body the operator must see',
+            $messageBodies,
+            "Lead channel must contain the actual outbound body so operators don't have to query agent_histories."
+        );
+    }
+
     public function testProviderErrorMarkerSurfacedInOutcomeReasonViaFallback(): void
     {
         // Force the provider to throw so RunNeuronChatAction's catch block
