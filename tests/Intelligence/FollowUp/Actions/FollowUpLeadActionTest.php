@@ -636,10 +636,13 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertContains('email', $lead->getFollowUpChannelsUsed());
     }
 
-    public function testStickyThenPriorityPicksStickyChannelWhenMatchingConfig(): void
+    public function testStickyThenPriorityIsAliasedToPriorityOnlyInV1(): void
     {
-        // Stage enables [email, sms]. Last inbound (session) is on sms.
-        // sticky_then_priority should pick sms even though email is config[0].
+        // In v1, sticky_then_priority is aliased to priority_only because the
+        // previous session-UUID-marker sticky signal was unreliable. With
+        // config [email, sms] and a session on sms, the action picks email
+        // (config[0]) — not sms. v1.5 will implement true sticky via
+        // last-inbound-message lookup; see FollowUp CLAUDE.md.
         $cfg = $this->defaultStageConfig();
         $cfg['follow_up']['channels'] = [
             ['type' => 'email', 'enabled' => true, 'template_name' => null],
@@ -652,8 +655,8 @@ class FollowUpLeadActionTest extends TestCase
         FollowUpAgentStub::configure(
             shouldRespond: true,
             advanceStage: false,
-            message: 'Sticky sms wins.',
-            reason: 'sticky_match',
+            message: 'Priority wins (sticky aliased in v1).',
+            reason: 'sticky_v1_alias',
         );
 
         $outcome = new FollowUpLeadAction(
@@ -665,8 +668,8 @@ class FollowUpLeadActionTest extends TestCase
 
         $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
         $lead->refresh();
-        $this->assertContains('sms', $lead->getFollowUpChannelsUsed());
-        $this->assertNotContains('email', $lead->getFollowUpChannelsUsed());
+        $this->assertContains('email', $lead->getFollowUpChannelsUsed());
+        $this->assertNotContains('sms', $lead->getFollowUpChannelsUsed());
     }
 
     public function testPriorityOnlyHonorsConfigOrderRegardlessOfStickyChannel(): void
@@ -702,10 +705,11 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertNotContains('sms', $lead->getFollowUpChannelsUsed());
     }
 
-    public function testStickyFallsBackToPriorityWhenStickyChannelNotInConfig(): void
+    public function testStickyConfigSendsCleanlyOnSingleEnabledChannel(): void
     {
-        // Stage enables only [email]. Last inbound on whatsapp. sticky has
-        // no match → falls back to priority → picks email.
+        // Sanity check: sticky_then_priority config keyword doesn't break the
+        // single-channel happy path even when the session is on a different
+        // channel. (v1 aliases sticky to priority_only, so config[0] wins.)
         $cfg = $this->defaultStageConfig();
         $cfg['follow_up']['channels'] = [
             ['type' => 'email', 'enabled' => true, 'template_name' => null],
@@ -717,8 +721,8 @@ class FollowUpLeadActionTest extends TestCase
         FollowUpAgentStub::configure(
             shouldRespond: true,
             advanceStage: false,
-            message: 'Falls back cleanly.',
-            reason: 'sticky_fallback',
+            message: 'Sends cleanly.',
+            reason: 'sticky_alias',
         );
 
         $outcome = new FollowUpLeadAction(

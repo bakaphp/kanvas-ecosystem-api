@@ -100,7 +100,7 @@ final class FollowUpLeadAction
         }
 
         $lastInboundAt = $this->getLastInboundAt($session);
-        $targets = $this->selectTargets($candidates, $config, $session);
+        $targets = $this->selectTargets($candidates, $config);
         // Primary target drives prompt + template + ledger summary. For
         // FAN_OUT_ALL the same body is dispatched to every target below.
         $primary = $targets[0];
@@ -190,31 +190,17 @@ final class FollowUpLeadAction
      * @param ResolvedChannel[] $candidates
      * @return ResolvedChannel[] single-element for pick-one strategies, all candidates for fan_out_all
      */
-    private function selectTargets(array $candidates, FollowUpConfig $config, Session $session): array
+    private function selectTargets(array $candidates, FollowUpConfig $config): array
     {
-        // AGENT_PICKS aliases to sticky_then_priority pending v1.5 (see FollowUp CLAUDE.md).
+        // STICKY_THEN_PRIORITY + AGENT_PICKS are aliased to PRIORITY_ONLY in v1 —
+        // the session-marker sticky signal is unreliable in the new sales-agent
+        // infra. v1.5 will implement sticky via last-inbound-message lookup.
         return match ($config->channelSelection) {
             ChannelSelectionEnum::FAN_OUT_ALL => $candidates,
-            ChannelSelectionEnum::PRIORITY_ONLY => [$candidates[0]],
+            ChannelSelectionEnum::PRIORITY_ONLY,
             ChannelSelectionEnum::STICKY_THEN_PRIORITY,
-            ChannelSelectionEnum::AGENT_PICKS => [$this->pickStickyOrFallback($candidates, $session)],
+            ChannelSelectionEnum::AGENT_PICKS => [$candidates[0]],
         };
-    }
-
-    /**
-     * @param ResolvedChannel[] $candidates
-     */
-    private function pickStickyOrFallback(array $candidates, Session $session): ResolvedChannel
-    {
-        $stickyChannel = (string) $session->getChannel();
-
-        foreach ($candidates as $candidate) {
-            if ($candidate->channelType === $stickyChannel) {
-                return $candidate;
-            }
-        }
-
-        return $candidates[0];
     }
 
     // Sessions are keyed to People (not Lead) in the new sales-agent infra —

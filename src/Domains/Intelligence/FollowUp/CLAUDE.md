@@ -176,8 +176,8 @@ Within each type, ordered by `weight DESC`, then `id DESC`. Opt-outs (`is_opt_ou
 | Strategy | Behavior |
 |---|---|
 | `priority_only` | One channel per touch — always `candidates[0]`. |
-| `sticky_then_priority` (default) | One channel per touch — sticky to last inbound channel if it's in candidates; else `candidates[0]`. |
-| `agent_picks` | v1.5 — currently aliases to `sticky_then_priority`. |
+| `sticky_then_priority` (default) | **v1: aliases to `priority_only`.** True sticky requires a lead-scoped "last channel the customer reached out on" signal — the previous session-UUID-marker approach was unreliable in the new sales-agent infra. See v1.5 TODO. |
+| `agent_picks` | **v1: aliases to `priority_only`.** Future agent-aware routing — see v1.5 TODO. |
 | `fan_out_all` | **All reachable channels per touch.** Same agent message dispatched to every candidate. One touch = one bump (does NOT consume N retry slots for N channels). Same template + same body across channels — if you need per-channel templates, use a pick-one strategy instead. Reserved for high-urgency stages (demo reminder, deal closing). Tenants opt in per stage; default stays pick-one to avoid accidental cross-channel spam / TCPA-class compliance exposure. |
 
 **Skip reasons:** `no_session` (no Session row for the person), `no_reachable_channel` (no stage-enabled channel has a matching non-opted-out contact). The old `channel_not_configured` skip is dead — was a session-driven false positive.
@@ -186,10 +186,11 @@ Within each type, ordered by `weight DESC`, then `id DESC`. Opt-outs (`is_opt_ou
 
 ### Open v1.5 work — channel routing intelligence
 
-1. **Agent-aware routing.** `ChannelSelectionEnum::AGENT_PICKS` should consult per-channel agent decision history (`should_respond: false` outcomes from prior touches in this stage) and de-prioritize channels the agent already declined. Needs a "per-channel decision" sub-state in `follow_up_state`. Design alongside the v1.5 role-mapping work above.
-2. **Touch-number rotation.** Add `ChannelSelectionEnum::ROTATE_BY_TOUCH` — `$candidates[$lead->getFollowUpStateCount() % count($candidates)]`. Deterministic "email first, sms second, whatsapp third, wrap" pattern. No sticky/priority signal consulted.
+1. **Proper sticky implementation.** `ChannelSelectionEnum::STICKY_THEN_PRIORITY` should pick the channel the CUSTOMER last messaged on, not the session's UUID-marker channel. Query the most recent inbound `Message` across all the person's sessions/channels (lead-scoped, not session-scoped), determine its channel type from the message_type/channel join, and prefer that if it matches a candidate. Falls back to `candidates[0]` for cold leads. Remove the v1 alias-to-priority once implemented.
+2. **Agent-aware routing.** `ChannelSelectionEnum::AGENT_PICKS` should consult per-channel agent decision history (`should_respond: false` outcomes from prior touches in this stage) and de-prioritize channels the agent already declined. Needs a "per-channel decision" sub-state in `follow_up_state`. Design alongside the v1.5 role-mapping work above.
+3. **Touch-number rotation.** Add `ChannelSelectionEnum::ROTATE_BY_TOUCH` — `$candidates[$lead->getFollowUpStateCount() % count($candidates)]`. Deterministic "email first, sms second, whatsapp third, wrap" pattern. No sticky/priority signal consulted.
 
-Both can ship independently — enum case + branch in `selectTargets` + test. Don't pre-build before a tenant actually needs it.
+All three can ship independently — enum case (or branch for #1 which case already exists) + branch in `selectTargets` + test. Don't pre-build before a tenant actually needs it.
 
 ## `exhausted_action` is an enum — extend it deliberately
 
