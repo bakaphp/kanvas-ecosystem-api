@@ -146,6 +146,7 @@ trait KanvasModelTrait
                 ->when($app, function ($query, $app) {
                     $query->where('apps_id', $app->getId());
                 })
+                ->orderByDesc('id')
                 ->firstOrFail();
         } catch (ModelNotFoundException $e) {
             // Custom error message for company and app lookup by UUID

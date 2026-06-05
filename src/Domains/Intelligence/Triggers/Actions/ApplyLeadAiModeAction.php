@@ -230,7 +230,6 @@ class ApplyLeadAiModeAction
                     'content' => $noteContent,
                     'from_me' => true,
                 ],
-                is_public: 0,
             )
         );
         $createMessageAction->runWorkflow = true;
