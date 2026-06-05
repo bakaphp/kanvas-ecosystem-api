@@ -22,6 +22,7 @@ class ProductRecommendationLookupToolTest extends TestCase
 
     protected Apps $kanvasApp;
     protected Users $user;
+    protected mixed $originalSearchEngine = null;
 
     protected function setUp(): void
     {
@@ -32,7 +33,24 @@ class ProductRecommendationLookupToolTest extends TestCase
         $user = auth()->user();
         $this->user = $user;
 
+        $this->originalSearchEngine = $this->kanvasApp->get('search_engine');
+
         new InventorySetup($this->kanvasApp, $user, $user->getCurrentCompany())->run();
+    }
+
+    protected function tearDown(): void
+    {
+        // These tests toggle the tenant search engine, which lives in the app's
+        // Redis-backed settings — DatabaseTransactions does NOT roll that back.
+        // Restore it so sibling suites don't resolve Scout to a leaked engine
+        // (e.g. a leaked 'algolia' with no creds breaks Lead indexing/search).
+        if ($this->originalSearchEngine === null) {
+            $this->kanvasApp->del('search_engine');
+        } else {
+            $this->kanvasApp->set('search_engine', $this->originalSearchEngine);
+        }
+
+        parent::tearDown();
     }
 
     public function testTokenizesMultiWordKeyword(): void
@@ -204,21 +222,28 @@ class ProductRecommendationLookupToolTest extends TestCase
         $this->kanvasApp->set('search_engine', 'algolia');
         $this->assertTrue($method->invoke($tool), 'A real engine should enable the Scout path.');
 
-        $this->kanvasApp->set('search_engine', 'null');
-        $this->assertFalse($method->invoke($tool), 'null driver must fall back to SQL.');
-
         $this->kanvasApp->set('search_engine', 'database');
         $this->assertFalse($method->invoke($tool), 'database driver is not a real search engine here.');
+
+        // No tenant engine + a non-search global driver must fall back to SQL.
+        // (The literal 'null' string can't be persisted — get() JSON-decodes it
+        // back to null — so drive this through the global scout.driver instead.)
+        $this->kanvasApp->del('search_engine');
+        config(['scout.driver' => 'null']);
+        $this->assertFalse($method->invoke($tool), 'null driver must fall back to SQL.');
     }
 
     public function testFallsBackToSqlWhenEngineUnreachable(): void
     {
-        // Engine "configured" but unreachable (no creds) → must degrade to the
-        // SQL path and still return matches, never blow up.
-        $this->kanvasApp->set('search_engine', 'algolia');
-
+        // Engine "configured" but unreachable (no creds) → the lookup must degrade
+        // to the SQL path and still return matches, never blow up.
         $keyword = 'Fallbackgift' . uniqid();
         $product = $this->createProduct($keyword . ' Item');
+
+        // Point the tenant at a dead engine ONLY after the product is indexed —
+        // with SCOUT_QUEUE=false, creating it earlier would synchronously hit the
+        // unreachable engine during indexing and throw before the lookup runs.
+        $this->kanvasApp->set('search_engine', 'algolia');
 
         $ids = $this->ids($this->lookup(['keyword' => $keyword]));
 

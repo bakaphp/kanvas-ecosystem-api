@@ -261,9 +261,11 @@ class ProductRecommendationLookupTool implements KanvasToolInterface
             ?? $this->app->get('products_search_engine')
             ?? config('scout.driver');
 
+        // 'dynamic' is Scout's per-tenant resolver, not a concrete engine — with no
+        // per-app engine set it lands on NullEngine, so the SQL path is correct.
         return is_string($engine)
             && $engine !== ''
-            && ! in_array($engine, ['null', 'database', 'collection'], true);
+            && ! in_array($engine, ['null', 'database', 'collection', 'dynamic'], true);
     }
 
     /**

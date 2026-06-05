@@ -11,20 +11,6 @@ use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\FollowUp\Actions\FollowUpLeadAction;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpConfig;
 
-/**
- * Manual trigger for the v1 follow-up engine.
- *
- * Resolves the same agent the cron path uses (stage config override OR
- * AgentEnum::FOLLOW_UP_ENGAGER fallback) so the message identity is identical
- * regardless of how the follow-up was kicked off. force=true bypasses only the
- * silence-interval gate — every other gate (exhaustion, max_retries, channel
- * config, WhatsApp 24h template lockdown, agent JSON decision) still runs.
- *
- * Runs INLINE in the GraphQL request — does NOT enqueue. This is intentional
- * for v1: humans clicking "follow up now" want immediate feedback. If volume
- * becomes a problem, dispatch LeadFollowUpJob instead and return a "queued"
- * outcome shape.
- */
 class FollowUpLeadMutation
 {
     /**
@@ -59,5 +45,47 @@ class FollowUpLeadMutation
             'reason' => $outcome->reason,
             'message' => $outcome->message,
         ];
+    }
+
+    /**
+     * Full reset: count=0, exhausted_at/reason cleared, stage_entered_at = now.
+     * Use when a lead is stuck after a bug (e.g. agent: invalid_json_response).
+     *
+     * @param array{leadId: string|int} $request
+     */
+    public function reset(mixed $rootValue, array $request): bool
+    {
+        $this->resolveLead($request)->resetFollowUpState();
+
+        return true;
+    }
+
+    /**
+     * Surgical reset: clears exhausted_at/reason + count + last_at, preserves
+     * other state keys (like stage_entered_at). Mirrors the inbound-reply
+     * re-engagement hook.
+     *
+     * @param array{leadId: string|int} $request
+     */
+    public function resume(mixed $rootValue, array $request): bool
+    {
+        $this->resolveLead($request)->resumeFollowUp();
+
+        return true;
+    }
+
+    /**
+     * @param array{leadId: string|int} $request
+     */
+    private function resolveLead(array $request): Lead
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        /** @var Lead $lead */
+        $lead = Lead::getByIdFromCompanyApp((int) $request['leadId'], $company, $app);
+
+        return $lead;
     }
 }

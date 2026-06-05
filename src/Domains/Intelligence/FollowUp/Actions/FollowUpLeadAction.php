@@ -16,6 +16,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
@@ -400,11 +401,19 @@ final class FollowUpLeadAction
 
         if (is_string($templateBody) && $templateBody !== '') {
             $lines[] = '';
-            $lines[] = 'Tone reference — compose your `message` to match this voice (placeholders pre-rendered):';
+            $lines[] = 'Tone & voice reference (for STYLE only — greeting form, level of warmth, signature):';
             $lines[] = '---';
             $lines[] = $templateBody;
             $lines[] = '---';
-            $lines[] = 'If the reference contains `[agent message slot]`, write only the inner content for that slot; otherwise write a full message in the reference\'s tone.';
+            $lines[] = 'Use the reference for HOW to write (warmth, brevity, sign-off style) — NOT for WHAT to write.';
+            $lines[] = '';
+            $lines[] = 'The BODY MUST come from the actual conversation history:';
+            $lines[] = '- If you previously asked a question, follow up on THAT specific question.';
+            $lines[] = '- If you previously offered something (a call, a demo, a resource), reiterate that offer CONCRETELY by name.';
+            $lines[] = '- If a specific topic was discussed (a product, a workflow, a system), reference it by name.';
+            $lines[] = '- If the reference contains `[agent message slot]`, write only the inner content for that slot.';
+            $lines[] = '';
+            $lines[] = 'Do NOT use generic phrases like "wanted to circle back" or "anything I can help clarify" if you have specific context from prior turns. Generic check-ins are reserved for COLD leads with no conversation history.';
             $lines[] = '';
         }
 
@@ -524,7 +533,10 @@ final class FollowUpLeadAction
 
     private function persistMessage(Session $session, string $channelType, string $body): Message
     {
-        $messageType = MessageTypeService::getOrCreate($this->app, $this->messageTypeVerbFor($channelType));
+        $messageType = MessageTypeService::getOrCreate(
+            $this->app,
+            $this->messageTypeVerbFor($channelType)
+        );
 
         $payload = new AiChatMessagePayload(
             content: $body,
@@ -553,6 +565,18 @@ final class FollowUpLeadAction
 
         $session->channel?->addMessage($message);
         $message->addTag('followup');
+
+        try {
+            new LeadChannelService()->attachMessageToLeadChannel(
+                $message,
+                $this->lead,
+                $this->app,
+                $this->company,
+                $this->company->getAiAgentUserOrFail(),
+            );
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         return $message;
     }
