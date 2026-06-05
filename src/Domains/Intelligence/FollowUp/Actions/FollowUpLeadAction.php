@@ -37,6 +37,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Templates\Models\Templates;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -144,7 +145,24 @@ final class FollowUpLeadAction
             )->execute();
             $result = AgentFollowUpResult::fromKernelResponse($raw);
         } catch (Throwable $e) {
-            report($e);
+            // Wrap with lead/tenant/prompt context so Sentry has everything
+            // needed to debug a bad LLM response without manual SQL.
+            report(new RuntimeException(
+                sprintf(
+                    "Follow-up agent failure for lead %d (app=%d company=%d stage=%s agent=%d)\n"
+                    . "Error: %s\n"
+                    . "--- PROMPT (first 3000 chars) ---\n%s",
+                    $this->lead->getId(),
+                    $this->app->getId(),
+                    $this->company->getId(),
+                    (string) $this->lead->pipeline_stage_id,
+                    $this->agent->getId(),
+                    $e->getMessage(),
+                    mb_substr($prompt, 0, 3000),
+                ),
+                0,
+                $e,
+            ));
 
             return $this->skip('agent_call_failed: ' . $e->getMessage());
         }
