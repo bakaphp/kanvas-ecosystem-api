@@ -169,4 +169,75 @@ class LeadFollowUpJobTest extends TestCase
         // Success = fallback resolved correctly.
         $this->assertTrue(true);
     }
+
+    public function testHandlePinsBouncerScopeAndContainerAppsToJobApp(): void
+    {
+        // Critical regression: queue workers are long-running and the previous
+        // job's Bouncer scope + container Apps binding leak into the next.
+        // overwriteAppService($this->app) at the top of handle() MUST pin both
+        // to the job's app — otherwise downstream Role lookups (Scopable trait)
+        // throw ModelNotFoundException deep inside CreateChannelAction.
+        FollowUpAgentStub::reset();
+
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agentType = AgentType::factory()->withAppId($app->getId())
+            ->create(['provider' => 'neuron', 'handler' => FollowUpAgentStub::class]);
+        Agent::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create([
+            'name' => AgentEnum::FOLLOW_UP_ENGAGER->value,
+            'agent_type_id' => $agentType->getId(),
+            'user_id' => $user->getId(),
+            'role' => ['background' => [], 'steps' => [], 'output' => ''],
+        ]);
+        $pipeline = Pipeline::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'system_modules_id' => 0,
+            'name' => 'Test',
+            'is_default' => 0,
+        ]);
+        $stage = PipelineStage::create([
+            'pipelines_id' => $pipeline->getId(),
+            'name' => 'S',
+            'weight' => 1,
+            'config' => [
+                'follow_up' => [
+                    'enabled' => true,
+                    'mode' => 'time_based',
+                    'time_based' => ['interval_minutes' => 1440],
+                    'goal_based' => null,
+                    'max_retries' => 5,
+                    'exhausted_action' => 'stop',
+                    'channels' => [['type' => 'sms', 'enabled' => true, 'template_name' => null]],
+                    'channel_selection' => 'sticky_then_priority',
+                    'respect_work_hours' => true,
+                    'respect_lead_opt_outs' => true,
+                    'write_system_message_on_stage_change' => true,
+                ],
+                'stage_meta' => ['is_terminal' => false],
+            ],
+        ]);
+        $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
+            'pipeline_id' => $pipeline->getId(),
+            'pipeline_stage_id' => $stage->getId(),
+        ]);
+
+        // Simulate a leaked scope from a hypothetical previous job for a
+        // different app/company. Set AFTER seeding so the seed itself doesn't
+        // trip the bug (LeadObserver::created → CreateChannelAction → role lookup).
+        \Silber\Bouncer\BouncerFacade::scope()->to('app_999999_company_0');
+
+        new LeadFollowUpJob(app: $app, company: $company, lead: $lead)->handle();
+
+        // After handle() the Bouncer scope is the job's app, NOT the leaked one.
+        $expectedScope = \Kanvas\AccessControlList\Enums\RolesEnums::getScope($app);
+        $this->assertSame($expectedScope, \Silber\Bouncer\BouncerFacade::scope()->get());
+
+        // Container Apps binding now resolves to this job's app, not whatever
+        // was bound before.
+        $this->assertSame($app->getId(), app(Apps::class)->getId());
+    }
 }

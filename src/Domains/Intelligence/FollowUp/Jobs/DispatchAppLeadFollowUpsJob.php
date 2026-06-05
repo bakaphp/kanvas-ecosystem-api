@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\FollowUp\Jobs;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -22,6 +23,7 @@ final class DispatchAppLeadFollowUpsJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
+    use KanvasJobsTrait;
     use Queueable;
     use SerializesModels;
 
@@ -35,6 +37,8 @@ final class DispatchAppLeadFollowUpsJob implements ShouldQueue
 
     public function handle(): void
     {
+        $this->overwriteAppService($this->app);
+
         $leads = Lead::query()
             ->fromApp($this->app)
             ->fromCompany($this->company)
