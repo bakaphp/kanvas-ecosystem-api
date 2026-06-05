@@ -36,6 +36,32 @@ type CompanyConcentration {
     percentage: Float!
 }
 
+enum OrgActivityFilter {
+    ALL @enum(value: "all")
+    ACTIVE @enum(value: "active")
+    INACTIVE @enum(value: "inactive")
+    LAPSED @enum(value: "lapsed")
+    NEW @enum(value: "new")
+}
+
+enum OrgActivityOrder {
+    COUNT_DESC @enum(value: "count_desc")
+    COUNT_ASC @enum(value: "count_asc")
+    LAST_DATE_DESC @enum(value: "last_date_desc")
+    FIRST_DATE_ASC @enum(value: "first_date_asc")
+    NAME_ASC @enum(value: "name_asc")
+}
+
+type OrganizationEventActivity {
+    organization_id: ID
+    organization_name: String!
+    count: Int!
+    unique_people_count: Int!
+    first_event_date: Date
+    last_event_date: Date
+    had_prior_activity: Boolean!
+}
+
 extend type Query @guard {
     eventsTracking(
         weeks_ahead: Int = 7
@@ -86,5 +112,22 @@ extend type Query @guard {
     ): [CompanyConcentration!]!
         @field(
             resolver: "App\\GraphQL\\Event\\Queries\\Reports\\EventParticipantConcentrationQuery"
+        )
+
+    organizationsEventActivity(
+        from_date: Date
+        to_date: Date
+        activity: OrgActivityFilter = ALL
+        min_count: Int
+        max_count: Int
+        event_type_id: ID
+        event_category_id: ID
+        include_participant_types: [String!]
+        exclude_participant_types: [String!]
+        top_n: Int
+        order_by: OrgActivityOrder = COUNT_DESC
+    ): [OrganizationEventActivity!]!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Reports\\OrganizationsEventActivityQuery"
         )
 }
