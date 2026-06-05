@@ -9,7 +9,7 @@ use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\AttributeSearchTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\CategorySearchTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\InventorySearchTool;
-use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\ProductRecommendationLookupTool;
+use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\TypesenseProductRecommendationTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\VariantSearchTool;
 use Laravel\Ai\Contracts\HasStructuredOutput;
 use Laravel\Ai\Contracts\Tool;
@@ -79,7 +79,7 @@ class AgentInventoryRecommendation extends KanvasLaravelAgent implements HasStru
     public function agentTools(): iterable
     {
         return [
-            new ProductRecommendationLookupTool(),
+            new TypesenseProductRecommendationTool(),
             new InventorySearchTool(),
             new VariantSearchTool(),
             new CategorySearchTool(),
