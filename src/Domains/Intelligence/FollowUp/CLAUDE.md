@@ -157,6 +157,40 @@ Required config per stage:
 
 If a tenant needs pure calendar-driven walking regardless of message outcome, that's a separate cron/command (~50 lines): iterate drip-enabled leads at midnight, bump `pipeline_stage_id` based on `stage_entered_at + N days`. Not in v1.
 
+## Channel resolution lives on the Lead, NOT the Session
+
+Reachable channels come from the person's `Contact` rows + stage-enabled channels + opt-outs — never from `Session::getChannel()` (which stays valid for inspection but is `@deprecated for outbound channel selection`).
+
+Resolved in [`LeadOutboundChannelResolver`](Services/LeadOutboundChannelResolver.php) — contact-type priority per channel:
+
+| Channel | Eligible contact types (best → fallback) |
+|---|---|
+| `email` | `PRIMARY_EMAIL` (9) → `EMAIL` (1) → `SECONDARY_EMAIL` (10) |
+| `sms` | `CELLPHONE` (3) → `PHONE` (2) → `WORK_PHONE` (8) |
+| `whatsapp` | `CELLPHONE` (3) only |
+
+Within each type, ordered by `weight DESC`, then `id DESC`. Opt-outs (`is_opt_out = 1`) excluded. Returns `ResolvedChannel[]` in stage-config order.
+
+`channel_selection` strategies:
+
+| Strategy | Behavior |
+|---|---|
+| `priority_only` | One channel per touch — always `candidates[0]`. |
+| `sticky_then_priority` (default) | One channel per touch — sticky to last inbound channel if it's in candidates; else `candidates[0]`. |
+| `agent_picks` | v1.5 — currently aliases to `sticky_then_priority`. |
+| `fan_out_all` | **All reachable channels per touch.** Same agent message dispatched to every candidate. One touch = one bump (does NOT consume N retry slots for N channels). Same template + same body across channels — if you need per-channel templates, use a pick-one strategy instead. Reserved for high-urgency stages (demo reminder, deal closing). Tenants opt in per stage; default stays pick-one to avoid accidental cross-channel spam / TCPA-class compliance exposure. |
+
+**Skip reasons:** `no_session` (no Session row for the person), `no_reachable_channel` (no stage-enabled channel has a matching non-opted-out contact). The old `channel_not_configured` skip is dead — was a session-driven false positive.
+
+**Opt-out behavior change:** leads who unsubscribed but were still being nudged on opted-out contacts will now skip with `no_reachable_channel` if no other channel is reachable. Pre-fix the action didn't consult opt-outs at all.
+
+### Open v1.5 work — channel routing intelligence
+
+1. **Agent-aware routing.** `ChannelSelectionEnum::AGENT_PICKS` should consult per-channel agent decision history (`should_respond: false` outcomes from prior touches in this stage) and de-prioritize channels the agent already declined. Needs a "per-channel decision" sub-state in `follow_up_state`. Design alongside the v1.5 role-mapping work above.
+2. **Touch-number rotation.** Add `ChannelSelectionEnum::ROTATE_BY_TOUCH` — `$candidates[$lead->getFollowUpStateCount() % count($candidates)]`. Deterministic "email first, sms second, whatsapp third, wrap" pattern. No sticky/priority signal consulted.
+
+Both can ship independently — enum case + branch in `selectTargets` + test. Don't pre-build before a tenant actually needs it.
+
 ## `exhausted_action` is an enum — extend it deliberately
 
 [`ExhaustedActionEnum`](Enums/ExhaustedActionEnum.php) currently has **two** cases. Always type-hint against the enum (DTOs already do); don't compare against raw strings in new code.

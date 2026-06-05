@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
+use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
@@ -21,8 +22,11 @@ use Kanvas\Intelligence\FollowUp\DataTransferObject\AgentFollowUpResult;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\ChannelConfig;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpConfig;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpOutcome;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\ResolvedChannel;
+use Kanvas\Intelligence\FollowUp\Enums\ChannelSelectionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\ExhaustedActionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpModeEnum;
+use Kanvas\Intelligence\FollowUp\Services\LeadOutboundChannelResolver;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
@@ -84,18 +88,25 @@ final class FollowUpLeadAction
             return $this->skip('ai_mode_manual');
         }
 
+        // Channel resolution lives on the Lead's contacts
+        $candidates = new LeadOutboundChannelResolver()->resolve($this->lead, $config);
+        if ($candidates === []) {
+            return $this->skip('no_reachable_channel');
+        }
+
         $session = $this->resolveSession();
         if (! $session) {
             return $this->skip('no_session');
         }
 
-        $channelType = (string) $session->getChannel();
-        $channelConfig = $config->channelByType($channelType);
-        if (! $channelConfig) {
-            return $this->skip('channel_not_configured');
-        }
-
         $lastInboundAt = $this->getLastInboundAt($session);
+        $targets = $this->selectTargets($candidates, $config, $session);
+        // Primary target drives prompt + template + ledger summary. For
+        // FAN_OUT_ALL the same body is dispatched to every target below.
+        $primary = $targets[0];
+        $channelType = $primary->channelType;
+        $channelConfig = $config->channelByType($channelType);
+
         $silenceMin = $this->lead->followUpSilenceMinutesSince($lastInboundAt);
 
         if (! $this->force && $silenceMin < $config->timeBased->intervalMinutes) {
@@ -142,6 +153,7 @@ final class FollowUpLeadAction
         }
 
         $sentBody = null;
+        $channelsForBump = [];
         if ($result->shouldRespond && $result->message !== null) {
             $sentBody = $this->resolveOutboundBody(
                 channelType: $channelType,
@@ -149,22 +161,60 @@ final class FollowUpLeadAction
                 agentMessage: $result->message,
             );
 
-            $this->persistMessage($session, $channelType, $sentBody);
-            $this->dispatchOutbound($channelType, $sentBody);
-            $this->lead->bumpFollowUp([$channelType], $template?->name);
+            foreach ($targets as $target) {
+                $this->persistMessage($session, $target->channelType, $sentBody);
+                $this->dispatchOutbound($target->channelType, $sentBody, $target->contact);
+                $channelsForBump[] = $target->channelType;
+            }
+
+            // One touch = one bump regardless of N channels dispatched.
+            $this->lead->bumpFollowUp($channelsForBump, $template?->name);
         }
 
         $advanced = $result->advanceStage && $this->advanceLeadStage();
 
         $this->emitSent(
-            $channelType,
+            $channelsForBump !== [] ? $channelsForBump : [$channelType],
             $template?->name,
             $metaTemplate,
             $result->reason,
-            $advanced
+            $advanced,
+            $primary,
+            $config->channelSelection,
         );
 
         return FollowUpOutcome::sent($sentBody);
+    }
+
+    /**
+     * @param ResolvedChannel[] $candidates
+     * @return ResolvedChannel[] single-element for pick-one strategies, all candidates for fan_out_all
+     */
+    private function selectTargets(array $candidates, FollowUpConfig $config, Session $session): array
+    {
+        // AGENT_PICKS aliases to sticky_then_priority pending v1.5 (see FollowUp CLAUDE.md).
+        return match ($config->channelSelection) {
+            ChannelSelectionEnum::FAN_OUT_ALL => $candidates,
+            ChannelSelectionEnum::PRIORITY_ONLY => [$candidates[0]],
+            ChannelSelectionEnum::STICKY_THEN_PRIORITY,
+            ChannelSelectionEnum::AGENT_PICKS => [$this->pickStickyOrFallback($candidates, $session)],
+        };
+    }
+
+    /**
+     * @param ResolvedChannel[] $candidates
+     */
+    private function pickStickyOrFallback(array $candidates, Session $session): ResolvedChannel
+    {
+        $stickyChannel = (string) $session->getChannel();
+
+        foreach ($candidates as $candidate) {
+            if ($candidate->channelType === $stickyChannel) {
+                return $candidate;
+            }
+        }
+
+        return $candidates[0];
     }
 
     // Sessions are keyed to People (not Lead) in the new sales-agent infra —
@@ -387,7 +437,7 @@ final class FollowUpLeadAction
         return $message;
     }
 
-    private function dispatchOutbound(string $channelType, string $body): void
+    private function dispatchOutbound(string $channelType, string $body, Contact $outboundContact): void
     {
         $emailTitle = (string) ($this->lead->get('title_email_follow_up') ?? $this->company->name);
         $twilioFrom = (string) $this->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value);
@@ -398,6 +448,7 @@ final class FollowUpLeadAction
                 message: $body,
                 from: $twilioFrom,
                 title: $emailTitle,
+                to: (string) $outboundContact->value,
             );
         } catch (Throwable $e) {
             // Outbound failure does NOT roll back the persisted message — the
@@ -451,22 +502,30 @@ final class FollowUpLeadAction
         return FollowUpOutcome::exhausted($reason);
     }
 
+    /**
+     * @param string[] $channels  one element for pick-one strategies, N for fan_out_all
+     */
     private function emitSent(
-        string $channelType,
+        array $channels,
         ?string $templateName,
         ?string $metaTemplate,
         ?string $reason,
         bool $advanced,
+        ResolvedChannel $primary,
+        ChannelSelectionEnum $strategy,
     ): void {
         $this->lead->emitLedgerEvent('lead.follow_up.sent', payload: [
             'stage_id' => $this->lead->pipeline_stage_id,
-            'channels' => [$channelType],
+            'channels' => $channels,
             'template' => $templateName,
             'meta_template' => $metaTemplate,
             'follow_up_count' => $this->lead->getFollowUpStateCount(),
             'by_agent_id' => $this->agent->getId(),
             'reason' => $reason,
             'advanced_stage' => $advanced,
+            'channel_selection_strategy' => $strategy->value,
+            'channel_selection_reason' => $primary->reason,
+            'contact_id' => $primary->contact->getKey(),
         ]);
     }
 }
