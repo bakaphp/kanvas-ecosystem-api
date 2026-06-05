@@ -187,6 +187,27 @@ extend type Mutation @guardByAdmin {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpLeadMutation@execute"
         )
+
+    """
+    Full reset of the lead's follow_up_state custom field. Clears count,
+    channels_used, last_at, last_template, exhausted_at, exhausted_reason —
+    and resets stage_entered_at = now. Use when a lead is stuck after a
+    bug or for operator-driven recovery.
+    """
+    resetLeadFollowUp(leadId: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpLeadMutation@reset"
+        )
+
+    """
+    Surgical reset: clears exhausted_at/reason + count + last_at, preserves
+    other state keys (like stage_entered_at). Mirrors the inbound-reply
+    re-engagement hook — use for "treat as if customer just replied".
+    """
+    resumeLeadFollowUp(leadId: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpLeadMutation@resume"
+        )
 }
 
 extend type Query @guard {

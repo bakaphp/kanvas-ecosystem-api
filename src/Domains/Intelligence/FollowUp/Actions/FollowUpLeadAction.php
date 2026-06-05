@@ -4,17 +4,19 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\FollowUp\Actions;
 
+use Carbon\CarbonInterface;
+use Carbon\CarbonInterval;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
-use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
@@ -36,6 +38,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Templates\Models\Templates;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -99,8 +102,8 @@ final class FollowUpLeadAction
             return $this->skip('no_session');
         }
 
-        $lastInboundAt = $this->getLastInboundAt($session);
-        $targets = $this->selectTargets($candidates, $config, $session);
+        $lastInboundAt = $this->getLastInboundForLead();
+        $targets = $this->selectTargets($candidates, $config);
         // Primary target drives prompt + template + ledger summary. For
         // FAN_OUT_ALL the same body is dispatched to every target below.
         $primary = $targets[0];
@@ -127,6 +130,9 @@ final class FollowUpLeadAction
             $config,
             $channelType,
             $template?->name,
+            $template !== null
+                ? $this->renderTemplateForStyleReference($template)
+                : $this->renderDefaultStyleReference($channelType),
             $metaTemplate,
             $silenceMin
         );
@@ -140,13 +146,29 @@ final class FollowUpLeadAction
                 currentLead: $this->lead,
                 persistConversation: false,
             )->execute();
+            $result = AgentFollowUpResult::fromKernelResponse($raw);
         } catch (Throwable $e) {
-            report($e);
+            // Wrap with lead/tenant/prompt context so Sentry has everything
+            // needed to debug a bad LLM response without manual SQL.
+            report(new RuntimeException(
+                sprintf(
+                    "Follow-up agent failure for lead %d (app=%d company=%d stage=%s agent=%d)\n"
+                    . "Error: %s\n"
+                    . "--- PROMPT (first 3000 chars) ---\n%s",
+                    $this->lead->getId(),
+                    $this->app->getId(),
+                    $this->company->getId(),
+                    (string) $this->lead->pipeline_stage_id,
+                    $this->agent->getId(),
+                    $e->getMessage(),
+                    mb_substr($prompt, 0, 3000),
+                ),
+                0,
+                $e,
+            ));
 
             return $this->skip('agent_call_failed: ' . $e->getMessage());
         }
-
-        $result = AgentFollowUpResult::fromKernelResponse($raw);
 
         if (! $result->shouldRespond && ! $result->advanceStage) {
             return $this->exhaust('agent: ' . ($result->reason ?? 'declined'));
@@ -190,31 +212,17 @@ final class FollowUpLeadAction
      * @param ResolvedChannel[] $candidates
      * @return ResolvedChannel[] single-element for pick-one strategies, all candidates for fan_out_all
      */
-    private function selectTargets(array $candidates, FollowUpConfig $config, Session $session): array
+    private function selectTargets(array $candidates, FollowUpConfig $config): array
     {
-        // AGENT_PICKS aliases to sticky_then_priority pending v1.5 (see FollowUp CLAUDE.md).
+        // STICKY_THEN_PRIORITY + AGENT_PICKS are aliased to PRIORITY_ONLY in v1 —
+        // the session-marker sticky signal is unreliable in the new sales-agent
+        // infra. v1.5 will implement sticky via last-inbound-message lookup.
         return match ($config->channelSelection) {
             ChannelSelectionEnum::FAN_OUT_ALL => $candidates,
-            ChannelSelectionEnum::PRIORITY_ONLY => [$candidates[0]],
+            ChannelSelectionEnum::PRIORITY_ONLY,
             ChannelSelectionEnum::STICKY_THEN_PRIORITY,
-            ChannelSelectionEnum::AGENT_PICKS => [$this->pickStickyOrFallback($candidates, $session)],
+            ChannelSelectionEnum::AGENT_PICKS => [$candidates[0]],
         };
-    }
-
-    /**
-     * @param ResolvedChannel[] $candidates
-     */
-    private function pickStickyOrFallback(array $candidates, Session $session): ResolvedChannel
-    {
-        $stickyChannel = (string) $session->getChannel();
-
-        foreach ($candidates as $candidate) {
-            if ($candidate->channelType === $stickyChannel) {
-                return $candidate;
-            }
-        }
-
-        return $candidates[0];
     }
 
     // Sessions are keyed to People (not Lead) in the new sales-agent infra —
@@ -235,21 +243,39 @@ final class FollowUpLeadAction
             ->first();
     }
 
-    private function getLastInboundAt(Session $session): ?Carbon
+    // Last inbound across ALL of the person's channels (lead-scoped). The
+    // previous session-scoped version missed inbound messages that landed
+    // on a different channel than the picked session.
+    private function getLastInboundForLead(): ?Carbon
     {
-        $channel = $session->channel;
-        if (! $channel instanceof Channel) {
+        if (! $this->lead->people_id) {
             return null;
         }
 
-        $message = $channel->messages()
+        $channelIds = Channel::query()
+            ->where('entity_namespace', People::class)
+            ->where('entity_id', $this->lead->people_id)
+            ->where('is_deleted', 0)
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->pluck('id');
+
+        if ($channelIds->isEmpty()) {
+            return null;
+        }
+
+        // No verb filter — `from_me = false` on a People-keyed channel is a
+        // strong-enough signal that this is the customer's inbound. The old
+        // verb=whatsapp-text filter excluded non-WhatsApp inbound (email/SMS)
+        // when the query went cross-channel.
+        $message = Message::query()
             ->where('message->from_me', false)
-            ->where('messages.is_deleted', 0)
+            ->where('is_deleted', 0)
             ->whereHas(
-                'messageType',
-                fn ($q) => $q->where('verb', MessageTypeEnum::TEXT->value),
+                'channels',
+                fn ($q) => $q->whereIn('channels.id', $channelIds),
             )
-            ->latest('messages.created_at')
+            ->latest('created_at')
             ->first();
 
         return $message?->created_at ? Carbon::parse($message->created_at) : null;
@@ -311,6 +337,7 @@ final class FollowUpLeadAction
         FollowUpConfig $config,
         string $channelType,
         ?string $templateName,
+        ?string $templateBody,
         ?string $metaTemplate,
         int $silenceMin,
     ): string {
@@ -327,6 +354,7 @@ final class FollowUpLeadAction
             'config' => $config,
             'channel' => $channelType,
             'template_name' => $templateName,
+            'template_body' => $templateBody,
             'meta_template' => $metaTemplate,
             'template_locked' => $metaTemplate !== null,
             'silence_minutes' => $silenceMin,
@@ -352,33 +380,134 @@ final class FollowUpLeadAction
     {
         $templateLocked = (bool) $context['template_locked'];
         $templateName = $context['template_name'];
+        $templateBody = $context['template_body'] ?? null;
+        $silenceMin = (int) $context['silence_minutes'];
 
-        return implode("\n", [
+        $silenceLine = $silenceMin === PHP_INT_MAX
+            ? 'Silence since last inbound: no prior inbound on file (cold lead OR no message stream yet).'
+            : 'Silence since last inbound: ' . CarbonInterval::minutes($silenceMin)
+                ->cascade()
+                ->forHumans(['parts' => 1, 'syntax' => CarbonInterface::DIFF_ABSOLUTE]) . '.';
+
+        $lines = [
             'Decide what to do for this lead in pipeline stage "' . $context['stage_name'] . '".',
-            'Silence since last inbound: ' . $context['silence_minutes'] . ' minutes.',
+            $silenceLine,
             'Follow-up count so far in this stage: ' . $context['follow_up_count'] . ' of ' . $context['max_retries'] . '.',
             'Outbound channel: ' . $context['channel'] . '.',
             $templateName !== null
                 ? 'Stage template configured: ' . $templateName . '.'
-                : 'No template configured for this stage.',
-            $templateLocked
-                ? 'CONSTRAINT: outside WhatsApp 24h window. Use a tone consistent with the registered template (meta_name: ' . $context['meta_template'] . ').'
-                : 'CONSTRAINT: inside WhatsApp 24h window (or non-WhatsApp). Free body allowed.',
-            'Use conversation history to decide should_respond / advance_stage / message / reason.',
-            'Respond with the JSON object only.',
-        ]);
+                : 'No stage-specific template — using a neutral default tone reference below.',
+        ];
+
+        if (is_string($templateBody) && $templateBody !== '') {
+            $lines[] = '';
+            $lines[] = 'Tone & voice reference (for STYLE only — greeting form, level of warmth, signature):';
+            $lines[] = '---';
+            $lines[] = $templateBody;
+            $lines[] = '---';
+            $lines[] = 'Use the reference for HOW to write (warmth, brevity, sign-off style) — NOT for WHAT to write.';
+            $lines[] = '';
+            $lines[] = 'The BODY MUST come from the actual conversation history:';
+            $lines[] = '- If you previously asked a question, follow up on THAT specific question.';
+            $lines[] = '- If you previously offered something (a call, a demo, a resource), reiterate that offer CONCRETELY by name.';
+            $lines[] = '- If a specific topic was discussed (a product, a workflow, a system), reference it by name.';
+            $lines[] = '- If the reference contains `[agent message slot]`, write only the inner content for that slot.';
+            $lines[] = '';
+            $lines[] = 'Do NOT use generic phrases like "wanted to circle back" or "anything I can help clarify" if you have specific context from prior turns. Generic check-ins are reserved for COLD leads with no conversation history.';
+            $lines[] = '';
+        }
+
+        $lines[] = $templateLocked
+            ? 'CONSTRAINT: outside WhatsApp 24h window. Use a tone consistent with the registered template (meta_name: ' . $context['meta_template'] . ').'
+            : 'CONSTRAINT: inside WhatsApp 24h window (or non-WhatsApp). Free body allowed.';
+        $lines[] = 'Use conversation history to decide should_respond / advance_stage / message / reason.';
+        $lines[] = 'Respond with the JSON object only.';
+
+        return implode("\n", $lines);
     }
 
-    // For WhatsApp outside 24h, the rendered Blade is the LOCAL thread record;
-    // Meta substitutes its own registered body server-side from the meta name.
+    // Channel-specific neutral default. Used when the stage has no
+    // template_name configured so the agent always has tone anchor copy
+    // (a thin prompt with "no template" was making the LLM fall back to a
+    // canned "I had a hiccup" deflection).
+    private function renderDefaultStyleReference(string $channelType): string
+    {
+        $body = match ($channelType) {
+            'email' => <<<'BLADE'
+                Hi {{ $people?->firstname ?? 'there' }},
+
+                Just wanted to follow up briefly. Let me know if there's anything I can help clarify or if there's a better time to connect.
+
+                Best,
+                {{ $company->name }}
+                BLADE,
+            'sms', 'whatsapp' => <<<'BLADE'
+                Hi {{ $people?->firstname ?? 'there' }}! Just checking in — happy to help whenever you have a minute.
+
+                — {{ $company->name }}
+                BLADE,
+            default => <<<'BLADE'
+                Hi {{ $people?->firstname ?? 'there' }}, just following up on your interest. Let me know if I can help.
+
+                — {{ $company->name }}
+                BLADE,
+        };
+
+        try {
+            return Blade::render($body, [
+                'lead' => $this->lead,
+                'people' => $this->lead->people ?? null,
+                'company' => $this->company,
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return 'Friendly, brief, professional check-in. Address by first name. Sign off as the company.';
+        }
+    }
+
+    // Renders the template body with the lead/people/company context so the
+    // agent prompt sees actual text. Where the template has a `$agent_message`
+    // slot, we substitute a sentinel so the agent knows where its content lands.
+    private function renderTemplateForStyleReference(Templates $template): ?string
+    {
+        $body = (string) ($template->template ?? '');
+        if ($body === '') {
+            return null;
+        }
+
+        try {
+            return Blade::render($body, [
+                'lead' => $this->lead,
+                'people' => $this->lead->people ?? null,
+                'company' => $this->company,
+                'agent_message' => '[agent message slot]',
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return null;
+        }
+    }
+
+    // For templates with a `$agent_message` slot, render the template (agent
+    // message wrapped). For static templates without the slot, send the agent
+    // message directly — the template was a style guide only.
     private function resolveOutboundBody(
         string $channelType,
         ?Templates $template,
         string $agentMessage,
     ): string {
-        return $template !== null
-            ? $this->renderTemplateBlade($template, $agentMessage)
-            : $agentMessage;
+        if ($template === null) {
+            return $agentMessage;
+        }
+
+        $body = (string) ($template->template ?? '');
+        if (! str_contains($body, 'agent_message')) {
+            return $agentMessage;
+        }
+
+        return $this->renderTemplateBlade($template, $agentMessage);
     }
 
     private function renderTemplateBlade(Templates $template, string $agentMessage): string
@@ -404,7 +533,10 @@ final class FollowUpLeadAction
 
     private function persistMessage(Session $session, string $channelType, string $body): Message
     {
-        $messageType = MessageTypeService::getOrCreate($this->app, $this->messageTypeVerbFor($channelType));
+        $messageType = MessageTypeService::getOrCreate(
+            $this->app,
+            $this->messageTypeVerbFor($channelType)
+        );
 
         $payload = new AiChatMessagePayload(
             content: $body,
@@ -433,6 +565,18 @@ final class FollowUpLeadAction
 
         $session->channel?->addMessage($message);
         $message->addTag('followup');
+
+        try {
+            new LeadChannelService()->attachMessageToLeadChannel(
+                $message,
+                $this->lead,
+                $this->app,
+                $this->company,
+                $this->company->getAiAgentUserOrFail(),
+            );
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         return $message;
     }

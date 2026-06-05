@@ -144,11 +144,9 @@ class NotifyLeadStakeholdersService
                 'company' => $message->company,
                 'app' => $message->app,
                 'user' => $message->user,
-                'lead_info' => [
-                    'lead_name' => $this->lead->people->name,
-                    'lead_id' => $this->lead->getId(),
-                    'people_id' => $this->lead->people->getId(),
-                ],
+                'lead_name' => $this->lead->people->name,
+                'lead_id' => $this->lead->getId(),
+                'people_id' => $this->lead->people->getId(),
             ],
             via: $channels,
             entity: $this->lead
@@ -222,11 +220,9 @@ class NotifyLeadStakeholdersService
                 'app' => $message->app,
                 'user' => $message->user,
                 'is_human' => $isHuman,
-                'lead_info' => [
-                    'lead_name' => $this->lead->people->name,
-                    'lead_id' => $this->lead->getId(),
-                    'people_id' => $this->lead->people->getId(),
-                ],
+                'lead_name' => $this->lead->people->name,
+                'lead_id' => $this->lead->getId(),
+                'people_id' => $this->lead->people->getId(),
             ],
             via: $channels,
             entity: $this->lead

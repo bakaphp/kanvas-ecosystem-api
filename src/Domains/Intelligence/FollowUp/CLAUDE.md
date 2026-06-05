@@ -157,6 +157,25 @@ Required config per stage:
 
 If a tenant needs pure calendar-driven walking regardless of message outcome, that's a separate cron/command (~50 lines): iterate drip-enabled leads at midnight, bump `pipeline_stage_id` based on `stage_entered_at + N days`. Not in v1.
 
+## Templates: style guide by default, wrapper when slotted
+
+Stage `channels[].template_name` resolves to a `Templates` row. How it gets used depends on the body:
+
+| Body contains `$agent_message`? | Behavior |
+|---|---|
+| **No** (static body) | Style-guide-only. Agent sees the rendered body in the prompt as a "tone reference" with placeholders pre-rendered. Outbound dispatches the **agent's own composed message**, not the template body — the template is purely there to set the tone. Use this when you want consistent voice without locking the body. |
+| **Yes** (`{{ $agent_message }}` slot) | Wrapper. Outbound renders the template at send time with the agent's message in the slot. Use this when the agent should only compose an inner blurb and the template handles salutation/signature. |
+
+The agent prompt shows the rendered body either way — with `[agent message slot]` substituted into the placeholder so the LLM understands where its content lands.
+
+**The agent prompt ALWAYS has a tone reference.** When the stage has no `template_name` configured, [`renderDefaultStyleReference($channelType)`](Actions/FollowUpLeadAction.php) returns channel-specific neutral default copy (email gets a `"Best, {company}"` sign-off; sms/whatsapp gets a shorter inline one). This is critical — a "no template configured" prompt with no tone anchor was provoking Gemini to bail with canned fallback text (`"I ran into a hiccup processing that..."`). The agent never sees an empty reference block.
+
+**The reference is for STYLE only, never for body content.** The prompt explicitly tells the agent: "Use the reference for HOW to write — NOT for WHAT to write." The BODY must come from the conversation history (prior questions, offers made, specific topics discussed). The prompt also bans generic phrases like `"wanted to circle back"` / `"anything I can help clarify"` when prior conversation context exists — those are reserved for genuinely cold leads. This explicit split was added after the agent was producing bland reminders that ignored real conversation context (e.g. a customer who got a concrete "10-min whiteboard session" offer 13h ago received a generic "wanted to circle back" follow-up). The fix is on the prompt-instruction side, not the template-rendering side.
+
+**Important silence-calc behavior:** the prompt's `Silence since last inbound: N` is computed via [`getLastInboundForLead`](Actions/FollowUpLeadAction.php) which queries inbound messages across **all** of the person's channels (not just the picked session's channel). This is the truth signal. If no inbound exists anywhere on file, silence renders as `no prior inbound on file (cold lead OR no message stream yet)` — never the `PHP_INT_MAX` raw integer.
+
+The verb filter (`whatsapp-text`) was dropped from the inbound query. `from_me = false` on a People-keyed channel is the only test; this catches email/SMS/WhatsApp inbound uniformly.
+
 ## Channel resolution lives on the Lead, NOT the Session
 
 Reachable channels come from the person's `Contact` rows + stage-enabled channels + opt-outs — never from `Session::getChannel()` (which stays valid for inspection but is `@deprecated for outbound channel selection`).
@@ -176,8 +195,8 @@ Within each type, ordered by `weight DESC`, then `id DESC`. Opt-outs (`is_opt_ou
 | Strategy | Behavior |
 |---|---|
 | `priority_only` | One channel per touch — always `candidates[0]`. |
-| `sticky_then_priority` (default) | One channel per touch — sticky to last inbound channel if it's in candidates; else `candidates[0]`. |
-| `agent_picks` | v1.5 — currently aliases to `sticky_then_priority`. |
+| `sticky_then_priority` (default) | **v1: aliases to `priority_only`.** True sticky requires a lead-scoped "last channel the customer reached out on" signal — the previous session-UUID-marker approach was unreliable in the new sales-agent infra. See v1.5 TODO. |
+| `agent_picks` | **v1: aliases to `priority_only`.** Future agent-aware routing — see v1.5 TODO. |
 | `fan_out_all` | **All reachable channels per touch.** Same agent message dispatched to every candidate. One touch = one bump (does NOT consume N retry slots for N channels). Same template + same body across channels — if you need per-channel templates, use a pick-one strategy instead. Reserved for high-urgency stages (demo reminder, deal closing). Tenants opt in per stage; default stays pick-one to avoid accidental cross-channel spam / TCPA-class compliance exposure. |
 
 **Skip reasons:** `no_session` (no Session row for the person), `no_reachable_channel` (no stage-enabled channel has a matching non-opted-out contact). The old `channel_not_configured` skip is dead — was a session-driven false positive.
@@ -186,10 +205,11 @@ Within each type, ordered by `weight DESC`, then `id DESC`. Opt-outs (`is_opt_ou
 
 ### Open v1.5 work — channel routing intelligence
 
-1. **Agent-aware routing.** `ChannelSelectionEnum::AGENT_PICKS` should consult per-channel agent decision history (`should_respond: false` outcomes from prior touches in this stage) and de-prioritize channels the agent already declined. Needs a "per-channel decision" sub-state in `follow_up_state`. Design alongside the v1.5 role-mapping work above.
-2. **Touch-number rotation.** Add `ChannelSelectionEnum::ROTATE_BY_TOUCH` — `$candidates[$lead->getFollowUpStateCount() % count($candidates)]`. Deterministic "email first, sms second, whatsapp third, wrap" pattern. No sticky/priority signal consulted.
+1. **Proper sticky implementation.** `ChannelSelectionEnum::STICKY_THEN_PRIORITY` should pick the channel the CUSTOMER last messaged on, not the session's UUID-marker channel. Query the most recent inbound `Message` across all the person's sessions/channels (lead-scoped, not session-scoped), determine its channel type from the message_type/channel join, and prefer that if it matches a candidate. Falls back to `candidates[0]` for cold leads. Remove the v1 alias-to-priority once implemented.
+2. **Agent-aware routing.** `ChannelSelectionEnum::AGENT_PICKS` should consult per-channel agent decision history (`should_respond: false` outcomes from prior touches in this stage) and de-prioritize channels the agent already declined. Needs a "per-channel decision" sub-state in `follow_up_state`. Design alongside the v1.5 role-mapping work above.
+3. **Touch-number rotation.** Add `ChannelSelectionEnum::ROTATE_BY_TOUCH` — `$candidates[$lead->getFollowUpStateCount() % count($candidates)]`. Deterministic "email first, sms second, whatsapp third, wrap" pattern. No sticky/priority signal consulted.
 
-Both can ship independently — enum case + branch in `selectTargets` + test. Don't pre-build before a tenant actually needs it.
+All three can ship independently — enum case (or branch for #1 which case already exists) + branch in `selectTargets` + test. Don't pre-build before a tenant actually needs it.
 
 ## `exhausted_action` is an enum — extend it deliberately
 

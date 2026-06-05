@@ -636,10 +636,13 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertContains('email', $lead->getFollowUpChannelsUsed());
     }
 
-    public function testStickyThenPriorityPicksStickyChannelWhenMatchingConfig(): void
+    public function testStickyThenPriorityIsAliasedToPriorityOnlyInV1(): void
     {
-        // Stage enables [email, sms]. Last inbound (session) is on sms.
-        // sticky_then_priority should pick sms even though email is config[0].
+        // In v1, sticky_then_priority is aliased to priority_only because the
+        // previous session-UUID-marker sticky signal was unreliable. With
+        // config [email, sms] and a session on sms, the action picks email
+        // (config[0]) — not sms. v1.5 will implement true sticky via
+        // last-inbound-message lookup; see FollowUp CLAUDE.md.
         $cfg = $this->defaultStageConfig();
         $cfg['follow_up']['channels'] = [
             ['type' => 'email', 'enabled' => true, 'template_name' => null],
@@ -652,8 +655,8 @@ class FollowUpLeadActionTest extends TestCase
         FollowUpAgentStub::configure(
             shouldRespond: true,
             advanceStage: false,
-            message: 'Sticky sms wins.',
-            reason: 'sticky_match',
+            message: 'Priority wins (sticky aliased in v1).',
+            reason: 'sticky_v1_alias',
         );
 
         $outcome = new FollowUpLeadAction(
@@ -665,8 +668,8 @@ class FollowUpLeadActionTest extends TestCase
 
         $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
         $lead->refresh();
-        $this->assertContains('sms', $lead->getFollowUpChannelsUsed());
-        $this->assertNotContains('email', $lead->getFollowUpChannelsUsed());
+        $this->assertContains('email', $lead->getFollowUpChannelsUsed());
+        $this->assertNotContains('sms', $lead->getFollowUpChannelsUsed());
     }
 
     public function testPriorityOnlyHonorsConfigOrderRegardlessOfStickyChannel(): void
@@ -702,10 +705,11 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertNotContains('sms', $lead->getFollowUpChannelsUsed());
     }
 
-    public function testStickyFallsBackToPriorityWhenStickyChannelNotInConfig(): void
+    public function testStickyConfigSendsCleanlyOnSingleEnabledChannel(): void
     {
-        // Stage enables only [email]. Last inbound on whatsapp. sticky has
-        // no match → falls back to priority → picks email.
+        // Sanity check: sticky_then_priority config keyword doesn't break the
+        // single-channel happy path even when the session is on a different
+        // channel. (v1 aliases sticky to priority_only, so config[0] wins.)
         $cfg = $this->defaultStageConfig();
         $cfg['follow_up']['channels'] = [
             ['type' => 'email', 'enabled' => true, 'template_name' => null],
@@ -717,8 +721,8 @@ class FollowUpLeadActionTest extends TestCase
         FollowUpAgentStub::configure(
             shouldRespond: true,
             advanceStage: false,
-            message: 'Falls back cleanly.',
-            reason: 'sticky_fallback',
+            message: 'Sends cleanly.',
+            reason: 'sticky_alias',
         );
 
         $outcome = new FollowUpLeadAction(
@@ -804,5 +808,335 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertSame('fan_out_all', $event->payload['channel_selection_strategy']);
         $this->assertContains('email', $event->payload['channels']);
         $this->assertContains('sms', $event->payload['channels']);
+    }
+
+    public function testColdLeadPromptDoesNotLeakPhpIntMax(): void
+    {
+        // Cold lead, no inbound history → silence should render as
+        // "no prior inbound on file", never the raw PHP_INT_MAX value.
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Hi.',
+            reason: 'cold_lead',
+        );
+
+        new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $prompt = FollowUpAgentStub::lastPromptText();
+        $this->assertStringNotContainsString('9223372036854775807', $prompt);
+        $this->assertStringContainsString('no prior inbound', $prompt);
+    }
+
+    public function testPromptIncludesRenderedTemplateAsToneReferenceWhenTemplateConfigured(): void
+    {
+        // Template body contains Blade placeholders + an agent_message slot.
+        // Prompt should show the rendered body with placeholders resolved
+        // and the slot replaced with [agent message slot] sentinel.
+        $template = \Kanvas\Templates\Models\Templates::create([
+            'apps_id' => $this->testApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => $this->user->getId(),
+            'name' => 'fup_style_v1',
+            'title' => 'Following up with {{ $lead->company->name }}',
+            'template' => 'Hey {{ $people?->firstname ?? \'there\' }}, {{ $agent_message }} — Sales',
+        ]);
+
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => $template->name],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'circling back on pricing',
+            reason: 'style_ref',
+        );
+
+        new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $prompt = FollowUpAgentStub::lastPromptText();
+        $this->assertStringContainsString('Tone & voice reference', $prompt);
+        $this->assertStringContainsString('Hey ', $prompt);
+        $this->assertStringContainsString('[agent message slot]', $prompt);
+        $this->assertStringContainsString('— Sales', $prompt);
+        // Anti-pattern guidance reaches the LLM.
+        $this->assertStringContainsString('Do NOT use generic phrases', $prompt);
+        // Positive direction: leverage conversation history concretely.
+        $this->assertStringContainsString('reiterate that offer CONCRETELY', $prompt);
+    }
+
+    public function testStaticTemplateDispatchesAgentMessageDirectlyAndAgentMessageSlotTemplateWraps(): void
+    {
+        // STATIC template (no $agent_message placeholder) → outbound dispatches
+        // agent message directly; template was a style guide only.
+        $staticTemplate = \Kanvas\Templates\Models\Templates::create([
+            'apps_id' => $this->testApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => $this->user->getId(),
+            'name' => 'fup_static_v1',
+            'title' => 'Static template',
+            'template' => 'Hi {{ $lead->people->firstname ?? \'there\' }}, static body.',
+        ]);
+
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => $staticTemplate->name],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'agent-composed body in template style',
+            reason: 'static_template',
+        );
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        // Agent's message is what gets sent, NOT the rendered static template.
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
+        $this->assertSame('agent-composed body in template style', $outcome->message);
+    }
+
+    public function testLastInboundIsFoundOnDifferentChannelThanPickedSession(): void
+    {
+        // Person has an inbound on channel A (email) from 30 min ago, but the
+        // picked session is on channel B (sms). With interval_minutes = 60,
+        // the lead-scoped query finds the email inbound and skips with too_soon.
+        // The old session-scoped code would have missed it.
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['mode'] = 'time_based';
+        $cfg['follow_up']['time_based'] = ['interval_minutes' => 60, 'advance_after_max_retries' => false];
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $smsSession = $this->seedSessionAndChannel($lead, 'sms');
+
+        // Create an inbound message on a DIFFERENT channel (email) for the same person.
+        $emailChannel = Channel::firstOrCreate(
+            [
+                'apps_id' => $this->testApp->getId(),
+                'companies_id' => $this->company->getId(),
+                'slug' => 'recent-inbound-email-' . $lead->getId(),
+            ],
+            [
+                'name' => 'Email channel',
+                'description' => 'test',
+                'users_id' => $this->user->getId(),
+                'entity_namespace' => \Kanvas\Guild\Customers\Models\People::class,
+                'entity_id' => $lead->people_id,
+            ]
+        );
+        $messageType = MessageType::firstOrCreate(
+            ['apps_id' => $this->testApp->getId(), 'languages_id' => 1, 'verb' => 'text'],
+            ['name' => 'Text']
+        );
+        $message = Message::create([
+            'apps_id' => $this->testApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => $this->user->getId(),
+            'message_types_id' => $messageType->getId(),
+            'message' => ['content' => 'hi', 'from_me' => false],
+            'created_at' => now()->subMinutes(30),
+            'updated_at' => now()->subMinutes(30),
+        ]);
+        $emailChannel->addMessage($message);
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        // 30 min of silence < 60 min interval → too_soon.
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertSame('too_soon', $outcome->reason);
+    }
+
+    public function testPromptIncludesDefaultStyleReferenceWhenNoTemplateConfigured(): void
+    {
+        // Stage has no template_name on the channel config. Prompt should
+        // still include a "Tone reference" section with neutral default copy
+        // — the agent must NEVER see "No template configured" with no anchor,
+        // which was provoking the LLM to bail with canned fallback text.
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'email', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'email');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'check-in body',
+            reason: 'default_ref',
+        );
+
+        new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $prompt = FollowUpAgentStub::lastPromptText();
+
+        // The default reference is always rendered when no template is configured.
+        $this->assertStringContainsString('Tone & voice reference', $prompt);
+        $this->assertStringContainsString('neutral default tone reference', $prompt);
+        $this->assertStringNotContainsString('No template configured for this stage.', $prompt);
+        // Email default has "Best," sign-off in the body.
+        $this->assertStringContainsString('Best,', $prompt);
+    }
+
+    public function testSentMessageIsAttachedToLeadDefaultChannelForUiVisibility(): void
+    {
+        // The action persists the outbound body to the session's channel AND
+        // to the Lead's default channel (via LeadChannelService) so the
+        // customer-facing thread shows what went out, not just the agent's
+        // JSON in agent_histories. Without this attach, operators have to
+        // guess what was sent.
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'follow-up body the operator must see',
+            reason: 'lead_channel_visibility',
+        );
+
+        new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        // LeadChannelService creates/uses the Lead's default channel. Find it.
+        $leadChannel = Channel::query()
+            ->where('apps_id', $this->testApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('entity_namespace', Lead::class)
+            ->where('entity_id', $lead->getId())
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($leadChannel, 'Lead default channel must exist after the send.');
+
+        $messageBodies = $leadChannel->messages()
+            ->get()
+            ->pluck('message.content')
+            ->filter()
+            ->all();
+        $this->assertContains(
+            'follow-up body the operator must see',
+            $messageBodies,
+            "Lead channel must contain the actual outbound body so operators don't have to query agent_histories."
+        );
+    }
+
+    public function testProviderErrorMarkerSurfacedInOutcomeReasonViaFallback(): void
+    {
+        // Force the provider to throw so RunNeuronChatAction's catch block
+        // fires and returns its `[provider_error: ...]`-tagged fallback.
+        // The follow-up action's invalid-JSON catch should bubble that marker
+        // into the outcome.reason so debugging needs ONE Sentry event, not two.
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::$throwOnChat = new \RuntimeException('Simulated Gemini timeout');
+
+        try {
+            $outcome = new FollowUpLeadAction(
+                app: $this->testApp,
+                company: $this->company,
+                lead: $lead,
+                agent: $this->seedFollowUpAgent(),
+            )->execute();
+        } finally {
+            FollowUpAgentStub::reset();
+        }
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertStringStartsWith('agent_call_failed: ', (string) $outcome->reason);
+        // The provider error class and message reached the follow-up outcome.
+        $this->assertStringContainsString('[provider_error: RuntimeException', (string) $outcome->reason);
+        $this->assertStringContainsString('Simulated Gemini timeout', (string) $outcome->reason);
+
+        // Lead is NOT exhausted — retries next tick.
+        $lead->refresh();
+        $this->assertFalse($lead->isFollowUpExhausted());
+    }
+
+    public function testInvalidJsonAgentResponseSkipsWithRawOutputInReason(): void
+    {
+        // Agent returns non-JSON. AgentFollowUpResult::fromKernelResponse now
+        // throws a RuntimeException with the raw output truncated to 2000 chars.
+        // The action's try/catch reports + skips with 'agent_call_failed: ...'
+        // so the lead retries next tick (was: terminal exhaust on invalid JSON).
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        // The stub ships the cannedResponse string verbatim. Configure it to be
+        // explanatory prose instead of JSON.
+        FollowUpAgentStub::$cannedResponse = "Sorry, I can't help with that request right now.";
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertStringStartsWith('agent_call_failed: ', (string) $outcome->reason);
+        $this->assertStringContainsString("Sorry, I can't help", (string) $outcome->reason);
+
+        // Lead is NOT exhausted — it can retry next cron tick.
+        $lead->refresh();
+        $this->assertFalse($lead->isFollowUpExhausted());
     }
 }
