@@ -39,7 +39,8 @@ class RunLaravelAgentChatAction
                 : $this->handler->forUser($this->user);
         }
 
-        $response = $this->handler->promptWithConfig($this->message)->text;
+        $response = $this->handler->promptWithConfig($this->message);
+        $responseText = $response->text;
 
         if ($sessionEntity !== null) {
             AgentHistory::create([
@@ -51,21 +52,27 @@ class RunLaravelAgentChatAction
                 'entity_id' => $sessionEntity->getId(),
                 'context' => $sessionId,
                 'input' => ['role' => 'user', 'content' => $this->message],
-                'output' => ['role' => 'assistant', 'content' => $response],
+                'output' => ['role' => 'assistant', 'content' => $responseText],
             ]);
         }
 
         if (! $usesMemory) {
+            // Forward the tool calls/results/usage so the agent_conversation_messages
+            // row mirrors what the Neuron + RemembersConversations paths persist —
+            // without this the Laravel-agent turn lands with empty tool_calls.
             new KanvasConversationStore()->logTurn(
                 userId: $this->user->getId(),
                 sessionId: $sessionId,
                 agentClass: get_class($this->handler),
                 userMessage: $this->message,
-                assistantResponse: $response,
+                assistantResponse: $responseText,
                 agentId: $this->agent->getId(),
+                toolCalls: $response->toolCalls->toArray(),
+                toolResults: $response->toolResults->toArray(),
+                usage: $response->usage->toArray(),
             );
         }
 
-        return $response;
+        return $responseText;
     }
 }
