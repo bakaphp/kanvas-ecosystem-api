@@ -235,12 +235,15 @@ class ProductRecommendationLookupToolTest extends TestCase
 
     public function testFallsBackToSqlWhenEngineUnreachable(): void
     {
-        // Engine "configured" but unreachable (no creds) → must degrade to the
-        // SQL path and still return matches, never blow up.
-        $this->kanvasApp->set('search_engine', 'algolia');
-
+        // Engine "configured" but unreachable (no creds) → the lookup must degrade
+        // to the SQL path and still return matches, never blow up.
         $keyword = 'Fallbackgift' . uniqid();
         $product = $this->createProduct($keyword . ' Item');
+
+        // Point the tenant at a dead engine ONLY after the product is indexed —
+        // with SCOUT_QUEUE=false, creating it earlier would synchronously hit the
+        // unreachable engine during indexing and throw before the lookup runs.
+        $this->kanvasApp->set('search_engine', 'algolia');
 
         $ids = $this->ids($this->lookup(['keyword' => $keyword]));
 
