@@ -157,6 +157,21 @@ Required config per stage:
 
 If a tenant needs pure calendar-driven walking regardless of message outcome, that's a separate cron/command (~50 lines): iterate drip-enabled leads at midnight, bump `pipeline_stage_id` based on `stage_entered_at + N days`. Not in v1.
 
+## Templates: style guide by default, wrapper when slotted
+
+Stage `channels[].template_name` resolves to a `Templates` row. How it gets used depends on the body:
+
+| Body contains `$agent_message`? | Behavior |
+|---|---|
+| **No** (static body) | Style-guide-only. Agent sees the rendered body in the prompt as a "tone reference" with placeholders pre-rendered. Outbound dispatches the **agent's own composed message**, not the template body — the template is purely there to set the tone. Use this when you want consistent voice without locking the body. |
+| **Yes** (`{{ $agent_message }}` slot) | Wrapper. Outbound renders the template at send time with the agent's message in the slot. Use this when the agent should only compose an inner blurb and the template handles salutation/signature. |
+
+The agent prompt shows the rendered body either way — with `[agent message slot]` substituted into the placeholder so the LLM understands where its content lands.
+
+**Important silence-calc behavior:** the prompt's `Silence since last inbound: N` is computed via [`getLastInboundForLead`](Actions/FollowUpLeadAction.php) which queries inbound messages across **all** of the person's channels (not just the picked session's channel). This is the truth signal. If no inbound exists anywhere on file, silence renders as `no prior inbound on file (cold lead OR no message stream yet)` — never the `PHP_INT_MAX` raw integer.
+
+The verb filter (`whatsapp-text`) was dropped from the inbound query. `from_me = false` on a People-keyed channel is the only test; this catches email/SMS/WhatsApp inbound uniformly.
+
 ## Channel resolution lives on the Lead, NOT the Session
 
 Reachable channels come from the person's `Contact` rows + stage-enabled channels + opt-outs — never from `Session::getChannel()` (which stays valid for inspection but is `@deprecated for outbound channel selection`).
