@@ -977,4 +977,37 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
         $this->assertSame('too_soon', $outcome->reason);
     }
+
+    public function testInvalidJsonAgentResponseSkipsWithRawOutputInReason(): void
+    {
+        // Agent returns non-JSON. AgentFollowUpResult::fromKernelResponse now
+        // throws a RuntimeException with the raw output truncated to 2000 chars.
+        // The action's try/catch reports + skips with 'agent_call_failed: ...'
+        // so the lead retries next tick (was: terminal exhaust on invalid JSON).
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        // The stub ships the cannedResponse string verbatim. Configure it to be
+        // explanatory prose instead of JSON.
+        FollowUpAgentStub::$cannedResponse = "Sorry, I can't help with that request right now.";
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertStringStartsWith('agent_call_failed: ', (string) $outcome->reason);
+        $this->assertStringContainsString("Sorry, I can't help", (string) $outcome->reason);
+
+        // Lead is NOT exhausted — it can retry next cron tick.
+        $lead->refresh();
+        $this->assertFalse($lead->isFollowUpExhausted());
+    }
 }

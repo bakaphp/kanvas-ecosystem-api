@@ -142,13 +142,12 @@ final class FollowUpLeadAction
                 currentLead: $this->lead,
                 persistConversation: false,
             )->execute();
+            $result = AgentFollowUpResult::fromKernelResponse($raw);
         } catch (Throwable $e) {
             report($e);
 
             return $this->skip('agent_call_failed: ' . $e->getMessage());
         }
-
-        $result = AgentFollowUpResult::fromKernelResponse($raw);
 
         if (! $result->shouldRespond && ! $result->advanceStage) {
             return $this->exhaust('agent: ' . ($result->reason ?? 'declined'));
