@@ -41,6 +41,11 @@ class DispatchLeadFollowUpsCommandTest extends TestCase
 
         $this->artisan('lead:dispatch-follow-ups')->assertExitCode(0);
 
-        Queue::assertNotPushed(DispatchAppLeadFollowUpsJob::class);
+        // Other companies in the same app may dispatch; this test only asserts
+        // that the test company (with cleared hours) is NOT in the dispatched set.
+        Queue::assertNotPushed(
+            DispatchAppLeadFollowUpsJob::class,
+            fn (DispatchAppLeadFollowUpsJob $job) => $job->company->getId() === $company->getId()
+        );
     }
 }

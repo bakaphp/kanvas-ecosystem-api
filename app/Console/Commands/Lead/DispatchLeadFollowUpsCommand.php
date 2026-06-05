@@ -28,20 +28,29 @@ class DispatchLeadFollowUpsCommand extends Command
 
     public function handle(): int
     {
-        $apps = Apps::query()->get();
+        $apps = Apps::disableCache()->notDeleted()->get();
 
         foreach ($apps as $app) {
             if (! $this->isFollowUpEnabled($app)) {
+                //$this->info("Skipping app  {$app->id} - {$app->name} as follow-ups are disabled.");
+
                 continue;
             }
 
+            $this->info("Processing app {$app->id} - {$app->name}...");
             $this->overwriteAppService($app);
 
-            foreach ($app->companies()->cursor() as $company) {
+            $companies = $app->companies()->get();
+
+            foreach ($companies as $company) {
+                $this->info("Checking work hours for company {$company->id} - {$company->name}...");
                 if (! $this->insideWorkHours($company)) {
+                    $this->info("Company {$company->id} - {$company->name} is outside work hours. Skipping.");
+
                     continue;
                 }
 
+                $this->info("Dispatching follow-ups for app {$app->name} and company {$company->name}...");
                 DispatchAppLeadFollowUpsJob::dispatch($app, $company)
                     ->onQueue('lead_follow_ups');
             }
@@ -66,6 +75,6 @@ class DispatchLeadFollowUpsCommand extends Command
             return false;
         }
 
-        return ($result['status'] ?? null) === 'open';
+        return ($result['status'] ?? null) === 'work_hours';
     }
 }

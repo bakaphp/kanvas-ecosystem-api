@@ -194,6 +194,37 @@ class ProductRecommendationLookupToolTest extends TestCase
         $this->assertFalse($channel['is_available']);
     }
 
+    public function testSearchEngineConfiguredReflectsTenantEngineSetting(): void
+    {
+        $tool = new ProductRecommendationLookupTool()
+            ->withContext($this->kanvasApp, $this->user->getCurrentCompany());
+
+        $method = new \ReflectionMethod($tool, 'searchEngineConfigured');
+
+        $this->kanvasApp->set('search_engine', 'algolia');
+        $this->assertTrue($method->invoke($tool), 'A real engine should enable the Scout path.');
+
+        $this->kanvasApp->set('search_engine', 'null');
+        $this->assertFalse($method->invoke($tool), 'null driver must fall back to SQL.');
+
+        $this->kanvasApp->set('search_engine', 'database');
+        $this->assertFalse($method->invoke($tool), 'database driver is not a real search engine here.');
+    }
+
+    public function testFallsBackToSqlWhenEngineUnreachable(): void
+    {
+        // Engine "configured" but unreachable (no creds) → must degrade to the
+        // SQL path and still return matches, never blow up.
+        $this->kanvasApp->set('search_engine', 'algolia');
+
+        $keyword = 'Fallbackgift' . uniqid();
+        $product = $this->createProduct($keyword . ' Item');
+
+        $ids = $this->ids($this->lookup(['keyword' => $keyword]));
+
+        $this->assertContains($product->getId(), $ids);
+    }
+
     public function testReturnsRecommendationShape(): void
     {
         $product = $this->createProduct('Cafetera Premium ' . uniqid());

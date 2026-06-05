@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
@@ -75,26 +76,6 @@ class ProductRecommendationLookupTool implements KanvasToolInterface
         )));
         $contextTerms = $this->contextTerms($request);
 
-        $allowCrossCompany = (bool) $this->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
-
-        $query = Products::fromApp($this->app)
-            ->notDeleted()
-            ->where('is_published', 1)
-            ->with(['categories', 'variants.variantChannels.productVariantWarehouse']);
-
-        if (! $allowCrossCompany) {
-            $query->fromCompany($this->company);
-        }
-
-        if ($primaryTerms !== []) {
-            $this->applyTermFilter($query, $primaryTerms);
-        } elseif ($contextTerms !== []) {
-            $this->applyTermFilter($query, $contextTerms);
-        } else {
-            // No signal at all → recommend the best-rated products.
-            $query->orderByDesc('rating');
-        }
-
         // When ranking, pull a wider pool than we return so the in-PHP score
         // (which also reads categories + variant attributes) can reorder it.
         $hasSignal = $primaryTerms !== [] || $contextTerms !== [];
@@ -102,7 +83,15 @@ class ProductRecommendationLookupTool implements KanvasToolInterface
             ? min($limit * 4, 80)
             : $limit;
 
-        $products = $query->limit($poolSize)->get();
+        // Candidate matching is pluggable: the tenant's Scout engine (Algolia /
+        // Typesense / Meilisearch) when one is configured, else the SQL term
+        // filter. Either way the products are re-scoped to this tenant on
+        // hydration in baseQuery(), so a mis-scoped engine can't leak rows.
+        [$products, $engineUsed, $relevanceById] = $this->fetchCandidates(
+            $primaryTerms,
+            $contextTerms,
+            $poolSize,
+        );
 
         if ($products->isEmpty()) {
             return $primaryTerms === [] && $contextTerms === []
@@ -120,6 +109,8 @@ class ProductRecommendationLookupTool implements KanvasToolInterface
                 $defaultChannelId,
                 $primaryTerms,
                 $contextTerms,
+                $engineUsed,
+                $relevanceById,
             ): ?array {
                 $mapped = $this->mapProduct($product, $minPrice, $maxPrice, $defaultChannelId);
 
@@ -130,9 +121,10 @@ class ProductRecommendationLookupTool implements KanvasToolInterface
                 $haystack = $this->buildHaystack($product, $mapped['variants']);
                 $primaryScore = $this->scoreText($haystack, $primaryTerms);
 
-                // A primary term was requested but nothing about this product
-                // hit it — the SQL OR matched a sibling, so drop it here.
-                if ($primaryTerms !== [] && $primaryScore === 0) {
+                // SQL path only: the LIKE OR can match a sibling column, so drop
+                // products that don't actually contain a primary term. The engine
+                // already ranked by relevance, so its hits are trusted.
+                if (! $engineUsed && $primaryTerms !== [] && $primaryScore === 0) {
                     return null;
                 }
 
@@ -143,7 +135,12 @@ class ProductRecommendationLookupTool implements KanvasToolInterface
                     ? 1000.0
                     : 0.0;
 
+                // Engine relevance (pool position) is the dominant signal when an
+                // engine ran; the term/context scores still nudge recipient fit.
+                $engineRelevance = (float) ($relevanceById[$product->getId()] ?? 0);
+
                 $mapped['_rank'] = $availabilityBonus
+                    + $engineRelevance * 5.0
                     + (float) (($primaryScore * 2 + $this->scoreText($haystack, $contextTerms)) * 10)
                     + min((float) ($product->rating ?? 0), 9.9);
 
@@ -166,6 +163,107 @@ class ProductRecommendationLookupTool implements KanvasToolInterface
         }
 
         return $results->toJson(JSON_PRETTY_PRINT);
+    }
+
+    /**
+     * Resolve the candidate product pool. Prefers the tenant's Scout engine
+     * (Algolia / Typesense / Meilisearch) for matching when one is configured,
+     * otherwise falls back to the SQL term filter. Returns the (re-scoped)
+     * products, whether the engine ran, and an id → relevance-rank map.
+     *
+     * @param list<string> $primaryTerms
+     * @param list<string> $contextTerms
+     *
+     * @return array{0: Collection<int, Products>, 1: bool, 2: array<int, int>}
+     */
+    private function fetchCandidates(array $primaryTerms, array $contextTerms, int $poolSize): array
+    {
+        $searchString = trim(implode(' ', array_unique(array_merge($primaryTerms, $contextTerms))));
+
+        if ($searchString !== '' && $this->searchEngineConfigured()) {
+            $ids = $this->searchEngineProductIds($searchString, $poolSize);
+
+            if ($ids !== []) {
+                $relevance = [];
+                foreach (array_values($ids) as $position => $id) {
+                    $relevance[(int) $id] = $poolSize - $position;
+                }
+
+                $products = $this->baseQuery()
+                    ->whereIn('id', array_keys($relevance))
+                    ->get();
+
+                if ($products->isNotEmpty()) {
+                    return [$products, true, $relevance];
+                }
+            }
+        }
+
+        return [$this->fetchViaSql($primaryTerms, $contextTerms, $poolSize), false, []];
+    }
+
+    /**
+     * @return array<int, int|string>
+     */
+    private function searchEngineProductIds(string $searchString, int $poolSize): array
+    {
+        try {
+            return Products::search($searchString)
+                ->where('apps_id', $this->app->getId())
+                ->take($poolSize)
+                ->keys()
+                ->all();
+        } catch (Throwable) {
+            // Misconfigured / unreachable engine — fall back to SQL.
+            return [];
+        }
+    }
+
+    /**
+     * @param list<string> $primaryTerms
+     * @param list<string> $contextTerms
+     *
+     * @return Collection<int, Products>
+     */
+    private function fetchViaSql(array $primaryTerms, array $contextTerms, int $poolSize): Collection
+    {
+        $query = $this->baseQuery();
+
+        if ($primaryTerms !== []) {
+            $this->applyTermFilter($query, $primaryTerms);
+        } elseif ($contextTerms !== []) {
+            $this->applyTermFilter($query, $contextTerms);
+        } else {
+            // No signal at all → recommend the best-rated products.
+            $query->orderByDesc('rating');
+        }
+
+        return $query->limit($poolSize)->get();
+    }
+
+    private function baseQuery(): Builder
+    {
+        $query = Products::fromApp($this->app)
+            ->notDeleted()
+            ->where('is_published', 1)
+            ->with(['categories', 'variants.variantChannels.productVariantWarehouse']);
+
+        if (! (bool) $this->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value)) {
+            $query->fromCompany($this->company);
+        }
+
+        return $query;
+    }
+
+    private function searchEngineConfigured(): bool
+    {
+        $engine = $this->app->get('search_engine')
+            ?? $this->app->get('products_search_engine')
+            ?? config('scout.driver');
+
+        return is_string($engine)
+            && $engine !== ''
+            && ! in_array($engine, ['null', 'database', 'collection'], true);
     }
 
     /**
