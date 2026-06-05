@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
 use Laravel\Ai\Concerns\RemembersConversations;
+use Laravel\Ai\Responses\StructuredAgentResponse;
 
 class RunLaravelAgentChatAction
 {
@@ -40,7 +41,12 @@ class RunLaravelAgentChatAction
         }
 
         $response = $this->handler->promptWithConfig($this->message);
-        $responseText = $response->text;
+        // Structured-output agents (HasStructuredOutput) return their payload in
+        // ->structured; ->text is empty in JSON mode. Surface the JSON as the
+        // reply so the recommendations actually reach the caller instead of "".
+        $responseText = $response instanceof StructuredAgentResponse
+            ? $response->toJson()
+            : $response->text;
 
         if ($sessionEntity !== null) {
             AgentHistory::create([
