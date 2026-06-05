@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\FollowUp\Actions;
 
+use Carbon\CarbonInterface;
+use Carbon\CarbonInterval;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Apps\Models\Apps;
@@ -363,7 +365,9 @@ final class FollowUpLeadAction
 
         $silenceLine = $silenceMin === PHP_INT_MAX
             ? 'Silence since last inbound: no prior inbound on file (cold lead OR no message stream yet).'
-            : 'Silence since last inbound: ' . $this->humanizeMinutes($silenceMin) . '.';
+            : 'Silence since last inbound: ' . CarbonInterval::minutes($silenceMin)
+                ->cascade()
+                ->forHumans(['parts' => 1, 'syntax' => CarbonInterface::DIFF_ABSOLUTE]) . '.';
 
         $lines = [
             'Decide what to do for this lead in pipeline stage "' . $context['stage_name'] . '".',
@@ -392,21 +396,6 @@ final class FollowUpLeadAction
         $lines[] = 'Respond with the JSON object only.';
 
         return implode("\n", $lines);
-    }
-
-    private function humanizeMinutes(int $minutes): string
-    {
-        if ($minutes < 60) {
-            return $minutes . ' min';
-        }
-        if ($minutes < 1440) {
-            return round($minutes / 60, 1) . ' hours';
-        }
-        if ($minutes < 43200) {
-            return round($minutes / 1440, 1) . ' days';
-        }
-
-        return round($minutes / 43200, 1) . ' months';
     }
 
     // Renders the template body with the lead/people/company context so the
