@@ -978,6 +978,80 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertSame('too_soon', $outcome->reason);
     }
 
+    public function testPromptIncludesDefaultStyleReferenceWhenNoTemplateConfigured(): void
+    {
+        // Stage has no template_name on the channel config. Prompt should
+        // still include a "Tone reference" section with neutral default copy
+        // — the agent must NEVER see "No template configured" with no anchor,
+        // which was provoking the LLM to bail with canned fallback text.
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'email', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'email');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'check-in body',
+            reason: 'default_ref',
+        );
+
+        new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $prompt = FollowUpAgentStub::lastPromptText();
+
+        // The default reference is always rendered when no template is configured.
+        $this->assertStringContainsString('Tone reference', $prompt);
+        $this->assertStringContainsString('neutral default tone reference', $prompt);
+        $this->assertStringNotContainsString('No template configured for this stage.', $prompt);
+        // Email default has "Best," sign-off in the body.
+        $this->assertStringContainsString('Best,', $prompt);
+    }
+
+    public function testProviderErrorMarkerSurfacedInOutcomeReasonViaFallback(): void
+    {
+        // Force the provider to throw so RunNeuronChatAction's catch block
+        // fires and returns its `[provider_error: ...]`-tagged fallback.
+        // The follow-up action's invalid-JSON catch should bubble that marker
+        // into the outcome.reason so debugging needs ONE Sentry event, not two.
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::$throwOnChat = new \RuntimeException('Simulated Gemini timeout');
+
+        try {
+            $outcome = new FollowUpLeadAction(
+                app: $this->testApp,
+                company: $this->company,
+                lead: $lead,
+                agent: $this->seedFollowUpAgent(),
+            )->execute();
+        } finally {
+            FollowUpAgentStub::reset();
+        }
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertStringStartsWith('agent_call_failed: ', (string) $outcome->reason);
+        // The provider error class and message reached the follow-up outcome.
+        $this->assertStringContainsString('[provider_error: RuntimeException', (string) $outcome->reason);
+        $this->assertStringContainsString('Simulated Gemini timeout', (string) $outcome->reason);
+
+        // Lead is NOT exhausted — retries next tick.
+        $lead->refresh();
+        $this->assertFalse($lead->isFollowUpExhausted());
+    }
+
     public function testInvalidJsonAgentResponseSkipsWithRawOutputInReason(): void
     {
         // Agent returns non-JSON. AgentFollowUpResult::fromKernelResponse now

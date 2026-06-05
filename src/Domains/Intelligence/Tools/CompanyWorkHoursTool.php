@@ -35,7 +35,7 @@ class CompanyWorkHoursTool implements ContextToolInterface
             : $this->entity->company;
 
         $tz = $company->timezone ?? 'UTC';
-        log($tz);
+        //log($tz);
         $this->now = Carbon::now($tz);
 
         $this->simpleHours = $company->get(ConfigurationEnum::WORKING_HOURS->value) ?? null;

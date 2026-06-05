@@ -129,7 +129,9 @@ final class FollowUpLeadAction
             $config,
             $channelType,
             $template?->name,
-            $template !== null ? $this->renderTemplateForStyleReference($template) : null,
+            $template !== null
+                ? $this->renderTemplateForStyleReference($template)
+                : $this->renderDefaultStyleReference($channelType),
             $metaTemplate,
             $silenceMin
         );
@@ -393,7 +395,7 @@ final class FollowUpLeadAction
             'Outbound channel: ' . $context['channel'] . '.',
             $templateName !== null
                 ? 'Stage template configured: ' . $templateName . '.'
-                : 'No template configured for this stage.',
+                : 'No stage-specific template — using a neutral default tone reference below.',
         ];
 
         if (is_string($templateBody) && $templateBody !== '') {
@@ -413,6 +415,46 @@ final class FollowUpLeadAction
         $lines[] = 'Respond with the JSON object only.';
 
         return implode("\n", $lines);
+    }
+
+    // Channel-specific neutral default. Used when the stage has no
+    // template_name configured so the agent always has tone anchor copy
+    // (a thin prompt with "no template" was making the LLM fall back to a
+    // canned "I had a hiccup" deflection).
+    private function renderDefaultStyleReference(string $channelType): string
+    {
+        $body = match ($channelType) {
+            'email' => <<<'BLADE'
+                Hi {{ $people?->firstname ?? 'there' }},
+
+                Just wanted to follow up briefly. Let me know if there's anything I can help clarify or if there's a better time to connect.
+
+                Best,
+                {{ $company->name }}
+                BLADE,
+            'sms', 'whatsapp' => <<<'BLADE'
+                Hi {{ $people?->firstname ?? 'there' }}! Just checking in — happy to help whenever you have a minute.
+
+                — {{ $company->name }}
+                BLADE,
+            default => <<<'BLADE'
+                Hi {{ $people?->firstname ?? 'there' }}, just following up on your interest. Let me know if I can help.
+
+                — {{ $company->name }}
+                BLADE,
+        };
+
+        try {
+            return Blade::render($body, [
+                'lead' => $this->lead,
+                'people' => $this->lead->people ?? null,
+                'company' => $this->company,
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return 'Friendly, brief, professional check-in. Address by first name. Sign off as the company.';
+        }
     }
 
     // Renders the template body with the lead/people/company context so the
