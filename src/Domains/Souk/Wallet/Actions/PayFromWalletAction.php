@@ -48,7 +48,6 @@ class PayFromWalletAction
         $tag = ConfigurationEnum::WALLET_DEFAULT_NAME->value;
         $wallet = $walletHolder->createAppWallet($this->order->app, ['name' => $tag]);
         $cart = app(Cart::class);
-        $totalDebited = 0.0;
         $useVariantCreditInsteadOfVariantPrice = $this->order->app->get(ConfigurationEnum::USE_VARIANT_CREDIT_INSTEAD_OF_VARIANT_PRICE_SLUG->value);
 
         foreach ($this->order->items as $item) {
@@ -70,8 +69,6 @@ class PayFromWalletAction
             if ($quantity < 1) {
                 continue;
             }
-
-            $totalDebited += $price * $quantity;
 
             $cart = $cart->withItem(
                 product: $item->variant,
@@ -101,9 +98,7 @@ class PayFromWalletAction
 
         $this->order->addTag(ConfigurationEnum::WALLET_CREDIT_TAG->value);
 
-        $payment = $this->recordWalletPayment($wallet, $tag, $totalDebited);
-
-        $this->logPaymentEvent($payment);
+        $this->recordWalletPayment($wallet, $tag);
 
         $this->order->payment_status = 'paid';
         $this->order->saveOrFail();
@@ -138,16 +133,7 @@ class PayFromWalletAction
         return $this->getWalletHolder($this->order->app, $this->order->user);
     }
 
-    /**
-     * Mirror the wallet debit as a row in the payments table so wallet payments
-     * are visible to the same source-of-truth as external processors (azul, cardnet, ...).
-     *
-     * We create the PAID row directly instead of routing through CreatePaymentAction
-     * because that action's PAID branch calls Order::markAsPaid (which marks the order
-     * completed and fires WorkflowEnum::UPDATED) — the wallet flow intentionally only
-     * sets payment_status and fires AFTER_PAYMENT_INTENT.
-     */
-    protected function recordWalletPayment(Wallet $wallet, string $tag, float $amount): Payments
+    protected function recordWalletPayment(Wallet $wallet, string $tag): Payments
     {
         $idempotencyKey = $this->idempotencyKey
             ?? ('wallet_' . ($this->order->uuid ?? (string) $this->order->getId()));
@@ -160,8 +146,10 @@ class PayFromWalletAction
             return $existing;
         }
 
-        return $this->order->payments()->create([
-            'amount' => $amount > 0.0 ? $amount : (float) $this->order->total_gross_amount,
+        // Direct create, not CreatePaymentAction: its PAID branch runs Order::markAsPaid (completes
+        // the order + fires UPDATED). Amount = order total (gross) so isPaid()/status sync see it paid.
+        $payment = $this->order->payments()->create([
+            'amount' => (float) $this->order->getTotalAmount(),
             'payment_date' => date('Y-m-d'),
             'concept' => 'Wallet payment for order #' . (string) $this->order->number,
             'users_id' => $this->order->users_id,
@@ -181,6 +169,10 @@ class PayFromWalletAction
                 ],
             ],
         ]);
+
+        $this->logPaymentEvent($payment);
+
+        return $payment;
     }
 
     protected function logPaymentEvent(Payments $payment): void

@@ -1354,4 +1354,46 @@ class OrderWalletTest extends TestCase
         $payment->refresh();
         $this->assertEquals(PaymentStatusEnum::PAID->value, $payment->status, 'Partially refunded wallet payment stays paid');
     }
+
+    public function testWalletRefundWithoutPaymentRowUsesMetadataFallback(): void
+    {
+        // createWalletPaidOrder bypasses PayFromWalletAction, so the order has no payments row.
+        $result = $this->createWalletPaidOrder(200.0);
+        $wallet = $result['wallet'];
+        $balanceAfterOrder = (float) $wallet->balanceFloat;
+
+        $this->graphQL('
+            mutation refundOrderToWallet($input: WalletRefundInput!) {
+                refundOrderToWallet(input: $input) {
+                    balance
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'order_id' => $result['order_id'],
+                'amount' => 50.0,
+                'reason' => 'Fallback refund',
+            ],
+        ], [], $this->getAppKeyHeader())->assertSuccessful();
+
+        $this->assertSame(
+            0,
+            PaymentRefund::where('apps_id', app(Apps::class)->getId())
+                ->whereHas(
+                    'payment',
+                    fn ($q) => $q->where('payable_id', $result['order_id'])
+                        ->where('payable_type', Order::class)
+                )
+                ->count(),
+            'Orders without a payments row must not create a PaymentRefund'
+        );
+
+        $wallet->refresh();
+        $this->assertEquals($balanceAfterOrder + 50.0, (float) $wallet->balanceFloat);
+
+        /** @var Order $order */
+        $order = Order::getById((int) $result['order_id']);
+        $this->assertEquals(50.0, $order->get('wallet_refund_total'));
+    }
 }

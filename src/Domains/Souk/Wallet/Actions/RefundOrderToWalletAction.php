@@ -68,6 +68,9 @@ class RefundOrderToWalletAction
             ],
         )->execute();
 
+        // Refund row created before the wallet credit so a post-deposit failure leaves a visible
+        // PENDING row, not a silent credit. No outer DB transaction: bavix wallet ops manage their
+        // own and the balance sync breaks when nested.
         $walletPayment = $this->findRefundableWalletPayment($order, $refundAmount);
         $refund = null;
 
@@ -113,12 +116,6 @@ class RefundOrderToWalletAction
         return $wallet->refresh();
     }
 
-    /**
-     * Locate the PAID wallet payment row for this order with enough remaining
-     * refundable balance to cover the requested amount. Returns null for orders
-     * paid before wallet payments were mirrored into the payments table (no backfill),
-     * so those refunds keep working through the metadata-based path.
-     */
     protected function findRefundableWalletPayment(Order $order, float $refundAmount): ?Payments
     {
         $payment = $order->payments()
