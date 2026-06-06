@@ -92,14 +92,14 @@ class PullLeadAction
                 $lastname,
                 $lead->people,
                 [
-                                 $cellPhone ?? null,
-                                 $homePhone ?? null,
-                                 $workPhone ?? null,
-                             ],
+                $cellPhone ?? null,
+                $homePhone ?? null,
+                $workPhone ?? null,
+            ],
                 [
-                                 $email ?? null,
-                                 $secondEmail ?? null,
-                             ]
+                $email ?? null,
+                $secondEmail ?? null,
+            ]
             );
 
             return [
