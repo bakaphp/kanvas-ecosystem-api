@@ -87,6 +87,21 @@ class PullLeadAction
                 }
             }
 
+            $nameRank = $this->calculateNameRank(
+                $firstname,
+                $lastname,
+                $lead->people,
+                [
+                $cellPhone ?? null,
+                $homePhone ?? null,
+                $workPhone ?? null,
+            ],
+                [
+                $email ?? null,
+                $secondEmail ?? null,
+            ]
+            );
+
             return [
                 [
                     'id' => $lead->id,
@@ -103,6 +118,7 @@ class PullLeadAction
                     'owner_id' => $lead->leads_owner_id,
                     'custom_fields' => $lead->getAllCustomFields(),
                     'recentlyCreated' => $lead->wasRecentlyCreated,
+                    'rank' => $nameRank,
                 ],
             ];
         }
@@ -343,6 +359,7 @@ class PullLeadAction
             foreach ($personPhones as $personPhone) {
                 if ($personPhone === $normalizedSearch) {
                     $matchedFields++;
+
                     break;
                 }
             }
