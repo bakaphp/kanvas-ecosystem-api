@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Laravel\Inventory;
 
+use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\AttributeSearchTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\CategorySearchTool;
@@ -15,6 +16,11 @@ use Laravel\Ai\Contracts\Tool;
 use Override;
 use Stringable;
 
+#[AgentTypeDefinition(
+    name: 'Inventory Assistant',
+    description: 'Answers questions about any part of the inventory — products, variants, categories, attributes, and stock levels — in the user\'s language.',
+    provider: 'laravel',
+)]
 class AgentInventoryAssistance extends KanvasLaravelAgent
 {
     use RemembersConversations;

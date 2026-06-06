@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Laravel\Inventory;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\AttributeSearchTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\CategorySearchTool;
@@ -16,6 +17,11 @@ use Laravel\Ai\Contracts\Tool;
 use Override;
 use Stringable;
 
+#[AgentTypeDefinition(
+    name: 'Inventory Recommendation',
+    description: 'Bilingual (Spanish/English) gift-recommendation engine over the store inventory — ideates product concepts, searches per concept, and returns structured product/variant recommendations.',
+    provider: 'laravel',
+)]
 class AgentInventoryRecommendation extends KanvasLaravelAgent implements HasStructuredOutput
 {
     #[Override]
