@@ -76,13 +76,17 @@ class EnrichProductActionTest extends TestCase
 
         // Tags write to social.tags_entities THROUGH the inventory connection; read
         // them back the same way (cross-schema, inventory connection) so we see the
-        // in-transaction write. 'not-a-real-tag' must have been dropped by clean().
+        // in-transaction write. useWritePdo() pins the SELECT to the write PDO — on
+        // CI the inventory connection has a read/replica split with sticky=false, so
+        // a plain read goes to the replica and misses the uncommitted insert.
+        // 'not-a-real-tag' must have been dropped by clean().
         $tagNames = DB::connection('inventory')
             ->table('social.tags_entities as te')
             ->join('social.tags as t', 't.id', '=', 'te.tags_id')
             ->where('te.entity_id', $product->getId())
             ->where('te.taggable_type', Products::class)
             ->where('te.is_deleted', 0)
+            ->useWritePdo()
             ->pluck('t.name')
             ->all();
 
