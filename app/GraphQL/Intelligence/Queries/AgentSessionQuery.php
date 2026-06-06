@@ -9,7 +9,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
-use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Intelligence\Sessions\Repositories\SessionRepository;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 class AgentSessionQuery
@@ -20,7 +20,11 @@ class AgentSessionQuery
         $user = auth()->user();
         $company = app(CompaniesBranches::class)->company;
 
-        $session = Session::getByUuidFromCompanyApp($request['id'], $company, $app);
+        $session = SessionRepository::getByUuidAndNamespaceFromCompanyApp(
+            $request['id'],
+            $company,
+            $app,
+        );
 
         if ($session->agent->role !== ($session->content['background'] ?? null)) {
             $content = new CreateContentSessionAction($session)->execute();
