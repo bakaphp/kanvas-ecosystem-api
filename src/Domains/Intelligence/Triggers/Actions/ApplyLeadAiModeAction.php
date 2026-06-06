@@ -35,13 +35,6 @@ class ApplyLeadAiModeAction
         $followUpKey = $configService->getFollowUpModeKey($this->lead);
 
         $currentMode = IntelligenceModeEnum::tryFrom((string) $this->lead->get($aiModeKey));
-        if ($currentMode?->isOff()
-            && ! in_array($this->triggerType, TriggersEnum::manualTriggerValues(), true)) {
-            return [
-                'changed' => false,
-                'message' => 'Currently Lead is in OFF mode',
-            ];
-        }
 
         $previousMode = $this->lead->get($aiModeKey);
         $previousFollowUp = $this->lead->get($followUpKey);
