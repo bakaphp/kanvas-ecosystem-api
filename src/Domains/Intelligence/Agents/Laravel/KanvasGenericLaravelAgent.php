@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Laravel;
 
+use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Laravel\SubAgents\DynamicSubAgent;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentRecord;
 use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
@@ -12,6 +13,13 @@ use Kanvas\NervousSystem\Capability\Models\Tool;
 use Override;
 use Stringable;
 
+#[AgentTypeDefinition(
+    name: 'Generic Laravel Agent',
+    description: 'Generic agent using the Laravel-AI runtime — picks the LLM provider from the agent\'s model config. Use for fast tests of the Laravel-AI path.',
+    provider: 'laravel',
+    soul: 'You are a helpful, concise assistant running inside Kanvas via the Laravel-AI runtime.',
+    outputFormat: 'Plain text. Use short paragraphs; use lists only when enumerating distinct items.',
+)]
 class KanvasGenericLaravelAgent extends KanvasLaravelAgent
 {
     use MergesRegisteredTools;

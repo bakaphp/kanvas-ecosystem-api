@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\CRM;
 
 use Illuminate\Support\Facades\Blade;
+use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
 use NeuronAI\Agent\SystemPrompt;
@@ -20,6 +21,11 @@ use Override;
  * Role override: when $agent->role['background'|'steps'|'output'] has content,
  * DB wins. Otherwise the LOCAL_* defaults below are used.
  */
+#[AgentTypeDefinition(
+    name: 'Follow-Up Agent',
+    description: 'Re-engages idle leads after a silence window — decides whether to send a nudge, advance the pipeline stage, or stand down. Returns a strict JSON decision.',
+    provider: 'neuron',
+)]
 class FollowUpAgent extends BaseKanvasAgent
 {
     private const LOCAL_BACKGROUND = 'You are the follow-up engager. You re-engage idle leads after a silence window and decide whether to send a nudge, advance the pipeline stage, or stand down.';

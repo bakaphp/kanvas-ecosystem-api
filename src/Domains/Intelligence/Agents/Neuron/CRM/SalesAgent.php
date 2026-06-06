@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\CRM;
 
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ArtifactsTool;
@@ -37,6 +38,11 @@ use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\InMemoryChatHistory;
 use Override;
 
+#[AgentTypeDefinition(
+    name: 'Sales Agent',
+    description: 'Conversational sales assistant for inbound prospect chat — qualifies leads, creates them when intent shows, schedules meetings, and recommends inventory using the CRM + inventory tool suite.',
+    provider: 'neuron',
+)]
 class SalesAgent extends BaseKanvasAgent
 {
     use HasTemporalContext;
