@@ -23,9 +23,8 @@ use Kanvas\NervousSystem\Plan\Support\KanbanStatusMapper;
 use Throwable;
 
 /**
- * Push a Kanvas Task to the agent's Hermes board as a child of its plan's root task. Ordering guard:
- * if the parent plan has no root task id yet, push the plan first and bail — the child lands on the
- * next run once the root exists. Status changes are gated by the runtime state machine.
+ * Push a Kanvas Task to the agent's Hermes board as a child of its plan's root task. If the plan
+ * has no root id yet, push the plan first and bail — the child lands on the next run.
  */
 final class PushTaskToKanbanJob implements ShouldQueue
 {

@@ -15,9 +15,8 @@ use Kanvas\NervousSystem\Plan\Actions\Kanban\SyncDeploymentKanbanAction;
 use Throwable;
 
 /**
- * Mirrors one deployment's kanban board into Kanvas Plans/Tasks. Runs on the agent-runtime queue.
- * `overwriteAppService` first — the ingest touches Bouncer-scoped models (SystemModule registration
- * inside CreatePlanAction), and the worker is long-lived, so the previous job's scope must not leak.
+ * Mirrors one deployment's kanban board into Kanvas Plans/Tasks. overwriteAppService first —
+ * the ingest creates Plans (SystemModule/Bouncer), so the worker scope must not leak.
  */
 final class SyncDeploymentKanbanJob implements ShouldQueue
 {

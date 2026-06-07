@@ -23,10 +23,9 @@ use Kanvas\NervousSystem\Plan\Support\KanbanStatusMapper;
 use Throwable;
 
 /**
- * Push a Kanvas Plan to the agent's Hermes board as a root task. Create is idempotent
- * (idempotency_key = plan uuid); status changes go through the runtime's lifecycle verbs, gated by
- * the task's current runtime status (an illegal transition is skipped, not forced). Updates the
- * stored AGENT_KANBAN_STATUS to the value just sent so the next ingest doesn't echo it back.
+ * Push a Kanvas Plan to the agent's Hermes board as a root task. Idempotent create (key = plan
+ * uuid); status changes use lifecycle verbs gated by canTransition; stores the sent status so
+ * the next ingest doesn't echo it back.
  */
 final class PushPlanToKanbanJob implements ShouldQueue
 {

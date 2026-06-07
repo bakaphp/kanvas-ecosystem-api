@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Plan\Jobs;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -40,6 +41,7 @@ class WakeAgentForPlanJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
+    use KanvasJobsTrait;
     use Queueable;
     use SerializesModels;
 
@@ -56,6 +58,10 @@ class WakeAgentForPlanJob implements ShouldQueue
 
     public function handle(): void
     {
+        // Reset Bouncer scope + app to this plan's app — else the agent/channel Role lookups
+        // throw ModelNotFoundException under a leaked worker scope.
+        $this->overwriteAppService($this->plan->app);
+
         $agent = $this->plan->agent;
         $owner = $this->plan->user ?? $agent?->user;
 
