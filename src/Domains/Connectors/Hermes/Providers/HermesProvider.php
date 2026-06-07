@@ -279,15 +279,9 @@ class HermesProvider extends AbstractAgentRuntimeProvider
         ?string $tenant = null,
         ?string $board = null,
     ): array {
-        // Default the board slice to this deployment's own agent profile, so the
-        // agnostic caller doesn't need to know the Hermes assignee name.
-        if (($assignee === null || $assignee === '') && $deployment->agent !== null) {
-            $assignee = HermesProfileResolver::forAgent($deployment->agent);
-        }
-
         return new FetchKanbanBoardAction(
             $deployment,
-            $assignee,
+            $this->resolveAssignee($assignee, $deployment),
             $tenant,
             $board
         )->execute();
@@ -301,12 +295,12 @@ class HermesProvider extends AbstractAgentRuntimeProvider
         KanbanTaskInput $input,
         ?string $board = null,
     ): KanbanTask {
-        // Default the assignee to this deployment's own agent profile — an unknown/empty
-        // assignee is silently dropped by the Hermes dispatcher, so never create unassigned.
-        if (($input->assignee === null || $input->assignee === '') && $deployment->agent !== null) {
+        $assignee = $this->resolveAssignee($input->assignee, $deployment);
+
+        if ($assignee !== $input->assignee) {
             $input = new KanbanTaskInput(
                 title: $input->title,
-                assignee: HermesProfileResolver::forAgent($deployment->agent),
+                assignee: $assignee,
                 body: $input->body,
                 idempotencyKey: $input->idempotencyKey,
                 parentIds: $input->parentIds,
@@ -317,6 +311,19 @@ class HermesProvider extends AbstractAgentRuntimeProvider
         }
 
         return new CreateKanbanTaskAction($deployment, $input, $board)->execute();
+    }
+
+    // An unknown/empty assignee is silently dropped by the Hermes dispatcher, so default it to
+    // the deployment's own agent profile — the agnostic caller doesn't know the Hermes profile name.
+    private function resolveAssignee(?string $assignee, AgentDeployment $deployment): ?string
+    {
+        if ($assignee !== null && $assignee !== '') {
+            return $assignee;
+        }
+
+        return $deployment->agent !== null
+            ? HermesProfileResolver::forAgent($deployment->agent)
+            : $assignee;
     }
 
     #[Override]

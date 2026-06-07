@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Hermes\Kanban\Actions;
 
 use Kanvas\Connectors\Hermes\Kanban\Traits\InteractsWithHermesKanbanCli;
-use Kanvas\Exceptions\ValidationException;
+use Kanvas\Connectors\Hermes\Services\HermesContainerCliService;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTask;
 use Kanvas\Intelligence\AgentRuntime\Enums\KanbanTransition;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
-use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
 /**
  * Applies a lifecycle verb to a Hermes task, then re-reads it with `show --json`.
@@ -36,22 +35,11 @@ class TransitionKanbanTaskAction
 
     public function execute(): KanbanTask
     {
-        $machine = $this->deployment->machine;
-
-        if (! $machine instanceof AgentMachine) {
-            throw new ValidationException('Agent deployment has no machine to transition a kanban task on');
-        }
-
-        $ssh = $this->openSshClient($machine);
-
-        try {
-            $cli = $this->cli($ssh);
+        return $this->withCli(function (HermesContainerCliService $cli): KanbanTask {
             $cli->run($this->kanbanArgs($this->buildArgs()));
 
             return KanbanTask::parseShowPayload($cli->runJson($this->kanbanArgs(['show', $this->externalTaskId])));
-        } finally {
-            $ssh->disconnect();
-        }
+        });
     }
 
     /**

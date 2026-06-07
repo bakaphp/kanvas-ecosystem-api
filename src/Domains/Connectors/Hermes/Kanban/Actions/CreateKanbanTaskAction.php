@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Hermes\Kanban\Actions;
 
 use Kanvas\Connectors\Hermes\Kanban\Traits\InteractsWithHermesKanbanCli;
-use Kanvas\Exceptions\ValidationException;
+use Kanvas\Connectors\Hermes\Services\HermesContainerCliService;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTask;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTaskInput;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
-use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
 /**
  * Creates a task on the Hermes board: `kanban create "<title>" --json …`.
@@ -31,21 +30,9 @@ class CreateKanbanTaskAction
 
     public function execute(): KanbanTask
     {
-        $machine = $this->deployment->machine;
-
-        if (! $machine instanceof AgentMachine) {
-            throw new ValidationException('Agent deployment has no machine to create a kanban task on');
-        }
-
-        $ssh = $this->openSshClient($machine);
-
-        try {
-            $row = $this->cli($ssh)->runJson($this->kanbanArgs($this->buildArgs()));
-
-            return KanbanTask::parseFlatRow($row);
-        } finally {
-            $ssh->disconnect();
-        }
+        return $this->withCli(fn (HermesContainerCliService $cli): KanbanTask => KanbanTask::parseFlatRow(
+            $cli->runJson($this->kanbanArgs($this->buildArgs())),
+        ));
     }
 
     /**

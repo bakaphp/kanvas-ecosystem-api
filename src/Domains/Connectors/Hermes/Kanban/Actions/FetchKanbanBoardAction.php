@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Hermes\Kanban\Actions;
 
 use Kanvas\Connectors\Hermes\Kanban\Traits\InteractsWithHermesKanbanCli;
+use Kanvas\Connectors\Hermes\Services\HermesContainerCliService;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTask;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
-use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
 /**
  * Reads an agent's slice of the Hermes board.
@@ -34,17 +34,7 @@ class FetchKanbanBoardAction
      */
     public function execute(): array
     {
-        $machine = $this->deployment->machine;
-
-        if (! $machine instanceof AgentMachine) {
-            return [];
-        }
-
-        $ssh = $this->openSshClient($machine);
-
-        try {
-            $cli = $this->cli($ssh);
-
+        return $this->withCli(function (HermesContainerCliService $cli): array {
             $listArgs = ['list', '--archived'];
 
             if ($this->assignee !== null && $this->assignee !== '') {
@@ -57,22 +47,19 @@ class FetchKanbanBoardAction
                 $listArgs[] = $this->tenant;
             }
 
-            $rows = $cli->runJson($this->kanbanArgs($listArgs));
-
             $tasks = [];
 
-            foreach ($rows as $row) {
+            foreach ($cli->runJson($this->kanbanArgs($listArgs)) as $row) {
                 if (! is_array($row) || ! isset($row['id'])) {
                     continue;
                 }
 
-                $show = $cli->runJson($this->kanbanArgs(['show', (string) $row['id']]));
-                $tasks[] = KanbanTask::parseShowPayload($show);
+                $tasks[] = KanbanTask::parseShowPayload(
+                    $cli->runJson($this->kanbanArgs(['show', (string) $row['id']])),
+                );
             }
 
             return $tasks;
-        } finally {
-            $ssh->disconnect();
-        }
+        });
     }
 }
