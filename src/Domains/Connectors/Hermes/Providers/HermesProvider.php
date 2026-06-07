@@ -285,7 +285,12 @@ class HermesProvider extends AbstractAgentRuntimeProvider
             $assignee = HermesProfileResolver::forAgent($deployment->agent);
         }
 
-        return new FetchKanbanBoardAction($deployment, $assignee, $tenant, $board)->execute();
+        return new FetchKanbanBoardAction(
+            $deployment,
+            $assignee,
+            $tenant,
+            $board
+        )->execute();
     }
 
     #[Override]
