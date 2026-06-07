@@ -26,9 +26,16 @@ use Kanvas\Connectors\Hermes\Jobs\RestartAgentContainerJob;
 use Kanvas\Connectors\Hermes\Jobs\TerminateAgentJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateHermesOnMachineJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateWorkspaceFilesJob;
+use Kanvas\Connectors\Hermes\Kanban\Actions\CreateKanbanTaskAction;
+use Kanvas\Connectors\Hermes\Kanban\Actions\FetchKanbanBoardAction;
+use Kanvas\Connectors\Hermes\Kanban\Actions\TransitionKanbanTaskAction;
+use Kanvas\Connectors\Hermes\Kanban\Support\HermesProfileResolver;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
+use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTask;
+use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTaskInput;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
+use Kanvas\Intelligence\AgentRuntime\Enums\KanbanTransition;
 use Kanvas\Intelligence\AgentRuntime\Providers\AbstractAgentRuntimeProvider;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -260,6 +267,73 @@ class HermesProvider extends AbstractAgentRuntimeProvider
             $agent,
             $message,
             $images
+        )->execute();
+    }
+
+    #[Override]
+    public function fetchKanbanBoard(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        ?string $assignee = null,
+        ?string $tenant = null,
+        ?string $board = null,
+    ): array {
+        // Default the board slice to this deployment's own agent profile, so the
+        // agnostic caller doesn't need to know the Hermes assignee name.
+        if (($assignee === null || $assignee === '') && $deployment->agent !== null) {
+            $assignee = HermesProfileResolver::forAgent($deployment->agent);
+        }
+
+        return new FetchKanbanBoardAction($deployment, $assignee, $tenant, $board)->execute();
+    }
+
+    #[Override]
+    public function createKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        KanbanTaskInput $input,
+        ?string $board = null,
+    ): KanbanTask {
+        // Default the assignee to this deployment's own agent profile — an unknown/empty
+        // assignee is silently dropped by the Hermes dispatcher, so never create unassigned.
+        if (($input->assignee === null || $input->assignee === '') && $deployment->agent !== null) {
+            $input = new KanbanTaskInput(
+                title: $input->title,
+                assignee: HermesProfileResolver::forAgent($deployment->agent),
+                body: $input->body,
+                idempotencyKey: $input->idempotencyKey,
+                parentIds: $input->parentIds,
+                priority: $input->priority,
+                tenant: $input->tenant,
+                workspace: $input->workspace,
+            );
+        }
+
+        return new CreateKanbanTaskAction($deployment, $input, $board)->execute();
+    }
+
+    #[Override]
+    public function transitionKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        string $externalTaskId,
+        KanbanTransition $transition,
+        ?string $reason = null,
+        ?string $assignee = null,
+        ?string $result = null,
+        ?string $board = null,
+    ): KanbanTask {
+        return new TransitionKanbanTaskAction(
+            $deployment,
+            $externalTaskId,
+            $transition,
+            $reason,
+            $assignee,
+            $result,
+            $board,
         )->execute();
     }
 }

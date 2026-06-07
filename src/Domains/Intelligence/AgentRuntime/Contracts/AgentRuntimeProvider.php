@@ -8,7 +8,10 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
+use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTask;
+use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTaskInput;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
+use Kanvas\Intelligence\AgentRuntime\Enums\KanbanTransition;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentBackup;
@@ -139,4 +142,45 @@ interface AgentRuntimeProvider
     // runtimes that don't support memory inspection (the contract default)
     // or for agents that haven't been written to yet.
     public function fetchDailyLearningContext(AgentDeployment $deployment): string;
+
+    // --- Kanban board sync (Hermes today; default-throws elsewhere) ---------------------------
+    // The runtime's multi-agent task board is mirrored into Kanvas NervousSystem Plans/Tasks.
+    // Only container runtimes that ship a kanban implement these; the abstract base throws.
+
+    // Read a board slice — by assignee (the agent's profile) and optionally a tenant/board.
+    // Returns normalized KanbanTask DTOs (tree edges populated from the runtime's per-task view).
+    /** @return list<KanbanTask> */
+    public function fetchKanbanBoard(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        ?string $assignee = null,
+        ?string $tenant = null,
+        ?string $board = null,
+    ): array;
+
+    // Create a task. `input->idempotencyKey` (the Kanvas uuid) lets the runtime dedup so the
+    // call is safe to retry; empty `parentIds` = a root task, otherwise a child under them.
+    public function createKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        KanbanTaskInput $input,
+        ?string $board = null,
+    ): KanbanTask;
+
+    // Apply a lifecycle verb and return the resulting task (re-read), so the caller can confirm
+    // the move actually took — the runtime may reject an illegal transition. `reason` is for
+    // BLOCK, `assignee` for ASSIGN, `result` for COMPLETE.
+    public function transitionKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        string $externalTaskId,
+        KanbanTransition $transition,
+        ?string $reason = null,
+        ?string $assignee = null,
+        ?string $result = null,
+        ?string $board = null,
+    ): KanbanTask;
 }

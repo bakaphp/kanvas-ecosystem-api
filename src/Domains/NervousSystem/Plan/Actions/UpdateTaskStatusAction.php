@@ -18,6 +18,7 @@ class UpdateTaskStatusAction
         protected readonly TaskStatusEnum $newStatus,
         protected readonly ?array $result = null,
         protected readonly ?string $blockedReason = null,
+        protected readonly bool $fromSync = false,
     ) {
     }
 
@@ -92,6 +93,7 @@ class UpdateTaskStatusAction
                 changeType: PlanChangeTypeEnum::TASK_STATUS_CHANGED,
                 task: $this->task,
                 previousStatus: $oldStatus,
+                fromSync: $this->fromSync,
             );
 
             return $this->task->fresh() ?? $this->task;

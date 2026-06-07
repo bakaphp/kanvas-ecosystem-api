@@ -18,6 +18,7 @@ use Kanvas\Intelligence\Agents\Models\AgentBackup;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Kanvas\Intelligence\Agents\Models\AgentUsageSnapshot;
+use Kanvas\NervousSystem\Plan\Jobs\SyncDeploymentKanbanJob;
 use ValueError;
 
 class AgentDeploymentMutation
@@ -121,6 +122,15 @@ class AgentDeploymentMutation
                 $company,
                 $since
             );
+    }
+
+    public function syncKanban(mixed $root, array $request): bool
+    {
+        $deployment = $this->loadDeployment((int) $request['deployment_id']);
+
+        SyncDeploymentKanbanJob::dispatch($deployment);
+
+        return true;
     }
 
     public function setSlackTokens(mixed $root, array $request): bool
