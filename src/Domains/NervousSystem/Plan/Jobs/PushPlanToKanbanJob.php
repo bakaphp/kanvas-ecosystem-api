@@ -54,7 +54,7 @@ final class PushPlanToKanbanJob implements ShouldQueue
 
             if (! $deployment instanceof AgentDeployment
                 || ! $deployment->isRunning()
-                || AgentProviderEnum::forDeployment($deployment) !== AgentProviderEnum::HERMES
+                || ! AgentProviderEnum::forDeployment($deployment)->isHermes()
             ) {
                 return;
             }

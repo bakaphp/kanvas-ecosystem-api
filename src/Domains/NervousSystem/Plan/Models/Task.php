@@ -68,8 +68,6 @@ class Task extends BaseModel
         return $this->belongsTo(Plan::class, 'plan_id', 'id');
     }
 
-    // Per-task assignee (resolved from the Hermes kanban task's `assignee` profile).
-    // Nullable: a task with no explicit agent falls back to the parent plan's agent.
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class, 'agent_id', 'id');

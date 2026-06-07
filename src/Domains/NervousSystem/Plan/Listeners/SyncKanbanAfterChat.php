@@ -22,7 +22,7 @@ class SyncKanbanAfterChat
 
         if (! $deployment instanceof AgentDeployment
             || ! $deployment->isRunning()
-            || AgentProviderEnum::forDeployment($deployment) !== AgentProviderEnum::HERMES
+            || ! AgentProviderEnum::forDeployment($deployment)->isHermes()
         ) {
             return;
         }
