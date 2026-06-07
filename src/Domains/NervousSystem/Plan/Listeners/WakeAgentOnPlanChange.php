@@ -38,6 +38,12 @@ class WakeAgentOnPlanChange
 
     protected function shouldWake(PlanBroadcast $event): bool
     {
+        // Sync-originated changes already reflect what the agent did on its own board —
+        // waking it through the chat path would bounce its own work back at it (loop).
+        if ($event->fromSync) {
+            return false;
+        }
+
         if ($event->plan->agent_id === null) {
             return false;
         }

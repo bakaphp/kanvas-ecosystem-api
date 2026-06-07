@@ -13,6 +13,7 @@ use App\Console\Commands\NervousSystem\RecordAgentDailyCyclesCommand;
 use App\Console\Commands\NervousSystem\RefreshAgentLiveCountersCommand;
 use App\Console\Commands\NervousSystem\SendDailyLearningDigestCommand;
 use App\Console\Commands\NervousSystem\SummarizeAgentDailyLearningCommand;
+use App\Console\Commands\NervousSystem\SyncKanbanDeploymentsCommand;
 use App\Console\Commands\NervousSystem\SyncModelPricingCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Kanvas\NervousSystem\Dashboard\Jobs\RollupDailyDashboardMetricsJob;
@@ -105,6 +106,13 @@ final class NervousSystemSchedule
             ->withoutOverlapping();
         $schedule->command(CheckAgentRuntimeHealthCommand::class)
             ->everyTenMinutes()
+            ->withoutOverlapping();
+
+        // Hermes kanban ingest — fan out a sync job per running Hermes deployment so the
+        // agent's board moves into Kanvas plans/tasks. Status-diff per task, so over-running
+        // is harmless; the per-deployment jobs run on the agent-runtime queue.
+        $schedule->command(SyncKanbanDeploymentsCommand::class)
+            ->everyFiveMinutes()
             ->withoutOverlapping();
 
         // Hermes transcript ingestion — Intelligence-namespaced, but feeds
