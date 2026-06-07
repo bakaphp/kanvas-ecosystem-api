@@ -172,6 +172,8 @@ jobs:
         include:
           - testsuite: Inventory
             processes: 1
+          - testsuite: Intelligence
+            processes: 1
     services:
       mysql:
         image: mysql:8.0

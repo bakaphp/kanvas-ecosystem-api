@@ -11,6 +11,10 @@ use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Spatie\LaravelData\Data;
 
+/**
+ * @deprecated v1 follow-up engine reads stage config via FollowUpConfig DTO
+ *             — see docs/intelligence/follow-up-deprecation-spec.md kill list.
+ */
 class FollowUp extends Data
 {
     public function __construct(

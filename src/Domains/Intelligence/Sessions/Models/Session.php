@@ -71,6 +71,17 @@ class Session extends BaseModel
             : null;
     }
 
+    /**
+     * Returns the channel this session's history lives on (derived from the
+     * uuid marker — sessions are created per-channel by the connector layer).
+     *
+     * @deprecated for outbound channel selection — use
+     *             `Kanvas\Intelligence\FollowUp\Services\LeadOutboundChannelResolver`
+     *             which decides outbound channel from the Lead's contacts +
+     *             stage config + opt-outs, not from session history. This
+     *             method remains valid for "what channel did this conversation
+     *             happen on?" inspection.
+     */
     public function getChannel(): string
     {
         if (str_contains($this->uuid, 'email')) {

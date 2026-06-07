@@ -61,6 +61,8 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `tests/CLAUDE.md` — Docker test commands, `RefreshDatabase` ban, Bouncer setup, AppKey-guarded test pattern.
 - `src/Domains/Connectors/CLAUDE.md` — connector-tree-specific gotchas (Octane SDK rule, Activities/ folder, AgentRuntime caveat).
 - `graphql/schemas/CLAUDE.md` — directive conventions, FK-id-vs-relation rule, schema folder rule.
+- `src/Domains/Intelligence/FollowUp/CLAUDE.md` — generic-core vs per-entity-executor split for the agent-driven follow-up engine. Recipe for adopting follow-up on a new entity (Deal, Order, etc.).
+- `src/Domains/Inventory/CLAUDE.md` — product search engine (dynamic per-tenant Algolia/Typesense/Meilisearch resolution + precedence), index naming, `shouldBeSearchable` gating, the tenant-aware reindex command, and Typesense Natural Language Search config for the recommendation agent.
 
 ### Where to put new conventions (don't bloat this file)
 
@@ -780,6 +782,43 @@ xxx-queue:
 Helm (`helm/templates/`) is currently dormant — don't update it.
 
 **Default to a dedicated service per queue**, not appending to an existing worker's queue list. Any queue handling its own volume class (events, audits, large payloads) will starve or be starved by mixed workloads. Isolating each queue type to its own service gives it its own retry/timeout/replica budget. Reserve the "append to default" shortcut for genuinely low-volume queues (a few jobs/hour) where a dedicated service would be wasteful.
+
+### Every job that operates on a specific app MUST call `overwriteAppService($this->app)` first
+
+Any queued job that has an `Apps` model in its constructor — and any code it runs touches `Role`/`Ability`/Bouncer-scoped models (which includes most channel/agent/permission paths) — MUST start `handle()` with `$this->overwriteAppService($this->app);`. The trait lives in `Baka\Traits\KanvasJobsTrait`.
+
+```php
+use Baka\Traits\KanvasJobsTrait;
+
+final class MyAppScopedJob implements ShouldQueue
+{
+    use Dispatchable;
+    use InteractsWithQueue;
+    use KanvasJobsTrait;    // ← required
+    use Queueable;
+    use SerializesModels;
+
+    public function __construct(public readonly Apps $app, /* ... */) {}
+
+    public function handle(): void
+    {
+        $this->overwriteAppService($this->app);   // ← FIRST LINE of handle()
+        // ... rest of the job
+    }
+}
+```
+
+**Why** — the queue worker is a long-running PHP process. Bouncer's `Scopable` trait auto-appends `WHERE scope = <process-current scope>` to every Role/Ability query. The container-bound `app(Apps::class)` is similarly process-global. Whatever the previous job (or kernel boot) set leaks into the next job. Without `overwriteAppService`, a job for app 141 might query Roles with the previous job's scope (`app_1_company_0`) auto-applied — explicit `where('scope', 'app_141_company_0')` AND the leaked auto-scope combine into an impossible match, throwing `ModelNotFoundException: Role` deep inside `CreateChannelAction` / `RolesRepository::getByNameFromCompany`. The error usually surfaces nowhere near the actual job code because it's inside agent/channel internals.
+
+**Symptoms of the bug** (when you forget this):
+- `ModelNotFoundException: No query results for model [Kanvas\AccessControlList\Models\Role]` inside `CreateChannelAction` or anywhere that calls `RolesRepository::getByNameFromCompany`
+- Random "works on local but fails in production" because dev workers might run one job at a time while prod workers handle many
+- Agent flows returning generic fallback strings (e.g. `RunNeuronChatAction`'s "I ran into a hiccup processing that...") because the actual exception was swallowed and a friendly fallback was substituted
+- Cross-tenant data writes — Bouncer scope from app A bleeding into queries that "should" return app B data
+
+**Same rule applies to commands that iterate apps** — see the existing rule in [`feedback_overwrite_app_service_when_iterating_apps`](.claude/projects/-Users-kaioken-Code-kanvas-kanvas-ecosystem-api/memory/feedback_overwrite_app_service_when_iterating_apps.md) memory note. Commands → `overwriteAppService($app)` per iteration; jobs → once at the top of `handle()`.
+
+If your job operates on a Company without an Apps reference, you still need this if it triggers anything that resolves the app via the container or Bouncer scope. Easiest fix: take `Apps` on the constructor.
 
 ### Adding a New Domain Namespace
 When creating a new top-level domain folder (`src/Domains/YourDomain/`):

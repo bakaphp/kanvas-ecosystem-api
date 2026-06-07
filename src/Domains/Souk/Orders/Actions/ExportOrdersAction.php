@@ -25,14 +25,15 @@ class ExportOrdersAction
         protected ?array $fieldMapper = null,
         protected ?array $metadata = null,
         protected ?array $params = null,
-        protected ?string $timezone = null
+        protected ?string $timezone = null,
+        protected ?string $filename = null
     ) {
     }
 
     public function execute(string $format): array
     {
         $timestamp = Carbon::now()->format('Y-m-d');
-        $filename = "orders_export_{$timestamp}";
+        $filename = ($this->filename ?? 'orders_export') . "_{$timestamp}";
 
         $metaData = [
             "title" => $this->metadata['custom_title'] ?? 'REPORTE DE ÓRDENES',
