@@ -57,7 +57,11 @@ class SyncDeploymentKanbanAction
         $roots = array_filter($tasks, static fn (KanbanTask $t): bool => $t->isRoot());
         $children = array_filter($tasks, static fn (KanbanTask $t): bool => ! $t->isRoot());
 
-        $planByExternal = $this->preloadPlans($app, $company, $agent->getId());
+        $planByExternal = $this->preloadPlans(
+            $app,
+            $company,
+            $agent->getId()
+        );
 
         $planCount = 0;
         foreach ($roots as $root) {
@@ -100,7 +104,10 @@ class SyncDeploymentKanbanAction
             $taskCount++;
         }
 
-        return ['plans' => $planCount, 'tasks' => $taskCount];
+        return [
+            'plans' => $planCount,
+            'tasks' => $taskCount,
+        ];
     }
 
     // Test seam — overridden to inject a canned board.

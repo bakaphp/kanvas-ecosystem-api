@@ -27,8 +27,9 @@ final class SyncDeploymentKanbanJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public function __construct(public readonly AgentDeployment $deployment)
-    {
+    public function __construct(
+        public readonly AgentDeployment $deployment
+    ) {
         $this->onQueue('agent-runtime');
     }
 
