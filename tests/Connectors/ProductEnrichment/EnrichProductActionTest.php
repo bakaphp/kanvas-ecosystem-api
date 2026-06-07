@@ -16,6 +16,7 @@ use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
+use Kanvas\Social\Tags\Models\Tag;
 use Tests\TestCase;
 
 class EnrichProductActionTest extends TestCase
@@ -74,16 +75,27 @@ class EnrichProductActionTest extends TestCase
         );
         $this->assertNotNull($product->get(CustomFieldEnum::ENRICHMENT_HASH->value));
 
-        // Tags write to social.tags_entities THROUGH the inventory connection; read
-        // them back the same way (cross-schema, inventory connection) so we see the
-        // in-transaction write. 'not-a-real-tag' must have been dropped by clean().
-        $tagNames = DB::connection('inventory')
-            ->table('social.tags_entities as te')
-            ->join('social.tags as t', 't.id', '=', 'te.tags_id')
-            ->where('te.entity_id', $product->getId())
-            ->where('te.taggable_type', Products::class)
-            ->where('te.is_deleted', 0)
-            ->pluck('t.name')
+        // The pivot row is written into social.tags_entities THROUGH the inventory
+        // connection (the pivot inherits the parent model's connection), so read the
+        // tags_id back on inventory with useWritePdo() to see the in-transaction write.
+        // The Tag rows themselves live on the social connection — resolve their names
+        // there rather than cross-schema joining them via the inventory PDO, which is
+        // not reliably visible across connections in CI. 'not-a-real-tag' must have
+        // been dropped by clean().
+        $tagIds = DB::connection('inventory')
+            ->table('social.tags_entities')
+            ->where('entity_id', $product->getId())
+            ->where('taggable_type', Products::class)
+            ->where('is_deleted', 0)
+            ->useWritePdo()
+            ->pluck('tags_id')
+            ->all();
+
+        $tagNames = Tag::query()
+            ->whereIn('id', $tagIds)
+            ->pluck('name')
+            ->sort()
+            ->values()
             ->all();
 
         $this->assertSame(['elegant'], $tagNames);

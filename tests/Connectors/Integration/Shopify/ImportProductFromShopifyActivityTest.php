@@ -17,6 +17,14 @@ final class ImportProductFromShopifyActivityTest extends TestCase
 {
     use HasShopifyConfiguration;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Shopify integration tests are skipped in CI');
+        }
+    }
+
     public function testImportProductWorkflow(): void
     {
         // We the the first product to ensure a valid warehouse for the test.
