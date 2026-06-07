@@ -70,7 +70,6 @@ final class HermesContainerCliService
             throw new ValidationException('Hermes CLI returned non-JSON output: ' . $this->snippet($trimmed));
         }
 
-        /** @var mixed $decoded */
         $decoded = json_decode(substr($trimmed, min($starts)), true);
 
         if (! is_array($decoded)) {
