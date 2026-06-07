@@ -10658,16 +10658,16 @@
         },
         {
             "name": "recombee/php-api-client",
-            "version": "v6.2.0",
+            "version": "v6.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/recombee/php-api-client.git",
-                "reference": "f0c5e4f05a6fb61a0f4e1c51d47eea24982fc28d"
+                "reference": "05cbaf3c13fc7d495cc681ecdb039aab4f7320bb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/recombee/php-api-client/zipball/f0c5e4f05a6fb61a0f4e1c51d47eea24982fc28d",
-                "reference": "f0c5e4f05a6fb61a0f4e1c51d47eea24982fc28d",
+                "url": "https://api.github.com/repos/recombee/php-api-client/zipball/05cbaf3c13fc7d495cc681ecdb039aab4f7320bb",
+                "reference": "05cbaf3c13fc7d495cc681ecdb039aab4f7320bb",
                 "shasum": ""
             },
             "require": {
@@ -10698,9 +10698,9 @@
             "homepage": "https://recombee.com",
             "support": {
                 "issues": "https://github.com/recombee/php-api-client/issues",
-                "source": "https://github.com/recombee/php-api-client/tree/v6.2.0"
+                "source": "https://github.com/recombee/php-api-client/tree/v6.3.0"
             },
-            "time": "2026-04-14T14:10:49+00:00"
+            "time": "2026-06-05T09:25:13+00:00"
         },
         {
             "name": "riimu/kit-phpencoder",
@@ -18834,11 +18834,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.2.1",
+            "version": "2.2.2",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/dea9c8f2d25cc849391042b71e429c1a4bf82660",
-                "reference": "dea9c8f2d25cc849391042b71e429c1a4bf82660",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/e5cc34d491a90e79c216d824f60fe21fd4d93bd6",
+                "reference": "e5cc34d491a90e79c216d824f60fe21fd4d93bd6",
                 "shasum": ""
             },
             "require": {
@@ -18894,7 +18894,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-05-28T14:44:12+00:00"
+            "time": "2026-06-05T09:00:01+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",

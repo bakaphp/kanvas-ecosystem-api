@@ -30,6 +30,9 @@ final class SetPlanWithoutPaymentActivityTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Stripe integration tests are skipped in CI');
+        }
         $this->user = Users::factory()->create();
         $this->company = Companies::factory()->create([
             'users_id' => $this->user->id,
