@@ -14,11 +14,11 @@ use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 
 /**
- * Pull one deployment's kanban slice (its agent's tasks) and mirror it into Kanvas Plans/Tasks.
- *
- * Provider-agnostic: reads the board via the runtime provider (returns normalized KanbanTask DTOs),
- * splits the task_links tree into roots (→ Plans) and children (→ Tasks), and upserts each. No event
- * watermark — `list --json` returns the whole slice and the upserts diff against the stored status,
+ * Mirror one deployment's kanban into Kanvas Plans/Tasks. Two sources, merged by task id:
+ *  - **Refresh** every card Kanvas already tracks (by `AGENT_KANBAN_TASK_ID` + agent) via `show <id>` —
+ *    assignee-agnostic, so a card reassigned away from the agent's profile still syncs back.
+ *  - **Discover** new cards the agent created via `list --assignee` (the board slice).
+ * The merged set is split into roots (→ Plans) and children (→ Tasks) and upserted (status-diffed),
  * so a missed run self-heals on the next tick.
  */
 class SyncDeploymentKanbanAction
@@ -42,26 +42,36 @@ class SyncDeploymentKanbanAction
         $app = $this->deployment->app;
         $company = $this->deployment->company;
 
-        $tasks = $this->fetchBoard($app, $company);
+        $planByExternal = $this->preloadPlans($app, $company, $agent->getId());
+        $taskByExternal = $this->preloadTasks($planByExternal);
 
-        if ($tasks === []) {
+        // Discover new cards via the assignee-filtered board slice...
+        /** @var array<string, KanbanTask> $byId */
+        $byId = [];
+        foreach ($this->fetchBoard($app, $company) as $card) {
+            $byId[$card->id] = $card;
+        }
+
+        // ...then refresh any card we already track that the slice missed (reassigned / profile
+        // mismatch). Matching is by task id + agent, NOT by the current assignee.
+        foreach ([...array_keys($planByExternal), ...array_keys($taskByExternal)] as $knownId) {
+            if (isset($byId[$knownId])) {
+                continue;
+            }
+
+            $card = $this->fetchTask($knownId);
+            if ($card !== null) {
+                $byId[$card->id] = $card;
+            }
+        }
+
+        if ($byId === []) {
             return ['plans' => 0, 'tasks' => 0];
         }
 
-        /** @var array<string, KanbanTask> $byId */
-        $byId = [];
-        foreach ($tasks as $task) {
-            $byId[$task->id] = $task;
-        }
-
-        $roots = array_filter($tasks, static fn (KanbanTask $t): bool => $t->isRoot());
-        $children = array_filter($tasks, static fn (KanbanTask $t): bool => ! $t->isRoot());
-
-        $planByExternal = $this->preloadPlans(
-            $app,
-            $company,
-            $agent->getId()
-        );
+        $all = array_values($byId);
+        $roots = array_filter($all, static fn (KanbanTask $t): bool => $t->isRoot());
+        $children = array_filter($all, static fn (KanbanTask $t): bool => ! $t->isRoot());
 
         $planCount = 0;
         foreach ($roots as $root) {
@@ -77,8 +87,6 @@ class SyncDeploymentKanbanAction
         }
 
         $taskCount = 0;
-        /** @var array<int, array<string, Task>> $taskMaps */
-        $taskMaps = [];
         foreach ($children as $child) {
             $rootId = $this->walkToRoot($child, $byId);
             $plan = $planByExternal[$rootId] ?? null;
@@ -88,19 +96,15 @@ class SyncDeploymentKanbanAction
                 continue;
             }
 
-            if (! isset($taskMaps[$plan->id])) {
-                $taskMaps[$plan->id] = $this->preloadTasks($plan);
-            }
-
             $task = new UpsertKanbanTaskAction(
                 $child,
                 $plan,
-                $taskMaps[$plan->id][$child->id] ?? null,
+                $taskByExternal[$child->id] ?? null,
                 $this->deployment,
                 $agent,
             )->execute();
 
-            $taskMaps[$plan->id][$child->id] = $task;
+            $taskByExternal[$child->id] = $task;
             $taskCount++;
         }
 
@@ -110,7 +114,7 @@ class SyncDeploymentKanbanAction
         ];
     }
 
-    // Test seam — overridden to inject a canned board.
+    // Test seam — discovery of new cards (assignee-filtered board slice).
     /**
      * @return list<KanbanTask>
      */
@@ -118,6 +122,13 @@ class SyncDeploymentKanbanAction
     {
         return AgentRuntimeProviderFactory::forDeployment($this->deployment)
             ->fetchKanbanBoard($this->deployment, $app, $company);
+    }
+
+    // Test seam — refresh a single known card by id (assignee-agnostic).
+    protected function fetchTask(string $externalTaskId): ?KanbanTask
+    {
+        return AgentRuntimeProviderFactory::forDeployment($this->deployment)
+            ->fetchKanbanTask($this->deployment, $this->deployment->app, $this->deployment->company, $externalTaskId);
     }
 
     /**
@@ -146,17 +157,20 @@ class SyncDeploymentKanbanAction
     }
 
     /**
+     * @param array<string, Plan> $planByExternal
      * @return array<string, Task>
      */
-    private function preloadTasks(Plan $plan): array
+    private function preloadTasks(array $planByExternal): array
     {
         $map = [];
 
-        /** @var Task $task */
-        foreach ($plan->tasks()->get() as $task) {
-            $external = $task->get(KanbanCustomFieldEnum::TASK_ID->value);
-            if (is_string($external) && $external !== '') {
-                $map[$external] = $task;
+        foreach ($planByExternal as $plan) {
+            /** @var Task $task */
+            foreach ($plan->tasks()->get() as $task) {
+                $external = $task->get(KanbanCustomFieldEnum::TASK_ID->value);
+                if (is_string($external) && $external !== '') {
+                    $map[$external] = $task;
+                }
             }
         }
 

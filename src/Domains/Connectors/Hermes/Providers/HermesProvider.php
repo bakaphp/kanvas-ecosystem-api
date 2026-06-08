@@ -28,6 +28,7 @@ use Kanvas\Connectors\Hermes\Jobs\UpdateHermesOnMachineJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateWorkspaceFilesJob;
 use Kanvas\Connectors\Hermes\Kanban\Actions\CreateKanbanTaskAction;
 use Kanvas\Connectors\Hermes\Kanban\Actions\FetchKanbanBoardAction;
+use Kanvas\Connectors\Hermes\Kanban\Actions\FetchKanbanTaskAction;
 use Kanvas\Connectors\Hermes\Kanban\Actions\TransitionKanbanTaskAction;
 use Kanvas\Connectors\Hermes\Kanban\Support\HermesProfileResolver;
 use Kanvas\Connectors\Hermes\SshClient;
@@ -285,6 +286,17 @@ class HermesProvider extends AbstractAgentRuntimeProvider
             $tenant,
             $board
         )->execute();
+    }
+
+    #[Override]
+    public function fetchKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        string $externalTaskId,
+        ?string $board = null,
+    ): ?KanbanTask {
+        return new FetchKanbanTaskAction($deployment, $externalTaskId, $board)->execute();
     }
 
     #[Override]

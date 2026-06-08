@@ -113,6 +113,44 @@ final class SyncDeploymentKanbanActionTest extends TestCase
         $this->assertSame(['OUT.md'], $plan->output['metadata']['changed_files'] ?? null);
     }
 
+    public function testRefreshesKnownCardByIdEvenWhenBoardSliceMissesIt(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $agent = Agent::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create(['name' => 'kanban-reassigned']);
+
+        $action = new CannedSyncDeploymentKanbanAction($this->fakeDeployment($agent, $app, $company));
+
+        // Initial sync discovers the card via the board slice → plan created + linked.
+        $action->board = [
+            KanbanTask::parseShowPayload(['task' => ['id' => 't_solo', 'title' => 'one-shot', 'status' => 'ready'], 'parents' => [], 'children' => []]),
+        ];
+        $action->execute();
+
+        $plan = Plan::query()->fromApp($app)->fromCompany($company)
+            ->where('agent_id', $agent->getId())->where('plan_type', 'hermes_kanban')->first();
+        $this->assertNotNull($plan);
+        $this->assertSame('active', $plan->status);
+
+        // Card reassigned away → board slice is now EMPTY, but it's still reachable by id (and done).
+        // Matching by task id (not assignee) must still flip the plan.
+        $action->board = [];
+        $action->cardsById = [
+            't_solo' => KanbanTask::parseShowPayload([
+                'task' => ['id' => 't_solo', 'title' => 'one-shot', 'status' => 'done', 'completed_at' => 1780859644],
+                'parents' => [],
+                'children' => [],
+                'latest_summary' => 'finished',
+            ]),
+        ];
+
+        $this->assertSame(1, $action->execute()['plans']);
+
+        $plan->refresh();
+        $this->assertSame('done', $plan->status);
+        $this->assertNotNull($plan->completed_at);
+    }
+
     /**
      * @return list<KanbanTask>
      */
@@ -155,15 +193,23 @@ final class SyncDeploymentKanbanActionTest extends TestCase
 }
 
 /**
- * Injects a canned board so the ingest runs without touching a runtime.
+ * Injects a canned board (discovery) and per-id cards (refresh) so the ingest runs without a runtime.
  */
 class CannedSyncDeploymentKanbanAction extends SyncDeploymentKanbanAction
 {
     /** @var list<KanbanTask> */
     public array $board = [];
 
+    /** @var array<string, KanbanTask> */
+    public array $cardsById = [];
+
     protected function fetchBoard(AppInterface $app, CompanyInterface $company): array
     {
         return $this->board;
+    }
+
+    protected function fetchTask(string $externalTaskId): ?KanbanTask
+    {
+        return $this->cardsById[$externalTaskId] ?? null;
     }
 }
