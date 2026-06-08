@@ -65,8 +65,30 @@ final class UpsertKanbanTaskAction
             }
         }
 
+        $dirty = false;
+
         if ($task->agent_id !== $this->agent->getId()) {
             $task->agent_id = $this->agent->getId();
+            $dirty = true;
+        }
+
+        // Stamp the runtime's own started/completed times (epoch); the status action only sets now().
+        if ($this->child->startedAt !== null) {
+            $task->started_at = Carbon::createFromTimestamp($this->child->startedAt);
+            $dirty = true;
+        }
+
+        if ($this->child->completedAt !== null) {
+            $task->completed_at = Carbon::createFromTimestamp($this->child->completedAt);
+
+            if ($task->started_at === null) {
+                $task->started_at = $task->completed_at;
+            }
+
+            $dirty = true;
+        }
+
+        if ($dirty) {
             $task->saveQuietly();
         }
 

@@ -74,11 +74,43 @@ final class SyncDeploymentKanbanActionTest extends TestCase
         $this->assertSame(1, Plan::query()->where('agent_id', $agent->getId())->where('plan_type', 'hermes_kanban')->count());
         $this->assertCount(2, $plan->tasks()->get());
 
-        // Runtime status change flows through to the Kanvas task.
+        // Runtime status change flows through, carrying the worker handoff + completion time.
         $action->board = $this->board(childAStatus: 'done');
         $action->execute();
         $reloaded = $plan->tasks()->get()->firstWhere(fn (object $t) => $t->get(KanbanCustomFieldEnum::TASK_ID->value) === 't_a');
         $this->assertSame('done', $reloaded->status);
+        $this->assertNotNull($reloaded->completed_at);
+        $this->assertSame(['KANVAS.md'], $reloaded->result['metadata']['changed_files'] ?? null);
+        $this->assertSame('wrote the doc', $reloaded->result['handoff'] ?? null);
+    }
+
+    public function testDoneRootSavesOutputAndCompletedAt(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $agent = Agent::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create(['name' => 'kanban-done']);
+
+        $action = new CannedSyncDeploymentKanbanAction($this->fakeDeployment($agent, $app, $company));
+        $action->board = [
+            KanbanTask::parseShowPayload([
+                'task' => ['id' => 't_solo', 'title' => 'one-shot', 'status' => 'done', 'completed_at' => 1780859644],
+                'parents' => [],
+                'children' => [],
+                'latest_summary' => 'all done',
+                'runs' => [['metadata' => ['changed_files' => ['OUT.md']]]],
+            ]),
+        ];
+
+        $action->execute();
+
+        $plan = Plan::query()->fromApp($app)->fromCompany($company)
+            ->where('agent_id', $agent->getId())->where('plan_type', 'hermes_kanban')->first();
+
+        $this->assertNotNull($plan);
+        $this->assertSame('done', $plan->status);
+        $this->assertNotNull($plan->completed_at);
+        $this->assertSame('all done', $plan->output['summary'] ?? null);
+        $this->assertSame(['OUT.md'], $plan->output['metadata']['changed_files'] ?? null);
     }
 
     /**
@@ -86,17 +118,22 @@ final class SyncDeploymentKanbanActionTest extends TestCase
      */
     private function board(string $childAStatus): array
     {
+        $childA = ['id' => 't_a', 'title' => 'research X', 'status' => $childAStatus];
+        $childAExtra = ['parents' => ['t_root'], 'children' => []];
+
+        if ($childAStatus === 'done') {
+            $childA['completed_at'] = 1780859644;
+            $childAExtra['latest_summary'] = 'wrote the doc';
+            $childAExtra['runs'] = [['metadata' => ['changed_files' => ['KANVAS.md']]]];
+        }
+
         return [
             KanbanTask::parseShowPayload([
                 'task' => ['id' => 't_root', 'title' => 'Research the market', 'status' => 'ready'],
                 'parents' => [],
                 'children' => ['t_a', 't_b'],
             ]),
-            KanbanTask::parseShowPayload([
-                'task' => ['id' => 't_a', 'title' => 'research X', 'status' => $childAStatus],
-                'parents' => ['t_root'],
-                'children' => [],
-            ]),
+            KanbanTask::parseShowPayload(['task' => $childA, ...$childAExtra]),
             KanbanTask::parseShowPayload([
                 'task' => ['id' => 't_b', 'title' => 'scan leads', 'status' => 'todo'],
                 'parents' => ['t_root'],
