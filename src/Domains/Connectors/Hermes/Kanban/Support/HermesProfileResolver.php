@@ -12,23 +12,26 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 /**
  * Maps a Kanvas Agent ↔ its Hermes kanban `assignee` (profile name).
  *
- * The mapping is the #1 push risk: an unknown assignee is SILENTLY dropped by the Hermes
- * dispatcher (the task never runs). Source of truth is the agent's HERMES_KANBAN_PROFILE
- * custom field (captured at launch); we fall back to the agent slug so existing agents still
- * resolve. Callers should still validate the resolved name against `kanban assignees --json`
- * before pushing — see the listed assignees on the runner.
+ * The mapping is the #1 push risk: an unknown assignee is SILENTLY dropped by the dispatcher (the
+ * card is created but never spawned). In the Docker-isolation model each agent has its own container
+ * whose single profile is `default`, so that's the fallback — NOT the agent slug (a slug like
+ * `hermes-agent-agent` matches no profile and the card just sits). Override per agent with the
+ * HERMES_KANBAN_PROFILE custom field for hosts that run named/multiple profiles.
  */
 final class HermesProfileResolver
 {
+    public const DEFAULT_PROFILE = 'default';
+
     public static function forAgent(Agent $agent): string
     {
         $profile = (string) ($agent->get(CustomFieldEnum::HERMES_KANBAN_PROFILE->value) ?? '');
 
-        return $profile !== '' ? $profile : $agent->slug;
+        return $profile !== '' ? $profile : self::DEFAULT_PROFILE;
     }
 
-    // Reverse map for ingest: which Kanvas agent owns this Hermes profile. Matches on the
-    // explicit profile custom field first, then the slug fallback that forAgent() mirrors.
+    // Reverse map for ingest: which Kanvas agent owns this Hermes profile. Matches the explicit
+    // profile custom field, then the slug. (The default-profile fallback isn't reversible — a board
+    // is sliced by the deployment's agent anyway, so ingest already knows the agent.)
     public static function toAgent(string $profile, AppInterface $app, CompanyInterface $company): ?Agent
     {
         if ($profile === '') {

@@ -28,14 +28,14 @@ final class HermesProfileResolverTest extends TestCase
         $this->assertSame('linguist', HermesProfileResolver::forAgent($agent));
     }
 
-    public function testForAgentFallsBackToSlugWhenNoProfileCustomField(): void
+    public function testForAgentFallsBackToDefaultProfileWhenNoCustomField(): void
     {
         $agent = Mockery::mock(Agent::class)->makePartial();
         $agent->shouldReceive('get')
             ->with(CustomFieldEnum::HERMES_KANBAN_PROFILE->value)
             ->andReturn(null);
-        $agent->shouldReceive('getAttribute')->with('slug')->andReturn('researcher');
 
-        $this->assertSame('researcher', HermesProfileResolver::forAgent($agent));
+        // Docker-isolation container's single profile is `default`, not the agent slug.
+        $this->assertSame('default', HermesProfileResolver::forAgent($agent));
     }
 }

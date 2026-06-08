@@ -159,6 +159,16 @@ interface AgentRuntimeProvider
         ?string $board = null,
     ): array;
 
+    // Fetch a single card by id (assignee-agnostic) — used to refresh a card Kanvas already tracks
+    // regardless of its current assignee. Null when the card no longer exists.
+    public function fetchKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        string $externalTaskId,
+        ?string $board = null,
+    ): ?KanbanTask;
+
     // Create a task. `input->idempotencyKey` (the Kanvas uuid) lets the runtime dedup so the
     // call is safe to retry; empty `parentIds` = a root task, otherwise a child under them.
     public function createKanbanTask(

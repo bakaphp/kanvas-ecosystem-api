@@ -207,6 +207,17 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
     }
 
     #[Override]
+    public function fetchKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        string $externalTaskId,
+        ?string $board = null,
+    ): ?KanbanTask {
+        throw $this->unsupported('kanban task read');
+    }
+
+    #[Override]
     public function createKanbanTask(
         AgentDeployment $deployment,
         AppInterface $app,
