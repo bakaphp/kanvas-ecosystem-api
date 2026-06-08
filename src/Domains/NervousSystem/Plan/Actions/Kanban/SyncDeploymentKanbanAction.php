@@ -31,14 +31,14 @@ class SyncDeploymentKanbanAction
     }
 
     /**
-     * @return array{plans: int, tasks: int}
+     * @return array{plans: int, tasks: int, comments: int}
      */
     public function execute(): array
     {
         $agent = $this->deployment->agent;
 
         if ($agent === null) {
-            return ['plans' => 0, 'tasks' => 0];
+            return ['plans' => 0, 'tasks' => 0, 'comments' => 0];
         }
 
         $app = $this->deployment->app;
@@ -75,7 +75,7 @@ class SyncDeploymentKanbanAction
         }
 
         if ($byId === []) {
-            return ['plans' => 0, 'tasks' => 0];
+            return ['plans' => 0, 'tasks' => 0, 'comments' => 0];
         }
 
         $all = array_values($byId);
@@ -117,10 +117,43 @@ class SyncDeploymentKanbanAction
             $taskCount++;
         }
 
+        $commentCount = $this->syncComments($all, $byId, $planByExternal);
+
         return [
             'plans' => $planCount,
             'tasks' => $taskCount,
+            'comments' => $commentCount,
         ];
+    }
+
+    /**
+     * Bridge each card's comments into its Plan's Activities channel. Cards are grouped by their
+     * root (= the Plan), so root + child comments land in the one channel.
+     *
+     * @param list<KanbanTask> $all
+     * @param array<string, KanbanTask> $byId
+     * @param array<string, Plan> $planByExternal
+     */
+    private function syncComments(array $all, array $byId, array $planByExternal): int
+    {
+        /** @var array<string, list<KanbanTask>> $cardsByPlan */
+        $cardsByPlan = [];
+        foreach ($all as $card) {
+            $rootId = $card->isRoot() ? $card->id : $this->walkToRoot($card, $byId);
+            $cardsByPlan[$rootId][] = $card;
+        }
+
+        $posted = 0;
+        foreach ($cardsByPlan as $rootId => $cards) {
+            $plan = $planByExternal[$rootId] ?? null;
+            if ($plan === null) {
+                continue;
+            }
+
+            $posted += new SyncKanbanCommentsAction($plan, $cards)->execute();
+        }
+
+        return $posted;
     }
 
     // Test seam — discovery of new cards (assignee-filtered board slice).

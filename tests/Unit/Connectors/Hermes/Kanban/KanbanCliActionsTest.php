@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Connectors\Hermes\Kanban;
 
+use Kanvas\Connectors\Hermes\Kanban\Actions\CommentKanbanTaskAction;
 use Kanvas\Connectors\Hermes\Kanban\Actions\CreateKanbanTaskAction;
 use Kanvas\Connectors\Hermes\Kanban\Actions\FetchKanbanBoardAction;
 use Kanvas\Connectors\Hermes\Kanban\Actions\TransitionKanbanTaskAction;
@@ -194,6 +195,25 @@ final class KanbanCliActionsTest extends TestCase
         $this->assertStringContainsString("'block' 't_x' 'need input'", $ssh2->commands[0]);
     }
 
+    public function testCommentSendsTextAndAuthorMarker(): void
+    {
+        $ssh = new FakeKanbanSshClient();
+        $ssh->verbReturn = 'Comment added to t_x';
+
+        new TestableCommentKanbanTaskAction(
+            $this->deployment(),
+            't_x',
+            'use the staging key',
+            'kanvas:42',
+            $ssh,
+        )->execute();
+
+        $this->assertStringContainsString(
+            "'comment' 't_x' 'use the staging key' '--author' 'kanvas:42'",
+            $ssh->commands[0],
+        );
+    }
+
     private function deployment(): AgentDeployment
     {
         $machine = Mockery::mock(AgentMachine::class);
@@ -298,6 +318,24 @@ class TestableTransitionKanbanTaskAction extends TransitionKanbanTaskAction
         ?string $result = null,
     ) {
         parent::__construct($deployment, $externalTaskId, $transition, $reason, $assignee, $result);
+    }
+
+    protected function openSshClient(AgentMachine $machine): SshClient
+    {
+        return $this->fake;
+    }
+}
+
+class TestableCommentKanbanTaskAction extends CommentKanbanTaskAction
+{
+    public function __construct(
+        AgentDeployment $deployment,
+        string $externalTaskId,
+        string $text,
+        string $author,
+        private FakeKanbanSshClient $fake,
+    ) {
+        parent::__construct($deployment, $externalTaskId, $text, $author);
     }
 
     protected function openSshClient(AgentMachine $machine): SshClient
