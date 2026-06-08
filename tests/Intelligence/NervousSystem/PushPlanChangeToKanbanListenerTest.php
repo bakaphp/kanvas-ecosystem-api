@@ -11,7 +11,7 @@ use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Jobs\PushPlanToKanbanJob;
 use Kanvas\NervousSystem\Plan\Jobs\PushTaskToKanbanJob;
-use Kanvas\NervousSystem\Plan\Listeners\PushPlanChangeToKanban;
+use Kanvas\NervousSystem\Plan\Listeners\PushPlanChangeToKanbanListener;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Mockery;
 use Tests\TestCase;
@@ -20,7 +20,7 @@ use Tests\TestCase;
  * The push listener's gate: sync-origin events are ignored (loop guard), and only agents with a
  * running Hermes deployment push. CREATED/UPDATED → plan job; nothing dispatched otherwise.
  */
-final class PushPlanChangeToKanbanTest extends TestCase
+final class PushPlanChangeToKanbanListenerTest extends TestCase
 {
     protected function tearDown(): void
     {
@@ -38,7 +38,7 @@ final class PushPlanChangeToKanbanTest extends TestCase
             fromSync: true,
         );
 
-        new PushPlanChangeToKanban()->handle($event);
+        new PushPlanChangeToKanbanListener()->handle($event);
 
         Bus::assertNotDispatched(PushPlanToKanbanJob::class);
         Bus::assertNotDispatched(PushTaskToKanbanJob::class);
@@ -53,7 +53,7 @@ final class PushPlanChangeToKanbanTest extends TestCase
             PlanChangeTypeEnum::CREATED,
         );
 
-        new PushPlanChangeToKanban()->handle($event);
+        new PushPlanChangeToKanbanListener()->handle($event);
 
         Bus::assertDispatched(PushPlanToKanbanJob::class);
     }
@@ -65,7 +65,7 @@ final class PushPlanChangeToKanbanTest extends TestCase
         $plan = Mockery::mock(Plan::class)->makePartial();
         $plan->shouldReceive('getAttribute')->with('agent')->andReturn(null);
 
-        new PushPlanChangeToKanban()->handle(
+        new PushPlanChangeToKanbanListener()->handle(
             new PlanBroadcast($plan, PlanChangeTypeEnum::CREATED),
         );
 

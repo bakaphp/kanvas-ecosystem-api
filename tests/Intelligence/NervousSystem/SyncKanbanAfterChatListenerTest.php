@@ -9,7 +9,7 @@ use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\NervousSystem\Plan\Jobs\SyncDeploymentKanbanJob;
-use Kanvas\NervousSystem\Plan\Listeners\SyncKanbanAfterChat;
+use Kanvas\NervousSystem\Plan\Listeners\SyncKanbanAfterChatListener;
 use Mockery;
 use Tests\TestCase;
 
@@ -17,7 +17,7 @@ use Tests\TestCase;
  * The post-chat snappy-ingest hook: a chat turn with a running Hermes agent kicks a one-off board
  * sync; non-Hermes / non-running agents are left to the cron.
  */
-final class SyncKanbanAfterChatTest extends TestCase
+final class SyncKanbanAfterChatListenerTest extends TestCase
 {
     protected function tearDown(): void
     {
@@ -29,7 +29,7 @@ final class SyncKanbanAfterChatTest extends TestCase
     {
         Bus::fake();
 
-        new SyncKanbanAfterChat()->handle($this->chatEvent(provider: 'hermes', running: true));
+        new SyncKanbanAfterChatListener()->handle($this->chatEvent(provider: 'hermes', running: true));
 
         Bus::assertDispatched(SyncDeploymentKanbanJob::class);
     }
@@ -38,7 +38,7 @@ final class SyncKanbanAfterChatTest extends TestCase
     {
         Bus::fake();
 
-        new SyncKanbanAfterChat()->handle($this->chatEvent(provider: 'openclaw', running: true));
+        new SyncKanbanAfterChatListener()->handle($this->chatEvent(provider: 'openclaw', running: true));
 
         Bus::assertNotDispatched(SyncDeploymentKanbanJob::class);
     }
@@ -47,7 +47,7 @@ final class SyncKanbanAfterChatTest extends TestCase
     {
         Bus::fake();
 
-        new SyncKanbanAfterChat()->handle($this->chatEvent(provider: 'hermes', running: false));
+        new SyncKanbanAfterChatListener()->handle($this->chatEvent(provider: 'hermes', running: false));
 
         Bus::assertNotDispatched(SyncDeploymentKanbanJob::class);
     }
