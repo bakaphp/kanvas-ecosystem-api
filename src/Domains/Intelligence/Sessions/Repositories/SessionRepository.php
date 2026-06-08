@@ -14,14 +14,14 @@ class SessionRepository
 {
     public static function getByUuidAndNamespaceFromCompanyApp(
         string $uuid,
-        CompanyInterface $company,
         AppInterface $app,
         string $namespace = Lead::class,
+        ?CompanyInterface $company = null,
     ): Session {
         $session = Session::query()
             ->where('uuid', $uuid)
             ->where('entity_namespace', $namespace)
-            ->where('companies_id', $company->getId())
+            ->when($company, fn ($q) => $q->where('companies_id', $company->getId()))
             ->where('apps_id', $app->getId())
             ->where('is_deleted', 0)
             ->orderByDesc('id')
@@ -29,7 +29,7 @@ class SessionRepository
 
         if (! $session) {
             throw new ModelNotFoundException(
-                "Session not found for uuid {$uuid} and namespace {$namespace} in company {$company->getId()} and app {$app->getId()}"
+                "Session not found for uuid {$uuid} and namespace {$namespace} in company {$company?->getId()} and app {$app->getId()}"
             );
         }
 
