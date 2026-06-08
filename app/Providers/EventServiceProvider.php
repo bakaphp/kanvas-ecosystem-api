@@ -8,7 +8,7 @@ use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvi
 use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Companies\Models\CompaniesGroups;
 use Kanvas\Connectors\ScrapperApi\Listeners\CartListener;
-use Kanvas\Guild\Customers\Listeners\UpdatePeopleMessageTimestamps;
+use Kanvas\Guild\Customers\Listeners\UpdatePeopleMessageTimestampsListener;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Observers\PeopleEmploymentHistoryObserver;
@@ -73,7 +73,7 @@ class EventServiceProvider extends ServiceProvider
             CompanySubscriptionWebhookListener::class,
         ],
         AppModuleMessageCreatedEvent::class => [
-            UpdatePeopleMessageTimestamps::class,
+            UpdatePeopleMessageTimestampsListener::class,
         ],
     ];
 

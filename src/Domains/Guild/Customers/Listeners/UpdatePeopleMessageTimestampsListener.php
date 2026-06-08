@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Events\AppModuleMessageCreatedEvent;
 
-class UpdatePeopleMessageTimestamps
+class UpdatePeopleMessageTimestampsListener
 {
     public function handle(AppModuleMessageCreatedEvent $event): void
     {
