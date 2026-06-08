@@ -8,6 +8,7 @@ use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
+use App\Console\Commands\Lead\Schedules\LeadFollowUpSchedule;
 use App\Console\Commands\NervousSystem\Schedules\NervousSystemSchedule;
 use App\Console\Commands\Social\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
@@ -49,6 +50,10 @@ class Kernel extends ConsoleKernel
         // Nervous System — agent lifecycle, ledger maintenance, pulse + dashboard
         // rollups, plan + capability sweeps, the daily-learning loop.
         NervousSystemSchedule::register($schedule);
+
+        // Lead follow-up v2 — hourly fan-out + daily summary. Timing map +
+        // rationale live in LeadFollowUpSchedule.
+        LeadFollowUpSchedule::register($schedule);
 
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\NervousSystem\Mutations;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Plan\Actions\AddTaskAction;
 use Kanvas\NervousSystem\Plan\Actions\ApprovePlanAction;
 use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
@@ -80,10 +81,21 @@ class PlanMutation
         /** @var Plan $plan */
         $plan = Plan::getByIdFromCompanyApp((int) $request['plan_id'], $company, $app);
 
-        return new AddTaskAction(
+        $input = $request['input'];
+
+        $task = new AddTaskAction(
             $plan,
-            TaskData::fromMultiple($plan, $request['input']),
+            TaskData::fromMultiple($plan, $input),
         )->execute();
+
+        // Per-task assignee (the Task DTO carries no agent; set it post-create).
+        if (isset($input['agent_id'])) {
+            $agent = Agent::getByIdFromCompanyApp((int) $input['agent_id'], $company, $app);
+            $task->agent_id = $agent->getId();
+            $task->saveQuietly();
+        }
+
+        return $task;
     }
 
     public function updateTaskStatus(mixed $rootValue, array $request): Task

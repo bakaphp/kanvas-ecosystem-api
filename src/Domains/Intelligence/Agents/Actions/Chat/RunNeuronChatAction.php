@@ -76,8 +76,17 @@ class RunNeuronChatAction
         } catch (Throwable $e) {
             report($e);
 
-            $fallback = 'I ran into a hiccup processing that. Could you try rephrasing, '
-                . 'or let me know if you want me to hand off to a human?';
+            // User-facing fallback stays friendly for channel responders.
+            // The trailing `[provider_error: ...]` marker is parseable by
+            // structured callers (e.g. FollowUpLeadAction) so they don't have
+            // to correlate two Sentry events to debug a provider failure.
+            $fallback = sprintf(
+                'I ran into a hiccup processing that. Could you try rephrasing, '
+                . "or let me know if you want me to hand off to a human?\n"
+                . '[provider_error: %s: %s]',
+                $e::class,
+                substr($e->getMessage(), 0, 500),
+            );
 
             new KanvasConversationStore()->logTurn(
                 userId: $this->user->getId(),

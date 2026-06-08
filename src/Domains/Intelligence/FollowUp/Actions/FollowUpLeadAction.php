@@ -1,0 +1,675 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Intelligence\FollowUp\Actions;
+
+use Carbon\CarbonInterface;
+use Carbon\CarbonInterval;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Blade;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
+use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\LeadChannelService;
+use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\AgentFollowUpResult;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\ChannelConfig;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpConfig;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpOutcome;
+use Kanvas\Intelligence\FollowUp\DataTransferObject\ResolvedChannel;
+use Kanvas\Intelligence\FollowUp\Enums\ChannelSelectionEnum;
+use Kanvas\Intelligence\FollowUp\Enums\ExhaustedActionEnum;
+use Kanvas\Intelligence\FollowUp\Enums\FollowUpModeEnum;
+use Kanvas\Intelligence\FollowUp\Services\LeadOutboundChannelResolver;
+use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
+use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Templates\Models\Templates;
+use RuntimeException;
+use Throwable;
+
+/**
+ * Brain of the v1 follow-up engine. Full pipeline + outcome semantics:
+ * docs/intelligence/follow-up-v1-spec.md.
+ *
+ * `force: true` bypasses the silence gate only — for manual UI triggers.
+ */
+final class FollowUpLeadAction
+{
+    public function __construct(
+        protected readonly Apps $app,
+        protected readonly Companies $company,
+        protected readonly Lead $lead,
+        protected readonly Agent $agent,
+        protected readonly bool $force = false,
+    ) {
+    }
+
+    public function execute(): FollowUpOutcome
+    {
+        $config = FollowUpConfig::fromStage($this->lead->stage);
+        if ($config === null || ! $config->enabled) {
+            return $this->skip('follow_up_disabled');
+        }
+
+        // V1 ships time_based only; goal_based shape is reserved.
+        if ($config->mode !== FollowUpModeEnum::TIME_BASED || $config->timeBased === null) {
+            return $this->skip('unsupported_mode_v1');
+        }
+
+        if ($this->lead->isFollowUpExhausted()) {
+            return $this->skip('exhausted');
+        }
+
+        if ($this->lead->getFollowUpStateCount() >= $config->maxRetries) {
+            $this->handleExhaustedAction($config);
+
+            return $this->exhaust('max_retries');
+        }
+
+        // Handoff is terminal — operator must reset follow_up_state to bring
+        // the lead back into the automated flow even if the handoff clears.
+        if ((bool) $this->lead->get(IntelligenceConfigurationEnum::AGENT_HAND_OFF->value)) {
+            return $this->exhaust('handed_off');
+        }
+
+        // Manual mode is pausable — humans toggle off, next tick resumes.
+        if ((bool) $this->lead->get(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value)) {
+            return $this->skip('ai_mode_manual');
+        }
+
+        // Channel resolution lives on the Lead's contacts
+        $candidates = new LeadOutboundChannelResolver()->resolve($this->lead, $config);
+        if ($candidates === []) {
+            return $this->skip('no_reachable_channel');
+        }
+
+        $session = $this->resolveSession();
+        if (! $session) {
+            return $this->skip('no_session');
+        }
+
+        $lastInboundAt = $this->getLastInboundForLead();
+        $targets = $this->selectTargets($candidates, $config);
+        // Primary target drives prompt + template + ledger summary. For
+        // FAN_OUT_ALL the same body is dispatched to every target below.
+        $primary = $targets[0];
+        $channelType = $primary->channelType;
+        $channelConfig = $config->channelByType($channelType);
+
+        $silenceMin = $this->lead->followUpSilenceMinutesSince($lastInboundAt);
+
+        if (! $this->force && $silenceMin < $config->timeBased->intervalMinutes) {
+            return $this->skip('too_soon');
+        }
+
+        [$template, $metaTemplate, $skipReason] = $this->resolveTemplateForChannel(
+            $channelType,
+            $channelConfig,
+            $lastInboundAt
+        );
+
+        if ($skipReason !== null) {
+            return $this->skip($skipReason);
+        }
+
+        $prompt = $this->buildAgentPrompt(
+            $config,
+            $channelType,
+            $template?->name,
+            $template !== null
+                ? $this->renderTemplateForStyleReference($template)
+                : $this->renderDefaultStyleReference($channelType),
+            $metaTemplate,
+            $silenceMin
+        );
+
+        try {
+            $raw = new AgentChatKernel(
+                agent: $this->agent,
+                session: $session,
+                message: $prompt,
+                user: $this->company->getAiAgentUserOrFail(),
+                currentLead: $this->lead,
+                persistConversation: false,
+            )->execute();
+            $result = AgentFollowUpResult::fromKernelResponse($raw);
+        } catch (Throwable $e) {
+            // Wrap with lead/tenant/prompt context so Sentry has everything
+            // needed to debug a bad LLM response without manual SQL.
+            report(new RuntimeException(
+                sprintf(
+                    "Follow-up agent failure for lead %d (app=%d company=%d stage=%s agent=%d)\n"
+                    . "Error: %s\n"
+                    . "--- PROMPT (first 3000 chars) ---\n%s",
+                    $this->lead->getId(),
+                    $this->app->getId(),
+                    $this->company->getId(),
+                    (string) $this->lead->pipeline_stage_id,
+                    $this->agent->getId(),
+                    $e->getMessage(),
+                    mb_substr($prompt, 0, 3000),
+                ),
+                0,
+                $e,
+            ));
+
+            return $this->skip('agent_call_failed: ' . $e->getMessage());
+        }
+
+        if (! $result->shouldRespond && ! $result->advanceStage) {
+            return $this->exhaust('agent: ' . ($result->reason ?? 'declined'));
+        }
+
+        $sentBody = null;
+        $channelsForBump = [];
+        if ($result->shouldRespond && $result->message !== null) {
+            $sentBody = $this->resolveOutboundBody(
+                channelType: $channelType,
+                template: $template,
+                agentMessage: $result->message,
+            );
+
+            foreach ($targets as $target) {
+                $this->persistMessage($session, $target->channelType, $sentBody);
+                $this->dispatchOutbound($target->channelType, $sentBody, $target->contact);
+                $channelsForBump[] = $target->channelType;
+            }
+
+            // One touch = one bump regardless of N channels dispatched.
+            $this->lead->bumpFollowUp($channelsForBump, $template?->name);
+        }
+
+        $advanced = $result->advanceStage && $this->advanceLeadStage();
+
+        $this->emitSent(
+            $channelsForBump !== [] ? $channelsForBump : [$channelType],
+            $template?->name,
+            $metaTemplate,
+            $result->reason,
+            $advanced,
+            $primary,
+            $config->channelSelection,
+        );
+
+        return FollowUpOutcome::sent($sentBody);
+    }
+
+    /**
+     * @param ResolvedChannel[] $candidates
+     * @return ResolvedChannel[] single-element for pick-one strategies, all candidates for fan_out_all
+     */
+    private function selectTargets(array $candidates, FollowUpConfig $config): array
+    {
+        // STICKY_THEN_PRIORITY + AGENT_PICKS are aliased to PRIORITY_ONLY in v1 —
+        // the session-marker sticky signal is unreliable in the new sales-agent
+        // infra. v1.5 will implement sticky via last-inbound-message lookup.
+        return match ($config->channelSelection) {
+            ChannelSelectionEnum::FAN_OUT_ALL => $candidates,
+            ChannelSelectionEnum::PRIORITY_ONLY,
+            ChannelSelectionEnum::STICKY_THEN_PRIORITY,
+            ChannelSelectionEnum::AGENT_PICKS => [$candidates[0]],
+        };
+    }
+
+    // Sessions are keyed to People (not Lead) in the new sales-agent infra —
+    // same human spans multiple leads across pipelines but one session.
+    private function resolveSession(): ?Session
+    {
+        if (! $this->lead->people_id) {
+            return null;
+        }
+
+        return Session::query()
+            ->where('entity_namespace', People::class)
+            ->where('entity_id', $this->lead->people_id)
+            ->where('is_deleted', 0)
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->latest('id')
+            ->first();
+    }
+
+    // Last inbound across ALL of the person's channels (lead-scoped). The
+    // previous session-scoped version missed inbound messages that landed
+    // on a different channel than the picked session.
+    private function getLastInboundForLead(): ?Carbon
+    {
+        if (! $this->lead->people_id) {
+            return null;
+        }
+
+        $channelIds = Channel::query()
+            ->where('entity_namespace', People::class)
+            ->where('entity_id', $this->lead->people_id)
+            ->where('is_deleted', 0)
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->pluck('id');
+
+        if ($channelIds->isEmpty()) {
+            return null;
+        }
+
+        // No verb filter — `from_me = false` on a People-keyed channel is a
+        // strong-enough signal that this is the customer's inbound. The old
+        // verb=whatsapp-text filter excluded non-WhatsApp inbound (email/SMS)
+        // when the query went cross-channel.
+        $message = Message::query()
+            ->where('message->from_me', false)
+            ->where('is_deleted', 0)
+            ->whereHas(
+                'channels',
+                fn ($q) => $q->whereIn('channels.id', $channelIds),
+            )
+            ->latest('created_at')
+            ->first();
+
+        return $message?->created_at ? Carbon::parse($message->created_at) : null;
+    }
+
+    /**
+     * @return array{0: ?Templates, 1: ?string, 2: ?string}  [template, metaTemplateName, skipReason]
+     */
+    private function resolveTemplateForChannel(
+        string $channelType,
+        ChannelConfig $channelConfig,
+        ?Carbon $lastInboundAt,
+    ): array {
+        $template = null;
+        if ($channelConfig->templateName !== null) {
+            // Scoped to BOTH app+company so tenants can ship same-named templates.
+            $template = Templates::query()
+                ->where('name', $channelConfig->templateName)
+                ->fromApp($this->app)
+                ->fromCompany($this->company)
+                ->notDeleted()
+                ->first();
+
+            if ($template === null) {
+                return [null, null, 'template_not_found: ' . $channelConfig->templateName];
+            }
+        }
+
+        if ($channelType !== 'whatsapp') {
+            return [$template, null, null];
+        }
+
+        $within24h = $lastInboundAt !== null && $lastInboundAt->diffInHours(Carbon::now()) < 24;
+        if ($within24h) {
+            return [$template, null, null];
+        }
+
+        if ($template === null) {
+            return [null, null, 'outside_24h_no_template'];
+        }
+
+        // Meta-registered name lives on the Templates row — `title` column OR
+        // `whatsapp_meta_name` custom field (ops convention TBD).
+        $metaName = $template->title ?: $template->get('whatsapp_meta_name');
+        if (! is_string($metaName) || $metaName === '') {
+            return [$template, null, 'outside_24h_no_meta_name'];
+        }
+
+        return [$template, $metaName, null];
+    }
+
+    /**
+     * Prompt override hierarchy (broken override falls through to default):
+     *   1. stage.config.follow_up.prompt_template
+     *   2. company.config.follow_up_prompt_template
+     *   3. built-in default
+     */
+    private function buildAgentPrompt(
+        FollowUpConfig $config,
+        string $channelType,
+        ?string $templateName,
+        ?string $templateBody,
+        ?string $metaTemplate,
+        int $silenceMin,
+    ): string {
+        $override = $config->promptTemplate
+            ?? (is_string($this->company->get('follow_up_prompt_template'))
+                ? (string) $this->company->get('follow_up_prompt_template')
+                : null);
+
+        $context = [
+            'lead' => $this->lead,
+            'people' => $this->lead->people ?? null,
+            'stage' => $this->lead->stage,
+            'stage_name' => $this->lead->stage->name ?? 'unknown',
+            'config' => $config,
+            'channel' => $channelType,
+            'template_name' => $templateName,
+            'template_body' => $templateBody,
+            'meta_template' => $metaTemplate,
+            'template_locked' => $metaTemplate !== null,
+            'silence_minutes' => $silenceMin,
+            'follow_up_count' => $this->lead->getFollowUpStateCount(),
+            'max_retries' => $config->maxRetries,
+        ];
+
+        if (is_string($override) && $override !== '') {
+            try {
+                return Blade::render($override, $context);
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
+
+        return $this->defaultAgentPrompt($context);
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    private function defaultAgentPrompt(array $context): string
+    {
+        $templateLocked = (bool) $context['template_locked'];
+        $templateName = $context['template_name'];
+        $templateBody = $context['template_body'] ?? null;
+        $silenceMin = (int) $context['silence_minutes'];
+
+        $silenceLine = $silenceMin === PHP_INT_MAX
+            ? 'Silence since last inbound: no prior inbound on file (cold lead OR no message stream yet).'
+            : 'Silence since last inbound: ' . CarbonInterval::minutes($silenceMin)
+                ->cascade()
+                ->forHumans(['parts' => 1, 'syntax' => CarbonInterface::DIFF_ABSOLUTE]) . '.';
+
+        $lines = [
+            'Decide what to do for this lead in pipeline stage "' . $context['stage_name'] . '".',
+            $silenceLine,
+            'Follow-up count so far in this stage: ' . $context['follow_up_count'] . ' of ' . $context['max_retries'] . '.',
+            'Outbound channel: ' . $context['channel'] . '.',
+            $templateName !== null
+                ? 'Stage template configured: ' . $templateName . '.'
+                : 'No stage-specific template — using a neutral default tone reference below.',
+        ];
+
+        if (is_string($templateBody) && $templateBody !== '') {
+            $lines[] = '';
+            $lines[] = 'Tone & voice reference (for STYLE only — greeting form, level of warmth, signature):';
+            $lines[] = '---';
+            $lines[] = $templateBody;
+            $lines[] = '---';
+            $lines[] = 'Use the reference for HOW to write (warmth, brevity, sign-off style) — NOT for WHAT to write.';
+            $lines[] = '';
+            $lines[] = 'The BODY MUST come from the actual conversation history:';
+            $lines[] = '- If you previously asked a question, follow up on THAT specific question.';
+            $lines[] = '- If you previously offered something (a call, a demo, a resource), reiterate that offer CONCRETELY by name.';
+            $lines[] = '- If a specific topic was discussed (a product, a workflow, a system), reference it by name.';
+            $lines[] = '- If the reference contains `[agent message slot]`, write only the inner content for that slot.';
+            $lines[] = '';
+            $lines[] = 'Do NOT use generic phrases like "wanted to circle back" or "anything I can help clarify" if you have specific context from prior turns. Generic check-ins are reserved for COLD leads with no conversation history.';
+            $lines[] = '';
+        }
+
+        $lines[] = $templateLocked
+            ? 'CONSTRAINT: outside WhatsApp 24h window. Use a tone consistent with the registered template (meta_name: ' . $context['meta_template'] . ').'
+            : 'CONSTRAINT: inside WhatsApp 24h window (or non-WhatsApp). Free body allowed.';
+        $lines[] = 'Use conversation history to decide should_respond / advance_stage / message / reason.';
+        $lines[] = 'Respond with the JSON object only.';
+
+        return implode("\n", $lines);
+    }
+
+    // Channel-specific neutral default. Used when the stage has no
+    // template_name configured so the agent always has tone anchor copy
+    // (a thin prompt with "no template" was making the LLM fall back to a
+    // canned "I had a hiccup" deflection).
+    private function renderDefaultStyleReference(string $channelType): string
+    {
+        $body = match ($channelType) {
+            'email' => <<<'BLADE'
+                Hi {{ $people?->firstname ?? 'there' }},
+
+                Just wanted to follow up briefly. Let me know if there's anything I can help clarify or if there's a better time to connect.
+
+                Best,
+                {{ $company->name }}
+                BLADE,
+            'sms', 'whatsapp' => <<<'BLADE'
+                Hi {{ $people?->firstname ?? 'there' }}! Just checking in — happy to help whenever you have a minute.
+
+                — {{ $company->name }}
+                BLADE,
+            default => <<<'BLADE'
+                Hi {{ $people?->firstname ?? 'there' }}, just following up on your interest. Let me know if I can help.
+
+                — {{ $company->name }}
+                BLADE,
+        };
+
+        try {
+            return Blade::render($body, [
+                'lead' => $this->lead,
+                'people' => $this->lead->people ?? null,
+                'company' => $this->company,
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return 'Friendly, brief, professional check-in. Address by first name. Sign off as the company.';
+        }
+    }
+
+    // Renders the template body with the lead/people/company context so the
+    // agent prompt sees actual text. Where the template has a `$agent_message`
+    // slot, we substitute a sentinel so the agent knows where its content lands.
+    private function renderTemplateForStyleReference(Templates $template): ?string
+    {
+        $body = (string) ($template->template ?? '');
+        if ($body === '') {
+            return null;
+        }
+
+        try {
+            return Blade::render($body, [
+                'lead' => $this->lead,
+                'people' => $this->lead->people ?? null,
+                'company' => $this->company,
+                'agent_message' => '[agent message slot]',
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return null;
+        }
+    }
+
+    // For templates with a `$agent_message` slot, render the template (agent
+    // message wrapped). For static templates without the slot, send the agent
+    // message directly — the template was a style guide only.
+    private function resolveOutboundBody(
+        string $channelType,
+        ?Templates $template,
+        string $agentMessage,
+    ): string {
+        if ($template === null) {
+            return $agentMessage;
+        }
+
+        $body = (string) ($template->template ?? '');
+        if (! str_contains($body, 'agent_message')) {
+            return $agentMessage;
+        }
+
+        return $this->renderTemplateBlade($template, $agentMessage);
+    }
+
+    private function renderTemplateBlade(Templates $template, string $agentMessage): string
+    {
+        $body = (string) ($template->template ?? '');
+        if ($body === '') {
+            return $agentMessage;
+        }
+
+        try {
+            return Blade::render($body, [
+                'lead' => $this->lead,
+                'people' => $this->lead->people ?? null,
+                'company' => $this->company,
+                'agent_message' => $agentMessage,
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return $agentMessage;
+        }
+    }
+
+    private function persistMessage(Session $session, string $channelType, string $body): Message
+    {
+        $messageType = MessageTypeService::getOrCreate(
+            $this->app,
+            $this->messageTypeVerbFor($channelType)
+        );
+
+        $payload = new AiChatMessagePayload(
+            content: $body,
+            from_me: true,
+            from_ia: true,
+            session_id: $session->uuid,
+            agent_id: (int) $this->agent->getId(),
+            raw_data: $body,
+        );
+
+        // ->toArray() — DB driver can't string-convert a Data instance.
+        $messageInput = MessageInput::from([
+            'app' => $this->app,
+            'company' => $this->company,
+            'user' => $this->company->getAiAgentUserOrFail(),
+            'type' => $messageType,
+            'message' => $payload->toArray(),
+            'is_public' => 1,
+        ]);
+
+        $message = new CreateSocialMessageAction(
+            $messageInput,
+            SystemModulesRepository::getByModelName(get_class($this->lead), $this->app),
+            $this->lead->getId(),
+        )->execute();
+
+        $session->channel?->addMessage($message);
+        $message->addTag('followup');
+
+        try {
+            new LeadChannelService()->attachMessageToLeadChannel(
+                $message,
+                $this->lead,
+                $this->app,
+                $this->company,
+                $this->company->getAiAgentUserOrFail(),
+            );
+        } catch (Throwable $e) {
+            report($e);
+        }
+
+        return $message;
+    }
+
+    private function dispatchOutbound(string $channelType, string $body, Contact $outboundContact): void
+    {
+        $emailTitle = (string) ($this->lead->get('title_email_follow_up') ?? $this->company->name);
+        $twilioFrom = (string) $this->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value);
+
+        try {
+            new SendMessageToLeadAction($this->lead)->execute(
+                channel: $channelType,
+                message: $body,
+                from: $twilioFrom,
+                title: $emailTitle,
+                to: (string) $outboundContact->value,
+            );
+        } catch (Throwable $e) {
+            // Outbound failure does NOT roll back the persisted message — the
+            // record of attempt is the audit truth; the queue layer retries.
+            report($e);
+        }
+    }
+
+    private function messageTypeVerbFor(string $channelType): string
+    {
+        return match ($channelType) {
+            'whatsapp' => 'whatsapp',
+            'email' => 'email',
+            default => 'twilio-sms',
+        };
+    }
+
+    private function handleExhaustedAction(FollowUpConfig $config): void
+    {
+        if ($config->exhaustedAction === ExhaustedActionEnum::ADVANCE) {
+            $this->advanceLeadStage();
+        }
+    }
+
+    private function advanceLeadStage(): bool
+    {
+        $before = $this->lead->pipeline_stage_id;
+        $this->lead->moveToNextPipelineStage();
+
+        return $this->lead->pipeline_stage_id !== $before;
+    }
+
+    private function skip(string $reason): FollowUpOutcome
+    {
+        $this->lead->emitLedgerEvent('lead.follow_up.skipped', payload: [
+            'stage_id' => $this->lead->pipeline_stage_id,
+            'reason' => $reason,
+        ]);
+
+        return FollowUpOutcome::skipped($reason);
+    }
+
+    private function exhaust(string $reason): FollowUpOutcome
+    {
+        $this->lead->markFollowUpExhausted($reason);
+        $this->lead->emitLedgerEvent('lead.follow_up.exhausted', payload: [
+            'stage_id' => $this->lead->pipeline_stage_id,
+            'reason' => $reason,
+        ]);
+
+        return FollowUpOutcome::exhausted($reason);
+    }
+
+    /**
+     * @param string[] $channels  one element for pick-one strategies, N for fan_out_all
+     */
+    private function emitSent(
+        array $channels,
+        ?string $templateName,
+        ?string $metaTemplate,
+        ?string $reason,
+        bool $advanced,
+        ResolvedChannel $primary,
+        ChannelSelectionEnum $strategy,
+    ): void {
+        $this->lead->emitLedgerEvent('lead.follow_up.sent', payload: [
+            'stage_id' => $this->lead->pipeline_stage_id,
+            'channels' => $channels,
+            'template' => $templateName,
+            'meta_template' => $metaTemplate,
+            'follow_up_count' => $this->lead->getFollowUpStateCount(),
+            'by_agent_id' => $this->agent->getId(),
+            'reason' => $reason,
+            'advanced_stage' => $advanced,
+            'channel_selection_strategy' => $strategy->value,
+            'channel_selection_reason' => $primary->reason,
+            'contact_id' => $primary->contact->getKey(),
+        ]);
+    }
+}

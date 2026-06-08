@@ -15,6 +15,7 @@ class UpdatePlanAction
     public function __construct(
         protected readonly Plan $plan,
         protected readonly PlanData $data,
+        protected readonly bool $fromSync = false,
     ) {
     }
 
@@ -78,6 +79,7 @@ class UpdatePlanAction
             $this->plan->broadcastChange(
                 changeType: PlanChangeTypeEnum::UPDATED,
                 previousStatus: $oldStatus,
+                fromSync: $this->fromSync,
             );
 
             // Org-level milestone — only on the actual transition into a

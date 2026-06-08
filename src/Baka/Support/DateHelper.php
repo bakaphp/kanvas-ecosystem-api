@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Baka\Support;
 
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
 use Throwable;
 
 class DateHelper
@@ -45,6 +45,20 @@ class DateHelper
 
         try {
             return Carbon::parse($time)->format($format);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    // Returns null instead of throwing on garbage / non-strings / empty input.
+    public static function tryParseCarbon(mixed $value): ?Carbon
+    {
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value);
         } catch (Throwable) {
             return null;
         }

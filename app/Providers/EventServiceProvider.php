@@ -16,6 +16,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
 use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
 use Kanvas\Intelligence\AgentRuntime\Listeners\SendAgentDeploymentLifecycleEmail;
+use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Inventory\Categories\Observers\ProductsCategoriesObserver;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Observers\ChannelObserver;
@@ -31,6 +32,8 @@ use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Observers\WarehouseObserver;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
+use Kanvas\NervousSystem\Plan\Listeners\PushPlanChangeToKanban;
+use Kanvas\NervousSystem\Plan\Listeners\SyncKanbanAfterChat;
 use Kanvas\NervousSystem\Plan\Listeners\WakeAgentOnPlanChange;
 use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Notifications\Listeners\NotificationsListener;
@@ -54,6 +57,10 @@ class EventServiceProvider extends ServiceProvider
         ],
         PlanBroadcast::class => [
             WakeAgentOnPlanChange::class,
+            PushPlanChangeToKanban::class,
+        ],
+        AgentChatResponseEvent::class => [
+            SyncKanbanAfterChat::class,
         ],
         AgentDeploymentStatusChanged::class => [
             SendAgentDeploymentLifecycleEmail::class,

@@ -19,6 +19,14 @@ use Tests\TestCase;
 
 final class UpdateSubscriptionTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Stripe integration tests are skipped in CI');
+        }
+    }
+
     public function testUpdateSubscription()
     {
         $stripeKey = $this->requireStripeTestKey();

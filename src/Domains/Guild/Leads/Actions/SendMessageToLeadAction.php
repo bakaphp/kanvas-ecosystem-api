@@ -75,7 +75,7 @@ class SendMessageToLeadAction
         return match ($channel) {
             LeadCommunicationChannelEnum::WHATSAPP->value => $this->sendWhatsAppMessage($message, $to),
             LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage((string) $from, $message, $to),
-            LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message, $title, $signature),
+            LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message, $title, $signature, $to),
             LeadCommunicationChannelEnum::VOICE->value => $this->sendVoiceMessage($message),
             default => throw new InvalidArgumentException('Unsupported communication channel ' . $channel),
         };
@@ -495,7 +495,8 @@ class SendMessageToLeadAction
     protected function sendEmailMessage(
         string $message,
         ?string $title = null,
-        bool $signature = true
+        bool $signature = true,
+        ?string $to = null
     ): array {
         $attachments = [];
 
@@ -528,7 +529,9 @@ class SendMessageToLeadAction
         );
         $notification->setFromUser($this->lead->user);
         $notification->setSubject($title ?? 'Message from ' . $this->lead->company->name);
-        $leadEmail = $this->lead->people->getEmails()->first()?->value;
+        $leadEmail = ($to !== null && $to !== '')
+            ? $to
+            : $this->lead->people->getEmails()->first()?->value;
         if (! $leadEmail) {
             throw new Exception('Lead does not have an email address');
         }

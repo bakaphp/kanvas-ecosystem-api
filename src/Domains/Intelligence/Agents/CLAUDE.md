@@ -187,4 +187,5 @@ $this->assertStringContainsString('Hola Mundo', (string) $outbound->message['con
 
 - [`Actions/Chat/AgentChatKernel.php`](Actions/Chat/AgentChatKernel.php) — the kernel's own class docblock explains the routing logic in 7 lines
 - [`Actions/BaseAgentChannelReplyAction.php`](Actions/BaseAgentChannelReplyAction.php) — base class docblock explains the connector-side contract
+- Product recommendation tools (`Laravel/Tools/Inventory/{ProductRecommendationLookupTool,TypesenseProductRecommendationTool}.php`) — SQL/Algolia hybrid vs Typesense NL search, identical `{product, variants[]}` output shape. How the search engine is resolved, configured per app, and indexed (incl. Typesense Natural Language Search) is documented in [`src/Domains/Inventory/CLAUDE.md`](../../Inventory/CLAUDE.md).
 - Existing end-to-end tests in [`tests/Connectors/Integration/{WaSender,Mailgun,RespondIO,Twilio}/AgentChannelResponderEndToEndTest.php`](../../../../tests/Connectors/Integration/) — copy-paste shape when adding a new connector

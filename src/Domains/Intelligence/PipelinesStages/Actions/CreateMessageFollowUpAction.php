@@ -33,6 +33,11 @@ use Laravel\Ai\Responses\StructuredAgentResponse;
 
 use function Laravel\Ai\agent;
 
+/**
+ * @deprecated v1 follow-up engine builds + persists outbound messages inside
+ *             FollowUpLeadAction directly (Kanvas\Intelligence\FollowUp\Actions\).
+ *             Slated for deletion — see docs/intelligence/follow-up-deprecation-spec.md.
+ */
 class CreateMessageFollowUpAction
 {
     protected Agent $agent;

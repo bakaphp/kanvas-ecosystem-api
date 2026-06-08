@@ -6,11 +6,10 @@ namespace Kanvas\Connectors\Hermes\Actions;
 
 use finfo;
 use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Hermes\SshClient;
+use Kanvas\Connectors\Hermes\Traits\OpensHermesSshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
-use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
 
 /**
@@ -21,6 +20,8 @@ use Throwable;
  */
 class ChatWithAgentAction
 {
+    use OpensHermesSshClient;
+
     /**
      * @param list<string> $images URLs to forward as multimodal image content.
      */
@@ -40,11 +41,6 @@ class ChatWithAgentAction
         }
 
         return $this->sendRequest($deployment, $this->resolveGatewayToken($deployment));
-    }
-
-    protected function openSshClient(AgentMachine $machine): SshClient
-    {
-        return SshClient::fromMachine($machine);
     }
 
     /**

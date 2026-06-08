@@ -13,6 +13,11 @@ use Kanvas\Intelligence\Models\BaseModel;
 
 /**
  * Class FollowUp
+ *
+ * @deprecated v1 follow-up engine (stage.config.follow_up + agent-driven loop)
+ *             replaced this. Slated for deletion after the deprecation window —
+ *             see docs/intelligence/follow-up-deprecation-spec.md kill list.
+ *
  * @property int $id
  * @property int $apps_id
  * @property int $companies_id

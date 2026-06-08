@@ -117,4 +117,29 @@ trait ScalarCoercionTrait
 
         return is_array($decoded) && $decoded !== [] ? $decoded : null;
     }
+
+    // Static variants for use inside static DTO factories (where $this isn't available).
+    // Unlike stringOrNull/intOrNull these preserve an empty string and only null on a true null.
+
+    protected static function nullableString(mixed $value): ?string
+    {
+        return $value === null ? null : (string) $value;
+    }
+
+    protected static function nullableInt(mixed $value): ?int
+    {
+        return $value === null ? null : (int) $value;
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected static function stringList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_map(static fn (mixed $item): string => (string) $item, $value));
+    }
 }
