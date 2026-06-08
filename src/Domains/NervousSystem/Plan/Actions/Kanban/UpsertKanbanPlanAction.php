@@ -30,7 +30,6 @@ final class UpsertKanbanPlanAction
         private readonly ?Plan $existing,
         private readonly AgentDeployment $deployment,
         private readonly Agent $agent,
-        private readonly ?string $board = null,
     ) {
     }
 
@@ -176,11 +175,6 @@ final class UpsertKanbanPlanAction
         $plan->set(KanbanCustomFieldEnum::TASK_ID->value, $this->root->id);
         $plan->set(KanbanCustomFieldEnum::STATUS->value, $rawStatus);
         $plan->set(KanbanCustomFieldEnum::DEPLOYMENT_ID->value, (string) $this->deployment->getId());
-
-        if ($this->board !== null && $this->board !== '') {
-            $plan->set(KanbanCustomFieldEnum::BOARD->value, $this->board);
-        }
-
         $plan->set(KanbanCustomFieldEnum::SYNCED_AT->value, Carbon::now()->toIso8601String());
     }
 }

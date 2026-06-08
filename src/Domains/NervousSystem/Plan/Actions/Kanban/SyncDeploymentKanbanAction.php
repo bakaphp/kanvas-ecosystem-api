@@ -47,15 +47,13 @@ class SyncDeploymentKanbanAction
         $planByExternal = $this->preloadPlans($app, $company, $agent->getId());
         $taskByExternal = $this->preloadTasks($planByExternal);
 
-        // Discover new cards via the assignee-filtered board slice...
         /** @var array<string, KanbanTask> $byId */
         $byId = [];
         foreach ($this->fetchBoard($app, $company) as $card) {
             $byId[$card->id] = $card;
         }
 
-        // ...then refresh any card we already track that the slice missed (reassigned / profile
-        // mismatch). Matching is by task id + agent, NOT by the current assignee.
+        // Refresh tracked cards the board slice missed (reassigned / profile mismatch) — by task id, not assignee.
         foreach ([...array_keys($planByExternal), ...array_keys($taskByExternal)] as $knownId) {
             if (isset($byId[$knownId])) {
                 continue;
