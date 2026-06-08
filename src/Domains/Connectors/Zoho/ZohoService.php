@@ -8,9 +8,12 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
+use Illuminate\Support\Collection;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
+use Throwable;
+use Webleit\ZohoCrmApi\Enums\UserType;
 use Webleit\ZohoCrmApi\Models\Model as ZohoModel;
 use Webleit\ZohoCrmApi\Models\Record;
 use Webleit\ZohoCrmApi\ZohoCrm;
@@ -20,6 +23,8 @@ class ZohoService
     protected ZohoCrm $zohoCrm;
     protected string $zohoAgentModule;
     protected ?array $lastCreateAgentRequest = null;
+    protected ?Collection $activeZohoUserIds = null;
+    protected bool $activeZohoUserIdsLoaded = false;
     private const string DEFAULT_AGENT_MODULE = 'agents';
 
     public function __construct(
@@ -63,11 +68,22 @@ class ZohoService
             'Email' => $user->email,
             'Member_Number' => $agentInfo->getMemberNumber(),
             'Sponsor' => ! empty($agentInfo->owner_id) ? (string) $agentInfo->owner_id : '1001',
-            'Owner' => ! empty($agentInfo->owner_linked_source_id) ? (int) $agentInfo->owner_linked_source_id : $this->company->get(CustomFieldEnum::DEFAULT_OWNER->value),
             'Account_Type' => 'Standard',
             'Name' => $agentInfo->name,
             'Office_Phone' => str_replace(['+', '-', '(', ')', ' '], '', $user->phone_number ?? ''),
         ];
+
+        // Owner is a Zoho lookup to a real org user. A stale/wrong owner_linked_source_id (or default)
+        // makes Zoho reject the whole create with INVALID_DATA. Try the owner link first, then the
+        // user link, then the company default — and only send Owner when one resolves to a valid user;
+        // otherwise omit it so Zoho assigns the API user instead of failing the agent.
+        $ownerId = $this->resolveValidOwnerId(
+            $agentInfo->owner_linked_source_id,
+            $agentInfo->users_linked_source_id,
+        );
+        if ($ownerId !== null) {
+            $data['Owner'] = $ownerId;
+        }
 
         $data = $this->applySponsorData($agentInfo, $data);
 
@@ -113,6 +129,64 @@ class ZohoService
     public function getLastCreateAgentRequest(): ?array
     {
         return $this->lastCreateAgentRequest;
+    }
+
+    /**
+     * Resolve an owner id Zoho will accept: the first candidate that maps to a valid org user,
+     * then the company default owner, otherwise null (caller should omit the field). Pass the
+     * candidates in priority order (e.g. owner_linked_source_id, then users_linked_source_id).
+     */
+    public function resolveValidOwnerId(int|string|null ...$candidateOwnerIds): ?int
+    {
+        $candidateOwnerIds[] = $this->company->get(CustomFieldEnum::DEFAULT_OWNER->value);
+
+        return self::pickValidOwnerId($this->getActiveZohoUserIds(), ...$candidateOwnerIds);
+    }
+
+    /**
+     * Pure selection logic kept network-free so it can be unit tested. A null $activeUserIds means
+     * we couldn't load the org's user list — trust the first non-empty candidate rather than
+     * stripping a possibly-valid owner from every request.
+     */
+    public static function pickValidOwnerId(?Collection $activeUserIds, int|string|null ...$candidates): ?int
+    {
+        foreach ($candidates as $candidate) {
+            if ($candidate === null || (string) $candidate === '' || (int) $candidate === 0) {
+                continue;
+            }
+
+            if ($activeUserIds === null || $activeUserIds->contains((string) $candidate)) {
+                return (int) $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Ids of the org's active Zoho users (as strings), or null when the list can't be fetched.
+     * Cached per service instance to avoid re-hitting the API for every owner check.
+     */
+    protected function getActiveZohoUserIds(): ?Collection
+    {
+        if ($this->activeZohoUserIdsLoaded) {
+            return $this->activeZohoUserIds;
+        }
+
+        $this->activeZohoUserIdsLoaded = true;
+
+        try {
+            $this->activeZohoUserIds = $this->zohoCrm->users
+                ->ofType(UserType::ACTIVE)
+                ->keys()
+                ->map(fn ($id) => (string) $id)
+                ->values();
+        } catch (Throwable $e) {
+            report($e);
+            $this->activeZohoUserIds = null;
+        }
+
+        return $this->activeZohoUserIds;
     }
 
     public function updateAgent(Agent $agent): object

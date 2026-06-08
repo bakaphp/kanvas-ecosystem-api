@@ -308,6 +308,24 @@ class Lead extends BaseModel implements EventResourceInterface
         return $statusName !== 'inactive' && (Str::contains($statusName, 'active') || Str::contains($statusName, 'created'));
     }
 
+    public function closeSold(): bool
+    {
+        $statusName = strtolower($this->status()->firstOrFail()->name);
+
+        return ! Str::contains($statusName, 'not') && Str::contains($statusName, 'sold');
+    }
+
+    public function closeNotSold(): bool
+    {
+        if ($this->isActive() || $this->closeSold()) {
+            return false;
+        }
+
+        $statusName = strtolower($this->status()->firstOrFail()->name);
+
+        return ! Str::contains($statusName, 'complete');
+    }
+
     public function close(): void
     {
         //LeadStatus::getByName('close')->id
