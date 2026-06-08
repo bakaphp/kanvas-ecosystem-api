@@ -47,6 +47,31 @@ enum AgentProviderEnum: string
         return in_array($this, self::runtimeProviders(), true);
     }
 
+    public function isHermes(): bool
+    {
+        return $this === self::HERMES;
+    }
+
+    public function isOpenClaw(): bool
+    {
+        return $this === self::OPENCLAW;
+    }
+
+    public function isNeuron(): bool
+    {
+        return $this === self::NEURON;
+    }
+
+    public function isLaravel(): bool
+    {
+        return $this === self::LARAVEL;
+    }
+
+    public function isAdk(): bool
+    {
+        return $this === self::ADK;
+    }
+
     /**
      * Resolve the provider from a deployment row, defaulting to OPENCLAW if the column is empty
      * (legacy rows from before the provider field existed). Wrapped here so resolvers don't

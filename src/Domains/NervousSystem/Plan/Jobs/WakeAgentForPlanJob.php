@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Plan\Jobs;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -13,12 +14,9 @@ use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\Models\Plan;
-use Kanvas\Social\Messages\Actions\CreateMessageAction;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
-use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Throwable;
 
 /**
@@ -40,6 +38,7 @@ class WakeAgentForPlanJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
+    use KanvasJobsTrait;
     use Queueable;
     use SerializesModels;
 
@@ -56,6 +55,10 @@ class WakeAgentForPlanJob implements ShouldQueue
 
     public function handle(): void
     {
+        // Reset Bouncer scope + app to this plan's app — else the agent/channel Role lookups
+        // throw ModelNotFoundException under a leaked worker scope.
+        $this->overwriteAppService($this->plan->app);
+
         $agent = $this->plan->agent;
         $owner = $this->plan->user ?? $agent?->user;
 
@@ -197,62 +200,12 @@ class WakeAgentForPlanJob implements ShouldQueue
         );
     }
 
-    /**
-     * Persist the agent's response as a Message on the Plan's Activities
-     * channel. The poster is the agent's user, which matches the loop
-     * guard in ReplyToPlanCommentActivity so this message doesn't refire.
-     *
-     * Returns the saved Message (or null if any precondition failed).
-     *
-     * Note: do NOT pass channel_slug to CreateMessageAction here. When set,
-     * it unconditionally calls CreateChannelAction, which trips on an 'Admin'
-     * role lookup with a null company. We attach via $channel->addMessage().
-     */
     protected function postReplyOnActivitiesChannel(string $response): ?Message
     {
-        try {
-            $channel = $this->plan->socialChannels->first();
-
-            if ($channel === null || $response === '') {
-                return null;
-            }
-
-            $agentUser = $this->plan->agent?->user;
-            if ($agentUser === null) {
-                return null;
-            }
-
-            $messageType = new CreateMessageTypeAction(
-                new MessageTypeInput(
-                    apps_id: $this->plan->app->getId(),
-                    languages_id: 1,
-                    name: 'agent_reply',
-                    verb: 'agent_reply',
-                    template: '{{message}}',
-                    templates_plura: '{{message}}',
-                ),
-            )->execute();
-
-            $message = new CreateMessageAction(
-                new MessageInput(
-                    app: $this->plan->app,
-                    company: $this->plan->company,
-                    user: $agentUser,
-                    type: $messageType,
-                    message: [
-                        'content' => $response,
-                        'from_me' => true,
-                    ],
-                ),
-            )->execute();
-
-            $channel->addMessage($message, $agentUser);
-
-            return $message;
-        } catch (Throwable $e) {
-            report($e);
-
-            return null;
-        }
+        return new PostPlanActivityMessageAction(
+            $this->plan,
+            $response,
+            author: $this->plan->agent?->user,
+        )->execute();
     }
 }

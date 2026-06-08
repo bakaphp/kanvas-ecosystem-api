@@ -49,6 +49,7 @@ type NervousSystemTask {
     id: ID!
     uuid: String!
     plan: NervousSystemPlan! @belongsTo(relation: "plan")
+    agent: AgentAi @belongsTo(relation: "agent")
     sequence: Int!
     title: String!
     description: String
@@ -68,6 +69,7 @@ input NervousSystemTaskInput {
     status: String
     result: Mixed
     blocked_reason: String
+    agent_id: Int
 }
 
 input CreateNervousSystemPlanInput {

@@ -7,11 +7,7 @@ namespace Kanvas\NervousSystem\Plan\Actions;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Intelligence\Agents\Models\AgentSwarmMember;
 use Kanvas\NervousSystem\Plan\Models\Plan;
-use Kanvas\Social\Messages\Actions\CreateMessageAction;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
-use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Throwable;
 
 class PostPlanCompletionToSwarmAction
@@ -53,34 +49,22 @@ class PostPlanCompletionToSwarmAction
 
             $summary = $this->buildSummary($agent->name);
 
-            $messageType = new CreateMessageTypeAction(
-                new MessageTypeInput(
-                    apps_id: $this->plan->app->getId(),
-                    languages_id: 1,
-                    name: 'plan_milestone',
-                    verb: 'plan_milestone',
-                    template: '{{message}}',
-                    templates_plura: '{{message}}',
-                ),
+            $message = new PostPlanActivityMessageAction(
+                $this->plan,
+                $summary,
+                author: $agentUser,
+                channel: $swarmChannel,
+                verb: 'plan_milestone',
+                extraPayload: [
+                    'plan_id' => $this->plan->id,
+                    'plan_uuid' => $this->plan->uuid,
+                    'plan_status' => $this->plan->status,
+                ],
             )->execute();
 
-            $message = new CreateMessageAction(
-                new MessageInput(
-                    app: $this->plan->app,
-                    company: $this->plan->company,
-                    user: $agentUser,
-                    type: $messageType,
-                    message: [
-                        'content' => $summary,
-                        'from_me' => true,
-                        'plan_id' => $this->plan->id,
-                        'plan_uuid' => $this->plan->uuid,
-                        'plan_status' => $this->plan->status,
-                    ],
-                ),
-            )->execute();
-
-            $swarmChannel->addMessage($message, $agentUser);
+            if ($message === null) {
+                return null;
+            }
 
             $this->plan->emitLedgerEvent(
                 'plan.swarm_milestone_posted',

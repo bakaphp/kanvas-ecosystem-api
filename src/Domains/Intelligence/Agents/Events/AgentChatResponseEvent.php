@@ -28,6 +28,11 @@ class AgentChatResponseEvent implements ShouldBroadcastNow
     ) {
     }
 
+    public function agent(): Agent
+    {
+        return $this->agent;
+    }
+
     public function broadcastWith(): array
     {
         return [

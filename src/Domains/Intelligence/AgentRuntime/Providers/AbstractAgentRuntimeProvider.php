@@ -9,7 +9,10 @@ use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
+use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTask;
+use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTaskInput;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
+use Kanvas\Intelligence\AgentRuntime\Enums\KanbanTransition;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentBackup;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
@@ -189,6 +192,68 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
     public function fetchDailyLearningContext(AgentDeployment $deployment): string
     {
         return '';
+    }
+
+    #[Override]
+    public function fetchKanbanBoard(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        ?string $assignee = null,
+        ?string $tenant = null,
+        ?string $board = null,
+    ): array {
+        throw $this->unsupported('kanban board read');
+    }
+
+    #[Override]
+    public function fetchKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        string $externalTaskId,
+        ?string $board = null,
+    ): ?KanbanTask {
+        throw $this->unsupported('kanban task read');
+    }
+
+    #[Override]
+    public function createKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        KanbanTaskInput $input,
+        ?string $board = null,
+    ): KanbanTask {
+        throw $this->unsupported('kanban task creation');
+    }
+
+    #[Override]
+    public function transitionKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        string $externalTaskId,
+        KanbanTransition $transition,
+        ?string $reason = null,
+        ?string $assignee = null,
+        ?string $result = null,
+        ?string $board = null,
+    ): KanbanTask {
+        throw $this->unsupported('kanban task transition');
+    }
+
+    #[Override]
+    public function commentKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        string $externalTaskId,
+        string $text,
+        string $author,
+        ?string $board = null,
+    ): void {
+        throw $this->unsupported('kanban task comment');
     }
 
     protected function unsupported(string $operation): LogicException

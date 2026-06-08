@@ -25,6 +25,7 @@ class PlanBroadcast implements ShouldBroadcastNow
         public PlanChangeTypeEnum $changeType,
         public ?Task $task = null,
         public ?string $previousStatus = null,
+        public bool $fromSync = false,
     ) {
     }
 

@@ -26,9 +26,19 @@ use Kanvas\Connectors\Hermes\Jobs\RestartAgentContainerJob;
 use Kanvas\Connectors\Hermes\Jobs\TerminateAgentJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateHermesOnMachineJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateWorkspaceFilesJob;
+use Kanvas\Connectors\Hermes\Kanban\Actions\CommentKanbanTaskAction;
+use Kanvas\Connectors\Hermes\Kanban\Actions\CreateKanbanTaskAction;
+use Kanvas\Connectors\Hermes\Kanban\Actions\EnsureKanbanWritableAction;
+use Kanvas\Connectors\Hermes\Kanban\Actions\FetchKanbanBoardAction;
+use Kanvas\Connectors\Hermes\Kanban\Actions\FetchKanbanTaskAction;
+use Kanvas\Connectors\Hermes\Kanban\Actions\TransitionKanbanTaskAction;
+use Kanvas\Connectors\Hermes\Kanban\Support\HermesProfileResolver;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
+use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTask;
+use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTaskInput;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
+use Kanvas\Intelligence\AgentRuntime\Enums\KanbanTransition;
 use Kanvas\Intelligence\AgentRuntime\Providers\AbstractAgentRuntimeProvider;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -260,6 +270,118 @@ class HermesProvider extends AbstractAgentRuntimeProvider
             $agent,
             $message,
             $images
+        )->execute();
+    }
+
+    #[Override]
+    public function fetchKanbanBoard(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        ?string $assignee = null,
+        ?string $tenant = null,
+        ?string $board = null,
+    ): array {
+        return new FetchKanbanBoardAction(
+            $deployment,
+            $this->resolveAssignee($assignee, $deployment),
+            $tenant,
+            $board
+        )->execute();
+    }
+
+    #[Override]
+    public function fetchKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        string $externalTaskId,
+        ?string $board = null,
+    ): ?KanbanTask {
+        return new FetchKanbanTaskAction($deployment, $externalTaskId, $board)->execute();
+    }
+
+    #[Override]
+    public function createKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        KanbanTaskInput $input,
+        ?string $board = null,
+    ): KanbanTask {
+        // Make the board dir writable by the worker before the first push (no-op if already 777).
+        new EnsureKanbanWritableAction($deployment)->execute();
+
+        $assignee = $this->resolveAssignee($input->assignee, $deployment);
+
+        if ($assignee !== $input->assignee) {
+            $input = new KanbanTaskInput(
+                title: $input->title,
+                assignee: $assignee,
+                body: $input->body,
+                idempotencyKey: $input->idempotencyKey,
+                parentIds: $input->parentIds,
+                priority: $input->priority,
+                tenant: $input->tenant,
+                workspace: $input->workspace,
+            );
+        }
+
+        return new CreateKanbanTaskAction($deployment, $input, $board)->execute();
+    }
+
+    // An unknown/empty assignee is silently dropped by the Hermes dispatcher, so default it to
+    // the deployment's own agent profile — the agnostic caller doesn't know the Hermes profile name.
+    private function resolveAssignee(?string $assignee, AgentDeployment $deployment): ?string
+    {
+        if ($assignee !== null && $assignee !== '') {
+            return $assignee;
+        }
+
+        return $deployment->agent !== null
+            ? HermesProfileResolver::forAgent($deployment->agent)
+            : $assignee;
+    }
+
+    #[Override]
+    public function transitionKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        string $externalTaskId,
+        KanbanTransition $transition,
+        ?string $reason = null,
+        ?string $assignee = null,
+        ?string $result = null,
+        ?string $board = null,
+    ): KanbanTask {
+        return new TransitionKanbanTaskAction(
+            $deployment,
+            $externalTaskId,
+            $transition,
+            $reason,
+            $assignee,
+            $result,
+            $board,
+        )->execute();
+    }
+
+    #[Override]
+    public function commentKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        string $externalTaskId,
+        string $text,
+        string $author,
+        ?string $board = null,
+    ): void {
+        new CommentKanbanTaskAction(
+            $deployment,
+            $externalTaskId,
+            $text,
+            $author,
+            $board,
         )->execute();
     }
 }

@@ -15,6 +15,7 @@ class AddTaskAction
     public function __construct(
         protected readonly Plan $plan,
         protected readonly TaskData $data,
+        protected readonly bool $fromSync = false,
     ) {
     }
 
@@ -48,6 +49,7 @@ class AddTaskAction
             $this->plan->broadcastChange(
                 changeType: PlanChangeTypeEnum::TASK_ADDED,
                 task: $task,
+                fromSync: $this->fromSync,
             );
 
             return $task;
