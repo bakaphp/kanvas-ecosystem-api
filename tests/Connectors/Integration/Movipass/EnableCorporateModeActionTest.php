@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Movipass;
 
+use Bouncer;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\EnableCorporateModeAction;
 use Kanvas\Connectors\Movipass\Jobs\MigrateCorporateUserVariantsJob;
@@ -29,6 +31,11 @@ final class EnableCorporateModeActionTest extends TestCase
 
         $user = Auth::user();
         $app = app(Apps::class);
+
+        // Mirror a real GraphQL request: middleware leaves the Bouncer tenant scope on the
+        // user's current company, not the app-global company_0 where roles live. This is the
+        // exact condition that made the admin-role lookup throw "No query results for Role".
+        Bouncer::scope()->to(RolesEnums::getScope($app, $user->getCurrentCompany()));
 
         $company = new EnableCorporateModeAction(
             user: $user,

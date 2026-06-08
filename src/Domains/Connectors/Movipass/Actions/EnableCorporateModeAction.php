@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Actions;
 
 use Baka\Contracts\AppInterface;
-use Bouncer;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
@@ -108,11 +107,15 @@ class EnableCorporateModeAction
     private function associateUserAsAdmin(Companies $company, Apps $app): void
     {
         $branch = $company->branch()->firstOrFail();
+        $adminRole = RolesRepository::getByNameFromApp(RolesEnums::ADMIN->value, $app);
 
-        new AssignCompanyAction($this->user, $branch)->execute();
+        new AssignCompanyAction(
+            user: $this->user,
+            branch: $branch,
+            role: $adminRole,
+            app: $app,
+        )->execute();
 
-        Bouncer::scope()->to(RolesEnums::getScope($app, $company));
-        $adminRole = RolesRepository::getByMixedParamFromCompany(RolesEnums::ADMIN->value, $company, $app);
         new AssignRoleAction($this->user, $adminRole)->execute();
     }
 }
