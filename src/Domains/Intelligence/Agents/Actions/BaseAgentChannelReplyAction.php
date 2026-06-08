@@ -55,6 +55,20 @@ class BaseAgentChannelReplyAction
             throw new Exception('No lead found for AI agent');
         }
 
+        // Inbound from a lead the agent gave up on → resume the follow-up cycle.
+        // Only `agent:` exhaustions auto-resume; handoff / max_retries / pipeline_completed
+        // stay terminal and require an explicit operator reset.
+        if ($lead instanceof Lead && $lead->isFollowUpExhausted()) {
+            $reason = $lead->getFollowUpExhaustedReason();
+            if (is_string($reason) && str_starts_with($reason, 'agent:')) {
+                $lead->resumeFollowUp();
+                $lead->emitLedgerEvent('lead.follow_up.resumed', payload: [
+                    'stage_id' => $lead->pipeline_stage_id,
+                    'reason' => 'inbound_reply',
+                ]);
+            }
+        }
+
         $configService = new LeadConfigurationService();
         $aiModeKey = $lead instanceof Lead
             ? $configService->getAiModeKey($lead)

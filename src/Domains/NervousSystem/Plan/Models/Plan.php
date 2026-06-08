@@ -248,6 +248,7 @@ class Plan extends BaseModel
         PlanChangeTypeEnum $changeType,
         ?Task $task = null,
         ?string $previousStatus = null,
+        bool $fromSync = false,
     ): void {
         try {
             $value = $this->app->get(LedgerConfigurationEnum::BROADCAST_PLAN_EVENTS->value);
@@ -262,7 +263,8 @@ class Plan extends BaseModel
                 $this,
                 $changeType,
                 $task,
-                $previousStatus
+                $previousStatus,
+                $fromSync,
             );
         } catch (Throwable $e) {
             report($e);

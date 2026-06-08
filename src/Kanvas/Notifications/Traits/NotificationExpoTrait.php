@@ -40,6 +40,7 @@ trait NotificationExpoTrait
 
         $filtered = [];
         foreach ($additionalData as $key => $value) {
+            //this will escape any obj or array values
             if (is_scalar($value)) {
                 $filtered[$key] = $value;
             }

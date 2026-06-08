@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions;
 
+use Kanvas\Connectors\Hermes\Jobs\DeployAgentIntegrationConfigJob;
 use Kanvas\Intelligence\Agents\Enums\AgentIntegrationConfigKeyEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -38,6 +39,12 @@ class SetAgentIntegrationConfigAction
                 'integration_config_changed' => true,
                 'changed_keys' => $changedKeys,
             ],
+        );
+
+        // Push the new credentials onto the agent's running runtime container.
+        DeployAgentIntegrationConfigJob::dispatch(
+            $this->agent,
+            $changedKeys
         );
 
         return $this->agent;

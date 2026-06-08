@@ -8,6 +8,8 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
@@ -19,6 +21,7 @@ use Override;
  * @property int $id
  * @property string $uuid
  * @property int $plan_id
+ * @property int|null $agent_id
  * @property int $apps_id
  * @property int $companies_id
  * @property int $sequence
@@ -27,11 +30,11 @@ use Override;
  * @property string $status
  * @property array|null $result
  * @property string|null $blocked_reason
- * @property \Illuminate\Support\Carbon|null $started_at
- * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property Carbon|null $started_at
+ * @property Carbon|null $completed_at
  * @property bool $is_deleted
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon $created_at
+ * @property Carbon|null $updated_at
  */
 class Task extends BaseModel
 {
@@ -49,6 +52,7 @@ class Task extends BaseModel
     {
         return [
             'plan_id' => 'integer',
+            'agent_id' => 'integer',
             'apps_id' => 'integer',
             'companies_id' => 'integer',
             'sequence' => 'integer',
@@ -64,6 +68,11 @@ class Task extends BaseModel
         return $this->belongsTo(Plan::class, 'plan_id', 'id');
     }
 
+    public function agent(): BelongsTo
+    {
+        return $this->belongsTo(Agent::class, 'agent_id', 'id');
+    }
+
     /**
      * Tasks don't carry their own users_id/agent_id; the actor of a task
      * lifecycle event is the parent plan's owner. Override of the trait's
@@ -75,7 +84,7 @@ class Task extends BaseModel
         if ($this->plan?->users_id !== null) {
             return 'User';
         }
-        if ($this->plan?->agent_id !== null) {
+        if ($this->agent_id !== null || $this->plan?->agent_id !== null) {
             return 'Agent';
         }
 
@@ -84,7 +93,7 @@ class Task extends BaseModel
 
     protected function resolveDefaultActorId(): ?int
     {
-        return $this->plan?->users_id ?? $this->plan?->agent_id ?? null;
+        return $this->plan?->users_id ?? $this->agent_id ?? $this->plan?->agent_id ?? null;
     }
 
     public function scopeStalled(Builder $query, int $minutes): Builder

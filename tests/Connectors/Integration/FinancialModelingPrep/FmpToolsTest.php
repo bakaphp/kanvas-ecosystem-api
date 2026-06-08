@@ -43,6 +43,10 @@ final class FmpToolsTest extends TestCase
 
     public function testClientInstantiatesWhenKeyIsSet(): void
     {
+        if (empty($this->kanvasApp->get(ConfigurationEnum::FMP_API_KEY->value))) {
+            $this->markTestSkipped('FMP API key not configured on the app.');
+        }
+
         $this->assertInstanceOf(Client::class, new Client($this->kanvasApp));
     }
 

@@ -56,6 +56,7 @@
       shell: |
         docker-compose exec -T php php artisan kanvas:workflow-sync-actions
         docker-compose exec -T php php artisan kanvas:nervous-system:sync-tools
+        docker-compose exec -T php php artisan kanvas:intelligence:sync-agent-types
       args:
         chdir: "{{ app_dir }}"
 

@@ -22,6 +22,7 @@ class CreatePlanAction
     public function __construct(
         protected readonly PlanData $data,
         protected readonly array $tasks = [],
+        protected readonly bool $fromSync = false,
     ) {
     }
 
@@ -112,7 +113,7 @@ class CreatePlanAction
                 'file_count' => count($this->data->files),
             ]);
 
-            $plan->broadcastChange(PlanChangeTypeEnum::CREATED);
+            $plan->broadcastChange(PlanChangeTypeEnum::CREATED, fromSync: $this->fromSync);
 
             return $plan;
         });

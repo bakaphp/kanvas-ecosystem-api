@@ -11,6 +11,12 @@ use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpTemplate as FollowUp
 use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpTemplate;
 
+/**
+ * @deprecated GraphQL resolver for the legacy follow-up template CRUD. v1
+ *             references the existing Templates row by name from
+ *             stage.config.follow_up.channels[].template.name. Slated for
+ *             deletion — see docs/intelligence/follow-up-deprecation-spec.md.
+ */
 class FollowUpTemplateMutation
 {
     public function create(mixed $rootValue, array $request): FollowUpTemplate

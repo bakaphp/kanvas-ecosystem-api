@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\CRM;
 
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ArtifactsTool;
@@ -37,6 +38,11 @@ use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\InMemoryChatHistory;
 use Override;
 
+#[AgentTypeDefinition(
+    name: 'Sales Agent',
+    description: 'Conversational sales assistant for inbound prospect chat — qualifies leads, creates them when intent shows, schedules meetings, and recommends inventory using the CRM + inventory tool suite.',
+    provider: 'neuron',
+)]
 class SalesAgent extends BaseKanvasAgent
 {
     use HasTemporalContext;
@@ -63,10 +69,7 @@ class SalesAgent extends BaseKanvasAgent
     public function instructions(): string
     {
         $role = $this->agent->role;
-        // currentLead is plumbed per-turn via setCurrentLead(); the entity-as-Lead
-        // fallback covers legacy sessions that still point directly at a Lead row.
-        $lead = $this->currentLead
-            ?? ($this->entity instanceof Lead ? $this->entity : null);
+        $lead = $this->resolveLeadForTurn();
 
         $background = Blade::render($role['background'], ['lead' => $lead]);
         $steps = Blade::render($role['steps'], ['lead' => $lead]);

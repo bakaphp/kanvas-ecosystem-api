@@ -28,7 +28,10 @@ class OrderFactory extends Factory
             'companies_id' => 0,
             'region_id' => 1,
             'people_id' => function (array $attributes) {
-                return People::factory();
+                return People::factory()->state([
+                    'apps_id' => $attributes['apps_id'],
+                    'companies_id' => $attributes['companies_id'],
+                ]);
             },
             'order_number' => $this->faker->numberBetween(1000, 9999),
             'total_gross_amount' => $this->faker->randomFloat(2, 50, 500),

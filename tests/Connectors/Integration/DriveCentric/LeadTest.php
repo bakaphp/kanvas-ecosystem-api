@@ -18,6 +18,14 @@ final class LeadTest extends TestCase
 {
     use HasDriveCentricConfiguration;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('DriveCentric integration tests are skipped in CI');
+        }
+    }
+
     public function testPullLeadById(): void
     {
         $app = app(Apps::class);

@@ -26,6 +26,13 @@ use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Services\DailyReportService;
 
+/**
+ * @deprecated v1 follow-up engine ships its own command —
+ *             {@see \App\Console\Commands\Lead\DispatchLeadFollowUpsCommand}
+ *             (hourly cron) and {@see \App\Console\Commands\Lead\LeadFollowUpDailySummaryCommand}
+ *             (daily rollup). Slated for deletion — see
+ *             docs/intelligence/follow-up-deprecation-spec.md kill list.
+ */
 class FollowUpEngagementCommand extends Command
 {
     use KanvasJobsTrait;

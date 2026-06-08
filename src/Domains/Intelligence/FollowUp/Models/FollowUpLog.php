@@ -16,6 +16,11 @@ use Kanvas\Social\Messages\Models\Message;
 
 /**
  * Class FollowUpLog
+ *
+ * @deprecated v1 follow-up engine emits `lead.follow_up.*` Ledger events
+ *             instead of writing FollowUpLog rows. Slated for deletion —
+ *             see docs/intelligence/follow-up-deprecation-spec.md kill list.
+ *
  * @property int $id
  * @property int $apps_id
  * @property int $companies_id

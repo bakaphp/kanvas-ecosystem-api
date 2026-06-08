@@ -12,6 +12,11 @@ use Kanvas\Intelligence\FollowUp\DataTransferObject\FollowUpDay as FollowUpDayDa
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
 
+/**
+ * @deprecated GraphQL resolver for the legacy follow-up day CRUD. v1 reads
+ *             stage.config.follow_up.time_based directly. Slated for deletion —
+ *             see docs/intelligence/follow-up-deprecation-spec.md kill list.
+ */
 class FollowUpDayMutation
 {
     public function create(mixed $rootValue, array $request): FollowUpDay
