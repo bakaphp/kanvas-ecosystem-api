@@ -32,6 +32,7 @@ use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Observers\WarehouseObserver;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
+use Kanvas\NervousSystem\Plan\Listeners\NotifyPlanCreatorOfAgentProgress;
 use Kanvas\NervousSystem\Plan\Listeners\PushPlanChangeToKanban;
 use Kanvas\NervousSystem\Plan\Listeners\SyncKanbanAfterChat;
 use Kanvas\NervousSystem\Plan\Listeners\WakeAgentOnPlanChange;
@@ -58,6 +59,7 @@ class EventServiceProvider extends ServiceProvider
         PlanBroadcast::class => [
             WakeAgentOnPlanChange::class,
             PushPlanChangeToKanban::class,
+            NotifyPlanCreatorOfAgentProgress::class,
         ],
         AgentChatResponseEvent::class => [
             SyncKanbanAfterChat::class,
