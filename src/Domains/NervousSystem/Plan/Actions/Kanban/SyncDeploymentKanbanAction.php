@@ -46,11 +46,13 @@ class SyncDeploymentKanbanAction
 
         $planByExternal = $this->preloadPlans($app, $company, $agent->getId());
         $taskByExternal = $this->preloadTasks($planByExternal);
+        $knownIds = [...array_keys($planByExternal), ...array_keys($taskByExternal)];
 
-        // Discover new cards via the assignee-filtered board slice...
+        // Discover via the assignee board slice — active cards + done cards we don't already track
+        // (so a card created and completed between ticks still lands once).
         /** @var array<string, KanbanTask> $byId */
         $byId = [];
-        foreach ($this->fetchBoard($app, $company) as $card) {
+        foreach ($this->fetchBoard($app, $company, $knownIds) as $card) {
             $byId[$card->id] = $card;
         }
 
@@ -156,14 +158,15 @@ class SyncDeploymentKanbanAction
         return $posted;
     }
 
-    // Test seam — discovery of new cards (assignee-filtered board slice).
+    // Test seam — discovery of new cards (assignee board slice + untracked done cards).
     /**
+     * @param list<string> $knownTaskIds
      * @return list<KanbanTask>
      */
-    protected function fetchBoard(AppInterface $app, CompanyInterface $company): array
+    protected function fetchBoard(AppInterface $app, CompanyInterface $company, array $knownTaskIds = []): array
     {
         return AgentRuntimeProviderFactory::forDeployment($this->deployment)
-            ->fetchKanbanBoard($this->deployment, $app, $company);
+            ->fetchKanbanBoard($this->deployment, $app, $company, knownTaskIds: $knownTaskIds);
     }
 
     // Test seam — refresh a single known card by id (assignee-agnostic).

@@ -70,11 +70,11 @@ final class KanbanCliActionsTest extends TestCase
         $runner->runJson(['list']);
     }
 
-    public function testFetchBuildsTreeViaListThenShowPerTask(): void
+    public function testFetchBuildsTreeAndIngestsUntrackedDoneCard(): void
     {
         $ssh = new FakeKanbanSshClient();
-        // t_done is terminal → discovery must skip it (no show); refresh-by-id handles terminal cards.
-        $ssh->listJson = '[{"id":"t_root","status":"ready"},{"id":"t_a","status":"running"},{"id":"t_done","status":"done"}]';
+        // t_done is done but NOT tracked → must be picked up (a card created+completed between ticks).
+        $ssh->listJson = '[{"id":"t_root","status":"ready"},{"id":"t_a","status":"running"},{"id":"t_done","status":"done"},{"id":"t_arch","status":"archived"}]';
         $ssh->showById = [
             't_root' => json_encode([
                 'task' => ['id' => 't_root', 'title' => 'Plan', 'status' => 'ready', 'assignee' => 'researcher'],
@@ -89,21 +89,48 @@ final class KanbanCliActionsTest extends TestCase
                 'children' => [],
                 'runs' => [],
             ]),
+            't_done' => json_encode([
+                'task' => ['id' => 't_done', 'title' => 'fast task', 'status' => 'done'],
+                'parents' => [],
+                'children' => [],
+                'runs' => [],
+            ]),
         ];
 
         $action = new TestableFetchKanbanBoardAction($this->deployment(), 'researcher', $ssh);
         $tasks = $action->execute();
 
-        $this->assertCount(2, $tasks); // t_done skipped
-        $this->assertTrue($tasks[0]->isRoot());
-        $this->assertSame(KanbanStatusEnum::READY, $tasks[0]->status);
-        $this->assertFalse($tasks[1]->isRoot());
-        $this->assertSame(['t_root'], $tasks[1]->parentIds);
+        $this->assertCount(3, $tasks); // root + child + untracked done; archived skipped
+        $ids = array_map(static fn (object $t): string => $t->id, $tasks);
+        $this->assertContains('t_done', $ids);
+        $this->assertNotContains('t_arch', $ids);
 
         $this->assertStringContainsString("'list'", $ssh->commands[0]);
         $this->assertStringContainsString("'--assignee' 'researcher'", $ssh->commands[0]);
-        $this->assertStringContainsString("'show' 't_root'", $ssh->commands[1]);
-        // never show'd the terminal card
+        $this->assertStringContainsString("'show' 't_done'", implode(' ', $ssh->commands));
+        // never show'd the archived card
+        $this->assertEmpty(array_filter($ssh->commands, static fn (string $c): bool => str_contains($c, "'show' 't_arch'")));
+    }
+
+    public function testFetchSkipsDoneCardAlreadyTracked(): void
+    {
+        $ssh = new FakeKanbanSshClient();
+        $ssh->listJson = '[{"id":"t_root","status":"ready"},{"id":"t_done","status":"done"}]';
+        $ssh->showById = [
+            't_root' => json_encode([
+                'task' => ['id' => 't_root', 'title' => 'Plan', 'status' => 'ready'],
+                'parents' => [],
+                'children' => [],
+                'runs' => [],
+            ]),
+        ];
+
+        // t_done is already tracked → refresh-by-id handles it; discovery must not re-show it.
+        $action = new TestableFetchKanbanBoardAction($this->deployment(), 'researcher', $ssh, ['t_done']);
+        $tasks = $action->execute();
+
+        $this->assertCount(1, $tasks);
+        $this->assertSame('t_root', $tasks[0]->id);
         $this->assertEmpty(array_filter($ssh->commands, static fn (string $c): bool => str_contains($c, "'show' 't_done'")));
     }
 
@@ -282,9 +309,12 @@ class FakeKanbanSshClient extends SshClient
 
 class TestableFetchKanbanBoardAction extends FetchKanbanBoardAction
 {
-    public function __construct(AgentDeployment $deployment, ?string $assignee, private FakeKanbanSshClient $fake)
+    /**
+     * @param list<string> $knownTaskIds
+     */
+    public function __construct(AgentDeployment $deployment, ?string $assignee, private FakeKanbanSshClient $fake, array $knownTaskIds = [])
     {
-        parent::__construct($deployment, $assignee);
+        parent::__construct($deployment, $assignee, null, null, $knownTaskIds);
     }
 
     protected function openSshClient(AgentMachine $machine): SshClient

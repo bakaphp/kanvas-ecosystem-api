@@ -203,7 +203,7 @@ class CannedSyncDeploymentKanbanAction extends SyncDeploymentKanbanAction
     /** @var array<string, KanbanTask> */
     public array $cardsById = [];
 
-    protected function fetchBoard(AppInterface $app, CompanyInterface $company): array
+    protected function fetchBoard(AppInterface $app, CompanyInterface $company, array $knownTaskIds = []): array
     {
         return $this->board;
     }
