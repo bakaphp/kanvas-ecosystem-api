@@ -46,10 +46,11 @@ class SyncDeploymentKanbanAction
 
         $planByExternal = $this->preloadPlans($app, $company, $agent->getId());
         $taskByExternal = $this->preloadTasks($planByExternal);
+        $knownIds = [...array_keys($planByExternal), ...array_keys($taskByExternal)];
 
         /** @var array<string, KanbanTask> $byId */
         $byId = [];
-        foreach ($this->fetchBoard($app, $company) as $card) {
+        foreach ($this->fetchBoard($app, $company, $knownIds) as $card) {
             $byId[$card->id] = $card;
         }
 
@@ -154,14 +155,15 @@ class SyncDeploymentKanbanAction
         return $posted;
     }
 
-    // Test seam — discovery of new cards (assignee-filtered board slice).
+    // Test seam — discovery of new cards (assignee board slice + untracked done cards).
     /**
+     * @param list<string> $knownTaskIds
      * @return list<KanbanTask>
      */
-    protected function fetchBoard(AppInterface $app, CompanyInterface $company): array
+    protected function fetchBoard(AppInterface $app, CompanyInterface $company, array $knownTaskIds = []): array
     {
         return AgentRuntimeProviderFactory::forDeployment($this->deployment)
-            ->fetchKanbanBoard($this->deployment, $app, $company);
+            ->fetchKanbanBoard($this->deployment, $app, $company, knownTaskIds: $knownTaskIds);
     }
 
     // Test seam — refresh a single known card by id (assignee-agnostic).

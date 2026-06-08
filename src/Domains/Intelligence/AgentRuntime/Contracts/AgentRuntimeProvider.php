@@ -149,7 +149,13 @@ interface AgentRuntimeProvider
 
     // Read a board slice — by assignee (the agent's profile) and optionally a tenant/board.
     // Returns normalized KanbanTask DTOs (tree edges populated from the runtime's per-task view).
-    /** @return list<KanbanTask> */
+    // `knownTaskIds` = runtime task ids Kanvas already tracks; lets a runtime return only active cards
+    // plus done cards it doesn't already know (catching a card created+completed between ticks) without
+    // re-reading every historical done card each pass.
+    /**
+     * @param list<string> $knownTaskIds
+     * @return list<KanbanTask>
+     */
     public function fetchKanbanBoard(
         AgentDeployment $deployment,
         AppInterface $app,
@@ -157,6 +163,7 @@ interface AgentRuntimeProvider
         ?string $assignee = null,
         ?string $tenant = null,
         ?string $board = null,
+        array $knownTaskIds = [],
     ): array;
 
     // Fetch a single card by id (assignee-agnostic) — used to refresh a card Kanvas already tracks

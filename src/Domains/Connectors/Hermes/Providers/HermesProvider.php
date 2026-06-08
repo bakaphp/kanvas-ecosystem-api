@@ -281,12 +281,14 @@ class HermesProvider extends AbstractAgentRuntimeProvider
         ?string $assignee = null,
         ?string $tenant = null,
         ?string $board = null,
+        array $knownTaskIds = [],
     ): array {
         return new FetchKanbanBoardAction(
             $deployment,
             $this->resolveAssignee($assignee, $deployment),
             $tenant,
-            $board
+            $board,
+            $knownTaskIds,
         )->execute();
     }
 
