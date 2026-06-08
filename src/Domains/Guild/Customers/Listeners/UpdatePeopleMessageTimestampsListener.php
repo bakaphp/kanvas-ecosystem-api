@@ -33,5 +33,8 @@ class UpdatePeopleMessageTimestampsListener
             SQL,
             [$messageAt, $messageAt, $messageAt, $appModuleMessage->entity_id],
         );
+
+        $lead = $appModuleMessage->entity;
+        $lead?->people?->set('unread_message', 1);
     }
 }
