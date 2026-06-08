@@ -114,12 +114,9 @@ final class UpsertKanbanTaskAction
 
     private function writeLink(Task $task, string $rawStatus): void
     {
-        $parentIds = json_encode($this->child->parentIds);
-
         $task->set(KanbanCustomFieldEnum::TASK_ID->value, $this->child->id);
         $task->set(KanbanCustomFieldEnum::STATUS->value, $rawStatus);
         $task->set(KanbanCustomFieldEnum::DEPLOYMENT_ID->value, (string) $this->deployment->getId());
-        $task->set(KanbanCustomFieldEnum::PARENT_IDS->value, $parentIds === false ? '[]' : $parentIds);
         $task->set(KanbanCustomFieldEnum::SYNCED_AT->value, Carbon::now()->toIso8601String());
     }
 }
