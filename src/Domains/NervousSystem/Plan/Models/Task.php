@@ -74,18 +74,18 @@ class Task extends BaseModel
     }
 
     /**
-     * Tasks don't carry their own users_id/agent_id; the actor of a task
-     * lifecycle event is the parent plan's owner. Override of the trait's
-     * default — no #[Override] attribute because the trait method is
-     * concrete (PHP would fatal).
+     * The agent does the work, so an agent-assigned task's lifecycle events are attributed to the
+     * Agent (own agent_id, else the parent plan's) even though a human may have created the plan.
+     * Only when there's no agent at all do we fall back to the plan's human owner. Override of the
+     * trait default — no #[Override] (the trait method is concrete; PHP would fatal).
      */
     protected function resolveDefaultActorType(): string
     {
-        if ($this->plan?->users_id !== null) {
-            return 'User';
-        }
         if ($this->agent_id !== null || $this->plan?->agent_id !== null) {
             return 'Agent';
+        }
+        if ($this->plan?->users_id !== null) {
+            return 'User';
         }
 
         return 'System';
@@ -93,7 +93,7 @@ class Task extends BaseModel
 
     protected function resolveDefaultActorId(): ?int
     {
-        return $this->plan?->users_id ?? $this->agent_id ?? $this->plan?->agent_id ?? null;
+        return $this->agent_id ?? $this->plan?->agent_id ?? $this->plan?->users_id ?? null;
     }
 
     public function scopeStalled(Builder $query, int $minutes): Builder
