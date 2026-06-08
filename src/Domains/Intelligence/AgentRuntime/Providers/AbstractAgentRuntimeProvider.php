@@ -202,6 +202,7 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
         ?string $assignee = null,
         ?string $tenant = null,
         ?string $board = null,
+        array $knownTaskIds = [],
     ): array {
         throw $this->unsupported('kanban board read');
     }
