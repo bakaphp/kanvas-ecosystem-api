@@ -10,8 +10,10 @@ use Kanvas\Intelligence\AgentRuntime\Enums\KanbanCustomFieldEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
+use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\Actions\UpdatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Support\KanbanStatusMapper;
 
@@ -40,6 +42,8 @@ final class UpsertKanbanPlanAction
         $rawStatus = $this->root->status->value;
         $title = $this->root->title !== '' ? $this->root->title : '(untitled)';
 
+        $becameDone = false;
+
         if ($this->existing === null) {
             $plan = new CreatePlanAction(
                 new PlanData(
@@ -55,6 +59,7 @@ final class UpsertKanbanPlanAction
                 ),
                 fromSync: true,
             )->execute();
+            $becameDone = $mapped === PlanStatusEnum::DONE;
         } elseif (
             $this->existing->get(KanbanCustomFieldEnum::STATUS->value) !== $rawStatus
             || $this->existing->title !== $title
@@ -72,12 +77,20 @@ final class UpsertKanbanPlanAction
                 ),
                 fromSync: true,
             )->execute();
+            $becameDone = $mapped === PlanStatusEnum::DONE;
         } else {
             $plan = $this->existing;
         }
 
         $this->applyTimestamps($plan);
         $this->writeLink($plan, $rawStatus);
+
+        // Post the worker's closing summary onto the plan's Activities channel on the done transition,
+        // so it's visible there (a board-driven agent has no chat-wake to do it). Fires once — a no-op
+        // re-sync doesn't re-enter the changed branch.
+        if ($becameDone && $this->root->latestSummary !== null && $this->root->latestSummary !== '') {
+            new PostPlanActivityMessageAction($plan, $this->root->latestSummary)->execute();
+        }
 
         return $plan;
     }

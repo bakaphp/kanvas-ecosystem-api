@@ -27,6 +27,7 @@ use Kanvas\Connectors\Hermes\Jobs\TerminateAgentJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateHermesOnMachineJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateWorkspaceFilesJob;
 use Kanvas\Connectors\Hermes\Kanban\Actions\CreateKanbanTaskAction;
+use Kanvas\Connectors\Hermes\Kanban\Actions\EnsureKanbanWritableAction;
 use Kanvas\Connectors\Hermes\Kanban\Actions\FetchKanbanBoardAction;
 use Kanvas\Connectors\Hermes\Kanban\Actions\FetchKanbanTaskAction;
 use Kanvas\Connectors\Hermes\Kanban\Actions\TransitionKanbanTaskAction;
@@ -307,6 +308,9 @@ class HermesProvider extends AbstractAgentRuntimeProvider
         KanbanTaskInput $input,
         ?string $board = null,
     ): KanbanTask {
+        // Make the board dir writable by the worker before the first push (no-op if already 777).
+        new EnsureKanbanWritableAction($deployment)->execute();
+
         $assignee = $this->resolveAssignee($input->assignee, $deployment);
 
         if ($assignee !== $input->assignee) {

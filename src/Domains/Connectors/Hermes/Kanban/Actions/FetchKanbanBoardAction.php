@@ -7,15 +7,14 @@ namespace Kanvas\Connectors\Hermes\Kanban\Actions;
 use Kanvas\Connectors\Hermes\Kanban\Traits\InteractsWithHermesKanbanCli;
 use Kanvas\Connectors\Hermes\Services\HermesContainerCliService;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTask;
+use Kanvas\Intelligence\AgentRuntime\Enums\KanbanStatusEnum;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
 /**
- * Reads an agent's slice of the Hermes board.
- *
- * `list --json` rows are flat (no edges, no idempotency_key) and hide archived tasks, so we
- * pass `--archived` to enumerate, then `show --json <id>` per task to populate the tree
- * (parents/children) and the worker handoff (latest_summary + runs metadata). N+1 per slice —
- * acceptable for v1; optimise later with a bulk task_links read.
+ * Discovers an agent's *active* cards. `list --json` rows are flat (no edges), so we `show --json <id>`
+ * per active row to populate the tree + handoff. Terminal rows (done/archived) are skipped here — they
+ * either are already tracked (refreshed by id in SyncDeploymentKanbanAction) or are a rare new-and-done
+ * card we accept missing; this keeps discovery bounded to active work rather than all board history.
  */
 class FetchKanbanBoardAction
 {
@@ -35,7 +34,7 @@ class FetchKanbanBoardAction
     public function execute(): array
     {
         return $this->withCli(function (HermesContainerCliService $cli): array {
-            $listArgs = ['list', '--archived'];
+            $listArgs = ['list'];
 
             if ($this->assignee !== null && $this->assignee !== '') {
                 $listArgs[] = '--assignee';
@@ -51,6 +50,11 @@ class FetchKanbanBoardAction
 
             foreach ($cli->runJson($this->kanbanArgs($listArgs)) as $row) {
                 if (! is_array($row) || ! isset($row['id'])) {
+                    continue;
+                }
+
+                $status = KanbanStatusEnum::fromRuntime(isset($row['status']) ? (string) $row['status'] : null);
+                if ($status === KanbanStatusEnum::DONE || $status === KanbanStatusEnum::ARCHIVED) {
                     continue;
                 }
 
