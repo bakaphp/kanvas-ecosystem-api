@@ -144,6 +144,14 @@ final class FollowUpLeadAction
                 message: $prompt,
                 user: $this->company->getAiAgentUserOrFail(),
                 currentLead: $this->lead,
+                // sourceChannel: $session->channel opts OUT of per-thread filtering
+                // so the agent sees the full cross-session conversation history
+                // for the lead's person — same pattern as channel responders.
+                // Without this, the kernel's setThreadId() drops every prior
+                // message whose thread_id doesn't match the cron's session uuid
+                // (typically every customer-inbound message and every message
+                // from earlier sessions), and the agent runs effectively blind.
+                sourceChannel: $session->channel,
                 persistConversation: false,
             )->execute();
             $result = AgentFollowUpResult::fromKernelResponse($raw);
@@ -171,7 +179,12 @@ final class FollowUpLeadAction
         }
 
         if (! $result->shouldRespond && ! $result->advanceStage) {
-            return $this->exhaust('agent: ' . ($result->reason ?? 'declined'));
+            // Agent's "no this turn" is timing feedback, NOT terminal.
+            // Skip and let the next cron tick re-evaluate. Terminal exhaustion
+            // is operator territory (max_retries hit, handed_off flag, or
+            // explicit resetLeadFollowUp). The agent never permanently kills
+            // a lead. See FollowUp CLAUDE.md.
+            return $this->skip('agent: ' . ($result->reason ?? 'declined'));
         }
 
         $sentBody = null;

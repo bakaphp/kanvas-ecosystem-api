@@ -83,6 +83,29 @@ Don't extend these. Don't reference them from new code. They're awaiting deletio
 
 V1 ships Lead-only, WhatsApp-only, `time_based` mode only. See the [v1 spec](../../../../docs/intelligence/follow-up-v1-spec.md) for the locked decisions. The generic primitives are designed to support more, but the per-entity executors and channels come incrementally.
 
+## Follow-up agent runs in rollup mode (cross-session history)
+
+`FollowUpLeadAction` calls the kernel with `sourceChannel: $session->channel` — the same hint connector channel responders use. This makes the kernel SKIP `setThreadId`, which means `SalesAssistKanvasMessageHistory` returns the full cross-session history for the lead's person (not filtered to one session uuid).
+
+Without this hint, the kernel would call `setThreadId($session->uuid)` and the history loader's `if ($this->threadId !== null && $messageThreadId !== $this->threadId) return null` would drop every message that lives under a different session — typically every inbound customer message and every message from earlier conversation threads. The agent then runs with effectively no history and produces literal-template-copy bland follow-ups.
+
+Bug surfaced 2026-06-08 on lead 25628: agent had 46 People-keyed message rows available but only 16 passed the thread filter (today's cron prompts/responses). The actual 3-day-old customer conversation with the "ping me back Sunday" reply was in the 27 messages with `null` thread_id (legacy inbound, never tagged) — all filtered out. After the fix, the agent sees the full conversation regardless of which session originated the message.
+
+## The agent never terminally exhausts a lead
+
+`should_respond: false` + `advance_stage: false` from the LLM is treated as a **transient SKIP**, not a terminal exhaustion. The next cron tick re-evaluates the lead. The skip emits `lead.follow_up.skipped` with `reason: 'agent: <text>'` for ledger visibility — no `exhausted_at` set, no operator reset required.
+
+This was a real bug: the agent was using `should_respond: false` to mean "wait longer, customer is still digesting" and the action treated that as terminal exhaustion. Leads got stuck after a single agent timing-feedback decision. Fixed 2026-06-08.
+
+**Terminal exhaustion has only three sources:**
+- `max_retries` hit (count of actual sends, configured per stage)
+- `agent_hand_off` flag set on the lead (explicit human takeover)
+- Operator calls `resetLeadFollowUp` / clears state manually
+
+**Risk to watch:** since skipping doesn't bump `count`, an agent that keeps declining indefinitely produces unlimited cron-tick LLM calls without ever sending. If you see leads with `count: 0` and many `lead.follow_up.skipped` events with `agent:` reasons piling up, add an `agent_declines` counter to `follow_up_state` with its own cap (e.g. 5) that auto-exhausts. Deferred until the pattern shows up in production.
+
+The inbound re-engagement hook in `BaseAgentChannelReplyAction` (which checks `str_starts_with($reason, 'agent:')` on the exhaustion reason) stays in place for legacy data — leads exhausted via the old `agent:` path will still resume cleanly on customer reply.
+
 ## Agent resolution — current design + planned evolution
 
 **V1 (current):** The job resolves the Agent via:
