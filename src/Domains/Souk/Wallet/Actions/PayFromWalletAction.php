@@ -48,6 +48,7 @@ class PayFromWalletAction
         $tag = ConfigurationEnum::WALLET_DEFAULT_NAME->value;
         $wallet = $walletHolder->createAppWallet($this->order->app, ['name' => $tag]);
         $cart = app(Cart::class);
+        $totalDebited = 0.0;
         $useVariantCreditInsteadOfVariantPrice = $this->order->app->get(ConfigurationEnum::USE_VARIANT_CREDIT_INSTEAD_OF_VARIANT_PRICE_SLUG->value);
 
         foreach ($this->order->items as $item) {
@@ -69,6 +70,8 @@ class PayFromWalletAction
             if ($quantity < 1) {
                 continue;
             }
+
+            $totalDebited += $price * $quantity;
 
             $cart = $cart->withItem(
                 product: $item->variant,
@@ -98,7 +101,7 @@ class PayFromWalletAction
 
         $this->order->addTag(ConfigurationEnum::WALLET_CREDIT_TAG->value);
 
-        $this->recordWalletPayment($wallet, $tag);
+        $this->recordWalletPayment($wallet, $tag, $totalDebited);
 
         $this->order->payment_status = 'paid';
         $this->order->saveOrFail();
@@ -133,7 +136,7 @@ class PayFromWalletAction
         return $this->getWalletHolder($this->order->app, $this->order->user);
     }
 
-    protected function recordWalletPayment(Wallet $wallet, string $tag): Payments
+    protected function recordWalletPayment(Wallet $wallet, string $tag, float $amount): Payments
     {
         $idempotencyKey = $this->idempotencyKey
             ?? ('wallet_' . ($this->order->uuid ?? (string) $this->order->getId()));
@@ -147,9 +150,10 @@ class PayFromWalletAction
         }
 
         // Direct create, not CreatePaymentAction: its PAID branch runs Order::markAsPaid (completes
-        // the order + fires UPDATED). Amount = order total (gross) so isPaid()/status sync see it paid.
+        // the order + fires UPDATED). Amount is the actual wallet debit — order totals aren't
+        // aggregated for wallet carts and can be 0.
         $payment = $this->order->payments()->create([
-            'amount' => (float) $this->order->getTotalAmount(),
+            'amount' => $amount,
             'payment_date' => date('Y-m-d'),
             'concept' => 'Wallet payment for order #' . (string) $this->order->number,
             'users_id' => $this->order->users_id,

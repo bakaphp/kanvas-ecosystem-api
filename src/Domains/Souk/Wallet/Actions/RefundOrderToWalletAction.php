@@ -136,6 +136,18 @@ class RefundOrderToWalletAction
     protected function getMaxRefundableAmount(): float
     {
         $order = $this->data->order;
+
+        // Prefer what actually landed in the payments table; wallet-cart order totals can be 0.
+        $walletPayment = $order->payments()
+            ->where('payment_method', PaymentMethodTypesEnum::WALLET->value)
+            ->where('status', PaymentStatusEnum::PAID->value)
+            ->latest()
+            ->first();
+
+        if ($walletPayment !== null) {
+            return (float) $walletPayment->amount;
+        }
+
         $walletCredit = $order->get(ConfigurationEnum::WALLET_CREDIT->value);
 
         if (is_array($walletCredit) && isset($walletCredit['amount'])) {
