@@ -1020,6 +1020,53 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertStringContainsString('Best,', $prompt);
     }
 
+    public function testPromptIncludesCurrentTimeWithTimezoneSoLlmCanReasonAboutDates(): void
+    {
+        // Bug: agent reading "ping me Sunday" in conversation history had no
+        // anchor for "today's date" so it assumed Sunday was upcoming. By
+        // then it was actually Monday and the customer was overdue. Fix:
+        // include the current time + timezone so the LLM can interpret
+        // relative date references from prior messages.
+        Carbon::setTestNow(Carbon::create(2026, 6, 8, 14, 32, 0, 'America/New_York'));
+        // $company->timezone reads the model attribute (column on companies table),
+        // not the custom-fields ->set('timezone', ...) value. Update directly.
+        $this->company->update(['timezone' => 'America/New_York']);
+
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'whatever',
+            reason: 'time_anchor',
+        );
+
+        new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $prompt = FollowUpAgentStub::lastPromptText();
+
+        // Concrete date + day-of-week + timezone in the prompt.
+        $this->assertStringContainsString('Current time: Monday', $prompt);
+        $this->assertStringContainsString('June 8, 2026', $prompt);
+        $this->assertStringContainsString('America/New_York', $prompt);
+        // The instruction telling the LLM to use it for time-relative references.
+        $this->assertStringContainsString('Use this to interpret time-relative references', $prompt);
+        // Explicit nudge that prior relative dates may be in the past.
+        $this->assertStringContainsString('may now be in the PAST', $prompt);
+
+        Carbon::setTestNow();
+    }
+
     public function testFollowUpKernelCallOptsOutOfThreadScopingForCrossSessionHistory(): void
     {
         // Regression: previously the kernel called setThreadId for the follow-up

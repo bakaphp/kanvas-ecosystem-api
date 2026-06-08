@@ -402,8 +402,18 @@ final class FollowUpLeadAction
                 ->cascade()
                 ->forHumans(['parts' => 1, 'syntax' => CarbonInterface::DIFF_ABSOLUTE]) . '.';
 
+        // Defensive ?? despite the docblock — production configs can carry
+        // null/bad timezone values; see feedback_validate_timezone_strings.
+        $timezone = $this->company->timezone ?? 'UTC';
+        $now = Carbon::now($timezone);
+        $currentTimeLine = 'Current time: ' . $now->format('l, F j, Y — H:i') . ' (' . $timezone . ').'
+            . ' Use this to interpret time-relative references in the conversation history'
+            . ' (e.g. "Sunday", "tomorrow", "next week"). Relative dates mentioned in PRIOR'
+            . ' messages may now be in the PAST — if so, acknowledge that and adjust.';
+
         $lines = [
             'Decide what to do for this lead in pipeline stage "' . $context['stage_name'] . '".',
+            $currentTimeLine,
             $silenceLine,
             'Follow-up count so far in this stage: ' . $context['follow_up_count'] . ' of ' . $context['max_retries'] . '.',
             'Outbound channel: ' . $context['channel'] . '.',
