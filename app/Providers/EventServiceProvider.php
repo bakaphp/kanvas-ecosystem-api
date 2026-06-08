@@ -8,6 +8,7 @@ use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvi
 use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Companies\Models\CompaniesGroups;
 use Kanvas\Connectors\ScrapperApi\Listeners\CartListener;
+use Kanvas\Guild\Customers\Listeners\UpdatePeopleMessageTimestampsListener;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Observers\PeopleEmploymentHistoryObserver;
@@ -38,6 +39,7 @@ use Kanvas\NervousSystem\Plan\Listeners\SyncKanbanAfterChatListener;
 use Kanvas\NervousSystem\Plan\Listeners\WakeAgentOnPlanChangeListener;
 use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Notifications\Listeners\NotificationsListener;
+use Kanvas\Social\Messages\Events\AppModuleMessageCreatedEvent;
 use Kanvas\Social\Messages\Models\UserMessageActivity;
 use Kanvas\Social\Messages\Observers\UserMessageActivityObserver;
 use Kanvas\Social\UsersLists\Models\UserList;
@@ -78,6 +80,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         WebhookHandled::class => [
             CompanySubscriptionWebhookListener::class,
+        ],
+        AppModuleMessageCreatedEvent::class => [
+            UpdatePeopleMessageTimestampsListener::class,
         ],
     ];
 
