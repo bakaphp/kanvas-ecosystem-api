@@ -48,16 +48,13 @@ class SyncDeploymentKanbanAction
         $taskByExternal = $this->preloadTasks($planByExternal);
         $knownIds = [...array_keys($planByExternal), ...array_keys($taskByExternal)];
 
-        // Discover via the assignee board slice — active cards + done cards we don't already track
-        // (so a card created and completed between ticks still lands once).
         /** @var array<string, KanbanTask> $byId */
         $byId = [];
         foreach ($this->fetchBoard($app, $company, $knownIds) as $card) {
             $byId[$card->id] = $card;
         }
 
-        // ...then refresh any card we already track that the slice missed (reassigned / profile
-        // mismatch). Matching is by task id + agent, NOT by the current assignee.
+        // Refresh tracked cards the board slice missed (reassigned / profile mismatch) — by task id, not assignee.
         foreach ([...array_keys($planByExternal), ...array_keys($taskByExternal)] as $knownId) {
             if (isset($byId[$knownId])) {
                 continue;
