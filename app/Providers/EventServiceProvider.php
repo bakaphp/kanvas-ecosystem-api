@@ -16,7 +16,7 @@ use Kanvas\Guild\Customers\Observers\PeopleObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
 use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
-use Kanvas\Intelligence\AgentRuntime\Listeners\SendAgentDeploymentLifecycleEmail;
+use Kanvas\Intelligence\AgentRuntime\Listeners\SendAgentDeploymentLifecycleEmailListener;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Inventory\Categories\Observers\ProductsCategoriesObserver;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -33,9 +33,10 @@ use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Observers\WarehouseObserver;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
-use Kanvas\NervousSystem\Plan\Listeners\PushPlanChangeToKanban;
-use Kanvas\NervousSystem\Plan\Listeners\SyncKanbanAfterChat;
-use Kanvas\NervousSystem\Plan\Listeners\WakeAgentOnPlanChange;
+use Kanvas\NervousSystem\Plan\Listeners\NotifyPlanCreatorOfAgentProgressListener;
+use Kanvas\NervousSystem\Plan\Listeners\PushPlanChangeToKanbanListener;
+use Kanvas\NervousSystem\Plan\Listeners\SyncKanbanAfterChatListener;
+use Kanvas\NervousSystem\Plan\Listeners\WakeAgentOnPlanChangeListener;
 use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Notifications\Listeners\NotificationsListener;
 use Kanvas\Social\Messages\Events\AppModuleMessageCreatedEvent;
@@ -58,14 +59,15 @@ class EventServiceProvider extends ServiceProvider
             NotificationsListener::class,
         ],
         PlanBroadcast::class => [
-            WakeAgentOnPlanChange::class,
-            PushPlanChangeToKanban::class,
+            WakeAgentOnPlanChangeListener::class,
+            PushPlanChangeToKanbanListener::class,
+            NotifyPlanCreatorOfAgentProgressListener::class,
         ],
         AgentChatResponseEvent::class => [
-            SyncKanbanAfterChat::class,
+            SyncKanbanAfterChatListener::class,
         ],
         AgentDeploymentStatusChanged::class => [
-            SendAgentDeploymentLifecycleEmail::class,
+            SendAgentDeploymentLifecycleEmailListener::class,
         ],
         'LaravelCart.Added' => [
             CartListener::class,

@@ -116,9 +116,35 @@ class PlanMutation
         return new UpdateTaskStatusAction(
             task: $task,
             newStatus: TaskStatusEnum::fromAlias((string) $input['status']),
-            result: $input['result'] ?? null,
+            result: $this->normalizeResult($input['result'] ?? null),
             blockedReason: $input['blocked_reason'] ?? null,
         )->execute();
+    }
+
+    /**
+     * The `result` input is a `Mixed` scalar, so a client may send an array OR a JSON string
+     * (e.g. `"{\"log\":\"...\"}"`). The action stores an array, so coerce: decode a JSON-object
+     * string, wrap any other non-empty string, pass arrays through, and treat empty/null as null.
+     *
+     * @return array<array-key, mixed>|null
+     */
+    private function normalizeResult(mixed $result): ?array
+    {
+        if ($result === null || $result === '') {
+            return null;
+        }
+
+        if (is_array($result)) {
+            return $result;
+        }
+
+        if (is_string($result)) {
+            $decoded = json_decode($result, true);
+
+            return is_array($decoded) ? $decoded : ['result' => $result];
+        }
+
+        return null;
     }
 
     public function delete(mixed $rootValue, array $request): bool

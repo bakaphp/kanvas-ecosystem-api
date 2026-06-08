@@ -21,7 +21,7 @@ use Throwable;
 
 /**
  * Single entry point for waking the agent assigned to a Plan. Used by:
- *   - WakeAgentOnPlanChange listener (plan created / approved)
+ *   - WakeAgentOnPlanChangeListener (plan created / approved)
  *   - ReplyToPlanCommentActivity (human comment on the Activities channel)
  *
  * Both paths land on the same per-plan Session so the agent's LLM context
