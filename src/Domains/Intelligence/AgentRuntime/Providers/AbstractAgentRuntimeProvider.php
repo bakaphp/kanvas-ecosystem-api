@@ -243,6 +243,19 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
         throw $this->unsupported('kanban task transition');
     }
 
+    #[Override]
+    public function commentKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        string $externalTaskId,
+        string $text,
+        string $author,
+        ?string $board = null,
+    ): void {
+        throw $this->unsupported('kanban task comment');
+    }
+
     protected function unsupported(string $operation): LogicException
     {
         return new LogicException(

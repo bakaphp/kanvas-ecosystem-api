@@ -86,4 +86,40 @@ final class KanbanTaskTest extends TestCase
 
         $this->assertSame(KanbanStatusEnum::TODO, $task->status);
     }
+
+    public function testParsesCommentsThreadFromShowPayload(): void
+    {
+        $task = KanbanTask::parseShowPayload([
+            'task' => ['id' => 't_root', 'title' => 'spike', 'status' => 'done'],
+            'parents' => [],
+            'children' => [],
+            'comments' => [
+                ['author' => 'kanvas:42', 'body' => 'use the staging key', 'created_at' => 1780887271],
+                ['author' => 'default', 'body' => 'SECRET=BANANA', 'created_at' => 1780887563],
+                ['author' => 'default'], // no body → dropped
+            ],
+        ]);
+
+        $this->assertCount(2, $task->comments);
+        $this->assertSame('kanvas:42', $task->comments[0]['author']);
+        $this->assertSame('use the staging key', $task->comments[0]['body']);
+        $this->assertSame(1780887271, $task->comments[0]['createdAt']);
+        $this->assertSame('SECRET=BANANA', $task->comments[1]['body']);
+    }
+
+    public function testCommentsDefaultEmptyAndAcceptAliases(): void
+    {
+        $this->assertSame([], KanbanTask::parseFlatRow(['id' => 't_x', 'title' => 'x'])->comments);
+
+        $task = KanbanTask::parseShowPayload([
+            'task' => ['id' => 't_y', 'title' => 'y', 'status' => 'ready'],
+            'parents' => [],
+            'children' => [],
+            'comments' => [['author_name' => 'worker', 'text' => 'via aliases']],
+        ]);
+
+        $this->assertSame('worker', $task->comments[0]['author']);
+        $this->assertSame('via aliases', $task->comments[0]['body']);
+        $this->assertNull($task->comments[0]['createdAt']);
+    }
 }

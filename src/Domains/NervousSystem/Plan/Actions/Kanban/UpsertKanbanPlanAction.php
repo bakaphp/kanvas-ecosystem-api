@@ -52,6 +52,9 @@ final class UpsertKanbanPlanAction
                     title: $title,
                     planType: 'hermes_kanban',
                     agent: $this->agent,
+                    // Owner = the agent's user so PlanObserver creates the Activities channel
+                    // (it no-ops without an owner) — the comment bridge + done-summary post need it.
+                    user: $this->agent->user,
                     description: $this->root->body,
                     status: $mapped,
                     input: $this->buildInput(),

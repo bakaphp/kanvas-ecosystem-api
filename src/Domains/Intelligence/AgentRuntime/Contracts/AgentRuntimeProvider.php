@@ -193,4 +193,17 @@ interface AgentRuntimeProvider
         ?string $result = null,
         ?string $board = null,
     ): KanbanTask;
+
+    // Post a comment on a card. Comments are how a human steers a (re)spawned worker — the runtime
+    // replays the full thread to the worker on each spawn. `author` tags provenance (`kanvas:<uid>`)
+    // so the ingest can skip our own comments. Fire-and-forget — the runtime returns no JSON.
+    public function commentKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        string $externalTaskId,
+        string $text,
+        string $author,
+        ?string $board = null,
+    ): void;
 }

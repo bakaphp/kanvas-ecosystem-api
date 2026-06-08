@@ -26,6 +26,7 @@ use Kanvas\Connectors\Hermes\Jobs\RestartAgentContainerJob;
 use Kanvas\Connectors\Hermes\Jobs\TerminateAgentJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateHermesOnMachineJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateWorkspaceFilesJob;
+use Kanvas\Connectors\Hermes\Kanban\Actions\CommentKanbanTaskAction;
 use Kanvas\Connectors\Hermes\Kanban\Actions\CreateKanbanTaskAction;
 use Kanvas\Connectors\Hermes\Kanban\Actions\EnsureKanbanWritableAction;
 use Kanvas\Connectors\Hermes\Kanban\Actions\FetchKanbanBoardAction;
@@ -361,6 +362,25 @@ class HermesProvider extends AbstractAgentRuntimeProvider
             $reason,
             $assignee,
             $result,
+            $board,
+        )->execute();
+    }
+
+    #[Override]
+    public function commentKanbanTask(
+        AgentDeployment $deployment,
+        AppInterface $app,
+        CompanyInterface $company,
+        string $externalTaskId,
+        string $text,
+        string $author,
+        ?string $board = null,
+    ): void {
+        new CommentKanbanTaskAction(
+            $deployment,
+            $externalTaskId,
+            $text,
+            $author,
             $board,
         )->execute();
     }

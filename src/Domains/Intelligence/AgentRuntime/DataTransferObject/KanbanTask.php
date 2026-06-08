@@ -27,6 +27,7 @@ final class KanbanTask extends Data
      * @param list<string> $parentIds
      * @param list<string> $childIds
      * @param array<array-key, mixed>|null $metadata latest run's structured handoff (changed_files, sources, …)
+     * @param list<array{author: string, body: string, createdAt: int|null}> $comments oldest-first thread
      */
     public function __construct(
         public readonly string $id,
@@ -43,6 +44,7 @@ final class KanbanTask extends Data
         public readonly ?int $createdAt,
         public readonly ?int $startedAt,
         public readonly ?int $completedAt,
+        public readonly array $comments = [],
     ) {
     }
 
@@ -76,6 +78,7 @@ final class KanbanTask extends Data
             createdAt: self::nullableInt($task['created_at'] ?? null),
             startedAt: self::nullableInt($task['started_at'] ?? null),
             completedAt: self::nullableInt($task['completed_at'] ?? null),
+            comments: self::parseComments($payload['comments'] ?? []),
         );
     }
 
@@ -102,6 +105,41 @@ final class KanbanTask extends Data
             startedAt: self::nullableInt($row['started_at'] ?? null),
             completedAt: self::nullableInt($row['completed_at'] ?? null),
         );
+    }
+
+    /**
+     * Normalize the `show --json` comments array. Hermes shape is `{author, body, created_at}`
+     * (no comment id); we accept `text`/`author_name` aliases defensively. Rows without a body
+     * are dropped. Watermark dedup downstream keys on `createdAt` (epoch) since there's no id.
+     *
+     * @return list<array{author: string, body: string, createdAt: int|null}>
+     */
+    private static function parseComments(mixed $comments): array
+    {
+        if (! is_array($comments)) {
+            return [];
+        }
+
+        $parsed = [];
+
+        foreach ($comments as $comment) {
+            if (! is_array($comment)) {
+                continue;
+            }
+
+            $body = self::nullableString($comment['body'] ?? $comment['text'] ?? null);
+            if ($body === null) {
+                continue;
+            }
+
+            $parsed[] = [
+                'author' => self::nullableString($comment['author'] ?? $comment['author_name'] ?? null) ?? '',
+                'body' => $body,
+                'createdAt' => self::nullableInt($comment['created_at'] ?? null),
+            ];
+        }
+
+        return $parsed;
     }
 
     /**
