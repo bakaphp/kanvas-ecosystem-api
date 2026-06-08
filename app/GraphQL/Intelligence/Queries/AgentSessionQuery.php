@@ -21,9 +21,9 @@ class AgentSessionQuery
         $company = app(CompaniesBranches::class)->company;
 
         $session = SessionRepository::getByUuidAndNamespaceFromCompanyApp(
-            $request['id'],
-            $company,
-            $app,
+            uuid: $request['id'],
+            app: $app,
+            company: $company,
         );
 
         if ($session->agent->role !== ($session->content['background'] ?? null)) {
