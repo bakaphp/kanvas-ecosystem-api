@@ -122,9 +122,14 @@ class ApplyLeadAiModeAction
 
     protected function applyNewLead(): void
     {
-        $leadType = $this->lead->type()->first();
         $configService = new LeadConfigurationService();
         $aiModeKey = $configService->getAiModeKey($this->lead);
+
+        if ($this->lead->get($aiModeKey) === IntelligenceModeEnum::IDLE->value) {
+            return;
+        }
+
+        $leadType = $this->lead->type()->first();
         $aiFollowUpKey = $configService->getFollowUpModeKey($this->lead);
 
         $isOpen = $this->isCompanyWithinWorkingHours();
