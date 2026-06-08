@@ -8,13 +8,10 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
-use Throwable;
-use Webleit\ZohoCrmApi\Enums\UserType;
 use Webleit\ZohoCrmApi\Exception\ApiError;
 use Webleit\ZohoCrmApi\Models\Model as ZohoModel;
 use Webleit\ZohoCrmApi\Models\Record;
@@ -25,8 +22,6 @@ class ZohoService
     protected ZohoCrm $zohoCrm;
     protected string $zohoAgentModule;
     protected ?array $lastCreateAgentRequest = null;
-    protected ?Collection $activeZohoUserIds = null;
-    protected bool $activeZohoUserIdsLoaded = false;
     private const string DEFAULT_AGENT_MODULE = 'agents';
 
     public function __construct(
@@ -75,13 +70,14 @@ class ZohoService
             'Office_Phone' => str_replace(['+', '-', '(', ')', ' '], '', $user->phone_number ?? ''),
         ];
 
-        // Owner is a Zoho lookup to a real org user. A stale/wrong owner_linked_source_id (or default)
-        // makes Zoho reject the whole create with INVALID_DATA. Try the owner link first, then the
-        // user link, then the company default — and only send Owner when one resolves to a valid user;
-        // otherwise omit it so Zoho assigns the API user instead of failing the agent.
-        $ownerId = $this->resolveValidOwnerId(
+        // Owner is a Zoho lookup to a real org user. We can't pre-validate it (the tenant's token
+        // usually lacks the ZohoCRM.users.READ scope), so send the best candidate — owner link, then
+        // user link, then company default — and let createZohoAgentRecord retry without Owner if Zoho
+        // rejects it. See Sentry KANVAS-ECOSYSTEM-2R8 / 5RT.
+        $ownerId = self::pickFirstOwnerId(
             $agentInfo->owner_linked_source_id,
             $agentInfo->users_linked_source_id,
+            $this->company->get(CustomFieldEnum::DEFAULT_OWNER->value),
         );
         if ($ownerId !== null) {
             $data['Owner'] = $ownerId;
@@ -129,38 +125,60 @@ class ZohoService
     }
 
     /**
-     * Create the agent/vendor record, logging the exact request payload and Zoho's rejection
-     * details on failure. Zoho's InvalidDataType message is just the HTTP reason phrase ("Accepted"),
-     * which hides WHICH field it refused — $e->details() + the raw body carry the api_name/json_path,
-     * so we surface them before rethrowing. See Sentry KANVAS-ECOSYSTEM-2R8.
+     * Create the agent/vendor record. Owner must be a real Zoho user, but we can't pre-validate it
+     * (the tenant token usually lacks the ZohoCRM.users.READ scope), so we let Zoho be the judge:
+     * if it rejects the Owner field with INVALID_DATA, drop Owner and retry once — Zoho then assigns
+     * the API user as owner instead of failing the whole agent registration. Every rejection is logged
+     * with the exact payload + Zoho's api_name/json_path detail, since the bare exception message is
+     * just the HTTP reason phrase ("Accepted"). See Sentry KANVAS-ECOSYSTEM-2R8 / 5RT.
      */
     private function createZohoAgentRecord(string $module, array $data): object
     {
         try {
-            $record = $module === self::DEFAULT_AGENT_MODULE
-                ? $this->zohoCrm->agents->create($data)
-                : $this->zohoCrm->vendors->create($data);
-
-            if ($record === null) {
-                throw new Exception('Zoho returned no record when creating the agent');
-            }
-
-            return $record;
+            return $this->postZohoAgentRecord($module, $data);
         } catch (ApiError $e) {
-            Log::error('Zoho agent create rejected', [
-                'module' => $module,
-                'apps_id' => $this->app->getId(),
-                'companies_id' => $this->company->getId(),
-                'email' => $data['Email'] ?? null,
-                'request' => $data,
-                'zoho_status' => $e->getCode(),
-                'zoho_reason' => $e->getMessage(),
-                'zoho_details' => $e->details(),
-                'zoho_body' => (string) $e->response()->getBody(),
-            ]);
+            $body = json_decode((string) $e->response()->getBody(), true);
+            $body = is_array($body) ? $body : null;
+
+            $this->logZohoCreateRejection($module, $data, $e, $body);
+
+            if (isset($data['Owner']) && self::isOwnerFieldRejection($body)) {
+                unset($data['Owner']);
+                $this->lastCreateAgentRequest = $data;
+
+                return $this->postZohoAgentRecord($module, $data);
+            }
 
             throw $e;
         }
+    }
+
+    private function postZohoAgentRecord(string $module, array $data): object
+    {
+        $record = $module === self::DEFAULT_AGENT_MODULE
+            ? $this->zohoCrm->agents->create($data)
+            : $this->zohoCrm->vendors->create($data);
+
+        if ($record === null) {
+            throw new Exception('Zoho returned no record when creating the agent');
+        }
+
+        return $record;
+    }
+
+    private function logZohoCreateRejection(string $module, array $data, ApiError $e, ?array $body): void
+    {
+        Log::error('Zoho agent create rejected', [
+            'module' => $module,
+            'apps_id' => $this->app->getId(),
+            'companies_id' => $this->company->getId(),
+            'email' => $data['Email'] ?? null,
+            'request' => $data,
+            'zoho_status' => $e->getCode(),
+            'zoho_reason' => $e->getMessage(),
+            'zoho_details' => $e->details(),
+            'zoho_body' => $body ?? (string) $e->response()->getBody(),
+        ]);
     }
 
     public function getLastCreateAgentRequest(): ?array
@@ -169,67 +187,35 @@ class ZohoService
     }
 
     /**
-     * Resolve an owner id Zoho will accept: the first candidate that maps to a valid org user,
-     * then the company default owner, otherwise null (caller should omit the field). Pass the
-     * candidates in priority order (e.g. owner_linked_source_id, then users_linked_source_id).
+     * First non-empty owner id from the candidates, in priority order. Pure so it can be unit tested.
      */
-    public function resolveValidOwnerId(int|string|null ...$candidateOwnerIds): ?int
-    {
-        $candidateOwnerIds[] = $this->company->get(CustomFieldEnum::DEFAULT_OWNER->value);
-
-        return self::pickValidOwnerId($this->getActiveZohoUserIds(), ...$candidateOwnerIds);
-    }
-
-    /**
-     * Pure selection logic kept network-free so it can be unit tested. A null $activeUserIds means
-     * we couldn't load the org's user list — trust the first non-empty candidate rather than
-     * stripping a possibly-valid owner from every request.
-     */
-    public static function pickValidOwnerId(?Collection $activeUserIds, int|string|null ...$candidates): ?int
+    public static function pickFirstOwnerId(int|string|null ...$candidates): ?int
     {
         foreach ($candidates as $candidate) {
             if ($candidate === null || (string) $candidate === '' || (int) $candidate === 0) {
                 continue;
             }
 
-            if ($activeUserIds === null || $activeUserIds->contains((string) $candidate)) {
-                return (int) $candidate;
-            }
+            return (int) $candidate;
         }
 
         return null;
     }
 
     /**
-     * Ids of the org's active Zoho users (as strings), or null when the list can't be fetched.
-     * Cached per service instance to avoid re-hitting the API for every owner check.
+     * True when a Zoho create response blames the Owner field for an INVALID_DATA rejection.
+     * Reads the raw decoded body (keys preserved) rather than the SDK's flattened details(). Pure.
      */
-    protected function getActiveZohoUserIds(): ?Collection
+    public static function isOwnerFieldRejection(?array $body): bool
     {
-        if ($this->activeZohoUserIdsLoaded) {
-            return $this->activeZohoUserIds;
+        foreach ($body['data'] ?? [] as $row) {
+            $apiName = is_array($row) ? ($row['details']['api_name'] ?? null) : null;
+            if (is_string($apiName) && strtolower($apiName) === 'owner') {
+                return true;
+            }
         }
 
-        $this->activeZohoUserIdsLoaded = true;
-
-        try {
-            $this->activeZohoUserIds = $this->zohoCrm->users
-                ->ofType(UserType::ACTIVE)
-                ->keys()
-                ->map(fn ($id) => (string) $id)
-                ->values();
-        } catch (Throwable $e) {
-            // Expected when the tenant's OAuth token lacks the ZohoCRM.users.READ scope — don't
-            // report() it (Sentry noise). null makes owner validation trust the candidate instead.
-            Log::warning('Zoho active-users lookup failed; owner validation will trust the candidate', [
-                'apps_id' => $this->app->getId(),
-                'companies_id' => $this->company->getId(),
-                'error' => $e->getMessage(),
-            ]);
-            $this->activeZohoUserIds = null;
-        }
-
-        return $this->activeZohoUserIds;
+        return false;
     }
 
     public function updateAgent(Agent $agent): object
