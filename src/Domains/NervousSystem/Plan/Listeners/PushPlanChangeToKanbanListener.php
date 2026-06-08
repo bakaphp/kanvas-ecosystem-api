@@ -16,7 +16,7 @@ use Kanvas\NervousSystem\Plan\Jobs\PushTaskToKanbanJob;
  * changes (the echo guard) and only fires for agents with a running Hermes deployment — `running`
  * tasks the agent drives itself are observed via ingest, never pushed.
  */
-class PushPlanChangeToKanban
+class PushPlanChangeToKanbanListener
 {
     public function handle(PlanBroadcast $event): void
     {

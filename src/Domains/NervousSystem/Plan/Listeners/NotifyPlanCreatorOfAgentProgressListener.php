@@ -16,7 +16,7 @@ use Kanvas\NervousSystem\Plan\Notifications\PlanProgressNotification;
  * Self-notification is skipped too: board-created plans are owned by the agent's user, so there's no
  * human to tell.
  */
-class NotifyPlanCreatorOfAgentProgress
+class NotifyPlanCreatorOfAgentProgressListener
 {
     public function handle(PlanBroadcast $event): void
     {

@@ -10,7 +10,7 @@ use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Jobs\WakeAgentForPlanJob;
 
-class WakeAgentOnPlanChange
+class WakeAgentOnPlanChangeListener
 {
     public function handle(PlanBroadcast $event): void
     {
@@ -54,7 +54,7 @@ class WakeAgentOnPlanChange
             return false;
         }
 
-        // Kanban-driven runtime agents (Hermes) get a board card via PushPlanChangeToKanban and work
+        // Kanban-driven runtime agents (Hermes) get a board card via PushPlanChangeToKanbanListener and work
         // it there — the chat wake would make them do it twice. In-process agents keep the chat wake.
         $deployment = $event->plan->agent?->activeDeployment;
         if ($deployment instanceof AgentDeployment

@@ -11,7 +11,7 @@ use Kanvas\Intelligence\AgentRuntime\Notifications\AgentDeploymentLaunchedNotifi
 use Kanvas\Intelligence\AgentRuntime\Notifications\AgentDeploymentTerminatedNotification;
 use Kanvas\Users\Models\Users;
 
-class SendAgentDeploymentLifecycleEmail
+class SendAgentDeploymentLifecycleEmailListener
 {
     public function handle(AgentDeploymentStatusChanged $event): void
     {

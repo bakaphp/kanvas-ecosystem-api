@@ -14,7 +14,7 @@ use Kanvas\NervousSystem\Plan\Jobs\SyncDeploymentKanbanJob;
  * tasks the agent just created via its kanban tools surface in Kanvas in seconds instead of waiting
  * for the 5-min cron. The sync is watermark-free (status-diff), so an extra run is harmless.
  */
-class SyncKanbanAfterChat
+class SyncKanbanAfterChatListener
 {
     public function handle(AgentChatResponseEvent $event): void
     {
