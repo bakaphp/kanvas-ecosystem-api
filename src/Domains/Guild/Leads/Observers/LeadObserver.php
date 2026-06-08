@@ -129,8 +129,7 @@ class LeadObserver
         }
 
         if ($lead->wasChanged('leads_status_id')) {
-            $leadStatus = $lead->status()->first();
-            if (strtolower($leadStatus->name) === 'sold') {
+            if ($lead->closeSold()) {
                 $lead->fireWorkflow(
                     WorkflowEnum::TRIGGER_AI->value,
                     true,
@@ -138,7 +137,7 @@ class LeadObserver
                         'trigger_type' => TriggersEnum::SOLD_LEAD->value,
                     ]
                 );
-            } elseif (strtolower($leadStatus->name) === 'close') {
+            } elseif ($lead->closeNotSold()) {
                 $lead->fireWorkflow(
                     WorkflowEnum::TRIGGER_AI->value,
                     true,

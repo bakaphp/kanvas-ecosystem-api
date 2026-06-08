@@ -6,7 +6,6 @@ namespace Kanvas\Intelligence\Services;
 
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 
 class LeadConfigurationService
@@ -25,21 +24,6 @@ class LeadConfigurationService
         return $this->isV2;
     }
 
-    private function getTypePrefix(?LeadType $leadType): string
-    {
-        $name = strtolower($leadType?->name ?? '');
-
-        if (str_contains($name, 'showroom')) {
-            return 'showroom';
-        }
-
-        if (str_contains($name, 'phone')) {
-            return 'phone';
-        }
-
-        return 'internet';
-    }
-
     private function getStatusSuffix(Lead $lead): string
     {
         $statusName = strtolower($lead->status()->first()?->name ?? '');
@@ -55,6 +39,19 @@ class LeadConfigurationService
         return '';
     }
 
+    private function findConfigKeyBySuffix(Lead $lead, string $suffix): string
+    {
+        $leadTypeConfig = $lead->type()->first()?->config ?? [];
+
+        foreach (array_keys($leadTypeConfig) as $key) {
+            if ($key === $suffix || str_ends_with((string) $key, '_' . $suffix)) {
+                return (string) $key;
+            }
+        }
+
+        return $suffix;
+    }
+
     public function getAiModeKey(Lead $lead): string
     {
         return 'ai_mode';
@@ -67,54 +64,44 @@ class LeadConfigurationService
 
     public function getFirstMessageDefaultKey(Lead $lead): string
     {
-        $prefix = $this->getTypePrefix($lead->type()->first());
-
-        return "{$prefix}_first_fu_active_default";
+        return $this->findConfigKeyBySuffix($lead, 'first_fu_active_default');
     }
 
     public function getAiModeDefaultKey(Lead $lead, bool $isOpen = true): string
     {
-        $prefix = $this->getTypePrefix($lead->type()->first());
-        $state = $isOpen ? 'open' : 'closed';
+        $suffix = $isOpen ? 'ai_mode_open_default' : 'ai_mode_closed_default';
 
-        return "{$prefix}_ai_mode_{$state}_default";
+        return $this->findConfigKeyBySuffix($lead, $suffix);
     }
 
     public function getFollowUpDefaultKey(Lead $lead): string
     {
-        $prefix = $this->getTypePrefix($lead->type()->first());
         $statusSuffix = $this->getStatusSuffix($lead);
 
         if ($statusSuffix === 'closed-not-sold') {
-            return "{$prefix}_con_fu_cns_default";
+            return $this->findConfigKeyBySuffix($lead, 'con_fu_cns_default');
         }
 
         if ($statusSuffix === 'closed-sold') {
-            return "{$prefix}_con_fu_closed-sold_default";
+            return $this->findConfigKeyBySuffix($lead, 'con_fu_closed-sold_default');
         }
 
-        return "{$prefix}_con_fu_active_default";
+        return $this->findConfigKeyBySuffix($lead, 'con_fu_active_default');
     }
 
     public function getFollowUpActiveDefaultKey(Lead $lead): string
     {
-        $prefix = $this->getTypePrefix($lead->type()->first());
-
-        return "{$prefix}_con_fu_active_default";
+        return $this->findConfigKeyBySuffix($lead, 'con_fu_active_default');
     }
 
     public function getFollowUpClosedNotSoldDefaultKey(Lead $lead): string
     {
-        $prefix = $this->getTypePrefix($lead->type()->first());
-
-        return "{$prefix}_con_fu_cns_default";
+        return $this->findConfigKeyBySuffix($lead, 'con_fu_cns_default');
     }
 
     public function getFollowUpClosedSoldDefaultKey(Lead $lead): string
     {
-        $prefix = $this->getTypePrefix($lead->type()->first());
-
-        return "{$prefix}_con_fu_closed-sold_default";
+        return $this->findConfigKeyBySuffix($lead, 'con_fu_closed-sold_default');
     }
 
     public function getAllDefaultKeys(Lead $lead, bool $isOpen = true): array
