@@ -10,6 +10,8 @@ use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTask;
 use Kanvas\Intelligence\AgentRuntime\Enums\KanbanCustomFieldEnum;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 
@@ -56,6 +58,13 @@ class SyncDeploymentKanbanAction
         // mismatch). Matching is by task id + agent, NOT by the current assignee.
         foreach ([...array_keys($planByExternal), ...array_keys($taskByExternal)] as $knownId) {
             if (isset($byId[$knownId])) {
+                continue;
+            }
+
+            $model = $planByExternal[$knownId] ?? $taskByExternal[$knownId] ?? null;
+
+            // Terminal in Kanvas = terminal on the board too; stop polling it (bounds the work).
+            if ($model !== null && $this->isTerminal($model)) {
                 continue;
             }
 
@@ -129,6 +138,13 @@ class SyncDeploymentKanbanAction
     {
         return AgentRuntimeProviderFactory::forDeployment($this->deployment)
             ->fetchKanbanTask($this->deployment, $this->deployment->app, $this->deployment->company, $externalTaskId);
+    }
+
+    private function isTerminal(Plan|Task $model): bool
+    {
+        return $model instanceof Plan
+            ? in_array(PlanStatusEnum::from($model->status), PlanStatusEnum::terminalStatuses(), true)
+            : in_array(TaskStatusEnum::from($model->status), TaskStatusEnum::completedStatuses(), true);
     }
 
     /**

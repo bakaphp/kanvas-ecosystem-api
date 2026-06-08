@@ -6,18 +6,19 @@ namespace Kanvas\Connectors\Hermes\Kanban\Traits;
 
 use Closure;
 use Kanvas\Connectors\Hermes\Services\HermesContainerCliService;
-use Kanvas\Connectors\Hermes\SshClient;
+use Kanvas\Connectors\Hermes\Traits\OpensHermesSshClient;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\AgentRuntime\SshClient as BaseSshClient;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
 /**
  * Shared CLI plumbing for the Hermes kanban actions. The consuming action must declare
  * `private readonly AgentDeployment $deployment` and `private readonly ?string $board`.
- * `openSshClient()` is a protected seam so tests can swap in an in-memory SSH stub.
+ * SSH opening comes from OpensHermesSshClient (a protected seam tests can override).
  */
 trait InteractsWithHermesKanbanCli
 {
+    use OpensHermesSshClient;
+
     /**
      * Open the deployment's container CLI, run $run, and always disconnect.
      *
@@ -58,10 +59,5 @@ trait InteractsWithHermesKanbanCli
         }
 
         return [...$prefix, ...$args];
-    }
-
-    protected function openSshClient(AgentMachine $machine): BaseSshClient
-    {
-        return SshClient::fromMachine($machine);
     }
 }

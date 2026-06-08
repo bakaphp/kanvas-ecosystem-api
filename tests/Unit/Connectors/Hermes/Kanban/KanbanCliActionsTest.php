@@ -13,7 +13,6 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTaskInput;
 use Kanvas\Intelligence\AgentRuntime\Enums\KanbanStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Enums\KanbanTransition;
-use Kanvas\Intelligence\AgentRuntime\SshClient as BaseSshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Mockery;
@@ -73,7 +72,8 @@ final class KanbanCliActionsTest extends TestCase
     public function testFetchBuildsTreeViaListThenShowPerTask(): void
     {
         $ssh = new FakeKanbanSshClient();
-        $ssh->listJson = '[{"id":"t_root"},{"id":"t_a"}]';
+        // t_done is terminal → discovery must skip it (no show); refresh-by-id handles terminal cards.
+        $ssh->listJson = '[{"id":"t_root","status":"ready"},{"id":"t_a","status":"running"},{"id":"t_done","status":"done"}]';
         $ssh->showById = [
             't_root' => json_encode([
                 'task' => ['id' => 't_root', 'title' => 'Plan', 'status' => 'ready', 'assignee' => 'researcher'],
@@ -93,15 +93,17 @@ final class KanbanCliActionsTest extends TestCase
         $action = new TestableFetchKanbanBoardAction($this->deployment(), 'researcher', $ssh);
         $tasks = $action->execute();
 
-        $this->assertCount(2, $tasks);
+        $this->assertCount(2, $tasks); // t_done skipped
         $this->assertTrue($tasks[0]->isRoot());
         $this->assertSame(KanbanStatusEnum::READY, $tasks[0]->status);
         $this->assertFalse($tasks[1]->isRoot());
         $this->assertSame(['t_root'], $tasks[1]->parentIds);
 
-        $this->assertStringContainsString("'list' '--archived'", $ssh->commands[0]);
+        $this->assertStringContainsString("'list'", $ssh->commands[0]);
         $this->assertStringContainsString("'--assignee' 'researcher'", $ssh->commands[0]);
         $this->assertStringContainsString("'show' 't_root'", $ssh->commands[1]);
+        // never show'd the terminal card
+        $this->assertEmpty(array_filter($ssh->commands, static fn (string $c): bool => str_contains($c, "'show' 't_done'")));
     }
 
     public function testCreateRootTaskSendsIdempotencyKeyAndNoTriageNoParent(): void
@@ -265,7 +267,7 @@ class TestableFetchKanbanBoardAction extends FetchKanbanBoardAction
         parent::__construct($deployment, $assignee);
     }
 
-    protected function openSshClient(AgentMachine $machine): BaseSshClient
+    protected function openSshClient(AgentMachine $machine): SshClient
     {
         return $this->fake;
     }
@@ -278,7 +280,7 @@ class TestableCreateKanbanTaskAction extends CreateKanbanTaskAction
         parent::__construct($deployment, $input);
     }
 
-    protected function openSshClient(AgentMachine $machine): BaseSshClient
+    protected function openSshClient(AgentMachine $machine): SshClient
     {
         return $this->fake;
     }
@@ -298,7 +300,7 @@ class TestableTransitionKanbanTaskAction extends TransitionKanbanTaskAction
         parent::__construct($deployment, $externalTaskId, $transition, $reason, $assignee, $result);
     }
 
-    protected function openSshClient(AgentMachine $machine): BaseSshClient
+    protected function openSshClient(AgentMachine $machine): SshClient
     {
         return $this->fake;
     }
