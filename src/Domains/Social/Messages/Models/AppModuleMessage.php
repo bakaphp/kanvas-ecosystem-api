@@ -11,6 +11,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Social\Messages\Observers\AppModuleMessageObserver;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
+use Override;
 
 /**
  * class AppModuleMessage
@@ -36,11 +37,13 @@ class AppModuleMessage extends BaseModel
         return $this->belongsTo(MessageType::class, 'message_types_id');
     }
 
+    #[Override]
     public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
 
+    #[Override]
     public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');

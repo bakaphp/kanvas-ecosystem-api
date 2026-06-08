@@ -57,11 +57,19 @@ class FollowUpAgentStub extends FollowUpAgent
      */
     public static ?\Throwable $throwOnChat = null;
 
+    /**
+     * Captures whether the kernel called setThreadId on this handler.
+     * Tests use this to assert the rollup vs thread-scoped path.
+     * False = cross-session history (rollup), True = thread-filtered.
+     */
+    public static bool $setThreadIdWasCalled = false;
+
     public static function reset(): void
     {
         self::$cannedResponse = '{"should_respond": false, "advance_stage": false, "message": null, "reason": "stub-default"}';
         self::$lastReceivedMessages = [];
         self::$throwOnChat = null;
+        self::$setThreadIdWasCalled = false;
     }
 
     public static function lastPromptText(): string
@@ -165,6 +173,13 @@ class FollowUpAgentStub extends FollowUpAgent
     protected function chatHistory(): AbstractChatHistory
     {
         return new InMemoryChatHistory();
+    }
+
+    #[Override]
+    public function setThreadId(string $threadId): void
+    {
+        self::$setThreadIdWasCalled = true;
+        parent::setThreadId($threadId);
     }
 
     #[Override]

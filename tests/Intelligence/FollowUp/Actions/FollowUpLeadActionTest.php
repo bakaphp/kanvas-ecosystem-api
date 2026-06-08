@@ -344,10 +344,10 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertNotNull($event);
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // Gate 8 — agent says SKIP → exhaust(agent_gave_up)
-    // ─────────────────────────────────────────────────────────────────────
-    public function testExhaustsWhenAgentDeclinesToRespond(): void
+    // Gate 8 — agent says SKIP. Treated as transient SKIP (NOT terminal
+    // exhaust) so the next cron tick re-evaluates. The agent never
+    // permanently kills a lead — only max_retries / handed_off / operator do.
+    public function testSkipsWhenAgentDeclinesToRespond(): void
     {
         $cfg = $this->defaultStageConfig();
         $cfg['follow_up']['channels'] = [
@@ -370,12 +370,13 @@ class FollowUpLeadActionTest extends TestCase
             agent: $this->seedFollowUpAgent(),
         )->execute();
 
-        $this->assertSame(FollowUpOutcomeKindEnum::EXHAUSTED, $outcome->kind);
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
         $this->assertStringContainsString('agent: person_disengaged', (string) $outcome->reason);
 
         $lead->refresh();
-        $this->assertTrue($lead->isFollowUpExhausted());
-        $this->assertStringStartsWith('agent:', (string) $lead->getFollowUpExhaustedReason());
+        // Critical: lead is NOT exhausted — retries next cron tick.
+        $this->assertFalse($lead->isFollowUpExhausted());
+        $this->assertNull($lead->getFollowUpExhaustedReason());
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -1017,6 +1018,44 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertStringNotContainsString('No template configured for this stage.', $prompt);
         // Email default has "Best," sign-off in the body.
         $this->assertStringContainsString('Best,', $prompt);
+    }
+
+    public function testFollowUpKernelCallOptsOutOfThreadScopingForCrossSessionHistory(): void
+    {
+        // Regression: previously the kernel called setThreadId for the follow-up
+        // path (because sourceChannel was null), which made the agent's history
+        // loader filter to a single session's messages. The fix is to pass
+        // sourceChannel: $session->channel so the kernel skips setThreadId.
+        // After the fix, the agent sees the full cross-session conversation
+        // history for the People entity — the same rollup pattern channel
+        // responders use.
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'whatever',
+            reason: 'cross_session_rollup',
+        );
+
+        new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        // setThreadId was NOT called → the kernel hit the rollup branch
+        // (sourceChannel was non-null) → history loader sees cross-session msgs.
+        $this->assertFalse(
+            FollowUpAgentStub::$setThreadIdWasCalled,
+            'FollowUpLeadAction must pass sourceChannel to AgentChatKernel so it skips setThreadId. Without this the agent only sees one session\'s messages and produces literal-template-copy bland follow-ups (regression KANVAS-ECOSYSTEM-5RF).'
+        );
     }
 
     public function testSentMessageIsAttachedToLeadDefaultChannelForUiVisibility(): void
