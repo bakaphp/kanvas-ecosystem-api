@@ -34,7 +34,7 @@ class UpdatePeopleMessageTimestampsListener
             [$messageAt, $messageAt, $messageAt, $appModuleMessage->entity_id],
         );
 
-        $lead = Lead::find($appModuleMessage->entity_id);
+        $lead = $appModuleMessage->entity;
         $lead?->people?->set('last_unread_reply_at', 1);
     }
 }
