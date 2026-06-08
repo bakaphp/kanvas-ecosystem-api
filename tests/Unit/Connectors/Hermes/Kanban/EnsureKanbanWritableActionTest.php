@@ -6,7 +6,6 @@ namespace Tests\Unit\Connectors\Hermes\Kanban;
 
 use Kanvas\Connectors\Hermes\Kanban\Actions\EnsureKanbanWritableAction;
 use Kanvas\Connectors\Hermes\SshClient;
-use Kanvas\Intelligence\AgentRuntime\SshClient as BaseSshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Mockery;
@@ -58,7 +57,7 @@ class TestableEnsureKanbanWritableAction extends EnsureKanbanWritableAction
         parent::__construct($deployment);
     }
 
-    protected function openSshClient(AgentMachine $machine): BaseSshClient
+    protected function openSshClient(AgentMachine $machine): SshClient
     {
         return $this->fake;
     }

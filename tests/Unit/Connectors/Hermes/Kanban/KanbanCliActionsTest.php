@@ -13,7 +13,6 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTaskInput;
 use Kanvas\Intelligence\AgentRuntime\Enums\KanbanStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Enums\KanbanTransition;
-use Kanvas\Intelligence\AgentRuntime\SshClient as BaseSshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Mockery;
@@ -268,7 +267,7 @@ class TestableFetchKanbanBoardAction extends FetchKanbanBoardAction
         parent::__construct($deployment, $assignee);
     }
 
-    protected function openSshClient(AgentMachine $machine): BaseSshClient
+    protected function openSshClient(AgentMachine $machine): SshClient
     {
         return $this->fake;
     }
@@ -281,7 +280,7 @@ class TestableCreateKanbanTaskAction extends CreateKanbanTaskAction
         parent::__construct($deployment, $input);
     }
 
-    protected function openSshClient(AgentMachine $machine): BaseSshClient
+    protected function openSshClient(AgentMachine $machine): SshClient
     {
         return $this->fake;
     }
@@ -301,7 +300,7 @@ class TestableTransitionKanbanTaskAction extends TransitionKanbanTaskAction
         parent::__construct($deployment, $externalTaskId, $transition, $reason, $assignee, $result);
     }
 
-    protected function openSshClient(AgentMachine $machine): BaseSshClient
+    protected function openSshClient(AgentMachine $machine): SshClient
     {
         return $this->fake;
     }

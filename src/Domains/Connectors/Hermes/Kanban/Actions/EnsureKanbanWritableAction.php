@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Hermes\Kanban\Actions;
 
-use Kanvas\Connectors\Hermes\SshClient;
-use Kanvas\Intelligence\AgentRuntime\SshClient as BaseSshClient;
+use Kanvas\Connectors\Hermes\Traits\OpensHermesSshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
@@ -21,6 +20,8 @@ use Throwable;
  */
 class EnsureKanbanWritableAction
 {
+    use OpensHermesSshClient;
+
     private const string KANBAN_DIR = '/opt/data/kanban';
 
     public function __construct(private readonly AgentDeployment $deployment)
@@ -59,10 +60,5 @@ class EnsureKanbanWritableAction
         } finally {
             $ssh->disconnect();
         }
-    }
-
-    protected function openSshClient(AgentMachine $machine): BaseSshClient
-    {
-        return SshClient::fromMachine($machine);
     }
 }

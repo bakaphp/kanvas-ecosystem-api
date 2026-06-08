@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Hermes\Actions;
 
 use Kanvas\Connectors\Hermes\Services\GoogleCredentialFileBuilderService;
-use Kanvas\Connectors\Hermes\SshClient;
+use Kanvas\Connectors\Hermes\Traits\OpensHermesSshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Enums\AgentIntegrationConfigKeyEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
-use Kanvas\Intelligence\Agents\Models\AgentMachine;
 
 class DeployGoogleCredentialsAction
 {
+    use OpensHermesSshClient;
+
     private const int CONTAINER_UID = 1000;
     private const int RESTART_TIMEOUT_SECONDS = 120;
 
@@ -88,12 +89,5 @@ class DeployGoogleCredentialsAction
             'deployment_id' => $deployment->getId(),
             'files' => $writtenFiles,
         ];
-    }
-
-    // Seam for tests: subclass can return a fake SshClient instead of opening
-    // a real SFTP connection.
-    protected function openSshClient(AgentMachine $machine): SshClient
-    {
-        return SshClient::fromMachine($machine);
     }
 }
