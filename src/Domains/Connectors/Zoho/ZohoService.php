@@ -9,11 +9,13 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
 use Throwable;
 use Webleit\ZohoCrmApi\Enums\UserType;
+use Webleit\ZohoCrmApi\Exception\ApiError;
 use Webleit\ZohoCrmApi\Models\Model as ZohoModel;
 use Webleit\ZohoCrmApi\Models\Record;
 use Webleit\ZohoCrmApi\ZohoCrm;
@@ -99,7 +101,7 @@ class ZohoService
                 ? $zohoOwnerAgent->getData()
                 : $zohoOwnerAgent;
 
-            $zohoAgent = $this->zohoCrm->agents->create($data);
+            $zohoAgent = $this->createZohoAgentRecord($zohoAgentModule, $data);
         } else {
             $data['Vendor_Name'] = $agentInfo->name;
             $data['Phone'] = str_replace(['+', '-', '(', ')', ' '], '', $user->phone_number ?? '');
@@ -120,10 +122,45 @@ class ZohoService
             }
 
             $this->lastCreateAgentRequest = $data;
-            $zohoAgent = $this->zohoCrm->vendors->create($data);
+            $zohoAgent = $this->createZohoAgentRecord($zohoAgentModule, $data);
         }
 
         return $zohoAgent;
+    }
+
+    /**
+     * Create the agent/vendor record, logging the exact request payload and Zoho's rejection
+     * details on failure. Zoho's InvalidDataType message is just the HTTP reason phrase ("Accepted"),
+     * which hides WHICH field it refused — $e->details() + the raw body carry the api_name/json_path,
+     * so we surface them before rethrowing. See Sentry KANVAS-ECOSYSTEM-2R8.
+     */
+    private function createZohoAgentRecord(string $module, array $data): object
+    {
+        try {
+            $record = $module === self::DEFAULT_AGENT_MODULE
+                ? $this->zohoCrm->agents->create($data)
+                : $this->zohoCrm->vendors->create($data);
+
+            if ($record === null) {
+                throw new Exception('Zoho returned no record when creating the agent');
+            }
+
+            return $record;
+        } catch (ApiError $e) {
+            Log::error('Zoho agent create rejected', [
+                'module' => $module,
+                'apps_id' => $this->app->getId(),
+                'companies_id' => $this->company->getId(),
+                'email' => $data['Email'] ?? null,
+                'request' => $data,
+                'zoho_status' => $e->getCode(),
+                'zoho_reason' => $e->getMessage(),
+                'zoho_details' => $e->details(),
+                'zoho_body' => (string) $e->response()->getBody(),
+            ]);
+
+            throw $e;
+        }
     }
 
     public function getLastCreateAgentRequest(): ?array
@@ -182,7 +219,13 @@ class ZohoService
                 ->map(fn ($id) => (string) $id)
                 ->values();
         } catch (Throwable $e) {
-            report($e);
+            // Expected when the tenant's OAuth token lacks the ZohoCRM.users.READ scope — don't
+            // report() it (Sentry noise). null makes owner validation trust the candidate instead.
+            Log::warning('Zoho active-users lookup failed; owner validation will trust the candidate', [
+                'apps_id' => $this->app->getId(),
+                'companies_id' => $this->company->getId(),
+                'error' => $e->getMessage(),
+            ]);
             $this->activeZohoUserIds = null;
         }
 
