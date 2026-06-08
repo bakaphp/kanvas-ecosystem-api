@@ -121,6 +121,10 @@ class OrderManagementMutation
             ])
             ->log('User attempted to create order from cart');
 
+        $parentOrder = isset($request['input']['parent_id'])
+            ? Order::getByIdFromCompanyApp((int) $request['input']['parent_id'], $company, $app)
+            : null;
+
         $ipAddress = IPInfo::getClientIp();
         $createOrder = new $actionClass(
             $cart,
@@ -133,7 +137,7 @@ class OrderManagementMutation
             $billing,
             $shippingAddress,
             $request,
-            null,
+            $parentOrder,
             $ipAddress
         )->execute();
 
