@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
@@ -31,6 +32,7 @@ use Throwable;
  */
 class SummarizeAgentDailyLearningCommand extends Command
 {
+    use KanvasJobsTrait;
     protected $signature = 'kanvas:nervous-system:summarize-agent-daily-learning
         {--agent= : Restrict to a single agent id}
         {--app= : Restrict to a single apps_id}
@@ -67,6 +69,7 @@ class SummarizeAgentDailyLearningCommand extends Command
                 $app = Apps::getById($appId);
                 /** @var Companies $company */
                 $company = Companies::getById($companyId);
+                $this->overwriteAppService($app);
             } catch (Throwable $e) {
                 $this->warn(sprintf('apps_id=%d companies_id=%d → tenant resolution failed: %s', $appId, $companyId, $e->getMessage()));
                 $failed++;

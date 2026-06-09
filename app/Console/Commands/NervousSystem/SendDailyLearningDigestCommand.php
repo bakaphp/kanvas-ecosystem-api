@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
@@ -26,6 +27,8 @@ use Throwable;
  */
 class SendDailyLearningDigestCommand extends Command
 {
+    use KanvasJobsTrait;
+
     protected $signature = 'kanvas:nervous-system:send-daily-learning-digest
         {--app= : Restrict to a single apps_id}
         {--company= : Restrict to a single companies_id}
@@ -73,6 +76,7 @@ class SendDailyLearningDigestCommand extends Command
 
             try {
                 $app = Apps::getById($appId);
+                $this->overwriteAppService($app);
                 $company = Companies::getById($companyId);
             } catch (Throwable $e) {
                 $this->warn(sprintf(

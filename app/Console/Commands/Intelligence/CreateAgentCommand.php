@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Intelligence;
 
 use Baka\Support\Str;
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -16,6 +17,8 @@ use Throwable;
 
 class CreateAgentCommand extends Command
 {
+    use KanvasJobsTrait;
+
     protected $signature = 'agent:create';
 
     protected $description = 'Wizard to create a new agent record (supports global agents with apps_id=0 / companies_id=0)';
@@ -29,8 +32,10 @@ class CreateAgentCommand extends Command
 
         if ($appsId !== 0) {
             try {
+                /** @var Apps $app */
                 $app = Apps::getById($appsId);
                 $this->line("  App: {$app->name}");
+                $this->overwriteAppService($app);
             } catch (Throwable) {
                 $this->error("App with ID {$appsId} not found.");
 

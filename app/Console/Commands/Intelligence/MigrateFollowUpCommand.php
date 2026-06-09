@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Intelligence;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
@@ -15,6 +17,8 @@ use Kanvas\Intelligence\FollowUp\Models\FollowUpTemplate;
 
 class MigrateFollowUpCommand extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -80,6 +84,10 @@ class MigrateFollowUpCommand extends Command
             foreach ($pipelines as $pipeline) {
                 $this->line("\n" . str_repeat('=', 60));
                 $this->info("Processing Pipeline: {$pipeline->name} (ID: {$pipeline->id})");
+
+                /** @var Apps $app */
+                $app = Apps::getById((int) $pipeline->apps_id);
+                $this->overwriteAppService($app);
 
                 // Check if follow up already exists for this pipeline
                 $existingFollowUp = FollowUp::where('pipelines_id', $pipeline->id)
