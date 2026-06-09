@@ -24,6 +24,7 @@ class ReminderEventVersionCommand extends Command
         })
         ->get();
         foreach ($eventVersions as $eventVersion) {
+            $this->overwriteAppService($eventVersion->app);
             $name = $eventVersion->event->name;
             $starDate = $eventVersion->dates->first()->event_date;
             $content = [

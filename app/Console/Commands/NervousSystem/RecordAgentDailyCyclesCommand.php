@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\RecordAgentDailyCycleAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Throwable;
@@ -18,6 +20,7 @@ use Throwable;
  */
 class RecordAgentDailyCyclesCommand extends Command
 {
+    use KanvasJobsTrait;
     protected $signature = 'kanvas:nervous-system:record-agent-cycles
         {--agent= : Restrict to a single agent id}
         {--date= : ISO date (Y-m-d) for the cycle to record. Defaults to today.}';
@@ -44,6 +47,10 @@ class RecordAgentDailyCyclesCommand extends Command
 
         $query->chunkById(50, function ($agents) use ($cycleDate, &$processed, &$failed): void {
             foreach ($agents as $agent) {
+                /** @var Apps $app */
+                $app = Apps::getById($agent->apps_id);
+                $this->overwriteAppService($app);
+
                 try {
                     $cycle = new RecordAgentDailyCycleAction($agent, $cycleDate)->execute();
                     $processed++;

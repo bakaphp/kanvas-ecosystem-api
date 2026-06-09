@@ -12,6 +12,7 @@ use Kanvas\Connectors\FinancialModelingPrep\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep\FmpCompanyProfileTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep\FmpCompanySearchTool;
+use Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep\FmpFinancialSnapshotTool;
 use Laravel\Ai\Tools\Request;
 use Tests\TestCase;
 
@@ -117,5 +118,49 @@ final class FmpToolsTest extends TestCase
         $this->assertArrayHasKey('symbol', $result);
         $this->assertSame('AAPL', $result['symbol']);
         $this->assertArrayHasKey('sector', $result);
+    }
+
+    public function testFinancialSnapshotToolHasDescription(): void
+    {
+        $tool = new FmpFinancialSnapshotTool();
+        $this->assertNotEmpty($tool->description());
+        $this->assertNotEmpty($tool->name());
+        $this->assertStringContainsString('fmp_financial_snapshot', $tool->name());
+    }
+
+    /**
+     * Integration test — requires TEST_FMP_API_KEY env var.
+     */
+    public function testFinancialSnapshotToolReturnsStructuredMetrics(): void
+    {
+        $apiKey = getenv('TEST_FMP_API_KEY');
+
+        if (empty($apiKey)) {
+            $this->markTestSkipped('TEST_FMP_API_KEY not set.');
+        }
+
+        $this->kanvasApp->set(ConfigurationEnum::FMP_API_KEY->value, $apiKey);
+
+        $tool = (new FmpFinancialSnapshotTool())->withContext($this->kanvasApp, $this->company);
+        $result = json_decode($tool->handle(new Request(['symbol' => 'AAPL'])), true);
+
+        $this->assertArrayNotHasKey('error', $result);
+        $this->assertArrayHasKey('symbol', $result);
+        $this->assertSame('AAPL', $result['symbol']);
+        $this->assertArrayHasKey('currency', $result);
+        $this->assertArrayHasKey('metrics', $result);
+
+        $expectedMetrics = ['revenue', 'ebitda', 'interest_expense', 'cash', 'total_debt', 'stock_price'];
+        foreach ($expectedMetrics as $metric) {
+            $this->assertArrayHasKey($metric, $result['metrics'], "Missing metric: {$metric}");
+            $this->assertArrayHasKey('current', $result['metrics'][$metric]);
+            $this->assertArrayHasKey('previous', $result['metrics'][$metric]);
+            $this->assertArrayHasKey('change_pct', $result['metrics'][$metric]);
+            $this->assertArrayHasKey('as_of_date', $result['metrics'][$metric]);
+        }
+
+        $this->assertNotNull($result['metrics']['revenue']['current']);
+        $this->assertNotNull($result['metrics']['revenue']['previous']);
+        $this->assertNotNull($result['metrics']['revenue']['change_pct']);
     }
 }

@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\Intelligence\Agents\Models\AgentSwarmBudget;
 use Kanvas\Intelligence\Agents\Models\AgentSwarmDailyCycle;
 
 class SeedSwarmDemoDataCommand extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * Frontend-integration dummy data so the dashboard renders real-looking
      * numbers against the new swarm cost/budget/cycle GraphQL surface. Safe
@@ -39,6 +43,10 @@ class SeedSwarmDemoDataCommand extends Command
         }
 
         $this->info("Seeding demo data for swarm #{$swarm->getId()} '{$swarm->name}' (app {$swarm->apps_id}, company {$swarm->companies_id})");
+
+        /** @var Apps $app */
+        $app = Apps::getById((int) $swarm->apps_id);
+        $this->overwriteAppService($app);
 
         $this->seedModelPricing();
         $deploymentIds = $this->memberDeploymentIds($swarm->getId());

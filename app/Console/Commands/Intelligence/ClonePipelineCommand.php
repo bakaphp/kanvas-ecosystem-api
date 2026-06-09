@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Intelligence;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
@@ -13,6 +15,8 @@ use Kanvas\Intelligence\FollowUp\Models\FollowUpTemplate;
 
 class ClonePipelineCommand extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -37,6 +41,10 @@ class ClonePipelineCommand extends Command
             $this->error("Pipeline with ID {$pipelineId} not found.");
             return;
         }
+
+        /** @var Apps $app */
+        $app = Apps::getById((int) $originalPipeline->apps_id);
+        $this->overwriteAppService($app);
 
         $this->info("Cloning pipeline: {$originalPipeline->name}");
         $this->info("New pipeline name: {$newName}");

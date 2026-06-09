@@ -88,7 +88,8 @@ class OrderBase extends TestCase
         string $variantId,
         int $quantity = 1,
         string $orderType = 'order',
-        string $currency = 'USD'
+        string $currency = 'USD',
+        ?int $parentId = null
     ): Order {
         $data = [
             'cartId' => 0,
@@ -111,6 +112,10 @@ class OrderBase extends TestCase
             ],
             'order_type' => $orderType,
         ];
+
+        if ($parentId !== null) {
+            $data['parent_id'] = $parentId;
+        }
 
         // Perform GraphQL mutation to create a draft order
         $response = $this->graphQL('
