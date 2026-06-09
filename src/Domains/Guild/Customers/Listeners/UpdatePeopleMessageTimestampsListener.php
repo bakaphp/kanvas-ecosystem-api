@@ -4,23 +4,37 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Listeners;
 
+use Baka\Traits\KanvasJobsTrait;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Events\AppModuleMessageCreatedEvent;
 
-class UpdatePeopleMessageTimestampsListener
+class UpdatePeopleMessageTimestampsListener implements ShouldQueue
 {
+    use KanvasJobsTrait;
+
     public function handle(AppModuleMessageCreatedEvent $event): void
     {
         $appModuleMessage = $event->appModuleMessage;
+
+        if ((bool) $event->appModuleMessage->message?->isCommunicationMessage() === false) {
+            return;
+        }
+
+        if ((bool) $event->appModuleMessage->message?->isPublic() === false) {
+            return;
+        }
 
         if ($appModuleMessage->system_modules !== Lead::class) {
             return;
         }
 
+        $this->overwriteAppService($appModuleMessage->app);
+
         $messageAt = (string) $appModuleMessage->created_at;
 
-        DB::connection('crm')->update(
+        $affected = DB::connection('crm')->update(
             <<<'SQL'
             UPDATE peoples p
             INNER JOIN leads l ON l.people_id = p.id
@@ -34,7 +48,10 @@ class UpdatePeopleMessageTimestampsListener
             [$messageAt, $messageAt, $messageAt, $appModuleMessage->entity_id],
         );
 
-        $lead = $appModuleMessage->entity;
-        $lead?->people?->set('unread_message', 1);
+        if ($affected === 0) {
+            return;
+        }
+
+        $appModuleMessage->entity?->people?->set('unread_message', 1);
     }
 }

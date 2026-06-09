@@ -30,6 +30,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Inventory\Categories\Traits\HasCategoriesTrait;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\Messages\Observers\MessageObserver;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
@@ -130,6 +131,13 @@ class Message extends BaseModel
     public function messageType(): BelongsTo
     {
         return $this->belongsTo(MessageType::class, 'message_types_id');
+    }
+
+    public function isCommunicationMessage(): bool
+    {
+        return ChannelCategoryEnum::isCommunicationVerb(
+            $this->messageType?->verb
+        );
     }
 
     public function appModuleMessage(): HasOne

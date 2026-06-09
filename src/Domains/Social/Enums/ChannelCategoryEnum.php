@@ -19,6 +19,38 @@ enum ChannelCategoryEnum: string
     case INTERNAL_NOTES = 'internal_notes';
     case SYSTEM_NOTES = 'system_notes';
 
+    /**
+     * Keywords found in a MessageType verb (e.g. 'twilio-sms', 'mailgun-email',
+     * 'respondio-image') that mark it as a message actually delivered to a
+     * customer over an external channel — as opposed to internal/system notes
+     * or agent-internal turns. Substring matching (not exact value) so a single
+     * 'respondio' entry covers every 'respondio-*' variant.
+     */
+    private const array COMMUNICATION_VERB_KEYWORDS = [
+        'twilio',
+        'sms',
+        'mailgun',
+        'email',
+        'whatsapp',
+        'voice',
+        'respondio',
+    ];
+
+    public static function isCommunicationVerb(?string $verb): bool
+    {
+        if ($verb === null) {
+            return false;
+        }
+
+        foreach (self::COMMUNICATION_VERB_KEYWORDS as $keyword) {
+            if (str_contains($verb, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static function validate(string $value): self
     {
         return self::tryFrom($value)
