@@ -609,16 +609,16 @@
         },
         {
             "name": "bavix/laravel-wallet",
-            "version": "12.0.1",
+            "version": "12.0.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/bavix/laravel-wallet.git",
-                "reference": "fdcb6cac522b3d6af5bd348e914e30c748abdfaa"
+                "reference": "1a0dcd4611eb08ddf481d634cb0b9602e5dda883"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/bavix/laravel-wallet/zipball/fdcb6cac522b3d6af5bd348e914e30c748abdfaa",
-                "reference": "fdcb6cac522b3d6af5bd348e914e30c748abdfaa",
+                "url": "https://api.github.com/repos/bavix/laravel-wallet/zipball/1a0dcd4611eb08ddf481d634cb0b9602e5dda883",
+                "reference": "1a0dcd4611eb08ddf481d634cb0b9602e5dda883",
                 "shasum": ""
             },
             "require": {
@@ -687,7 +687,7 @@
             ],
             "support": {
                 "issues": "https://github.com/bavix/laravel-wallet/issues",
-                "source": "https://github.com/bavix/laravel-wallet/tree/12.0.1"
+                "source": "https://github.com/bavix/laravel-wallet/tree/12.0.2"
             },
             "funding": [
                 {
@@ -699,7 +699,7 @@
                     "type": "open_collective"
                 }
             ],
-            "time": "2026-05-13T07:41:05+00:00"
+            "time": "2026-06-09T21:32:47+00:00"
         },
         {
             "name": "berkayk/onesignal-laravel",
