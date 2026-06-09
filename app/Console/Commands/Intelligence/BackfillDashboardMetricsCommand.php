@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Intelligence;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
@@ -11,6 +12,7 @@ use Kanvas\NervousSystem\Dashboard\Actions\BackfillDashboardMetricsAction;
 
 class BackfillDashboardMetricsCommand extends Command
 {
+    use KanvasJobsTrait;
     protected $signature = 'kanvas:backfill-dashboard-metrics
         {--days=30 : Number of trailing days to backfill, ending yesterday}
         {--from= : Override start date (YYYY-MM-DD)}
@@ -52,6 +54,10 @@ class BackfillDashboardMetricsCommand extends Command
             $this->error('App id ' . $this->option('app-id') . ' not found.');
 
             return self::FAILURE;
+        }
+
+        if ($app !== null) {
+            $this->overwriteAppService($app);
         }
 
         $result = new BackfillDashboardMetricsAction(

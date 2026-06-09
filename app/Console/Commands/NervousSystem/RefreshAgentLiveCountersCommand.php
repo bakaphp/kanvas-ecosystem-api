@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\RefreshAgentLiveCountersAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Throwable;
@@ -20,6 +22,7 @@ use Throwable;
  */
 class RefreshAgentLiveCountersCommand extends Command
 {
+    use KanvasJobsTrait;
     protected $signature = 'kanvas:nervous-system:refresh-agent-counters
         {--agent= : Restrict to a single agent id}';
 
@@ -42,6 +45,10 @@ class RefreshAgentLiveCountersCommand extends Command
 
         $query->chunkById(100, function ($agents) use (&$refreshed, &$skipped, &$failed): void {
             foreach ($agents as $agent) {
+                /** @var Apps $app */
+                $app = Apps::getById($agent->apps_id);
+                $this->overwriteAppService($app);
+
                 try {
                     $result = new RefreshAgentLiveCountersAction($agent)->execute();
                     if ($result === null) {
