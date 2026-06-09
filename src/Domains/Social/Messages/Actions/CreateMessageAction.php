@@ -116,15 +116,15 @@ class CreateMessageAction
                             ->where('entity_namespace', $this->systemModule->model_name);
                     })
                     ->first();
-
+                $modelName = $this->systemModule?->model_name;
                 new CreateChannelAction(new Channel(
                     apps: $message->app,
                     companies: $message->company,
                     users: $message->user,
                     //entity_id: $this->entityId ?? $message->getId(),
-                    entity_id: $channel?->entity_id ?? $message->getId(),
+                    entity_id: $this->entityId ?? $channel?->entity_id ?? $message->getId(),
                     //entity_namespace: $this->systemModule?->model_name ?? Message::class,
-                    entity_namespace: $channel?->entity_namespace ?? Message::class,
+                    entity_namespace: $modelName ?? $channel?->entity_namespace ?? Message::class,
                     name: $this->messageInput->channel_slug,
                     description: $this->messageInput->channel_slug,
                     slug: $this->messageInput->channel_slug,
