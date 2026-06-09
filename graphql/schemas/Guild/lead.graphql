@@ -55,6 +55,7 @@ type Lead {
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
+    is_published: Boolean!
     created_at: DateTime!
     updated_at: DateTime!
 }
@@ -262,6 +263,7 @@ extend type Query @guard {
                     "people_id"
                     "lead_types_id"
                     "status"
+                    "is_published"
                     "created_at"
                 ]
             )
