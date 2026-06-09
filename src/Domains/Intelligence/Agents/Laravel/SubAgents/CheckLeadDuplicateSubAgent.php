@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Laravel\SubAgents;
 
+use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\KanvasAgentAsTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\LeadSearchTool;
@@ -16,7 +17,7 @@ class CheckLeadDuplicateSubAgent extends KanvasAgentAsTool
     #[Override]
     public function name(): string
     {
-        return 'check_lead_duplicate';
+        return Str::slug(AgentTool::fromClass($this)?->name ?? class_basename($this), '_');
     }
 
     #[Override]

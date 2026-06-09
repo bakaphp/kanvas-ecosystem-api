@@ -120,7 +120,6 @@ final class FmpToolsTest extends TestCase
         $this->assertArrayHasKey('sector', $result);
     }
 
-    
     public function testFinancialSnapshotToolHasDescription(): void
     {
         $tool = new FmpFinancialSnapshotTool();
