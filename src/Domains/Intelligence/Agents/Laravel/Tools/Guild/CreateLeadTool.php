@@ -41,7 +41,7 @@ class CreateLeadTool implements KanvasToolInterface
             leadTypeId: $request->integer('lead_type_id') ?: 0,
             leadSourceId: $request->integer('lead_source_id') ?: 0,
             organizationId: $request->integer('organization_id') ?: null,
-            isPublished: (bool) ($request->boolean('is_published') ?? true),
+            isPublished: $request->has('is_published') ? (bool) $request->boolean('is_published') : true,
         );
 
         if (isset($result['error'])) {
