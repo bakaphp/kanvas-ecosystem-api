@@ -30,6 +30,7 @@ trait CreatesLeadTrait
         int $leadTypeId = 0,
         int $leadSourceId = 0,
         ?int $organizationId = null,
+        bool $isPublished = true,
     ): array {
         // Wrap the full body — including `$company->defaultBranch`, DTO
         // construction, and Action execute — so any data-integrity issue
@@ -77,9 +78,15 @@ trait CreatesLeadTrait
 
             $lead = new CreateLeadAction($leadData)->execute();
 
+            $dirty = [];
             if ($organizationId !== null) {
-                $lead->organization_id = $organizationId;
-                $lead->save();
+                $dirty['organization_id'] = $organizationId;
+            }
+            if (! $isPublished) {
+                $dirty['is_published'] = 0;
+            }
+            if (! empty($dirty)) {
+                $lead->fill($dirty)->save();
             }
         } catch (Throwable $e) {
             return [

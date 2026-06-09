@@ -41,6 +41,7 @@ class CreateLeadTool implements KanvasToolInterface
             leadTypeId: $request->integer('lead_type_id') ?: 0,
             leadSourceId: $request->integer('lead_source_id') ?: 0,
             organizationId: $request->integer('organization_id') ?: null,
+            isPublished: (bool) ($request->boolean('is_published') ?? true),
         );
 
         if (isset($result['error'])) {
@@ -83,6 +84,9 @@ class CreateLeadTool implements KanvasToolInterface
             'organization_id' => $schema
                 ->integer()
                 ->description('ID returned by upsert_organization. Links the lead to the company being analyzed.'),
+            'is_published' => $schema
+                ->boolean()
+                ->description('Whether this lead is visible in the standard lead list. Pass false (0) when the company could not be identified ("Unknown Company") so the event is hidden pending manual review. Defaults to true.'),
         ];
     }
 }
