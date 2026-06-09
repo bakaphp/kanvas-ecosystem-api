@@ -44,30 +44,34 @@ class XmlParser
     /**
      * Extracts the payload from a SOAP envelope.
      *
-     * Reynolds wraps everything in soap:Envelope > soap:Body > PutMessage/ProcessMessage
-     * > payload > content > rey_*. This helper strips the envelope and returns the
-     * inner rey_* element as an array.
+     * Reynolds wraps everything in soap:Envelope > soap:Body > PutMessage[Response] /
+     * ProcessMessage[Response] > payload > content > rey_*. Rather than assume the
+     * exact nesting (which differs between request and response), we walk the parsed
+     * tree and return the first rey_* element we find.
      */
     public static function extractPayloadFromEnvelope(string $xml): array
     {
         $parsed = self::toArray(self::stripNamespaces($xml));
 
-        $body = $parsed['Body'] ?? $parsed;
-        $operation = $body['PutMessage'] ?? $body['ProcessMessage'] ?? $body;
-        $payload = $operation['payload'] ?? $operation;
-        $content = $payload['content'] ?? $payload;
+        return self::findReyElement($parsed) ?? [];
+    }
 
-        if (! is_array($content)) {
-            return [];
-        }
-
-        foreach ($content as $key => $value) {
-            if (str_starts_with((string) $key, 'rey_') && is_array($value)) {
+    private static function findReyElement(array $tree): ?array
+    {
+        foreach ($tree as $key => $value) {
+            if (is_string($key) && str_starts_with($key, 'rey_') && is_array($value)) {
                 return $value;
+            }
+
+            if (is_array($value)) {
+                $found = self::findReyElement($value);
+                if ($found !== null) {
+                    return $found;
+                }
             }
         }
 
-        return $content;
+        return null;
     }
 
     /**

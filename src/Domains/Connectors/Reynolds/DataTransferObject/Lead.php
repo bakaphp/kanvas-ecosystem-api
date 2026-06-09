@@ -29,7 +29,7 @@ class Lead extends Data
     {
         $prospectId = $lead->get(CustomFieldEnum::PROSPECT_ID->value);
         $prospectType = $lead->get(CustomFieldEnum::PROSPECT_TYPE->value)
-            ?? ($lead->type?->name ?? 'Internet');
+            ?? ($lead->type()->first()?->name ?? 'Internet');
 
         $desiredVehicle = $lead->get(CustomFieldEnum::VEHICLE_OF_INTEREST->value);
         $tradeIn = $lead->get(CustomFieldEnum::TRADE_IN->value);
@@ -38,8 +38,8 @@ class Lead extends Data
             prospectId: $prospectId !== null ? (string) $prospectId : null,
             prospectCategory: 'Sales',
             prospectType: (string) $prospectType,
-            prospectStatus: $lead->status?->name,
-            providerName: $lead->source?->name,
+            prospectStatus: $lead->status()->first()?->name,
+            providerName: $lead->source()->first()?->name ?? 'Kanvas',
             prospectNote: $lead->description,
             isAiGenerated: null,
             primarySalesPerson: self::ownerName($lead),
@@ -99,7 +99,7 @@ class Lead extends Data
 
     private static function ownerName(LeadModel $lead): ?string
     {
-        $owner = $lead->owner;
+        $owner = $lead->owner()->first();
         if ($owner === null) {
             return null;
         }

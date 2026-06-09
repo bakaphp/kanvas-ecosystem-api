@@ -28,22 +28,30 @@ class SoapEnvelopeBuilder
         $contentId = 'Content-' . Uuid::uuid4()->toString();
         $bodyXml = self::arrayToXml($rootElement, $payload, self::STAR_NAMESPACE);
 
+        $soapNs = self::SOAP_NAMESPACE;
+        $wsseNs = self::WSSE_NAMESPACE;
+        $starNs = self::STAR_NAMESPACE;
+        $transportNs = self::TRANSPORT_NAMESPACE;
+
+        $escapedUsername = self::escape($username);
+        $escapedPassword = self::escape($password);
+
         return <<<XML
 <?xml version="1.0" encoding="utf-8"?>
-<soapenv:Envelope xmlns:soapenv="{self::SOAP_NAMESPACE}" xmlns:star="{self::STAR_NAMESPACE}">
+<soapenv:Envelope xmlns:soapenv="{$soapNs}" xmlns:star="{$starNs}">
     <soapenv:Header>
-        <wsse:Security soapenv:mustUnderstand="1" xmlns:wsse="{self::WSSE_NAMESPACE}">
+        <wsse:Security soapenv:mustUnderstand="1" xmlns:wsse="{$wsseNs}">
             <wsse:UsernameToken>
-                <wsse:Username>{$username}</wsse:Username>
-                <wsse:Password>{$password}</wsse:Password>
+                <wsse:Username>{$escapedUsername}</wsse:Username>
+                <wsse:Password>{$escapedPassword}</wsse:Password>
             </wsse:UsernameToken>
         </wsse:Security>
-        <payloadManifest xmlns="{self::TRANSPORT_NAMESPACE}">
-            <manifest ContentID="{$contentId}" namespaceURI="{self::STAR_NAMESPACE}" element="{$rootElement}"/>
+        <payloadManifest xmlns="{$transportNs}">
+            <manifest ContentID="{$contentId}" namespaceURI="{$starNs}" element="{$rootElement}"/>
         </payloadManifest>
     </soapenv:Header>
     <soapenv:Body>
-        <ProcessMessage xmlns="{self::TRANSPORT_NAMESPACE}">
+        <ProcessMessage xmlns="{$transportNs}">
             <payload>
                 <content id="{$contentId}">
                     {$bodyXml}
