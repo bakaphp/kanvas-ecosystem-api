@@ -6,18 +6,9 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 
-connectors:
-  spanmetrics:
-    dimensions:
-      - name: gen_ai.system
-      - name: gen_ai.request.model
-      - name: agent.deployment_id
-      - name: agent.container_name
-    metrics_flush_interval: 30s
-
 processors:
   batch:
-    timeout: 30s
+    timeout: 10s
   filter/genai:
     error_mode: ignore
     spans:
@@ -29,12 +20,15 @@ processors:
 
 exporters:
   otlphttp/kanvas:
-    endpoint: http://php:8000
+    # traces_endpoint is used as-is (no suffix appended), pointing directly at
+    # our adapter route. The adapter parses OTLP traces JSON and extracts
+    # gen_ai.usage.* attributes to upsert into agent_usage_snapshots.
+    traces_endpoint: http://php:8000/v1/telemetry/otlp
     tls:
       insecure: true
     headers:
       X-Internal-Token: "${env:OTEL_INTERNAL_TOKEN}"
-  # Uncomment for debugging — prints received spans/metrics to container logs
+  # Uncomment for debugging — prints received spans to container logs
   # debug:
   #   verbosity: detailed
 
@@ -43,8 +37,4 @@ service:
     traces:
       receivers: [otlp]
       processors: [filter/genai, batch]
-      exporters: [spanmetrics]
-    metrics:
-      receivers: [spanmetrics]
-      processors: [batch]
       exporters: [otlphttp/kanvas]

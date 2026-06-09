@@ -13,29 +13,32 @@ use Kanvas\Intelligence\Agents\Models\AgentUsageSnapshot;
 use Throwable;
 
 /**
- * Parse an OTLP/HTTP metrics payload (JSON encoding) and persist token usage
+ * Parse an OTLP/HTTP traces payload (JSON encoding) and persist token usage
  * into agent_usage_snapshots.
  *
- * The OTel Collector's spanmetrics connector produces one metric per span
- * operation with the resource attributes attached. We look for metrics whose
- * names carry the gen_ai.usage.* prefix (e.g. `gen_ai.usage.input_tokens`)
- * and aggregate their data-point values per deployment.
+ * The OTel Collector forwards raw spans (no spanmetrics aggregation) and we
+ * extract gen_ai.usage.* attributes directly from each span. Token counts are
+ * summed per deployment per day and upserted.
  *
- * Expected payload shape (OTLP metrics JSON):
+ * Expected payload shape (OTLP traces JSON):
  * {
- *   "resourceMetrics": [{
+ *   "resourceSpans": [{
  *     "resource": {
  *       "attributes": [
  *         {"key": "agent.deployment_id", "value": {"stringValue": "42"}},
- *         {"key": "agent.container_name", "value": {"stringValue": "openclaw-42"}},
- *         {"key": "gen_ai.request.model",  "value": {"stringValue": "claude-sonnet-4-5"}}
+ *         {"key": "agent.container_name", "value": {"stringValue": "openclaw-42"}}
  *       ]
  *     },
- *     "scopeMetrics": [{
- *       "metrics": [{
- *         "name": "gen_ai.usage.input_tokens",
- *         "gauge": { "dataPoints": [{"asInt": "1240"}] }
- *       }, ...]
+ *     "scopeSpans": [{
+ *       "spans": [{
+ *         "attributes": [
+ *           {"key": "gen_ai.system",               "value": {"stringValue": "anthropic"}},
+ *           {"key": "gen_ai.request.model",         "value": {"stringValue": "claude-sonnet-4-5"}},
+ *           {"key": "gen_ai.usage.input_tokens",    "value": {"intValue": "820"}},
+ *           {"key": "gen_ai.usage.output_tokens",   "value": {"intValue": "210"}},
+ *           {"key": "gen_ai.usage.total_tokens",    "value": {"intValue": "1030"}}
+ *         ]
+ *       }]
  *     }]
  *   }]
  * }
@@ -44,19 +47,140 @@ class OtlpUsageIngestionService
 {
     public function ingest(array $payload): bool
     {
-        /** @var array<int, array<string, mixed>> $resourceMetrics */
-        $resourceMetrics = $payload['resourceMetrics'] ?? [];
+        // Support both OTLP traces format (resourceSpans) and metrics format (resourceMetrics).
+        // The collector now forwards raw spans so we primarily use resourceSpans.
+        $resourceSpans = $payload['resourceSpans'] ?? [];
 
-        if (empty($resourceMetrics)) {
-            return true;
+        if (! empty($resourceSpans)) {
+            return $this->ingestTraces($resourceSpans);
         }
 
+        // Legacy metrics path — kept for backward compat with direct API calls
+        $resourceMetrics = $payload['resourceMetrics'] ?? [];
+
+        if (! empty($resourceMetrics)) {
+            return $this->ingestMetrics($resourceMetrics);
+        }
+
+        return true;
+    }
+
+    /**
+     * Parse OTLP traces format: resourceSpans[].scopeSpans[].spans[].attributes
+     *
+     * @param  array<int, array<string, mixed>> $resourceSpans
+     */
+    private function ingestTraces(array $resourceSpans): bool
+    {
+        $succeeded = 0;
+        $failed = 0;
+
+        // Aggregate tokens per deployment across all spans in this batch
+        /** @var array<string, array{deployment_id: string, container_name: string, model: ?string, system: ?string, tokens: array<string, int>}> $byDeployment */
+        $byDeployment = [];
+
+        foreach ($resourceSpans as $rs) {
+            $resourceAttrs = $this->extractAttributes($rs['resource']['attributes'] ?? []);
+            $deploymentKey = $resourceAttrs['agent.deployment_id'] ?? $resourceAttrs['agent.container_name'] ?? null;
+
+            if ($deploymentKey === null) {
+                continue;
+            }
+
+            if (! isset($byDeployment[$deploymentKey])) {
+                $byDeployment[$deploymentKey] = [
+                    'deployment_id' => $resourceAttrs['agent.deployment_id'] ?? null,
+                    'container_name' => $resourceAttrs['agent.container_name'] ?? null,
+                    'model' => null,
+                    'system' => null,
+                    'tokens' => ['input_tokens' => 0, 'output_tokens' => 0, 'total_tokens' => 0, 'cache_read_tokens' => 0, 'cache_write_tokens' => 0],
+                ];
+            }
+
+            foreach ($rs['scopeSpans'] ?? [] as $scope) {
+                foreach ($scope['spans'] ?? [] as $span) {
+                    $spanAttrs = $this->extractAttributes($span['attributes'] ?? []);
+
+                    $byDeployment[$deploymentKey]['model'] ??= $spanAttrs['gen_ai.request.model'] ?? null;
+                    $byDeployment[$deploymentKey]['system'] ??= $spanAttrs['gen_ai.system'] ?? null;
+
+                    $t = &$byDeployment[$deploymentKey]['tokens'];
+                    $t['input_tokens']       += (int) ($spanAttrs['gen_ai.usage.input_tokens'] ?? 0);
+                    $t['output_tokens']      += (int) ($spanAttrs['gen_ai.usage.output_tokens'] ?? 0);
+                    $t['total_tokens']       += (int) ($spanAttrs['gen_ai.usage.total_tokens'] ?? 0);
+                    $t['cache_read_tokens']  += (int) ($spanAttrs['gen_ai.usage.cache_read_tokens'] ?? $spanAttrs['gen_ai.usage.cache.read_input_tokens'] ?? 0);
+                    $t['cache_write_tokens'] += (int) ($spanAttrs['gen_ai.usage.cache_write_tokens'] ?? $spanAttrs['gen_ai.usage.cache.creation_input_tokens'] ?? 0);
+                    unset($t);
+                }
+            }
+        }
+
+        foreach ($byDeployment as $bucket) {
+            try {
+                $this->upsertUsageSnapshot(
+                    $bucket['deployment_id'],
+                    $bucket['container_name'],
+                    $bucket['model'],
+                    $bucket['system'],
+                    $bucket['tokens'],
+                );
+                $succeeded++;
+            } catch (Throwable $e) {
+                $failed++;
+                Log::warning('OtlpUsageIngestionService: failed to upsert snapshot — ' . $e->getMessage(), [
+                    'deployment_id' => $bucket['deployment_id'],
+                    'container_name' => $bucket['container_name'],
+                ]);
+            }
+        }
+
+        if ($failed > 0) {
+            Log::warning("OtlpUsageIngestionService: {$failed} deployment(s) failed, {$succeeded} succeeded.");
+        }
+
+        return $failed === 0;
+    }
+
+    /**
+     * Legacy OTLP metrics format: resourceMetrics[].scopeMetrics[].metrics[]
+     *
+     * @param  array<int, array<string, mixed>> $resourceMetrics
+     */
+    private function ingestMetrics(array $resourceMetrics): bool
+    {
         $succeeded = 0;
         $failed = 0;
 
         foreach ($resourceMetrics as $rm) {
             try {
-                $this->processResourceMetrics($rm);
+                $attrs = $this->extractAttributes($rm['resource']['attributes'] ?? []);
+                $tokens = ['input_tokens' => 0, 'output_tokens' => 0, 'total_tokens' => 0, 'cache_read_tokens' => 0, 'cache_write_tokens' => 0];
+                $model = $attrs['gen_ai.request.model'] ?? null;
+                $system = $attrs['gen_ai.system'] ?? null;
+
+                foreach ($rm['scopeMetrics'] ?? [] as $scope) {
+                    foreach ($scope['metrics'] ?? [] as $metric) {
+                        $name = $metric['name'] ?? '';
+                        $value = $this->extractFirstDataPointValue($metric);
+
+                        match ($name) {
+                            'gen_ai.usage.input_tokens'       => $tokens['input_tokens'] += $value,
+                            'gen_ai.usage.output_tokens'      => $tokens['output_tokens'] += $value,
+                            'gen_ai.usage.total_tokens'       => $tokens['total_tokens'] += $value,
+                            'gen_ai.usage.cache_read_tokens'  => $tokens['cache_read_tokens'] += $value,
+                            'gen_ai.usage.cache_write_tokens' => $tokens['cache_write_tokens'] += $value,
+                            default => null,
+                        };
+
+                        if ($model === null || $system === null) {
+                            $dp0Attrs = $this->extractAttributes($metric['gauge']['dataPoints'][0]['attributes'] ?? []);
+                            $model ??= $dp0Attrs['gen_ai.request.model'] ?? null;
+                            $system ??= $dp0Attrs['gen_ai.system'] ?? null;
+                        }
+                    }
+                }
+
+                $this->upsertUsageSnapshot($attrs['agent.deployment_id'] ?? null, $attrs['agent.container_name'] ?? null, $model, $system, $tokens);
                 $succeeded++;
             } catch (Throwable $e) {
                 $failed++;
@@ -74,17 +198,14 @@ class OtlpUsageIngestionService
     }
 
     /**
-     * @param array<string, mixed> $rm  One element of resourceMetrics[]
+     * Resolve deployment and upsert AgentUsageSnapshot.
+     *
+     * @param  array<string, int> $tokens
      */
-    private function processResourceMetrics(array $rm): void
+    private function upsertUsageSnapshot(?string $deploymentId, ?string $containerName, ?string $model, ?string $system, array $tokens): void
     {
-        $attrs = $this->extractAttributes($rm['resource']['attributes'] ?? []);
-
-        $deploymentId = $attrs['agent.deployment_id'] ?? null;
-        $containerName = $attrs['agent.container_name'] ?? null;
-
         if (empty($deploymentId) && empty($containerName)) {
-            return; // Cannot resolve a deployment — skip silently
+            return;
         }
 
         $deployment = $this->resolveDeployment($deploymentId, $containerName);
@@ -95,63 +216,21 @@ class OtlpUsageIngestionService
             return;
         }
 
-        // Aggregate token counts across all scopeMetrics
-        $tokens = [
-            'input_tokens' => 0,
-            'output_tokens' => 0,
-            'total_tokens' => 0,
-            'cache_read_tokens' => 0,
-            'cache_write_tokens' => 0,
-        ];
-
-        $model = $attrs['gen_ai.request.model'] ?? null;
-        $system = $attrs['gen_ai.system'] ?? null;
-
-        foreach ($rm['scopeMetrics'] ?? [] as $scope) {
-            foreach ($scope['metrics'] ?? [] as $metric) {
-                $name = $metric['name'] ?? '';
-                $value = $this->extractFirstDataPointValue($metric);
-
-                match ($name) {
-                    'gen_ai.usage.input_tokens'        => $tokens['input_tokens'] += $value,
-                    'gen_ai.usage.output_tokens'       => $tokens['output_tokens'] += $value,
-                    'gen_ai.usage.total_tokens'        => $tokens['total_tokens'] += $value,
-                    'gen_ai.usage.cache_read_tokens'   => $tokens['cache_read_tokens'] += $value,
-                    'gen_ai.usage.cache_write_tokens'  => $tokens['cache_write_tokens'] += $value,
-                    default                            => null,
-                };
-
-                // Extract model/system from metric attributes if not in resource
-                if ($model === null || $system === null) {
-                    $metricAttrs = $this->extractAttributes($metric['gauge']['dataPoints'][0]['attributes'] ?? []);
-                    $model ??= $metricAttrs['gen_ai.request.model'] ?? null;
-                    $system ??= $metricAttrs['gen_ai.system'] ?? null;
-                }
-            }
-        }
-
-        // If total_tokens wasn't emitted separately, compute it
+        // Compute total if not emitted separately
         if ($tokens['total_tokens'] === 0 && ($tokens['input_tokens'] + $tokens['output_tokens']) > 0) {
             $tokens['total_tokens'] = $tokens['input_tokens'] + $tokens['output_tokens'];
         }
 
-        // Nothing useful to store
         if ($tokens['total_tokens'] === 0) {
             return;
         }
 
         $provider = $deployment->provider
-            ?? ($system !== null ? $system : null)
+            ?? ($system ?? null)
             ?? ($model !== null ? BaseCollectDeploymentUsageAction::inferLlmProvider($model) : null);
 
-        try {
-            $app = Apps::getById($deployment->apps_id);
-            $company = Companies::getById($deployment->companies_id);
-        } catch (Throwable) {
-            Log::warning("OtlpUsageIngestionService: could not load app/company for deployment #{$deployment->getId()}");
-
-            return;
-        }
+        $app = Apps::getById($deployment->apps_id);
+        $company = Companies::getById($deployment->companies_id);
 
         $source = ($provider !== null ? strtolower($provider) : 'agent') . '_otel';
 
@@ -171,8 +250,8 @@ class OtlpUsageIngestionService
                 'cache_write_tokens' => $tokens['cache_write_tokens'],
                 'provider' => $provider,
                 'model' => $model,
-                'total_sessions' => 0, // Sessions tracked separately via telemetry service
-                'raw_output' => null,
+                'total_sessions' => 0,
+                'raw_output' => '',
                 'parsed_data' => $tokens,
             ]
         );

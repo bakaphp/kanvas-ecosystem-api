@@ -7,16 +7,15 @@ namespace App\Http\Controllers\Intelligence;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Nuwave\Lighthouse\GraphQL;
+use Kanvas\Intelligence\AgentRuntime\Services\OtlpUsageIngestionService;
 
 /**
  * Thin adapter that bridges the OTel Collector (OTLP/HTTP JSON) to the
- * Lighthouse GraphQL mutation `ingestAgentTelemetry`.
+ * OtlpUsageIngestionService.
  *
  * The collector speaks OTLP — it cannot send a GraphQL query body directly.
  * This controller accepts the raw OTLP metrics JSON, validates the shared
- * internal token, and programmatically executes the mutation so all business
- * logic lives in the GraphQL resolver layer.
+ * internal token, and delegates directly to the ingestion service.
  *
  * This endpoint is intended to be reachable only from within the Docker
  * bridge network (otel-collector → php container). It is not guarded by
@@ -24,7 +23,7 @@ use Nuwave\Lighthouse\GraphQL;
  */
 class OtlpAdapterController extends Controller
 {
-    public function handle(Request $request, GraphQL $graphql): JsonResponse
+    public function handle(Request $request, OtlpUsageIngestionService $ingestionService): JsonResponse
     {
         $expectedToken = config('otel.internal_token', '');
 
@@ -39,12 +38,7 @@ class OtlpAdapterController extends Controller
             return response()->json(['partialSuccess' => new \stdClass()]);
         }
 
-        $graphql->executeQuery(
-            /* @lang GraphQL */
-            'mutation IngestOtlpMetrics($payload: Mixed!) { ingestAgentTelemetry(payload: $payload) }',
-            context: null,
-            variables: ['payload' => $payload],
-        );
+        $ingestionService->ingest($payload);
 
         // OTLP spec: return 200 with partialSuccess object (empty = full success)
         return response()->json(['partialSuccess' => new \stdClass()]);

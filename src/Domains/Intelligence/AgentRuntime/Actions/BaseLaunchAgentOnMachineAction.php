@@ -127,6 +127,12 @@ abstract class BaseLaunchAgentOnMachineAction
         $client->writeFileAsUser($imageDir . '/entrypoint.sh', $builder->buildEntrypoint(), 'root');
         $client->exec('sudo chmod +x ' . escapeshellarg($imageDir . '/entrypoint.sh'));
 
+        // When OTel is enabled, the Dockerfile includes a COPY otel-init.js layer.
+        // The file must be present in the build context before `docker build` runs.
+        if (config('otel.enabled', false)) {
+            $client->writeFileAsUser($imageDir . '/otel-init.js', $builder->buildOtelInitScript(), 'root');
+        }
+
         $result = $client->exec(
             'cd ' . escapeshellarg($imageDir) . ' && sudo docker build -t ' . escapeshellarg($imageName) . ' . 2>&1; echo "EXIT_CODE:$?"',
             900,

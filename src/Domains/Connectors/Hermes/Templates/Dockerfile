@@ -1,1 +1,3 @@
 FROM {{BASE_IMAGE}}
+
+{{OTEL_LAYER}}

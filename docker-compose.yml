@@ -257,6 +257,8 @@ services:
             - "4318:4318"
         networks:
             - sail
+        depends_on:
+            - php
         restart: unless-stopped
 
     puppeteer:
