@@ -9,6 +9,7 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Reynolds\Entities\Customer;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Reynolds\Exceptions\ReynoldsException;
 use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -35,13 +36,18 @@ class PullPeopleAction
     {
         $customer = Customer::fromRecord($record);
 
+        if ($customer->nameRecId === null) {
+            throw new ReynoldsException(
+                'Customer record is missing NameRecId — cannot sync without an external identifier'
+            );
+        }
+
+        // NAME_REC_ID must be the FIRST custom field because
+        // SyncPeopleByThirdPartyCustomFieldAction uses array_keys()[0] as the lookup key.
         $customFields = [
+            CustomFieldEnum::NAME_REC_ID->value => $customer->nameRecId,
             CustomFieldEnum::CONTACT_TYPE->value => $customer->isBusiness ? 'B' : 'I',
         ];
-
-        if ($customer->nameRecId !== null) {
-            $customFields[CustomFieldEnum::NAME_REC_ID->value] = $customer->nameRecId;
-        }
 
         $customFields += $this->mapConsentCustomFields($customer);
 

@@ -224,16 +224,27 @@ class PullLeadAction
 
     private function resolveStatusId(?string $name): int
     {
-        if ($name === null) {
-            return 0;
+        if ($name !== null) {
+            $status = LeadStatus::fromApp($this->app)
+                ->fromCompany($this->company)
+                ->where('name', $name)
+                ->first();
+
+            if ($status !== null) {
+                return $status->getId();
+            }
         }
 
-        $status = LeadStatus::fromApp($this->app)
-            ->fromCompany($this->company)
-            ->where('name', $name)
+        // Reynolds Publish Lead Update does not include ProspectStatus, so most LDU
+        // payloads land here. Fall back to the first available LeadStatus visible to
+        // this app (including globally-seeded rows with apps_id=0) — leaving
+        // leads_status_id = 0 breaks the LeadObserver which calls
+        // status()->firstOrFail() on save.
+        $default = LeadStatus::query()
+            ->whereIn('apps_id', [0, $this->app->getId()])
             ->first();
 
-        return $status?->getId() ?? 0;
+        return $default?->getId() ?? 0;
     }
 
     private function resolveSourceId(?string $name): int

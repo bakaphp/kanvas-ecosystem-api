@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Reynolds\DataTransferObject;
 
+use Baka\Traits\ScalarCoercionTrait;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Spatie\LaravelData\Data;
 
 class Customer extends Data
 {
+    use ScalarCoercionTrait;
+
+
     public function __construct(
         public readonly bool $isBusiness,
         public readonly ?string $nameRecId,
@@ -172,12 +176,4 @@ class Customer extends Data
         ];
     }
 
-    private static function ynOrNull(mixed $value): ?string
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        return in_array(strtoupper((string) $value), ['Y', '1', 'TRUE'], true) ? 'Y' : 'N';
-    }
 }
