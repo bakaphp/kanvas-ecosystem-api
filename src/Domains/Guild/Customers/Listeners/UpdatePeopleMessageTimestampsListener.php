@@ -18,7 +18,11 @@ class UpdatePeopleMessageTimestampsListener implements ShouldQueue
     {
         $appModuleMessage = $event->appModuleMessage;
 
-        if (! (bool) $event->appModuleMessage->message?->isCommunicationMessage()) {
+        if ((bool) $event->appModuleMessage->message?->isCommunicationMessage() === false) {
+            return;
+        }
+
+        if ((bool) $event->appModuleMessage->message?->is_public === false) {
             return;
         }
 
