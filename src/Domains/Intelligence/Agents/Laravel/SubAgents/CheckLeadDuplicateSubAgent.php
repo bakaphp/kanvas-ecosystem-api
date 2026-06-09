@@ -36,15 +36,15 @@ class CheckLeadDuplicateSubAgent extends KanvasAgentAsTool
 
         ## Search strategy — run BOTH calls
 
-        Call 1 — Exact match (same company AND same text):
+        Call 1 — Exact match (same company AND same field value):
+          If exact_field and exact_value are present in your input, use them directly:
           search_leads(
             query: <company_name extracted from the text>,
-            description_snippet: <first 150 characters of the text, verbatim>,
+            exact_field: <exact_field from input>,
+            exact_value: <exact_value from input>,
             days_back: 180
           )
-          Both conditions must match: the company name must appear in the existing lead AND
-          the description must start with the same snippet. This prevents false positives
-          when the same news article is filed under a different company.
+          Any result from this call = duplicate. HIGH confidence. Stop immediately.
 
         Call 2 — Semantic match (same company, different wording):
           search_leads(
