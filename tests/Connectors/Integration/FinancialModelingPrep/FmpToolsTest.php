@@ -163,5 +163,4 @@ final class FmpToolsTest extends TestCase
         $this->assertNotNull($result['metrics']['revenue']['previous']);
         $this->assertNotNull($result['metrics']['revenue']['change_pct']);
     }
-
 }
