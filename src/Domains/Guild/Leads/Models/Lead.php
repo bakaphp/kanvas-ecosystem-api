@@ -311,7 +311,7 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         $statusName = strtolower($this->status()->firstOrFail()->name);
 
-        return $statusName !== 'inactive' && (Str::contains($statusName, 'active') || Str::contains($statusName, 'created'));
+        return $statusName !== 'inactive' && (Str::contains($statusName, 'active') || Str::contains($statusName, 'created') || Str::contains($statusName, 'hot'));
     }
 
     public function closeSold(): bool
@@ -327,9 +327,7 @@ class Lead extends BaseModel implements EventResourceInterface
             return false;
         }
 
-        $statusName = strtolower($this->status()->firstOrFail()->name);
-
-        return ! Str::contains($statusName, 'complete');
+        return true;
     }
 
     public function close(): void
