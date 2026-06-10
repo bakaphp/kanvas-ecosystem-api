@@ -21,6 +21,23 @@ class GenerateTimeSlots implements ShouldQueue
     ) {
     }
 
+    /**
+     * Resolve the [from, to] generation window for a rule: never backfill the past, and bound
+     * the upper end by end_at when set (otherwise a year out). Shared by both schedule mutations
+     * so they behave identically.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    public static function resolveWindow(?Carbon $startAt, ?Carbon $endAt): array
+    {
+        $now = Carbon::now();
+
+        $windowFrom = $startAt && $startAt->greaterThan($now) ? $startAt->clone() : $now;
+        $windowTo = $endAt?->clone() ?? $now->clone()->addYear();
+
+        return [$windowFrom, $windowTo];
+    }
+
     public function handle()
     {
         $rule       = ScheduleRules::findOrFail($this->ruleId);

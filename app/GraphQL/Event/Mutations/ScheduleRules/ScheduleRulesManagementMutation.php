@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\GraphQL\Event\Mutations\ScheduleRules;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Jobs\GenerateTimeSlots;
 use Kanvas\Event\Events\Models\ScheduleRules;
@@ -36,7 +35,7 @@ class ScheduleRulesManagementMutation
             'metadata' => $req['input']['metadata'] ?? null,
         ]);
 
-        [$windowFrom, $windowTo] = $this->generationWindow($scheduleRule);
+        [$windowFrom, $windowTo] = GenerateTimeSlots::resolveWindow($scheduleRule->start_at, $scheduleRule->end_at);
 
         dispatch(new GenerateTimeSlots(
             $entity->id,
@@ -72,7 +71,7 @@ class ScheduleRulesManagementMutation
             'metadata' => $req['input']['metadata'] ?? $scheduleRule->metadata,
         ]);
 
-        [$windowFrom, $windowTo] = $this->generationWindow($scheduleRule);
+        [$windowFrom, $windowTo] = GenerateTimeSlots::resolveWindow($scheduleRule->start_at, $scheduleRule->end_at);
 
         dispatch(new GenerateTimeSlots(
             $scheduleRule->resources_id,
@@ -82,25 +81,6 @@ class ScheduleRulesManagementMutation
         ));
 
         return $scheduleRule;
-    }
-
-    /**
-     * Slots are generated from the rule's start_at forward (never in the past) up to its
-     * end_at, falling back to a year out when the rule is open-ended.
-     *
-     * @return array{0: Carbon, 1: Carbon}
-     */
-    private function generationWindow(ScheduleRules $scheduleRule): array
-    {
-        $now = Carbon::now();
-
-        $windowFrom = $scheduleRule->start_at && $scheduleRule->start_at->greaterThan($now)
-            ? $scheduleRule->start_at->clone()
-            : $now;
-
-        $windowTo = $scheduleRule->end_at?->clone() ?? $now->clone()->addYear();
-
-        return [$windowFrom, $windowTo];
     }
 
     public function delete(mixed $root, array $req): bool
