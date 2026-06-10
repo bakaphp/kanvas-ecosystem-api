@@ -44,8 +44,18 @@ type AgentAi {
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
+    monthly_usage: AgentMonthlyUsage!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\AgentUsageQuery@monthlyUsage"
+        )
     created_at: DateTime!
     updated_at: DateTime!
+}
+
+type AgentMonthlyUsage {
+    period_start: Date!
+    tokens: Int!
+    cost_usd: Float!
 }
 
 type AgentKanvasModule {
