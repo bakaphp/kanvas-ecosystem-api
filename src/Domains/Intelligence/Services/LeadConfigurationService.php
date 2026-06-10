@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Services;
 
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 
@@ -113,6 +114,9 @@ class LeadConfigurationService
         $followUpKey = $this->getFollowUpActiveDefaultKey($lead);
         $firstMessageKey = $this->getFirstMessageDefaultKey($lead);
 
+        $isContacted = (bool) $lead->get(LeadConfigurationEnum::CONTACTED->value);
+        $firstFollowUpActive = (bool) ($leadTypeConfig[$firstMessageKey] ?? false);
+
         return [
             'ai_mode' => [
                 'key' => $aiModeKey,
@@ -126,6 +130,8 @@ class LeadConfigurationService
                 'key' => $firstMessageKey,
                 'value' => $leadTypeConfig[$firstMessageKey] ?? null,
             ],
+            'is_contacted' => $isContacted,
+            'should_send_first_followup' => ! $isContacted && $firstFollowUpActive,
         ];
     }
 }
