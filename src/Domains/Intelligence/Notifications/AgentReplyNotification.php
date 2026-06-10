@@ -31,6 +31,8 @@ class AgentReplyNotification extends Notification
             'message_id' => (int) $this->reply->getId(),
             'agent_id' => (int) $this->agent->getId(),
             'session_id' => (string) ($this->reply->getMessage()['session_id'] ?? ''),
+            'agent_name' => $this->agent->name,
+            'company' => $this->reply->company->name,
         ]);
 
         $this->channels = ['push', 'expo'];
