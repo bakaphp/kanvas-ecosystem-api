@@ -13,6 +13,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Notifications\AgentReplyNotification;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
@@ -126,6 +127,8 @@ class PersistChatTurnToSocialAction
         if ($resolvedLead !== null) {
             new MarkLeadMessagesAsRespondedAction($resolvedLead, $reply)->execute();
         }
+
+        $this->user->notify(new AgentReplyNotification($reply, $this->agent, $aiUser));
 
         return $reply;
     }

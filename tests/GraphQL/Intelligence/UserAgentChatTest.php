@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Intelligence;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
@@ -12,6 +13,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Notifications\AgentReplyNotification;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
@@ -566,6 +568,39 @@ class UserAgentChatTest extends TestCase
 
         $this->assertNotNull($history);
         $this->assertEquals($user->getId(), $history->users_id);
+    }
+
+    public function testUserChatSendsAgentReplyNotificationToUser(): void
+    {
+        Notification::fake();
+        $user = auth()->user();
+
+        $response = $this->graphQL('
+            mutation($input: UserChatInput!) {
+                aiAgentUserChat(input: $input) {
+                    response
+                    session_id
+                }
+            }
+        ', [
+            'input' => [
+                'agent_id' => (string) $this->agent->getId(),
+                'message' => 'Ping me when you reply',
+            ],
+        ]);
+
+        $response->assertSuccessful();
+        $this->assertArrayNotHasKey('errors', $response->json(), 'GraphQL errors: ' . $response->getContent());
+
+        Notification::assertSentTo(
+            $user,
+            AgentReplyNotification::class,
+            function (AgentReplyNotification $notification) use ($user): bool {
+                return in_array('push', $notification->channels, true)
+                    && in_array('expo', $notification->channels, true)
+                    && $notification->toOneSignal($user)['message'] === 'This is a fake agent response.';
+            }
+        );
     }
 
     public function testExistingLeadFlowUnchanged(): void
