@@ -53,7 +53,11 @@ class SendDelayMessageCommand extends Command
             $messages = $this->getLockedFirstMessages($app, $company, $delayMinutes);
 
             foreach ($messages as $message) {
+<<<<<<< Updated upstream
                 $this->processMessage($company, $message, $delayMinutes);
+=======
+                $this->processMessage($app, $company, $message, $delayMinutes);
+>>>>>>> Stashed changes
             }
 
             $this->info('Processed messages for company: ' . $company->name);
@@ -67,6 +71,7 @@ class SendDelayMessageCommand extends Command
             ->where('is_locked', 1)
             ->whereHas(
                 'messageType',
+<<<<<<< Updated upstream
                 fn ($query) => $query->whereIn('verb', [
                     'mailgun-email',
                     'twilio-sms',
@@ -75,13 +80,20 @@ class SendDelayMessageCommand extends Command
                     'whatsapp-text',
                     'whatsapp-image',
                 ])
+=======
+                fn ($query) => $query->whereIn('verb', ['mailgun-email', 'twilio-sms', 'whatsapp-contact', 'whatsapp', 'whatsapp-text', 'whatsapp-image'])
+>>>>>>> Stashed changes
             )
             ->whereDate('created_at', now()->toDateString())
             ->whereRaw("DATE_ADD(created_at, INTERVAL {$delayMinutes} MINUTE) <= NOW()")
             ->cursor();
     }
 
+<<<<<<< Updated upstream
     protected function processMessage(Companies $company, Message $message, int $delayMinutes): void
+=======
+    protected function processMessage(Apps $app, Companies $company, Message $message, int $delayMinutes): void
+>>>>>>> Stashed changes
     {
         $lead = $message->entity();
 
@@ -99,16 +111,25 @@ class SendDelayMessageCommand extends Command
             return;
         }
 
+<<<<<<< Updated upstream
         $this->info('Processing lead name ' . $lead->people->name . ' for message ID ' . $message->getId());
 
         $aiMode = IntelligenceModeEnum::tryFrom((string) $lead->get('ai_mode'));
         if ($aiMode?->isOff()) {
+=======
+        if ($lead->get('ai_mode') == IntelligenceModeEnum::OFF->value) {
+>>>>>>> Stashed changes
             $message->setUnlock();
             $this->error('AI Mode OFF for Lead ID ' . $lead->getId());
 
             return;
         }
 
+<<<<<<< Updated upstream
+=======
+        $this->info('Processing lead name ' . $lead->people->name . ' for message ID ' . $message->getId());
+
+>>>>>>> Stashed changes
         if ($this->hasBeenContactedBySalesAgent($lead, $company)) {
             $message->setUnlock();
             $this->info('Lead ID ' . $lead->getId() . ' has already been contacted by sales agent. Skipping.');
@@ -134,15 +155,23 @@ class SendDelayMessageCommand extends Command
     protected function hasBeenContactedBySalesAgent(Lead $lead, Companies $company): bool
     {
         $hasBeenContacted = $lead->hasBeenContacted();
+<<<<<<< Updated upstream
         $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
 
+=======
+
+        $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
+>>>>>>> Stashed changes
         if (! $isElead) {
             return $hasBeenContacted;
         }
 
         if (empty($lead->get(CustomFieldEnum::OPPORTUNITY_ID->value))) {
+<<<<<<< Updated upstream
             $this->info('Lead ID ' . $lead->getId() . ' does not have an Opportunity ID. Skipping.');
 
+=======
+>>>>>>> Stashed changes
             return true;
         }
 
@@ -159,19 +188,28 @@ class SendDelayMessageCommand extends Command
         }
     }
 
+<<<<<<< Updated upstream
     protected function sendCrmDelayNote(
         Lead $lead,
         Message $message,
         Companies $company,
         int $delayMinutes
     ): bool {
+=======
+    protected function sendCrmDelayNote(Lead $lead, Message $message, Companies $company, int $delayMinutes): bool
+    {
+>>>>>>> Stashed changes
         if ($lead->get('delay_message_sent')) {
             return true;
         }
 
         $crmIntegration = $this->resolveCrmIntegration($company);
+<<<<<<< Updated upstream
         $note = 'Sally sent the first message after the lead had been open for '
             . $delayMinutes . ' minutes with no contact from a sales agent.';
+=======
+        $note = 'Sally sent the first message after the lead had been open for ' . $delayMinutes . ' minutes with no contact from a sales agent.';
+>>>>>>> Stashed changes
 
         try {
             $this->addDelayNoteToCrm($lead, $message, $crmIntegration, $note);
@@ -184,12 +222,20 @@ class SendDelayMessageCommand extends Command
                 $lead->close();
                 $this->info('Lead ID ' . $lead->getId() . ' opportunity is inactive. Closing lead.');
             } else {
+<<<<<<< Updated upstream
                 $this->error('Error adding CRM note for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+=======
+                $this->error('Error adding comment to Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+>>>>>>> Stashed changes
             }
 
             return false;
         } catch (Exception $e) {
+<<<<<<< Updated upstream
             $this->error('Error adding CRM note for Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+=======
+            $this->error('Error adding comment to Lead ID ' . $lead->getId() . ': ' . $e->getMessage());
+>>>>>>> Stashed changes
 
             return false;
         }
@@ -231,6 +277,7 @@ class SendDelayMessageCommand extends Command
         }
     }
 
+<<<<<<< Updated upstream
     protected function setPreferredChannel(
         Lead $lead,
         Message $message,
@@ -243,6 +290,17 @@ class SendDelayMessageCommand extends Command
         // if ($lead->get(LeadsEnumsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value)) {
         //     return;
         // }
+=======
+    protected function setPreferredChannel(Lead $lead, Message $message, string $communicationChannel): void
+    {
+        if (! $lead->get(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value)) {
+            $lead->set(LeadsEnumsConfigurationEnum::PREFERRED_CHANNEL->value, $communicationChannel);
+        }
+
+        if ($lead->get(LeadsEnumsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value)) {
+            return;
+        }
+>>>>>>> Stashed changes
 
         $communicationChannelNumber = $message->message['chat_jid'] ?? null;
         if (! $communicationChannelNumber) {

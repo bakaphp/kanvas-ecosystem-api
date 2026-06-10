@@ -128,7 +128,13 @@ class PersistChatTurnToSocialAction
             new MarkLeadMessagesAsRespondedAction($resolvedLead, $reply)->execute();
         }
 
-        $this->user->notify(new AgentReplyNotification($reply, $this->agent, $aiUser));
+        $this->user->notify(
+            new AgentReplyNotification(
+                $reply,
+                $this->agent,
+                $aiUser
+            )
+        );
 
         return $reply;
     }

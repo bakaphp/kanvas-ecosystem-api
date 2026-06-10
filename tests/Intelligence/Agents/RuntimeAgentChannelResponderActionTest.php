@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Hermes\Providers\HermesProvider;
@@ -15,6 +16,7 @@ use Kanvas\Intelligence\AgentRuntime\Providers\AbstractAgentRuntimeProvider;
 use Kanvas\Intelligence\Agents\Actions\RuntimeAgentChannelResponderAction;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Notifications\AgentReplyNotification;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
@@ -152,6 +154,46 @@ class RuntimeAgentChannelResponderActionTest extends TestCase
             ->resolveProvider();
 
         $this->assertInstanceOf(HermesProvider::class, $provider);
+    }
+
+    public function testNotifiesInboundAuthorWhenAgentReplies(): void
+    {
+        Notification::fake();
+        $user = auth()->user();
+
+        [$agent, $channel, $message] = $this->makeChannelConversation('hello agent', fromMe: false);
+        $message->users_id = $user->getId();
+        $message->saveOrFail();
+        $message->unsetRelation('user');
+
+        $action = new TestableRuntimeAgentChannelResponderAction($agent, $message, $channel);
+        $action->fakeProvider = new FakeChannelRuntimeProvider('the agent reply');
+        $action->execute();
+
+        Notification::assertSentTo(
+            $user,
+            AgentReplyNotification::class,
+            function (AgentReplyNotification $notification) use ($user): bool {
+                return in_array('push', $notification->channels, true)
+                    && in_array('expo', $notification->channels, true)
+                    && $notification->toOneSignal($user)['message'] === 'the agent reply';
+            }
+        );
+    }
+
+    public function testDoesNotNotifyWhenSkippingAgentSideMessage(): void
+    {
+        Notification::fake();
+
+        [$agent, $channel, $message] = $this->makeChannelConversation('agent talking', fromMe: true);
+        $message->users_id = auth()->user()->getId();
+        $message->saveOrFail();
+
+        $action = new TestableRuntimeAgentChannelResponderAction($agent, $message, $channel);
+        $action->fakeProvider = new FakeChannelRuntimeProvider('should not be used');
+        $action->execute();
+
+        Notification::assertNothingSent();
     }
 
     /**
