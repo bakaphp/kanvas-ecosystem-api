@@ -56,7 +56,7 @@ class UpdatePeopleMessageTimestampsListener implements ShouldQueue
         // messages flow through the same listener but must not flip the flag.
         $messageData = (array) ($appModuleMessage->message?->message ?? []);
 
-        if (! (bool) ($messageData['from_human'] ?? false)) {
+        if (! (bool) ($messageData['from_human'] ?? false) || (bool) ($messageData['from_me'] ?? false)) {
             return;
         }
 
