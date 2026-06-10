@@ -52,6 +52,14 @@ class UpdatePeopleMessageTimestampsListener implements ShouldQueue
             return;
         }
 
+        // Only human-authored messages mark the people record as unread; agent/AI
+        // messages flow through the same listener but must not flip the flag.
+        $messageData = (array) ($appModuleMessage->message?->message ?? []);
+
+        if (! (bool) ($messageData['from_human'] ?? false)) {
+            return;
+        }
+
         $appModuleMessage->entity?->people?->set('unread_message', 1);
     }
 }
