@@ -8,8 +8,6 @@ use Illuminate\Support\Carbon;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
-use Kanvas\Social\Channels\Enums\ChannelNameEnum;
-use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
@@ -34,7 +32,7 @@ final class WriteLeadStageChangeThreadMessageAction
     public function execute(): ?Message
     {
         try {
-            $channel = $this->resolveDefaultChannel();
+            $channel = $this->lead->systemNotes;
             if ($channel === null) {
                 return null;
             }
@@ -60,7 +58,7 @@ final class WriteLeadStageChangeThreadMessageAction
                 'user' => $user,
                 'type' => $messageType,
                 'message' => $messagePayload->toArray(),
-                'is_public' => 1,
+                'is_public' => 0,
             ]);
 
             $message = new CreateSocialMessageAction(
@@ -78,19 +76,6 @@ final class WriteLeadStageChangeThreadMessageAction
 
             return null;
         }
-    }
-
-    private function resolveDefaultChannel(): ?Channel
-    {
-        return Channel::query()
-            ->where('entity_namespace', Lead::class)
-            ->where('entity_id', $this->lead->getId())
-            ->where('name', ChannelNameEnum::DEFAULT->value)
-            ->where('is_deleted', 0)
-            ->fromApp($this->lead->app)
-            ->fromCompany($this->lead->company)
-            ->latest('id')
-            ->first();
     }
 
     private function renderBody(): string
