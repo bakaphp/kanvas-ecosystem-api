@@ -36,9 +36,7 @@ class ScheduleRulesManagementMutation
             'metadata' => $req['input']['metadata'] ?? null,
         ]);
 
-        // Dispatch job to generate time slots
-        $windowFrom = Carbon::now();
-        $windowTo = Carbon::now()->addYear();
+        [$windowFrom, $windowTo] = $this->generationWindow($scheduleRule);
 
         dispatch(new GenerateTimeSlots(
             $entity->id,
@@ -74,8 +72,7 @@ class ScheduleRulesManagementMutation
             'metadata' => $req['input']['metadata'] ?? $scheduleRule->metadata,
         ]);
 
-        $windowFrom = Carbon::now();
-        $windowTo = Carbon::now()->addYear();
+        [$windowFrom, $windowTo] = $this->generationWindow($scheduleRule);
 
         dispatch(new GenerateTimeSlots(
             $scheduleRule->resources_id,
@@ -85,6 +82,25 @@ class ScheduleRulesManagementMutation
         ));
 
         return $scheduleRule;
+    }
+
+    /**
+     * Slots are generated from the rule's start_at forward (never in the past) up to its
+     * end_at, falling back to a year out when the rule is open-ended.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function generationWindow(ScheduleRules $scheduleRule): array
+    {
+        $now = Carbon::now();
+
+        $windowFrom = $scheduleRule->start_at && $scheduleRule->start_at->greaterThan($now)
+            ? $scheduleRule->start_at->clone()
+            : $now;
+
+        $windowTo = $scheduleRule->end_at?->clone() ?? $now->clone()->addYear();
+
+        return [$windowFrom, $windowTo];
     }
 
     public function delete(mixed $root, array $req): bool
