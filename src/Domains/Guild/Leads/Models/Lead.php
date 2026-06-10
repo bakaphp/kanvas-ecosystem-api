@@ -227,6 +227,9 @@ class Lead extends BaseModel implements EventResourceInterface
             ->where('entity_namespace', self::class);
     }
 
+    /**
+     * lead note channel
+     */
     public function notes(): HasOne
     {
         return $this->hasOne(Channel::class, 'entity_id', 'string_id')
@@ -234,6 +237,9 @@ class Lead extends BaseModel implements EventResourceInterface
             ->where('name', ChannelNameEnum::NOTES->value);
     }
 
+    /**
+     * lead default system notes channel
+     */
     public function systemNotes(): HasOne
     {
         return $this->hasOne(Channel::class, 'entity_id', 'string_id')
