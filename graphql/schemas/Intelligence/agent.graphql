@@ -1,20 +1,5 @@
-"Single-value monthly consumption rollup for an agent (current calendar month, to date)."
-type AgentMonthlyUsage {
-    "First day of the current month (period start)."
-    period_start: Date!
-    "Billable tokens (input + output) consumed this month across all the agent's deployments."
-    tokens: Int!
-    "USD cost consumed this month across all the agent's deployments."
-    cost_usd: Float!
-}
-
 type AgentAi {
     id: ID!
-    "This month's token + cost consumption rolled up to a single value. Cached ~3h."
-    monthly_usage: AgentMonthlyUsage!
-        @field(
-            resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\AgentUsageQuery@monthlyUsage"
-        )
     company: [Company!]! @belongsTo
     user: User @belongsTo(relation: "user")
     creator: User @belongsTo(relation: "creator")
@@ -59,8 +44,18 @@ type AgentAi {
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
+    monthly_usage: AgentMonthlyUsage!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\AgentUsageQuery@monthlyUsage"
+        )
     created_at: DateTime!
     updated_at: DateTime!
+}
+
+type AgentMonthlyUsage {
+    period_start: Date!
+    tokens: Int!
+    cost_usd: Float!
 }
 
 type AgentKanvasModule {
