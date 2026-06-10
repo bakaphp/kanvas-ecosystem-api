@@ -130,6 +130,12 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@collectSessionTranscripts"
         )
 
+    "Mirror the deployment's runtime kanban board into NervousSystem plans/tasks (async). Returns true once the per-deployment sync job is queued. Routes via AgentRuntimeProviderFactory — runtimes without a kanban throw a clear LogicException when the job runs."
+    agentRuntimeSyncKanban(deployment_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@syncKanban"
+        )
+
     agentRuntimeSetSlackTokens(
         agent_id: ID!
         slack_bot_token: String!

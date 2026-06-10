@@ -32,6 +32,6 @@ class TerminateAgentOnMachineAction extends BaseTerminateAgentOnMachineAction
     #[Override]
     protected function afterTerminate(BaseSshClient $client): void
     {
-        $this->deployment->agent->del(CustomFieldEnum::HERMES_DEPLOYMENT_ID->value);
+        $this->deployment->agent?->del(CustomFieldEnum::HERMES_DEPLOYMENT_ID->value);
     }
 }

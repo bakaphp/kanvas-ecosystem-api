@@ -23,6 +23,9 @@ final class CashierWebhookEndToEndTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Stripe integration tests are skipped in CI');
+        }
         $existing = app(Apps::class)->get(ConfigurationEnum::STRIPE_SECRET_KEY->value);
         $this->originalStripeSecretKey = is_string($existing) ? $existing : null;
     }

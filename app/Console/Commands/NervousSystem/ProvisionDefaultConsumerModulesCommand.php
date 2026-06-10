@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection as SupportCollection;
@@ -20,6 +21,7 @@ use function Laravel\Prompts\warning;
 
 class ProvisionDefaultConsumerModulesCommand extends Command
 {
+    use KanvasJobsTrait;
     protected $signature = 'kanvas:nervous-system:provision-default-consumer-modules
         {app_id : The app id whose companies should be backfilled}
         {--reactivate-deleted : Also flip is_deleted=false / is_active=true on existing soft-deleted rows (status is preserved)}
@@ -42,6 +44,7 @@ class ProvisionDefaultConsumerModulesCommand extends Command
         }
 
         info("App: {$app->name} (id={$app->getId()})");
+        $this->overwriteAppService($app);
 
         $moduleIds = KanvasModule::query()
             ->where('is_default', 1)

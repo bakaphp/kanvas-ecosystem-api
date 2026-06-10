@@ -140,6 +140,28 @@ class Plan extends BaseModel
         return $this->belongsTo(Agent::class, 'agent_id', 'id');
     }
 
+    /**
+     * An agent-assigned plan's lifecycle events are the agent's work, so attribute them to the
+     * Agent even though a human (users_id) may have created/owns it. Only fall back to the human
+     * owner when there's no agent. Override of the trait default — no #[Override] (concrete method).
+     */
+    protected function resolveDefaultActorType(): string
+    {
+        if ($this->agent_id !== null) {
+            return 'Agent';
+        }
+        if ($this->users_id !== null) {
+            return 'User';
+        }
+
+        return 'System';
+    }
+
+    protected function resolveDefaultActorId(): ?int
+    {
+        return $this->agent_id ?? $this->users_id ?? null;
+    }
+
     public function swarm(): BelongsTo
     {
         return $this->belongsTo(AgentSwarm::class, 'swarm_id', 'id');
@@ -248,6 +270,7 @@ class Plan extends BaseModel
         PlanChangeTypeEnum $changeType,
         ?Task $task = null,
         ?string $previousStatus = null,
+        bool $fromSync = false,
     ): void {
         try {
             $value = $this->app->get(LedgerConfigurationEnum::BROADCAST_PLAN_EVENTS->value);
@@ -262,7 +285,8 @@ class Plan extends BaseModel
                 $this,
                 $changeType,
                 $task,
-                $previousStatus
+                $previousStatus,
+                $fromSync,
             );
         } catch (Throwable $e) {
             report($e);

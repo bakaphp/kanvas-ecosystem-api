@@ -201,6 +201,8 @@ class HandOffAction
                 $notification->setChannelOnlyPush();
             }
         }
+
+        $notification->setDatabaseTemplateName('lead_handoff_db');
     }
 
     protected function notifyManagers(

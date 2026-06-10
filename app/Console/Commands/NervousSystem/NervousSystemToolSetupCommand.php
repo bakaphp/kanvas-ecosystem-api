@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Services\AgentToolDiscoveryService;
@@ -16,6 +17,7 @@ use function Laravel\Prompts\select;
 
 class NervousSystemToolSetupCommand extends Command
 {
+    use KanvasJobsTrait;
     protected $signature = 'nervous-system:tool-setup';
 
     protected $description = 'Wizard to register a tool in the nervous system catalog';
@@ -35,6 +37,7 @@ class NervousSystemToolSetupCommand extends Command
             try {
                 $app = Apps::getById($appsId);
                 $this->line("App: <fg=green>{$app->name}</>");
+                $this->overwriteAppService($app);
             } catch (Throwable) {
                 $this->error("App with ID {$appsId} not found.");
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Intelligence;
 
 use Baka\Support\Str;
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -23,6 +24,8 @@ use function Laravel\Prompts\multiselect;
 
 class CreateAgentTypeCommand extends Command
 {
+    use KanvasJobsTrait;
+
     protected $signature = 'agent-type:create';
 
     protected $description = 'Wizard to create a new agent type (and optionally an agent record)';
@@ -41,8 +44,10 @@ class CreateAgentTypeCommand extends Command
             $appsId = (int) $this->ask('App ID', 1);
 
             try {
+                /** @var Apps $app */
                 $app = Apps::getById($appsId);
                 $this->line("App: <fg=green>{$app->name}</>");
+                $this->overwriteAppService($app);
             } catch (Throwable) {
                 $this->error("App with ID {$appsId} not found.");
 
@@ -124,7 +129,9 @@ class CreateAgentTypeCommand extends Command
             $agentAppId = (int) $this->ask('App ID for the agent');
 
             try {
+                /** @var Apps $app */
                 $app = Apps::getById($agentAppId);
+                $this->overwriteAppService($app);
             } catch (Throwable) {
                 $this->error("App with ID {$agentAppId} not found.");
 

@@ -35,13 +35,6 @@ class ApplyLeadAiModeAction
         $followUpKey = $configService->getFollowUpModeKey($this->lead);
 
         $currentMode = IntelligenceModeEnum::tryFrom((string) $this->lead->get($aiModeKey));
-        if ($currentMode?->isOff()
-            && ! in_array($this->triggerType, TriggersEnum::manualTriggerValues(), true)) {
-            return [
-                'changed' => false,
-                'message' => 'Currently Lead is in OFF mode',
-            ];
-        }
 
         $previousMode = $this->lead->get($aiModeKey);
         $previousFollowUp = $this->lead->get($followUpKey);
@@ -129,9 +122,14 @@ class ApplyLeadAiModeAction
 
     protected function applyNewLead(): void
     {
-        $leadType = $this->lead->type()->first();
         $configService = new LeadConfigurationService();
         $aiModeKey = $configService->getAiModeKey($this->lead);
+
+        if ($this->lead->get($aiModeKey) === IntelligenceModeEnum::IDLE->value) {
+            return;
+        }
+
+        $leadType = $this->lead->type()->first();
         $aiFollowUpKey = $configService->getFollowUpModeKey($this->lead);
 
         $isOpen = $this->isCompanyWithinWorkingHours();
@@ -157,7 +155,7 @@ class ApplyLeadAiModeAction
         try {
             return $this->lead->company->isWithinWorkingHours(now());
         } catch (InvalidArgumentException $e) {
-            return false;
+            return true;
         }
     }
 

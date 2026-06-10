@@ -134,23 +134,31 @@ class CalendarEventTool extends Tool
         $fullDescription = trim(($description ?? '') . $attendeeBlock);
 
         try {
-            $eventData = EventData::fromMultiple($lead->app, $owner, $company, [
-                'name' => $title,
-                'description' => $fullDescription !== '' ? $fullDescription : null,
-                'meeting_link' => $meeting_link,
-                'dates' => [
-                    [
-                        'date' => $start->format('Y-m-d'),
-                        'start_time' => $start->format('H:i'),
-                        'end_time' => $end->format('H:i'),
+            $eventData = EventData::from(
+                $lead->app,
+                $owner,
+                $company,
+                [
+                    'name' => $title,
+                    'description' => $fullDescription !== '' ? $fullDescription : null,
+                    'meeting_link' => $meeting_link,
+                    'dates' => [
+                        [
+                            'date' => $start->format('Y-m-d'),
+                            'start_time' => $start->format('H:i'),
+                            'end_time' => $end->format('H:i'),
+                        ],
                     ],
-                ],
-            ]);
+                    'resources' => [
+                        [
+                            'resources_id' => $lead->getId(),
+                            'resources_type' => 'lead',
+                        ],
+                    ],
+                ]
+            );
 
             $event = new CreateEventAction($eventData)->disableWorkflow()->execute();
-
-            // Tag the polymorphic event with the lead so LeadRefTool (and other
-            // lead-scoped queries) can list "appointments for this lead".
             $event->resources_id = $lead->getId();
             $event->resources_type = Lead::class;
             $event->saveQuietly();

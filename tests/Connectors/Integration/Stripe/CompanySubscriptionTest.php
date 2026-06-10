@@ -24,6 +24,9 @@ final class CompanySubscriptionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Stripe integration tests are skipped in CI');
+        }
         $this->company = Companies::factory()->create();
         $this->appModel = app(Apps::class);
         $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, $this->requireStripeTestKey());

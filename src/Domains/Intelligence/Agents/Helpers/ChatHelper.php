@@ -109,4 +109,27 @@ class ChatHelper
         // Last resort: return the original response with markdown formatting removed
         return preg_replace('/```(?:json)?\s*(.*)\s*```/s', '$1', $response);
     }
+
+    /**
+     * Split a leading `Subject:` line off an email body the agent produced.
+     *
+     * Outreach agents emit the email as `Subject: ...\n\n<body>`. The email channel
+     * needs the subject as the mail title, not buried in the body — otherwise the mail
+     * goes out with a generic fallback subject and the real one shows up as the first
+     * body line. Returns `['subject' => ?string, 'body' => string]`; subject is null
+     * when no leading Subject line is present (leaves SMS/WhatsApp text untouched).
+     */
+    public static function extractEmailSubjectAndBody(string $text): array
+    {
+        if (! preg_match('/^\s*Subject:\s*(.+?)\s*$/im', $text, $matches)) {
+            return ['subject' => null, 'body' => $text];
+        }
+
+        $body = preg_replace('/^\s*Subject:\s*.+?\s*$/im', '', $text, 1);
+
+        return [
+            'subject' => trim($matches[1]),
+            'body' => ltrim((string) $body),
+        ];
+    }
 }

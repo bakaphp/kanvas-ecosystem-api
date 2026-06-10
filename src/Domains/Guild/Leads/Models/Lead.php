@@ -31,7 +31,9 @@ use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\FollowUp\Traits\HasFollowUpState;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Follows\Traits\FollowersTrait;
@@ -83,6 +85,8 @@ class Lead extends BaseModel implements EventResourceInterface
     use CanUseWorkflow;
     use HasLightHouseCache;
     use EventResourceTrait;
+    use HasFollowUpState;
+    use EmitsLedgerEventsForEntity;
 
     protected $observables = [
         'softDeleting',
@@ -223,6 +227,9 @@ class Lead extends BaseModel implements EventResourceInterface
             ->where('entity_namespace', self::class);
     }
 
+    /**
+     * lead note channel
+     */
     public function notes(): HasOne
     {
         return $this->hasOne(Channel::class, 'entity_id', 'string_id')
@@ -230,6 +237,9 @@ class Lead extends BaseModel implements EventResourceInterface
             ->where('name', ChannelNameEnum::NOTES->value);
     }
 
+    /**
+     * lead default system notes channel
+     */
     public function systemNotes(): HasOne
     {
         return $this->hasOne(Channel::class, 'entity_id', 'string_id')
@@ -302,6 +312,24 @@ class Lead extends BaseModel implements EventResourceInterface
         $statusName = strtolower($this->status()->firstOrFail()->name);
 
         return $statusName !== 'inactive' && (Str::contains($statusName, 'active') || Str::contains($statusName, 'created'));
+    }
+
+    public function closeSold(): bool
+    {
+        $statusName = strtolower($this->status()->firstOrFail()->name);
+
+        return ! Str::contains($statusName, 'not') && Str::contains($statusName, 'sold');
+    }
+
+    public function closeNotSold(): bool
+    {
+        if ($this->isActive() || $this->closeSold()) {
+            return false;
+        }
+
+        $statusName = strtolower($this->status()->firstOrFail()->name);
+
+        return ! Str::contains($statusName, 'complete');
     }
 
     public function close(): void

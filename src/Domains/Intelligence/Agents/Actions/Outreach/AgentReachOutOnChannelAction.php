@@ -66,6 +66,19 @@ class AgentReachOutOnChannelAction
 
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
 
+        /**
+         * @todo this is not the best way to do structure format for our outreach
+         * we need to move to structure output maybe have a specific agent
+         */
+        // Email agents emit `Subject: ...\n\n<body>`. Pull the subject out so it becomes the
+        // mail title instead of leaking into the body under a generic fallback subject.
+        $emailSubject = null;
+        if ($this->channelType === ChannelCategoryEnum::EMAIL->value) {
+            $parsed = ChatHelper::extractEmailSubjectAndBody($responseText);
+            $emailSubject = $parsed['subject'];
+            $responseText = $parsed['body'];
+        }
+
         $messageTypeVerb = $this->resolveMessageTypeVerb();
         $type = MessageTypeService::getOrCreate($this->lead->app, $messageTypeVerb);
 
@@ -120,7 +133,7 @@ class AgentReachOutOnChannelAction
             channel: $this->channelType,
             message: $responseText,
             from: null,
-            title: null,
+            title: $emailSubject,
             signature: false,
             files: null,
             to: $this->recipient,

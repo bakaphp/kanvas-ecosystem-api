@@ -61,6 +61,8 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `tests/CLAUDE.md` — Docker test commands, `RefreshDatabase` ban, Bouncer setup, AppKey-guarded test pattern.
 - `src/Domains/Connectors/CLAUDE.md` — connector-tree-specific gotchas (Octane SDK rule, Activities/ folder, AgentRuntime caveat).
 - `graphql/schemas/CLAUDE.md` — directive conventions, FK-id-vs-relation rule, schema folder rule.
+- `src/Domains/Intelligence/FollowUp/CLAUDE.md` — generic-core vs per-entity-executor split for the agent-driven follow-up engine. Recipe for adopting follow-up on a new entity (Deal, Order, etc.).
+- `src/Domains/Inventory/CLAUDE.md` — product search engine (dynamic per-tenant Algolia/Typesense/Meilisearch resolution + precedence), index naming, `shouldBeSearchable` gating, the tenant-aware reindex command, and Typesense Natural Language Search config for the recommendation agent.
 
 ### Where to put new conventions (don't bloat this file)
 
@@ -275,6 +277,18 @@ class Plan extends Data
 **Call via Spatie's `::from()` magic, NOT `::fromMultiple()` directly.**
 
 Spatie Data's `BaseData::from(mixed ...$payloads)` is the public factory. When you call `Plan::from($app, $user, $company, $request['input'])`, Spatie's creation pipeline inspects the runtime types of the args and routes to whichever `from*` magic method on the class has a matching signature. Our `fromMultiple` method is one of those magic methods — naming it `fromMultiple` makes it the canonical entry for the "multiple typed-objects + data array" shape.
+
+**Exact routing rules** (verified in `Spatie\LaravelData\Resolvers\DataFromSomethingResolver::createFromCustomCreationMethod` + `Spatie\LaravelData\Support\DataMethod::accepts`):
+
+1. Method must be `public static`, name must start with `from`, return type must be `self` / `static` / the class itself (anything else is skipped as a candidate).
+2. Spatie iterates the candidates and calls `accepts(...$payloads)` on each — that returns true when arg count ≤ required param count AND every runtime arg's type satisfies the declared parameter type (or the parameter has a default).
+3. **First matching method wins** in declaration order. Iteration stops.
+4. The matched method is invoked as `$class::$methodName(...$payloads)`.
+
+So:
+- The name `fromMultiple` carries no special meaning — `fromRequest`, `fromLead`, `fromImport`, etc. all work the same. A DTO can declare several `from*` methods with different signatures and Spatie routes each `::from(...)` call to the right one by parameter types.
+- You only call `Foo::fromMultiple(...)` directly when you specifically want to bypass the Spatie router (which also skips pre-pipeline normalization/casting). For normal use, `Foo::from(...)` is the entry point and the router does the dispatch.
+- Spatie's iteration order = PHP's class method declaration order. If two `from*` methods could both accept the same args, the one declared **earlier** wins — keep their signatures disjoint to avoid silent routing surprises.
 
 **Do NOT try to rename `fromMultiple` to `from`.** PHP will fatal at class load because Spatie's parent signature `from(mixed ...$payloads): static` cannot be narrowed to a fixed typed signature (LSP violation: child can't have more required params than parent, and can't narrow variadic mixed to specific types).
 
@@ -768,6 +782,45 @@ xxx-queue:
 Helm (`helm/templates/`) is currently dormant — don't update it.
 
 **Default to a dedicated service per queue**, not appending to an existing worker's queue list. Any queue handling its own volume class (events, audits, large payloads) will starve or be starved by mixed workloads. Isolating each queue type to its own service gives it its own retry/timeout/replica budget. Reserve the "append to default" shortcut for genuinely low-volume queues (a few jobs/hour) where a dedicated service would be wasteful.
+
+### Every job that operates on a specific app MUST call `overwriteAppService($this->app)` first
+
+Any queued job that has an `Apps` model in its constructor — and any code it runs touches `Role`/`Ability`/Bouncer-scoped models (which includes most channel/agent/permission paths) — MUST start `handle()` with `$this->overwriteAppService($this->app);`. The trait lives in `Baka\Traits\KanvasJobsTrait`.
+
+```php
+use Baka\Traits\KanvasJobsTrait;
+
+final class MyAppScopedJob implements ShouldQueue
+{
+    use Dispatchable;
+    use InteractsWithQueue;
+    use KanvasJobsTrait;    // ← required
+    use Queueable;
+    use SerializesModels;
+
+    public function __construct(public readonly Apps $app, /* ... */) {}
+
+    public function handle(): void
+    {
+        $this->overwriteAppService($this->app);   // ← FIRST LINE of handle()
+        // ... rest of the job
+    }
+}
+```
+
+**Why** — the queue worker is a long-running PHP process. Bouncer's `Scopable` trait auto-appends `WHERE scope = <process-current scope>` to every Role/Ability query. The container-bound `app(Apps::class)` is similarly process-global. Whatever the previous job (or kernel boot) set leaks into the next job. Without `overwriteAppService`, a job for app 141 might query Roles with the previous job's scope (`app_1_company_0`) auto-applied — explicit `where('scope', 'app_141_company_0')` AND the leaked auto-scope combine into an impossible match, throwing `ModelNotFoundException: Role` deep inside `CreateChannelAction` / `RolesRepository::getByNameFromCompany`. The error usually surfaces nowhere near the actual job code because it's inside agent/channel internals.
+
+**Symptoms of the bug** (when you forget this):
+- `ModelNotFoundException: No query results for model [Kanvas\AccessControlList\Models\Role]` inside `CreateChannelAction` or anywhere that calls `RolesRepository::getByNameFromCompany`
+- Random "works on local but fails in production" because dev workers might run one job at a time while prod workers handle many
+- Agent flows returning generic fallback strings (e.g. `RunNeuronChatAction`'s "I ran into a hiccup processing that...") because the actual exception was swallowed and a friendly fallback was substituted
+- Cross-tenant data writes — Bouncer scope from app A bleeding into queries that "should" return app B data
+
+**Same rule applies to commands — and the bar for commands is blunt, no judgment call: EVERY command, anywhere under `app/Console/Commands/` (every domain, no exceptions), that resolves or operates on a specific `Apps` MUST `use Baka\Traits\KanvasJobsTrait` and call `$this->overwriteAppService($app)`** — once after resolving the app (single-app commands), or per-iteration inside the loop (multi-app commands), before doing any work. This is not scoped to NervousSystem/Intelligence; it holds for AccessControl, Souk, Social, Connectors, Ecosystem, and any future domain. Don't reason about "but this one only writes a custom field / only emits a ledger event, so it's probably fine" — if it touches an app, add the call. The cost is one line; the failure mode (silent cross-tenant scope leak that drops 90% of tenants and is invisible until someone notices missing emails weeks later) is not worth the judgment call. The ONLY commands that skip it are ones with no concrete app in scope at all: global `apps_id=0` catalog syncs, row-chunk backfills with no `Apps` model, ledger archive/maintenance, and pure queue dispatchers (the dispatched job rebinds in its own `handle()`).
+
+The trap is that the scoped work that breaks is often **one layer down**, inside an Action/Service the command runs *inline* — a Bouncer-scoped `Role::firstOrFail()` (`RolesRepository::getByNameFromCompany`, `UsersRepository::getCompanyAppUserByRole`, `Bouncer::assign`, `CreateChannelAction`) resolves against the leaked `app_1_company_0` scope, throws `ModelNotFoundException`, and a well-meaning `try/catch` in the Action swallows it into a "no results" return — so the command exits `0` having silently done nothing. Canonical fixed example: [`EnsureAgentReportRoleCommand`](app/Console/Commands/NervousSystem/EnsureAgentReportRoleCommand.php). Real incident: [`SendDailyLearningDigestCommand`](app/Console/Commands/NervousSystem/SendDailyLearningDigestCommand.php) fanned the daily-learning digest over ~90 (app, company) tuples without rebinding scope → every non-app-1 tenant silently got zero emails for weeks while roles, assignments and recipients were all correct. Regression test: `tests/Intelligence/NervousSystem/SendDailyLearningDigestCommandTest.php`. See [`feedback_overwrite_app_service_when_iterating_apps`](.claude/projects/-Users-kaioken-Code-kanvas-kanvas-ecosystem-api/memory/feedback_overwrite_app_service_when_iterating_apps.md). Jobs → `overwriteAppService($this->app)` once at the top of `handle()`.
+
+If your job operates on a Company without an Apps reference, you still need this if it triggers anything that resolves the app via the container or Bouncer scope. Easiest fix: take `Apps` on the constructor.
 
 ### Adding a New Domain Namespace
 When creating a new top-level domain folder (`src/Domains/YourDomain/`):

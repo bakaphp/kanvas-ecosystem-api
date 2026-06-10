@@ -86,6 +86,8 @@ class People extends BaseModel
         'dob' => 'datetime:Y-m-d',
         'license_expiration_date' => 'datetime:Y-m-d',
         'is_deleted' => 'boolean',
+        'first_message_at' => 'datetime',
+        'last_message_at' => 'datetime',
     ];
 
     public function trashed()

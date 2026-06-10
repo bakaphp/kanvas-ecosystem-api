@@ -76,6 +76,14 @@ class BaseKanvasAgent extends NeuronAIAgent
         $this->currentLead = $lead;
     }
 
+    // Per-turn lead resolution: the kernel-plumbed currentLead wins; entity-as-Lead
+    // is the legacy fallback for sessions that still point directly at a Lead row.
+    protected function resolveLeadForTurn(): ?Lead
+    {
+        return $this->currentLead
+            ?? ($this->entity instanceof Lead ? $this->entity : null);
+    }
+
     #[Override]
     protected function provider(): AIProviderInterface
     {

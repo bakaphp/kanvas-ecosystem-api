@@ -8,6 +8,7 @@ use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvi
 use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Companies\Models\CompaniesGroups;
 use Kanvas\Connectors\ScrapperApi\Listeners\CartListener;
+use Kanvas\Guild\Customers\Listeners\UpdatePeopleMessageTimestampsListener;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Observers\PeopleEmploymentHistoryObserver;
@@ -15,7 +16,8 @@ use Kanvas\Guild\Customers\Observers\PeopleObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
 use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
-use Kanvas\Intelligence\AgentRuntime\Listeners\SendAgentDeploymentLifecycleEmail;
+use Kanvas\Intelligence\AgentRuntime\Listeners\SendAgentDeploymentLifecycleEmailListener;
+use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Inventory\Categories\Observers\ProductsCategoriesObserver;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Observers\ChannelObserver;
@@ -31,9 +33,13 @@ use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Observers\WarehouseObserver;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
-use Kanvas\NervousSystem\Plan\Listeners\WakeAgentOnPlanChange;
+use Kanvas\NervousSystem\Plan\Listeners\NotifyPlanCreatorOfAgentProgressListener;
+use Kanvas\NervousSystem\Plan\Listeners\PushPlanChangeToKanbanListener;
+use Kanvas\NervousSystem\Plan\Listeners\SyncKanbanAfterChatListener;
+use Kanvas\NervousSystem\Plan\Listeners\WakeAgentOnPlanChangeListener;
 use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Notifications\Listeners\NotificationsListener;
+use Kanvas\Social\Messages\Events\AppModuleMessageCreatedEvent;
 use Kanvas\Social\Messages\Models\UserMessageActivity;
 use Kanvas\Social\Messages\Observers\UserMessageActivityObserver;
 use Kanvas\Social\UsersLists\Models\UserList;
@@ -53,10 +59,15 @@ class EventServiceProvider extends ServiceProvider
             NotificationsListener::class,
         ],
         PlanBroadcast::class => [
-            WakeAgentOnPlanChange::class,
+            WakeAgentOnPlanChangeListener::class,
+            PushPlanChangeToKanbanListener::class,
+            NotifyPlanCreatorOfAgentProgressListener::class,
+        ],
+        AgentChatResponseEvent::class => [
+            SyncKanbanAfterChatListener::class,
         ],
         AgentDeploymentStatusChanged::class => [
-            SendAgentDeploymentLifecycleEmail::class,
+            SendAgentDeploymentLifecycleEmailListener::class,
         ],
         'LaravelCart.Added' => [
             CartListener::class,
@@ -69,6 +80,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         WebhookHandled::class => [
             CompanySubscriptionWebhookListener::class,
+        ],
+        AppModuleMessageCreatedEvent::class => [
+            UpdatePeopleMessageTimestampsListener::class,
         ],
     ];
 

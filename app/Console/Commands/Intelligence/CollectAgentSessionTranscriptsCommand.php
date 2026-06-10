@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Intelligence;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -20,6 +21,8 @@ use Throwable;
  */
 class CollectAgentSessionTranscriptsCommand extends Command
 {
+    use KanvasJobsTrait;
+
     protected $signature = 'kanvas-intelligence:collect-session-transcripts
                             {--deployment= : Run for a single deployment id (skip the iteration)}
                             {--since= : ISO-8601 lookback floor (overrides the per-conversation watermark)}';
@@ -67,6 +70,8 @@ class CollectAgentSessionTranscriptsCommand extends Command
 
                     continue;
                 }
+
+                $this->overwriteAppService($app);
 
                 $count = AgentRuntimeProviderFactory::forDeployment($deployment)
                     ->collectSessionTranscripts(

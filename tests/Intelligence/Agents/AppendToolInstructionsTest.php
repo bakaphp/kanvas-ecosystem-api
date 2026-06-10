@@ -12,6 +12,7 @@ use Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep\FmpCompanyPro
 use Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep\FmpCompanyRatingTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep\FmpCompanySearchTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep\FmpFinancialRatiosTool;
+use Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep\FmpFinancialSnapshotTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
@@ -333,5 +334,51 @@ final class AppendToolInstructionsTest extends TestCase
         $this->assertStringContainsString('My own instructions.', $agent->instructions);
         $this->assertStringContainsString('## Tool Usage Guidelines', $agent->instructions);
         $this->assertStringNotContainsString('Agent type instructions.', $agent->instructions);
+    }
+
+    public function testAddingFmpFinancialSnapshotToolAppendsItsInstruction(): void
+    {
+        $agentType = $this->makeAgentType();
+        $initialTool = new CreateToolAction(new ToolData(
+            app: app(Apps::class),
+            name: 'fmp-search-' . uniqid(),
+            frameworks: ['laravel'],
+            toolType: ToolTypeEnum::CUSTOM,
+            handler: FmpCompanySearchTool::class,
+        ))->execute();
+
+        $agent = $this->createAgentViaMutation($agentType, [
+            'instructions' => 'Analyze corporate distress events.',
+            'tool_ids' => [$initialTool->getId()],
+        ]);
+
+        $this->assertStringContainsString('FMP Company Search', $agent->instructions);
+        $this->assertStringNotContainsString('FMP Financial Snapshot', $agent->instructions);
+
+        $snapshotTool = new CreateToolAction(new ToolData(
+            app: app(Apps::class),
+            name: 'fmp-snapshot-' . uniqid(),
+            frameworks: ['laravel'],
+            toolType: ToolTypeEnum::CUSTOM,
+            handler: FmpFinancialSnapshotTool::class,
+        ))->execute();
+
+        $updated = new AgentManagementMutation()->update(null, [
+            'id' => $agent->getId(),
+            'input' => [
+                'agent_type_id' => $agentType->getId(),
+                'name' => $agent->name,
+                'is_active' => true,
+                'role' => [],
+                'config' => [],
+                'tool_ids' => [$initialTool->getId(), $snapshotTool->getId()],
+            ],
+        ]);
+
+        $fresh = $updated->fresh();
+        $this->assertStringContainsString('FMP Financial Snapshot', $fresh->instructions, 'FmpFinancialSnapshotTool instruction must appear after being added.');
+        $this->assertStringContainsString('FMP Company Search', $fresh->instructions, 'Previously assigned tool instruction must be preserved.');
+        $this->assertStringContainsString('Analyze corporate distress events.', $fresh->instructions, 'Custom base instructions must be preserved when tool_ids is updated without passing instructions.');
+        $this->assertSame(1, substr_count($fresh->instructions, '## Tool Usage Guidelines'), 'Tool guidelines section must appear exactly once.');
     }
 }
