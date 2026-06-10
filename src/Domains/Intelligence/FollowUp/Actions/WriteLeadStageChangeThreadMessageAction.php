@@ -60,7 +60,7 @@ final class WriteLeadStageChangeThreadMessageAction
                 'user' => $user,
                 'type' => $messageType,
                 'message' => $messagePayload->toArray(),
-                'is_public' => 1,
+                'is_public' => 0,
             ]);
 
             $message = new CreateSocialMessageAction(
