@@ -17,6 +17,7 @@ use Kanvas\Intelligence\Models\BaseModel;
  * @property string $uuid
  * @property int $apps_id
  * @property int $companies_id
+ * @property int|null $agent_id
  * @property int|null $agent_deployment_id
  * @property Carbon|null $snapshot_date
  * @property string|null $source
@@ -25,6 +26,7 @@ use Kanvas\Intelligence\Models\BaseModel;
  * @property int $total_tokens
  * @property int $cache_read_tokens
  * @property int $cache_write_tokens
+ * @property string $cost_usd
  * @property string|null $provider
  * @property string|null $model
  * @property int $total_sessions
@@ -42,6 +44,7 @@ class AgentUsageSnapshot extends BaseModel
         'uuid',
         'apps_id',
         'companies_id',
+        'agent_id',
         'agent_deployment_id',
         'snapshot_date',
         'source',
@@ -50,6 +53,7 @@ class AgentUsageSnapshot extends BaseModel
         'total_tokens',
         'cache_read_tokens',
         'cache_write_tokens',
+        'cost_usd',
         'provider',
         'model',
         'total_sessions',
@@ -71,6 +75,11 @@ class AgentUsageSnapshot extends BaseModel
     public function deployment(): BelongsTo
     {
         return $this->belongsTo(AgentDeployment::class, 'agent_deployment_id');
+    }
+
+    public function agent(): BelongsTo
+    {
+        return $this->belongsTo(Agent::class, 'agent_id');
     }
 
     public function searchableAs(): string

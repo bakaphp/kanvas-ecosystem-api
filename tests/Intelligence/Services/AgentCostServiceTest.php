@@ -57,6 +57,7 @@ class AgentCostServiceTest extends TestCase
             'uuid' => (string) Str::uuid(),
             'apps_id' => $agent->apps_id,
             'companies_id' => $agent->companies_id,
+            'agent_id' => $agent->getId(),
             'agent_deployment_id' => $deploymentId,
             'snapshot_date' => $date,
             'source' => 'openclaw_docker',

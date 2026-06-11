@@ -17,12 +17,8 @@ class AgentCostService
     private const int CACHE_TTL_SECONDS = 6 * 60 * 60;
 
     /**
-     * Tokens + cost an agent burned in a calendar month. Aggregates every
-     * usage snapshot tied to any of the agent's deployments (an agent can be
-     * relaunched, spawning new deployment rows — all of them count).
-     *
-     * "This month" = the calendar month containing $when (defaults to today),
-     * server-time UTC, from the 1st up to and including today.
+     * Tokens + cost an agent burned in the calendar month containing $when
+     * (defaults to today), server-time UTC, from the 1st up to and including today.
      *
      * @return array{period_start: string, tokens: int, cost_usd: float}
      */
@@ -48,10 +44,12 @@ class AgentCostService
      */
     private function aggregate(Agent $agent, string $periodStart, string $periodEnd): array
     {
+        // Keyed on agent_id directly so it sees every backend: container runtimes
+        // (OpenClaw/Hermes — snapshots written via collectUsage) AND in-process
+        // backends (Neuron/Laravel — snapshots written by the daily rollup).
         $row = DB::connection('intelligence')
             ->table('agent_usage_snapshots as s')
-            ->join('agent_deployments as d', 'd.id', '=', 's.agent_deployment_id')
-            ->where('d.agent_id', $agent->getId())
+            ->where('s.agent_id', $agent->getId())
             ->where('s.apps_id', $agent->apps_id)
             ->where('s.companies_id', $agent->companies_id)
             ->where('s.is_deleted', 0)
