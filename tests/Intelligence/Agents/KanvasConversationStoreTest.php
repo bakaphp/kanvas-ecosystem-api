@@ -266,4 +266,56 @@ class KanvasConversationStoreTest extends TestCase
             ->first();
         $this->assertSame($agent->getId(), (int) $rowAfter->agent_id);
     }
+
+    /**
+     * After the SalesAssistKanvasMessageHistory double-write removal, the per-turn
+     * usage + tool telemetry is no longer written as a visible social message — it
+     * lives ONLY here, in agent_conversation_messages. Guard that it still lands.
+     */
+    public function testLogTurnPersistsUsageAndToolTelemetryOnAssistantMessage(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+
+        $sessionId = (string) Str::uuid();
+        $usage = ['input_tokens' => 24131, 'output_tokens' => 185];
+        $toolCalls = [['name' => 'get_lead_ref', 'inputs' => ['lead_id' => 700015]]];
+        $toolResults = [['name' => 'get_lead_ref', 'result' => '{"lead_id":700015}']];
+
+        new KanvasConversationStore()->logTurn(
+            userId: $user->getId(),
+            sessionId: $sessionId,
+            agentClass: 'Test\\Stub\\AgentHandler',
+            userMessage: 'hi Sally, do i still have option to reschedule ?',
+            assistantResponse: 'Of course you can reschedule.',
+            agentId: $agent->getId(),
+            toolCalls: $toolCalls,
+            toolResults: $toolResults,
+            usage: $usage,
+        );
+
+        $conversation = DB::connection('intelligence')->table('agent_conversations')
+            ->where('title', $sessionId)
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->first();
+        $this->assertNotNull($conversation);
+
+        $assistant = DB::connection('intelligence')->table('agent_conversation_messages')
+            ->where('conversation_id', $conversation->id)
+            ->where('role', 'assistant')
+            ->first();
+
+        $this->assertNotNull($assistant);
+        $this->assertSame('Of course you can reschedule.', $assistant->content);
+        $this->assertSame($usage, json_decode($assistant->usage, true));
+        $this->assertSame($toolCalls, json_decode($assistant->tool_calls, true));
+        $this->assertSame($toolResults, json_decode($assistant->tool_results, true));
+    }
 }
