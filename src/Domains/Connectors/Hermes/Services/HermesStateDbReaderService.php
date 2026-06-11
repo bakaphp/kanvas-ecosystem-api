@@ -126,6 +126,60 @@ SQL;
     }
 
     /**
+     * Daily token + cost rollup straight from the documented `sessions` table
+     * (input/output/cache token columns plus estimated and actual cost_usd).
+     *
+     * Day attribution uses COALESCE(ended_at, started_at): on a live Hermes box
+     * `ended_at` is NULL for most sessions (they're left open), so anchoring on
+     * `ended_at` alone silently returns zero. started_at is always populated
+     * (session ids are start-stamped). Each session is counted once, so summing
+     * daily snapshots across a month never double-counts. Hermes reports real
+     * cost, so no model_pricing lookup is needed downstream.
+     *
+     * @return array{totals: array<string, int>, cost_usd: float, total_sessions: int, model: ?string}
+     */
+    public function aggregateDailyUsage(AgentDeployment $deployment, Carbon $date): array
+    {
+        $dbPath = $this->resolveDbPath($deployment);
+        $dayStart = (int) $date->copy()->startOfDay()->timestamp;
+        $dayEnd = (int) $date->copy()->startOfDay()->addDay()->timestamp;
+
+        $sql = <<<SQL
+SELECT
+    COALESCE(SUM(input_tokens), 0) AS input_tokens,
+    COALESCE(SUM(output_tokens), 0) AS output_tokens,
+    COALESCE(SUM(cache_read_tokens), 0) AS cache_read,
+    COALESCE(SUM(cache_write_tokens), 0) AS cache_write,
+    COALESCE(SUM(COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0)), 0) AS total_tokens,
+    COALESCE(SUM(COALESCE(actual_cost_usd, estimated_cost_usd, 0)), 0) AS cost_usd,
+    COUNT(*) AS total_sessions,
+    (
+        SELECT model FROM sessions
+        WHERE COALESCE(ended_at, started_at) >= {$dayStart} AND COALESCE(ended_at, started_at) < {$dayEnd} AND model IS NOT NULL
+        GROUP BY model ORDER BY COUNT(*) DESC LIMIT 1
+    ) AS model
+FROM sessions
+WHERE COALESCE(ended_at, started_at) >= {$dayStart} AND COALESCE(ended_at, started_at) < {$dayEnd}
+SQL;
+
+        $rows = $this->runSqliteJson($dbPath, $sql);
+        $row = $rows[0] ?? [];
+
+        return [
+            'totals' => [
+                'input_tokens' => (int) ($row['input_tokens'] ?? 0),
+                'output_tokens' => (int) ($row['output_tokens'] ?? 0),
+                'cache_read' => (int) ($row['cache_read'] ?? 0),
+                'cache_write' => (int) ($row['cache_write'] ?? 0),
+                'total_tokens' => (int) ($row['total_tokens'] ?? 0),
+            ],
+            'cost_usd' => (float) ($row['cost_usd'] ?? 0),
+            'total_sessions' => (int) ($row['total_sessions'] ?? 0),
+            'model' => isset($row['model']) && $row['model'] !== '' ? (string) $row['model'] : null,
+        ];
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     private function runSqliteJson(string $dbPath, string $sql): array

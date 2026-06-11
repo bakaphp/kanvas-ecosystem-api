@@ -48,10 +48,12 @@ class AgentCostService
      */
     private function aggregate(Agent $agent, string $periodStart, string $periodEnd): array
     {
+        // Keyed on agent_id directly so it sees every backend: container runtimes
+        // (OpenClaw/Hermes — snapshots written via collectUsage) AND in-process
+        // backends (Neuron/Laravel — snapshots written by the daily rollup).
         $row = DB::connection('intelligence')
             ->table('agent_usage_snapshots as s')
-            ->join('agent_deployments as d', 'd.id', '=', 's.agent_deployment_id')
-            ->where('d.agent_id', $agent->getId())
+            ->where('s.agent_id', $agent->getId())
             ->where('s.apps_id', $agent->apps_id)
             ->where('s.companies_id', $agent->companies_id)
             ->where('s.is_deleted', 0)
