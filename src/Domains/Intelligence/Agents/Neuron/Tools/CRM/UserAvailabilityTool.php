@@ -138,6 +138,11 @@ class UserAvailabilityTool extends Tool
             $workHoursSource = 'default_fallback_mon_fri_9_5';
         }
 
+        $workingDays = $company->get(CompanyConfigurationEnum::WORKING_DAYS->value) ?? [];
+        if (! is_array($workingDays)) {
+            $workingDays = [];
+        }
+
         $repo = new EventScheduleRepository();
 
         $slots = $repo->getAvailableSlotsForUser(
@@ -149,6 +154,7 @@ class UserAvailabilityTool extends Tool
             durationMinutes: $duration_minutes ?? 30,
             workingHours: $workingHours,
             limit: $limit ?? 10,
+            workingDays: $workingDays,
         );
 
         // Also surface the scheduled events directly. Even when slots is empty

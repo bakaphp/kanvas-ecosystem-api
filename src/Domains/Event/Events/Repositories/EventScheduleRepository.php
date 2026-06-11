@@ -97,10 +97,18 @@ class EventScheduleRepository
         int $durationMinutes,
         array $workingHours,
         int $limit = 20,
+        array $workingDays = [],
     ): array {
         if ($durationMinutes <= 0 || $from->gte($to)) {
             return [];
         }
+
+        // Normalize the working-day allowlist to lowercase English day names so a
+        // non-working day (e.g. weekend) is skipped instead of silently proposed.
+        $workingDays = array_map(
+            static fn (mixed $day): string => strtolower(trim((string) $day)),
+            $workingDays,
+        );
 
         $busy = $this->getScheduled($app, $company, $from, $to, $user)
             ->sortBy(fn (object $b): int => $b->start->timestamp)
@@ -113,10 +121,15 @@ class EventScheduleRepository
         $userId = $user->getId();
 
         while ($cursor->lte($to) && count($slots) < $limit) {
-            [$openTime, $closeTime] = $this->resolveDayHours(
-                $workingHours,
-                strtolower($cursor->format('l')),
-            );
+            $dayName = strtolower($cursor->format('l'));
+
+            if ($workingDays !== [] && ! in_array($dayName, $workingDays, true)) {
+                $cursor->addDay();
+
+                continue;
+            }
+
+            [$openTime, $closeTime] = $this->resolveDayHours($workingHours, $dayName);
 
             if ($openTime === null || $closeTime === null) {
                 $cursor->addDay();
@@ -181,7 +194,18 @@ class EventScheduleRepository
     }
 
     /**
-     * @param array<string, mixed> $workingHours
+     * Resolve a day's open/close from the company WORKING_HOURS config.
+     *
+     * Mirrors the shapes the canonical CompanyWorkHoursTool accepts so the agent's
+     * proposed slots line up with the hours it quotes: a single `opens_at_local` /
+     * `closes_at_local` applied to every day, OR a per-day weekly map. Day keys are
+     * matched case-insensitively ('Monday' or 'monday') and per-day values may be a
+     * `"09:00-18:00"` string or an `{open,close}` / `{opens_at_local,closes_at_local}`
+     * array. This used to assume a lowercase key with a string value and silently
+     * returned `[null, null]` for the real config — which collapsed to 0 slots and the
+     * agent telling prospects the owner was "fully booked".
+     *
+     * @param array<array-key, mixed> $workingHours
      * @return array{0:?string, 1:?string}
      */
     private function resolveDayHours(array $workingHours, string $dayName): array
@@ -193,7 +217,24 @@ class EventScheduleRepository
             ];
         }
 
-        $hours = $workingHours[$dayName] ?? null;
+        $hours = null;
+        foreach ($workingHours as $key => $value) {
+            if (is_string($key) && strtolower($key) === $dayName) {
+                $hours = $value;
+
+                break;
+            }
+        }
+
+        if (is_array($hours)) {
+            $open = $hours['open'] ?? $hours['opens_at_local'] ?? $hours['from'] ?? $hours['start'] ?? null;
+            $close = $hours['close'] ?? $hours['closes_at_local'] ?? $hours['to'] ?? $hours['end'] ?? null;
+
+            return ($open === null || $close === null)
+                ? [null, null]
+                : [$this->ensureSeconds((string) $open), $this->ensureSeconds((string) $close)];
+        }
+
         if (! is_string($hours) || ! str_contains($hours, '-')) {
             return [null, null];
         }
