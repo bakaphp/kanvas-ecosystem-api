@@ -17,10 +17,12 @@ use Illuminate\Support\Facades\Schema;
  * the signature at processing time, not only synchronously at receive time.
  */
 return new class () extends Migration {
+    protected $connection = 'workflow';
+
     public function up(): void
     {
-        Schema::table('receiver_webhook_calls', function (Blueprint $table) {
-            if (! Schema::hasColumn('receiver_webhook_calls', 'raw_payload')) {
+        Schema::connection('workflow')->table('receiver_webhook_calls', function (Blueprint $table) {
+            if (! Schema::connection('workflow')->hasColumn('receiver_webhook_calls', 'raw_payload')) {
                 $table->longText('raw_payload')->nullable()->after('payload');
             }
         });
@@ -28,8 +30,8 @@ return new class () extends Migration {
 
     public function down(): void
     {
-        Schema::table('receiver_webhook_calls', function (Blueprint $table) {
-            if (Schema::hasColumn('receiver_webhook_calls', 'raw_payload')) {
+        Schema::connection('workflow')->table('receiver_webhook_calls', function (Blueprint $table) {
+            if (Schema::connection('workflow')->hasColumn('receiver_webhook_calls', 'raw_payload')) {
                 $table->dropColumn('raw_payload');
             }
         });
