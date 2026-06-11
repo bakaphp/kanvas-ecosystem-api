@@ -10,6 +10,11 @@ class ChatHelper
 {
     public static function extractTextFromResponse(string $response): string
     {
+        return self::collapseDuplicatedBody(self::resolveResponseText($response));
+    }
+
+    private static function resolveResponseText(string $response): string
+    {
         $data = self::decodeJsonEnvelope($response);
         if ($data !== null) {
             return self::pickResponseField($data);
@@ -23,6 +28,44 @@ class ChatHelper
 
         // Last resort: return the original response with markdown formatting removed
         return (string) preg_replace('/```(?:json)?\s*(.*)\s*```/s', '$1', $response);
+    }
+
+    /**
+     * Collapse a body the model emitted twice back to a single copy.
+     *
+     * Sales agents intermittently generate the whole reply twice (confirmed by the
+     * provider reporting ~2x the output tokens for one logical message), producing
+     * `"<reply>\n\n<reply>"`. Selecting one JSON field can't fix that — the doubling is
+     * inside the text. We split on blank lines and, when the paragraph list is exactly
+     * its own first half repeated, keep one half. Conservative: only an exact
+     * paragraph-for-paragraph match collapses, so a normal reply is never truncated.
+     */
+    private static function collapseDuplicatedBody(string $text): string
+    {
+        $trimmed = trim($text);
+        if ($trimmed === '') {
+            return $text;
+        }
+
+        $split = preg_split('/\n\s*\n/', $trimmed);
+        if ($split === false) {
+            return $text;
+        }
+
+        $paragraphs = array_map('trim', $split);
+        $count = count($paragraphs);
+        if ($count < 2 || $count % 2 !== 0) {
+            return $text;
+        }
+
+        $half = intdiv($count, 2);
+        for ($i = 0; $i < $half; $i++) {
+            if ($paragraphs[$i] === '' || $paragraphs[$i] !== $paragraphs[$i + $half]) {
+                return $text;
+            }
+        }
+
+        return implode("\n\n", array_slice($paragraphs, 0, $half));
     }
 
     /**

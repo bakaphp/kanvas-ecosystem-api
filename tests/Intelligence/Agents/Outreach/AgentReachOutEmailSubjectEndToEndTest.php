@@ -9,12 +9,14 @@ use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\Outreach\AgentReachOutOnChannelAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\SystemModules\Models\SystemModules;
 use ReflectionProperty;
@@ -115,5 +117,24 @@ class AgentReachOutEmailSubjectEndToEndTest extends TestCase
         $this->assertSame(SalesEmailEnvelopeNeuronAgentStub::BODY, $content);
         $this->assertStringNotContainsString('Subject:', $content);
         $this->assertSame(1, substr_count($content, "Let's talk."), 'Body must not be duplicated');
+
+        // Part 2 guard: onNewMessage no longer writes the assistant content row, so the
+        // raw `{"subject":...,"response":...}` envelope must NOT appear anywhere on the
+        // People timeline — only the canonical, extracted outbound body.
+        $peopleContents = AppModuleMessage::query()
+            ->where('system_modules', People::class)
+            ->where('entity_id', $lead->people->getId())
+            ->where('apps_id', $app->getId())
+            ->with('message')
+            ->get()
+            ->map(fn (AppModuleMessage $row): string => (string) ($row->message?->message['content'] ?? ''));
+
+        foreach ($peopleContents as $persisted) {
+            $this->assertStringNotContainsString(
+                '"response"',
+                $persisted,
+                'Raw agent JSON envelope must not be persisted (onNewMessage double-write removed)',
+            );
+        }
     }
 }

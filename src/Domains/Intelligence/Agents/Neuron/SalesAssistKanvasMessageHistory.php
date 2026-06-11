@@ -146,7 +146,12 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
         foreach ($messages as $m) {
             $last = end($coalesced) ?: null;
             if ($last !== null && $last->getRole() === $m->getRole()) {
-                $last->setContents($last->getContent() . "\n\n" . $m->getContent());
+                $last->setContents(
+                    self::coalesceContent(
+                        (string) $last->getContent(),
+                        (string) $m->getContent()
+                    )
+                );
 
                 continue;
             }
@@ -167,7 +172,12 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
     {
         $last = end($this->history) ?: null;
         if ($last !== null && $last->getRole() === $message->getRole()) {
-            $last->setContents($last->getContent() . "\n\n" . $message->getContent());
+            $last->setContents(
+                self::coalesceContent(
+                    (string) $last->getContent(),
+                    (string) $message->getContent()
+                )
+            );
             $this->trimHistory();
             $this->onNewMessage($message);
             $this->setMessages($this->history);
@@ -176,6 +186,34 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
         }
 
         return parent::addMessage($message);
+    }
+
+    /**
+     * Merge two consecutive same-role messages while refusing to duplicate.
+     *
+     * Providers (Anthropic) require strict user/assistant alternation, so consecutive
+     * same-role turns must collapse into one. But each turn is persisted twice against
+     * the entity — once by this history's onNewMessage(), once by the connector's
+     * official outbound — so the two rows are identical. Concatenating them produced
+     * `"reply\n\nreply"` in the model's context, which the model then imitated by
+     * emitting its own replies twice (the duplicate-email feedback loop). Keep the
+     * longer copy when one already contains the other; only genuinely different turns
+     * concatenate.
+     */
+    private static function coalesceContent(string $existing, string $incoming): string
+    {
+        $a = trim($existing);
+        $b = trim($incoming);
+
+        if ($b === '' || $a === $b || ($a !== '' && str_contains($a, $b))) {
+            return $existing;
+        }
+
+        if ($a === '' || str_contains($b, $a)) {
+            return $incoming;
+        }
+
+        return $existing . "\n\n" . $incoming;
     }
 
     private function entityIdentityLabel(): string
@@ -258,7 +296,15 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
         $isToolCall = $message instanceof ToolCallMessage;
         $isToolResult = $message instanceof ToolResultMessage;
 
-        if ($content === '' && ! $isToolCall && ! $isToolResult) {
+        // Persist ONLY tool-call / tool-result telemetry here. The conversational
+        // content rows (user prompt + assistant reply) are already written — and
+        // attached to this same Lead/People entity — by the canonical writers for every
+        // path that uses this history: connector createMessage(), PersistChatTurnToSocialAction
+        // (userChat), FollowUp persistMessage(), and the outreach action. Writing them again
+        // produced a second from_ia row per turn, which the loader coalesced into the model's
+        // context as `reply\n\nreply` — and the model learned to repeat itself (duplicate-email
+        // loop). Tool telemetry is the only thing no other writer captures, so keep just that.
+        if (! $isToolCall && ! $isToolResult) {
             return;
         }
 
