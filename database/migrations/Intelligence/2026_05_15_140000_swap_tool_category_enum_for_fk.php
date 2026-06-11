@@ -12,10 +12,12 @@ return new class () extends Migration {
 
     public function up(): void
     {
-        Schema::table('nervous_system_tools', function (Blueprint $table) {
-            $table->unsignedBigInteger('tool_category_id')->nullable()->after('category');
-            $table->index('tool_category_id', 'idx_tools_category_id');
-        });
+        if (! Schema::connection('intelligence')->hasColumn('nervous_system_tools', 'tool_category_id')) {
+            Schema::table('nervous_system_tools', function (Blueprint $table) {
+                $table->unsignedBigInteger('tool_category_id')->nullable()->after('category');
+                $table->index('tool_category_id', 'idx_tools_category_id');
+            });
+        }
 
         // Backfill: map the existing enum string → category row id. Platform
         // categories live on apps_id=0, so the lookup ignores apps_id.
@@ -32,10 +34,12 @@ return new class () extends Migration {
                 ->update(['tool_category_id' => $id]);
         }
 
-        Schema::table('nervous_system_tools', function (Blueprint $table) {
-            $table->dropIndex('idx_tools_category');
-            $table->dropColumn('category');
-        });
+        if (Schema::connection('intelligence')->hasColumn('nervous_system_tools', 'category')) {
+            Schema::table('nervous_system_tools', function (Blueprint $table) {
+                $table->dropIndex('idx_tools_category');
+                $table->dropColumn('category');
+            });
+        }
     }
 
     public function down(): void

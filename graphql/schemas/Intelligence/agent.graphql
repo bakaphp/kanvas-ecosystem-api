@@ -22,6 +22,7 @@ type AgentAi {
     tools_config: String
     deployment_status: String!
     activeDeployment: AgentDeploymentType @hasOne
+    latestDeployment: AgentDeploymentType @hasOne
     agent_model_id: ID
     parent_id: ID
     is_active: Boolean!

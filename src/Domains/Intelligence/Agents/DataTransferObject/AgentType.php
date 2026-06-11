@@ -23,7 +23,7 @@ class AgentType extends Data
         public ?string $soul = null,
         public ?string $instructions = null,
         public ?string $output_format = null,
-        public ?string $multi_agent_list = null,
+        public mixed $multi_agent_list = null,
         public bool $is_default = false,
         public int $weight = 0,
     ) {

@@ -59,6 +59,12 @@ extend type Subscription {
 }
 
 extend type Mutation @guard {
+    "Ingest an OTLP metrics payload from the OTel Collector and persist token usage to agent_usage_snapshots."
+    ingestAgentTelemetry(payload: Mixed!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\IngestOtlpMetricsMutation"
+        )
+
     agentRuntimeCreateMachine(input: AgentMachineInput!): AgentMachineType!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentMachineMutation@create"

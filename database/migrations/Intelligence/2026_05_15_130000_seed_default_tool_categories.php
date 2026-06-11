@@ -48,6 +48,7 @@ return new class () extends Migration {
                 continue;
             }
             DB::connection('intelligence')->table('nervous_system_tool_categories')->insert([
+                'uuid' => \Illuminate\Support\Str::uuid()->toString(),
                 'apps_id' => 0,
                 'slug' => $category['slug'],
                 'name' => $category['name'],

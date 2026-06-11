@@ -104,9 +104,52 @@ abstract class BaseDockerComposeBuilderService
 
         $raw = (string) file_get_contents(static::getTemplatesDir() . '/Dockerfile');
 
-        // Substitute `{{BASE_IMAGE}}` if the template uses it (pinned providers); raw passthrough
-        // otherwise (providers that haven't adopted the placeholder yet).
-        return rtrim(str_replace('{{BASE_IMAGE}}', $this->getBaseImage($app), $raw));
+        // Substitute `{{BASE_IMAGE}}` and `{{OTEL_LAYER}}`. The OTel layer installs the
+        // Node.js OTel packages at /opt/otel so otel-init.js can use absolute requires —
+        // keeping the instrumentation fully isolated from the app's own node_modules.
+        // The layer is only emitted when otel.enabled=true; otherwise the placeholder is
+        // replaced with an empty string so the Dockerfile stays valid.
+        $otelLayer = config('otel.enabled', false) ? $this->buildOtelDockerfileLayer() : '';
+
+        return rtrim(str_replace(
+            ['{{BASE_IMAGE}}', '{{OTEL_LAYER}}'],
+            [$this->getBaseImage($app), $otelLayer],
+            $raw,
+        ));
+    }
+
+    /**
+     * Dockerfile RUN layer that installs the OTel Node.js packages at /opt/otel and
+     * copies otel-init.js there. The file must already exist in the Docker build context
+     * (written by BaseLaunchAgentOnMachineAction::ensureSharedImage when otel.enabled).
+     */
+    protected function buildOtelDockerfileLayer(): string
+    {
+        return implode("\n", [
+            '# OTel token-usage instrumentation (added when otel.enabled=true)',
+            'USER root',
+            'RUN mkdir -p /opt/otel',
+            'COPY otel-init.js /opt/otel/init.js',
+            'RUN cd /opt/otel \\',
+            ' && npm init -y \\',
+            ' && npm install --save \\',
+            '      @opentelemetry/sdk-node \\',
+            '      @opentelemetry/exporter-trace-otlp-grpc \\',
+            '      @opentelemetry/resources \\',
+            '      @traceloop/instrumentation-anthropic',
+        ]);
+    }
+
+    /**
+     * Content of otel-init.js that is written to the Docker build context and later
+     * installed at /opt/otel/init.js inside the image. Read from the canonical source
+     * in docker/otel/ so the template and init script are always in sync.
+     */
+    public function buildOtelInitScript(): string
+    {
+        $path = base_path('docker/otel/otel-init.js');
+
+        return file_exists($path) ? (string) file_get_contents($path) : '';
     }
 
     /**
@@ -233,6 +276,18 @@ abstract class BaseDockerComposeBuilderService
         }
         if (! empty($telegramAllowedUsers)) {
             $envVars['TELEGRAM_ALLOWED_USERS'] = (string) $telegramAllowedUsers;
+        }
+
+        // OTel env vars — injected when otel.enabled is true so the container's
+        // otel-init.js can export spans to the collector on the same Docker network.
+        // KANVAS_DEPLOYMENT_ID is already set above and reused by otel-init.js as
+        // the agent.deployment_id resource attribute.
+        // NODE_OPTIONS bootstraps the SDK before any app code runs (--require).
+        if (config('otel.enabled', false)) {
+            $envVars['OTEL_EXPORTER_OTLP_ENDPOINT'] = config('otel.collector_endpoint', 'http://otel-collector:4317');
+            $envVars['OTEL_SERVICE_NAME'] = $envVars['OTEL_SERVICE_NAME'] ?? $this->getProviderConfig()->providerName;
+            $envVars['NODE_OPTIONS'] = ($envVars['NODE_OPTIONS'] ?? '') . ' --require /opt/otel/init.js';
+            $envVars['NODE_OPTIONS'] = ltrim($envVars['NODE_OPTIONS']);
         }
 
         $envLines = '';

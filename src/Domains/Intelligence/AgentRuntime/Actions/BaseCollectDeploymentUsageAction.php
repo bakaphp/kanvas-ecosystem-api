@@ -74,7 +74,7 @@ abstract class BaseCollectDeploymentUsageAction
         );
     }
 
-    protected static function inferLlmProvider(string $model): ?string
+    public static function inferLlmProvider(string $model): ?string
     {
         if ($model === '') {
             return null;

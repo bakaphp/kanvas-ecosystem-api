@@ -11,14 +11,18 @@ return new class () extends Migration {
 
     public function up(): void
     {
-        Schema::table('agents', function (Blueprint $table) {
-            $table->boolean('is_sub_agent')->default(false)->after('is_active');
-        });
+        if (! Schema::connection('intelligence')->hasColumn('agents', 'is_sub_agent')) {
+            Schema::table('agents', function (Blueprint $table) {
+                $table->boolean('is_sub_agent')->default(false)->after('is_active');
+            });
+        }
 
-        Schema::table('nervous_system_tools', function (Blueprint $table) {
-            $table->unsignedBigInteger('agents_id')->nullable()->after('tool_category_id');
-            $table->foreign('agents_id')->references('id')->on('agents')->nullOnDelete();
-        });
+        if (! Schema::connection('intelligence')->hasColumn('nervous_system_tools', 'agents_id')) {
+            Schema::table('nervous_system_tools', function (Blueprint $table) {
+                $table->unsignedBigInteger('agents_id')->nullable();
+                $table->foreign('agents_id')->references('id')->on('agents')->nullOnDelete();
+            });
+        }
     }
 
     public function down(): void

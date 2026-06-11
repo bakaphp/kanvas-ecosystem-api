@@ -1,0 +1,40 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 10s
+  filter/genai:
+    error_mode: ignore
+    spans:
+      include:
+        match_type: regexp
+        attributes:
+          - key: gen_ai.system
+            value: ".*"
+
+exporters:
+  otlphttp/kanvas:
+    # traces_endpoint is used as-is (no suffix appended), pointing directly at
+    # our adapter route. The adapter parses OTLP traces JSON and extracts
+    # gen_ai.usage.* attributes to upsert into agent_usage_snapshots.
+    traces_endpoint: http://php:8000/v1/telemetry/otlp
+    tls:
+      insecure: true
+    headers:
+      X-Internal-Token: "${env:OTEL_INTERNAL_TOKEN}"
+  # Uncomment for debugging — prints received spans to container logs
+  # debug:
+  #   verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [filter/genai, batch]
+      exporters: [otlphttp/kanvas]
