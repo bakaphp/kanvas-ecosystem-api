@@ -33,6 +33,7 @@ class AgentReplyNotification extends Notification
             'session_id' => (string) ($this->reply->getMessage()['session_id'] ?? ''),
             'agent_name' => $this->agent->name,
             'company' => $this->reply->company->name,
+            'company_id' => (int) $this->reply->company_id,
         ]);
 
         $this->channels = ['push', 'expo'];
@@ -56,6 +57,7 @@ class AgentReplyNotification extends Notification
                 'agent_id' => (int) $this->agent->getId(),
                 'agent_name' => $this->agent->name,
                 'company' => $this->reply->company->name,
+                'company_id' => (int) $this->reply->company_id,
             ],
         ], JSON_THROW_ON_ERROR);
     }

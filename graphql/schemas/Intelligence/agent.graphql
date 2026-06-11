@@ -219,10 +219,6 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@userChat"
         )
-    aiAgentNeuronChat(input: NeuronChatInput!): String!
-        @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@neuronChat"
-        )
     setAgentIntegrationConfig(input: SetAgentIntegrationConfigInput!): AgentAi!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentIntegrationConfigMutation@set"
