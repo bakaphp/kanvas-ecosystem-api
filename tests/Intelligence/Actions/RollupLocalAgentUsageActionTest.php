@@ -55,7 +55,7 @@ class RollupLocalAgentUsageActionTest extends TestCase
     }
 
     /**
-     * @param array<string, int>|null $usage
+     * @param array<string, mixed>|null $usage
      */
     private function makeMessage(string $conversationId, string $role, ?array $usage, Carbon $at): void
     {
@@ -147,22 +147,24 @@ class RollupLocalAgentUsageActionTest extends TestCase
     }
 
     /**
-     * The rollup's job is to resolve the model used (from conversation meta) and
-     * the LLM provider, and hand them to ModelPricingCalculator. The cost math
-     * itself is covered by ModelPricingCalculatorTest — not re-asserted here
-     * because the intelligence connection's read/write split (sticky=false) means
-     * a test-inserted pricing row isn't visible to the calculator's read PDO.
+     * The rollup's job is to resolve the model used (from the message usage blob,
+     * where the Laravel/Neuron chat paths record it) and the LLM provider, and
+     * hand them to ModelPricingCalculator. The cost math itself is covered by
+     * ModelPricingCalculatorTest — not re-asserted here because the intelligence
+     * connection's read/write split (sticky=false) means a test-inserted pricing
+     * row isn't visible to the calculator's read PDO.
      */
-    public function testResolvesModelAndProviderFromConversationMeta(): void
+    public function testResolvesModelAndProviderFromMessageUsage(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 6, 9, 12));
         $app = app(Apps::class);
 
         $agent = $this->makeAgent('laravel');
-        $conv = $this->makeConversation($agent, 'gemini-3.1-pro-preview');
+        $conv = $this->makeConversation($agent);
         $this->makeMessage($conv, 'assistant', [
             'prompt_tokens' => 1200,
             'completion_tokens' => 300,
+            'model' => 'gemini-3.1-pro-preview',
         ], Carbon::create(2026, 6, 9, 10));
 
         new RollupLocalAgentUsageAction($app, Carbon::create(2026, 6, 9))->execute();

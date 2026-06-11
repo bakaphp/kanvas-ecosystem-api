@@ -113,19 +113,21 @@ class RollupLocalAgentUsageAction
     }
 
     /**
-     * Most-used model across this agent's conversations in the window, read from
-     * the conversation's runtime meta. Drives pricing; null when meta carries no
-     * model (cost falls through to 0, tokens are still recorded).
+     * Most-used model across this agent's messages in the window. The Laravel and
+     * Neuron chat paths fold the resolved model into each message's usage JSON
+     * (usage.model); drives pricing. Null when no message carries a model (cost
+     * falls through to 0, tokens are still recorded).
      */
     private function dominantModel(int $agentId, Carbon $dayStart, Carbon $dayEnd): ?string
     {
         $row = DB::connection('intelligence')
-            ->table('agent_conversations')
-            ->where('agent_id', $agentId)
-            ->where('updated_at', '>=', $dayStart)
-            ->where('updated_at', '<', $dayEnd)
-            ->whereNotNull('meta')
-            ->selectRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.model')) as model, COUNT(*) as c")
+            ->table('agent_conversation_messages as m')
+            ->join('agent_conversations as c', 'c.id', '=', 'm.conversation_id')
+            ->where('c.agent_id', $agentId)
+            ->where('m.created_at', '>=', $dayStart)
+            ->where('m.created_at', '<', $dayEnd)
+            ->whereRaw("JSON_EXTRACT(m.`usage`, '$.model') IS NOT NULL")
+            ->selectRaw("JSON_UNQUOTE(JSON_EXTRACT(m.`usage`, '$.model')) as model, COUNT(*) as c")
             ->groupBy('model')
             ->orderByDesc('c')
             ->first();
