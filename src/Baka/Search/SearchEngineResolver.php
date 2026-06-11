@@ -7,6 +7,7 @@ namespace Baka\Search;
 use Algolia\AlgoliaSearch\Api\SearchClient;
 use Algolia\ScoutExtended\Engines\AlgoliaEngine;
 use BadMethodCallException;
+use Baka\Search\Engines\KanvasAlgoliaEngine;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
@@ -68,8 +69,7 @@ class SearchEngineResolver
         $appId = $searchSettings['algolia_app_id'] ?? config('scout.algolia.id');
         $apiKey = $searchSettings['algolia_api_key'] ?? config('scout.algolia.secret');
 
-        //$client = AlgoliaClient::create($appId, $apiKey);
-        return new AlgoliaEngine(SearchClient::create($appId, $apiKey));
+        return new KanvasAlgoliaEngine(SearchClient::create($appId, $apiKey));
     }
 
     protected function createTypesenseEngine(array $searchSettings): EnginesTypesenseEngine
