@@ -1,0 +1,49 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Notifications\Support;
+
+use League\CommonMark\GithubFlavoredMarkdownConverter;
+
+/**
+ * Converts agent-generated Markdown into email-safe HTML.
+ *
+ * LLM agents reply in Markdown (`**bold**`, `- bullets`, `[links](url)`, headings).
+ * The mail layout renders its body with `{!! $html !!}` (raw), so without this the
+ * recipient sees literal markdown syntax. `soft_break => <br>` preserves the single
+ * newlines agents use for signatures / address blocks, which CommonMark would
+ * otherwise collapse into a single line.
+ */
+final class MarkdownEmailRenderer
+{
+    public static function toEmailHtml(string $markdown): string
+    {
+        $trimmed = trim($markdown);
+
+        if ($trimmed === '') {
+            return $trimmed;
+        }
+
+        // Idempotency guard: if the content already looks like HTML (an agent that
+        // emitted HTML, or a value that was already converted), don't double-process.
+        if (self::looksLikeHtml($trimmed)) {
+            return $markdown;
+        }
+
+        $converter = new GithubFlavoredMarkdownConverter([
+            'html_input' => 'allow',
+            'allow_unsafe_links' => false,
+            'renderer' => [
+                'soft_break' => "<br>\n",
+            ],
+        ]);
+
+        return (string) $converter->convert($markdown);
+    }
+
+    private static function looksLikeHtml(string $value): bool
+    {
+        return (bool) preg_match('/<(p|br|div|ul|ol|li|strong|em|a|h[1-6]|table)\b[^>]*>/i', $value);
+    }
+}
