@@ -117,6 +117,38 @@ class RollupLocalAgentUsageActionTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function testHandlesInputOutputTokenKeyVariant(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 6, 9, 12));
+        $app = app(Apps::class);
+
+        $agent = $this->makeAgent('neuron');
+        $conv = $this->makeConversation($agent);
+
+        // Some runtimes/versions emit input_tokens/output_tokens instead of
+        // prompt_tokens/completion_tokens — both must sum.
+        $this->makeMessage($conv, 'assistant', [
+            'input_tokens' => 5935,
+            'output_tokens' => 152,
+            'cache_read' => 100,
+            'model' => 'gemini-3.5-flash',
+        ], Carbon::create(2026, 6, 9, 10));
+
+        new RollupLocalAgentUsageAction($app, Carbon::create(2026, 6, 9))->execute();
+
+        $snapshot = AgentUsageSnapshot::query()
+            ->where('agent_id', $agent->getId())
+            ->where('snapshot_date', '2026-06-09')
+            ->firstOrFail();
+
+        $this->assertSame(5935, $snapshot->input_tokens);
+        $this->assertSame(152, $snapshot->output_tokens);
+        $this->assertSame(100, $snapshot->cache_read_tokens);
+        $this->assertSame('gemini-3.5-flash', $snapshot->model);
+
+        Carbon::setTestNow();
+    }
+
     public function testIgnoresContainerRuntimeAgents(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 6, 9, 12));
