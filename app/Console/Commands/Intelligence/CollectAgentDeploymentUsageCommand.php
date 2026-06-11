@@ -14,16 +14,10 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Throwable;
 
 /**
- * Provider-routed usage collection for every running container-runtime deployment.
- *
- * Replaces the OpenClaw-only kanvas:openclaw-collect-deployment-usage, which
- * hardcoded the OpenClaw action and silently never collected Hermes. Routing
- * through AgentRuntimeProviderFactory::forDeployment dispatches each deployment
- * to its own runtime's collectUsage() (OpenClaw status --usage, Hermes sessions
- * DB), so all container runtimes land in agent_usage_snapshots.
- *
- * In-process backends (Neuron, Laravel) have no deployment row and are handled
- * by RollupLocalAgentUsageCommand instead.
+ * Provider-routed usage collection for every running container-runtime deployment:
+ * AgentRuntimeProviderFactory dispatches each to its own collectUsage() (OpenClaw
+ * status --usage, Hermes sessions DB), so OpenClaw AND Hermes land in
+ * agent_usage_snapshots. In-process backends use RollupLocalAgentUsageCommand.
  */
 class CollectAgentDeploymentUsageCommand extends Command
 {

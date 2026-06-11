@@ -104,6 +104,12 @@ class RunNeuronChatAction
         $content = $responseMessage->getContent() ?? '';
         $response = ChatHelper::extractTextFromResponse($content);
 
+        // Record the model the agent resolved to so the daily rollup can price the
+        // turn — Neuron doesn't surface the model on the response itself.
+        if (is_object($this->handler) && method_exists($this->handler, 'resolvedModelName')) {
+            $usage['model'] = $this->handler->resolvedModelName();
+        }
+
         new KanvasConversationStore()->logTurn(
             userId: $this->user->getId(),
             sessionId: $sessionId,

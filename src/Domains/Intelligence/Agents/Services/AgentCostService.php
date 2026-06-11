@@ -17,12 +17,8 @@ class AgentCostService
     private const int CACHE_TTL_SECONDS = 6 * 60 * 60;
 
     /**
-     * Tokens + cost an agent burned in a calendar month. Aggregates every
-     * usage snapshot tied to any of the agent's deployments (an agent can be
-     * relaunched, spawning new deployment rows — all of them count).
-     *
-     * "This month" = the calendar month containing $when (defaults to today),
-     * server-time UTC, from the 1st up to and including today.
+     * Tokens + cost an agent burned in the calendar month containing $when
+     * (defaults to today), server-time UTC, from the 1st up to and including today.
      *
      * @return array{period_start: string, tokens: int, cost_usd: float}
      */

@@ -12,15 +12,11 @@ use Kanvas\Intelligence\Agents\Models\AgentUsageSnapshot;
 use Kanvas\Intelligence\Agents\Services\ModelPricingCalculator;
 
 /**
- * Daily usage rollup for in-process backends (Neuron, Laravel) that have no
- * deployment row. Their per-turn token usage is written into
- * agent_conversation_messages.usage; this sums a day's worth per agent and
- * writes one agent_usage_snapshot (agent_deployment_id = null), so the unified
- * agent_id-keyed read in AgentCostService sees them alongside container runtimes.
+ * Daily rollup of Neuron/Laravel token usage (recorded per-turn in
+ * agent_conversation_messages) into agent_usage_snapshots, so the agent_id-keyed
+ * AgentCostService sees in-process backends alongside container runtimes.
  *
- * Only neuron/laravel are rolled up here. Hermes/OpenClaw are container runtimes
- * collected via collectUsage() into snapshots already, and ADK is remote — folding
- * any of them in would double-count.
+ * ADK is excluded — it's metered remotely, so rolling it up here would double-count.
  */
 class RollupLocalAgentUsageAction
 {
@@ -113,19 +109,20 @@ class RollupLocalAgentUsageAction
     }
 
     /**
-     * Most-used model across this agent's conversations in the window, read from
-     * the conversation's runtime meta. Drives pricing; null when meta carries no
-     * model (cost falls through to 0, tokens are still recorded).
+     * Most-used model across the agent's messages in the window. The Laravel/Neuron
+     * chat paths record it in each message's usage JSON (usage.model). Null → cost 0,
+     * tokens still recorded.
      */
     private function dominantModel(int $agentId, Carbon $dayStart, Carbon $dayEnd): ?string
     {
         $row = DB::connection('intelligence')
-            ->table('agent_conversations')
-            ->where('agent_id', $agentId)
-            ->where('updated_at', '>=', $dayStart)
-            ->where('updated_at', '<', $dayEnd)
-            ->whereNotNull('meta')
-            ->selectRaw("JSON_UNQUOTE(JSON_EXTRACT(meta, '$.model')) as model, COUNT(*) as c")
+            ->table('agent_conversation_messages as m')
+            ->join('agent_conversations as c', 'c.id', '=', 'm.conversation_id')
+            ->where('c.agent_id', $agentId)
+            ->where('m.created_at', '>=', $dayStart)
+            ->where('m.created_at', '<', $dayEnd)
+            ->whereRaw("JSON_EXTRACT(m.`usage`, '$.model') IS NOT NULL")
+            ->selectRaw("JSON_UNQUOTE(JSON_EXTRACT(m.`usage`, '$.model')) as model, COUNT(*) as c")
             ->groupBy('model')
             ->orderByDesc('c')
             ->first();
