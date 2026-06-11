@@ -53,10 +53,7 @@ class AgentReachOutOnChannelAction
         $responseContent = new AgentChatKernel(
             agent: $this->agent,
             session: $session,
-            message: sprintf(
-                'Send the first reach-out %s message to this lead now. Use get_lead_ref to load context.',
-                $this->channelType,
-            ),
+            message: $this->buildTriggerMessage(),
             user: $aiAgentUser,
             currentLead: $this->lead,
             sourceChannel: $channel,
@@ -66,17 +63,18 @@ class AgentReachOutOnChannelAction
 
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
 
-        /**
-         * @todo this is not the best way to do structure format for our outreach
-         * we need to move to structure output maybe have a specific agent
-         */
-        // Email agents emit `Subject: ...\n\n<body>`. Pull the subject out so it becomes the
-        // mail title instead of leaking into the body under a generic fallback subject.
+        // Email needs a real subject as the mail title. Prefer a structured `subject`
+        // field from the agent's JSON envelope (what buildTriggerMessage asks for); fall
+        // back to a legacy in-body `Subject: ...` line for agents that don't emit it.
         $emailSubject = null;
         if ($this->channelType === ChannelCategoryEnum::EMAIL->value) {
-            $parsed = ChatHelper::extractEmailSubjectAndBody($responseText);
-            $emailSubject = $parsed['subject'];
-            $responseText = $parsed['body'];
+            $emailSubject = ChatHelper::extractSubjectFromResponse($responseContent);
+
+            if ($emailSubject === null) {
+                $parsed = ChatHelper::extractEmailSubjectAndBody($responseText);
+                $emailSubject = $parsed['subject'];
+                $responseText = $parsed['body'];
+            }
         }
 
         $messageTypeVerb = $this->resolveMessageTypeVerb();
@@ -140,6 +138,28 @@ class AgentReachOutOnChannelAction
         );
 
         return $outbound;
+    }
+
+    /**
+     * The user-turn that triggers the first reach-out. For email we additionally ask
+     * the agent to return a JSON envelope carrying a `subject` so it becomes the mail
+     * title instead of being buried in the body. ChatHelper parses the envelope on the
+     * way out (and falls back gracefully if the agent ignores the request).
+     */
+    private function buildTriggerMessage(): string
+    {
+        $message = sprintf(
+            'Send the first reach-out %s message to this lead now. Use get_lead_ref to load context.',
+            $this->channelType,
+        );
+
+        if ($this->channelType === ChannelCategoryEnum::EMAIL->value) {
+            $message .= ' Reply with a JSON object of the form'
+                . ' {"subject": "<concise email subject>", "response": "<the email body>"}'
+                . ' and nothing else. Do not put the subject line inside the body.';
+        }
+
+        return $message;
     }
 
     /** Match the verb the inbound responder uses so history loaders find both. */
