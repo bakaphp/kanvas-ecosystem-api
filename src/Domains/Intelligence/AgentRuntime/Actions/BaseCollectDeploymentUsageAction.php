@@ -6,10 +6,12 @@ namespace Kanvas\Intelligence\AgentRuntime\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Kanvas\Intelligence\Agents\Models\AgentUsageSnapshot;
+use Kanvas\Intelligence\Agents\Services\ModelPricingCalculator;
 
 // Subclasses' parseUsageOutput() must return the normalized shape:
 //   totals: array{input_tokens,output_tokens,cache_read,cache_write,total_tokens},
@@ -51,6 +53,30 @@ abstract class BaseCollectDeploymentUsageAction
         /** @var array<string, mixed> $totals */
         $totals = $parsed['totals'] ?? [];
 
+        $inputTokens = (int) ($totals['input_tokens'] ?? 0);
+        $outputTokens = (int) ($totals['output_tokens'] ?? 0);
+        $cacheReadTokens = (int) ($totals['cache_read'] ?? 0);
+        $cacheWriteTokens = (int) ($totals['cache_write'] ?? 0);
+        $providerSlug = isset($parsed['provider']) ? (string) $parsed['provider'] : null;
+        $model = isset($parsed['model']) ? (string) $parsed['model'] : null;
+
+        // Use the runtime's own cost when it actually reports one. Hermes carries
+        // estimated/actual_cost_usd but is often left unconfigured (both 0 on the
+        // live box), so fall back to model_pricing whenever the reported cost is
+        // 0 or missing — otherwise real token usage records as $0.
+        $reportedCost = (float) ($parsed['cost_usd'] ?? 0);
+        $costUsd = $reportedCost > 0.0
+            ? $reportedCost
+            : app(ModelPricingCalculator::class)->costFor(
+                $providerSlug,
+                $model,
+                $inputTokens,
+                $outputTokens,
+                $cacheReadTokens,
+                $cacheWriteTokens,
+                Carbon::parse($snapshotDate),
+            );
+
         return AgentUsageSnapshot::updateOrCreate(
             [
                 'apps_id' => $this->app->getId(),
@@ -60,13 +86,15 @@ abstract class BaseCollectDeploymentUsageAction
                 'source' => $providerName . '_docker',
             ],
             [
-                'input_tokens' => (int) ($totals['input_tokens'] ?? 0),
-                'output_tokens' => (int) ($totals['output_tokens'] ?? 0),
+                'agent_id' => $this->deployment->agent_id,
+                'input_tokens' => $inputTokens,
+                'output_tokens' => $outputTokens,
                 'total_tokens' => (int) ($totals['total_tokens'] ?? 0),
-                'cache_read_tokens' => (int) ($totals['cache_read'] ?? 0),
-                'cache_write_tokens' => (int) ($totals['cache_write'] ?? 0),
-                'provider' => $parsed['provider'] ?? null,
-                'model' => $parsed['model'] ?? null,
+                'cache_read_tokens' => $cacheReadTokens,
+                'cache_write_tokens' => $cacheWriteTokens,
+                'cost_usd' => $costUsd,
+                'provider' => $providerSlug,
+                'model' => $model,
                 'total_sessions' => (int) ($parsed['total_sessions'] ?? 0),
                 'raw_output' => $rawOutput,
                 'parsed_data' => $parsed,

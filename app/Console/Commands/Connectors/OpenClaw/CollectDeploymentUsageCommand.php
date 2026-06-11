@@ -38,8 +38,12 @@ class CollectDeploymentUsageCommand extends Command
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
 
+        // Superseded by kanvas-intelligence:collect-deployment-usage (provider-routed,
+        // covers Hermes too). Kept for manual OpenClaw-only runs — scoped to the
+        // openclaw provider so it never runs the OpenClaw collector against a Hermes box.
         $deployments = AgentDeployment::where('apps_id', $app->getId())
             ->where('status', 'running')
+            ->where('provider', 'openclaw')
             ->where('is_deleted', 0)
             ->get();
 
