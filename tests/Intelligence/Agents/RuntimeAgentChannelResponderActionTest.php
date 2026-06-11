@@ -21,6 +21,7 @@ use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 use Override;
 use Tests\TestCase;
 
@@ -170,10 +171,9 @@ class RuntimeAgentChannelResponderActionTest extends TestCase
         $action->fakeProvider = new FakeChannelRuntimeProvider('the agent reply');
         $action->execute();
 
-        // The action notifies via the Message->user relation, which hydrates a
-        // UserFullTableName (a Users subclass). assertSentTo keys by concrete class,
-        // so assert against that same relation instance — not auth()->user().
-        $recipient = $message->user;
+        // The action resolves the recipient via Users::getById(), so assert against the
+        // same canonical Users instance — assertSentTo keys notifications by concrete class.
+        $recipient = Users::getById($user->getId());
 
         Notification::assertSentTo(
             $recipient,
