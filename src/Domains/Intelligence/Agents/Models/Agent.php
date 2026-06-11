@@ -51,6 +51,7 @@ use Override;
  * @property array|null $role
  * @property string|null $soul
  * @property string|null $instructions
+ * @property string|null $tool_usage
  * @property string|null $output_format
  * @property array|null $identity
  * @property string|null $user_context
@@ -93,6 +94,7 @@ class Agent extends BaseModel
         'role',
         'soul',
         'instructions',
+        'tool_usage',
         'output_format',
         'identity',
         'user_context',

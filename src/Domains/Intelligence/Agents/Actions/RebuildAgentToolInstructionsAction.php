@@ -61,6 +61,7 @@ class RebuildAgentToolInstructionsAction
 
         if (empty($lines)) {
             $this->agent->instructions = $base !== '' ? $base : null;
+            $this->agent->tool_usage = null;
             $this->agent->save();
 
             return;
@@ -68,6 +69,7 @@ class RebuildAgentToolInstructionsAction
 
         $toolSection = $sectionHeader . "\n" . implode("\n", $lines);
         $this->agent->instructions = $base !== '' ? $base . "\n\n" . $toolSection : $toolSection;
+        $this->agent->tool_usage = implode("\n", $lines);
         $this->agent->save();
     }
 }
