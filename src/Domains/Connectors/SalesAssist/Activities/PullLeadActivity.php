@@ -115,7 +115,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
 
                 new CreateSocialChannelsAfterPullAction(
                     $resolvedLead,
-                    app(Apps::class),
+                    $app,
                     $params,
                     $agent->getId(),
                 )->execute();

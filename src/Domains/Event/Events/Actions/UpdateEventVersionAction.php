@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Actions;
 
 use Baka\Support\Str;
+use Kanvas\Event\Events\DataTransferObject\EventDate;
 use Kanvas\Event\Events\Models\EventVersion as ModelsEventVersion;
+use Spatie\LaravelData\DataCollection;
 
 class UpdateEventVersionAction
 {
@@ -55,8 +57,11 @@ class UpdateEventVersionAction
             // Delete existing dates
             $this->existingEventVersion->dates()->delete();
 
-            // Add new dates
-            $this->existingEventVersion->addDates(collect($this->updateData['dates']));
+            // addDates() requires a DataCollection<EventDate>, not a plain Collection —
+            // build it the same way Event::fromMultiple does, or it throws a TypeError.
+            $this->existingEventVersion->addDates(
+                EventDate::collect($this->updateData['dates'], DataCollection::class),
+            );
         }
 
         return $this->existingEventVersion->fresh();
