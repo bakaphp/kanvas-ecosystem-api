@@ -15,13 +15,9 @@ use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Throwable;
 
 /**
- * Daily usage rollup for in-process backends (Neuron, Laravel). These have no
- * deployment row, so the container-runtime collector never sees them — their
- * tokens live in agent_conversation_messages.usage. This sums a day per agent
- * into agent_usage_snapshots so AgentCostService (keyed on agent_id) reports them.
- *
- * Defaults to yesterday so a full day's conversations are settled. Pass --date to
- * backfill a specific day, or {app_id} to scope to one app.
+ * Rolls up a day of Neuron/Laravel token usage into agent_usage_snapshots
+ * (see RollupLocalAgentUsageAction). Defaults to yesterday so the day's
+ * conversations are settled; pass {app_id} to scope to one app.
  */
 class RollupLocalAgentUsageCommand extends Command
 {

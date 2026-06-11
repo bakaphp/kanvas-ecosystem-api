@@ -12,15 +12,11 @@ use Kanvas\Intelligence\Agents\Models\AgentUsageSnapshot;
 use Kanvas\Intelligence\Agents\Services\ModelPricingCalculator;
 
 /**
- * Daily usage rollup for in-process backends (Neuron, Laravel) that have no
- * deployment row. Their per-turn token usage is written into
- * agent_conversation_messages.usage; this sums a day's worth per agent and
- * writes one agent_usage_snapshot (agent_deployment_id = null), so the unified
- * agent_id-keyed read in AgentCostService sees them alongside container runtimes.
+ * Daily rollup of Neuron/Laravel token usage (recorded per-turn in
+ * agent_conversation_messages) into agent_usage_snapshots, so the agent_id-keyed
+ * AgentCostService sees in-process backends alongside container runtimes.
  *
- * Only neuron/laravel are rolled up here. Hermes/OpenClaw are container runtimes
- * collected via collectUsage() into snapshots already, and ADK is remote — folding
- * any of them in would double-count.
+ * ADK is excluded — it's metered remotely, so rolling it up here would double-count.
  */
 class RollupLocalAgentUsageAction
 {
@@ -113,10 +109,9 @@ class RollupLocalAgentUsageAction
     }
 
     /**
-     * Most-used model across this agent's messages in the window. The Laravel and
-     * Neuron chat paths fold the resolved model into each message's usage JSON
-     * (usage.model); drives pricing. Null when no message carries a model (cost
-     * falls through to 0, tokens are still recorded).
+     * Most-used model across the agent's messages in the window. The Laravel/Neuron
+     * chat paths record it in each message's usage JSON (usage.model). Null → cost 0,
+     * tokens still recorded.
      */
     private function dominantModel(int $agentId, Carbon $dayStart, Carbon $dayEnd): ?string
     {
