@@ -10,6 +10,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
+use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
 use Override;
@@ -104,6 +105,8 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
     protected function sendEmail(array $request, array $data, Message $message): void
     {
         $data['signature'] = true;
+        // Agent replies are Markdown; the mail layout renders raw HTML, so convert here.
+        $data['content'] = MarkdownEmailRenderer::toEmailHtml((string) ($data['content'] ?? ''));
         $notification = new Blank(
             $request['template_name'],
             $data,
