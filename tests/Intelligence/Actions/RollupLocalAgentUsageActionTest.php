@@ -149,6 +149,33 @@ class RollupLocalAgentUsageActionTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function testCostUsdSurvivesMassAssignment(): void
+    {
+        // Regression: cost_usd was missing from $fillable, so updateOrCreate
+        // silently dropped it and every snapshot persisted cost as 0.
+        $agent = $this->makeAgent('laravel');
+
+        $snapshot = AgentUsageSnapshot::updateOrCreate(
+            [
+                'apps_id' => $agent->apps_id,
+                'companies_id' => $agent->companies_id,
+                'agent_id' => $agent->getId(),
+                'agent_deployment_id' => null,
+                'snapshot_date' => '2026-06-01',
+                'source' => 'laravel',
+            ],
+            [
+                'cost_usd' => 1.234567,
+                'input_tokens' => 10,
+                'output_tokens' => 5,
+                'total_tokens' => 15,
+                'raw_output' => '',
+            ]
+        );
+
+        $this->assertEqualsWithDelta(1.234567, (float) $snapshot->fresh()->cost_usd, 0.0000001);
+    }
+
     public function testIgnoresContainerRuntimeAgents(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 6, 9, 12));

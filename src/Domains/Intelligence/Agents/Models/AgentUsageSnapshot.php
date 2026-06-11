@@ -26,6 +26,7 @@ use Kanvas\Intelligence\Models\BaseModel;
  * @property int $total_tokens
  * @property int $cache_read_tokens
  * @property int $cache_write_tokens
+ * @property string $cost_usd
  * @property string|null $provider
  * @property string|null $model
  * @property int $total_sessions
@@ -52,6 +53,7 @@ class AgentUsageSnapshot extends BaseModel
         'total_tokens',
         'cache_read_tokens',
         'cache_write_tokens',
+        'cost_usd',
         'provider',
         'model',
         'total_sessions',
