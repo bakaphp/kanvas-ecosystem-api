@@ -170,13 +170,18 @@ class RuntimeAgentChannelResponderActionTest extends TestCase
         $action->fakeProvider = new FakeChannelRuntimeProvider('the agent reply');
         $action->execute();
 
+        // The action notifies via the Message->user relation, which hydrates a
+        // UserFullTableName (a Users subclass). assertSentTo keys by concrete class,
+        // so assert against that same relation instance — not auth()->user().
+        $recipient = $message->user;
+
         Notification::assertSentTo(
-            $user,
+            $recipient,
             AgentReplyNotification::class,
-            function (AgentReplyNotification $notification) use ($user): bool {
+            function (AgentReplyNotification $notification) use ($recipient): bool {
                 return in_array('push', $notification->channels, true)
                     && in_array('expo', $notification->channels, true)
-                    && $notification->toOneSignal($user)['message'] === 'the agent reply';
+                    && $notification->toOneSignal($recipient)['message'] === 'the agent reply';
             }
         );
     }

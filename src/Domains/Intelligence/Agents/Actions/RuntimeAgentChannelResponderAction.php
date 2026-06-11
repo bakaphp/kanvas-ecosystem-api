@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions;
 
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
@@ -18,6 +19,7 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class RuntimeAgentChannelResponderAction
@@ -75,7 +77,19 @@ class RuntimeAgentChannelResponderAction
      */
     private function notifyRecipientOfReply(Message $replyMessage): void
     {
-        $this->message->user->notify(
+        $authorId = $this->message->users_id;
+
+        if ($authorId <= 0) {
+            return;
+        }
+
+        try {
+            $recipient = Users::getById($authorId);
+        } catch (ModelNotFoundException) {
+            return;
+        }
+
+        $recipient->notify(
             new AgentReplyNotification(
                 $replyMessage,
                 $this->agent,
