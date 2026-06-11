@@ -42,8 +42,7 @@ class StripeProcessorTest extends TestCase
         parent::setUp();
 
         $this->kanvasApp = app(Apps::class);
-        $this->kanvasUser = $this->createUser();
-        $this->actingAs($this->kanvasUser, 'api');
+        $this->kanvasUser = static::$cachedUser;
         $this->company = $this->kanvasUser->getCurrentCompany();
     }
 
