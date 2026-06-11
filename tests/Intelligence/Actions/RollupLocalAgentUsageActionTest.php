@@ -36,13 +36,13 @@ class RollupLocalAgentUsageActionTest extends TestCase
             ->create(['agent_type_id' => $type->getId()]);
     }
 
-    private function makeConversation(Agent $agent, ?string $model = null): string
+    private function makeConversation(Agent $agent, ?string $model = null, ?int $companiesId = null): string
     {
         $id = 'conv_' . Str::random(20);
         DB::connection('intelligence')->table('agent_conversations')->insert([
             'id' => $id,
             'apps_id' => $agent->apps_id,
-            'companies_id' => $agent->companies_id,
+            'companies_id' => $companiesId ?? $agent->companies_id,
             'agent_id' => $agent->getId(),
             'user_id' => $agent->users_id,
             'title' => 'test',
@@ -145,6 +145,34 @@ class RollupLocalAgentUsageActionTest extends TestCase
         $this->assertSame(152, $snapshot->output_tokens);
         $this->assertSame(100, $snapshot->cache_read_tokens);
         $this->assertSame('gemini-3.5-flash', $snapshot->model);
+
+        Carbon::setTestNow();
+    }
+
+    public function testAttributesSnapshotToAgentCompanyNotConversation(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 6, 9, 12));
+        $app = app(Apps::class);
+
+        $agent = $this->makeAgent('laravel');
+        // Conversation logged under a different company than the agent owns.
+        $conv = $this->makeConversation($agent, null, $agent->companies_id + 7777);
+        $this->makeMessage($conv, 'assistant', [
+            'prompt_tokens' => 100,
+            'completion_tokens' => 50,
+        ], Carbon::create(2026, 6, 9, 10));
+
+        new RollupLocalAgentUsageAction($app, Carbon::create(2026, 6, 9))->execute();
+
+        $snapshot = AgentUsageSnapshot::query()
+            ->where('agent_id', $agent->getId())
+            ->where('snapshot_date', '2026-06-09')
+            ->firstOrFail();
+
+        // Snapshot must carry the agent's company, so AgentCostService (which
+        // filters by the agent's company) finds it.
+        $this->assertSame((int) $agent->companies_id, (int) $snapshot->companies_id);
+        $this->assertSame((int) $agent->apps_id, (int) $snapshot->apps_id);
 
         Carbon::setTestNow();
     }
