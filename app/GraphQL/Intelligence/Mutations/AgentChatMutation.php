@@ -17,16 +17,12 @@ use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\Factories\NeuronAgentFactory;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateUserSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Chat\Messages\UserMessage;
 
 class AgentChatMutation
 {
@@ -105,35 +101,6 @@ class AgentChatMutation
             company: $company,
             canalId: (string) $input['canal_id'],
         )->uuid;
-    }
-
-    public function neuronChat(mixed $root, array $req): string
-    {
-        // $app = app(Apps::class);
-        // $user = auth()->user();
-        // $input = $req['input'] ?? [];
-
-        // $entity = SystemModulesRepository::getEntityFromInput(
-        //     new SystemModuleEntityInput(
-        //         name: (string) $input['name'],
-        //         systemModuleUuid: (string) $input['system_modules_uuid'],
-        //         entityId: (string) $input['entity_id'],
-        //     ),
-        //     $user,
-        // );
-
-        // $neuronAgent = NeuronAgentFactory::fromName(
-        //     name: (string) $input['name'],
-        //     app: $app,
-        //     entity: $entity,
-        //     user: $user,
-        // );
-        // $neuronAgent->setThreadId((string) $input['entity_id']);
-
-        // $response = $neuronAgent->chat(new UserMessage((string) $input['message']))->getMessage();
-
-        // return (string) $response->getContent();
-        return '';
     }
 
     public function userChat(mixed $root, array $req): array
