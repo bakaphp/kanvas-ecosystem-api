@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ArtifactsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CalendarEventTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CancelCalendarEventTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CommunicationChannelTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyInformationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyIsHolidayTool;
@@ -21,6 +22,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateLeadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\HandOffTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadIntentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\RescheduleCalendarEventTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SimilarVehiclesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UserAvailabilityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\VehicleInterestTool;
@@ -140,6 +142,8 @@ class SalesAgent extends BaseKanvasAgent
             new CompanyIsHolidayTool(),
             new CompletionStatusTool(),
             new CalendarEventTool(),
+            new RescheduleCalendarEventTool(),
+            new CancelCalendarEventTool(),
             new UserAvailabilityTool(),
             new HandOffTool(),
             new LeadIntentTool(),
