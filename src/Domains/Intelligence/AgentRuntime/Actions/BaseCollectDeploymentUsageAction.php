@@ -104,22 +104,7 @@ abstract class BaseCollectDeploymentUsageAction
 
     protected static function inferLlmProvider(string $model): ?string
     {
-        if ($model === '') {
-            return null;
-        }
-
-        if (str_contains($model, '/')) {
-            return explode('/', $model)[0];
-        }
-
-        return match (true) {
-            str_starts_with($model, 'gemini') => 'google',
-            str_starts_with($model, 'claude') => 'anthropic',
-            str_starts_with($model, 'gpt'), str_starts_with($model, 'o1'), str_starts_with($model, 'o3') => 'openai',
-            str_starts_with($model, 'llama') => 'meta',
-            str_starts_with($model, 'mistral') => 'mistral',
-            default => null,
-        };
+        return ModelPricingCalculator::inferProvider($model);
     }
 
     // Node.js prints deprecation warnings on stderr which get merged into our captured stdout

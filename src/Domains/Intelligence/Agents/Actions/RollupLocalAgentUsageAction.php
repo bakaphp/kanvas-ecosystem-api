@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Actions;
 use Baka\Contracts\AppInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\AgentUsageSnapshot;
 use Kanvas\Intelligence\Agents\Services\ModelPricingCalculator;
 
@@ -23,8 +24,6 @@ use Kanvas\Intelligence\Agents\Services\ModelPricingCalculator;
  */
 class RollupLocalAgentUsageAction
 {
-    private const array LOCAL_PROVIDERS = ['neuron', 'laravel'];
-
     public function __construct(
         private readonly AppInterface $app,
         private readonly ?Carbon $date = null,
@@ -46,7 +45,7 @@ class RollupLocalAgentUsageAction
             ->join('agents as a', 'a.id', '=', 'c.agent_id')
             ->join('agent_types as t', 't.id', '=', 'a.agent_type_id')
             ->where('c.apps_id', $this->app->getId())
-            ->whereIn('t.provider', self::LOCAL_PROVIDERS)
+            ->whereIn('t.provider', AgentProviderEnum::localUsageProviderValues())
             ->whereNotNull('c.agent_id')
             ->where('m.created_at', '>=', $dayStart)
             ->where('m.created_at', '<', $dayEnd)
@@ -70,7 +69,7 @@ class RollupLocalAgentUsageAction
             $cacheWrite = (int) $row->cache_write;
 
             $model = $this->dominantModel((int) $row->agent_id, $dayStart, $dayEnd);
-            $llmProvider = $model !== null ? $this->inferLlmProvider($model) : null;
+            $llmProvider = $model !== null ? ModelPricingCalculator::inferProvider($model) : null;
 
             $costUsd = $calculator->costFor(
                 $llmProvider,
@@ -134,21 +133,5 @@ class RollupLocalAgentUsageAction
         $model = $row?->model;
 
         return is_string($model) && $model !== '' && $model !== 'null' ? $model : null;
-    }
-
-    private function inferLlmProvider(string $model): ?string
-    {
-        if (str_contains($model, '/')) {
-            return explode('/', $model)[0];
-        }
-
-        return match (true) {
-            str_starts_with($model, 'gemini') => 'google',
-            str_starts_with($model, 'claude') => 'anthropic',
-            str_starts_with($model, 'gpt'), str_starts_with($model, 'o1'), str_starts_with($model, 'o3') => 'openai',
-            str_starts_with($model, 'llama') => 'meta',
-            str_starts_with($model, 'mistral') => 'mistral',
-            default => null,
-        };
     }
 }

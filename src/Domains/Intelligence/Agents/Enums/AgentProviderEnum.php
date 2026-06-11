@@ -42,6 +42,19 @@ enum AgentProviderEnum: string
         ];
     }
 
+    /**
+     * Providers whose per-turn token usage is recorded locally in
+     * agent_conversation_messages and rolled up by RollupLocalAgentUsageAction.
+     * ADK is in-process but metered remotely (Google ADK), so it's excluded here
+     * to avoid double-counting.
+     *
+     * @return list<string>
+     */
+    public static function localUsageProviderValues(): array
+    {
+        return [self::NEURON->value, self::LARAVEL->value];
+    }
+
     public function isRuntimeProvider(): bool
     {
         return in_array($this, self::runtimeProviders(), true);

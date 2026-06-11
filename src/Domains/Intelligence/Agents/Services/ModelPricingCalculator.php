@@ -59,4 +59,29 @@ class ModelPricingCalculator
             + (float) $cacheReadTokens / 1_000_000.0 * (float) ($pricing->cache_read_per_million ?? 0)
             + (float) $cacheWriteTokens / 1_000_000.0 * (float) ($pricing->cache_write_per_million ?? 0);
     }
+
+    /**
+     * Best-effort LLM provider (anthropic/google/openai/...) from a model name —
+     * the canonical home, shared by the deployment collectors and the local rollup.
+     * Used for the snapshot's provider column and as the model_pricing lookup hint.
+     */
+    public static function inferProvider(string $model): ?string
+    {
+        if ($model === '') {
+            return null;
+        }
+
+        if (str_contains($model, '/')) {
+            return explode('/', $model)[0];
+        }
+
+        return match (true) {
+            str_starts_with($model, 'gemini') => 'google',
+            str_starts_with($model, 'claude') => 'anthropic',
+            str_starts_with($model, 'gpt'), str_starts_with($model, 'o1'), str_starts_with($model, 'o3') => 'openai',
+            str_starts_with($model, 'llama') => 'meta',
+            str_starts_with($model, 'mistral') => 'mistral',
+            default => null,
+        };
+    }
 }

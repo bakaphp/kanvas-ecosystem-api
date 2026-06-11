@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\RollupLocalAgentUsageAction;
+use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Throwable;
 
 /**
@@ -79,7 +80,7 @@ class RollupLocalAgentUsageCommand extends Command
         return DB::connection('intelligence')
             ->table('agents as a')
             ->join('agent_types as t', 't.id', '=', 'a.agent_type_id')
-            ->whereIn('t.provider', ['neuron', 'laravel'])
+            ->whereIn('t.provider', AgentProviderEnum::localUsageProviderValues())
             ->where('a.is_deleted', 0)
             ->distinct()
             ->pluck('a.apps_id')
