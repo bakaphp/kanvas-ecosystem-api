@@ -6,6 +6,7 @@ namespace Tests\GraphQL\Souk;
 
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
@@ -275,6 +276,114 @@ class ImportOrderItemsCsvTest extends TestCase
         $this->assertStringContainsString($variantResponse['name'], $message);
     }
 
+
+    public function testImportOrderItemsWithStockValidationDisabled(): void
+    {
+        $freshUser = $this->createUser();
+        $this->actingAs($freshUser, 'api');
+
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::DISABLE_ORDER_ITEM_STOCK_VALIDATION->value, 1);
+
+        try {
+            $regionResponse = $this->createRegion()->json()['data']['createRegion'];
+            $warehouseResponse = $this->createWarehouses($regionResponse['id'])->json()['data']['createWarehouse'];
+            $productResponse = $this->createProduct()->json()['data']['createProduct'];
+
+            $warehouseData = [
+                'id' => $warehouseResponse['id'],
+            ];
+
+            $variantResponse = $this->createVariant(
+                productId: $productResponse['id'],
+                warehouseData: $warehouseData
+            )->json()['data']['createVariant'];
+
+            $variantResponse2 = $this->createVariant(
+                productId: $productResponse['id'],
+                warehouseData: $warehouseData
+            )->json()['data']['createVariant'];
+
+            $channelResponse = $this->createChannel()->json()['data']['createChannel'];
+
+            $this->addVariantToChannel(
+                variantId: $variantResponse['id'],
+                channelId: $channelResponse['id'],
+                warehouseData: $warehouseData
+            );
+
+            $this->addVariantToChannel(
+                variantId: $variantResponse2['id'],
+                channelId: $channelResponse['id'],
+                warehouseData: $warehouseData
+            );
+
+            $this->addVariantToWarehouse(
+                variantId: $variantResponse['id'],
+                warehouseId: $warehouseResponse['id'],
+                amount: 2
+            );
+
+            $this->addVariantToWarehouse(
+                variantId: $variantResponse2['id'],
+                warehouseId: $warehouseResponse['id'],
+                amount: 2
+            );
+
+            $operations = [
+                'query' => self::IMPORT_ORDER_CSV_MUTATION,
+                'variables' => [
+                    'file' => null,
+                    'channel_id' => $channelResponse['id'],
+                ],
+            ];
+
+            $map = [
+                '0' => ['variables.file'],
+            ];
+
+            $csv = $this->getValidProductsCsvContent([
+                [
+                    'id' => $variantResponse['id'],
+                    'name' => $variantResponse['name'],
+                    'ean' => $variantResponse['ean'],
+                ],
+                [
+                    'id' => $variantResponse2['id'],
+                    'name' => $variantResponse2['name'],
+                    'ean' => $variantResponse2['ean'],
+                ],
+            ], 5);
+
+            $file = [
+                '0' => UploadedFile::fake()->createWithContent('products.csv', $csv),
+            ];
+
+            $response = $this->multipartGraphQL($operations, $map, $file);
+            $response->assertJson([
+                'data' => [
+                    'importOrderCsv' => [
+                        'message' => 'Items processed successfully',
+                        'status' => 'success',
+                    ],
+                ],
+            ]);
+
+            $cartQuery = $this->graphQL(/** @lang GraphQL */ '
+                {
+                    cart {
+                        items {
+                            quantity
+                        }
+                    }
+                }
+            ');
+
+            $this->assertCount(2, $cartQuery->json()['data']['cart']['items']);
+        } finally {
+            $app->del(ConfigurationEnum::DISABLE_ORDER_ITEM_STOCK_VALIDATION->value);
+        }
+    }
 
     public function testImportOrderItemsWithAvailableGlobalStock(): void
     {
