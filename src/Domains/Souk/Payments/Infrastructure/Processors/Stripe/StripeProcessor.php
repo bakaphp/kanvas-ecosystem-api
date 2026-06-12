@@ -70,8 +70,6 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
             );
         }
 
-        $this->assertSupportedCurrency($order);
-
         // Idempotency: if a PaymentIntent already exists, reflect it instead of double-charging.
         if (! empty($payment->payment_intent_id)) {
             try {
@@ -83,53 +81,12 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
             }
         }
 
-        $paymentMethod = $payment->paymentMethod;
-        $customerId = (string) ($paymentMethod?->getMetadata('stripe_customer_id') ?? '');
-        $stripePaymentMethodId = (string) (
-            $paymentMethod?->getMetadata('stripe_payment_method_id')
-            ?? $paymentMethod?->stripe_card_id
-            ?? ''
-        );
-
-        // Stripe disables its idempotency guard on a null key, so retries would double-charge.
-        $idempotencyKey = ! empty($payment->idempotency_key)
-            ? (string) $payment->idempotency_key
-            : 'pi:payment:' . $payment->getId();
-
-        $params = [
-            'amount' => $this->toCents($order->getTotalAmount()),
-            'currency' => strtolower((string) $order->currency),
-            'confirm' => true,
-            'off_session' => $context['off_session'] ?? true,
-            'capture_method' => ($context['manual_capture'] ?? false) ? 'manual' : 'automatic',
-            'metadata' => [
-                'kanvas_app_id' => $this->app->getId(),
-                'kanvas_company_id' => $this->company->getId(),
-                'kanvas_payment_id' => $payment->getId(),
-                'kanvas_order_id' => $order->getId(),
-            ],
-        ];
-
-        if ($customerId !== '') {
-            $params['customer'] = $customerId;
-        }
-        if ($stripePaymentMethodId !== '') {
-            $params['payment_method'] = $stripePaymentMethodId;
-        }
-
+        // off_session defaults to true here — authorize() is the saved-card / merchant-initiated
+        // entry. For a customer-present 3DS charge use startChallenge() (off_session = false).
         try {
-            $intent = $this->stripe->paymentIntents->create($params, ['idempotency_key' => $idempotencyKey]);
+            $intent = $this->createIntent($payment, $order, $context);
         } catch (ApiErrorException $e) {
-            $payment->status = PaymentStatusEnum::FAILED->value;
-            $payment->processor = $this->name();
-            $payment->addMetadata(['data' => ['stripe_error' => $e->getMessage()]]);
-            $payment->save();
-
-            $payment->addLog('authorize_failed', [
-                'processor' => $this->name(),
-                'order_id' => $order->getId(),
-                'error' => $e->getMessage(),
-            ]);
+            $this->markFailedFromException($payment, $order, $e, 'authorize_failed');
 
             return new AuthorizeResult(
                 success: false,
@@ -386,23 +343,32 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
         );
     }
 
+    /**
+     * Customer-present entry point. Creates and confirms the PaymentIntent on-session
+     * (off_session = false) so Stripe runs the 3DS challenge inline and returns a
+     * client_secret for stripe.handleNextAction(). Charges that don't need a challenge
+     * settle straight to PAID here. Re-callable: an existing PaymentIntent is reflected,
+     * not recreated.
+     */
     public function startChallenge(Payments $payment, Order $order, array $context = []): ThreeDSResult
     {
-        $intentId = (string) ($payment->payment_intent_id ?? '');
-
-        // No PaymentIntent yet — the client must call authorize first, which returns the client_secret.
-        if ($intentId === '') {
+        if ($this->isTerminal((string) $payment->status)) {
             return new ThreeDSResult(
-                success: true,
-                message: 'No PaymentIntent yet — call authorize first; it returns the client_secret.',
-                status: (string) ($payment->status ?? PaymentStatusEnum::PENDING->value),
-                data: ['client_secret' => ''],
+                success: $payment->status === PaymentStatusEnum::PAID->value,
+                message: 'Payment already in terminal state: ' . $payment->status,
+                status: (string) $payment->status,
             );
         }
 
+        $intentId = (string) ($payment->payment_intent_id ?? '');
+
         try {
-            $intent = $this->stripe->paymentIntents->retrieve($intentId);
+            $intent = $intentId === ''
+                ? $this->createIntent($payment, $order, ['off_session' => false] + $context)
+                : $this->stripe->paymentIntents->retrieve($intentId);
         } catch (ApiErrorException $e) {
+            $this->markFailedFromException($payment, $order, $e, '3ds_start_failed');
+
             return new ThreeDSResult(
                 success: false,
                 message: $e->getMessage(),
@@ -411,35 +377,23 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
             );
         }
 
-        if ($intent->status === 'requires_action') {
-            $payment->status = PaymentStatusEnum::PENDING_AUTHORIZATION->value;
-            $payment->addMetadata([
-                'data' => [
-                    'stripe_payment_intent_id' => $intent->id,
-                    'stripe_client_secret' => $intent->client_secret,
-                ],
-            ]);
-            $payment->save();
-
-            return new ThreeDSResult(
-                success: true,
-                message: '3DS challenge required — run handleCardAction with client_secret',
-                status: PaymentStatusEnum::PENDING_AUTHORIZATION->value,
-                data: [
-                    'client_secret' => (string) $intent->client_secret,
-                    'payment_intent_id' => $intent->id,
-                ],
-                raw: $intent->toArray(),
-            );
-        }
-
-        // Not awaiting a challenge — reflect whatever state the intent is in.
         $status = $this->syncPaymentFromIntent($payment, $order, $intent, '3ds_start');
+
+        $data = [];
+        $message = 'PaymentIntent status: ' . $intent->status;
+        if ($status === PaymentStatusEnum::PENDING_AUTHORIZATION) {
+            $data = [
+                'client_secret' => (string) $intent->client_secret,
+                'payment_intent_id' => $intent->id,
+            ];
+            $message = '3DS challenge required — run handleNextAction with client_secret';
+        }
 
         return new ThreeDSResult(
             success: $status !== PaymentStatusEnum::FAILED,
-            message: 'PaymentIntent status: ' . $intent->status,
+            message: $message,
             status: $status->value,
+            data: $data,
             raw: $intent->toArray(),
         );
     }
@@ -590,6 +544,67 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
             raw: $intent->toArray(),
             data: $data,
         );
+    }
+
+    /**
+     * Build and confirm a PaymentIntent for this order. Shared by authorize() (off_session
+     * defaults true — saved card / MIT) and startChallenge() (off_session forced false —
+     * customer present). Throws ApiErrorException; callers map that to a FAILED payment.
+     */
+    private function createIntent(Payments $payment, Order $order, array $context): PaymentIntent
+    {
+        $this->assertSupportedCurrency($order);
+
+        $paymentMethod = $payment->paymentMethod;
+        $customerId = (string) ($paymentMethod?->getMetadata('stripe_customer_id') ?? '');
+        $stripePaymentMethodId = (string) (
+            $paymentMethod?->getMetadata('stripe_payment_method_id')
+            ?? $paymentMethod?->stripe_card_id
+            ?? ''
+        );
+
+        // Stripe disables its idempotency guard on a null key, so retries would double-charge.
+        $idempotencyKey = ! empty($payment->idempotency_key)
+            ? (string) $payment->idempotency_key
+            : 'pi:payment:' . $payment->getId();
+
+        $params = [
+            'amount' => $this->toCents($order->getTotalAmount()),
+            'currency' => strtolower((string) $order->currency),
+            'confirm' => true,
+            'off_session' => $context['off_session'] ?? true,
+            'capture_method' => ($context['manual_capture'] ?? false) ? 'manual' : 'automatic',
+            'metadata' => [
+                'kanvas_app_id' => $this->app->getId(),
+                'kanvas_company_id' => $this->company->getId(),
+                'kanvas_payment_id' => $payment->getId(),
+                'kanvas_order_id' => $order->getId(),
+            ],
+        ];
+
+        if ($customerId !== '') {
+            $params['customer'] = $customerId;
+        }
+        if ($stripePaymentMethodId !== '') {
+            $params['payment_method'] = $stripePaymentMethodId;
+        }
+
+        return $this->stripe->paymentIntents->create($params, ['idempotency_key' => $idempotencyKey]);
+    }
+
+    private function markFailedFromException(Payments $payment, Order $order, ApiErrorException $e, string $event): void
+    {
+        $payment->status = PaymentStatusEnum::FAILED->value;
+        $payment->processor = $this->name();
+        $this->clearClientSecret($payment);
+        $payment->addMetadata(['data' => ['stripe_error' => $e->getMessage()]]);
+        $payment->save();
+
+        $payment->addLog($event, [
+            'processor' => $this->name(),
+            'order_id' => $order->getId(),
+            'error' => $e->getMessage(),
+        ]);
     }
 
     private function mapIntentStatus(string $stripeStatus): PaymentStatusEnum

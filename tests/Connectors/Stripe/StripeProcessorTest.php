@@ -433,15 +433,45 @@ class StripeProcessorTest extends TestCase
         $this->assertSame('cs_fake_pi_3ds', $result->data['client_secret']);
     }
 
-    public function testStartChallengeWithoutIntentReturnsEmptySecret(): void
+    public function testStartChallengeWithoutIntentCreatesOnSessionIntent(): void
     {
         $payment = $this->buildPaymentMock(intentId: null);
         $order = $this->buildOrderMock();
 
-        $result = $this->processor(new FakeStripeClient())->startChallenge($payment, $order);
+        $client = new FakeStripeClient();
+        $client->getPaymentIntents()->queueResponse('create', $this->fakeIntent('pi_3ds_new', 'requires_action', [
+            'client_secret' => 'cs_fake_pi_3ds_new',
+        ]));
+
+        $result = $this->processor($client)->startChallenge($payment, $order);
 
         $this->assertTrue($result->success);
-        $this->assertSame('', $result->data['client_secret']);
+        $this->assertSame(PaymentStatusEnum::PENDING_AUTHORIZATION->value, $result->status);
+        $this->assertSame('cs_fake_pi_3ds_new', $result->data['client_secret']);
+        $this->assertSame(PaymentStatusEnum::PENDING_AUTHORIZATION->value, $payment->status);
+
+        // Customer-present: must confirm on-session so Stripe challenges inline (not error).
+        $createCalls = $client->getPaymentIntents()->getCalls('create');
+        $this->assertCount(1, $createCalls);
+        $this->assertFalse($createCalls[0]['params']['off_session']);
+    }
+
+    public function testStartChallengeWithoutChallengeNeededMarksPaid(): void
+    {
+        $payment = $this->buildPaymentMock(intentId: null);
+        $order = $this->buildOrderMock();
+
+        $client = new FakeStripeClient();
+        $client->getPaymentIntents()->queueResponse('create', $this->fakeIntent('pi_nc', 'succeeded', [
+            'latest_charge' => 'ch_nc',
+        ]));
+
+        $result = $this->processor($client)->startChallenge($payment, $order);
+
+        $this->assertTrue($result->success);
+        $this->assertSame(PaymentStatusEnum::PAID->value, $result->status);
+        $this->assertSame(PaymentStatusEnum::PAID->value, $payment->status);
+        $this->assertSame([], $result->data);
     }
 
     public function testFinalizeChallengeMarksPaidAndIsIdempotent(): void
