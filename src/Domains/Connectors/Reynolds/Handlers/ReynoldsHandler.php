@@ -30,12 +30,14 @@ class ReynoldsHandler extends BaseIntegration
             }
         }
 
-        $this->app->set(ConfigurationEnum::REYNOLDS_USERNAME->value, $this->data['username']);
-        $this->app->set(ConfigurationEnum::REYNOLDS_PASSWORD->value, $this->data['password']);
-        $this->app->set(ConfigurationEnum::REYNOLDS_ENDPOINT->value, $this->data['endpoint']);
-        $this->app->set(ConfigurationEnum::REYNOLDS_SENDER_NAME->value, $this->data['sender_name']);
-        $this->app->set(ConfigurationEnum::REYNOLDS_DEV_MODE->value, $this->data['dev_mode'] ?? false);
-
+        // Every Reynolds setting is tenant-scoped — each company owns its own
+        // RCI registration, credentials, dealer/store/area, and sender name.
+        // Nothing is shared at the app level, so everything lives on $company.
+        $this->company->set(ConfigurationEnum::REYNOLDS_USERNAME->value, $this->data['username']);
+        $this->company->set(ConfigurationEnum::REYNOLDS_PASSWORD->value, $this->data['password']);
+        $this->company->set(ConfigurationEnum::REYNOLDS_ENDPOINT->value, $this->data['endpoint']);
+        $this->company->set(ConfigurationEnum::REYNOLDS_SENDER_NAME->value, $this->data['sender_name']);
+        $this->company->set(ConfigurationEnum::REYNOLDS_DEV_MODE->value, $this->data['dev_mode'] ?? false);
         $this->company->set(ConfigurationEnum::REYNOLDS_DEALER_NUMBER->value, $this->data['dealer_number']);
         $this->company->set(ConfigurationEnum::REYNOLDS_STORE_NUMBER->value, $this->data['store_number']);
         $this->company->set(ConfigurationEnum::REYNOLDS_AREA_NUMBER->value, $this->data['area_number']);

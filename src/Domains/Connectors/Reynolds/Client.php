@@ -24,9 +24,13 @@ class Client
         protected AppInterface $app,
         protected Companies $company
     ) {
-        $this->endpoint = (string) $app->get(ConfigurationEnum::REYNOLDS_ENDPOINT->value);
-        $this->username = (string) $app->get(ConfigurationEnum::REYNOLDS_USERNAME->value);
-        $this->password = (string) $app->get(ConfigurationEnum::REYNOLDS_PASSWORD->value);
+        // All Reynolds settings are tenant-scoped (per Kanvas multi-tenancy
+        // convention for credentials + dealer routing). Each company owns its
+        // own RCI account / dealer registration, so credentials live on the
+        // company, not the app.
+        $this->endpoint = (string) $company->get(ConfigurationEnum::REYNOLDS_ENDPOINT->value);
+        $this->username = (string) $company->get(ConfigurationEnum::REYNOLDS_USERNAME->value);
+        $this->password = (string) $company->get(ConfigurationEnum::REYNOLDS_PASSWORD->value);
 
         if ($this->endpoint === '' || $this->username === '' || $this->password === '') {
             throw new ReynoldsException('Reynolds connector credentials are not configured');
@@ -97,7 +101,7 @@ class Client
 
     public function getSenderName(): string
     {
-        return (string) $this->app->get(ConfigurationEnum::REYNOLDS_SENDER_NAME->value);
+        return (string) $this->company->get(ConfigurationEnum::REYNOLDS_SENDER_NAME->value);
     }
 
     public function getBusinessUnitName(): string
