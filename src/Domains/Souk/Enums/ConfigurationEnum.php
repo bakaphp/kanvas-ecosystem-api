@@ -23,4 +23,5 @@ enum ConfigurationEnum: string
     case CANCEL_STALE_PAYMENTS = 'souk_cancel_stale_payments';
     case STALE_PAYMENT_TTL_MINUTES = 'souk_stale_payment_ttl_minutes';
     case DEFAULT_COMMISSION_RATE = 'default_commission_rate';
+    case DISABLE_ORDER_ITEM_STOCK_VALIDATION = 'souk_disable_order_item_stock_validation';
 }
