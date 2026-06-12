@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Services;
 
 use Baka\Contracts\CompanyInterface;
+use Baka\Http\SafeUrl;
 use Exception;
 use finfo;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -245,6 +246,8 @@ class FilesystemServices
 
     public static function downloadImageFromUrl(string $imageUrl): ?string
     {
+        SafeUrl::assertSafe($imageUrl);
+
         $fileInfo = pathinfo($imageUrl);
         $extension = $fileInfo['extension'] ?? null;
 

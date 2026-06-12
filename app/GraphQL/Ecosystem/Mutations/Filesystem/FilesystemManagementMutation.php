@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Ecosystem\Mutations\Filesystem;
 
 use Baka\Helpers\MergePdf;
+use Baka\Http\SafeUrl;
 use Baka\Support\Str;
 use Baka\Validations\Pdf;
 use Exception;
@@ -66,6 +67,11 @@ class FilesystemManagementMutation
         if (! filter_var($request['input']['url'], FILTER_VALIDATE_URL)) {
             throw new InvalidArgumentException('The provided URL is not valid.');
         }
+
+        // Reject SSRF payloads (file://, internal hosts, cloud-metadata) at ingress so a
+        // malicious URL never reaches the DB, where DownloadImageAndUploadToS3Action
+        // would later fetch it.
+        SafeUrl::assertSafe($request['input']['url']);
 
         $parsedUrl = parse_url($request['input']['url']);
         $path = $parsedUrl['path']; // Returns: /api/webhooks/upload/file.pdf
