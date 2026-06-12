@@ -17,8 +17,12 @@ enum CustomFieldEnum: string
     case IS_AI_GENERATED = 'REYNOLDS_IS_AI_GENERATED';
     case IS_CI_LEAD = 'REYNOLDS_IS_CI_LEAD';
 
-    case VEHICLE_OF_INTEREST = 'REYNOLDS_VEHICLE_OF_INTEREST';
-    case TRADE_IN = 'REYNOLDS_TRADE_IN';
+    // Shared Kanvas custom-field keys — matches what every other CRM connector
+    // (VinSolution, DriveCentric, DealerSocket, SalesAssist) writes, so the AI
+    // tooling (CreateContentSession, LeadIntentTool, VoiceBridge, ElevenLabs)
+    // picks them up automatically without per-connector wiring.
+    case VEHICLE_OF_INTEREST = 'vehicle_of_interest';
+    case TRADE_IN = 'trade_in';
 
     case CONSENT_EMAIL = 'REYNOLDS_CONSENT_EMAIL';
     case CONSENT_TEXT = 'REYNOLDS_CONSENT_TEXT';

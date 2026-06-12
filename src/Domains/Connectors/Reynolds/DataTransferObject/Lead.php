@@ -8,6 +8,14 @@ use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead as LeadModel;
 use Spatie\LaravelData\Data;
 
+/**
+ * Outbound (Kanvas → Reynolds) Lead projection.
+ *
+ * Vehicle of interest and trade-in are intentionally NOT projected here even
+ * though we receive them on the Pull side. Reynolds is not the authoritative
+ * source for those — other Kanvas processes (inventory sync, lead-form
+ * submission, etc.) own that data — so we never round-trip them back to R&R.
+ */
 class Lead extends Data
 {
     public function __construct(
@@ -19,8 +27,6 @@ class Lead extends Data
         public readonly ?string $prospectNote,
         public readonly ?string $isAiGenerated,
         public readonly ?string $primarySalesPerson,
-        public readonly array $desiredVehicle,
-        public readonly array $potentialTrade,
         public readonly Customer $customer,
     ) {
     }
@@ -31,9 +37,6 @@ class Lead extends Data
         $prospectType = $lead->get(CustomFieldEnum::PROSPECT_TYPE->value)
             ?? ($lead->type()->first()?->name ?? 'Internet');
 
-        $desiredVehicle = $lead->get(CustomFieldEnum::VEHICLE_OF_INTEREST->value);
-        $tradeIn = $lead->get(CustomFieldEnum::TRADE_IN->value);
-
         return new self(
             prospectId: $prospectId !== null ? (string) $prospectId : null,
             prospectCategory: 'Sales',
@@ -43,8 +46,6 @@ class Lead extends Data
             prospectNote: $lead->description,
             isAiGenerated: null,
             primarySalesPerson: self::ownerName($lead),
-            desiredVehicle: is_array($desiredVehicle) ? $desiredVehicle : [],
-            potentialTrade: is_array($tradeIn) ? $tradeIn : [],
             customer: Customer::fromPeople($lead->people),
         );
     }
@@ -62,38 +63,6 @@ class Lead extends Data
             'ProspectStatus' => $this->prospectStatus,
             'ProspectNote' => $this->prospectNote,
             'PrimarySalesPerson' => $this->primarySalesPerson,
-        ], fn ($v) => $v !== null && $v !== '');
-    }
-
-    public function toDesiredVehicle(): array
-    {
-        if (empty($this->desiredVehicle)) {
-            return [];
-        }
-
-        return array_filter([
-            'StockType' => $this->desiredVehicle['stock_type'] ?? null,
-            'Vin' => $this->desiredVehicle['vin'] ?? null,
-            'VehicleYear' => $this->desiredVehicle['year'] ?? null,
-            'VehicleMake' => $this->desiredVehicle['make'] ?? null,
-            'VehicleModel' => $this->desiredVehicle['model'] ?? null,
-            'VehicleStyle' => $this->desiredVehicle['style'] ?? null,
-            'StockId' => $this->desiredVehicle['stock_id'] ?? null,
-        ], fn ($v) => $v !== null && $v !== '');
-    }
-
-    public function toPotentialTrade(): array
-    {
-        if (empty($this->potentialTrade)) {
-            return [];
-        }
-
-        return array_filter([
-            'TradeVehicleVin' => $this->potentialTrade['vin'] ?? null,
-            'TradeVehicleYear' => $this->potentialTrade['year'] ?? null,
-            'TradeVehicleMake' => $this->potentialTrade['make'] ?? null,
-            'TradeVehicleModel' => $this->potentialTrade['model'] ?? null,
-            'TradeVehicleOdometer' => $this->potentialTrade['odometer'] ?? null,
         ], fn ($v) => $v !== null && $v !== '');
     }
 

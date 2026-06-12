@@ -52,17 +52,14 @@ class PushLeadAction
         $leadData = LeadData::fromLead($this->lead);
         $peopleSection = new SyncPeopleAction($this->lead->people)->execute();
 
+        // DesiredVehicle and PotentialTrade are intentionally not pushed back to
+        // Reynolds — see LeadDTO docblock. Pull keeps the inbound data on the
+        // lead as custom fields but we never send it up.
         $record = array_filter([
             'Prospect' => $leadData->toProspect(),
-            'DesiredVehicle' => $leadData->toDesiredVehicle(),
         ], fn ($v) => ! empty($v));
 
         $record += $peopleSection;
-
-        $trade = $leadData->toPotentialTrade();
-        if (! empty($trade)) {
-            $record['PotentialTrade'] = $trade;
-        }
 
         return [
             'ApplicationArea' => ApplicationAreaBuilder::build(
