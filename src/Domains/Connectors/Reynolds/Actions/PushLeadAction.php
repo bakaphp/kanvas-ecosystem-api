@@ -35,10 +35,14 @@ class PushLeadAction
 
         $response = $client->processMessage(self::ROOT_ELEMENT, $payload);
 
-        $prospectId = $response['TransStatus']['ProspectId'] ?? null;
+        // R&R can return <ProspectId/> (empty self-closing) which the XML parser
+        // resolves to an empty array rather than null. Normalize to ?string.
+        $prospectIdRaw = $response['TransStatus']['ProspectId'] ?? null;
+        $prospectId = is_scalar($prospectIdRaw) ? (string) $prospectIdRaw : null;
+
         if ($prospectId !== null) {
             $this->lead->people->set(CustomFieldEnum::NAME_REC_ID->value, $prospectId);
-            $this->lead->set(CustomFieldEnum::PROSPECT_ID->value, (string) $prospectId);
+            $this->lead->set(CustomFieldEnum::PROSPECT_ID->value, $prospectId);
         }
 
         return [
