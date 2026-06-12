@@ -75,6 +75,18 @@ class AgentReachOutOnChannelAction
                 $emailSubject = $parsed['subject'];
                 $responseText = $parsed['body'];
             }
+
+            // Anchor the email thread: the follow-up engine reuses this subject
+            // (as "Re: ...") so later touches thread under the original email
+            // instead of starting a fresh one. First touch wins — don't clobber
+            // an existing anchor on subsequent reach-outs.
+            if (
+                $emailSubject !== null
+                && $emailSubject !== ''
+                && ! $this->lead->get('title_email_follow_up')
+            ) {
+                $this->lead->set('title_email_follow_up', $emailSubject);
+            }
         }
 
         $messageTypeVerb = $this->resolveMessageTypeVerb();

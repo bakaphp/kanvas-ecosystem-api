@@ -606,7 +606,6 @@ final class FollowUpLeadAction
 
     private function dispatchOutbound(string $channelType, string $body, Contact $outboundContact): void
     {
-        $emailTitle = (string) ($this->lead->get('title_email_follow_up') ?? $this->company->name);
         $twilioFrom = (string) $this->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value);
 
         try {
@@ -614,7 +613,7 @@ final class FollowUpLeadAction
                 channel: $channelType,
                 message: $body,
                 from: $twilioFrom,
-                title: $emailTitle,
+                title: $this->resolveEmailTitle(),
                 to: (string) $outboundContact->value,
             );
         } catch (Throwable $e) {
@@ -622,6 +621,20 @@ final class FollowUpLeadAction
             // record of attempt is the audit truth; the queue layer retries.
             report($e);
         }
+    }
+
+    // Reuse the original outreach subject (anchored on the lead by
+    // AgentReachOutOnChannelAction) so the follow-up threads under the same
+    // email as a reply. Falls back to the company name for leads with no
+    // anchored subject (legacy / non-email-originated).
+    private function resolveEmailTitle(): string
+    {
+        $anchor = $this->lead->get('title_email_follow_up');
+        if (! is_string($anchor) || $anchor === '') {
+            return $this->company->name;
+        }
+
+        return str_starts_with(mb_strtolower($anchor), 're:') ? $anchor : 'Re: ' . $anchor;
     }
 
     private function messageTypeVerbFor(string $channelType): string
