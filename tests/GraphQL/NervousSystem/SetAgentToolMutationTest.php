@@ -7,6 +7,7 @@ namespace Tests\GraphQL\NervousSystem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep\FmpFinancialSnapshotTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
 use Kanvas\NervousSystem\Capability\DataTransferObject\Tool as ToolData;
@@ -343,6 +344,109 @@ class SetAgentToolMutationTest extends TestCase
                 ->where('tool_id', $tool->getId())
                 ->count(),
             'After the revoke, only one row must remain — the ghost sibling is hard-deleted.',
+        );
+    }
+
+    public function testGrantingFmpFinancialSnapshotToolAppendsItsInstructionAndPreservesCustomBase(): void
+    {
+        $app = app(Apps::class);
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId(auth()->user()->getCurrentCompany()->getId())
+            ->create([
+                'user_id' => auth()->user()->getId(),
+                'instructions' => 'Analyze corporate distress events step by step.',
+                'is_active' => true,
+            ]);
+
+        $snapshotTool = new CreateToolAction(new ToolData(
+            app: $app,
+            name: 'fmp-snapshot-' . uniqid(),
+            frameworks: ['laravel'],
+            toolType: ToolTypeEnum::CUSTOM,
+            handler: FmpFinancialSnapshotTool::class,
+        ))->execute();
+
+        $this->graphQL('
+            mutation($agent_id: ID!, $tool_id: ID!) {
+                setNervousSystemAgentTool(agent_id: $agent_id, tool_id: $tool_id, enabled: true) {
+                    is_active
+                }
+            }
+        ', [
+            'agent_id' => (string) $agent->getId(),
+            'tool_id' => (string) $snapshotTool->getId(),
+        ])->assertSuccessful();
+
+        $instructions = (string) $agent->fresh()->instructions;
+
+        $this->assertStringContainsString(
+            'FMP Financial Snapshot',
+            $instructions,
+            'FmpFinancialSnapshotTool instruction must appear after being granted.',
+        );
+        $this->assertStringContainsString(
+            'Analyze corporate distress events step by step.',
+            $instructions,
+            'Custom base instructions must be preserved when a tool is added via setNervousSystemAgentTool.',
+        );
+        $this->assertSame(
+            1,
+            substr_count($instructions, '## Tool Usage Guidelines'),
+            'Tool guidelines section must appear exactly once.',
+        );
+    }
+
+    public function testRevokingFmpFinancialSnapshotToolRemovesItsInstruction(): void
+    {
+        $app = app(Apps::class);
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId(auth()->user()->getCurrentCompany()->getId())
+            ->create([
+                'user_id' => auth()->user()->getId(),
+                'instructions' => 'Analyze corporate distress events step by step.',
+                'is_active' => true,
+            ]);
+
+        $snapshotTool = new CreateToolAction(new ToolData(
+            app: $app,
+            name: 'fmp-snapshot-' . uniqid(),
+            frameworks: ['laravel'],
+            toolType: ToolTypeEnum::CUSTOM,
+            handler: FmpFinancialSnapshotTool::class,
+        ))->execute();
+
+        $vars = [
+            'agent_id' => (string) $agent->getId(),
+            'tool_id' => (string) $snapshotTool->getId(),
+        ];
+
+        $this->graphQL('
+            mutation($agent_id: ID!, $tool_id: ID!) {
+                setNervousSystemAgentTool(agent_id: $agent_id, tool_id: $tool_id, enabled: true) { is_active }
+            }
+        ', $vars)->assertSuccessful();
+
+        $this->assertStringContainsString('FMP Financial Snapshot', (string) $agent->fresh()->instructions);
+
+        $this->graphQL('
+            mutation($agent_id: ID!, $tool_id: ID!) {
+                setNervousSystemAgentTool(agent_id: $agent_id, tool_id: $tool_id, enabled: false) { is_active }
+            }
+        ', $vars)->assertSuccessful();
+
+        $instructions = (string) $agent->fresh()->instructions;
+
+        $this->assertStringNotContainsString(
+            'FMP Financial Snapshot',
+            $instructions,
+            'FmpFinancialSnapshotTool instruction must be removed after revoking.',
+        );
+        $this->assertStringContainsString(
+            'Analyze corporate distress events step by step.',
+            $instructions,
+            'Custom base instructions must survive after the tool is revoked.',
         );
     }
 

@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Users\Models\Users;
 use Webleit\ZohoCrmApi\Exception\ApiError;
 use Webleit\ZohoCrmApi\Models\Model as ZohoModel;
 use Webleit\ZohoCrmApi\Models\Record;
@@ -70,11 +71,14 @@ class ZohoService
             'Office_Phone' => str_replace(['+', '-', '(', ')', ' '], '', $user->phone_number ?? ''),
         ];
 
-        // Owner is a Zoho lookup to a real org user. We can't pre-validate it (the tenant's token
-        // usually lacks the ZohoCRM.users.READ scope), so send the best candidate — owner link, then
-        // user link, then company default — and let createZohoAgentRecord retry without Owner if Zoho
-        // rejects it. See Sentry KANVAS-ECOSYSTEM-2R8 / 5RT.
+        // Owner must be a real Zoho org-user id. The *_linked_source_id columns hold Zoho vendor/record
+        // ids (the sponsor's vendor id), which Zoho rejects as Owner — the org-user id lives on the owner
+        // user as the ZOHO_USER_OWNER_ID custom field. This mirrors how SyncLeadToZohoAction resolves a
+        // lead's Owner. Prefer that, then the legacy candidates, then the company default; if all fail
+        // createZohoAgentRecord retries without Owner. See Sentry KANVAS-ECOSYSTEM-2R8 / 5RT.
+        $ownerUser = $this->resolveOwnerUser($agentInfo, $zohoOwnerAgent);
         $ownerId = self::pickFirstOwnerId(
+            $ownerUser?->get(CustomFieldEnum::ZOHO_USER_OWNER_ID->value),
             $agentInfo->owner_linked_source_id,
             $agentInfo->users_linked_source_id,
             $this->company->get(CustomFieldEnum::DEFAULT_OWNER->value),
@@ -184,6 +188,27 @@ class ZohoService
     public function getLastCreateAgentRequest(): ?array
     {
         return $this->lastCreateAgentRequest;
+    }
+
+    /**
+     * The user assigned as the new agent's owner — the owner agent passed in, else the sponsor — so we
+     * can read their valid Zoho org-user id from the ZOHO_USER_OWNER_ID custom field for the Owner field.
+     * Resolve before the agents branch reassigns $zohoOwnerAgent to a Zoho record via ->get().
+     */
+    private function resolveOwnerUser(Agent $agentInfo, ?object $zohoOwnerAgent): ?Users
+    {
+        $ownerUserId = ($zohoOwnerAgent instanceof Agent ? $zohoOwnerAgent->users_id : null)
+            ?? $agentInfo->sponsor_user_id;
+
+        if ($ownerUserId === null || $ownerUserId <= 0) {
+            return null;
+        }
+
+        try {
+            return Users::getById($ownerUserId);
+        } catch (Exception $e) {
+            return null;
+        }
     }
 
     /**

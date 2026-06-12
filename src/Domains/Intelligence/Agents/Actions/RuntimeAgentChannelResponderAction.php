@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions;
 
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Notifications\AgentReplyNotification;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -17,6 +19,7 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class RuntimeAgentChannelResponderAction
@@ -62,7 +65,37 @@ class RuntimeAgentChannelResponderAction
         $replyMessage = $this->createReplyMessage($reply);
         $this->channel->addMessage($replyMessage, $this->agent->user);
 
+        $this->notifyRecipientOfReply($replyMessage);
+
         return $replyMessage;
+    }
+
+    /**
+     * Push-notify the author of the inbound message that the agent answered them.
+     * Mirrors the userChat path (PersistChatTurnToSocialAction) so every agent reply
+     * a human can see triggers the same notification, regardless of runtime.
+     */
+    private function notifyRecipientOfReply(Message $replyMessage): void
+    {
+        $authorId = $this->message->users_id;
+
+        if ($authorId <= 0) {
+            return;
+        }
+
+        try {
+            $recipient = Users::getById($authorId);
+        } catch (ModelNotFoundException) {
+            return;
+        }
+
+        $recipient->notify(
+            new AgentReplyNotification(
+                $replyMessage,
+                $this->agent,
+                $this->agent->user
+            )
+        );
     }
 
     /**

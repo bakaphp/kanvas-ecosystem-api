@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem\Schedules;
 
+use App\Console\Commands\Intelligence\CollectAgentDeploymentUsageCommand;
 use App\Console\Commands\Intelligence\CollectAgentSessionTranscriptsCommand;
+use App\Console\Commands\Intelligence\RollupLocalAgentUsageCommand;
 use App\Console\Commands\NervousSystem\ArchiveOldLedgerEventsCommand;
 use App\Console\Commands\NervousSystem\CheckAgentRuntimeHealthCommand;
 use App\Console\Commands\NervousSystem\DetectStalledPlanTasksCommand;
@@ -129,6 +131,24 @@ final class NervousSystemSchedule
         // figures from current pricing.
         $schedule->command(SyncModelPricingCommand::class)
             ->dailyAt('02:30')
+            ->timezone('America/New_York')
+            ->withoutOverlapping()
+            ->onOneServer();
+
+        // Container-runtime usage collection (OpenClaw + Hermes) — provider-routed,
+        // SSH-heavy like transcripts, so staggered to :15 (after the :10 transcript
+        // ingest) and run in background.
+        $schedule->command(CollectAgentDeploymentUsageCommand::class)
+            ->hourlyAt(15)
+            ->withoutOverlapping()
+            ->onOneServer()
+            ->runInBackground();
+
+        // In-process backends (Neuron/Laravel) usage rollup — defaults to yesterday.
+        // Runs at 03:00 NY: after SyncModelPricing (02:30) so cost uses fresh rates,
+        // before RecordAgentDailyCycles (06:04) consumes the day's usage.
+        $schedule->command(RollupLocalAgentUsageCommand::class)
+            ->dailyAt('03:00')
             ->timezone('America/New_York')
             ->withoutOverlapping()
             ->onOneServer();

@@ -29,6 +29,7 @@ use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\AgentEnum;
+use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Notifications\Templates\Blank;
 use Ramsey\Uuid\Uuid;
 
@@ -504,6 +505,9 @@ class SendMessageToLeadAction
         if (! empty($engagementUrls)) {
             $message .= "\n\n" . implode("\n", $engagementUrls);
         }
+
+        // Agent replies are Markdown; the mail layout renders raw HTML, so convert here.
+        $message = MarkdownEmailRenderer::toEmailHtml($message);
 
         foreach ($this->processedFiles as $file) {
             if (isset($file['is_processed_video']) && $file['is_processed_video']) {

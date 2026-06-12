@@ -195,13 +195,14 @@ class HandOffAction
             $notification->setSubject('Lead Compliance Handoff Notification - ' . $this->lead->people->name);
             $notification->setPushTemplateName('lead_handoff_compliance_push_notification');
             $notification->setSmsTemplateName('lead_handoff_compliance_sms_notification');
+            $notification->setDatabaseTemplateName('lead_handoff_compliance_sms_notification');
 
             if ($companyComplianceHandOffOnlyPush) {
                 $notification->setChannelOnlyPush();
             }
         }
 
-        $notification->setDatabaseTemplateName('lead_handoff_compliance_sms_notification');
+        $notification->setDatabaseTemplateName('lead_handoff_db');
     }
 
     protected function notifyManagers(

@@ -84,12 +84,24 @@ class BaseKanvasAgent extends NeuronAIAgent
             ?? ($this->entity instanceof Lead ? $this->entity : null);
     }
 
+    /**
+     * The concrete model this agent will call (agent config → app default →
+     * hard default). Exposed so the chat path can record it on the turn for
+     * usage/cost rollups.
+     */
+    public function resolvedModelName(): string
+    {
+        $config = $this->agent->config ?? [];
+
+        return $config['model'] ?? $this->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-2.5-pro';
+    }
+
     #[Override]
     protected function provider(): AIProviderInterface
     {
         $config = $this->agent->config ?? [];
         $key = $config['key'] ?? $this->app->get(ConfigurationEnum::GEMINI_KEY->value);
-        $model = $config['model'] ?? $this->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-2.5-pro';
+        $model = $this->resolvedModelName();
 
         if (! is_string($key) || $key === '') {
             throw new ValidationException(

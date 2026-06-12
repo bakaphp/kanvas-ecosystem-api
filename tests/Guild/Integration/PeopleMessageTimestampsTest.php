@@ -5,15 +5,22 @@ declare(strict_types=1);
 namespace Tests\Guild\Integration;
 
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
+use Kanvas\Guild\Customers\Listeners\UpdatePeopleMessageTimestampsListener;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Social\Messages\Events\AppModuleMessageCreatedEvent;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
 
 final class PeopleMessageTimestampsTest extends TestCase
 {
+    private ?MessageType $communicationType = null;
+    private ?MessageType $nonCommunicationType = null;
+
     public function testFirstMessageStampsBothColumns(): void
     {
         [$people, $lead] = $this->createPeopleAndLead();
@@ -65,13 +72,45 @@ final class PeopleMessageTimestampsTest extends TestCase
         );
     }
 
-    public function testNonLeadEntityDoesNotTouchPeople(): void
+    public function testNonCommunicationMessageIsIgnored(): void
     {
         [$people, $lead] = $this->createPeopleAndLead();
 
-        // Attach a message to People itself (not to the Lead) — the listener must ignore it.
-        $message = Message::factory()->create();
-        $message->addEntity($people);
+        // A message whose type verb is not a communication channel (e.g. an internal
+        // note) must NOT stamp the people timestamps — this is the isCommunicationMessage guard.
+        $message = $this->makeMessage(
+            $lead,
+            $this->nonCommunicationMessageType(),
+            $lead->apps_id,
+            $lead->companies_id,
+        );
+        $this->runListener($message);
+
+        $people->refresh();
+
+        $this->assertNull(
+            $people->first_message_at,
+            'Non-communication messages must not stamp first_message_at',
+        );
+        $this->assertNull(
+            $people->last_message_at,
+            'Non-communication messages must not stamp last_message_at',
+        );
+    }
+
+    public function testNonLeadEntityDoesNotTouchPeople(): void
+    {
+        [$people, ] = $this->createPeopleAndLead();
+
+        // Communication message, but attached to People itself (not a Lead) — the
+        // system_modules guard must keep the listener from stamping anything.
+        $message = $this->makeMessage(
+            $people,
+            $this->communicationMessageType(),
+            $people->apps_id,
+            $people->companies_id,
+        );
+        $this->runListener($message);
 
         $people->refresh();
 
@@ -156,12 +195,46 @@ final class PeopleMessageTimestampsTest extends TestCase
 
     private function createMessageForLead(Lead $lead): Message
     {
+        $message = $this->makeMessage(
+            $lead,
+            $this->communicationMessageType(),
+            $lead->apps_id,
+            $lead->companies_id,
+        );
+        $this->runListener($message);
+
+        return $message;
+    }
+
+    private function makeMessage(Model $entity, MessageType $type, int $appsId, int $companiesId): Message
+    {
         $message = Message::factory()->create([
-            'apps_id' => $lead->apps_id,
-            'companies_id' => $lead->companies_id,
+            'apps_id' => $appsId,
+            'companies_id' => $companiesId,
+            'message_types_id' => $type->getId(),
         ]);
-        $message->addEntity($lead);
+        $message->addEntity($entity);
 
         return $message->fresh('appModuleMessage');
+    }
+
+    private function runListener(Message $message): void
+    {
+        new UpdatePeopleMessageTimestampsListener()
+            ->handle(new AppModuleMessageCreatedEvent($message->appModuleMessage));
+    }
+
+    private function communicationMessageType(): MessageType
+    {
+        return $this->communicationType ??= MessageType::factory()->create([
+            'verb' => 'whatsapp-text-' . uniqid('', false),
+        ]);
+    }
+
+    private function nonCommunicationMessageType(): MessageType
+    {
+        return $this->nonCommunicationType ??= MessageType::factory()->create([
+            'verb' => 'note-' . uniqid('', false),
+        ]);
     }
 }

@@ -111,7 +111,7 @@ class AgentManagementMutation
             task: $task,
             communicationChannel: $input['communication_channels'] ?? [],
             soul: $input['soul'] ?? null,
-            instructions: $input['instructions'] ?? null,
+            instructions: array_key_exists('instructions', $input) ? $input['instructions'] : $agent->instructions,
             outputFormat: $input['output_format'] ?? null,
             identity: $input['identity'] ?? null,
             userContext: $input['user_context'] ?? null,
@@ -128,8 +128,9 @@ class AgentManagementMutation
 
         if (isset($input['tool_ids'])) {
             $this->syncTools($agent, $input['tool_ids'], $app);
-            new RebuildAgentToolInstructionsAction($agent, $app)->execute();
         }
+
+        new RebuildAgentToolInstructionsAction($agent, $app)->execute();
 
         return $agent->refresh();
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Intelligence;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +16,7 @@ use Kanvas\Users\Models\Users;
 
 class AgentInventoryChatCommand extends Command
 {
+    use KanvasJobsTrait;
     protected $signature = 'agent:inventory-chat
                             {--app-id=1 : The app ID context}
                             {--user-id=1 : The user ID to chat as}
@@ -27,7 +29,7 @@ class AgentInventoryChatCommand extends Command
         $app = Apps::getById((int) $this->option('app-id'));
         $user = Users::getById((int) $this->option('user-id'));
 
-        App::scoped(Apps::class, fn () => $app);
+        $this->overwriteAppService($app);
         Auth::loginUsingId($user->getId());
 
         if ($companyId = $this->option('company-id')) {
