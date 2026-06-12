@@ -8,16 +8,16 @@
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
-            "version": "4.44.0",
+            "version": "4.45.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/algolia/algoliasearch-client-php.git",
-                "reference": "7f5b648681f62c048381f9a2450930030848e20e"
+                "reference": "b82c5277da7e42029d3c074a8a5e79ad752a2347"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/algolia/algoliasearch-client-php/zipball/7f5b648681f62c048381f9a2450930030848e20e",
-                "reference": "7f5b648681f62c048381f9a2450930030848e20e",
+                "url": "https://api.github.com/repos/algolia/algoliasearch-client-php/zipball/b82c5277da7e42029d3c074a8a5e79ad752a2347",
+                "reference": "b82c5277da7e42029d3c074a8a5e79ad752a2347",
                 "shasum": ""
             },
             "require": {
@@ -69,9 +69,9 @@
             ],
             "support": {
                 "issues": "https://github.com/algolia/algoliasearch-client-php/issues",
-                "source": "https://github.com/algolia/algoliasearch-client-php/tree/4.44.0"
+                "source": "https://github.com/algolia/algoliasearch-client-php/tree/4.45.0"
             },
-            "time": "2026-05-29T08:31:59+00:00"
+            "time": "2026-06-11T14:25:17+00:00"
         },
         {
             "name": "algolia/scout-extended",
@@ -384,16 +384,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.384.6",
+            "version": "3.384.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "073ff664a003798a673aaa2494a0bb1b904cfeba"
+                "reference": "d1152dfc19b4cf19f454bc9bc9fdc9ed937f2492"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/073ff664a003798a673aaa2494a0bb1b904cfeba",
-                "reference": "073ff664a003798a673aaa2494a0bb1b904cfeba",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/d1152dfc19b4cf19f454bc9bc9fdc9ed937f2492",
+                "reference": "d1152dfc19b4cf19f454bc9bc9fdc9ed937f2492",
                 "shasum": ""
             },
             "require": {
@@ -475,9 +475,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.384.6"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.384.7"
             },
-            "time": "2026-06-09T19:00:05+00:00"
+            "time": "2026-06-10T18:08:15+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -4184,16 +4184,16 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v0.8.0",
+            "version": "v0.8.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "7da9fd8cf7b66c755902f77498232c938b52af10"
+                "reference": "b23bc857576d7c4b3bb52ffd8be936ae74005d23"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/7da9fd8cf7b66c755902f77498232c938b52af10",
-                "reference": "7da9fd8cf7b66c755902f77498232c938b52af10",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/b23bc857576d7c4b3bb52ffd8be936ae74005d23",
+                "reference": "b23bc857576d7c4b3bb52ffd8be936ae74005d23",
                 "shasum": ""
             },
             "require": {
@@ -4203,14 +4203,14 @@
                 "illuminate/contracts": "^12.0|^13.0",
                 "illuminate/database": "^12.0|^13.0",
                 "illuminate/filesystem": "^12.0|^13.0",
-                "illuminate/json-schema": "^12.61.2|^13.14",
+                "illuminate/json-schema": "^12.62|^13.15",
                 "illuminate/support": "^12.0|^13.0",
                 "laravel/prompts": "^0.3.6",
                 "laravel/serializable-closure": "^2.0",
                 "php": "^8.3"
             },
             "require-dev": {
-                "laravel/mcp": "^0.7",
+                "laravel/mcp": "^0.8",
                 "laravel/pint": "^1.26",
                 "mockery/mockery": "^1.6.12",
                 "orchestra/testbench": "^10.6|^11.0",
@@ -4254,7 +4254,7 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-06-08T12:14:49+00:00"
+            "time": "2026-06-10T11:23:35+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -7431,16 +7431,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.15.6",
+            "version": "3.15.11",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "ac384214f708b8877d60309dbcfd47ec8bc4ac5e"
+                "reference": "c93862119cda32bc672d3823a8107ae2bd29f0b5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/ac384214f708b8877d60309dbcfd47ec8bc4ac5e",
-                "reference": "ac384214f708b8877d60309dbcfd47ec8bc4ac5e",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/c93862119cda32bc672d3823a8107ae2bd29f0b5",
+                "reference": "c93862119cda32bc672d3823a8107ae2bd29f0b5",
                 "shasum": ""
             },
             "require": {
@@ -7491,7 +7491,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.15.6"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.15.11"
             },
             "funding": [
                 {
@@ -7499,7 +7499,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-03T17:37:14+00:00"
+            "time": "2026-06-12T12:24:14+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
@@ -10933,16 +10933,16 @@
         },
         {
             "name": "sentry/sentry",
-            "version": "4.27.0",
+            "version": "4.28.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/getsentry/sentry-php.git",
-                "reference": "1f0544cff8443ac1d25d6521487118e28381a1c2"
+                "reference": "662cb7a01a342a7f33780fc955ff4a028d8b785a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/1f0544cff8443ac1d25d6521487118e28381a1c2",
-                "reference": "1f0544cff8443ac1d25d6521487118e28381a1c2",
+                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/662cb7a01a342a7f33780fc955ff4a028d8b785a",
+                "reference": "662cb7a01a342a7f33780fc955ff4a028d8b785a",
                 "shasum": ""
             },
             "require": {
@@ -10959,16 +10959,14 @@
                 "raven/raven": "*"
             },
             "require-dev": {
-                "carthage-software/mago": "^1.13.3",
+                "carthage-software/mago": "1.30.0",
                 "friendsofphp/php-cs-fixer": "^3.4",
                 "guzzlehttp/promises": "^2.0.3",
-                "guzzlehttp/psr7": "^1.8.4|^2.1.1",
                 "monolog/monolog": "^1.6|^2.0|^3.0",
                 "nyholm/psr7": "^1.8",
                 "open-telemetry/api": "^1.0",
                 "open-telemetry/exporter-otlp": "^1.0",
                 "open-telemetry/sdk": "^1.0",
-                "phpbench/phpbench": "^1.0",
                 "phpstan/phpstan": "^1.3",
                 "phpunit/phpunit": "^8.5.52|^9.6.34",
                 "spiral/roadrunner-http": "^3.6",
@@ -11012,7 +11010,7 @@
             ],
             "support": {
                 "issues": "https://github.com/getsentry/sentry-php/issues",
-                "source": "https://github.com/getsentry/sentry-php/tree/4.27.0"
+                "source": "https://github.com/getsentry/sentry-php/tree/4.28.0"
             },
             "funding": [
                 {
@@ -11024,27 +11022,27 @@
                     "type": "custom"
                 }
             ],
-            "time": "2026-05-06T14:32:16+00:00"
+            "time": "2026-06-11T12:22:38+00:00"
         },
         {
             "name": "sentry/sentry-laravel",
-            "version": "4.25.1",
+            "version": "4.26.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/getsentry/sentry-laravel.git",
-                "reference": "67efbdd74a752fcc1038676986b055a4df7d5084"
+                "reference": "8f2cc669ee99d3cda31a89f0a18197fd2efbd1b6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/getsentry/sentry-laravel/zipball/67efbdd74a752fcc1038676986b055a4df7d5084",
-                "reference": "67efbdd74a752fcc1038676986b055a4df7d5084",
+                "url": "https://api.github.com/repos/getsentry/sentry-laravel/zipball/8f2cc669ee99d3cda31a89f0a18197fd2efbd1b6",
+                "reference": "8f2cc669ee99d3cda31a89f0a18197fd2efbd1b6",
                 "shasum": ""
             },
             "require": {
                 "illuminate/support": "^6.0 | ^7.0 | ^8.0 | ^9.0 | ^10.0 | ^11.0 | ^12.0 | ^13.0",
                 "nyholm/psr7": "^1.0",
                 "php": "^7.2 | ^8.0",
-                "sentry/sentry": "^4.23.0",
+                "sentry/sentry": "^4.28.0",
                 "symfony/psr-http-message-bridge": "^1.0 | ^2.0 | ^6.0 | ^7.0 | ^8.0"
             },
             "require-dev": {
@@ -11103,7 +11101,7 @@
             ],
             "support": {
                 "issues": "https://github.com/getsentry/sentry-laravel/issues",
-                "source": "https://github.com/getsentry/sentry-laravel/tree/4.25.1"
+                "source": "https://github.com/getsentry/sentry-laravel/tree/4.26.0"
             },
             "funding": [
                 {
@@ -11115,7 +11113,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2026-05-05T09:22:46+00:00"
+            "time": "2026-06-11T13:22:14+00:00"
         },
         {
             "name": "setasign/fpdf",
