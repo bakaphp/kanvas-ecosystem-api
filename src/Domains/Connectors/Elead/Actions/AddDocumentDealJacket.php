@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Elead\Actions;
 
+use Baka\Http\SafeUrlFetcher;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Client;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -53,7 +54,7 @@ class AddDocumentDealJacket
             'signatories' => $signatories,
             'createDealJacket' => true,
             'document' => [
-                'contents' => file_get_contents($this->filesystem->url),
+                'contents' => SafeUrlFetcher::fetch($this->filesystem->url),
                 'vaultDocId' => $this->filesystem->uuid,
                 'documentName' => $this->filesystem->name,
                 'replaceIfDuplicate' => true,

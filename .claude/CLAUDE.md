@@ -755,6 +755,32 @@ Same rule for `@belongsTo(relation: "company")`, `@hasOne(relation: "primaryAddr
   - **Keep** comments that explain: non-obvious ordering ("OpenClaw rows first so OpenClaw wins on tie"), external-system quirks ("Node prints warnings ahead of JSON, strip before decode"), cache TTL rationale, the "why" behind an interface (cross-runtime adoption is on the *target* not the source), schema/input shapes contributors must conform to.
   - **Delete** comments that restate code: `// Loop over the items`, `// Set the status to running`, `// Fetch logs via SSH`, class docblocks that describe what the class name already says, method docblocks that paraphrase the signature.
 
+### Never Fetch a Remote URL Without the SSRF Guard
+
+Any server-side fetch of a URL that could be influenced by a user (GraphQL input, a DB field set from input, a webhook/message payload, a company logo, an agent image, an attachment) MUST go through the SSRF guard in `Baka\Http`. Never call `file_get_contents($url)`, `Http::get($url)`, `curl_exec`, etc. directly on such a URL.
+
+```php
+use Baka\Http\SafeUrlFetcher;
+
+// Fetches with scheme allow-list + private/reserved-IP block + DNS-rebind pinning
+// + redirect re-validation + timeout + a hard byte cap (config/ssrf.php). Returns the body.
+$bytes = SafeUrlFetcher::fetch($url);
+```
+
+When you can't use the fetcher's transport (you keep Laravel's `Http`/Guzzle, or a `stream_context` Range read), gate it first:
+
+```php
+use Baka\Http\SafeUrl;
+
+SafeUrl::assertSafe($url);          // throws SsrfException on a disallowed scheme / private host
+$response = Http::timeout(30)->get($url);
+```
+
+Why: a raw fetch on a user URL lets an attacker hit `http://169.254.169.254` (cloud-metadata → IAM creds), internal hosts, or `file://` — and unbounded reads are a memory-DoS. The guard rejects loopback/RFC1918/link-local/CGNAT/reserved ranges **and** the IPv6 transition forms that smuggle a private IPv4 (NAT64 `64:ff9b::/96`, 6to4 `2002::/16`, Teredo `2001::/32`, IPv4-compatible `::/96` — the class behind Symfony CVE-2026-48736).
+
+- **Single chokepoint for image downloads:** `FilesystemServices::downloadImageFromUrl()` is already guarded — route new image/file downloads through it (or the `ImageOptimizerService` / `ImageConversionService` helpers that call it) and you inherit the protection.
+- **Enforced by a coverage test:** [`tests/Baka/Unit/NoUnguardedUrlFetchTest.php`](../tests/Baka/Unit/NoUnguardedUrlFetchTest.php) fails CI if a file under `src/`/`app/` introduces a raw `file_get_contents($var)` / `curl_exec` without referencing the guard. A genuinely-local read (local file, hardcoded endpoint, admin-config CLI) goes in that test's allow-list with a one-line justification — never silence it by other means.
+
 ## Queue Workers
 
 When a queued job sets `$this->onQueue('xxx')` (or is dispatched to a non-default queue), **a worker process must be configured to consume that queue**. Otherwise jobs pile up in Redis untouched.

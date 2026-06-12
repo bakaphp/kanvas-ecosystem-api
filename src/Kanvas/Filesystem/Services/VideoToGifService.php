@@ -6,6 +6,7 @@ namespace Kanvas\Filesystem\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Http\SafeUrl;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use FFMpeg\Coordinate\Dimension;
@@ -57,6 +58,8 @@ class VideoToGifService
      */
     protected function downloadVideo(string $videoUrl): string
     {
+        SafeUrl::assertSafe($videoUrl);
+
         $response = Http::timeout(60)
             ->retry(3, 100)
             ->get($videoUrl);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Actions;
 
+use Baka\Http\SafeUrl;
 use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Http;
@@ -105,6 +106,7 @@ array_key_first($this->message->message['raw_data']['message']);
         ];
         $messageService = new MessageService($this->message->app, $this->message->company);
         $response = $messageService->decryptMediaFile($payload);
+        SafeUrl::assertSafe($response['publicUrl']);
         $content = Http::get($response['publicUrl']);
         // Generate a unique filename
         $filename = uniqid() . '.' . $this->getFileExtension($type);
