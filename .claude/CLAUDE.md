@@ -781,6 +781,14 @@ Why: a raw fetch on a user URL lets an attacker hit `http://169.254.169.254` (cl
 - **Single chokepoint for image downloads:** `FilesystemServices::downloadImageFromUrl()` is already guarded — route new image/file downloads through it (or the `ImageOptimizerService` / `ImageConversionService` helpers that call it) and you inherit the protection.
 - **Enforced by a coverage test:** [`tests/Baka/Unit/NoUnguardedUrlFetchTest.php`](../tests/Baka/Unit/NoUnguardedUrlFetchTest.php) fails CI if a file under `src/`/`app/` introduces a raw `file_get_contents($var)` / `curl_exec` without referencing the guard. A genuinely-local read (local file, hardcoded endpoint, admin-config CLI) goes in that test's allow-list with a one-line justification — never silence it by other means.
 
+### Uploaded Image Handling — Trust Magic Bytes, and the ImageMagick Policy
+
+Two coupled rules for anything that accepts or decodes uploaded images:
+
+1. **Derive an image's stored `file_type` from magic bytes, never the client filename.** `CreateFilesystemAction::resolveFileType()` runs `finfo` on the real upload and, for `image/*`, stores the content-derived extension. This is what stops a file named `evil.heic` but carrying crafted TIFF/MVG bytes from steering the decoder (e.g. `ConvertHeicToJpgActivity` branches on `file_type`). When you validate an **image-only** upload, gate on `$file->extension()` (Symfony's magic-byte guess), not `getClientOriginalExtension()`. Do NOT apply magic-byte validation to the `WORK_FILES` allow-list — `.docx`/`.xlsx` are ZIP containers that finfo reports as `application/zip`, so client-extension validation stays for those.
+
+2. **ImageMagick is hardened by [`docker/imagemagick-policy.xml`](../docker/imagemagick-policy.xml)** (installed into `/etc/ImageMagick-{7,6}/policy.xml` by both Dockerfiles). It disables the RCE/SSRF coders+delegates the app never uses (MSL, MVG, URL/HTTP(S)/FTP, PS/PDF/EPS, the Ghostscript delegate, SVG) and caps resources against decompression bombs. The image coders the app *does* convert (JPEG, PNG, WEBP, GIF, HEIC, HEIF, AVIF, TIFF, BMP) stay enabled. **If you add support for a new image format, whitelist its coder here or conversions will fail with "not authorized by the security policy".** Verify a policy change against the live `imagick` extension (`new Imagick(...)`), not the `convert` CLI — the CLI isn't installed in the image.
+
 ## Queue Workers
 
 When a queued job sets `$this->onQueue('xxx')` (or is dispatched to a non-default queue), **a worker process must be configured to consume that queue**. Otherwise jobs pile up in Redis untouched.
