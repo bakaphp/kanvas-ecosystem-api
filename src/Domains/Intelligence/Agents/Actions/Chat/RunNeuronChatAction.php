@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
+use Baka\Http\SafeUrlFetcher;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -43,9 +44,18 @@ class RunNeuronChatAction
 
         $userMessage = new UserMessage($this->message);
         foreach ($this->images as $image) {
+            // SSRF guard: remote images go through the validated fetcher (blocks internal
+            // hosts / cloud-metadata); data: URIs and local paths keep the raw read.
+            if (preg_match('#^https?://#i', $image)) {
+                $binary = SafeUrlFetcher::fetch($image);
+            } else {
+                $raw = file_get_contents($image);
+                $binary = $raw === false ? '' : $raw;
+            }
+
             $userMessage->addContent(
                 new ImageContent(
-                    content: base64_encode(file_get_contents($image)),
+                    content: base64_encode($binary),
                     sourceType: SourceType::BASE64,
                     mediaType: 'image/png'
                 )

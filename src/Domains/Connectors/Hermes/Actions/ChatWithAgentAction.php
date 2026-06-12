@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Hermes\Actions;
 
+use Baka\Http\SafeUrlFetcher;
 use finfo;
 use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Hermes\Traits\OpensHermesSshClient;
@@ -155,13 +156,11 @@ class ChatWithAgentAction
 
     protected function fetchImageBinary(string $url): string
     {
-        $binary = @file_get_contents($url);
-
-        if ($binary === false) {
+        try {
+            return SafeUrlFetcher::fetch($url);
+        } catch (Throwable $e) {
             throw new ValidationException('Could not fetch image for Hermes vision: ' . $url);
         }
-
-        return $binary;
     }
 
     private function parseResponse(string $response): string

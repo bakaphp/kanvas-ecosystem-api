@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policymap [
+  <!ELEMENT policymap (policy)*>
+  <!ATTLIST policymap xmlns CDATA #FIXED ''>
+  <!ELEMENT policy EMPTY>
+  <!ATTLIST policy xmlns CDATA #FIXED '' domain NMTOKEN #REQUIRED
+    name NMTOKEN #IMPLIED pattern CDATA #IMPLIED rights NMTOKEN #IMPLIED
+    stealth NMTOKEN #IMPLIED value CDATA #IMPLIED>
+]>
+<!--
+  Hardened ImageMagick policy for Kanvas.
+
+  Goal: keep the image coders the app legitimately decodes/converts (JPEG, PNG, WEBP, GIF,
+  HEIC, HEIF, AVIF, TIFF, BMP) while removing the coders/delegates that are pure RCE / SSRF /
+  arbitrary-file-read vectors and have no use here, plus resource caps against decompression
+  and dimension bombs. See ImageOptimizerService / ImageConversionService for the formats in use.
+-->
+<policymap>
+  <!-- Resource caps: stop pixel-flood / decompression bombs from exhausting the worker. -->
+  <policy domain="resource" name="memory" value="256MiB"/>
+  <policy domain="resource" name="map" value="512MiB"/>
+  <policy domain="resource" name="area" value="128MP"/>
+  <policy domain="resource" name="disk" value="1GiB"/>
+  <policy domain="resource" name="width" value="32KP"/>
+  <policy domain="resource" name="height" value="32KP"/>
+  <policy domain="resource" name="list-length" value="128"/>
+  <policy domain="resource" name="time" value="300"/>
+
+  <!-- Block the Ghostscript delegate chain (the PDF/PS/EPS -> shell RCE path). -->
+  <policy domain="delegate" rights="none" pattern="gs"/>
+
+  <!-- Scripting / vector coders that can exec or read arbitrary files (ImageTragick class). -->
+  <policy domain="coder" rights="none" pattern="MSL"/>
+  <policy domain="coder" rights="none" pattern="MVG"/>
+  <policy domain="coder" rights="none" pattern="MAGICK"/>
+  <policy domain="coder" rights="none" pattern="EPHEMERAL"/>
+  <policy domain="coder" rights="none" pattern="TEXT"/>
+  <policy domain="coder" rights="none" pattern="LABEL"/>
+  <policy domain="coder" rights="none" pattern="CAPTION"/>
+  <policy domain="coder" rights="none" pattern="SHOW"/>
+  <policy domain="coder" rights="none" pattern="WIN"/>
+  <policy domain="coder" rights="none" pattern="PLT"/>
+
+  <!-- Network coders: ImageMagick must never fetch a URL itself (SSRF). -->
+  <policy domain="coder" rights="none" pattern="URL"/>
+  <policy domain="coder" rights="none" pattern="HTTP"/>
+  <policy domain="coder" rights="none" pattern="HTTPS"/>
+  <policy domain="coder" rights="none" pattern="FTP"/>
+
+  <!-- PostScript / PDF / XPS: not used for image conversion here, classic delegate RCE. -->
+  <policy domain="coder" rights="none" pattern="PS"/>
+  <policy domain="coder" rights="none" pattern="PS2"/>
+  <policy domain="coder" rights="none" pattern="PS3"/>
+  <policy domain="coder" rights="none" pattern="EPS"/>
+  <policy domain="coder" rights="none" pattern="EPI"/>
+  <policy domain="coder" rights="none" pattern="EPT"/>
+  <policy domain="coder" rights="none" pattern="PDF"/>
+  <policy domain="coder" rights="none" pattern="XPS"/>
+
+  <!-- SVG is stored/served as a static asset, never rasterized; its coder enables XXE/SSRF. -->
+  <policy domain="coder" rights="none" pattern="SVG"/>
+  <policy domain="coder" rights="none" pattern="MSVG"/>
+
+  <!-- Block indirect reads via @filename / list-file indirection. -->
+  <policy domain="path" rights="none" pattern="@*"/>
+</policymap>
