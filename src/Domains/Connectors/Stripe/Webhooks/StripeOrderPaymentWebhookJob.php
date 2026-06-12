@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Stripe\Webhooks;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
@@ -228,7 +229,17 @@ class StripeOrderPaymentWebhookJob extends ProcessWebhookJob
         $refund->currency = $payment->currency;
         $refund->status = RefundStatusEnum::PENDING->value;
         $refund->processor_refund_id = $refundId;
-        $refund->saveOrFail();
+
+        try {
+            $refund->saveOrFail();
+        } catch (QueryException $e) {
+            // Unique (payments_id, processor_refund_id): a concurrent delivery already inserted it.
+            if (PaymentRefund::where('payments_id', $payment->getId())->where('processor_refund_id', $refundId)->exists()) {
+                return ['message' => 'refund already recorded', 'refund_id' => $refundId];
+            }
+
+            throw $e;
+        }
 
         // markAsCompleted flips the Payment to REVERSED once cumulative refunds reach the total.
         $refund->markAsCompleted([
