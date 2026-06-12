@@ -17,6 +17,31 @@ use Baka\Http\Exceptions\SsrfException;
 final class SafeUrl
 {
     /**
+     * Baseline blocked ranges PHP's FILTER_FLAG_NO_PRIV_RANGE / NO_RES_RANGE don't cover.
+     * Hardcoded (not config-only) so the security floor holds even if config fails to load;
+     * `config('ssrf.blocked_cidrs')` is merged on top for operator-specific additions.
+     *
+     * @var list<string>
+     */
+    private const RESERVED_CIDRS = [
+        '100.64.0.0/10',    // CGNAT (RFC 6598)
+        '192.0.0.0/24',     // IETF protocol assignments
+        '192.0.2.0/24',     // TEST-NET-1
+        '198.18.0.0/15',    // benchmarking
+        '198.51.100.0/24',  // TEST-NET-2
+        '203.0.113.0/24',   // TEST-NET-3
+        'fc00::/7',         // unique-local IPv6
+        'fe80::/10',        // link-local IPv6
+        '::ffff:0:0/96',    // IPv4-mapped IPv6
+        // IPv6 transition forms that embed an IPv4 address (Symfony CVE-2026-48736).
+        '::/96',            // IPv4-compatible IPv6 (deprecated)
+        '64:ff9b::/96',     // NAT64 well-known prefix (RFC 6052)
+        '64:ff9b:1::/48',   // NAT64 local-use prefix (RFC 8215)
+        '2002::/16',        // 6to4
+        '2001::/32',        // Teredo
+    ];
+
+    /**
      * Validate a URL and return the public IPs the host resolves to.
      *
      * @return list<string>
@@ -111,7 +136,8 @@ final class SafeUrl
             return false;
         }
 
-        foreach (config('ssrf.blocked_cidrs', []) as $cidr) {
+        $blocked = array_merge(self::RESERVED_CIDRS, config('ssrf.blocked_cidrs', []));
+        foreach ($blocked as $cidr) {
             if (self::ipInCidr($ip, $cidr)) {
                 return false;
             }

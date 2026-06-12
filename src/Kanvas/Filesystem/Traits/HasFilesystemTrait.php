@@ -7,7 +7,6 @@ namespace Kanvas\Filesystem\Traits;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
-use Baka\Http\SafeUrl;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
@@ -53,8 +52,6 @@ trait HasFilesystemTrait
      */
     public function addFileFromUrl(string $url, string $fieldName, ?Apps $app = null): bool
     {
-        SafeUrl::assertSafe($url);
-
         $companyId = $this->companies_id ?? AppEnums::GLOBAL_COMPANY_ID->getValue();
 
         //@todo allow to share media between company only of it the apps specifies it
