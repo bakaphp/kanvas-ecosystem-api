@@ -36,7 +36,8 @@ class IntegrationsMutation
             );
         }
 
-        (new ConfigValidation($integration->config, $request['input']))->validate();
+        // Seeded integrations rows (IntegrationsSeeder) carry no config schema — treat null as "no required keys".
+        new ConfigValidation($integration->config ?? [], $request['input'])->validate();
         $integrationDto = new IntegrationsCompany(
             integration: $integration,
             region: $region,

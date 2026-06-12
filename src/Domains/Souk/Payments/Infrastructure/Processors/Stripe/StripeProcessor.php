@@ -574,6 +574,9 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
             'confirm' => true,
             'off_session' => $context['off_session'] ?? true,
             'capture_method' => ($context['manual_capture'] ?? false) ? 'manual' : 'automatic',
+            // Card-only processor: accounts with automatic payment methods enabled reject
+            // confirm-without-return_url. allow_redirects 'never' still permits 3DS (handleNextAction).
+            'automatic_payment_methods' => ['enabled' => true, 'allow_redirects' => 'never'],
             'metadata' => [
                 'kanvas_app_id' => $this->app->getId(),
                 'kanvas_company_id' => $this->company->getId(),
