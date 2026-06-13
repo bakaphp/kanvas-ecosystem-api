@@ -304,7 +304,11 @@ class Lead extends BaseModel implements EventResourceInterface
 
     public function isOpen(): bool
     {
-        return $this->status < 2;
+        // `status` is both a column AND a relation (status()). On a partially
+        // hydrated model `$this->status` resolves to the LeadStatus relation
+        // object (TypeError on `< 2`), so read the column explicitly. A missing
+        // status means a freshly created lead → treat as open.
+        return (int) ($this->getAttributeValue('status') ?? 0) < 2;
     }
 
     public function isActive(): bool

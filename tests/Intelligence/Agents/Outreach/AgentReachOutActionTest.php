@@ -55,6 +55,26 @@ class AgentReachOutActionTest extends TestCase
         $this->assertStringContainsString('in flight', (string) $result['message']);
     }
 
+    public function testSkipsWhenLeadIsNotOpen(): void
+    {
+        $lead = $this->makeLeadWithCellphone();
+        $lead->status = 2; // closed (won/lost) → isOpen() false
+        $lead->saveOrFail();
+
+        // agent_id 999 would throw if the guard didn't short-circuit first.
+        $result = new AgentReachOutAction($lead, ['agent_id' => 999])->execute();
+
+        $this->assertSame('skipped', $result['status']);
+        $this->assertSame(
+            AgentReachOutConfigEnum::STATUS_SKIPPED,
+            (string) $lead->fresh()->get(AgentReachOutConfigEnum::STATUS->value),
+        );
+        $this->assertSame(
+            'lead_not_active',
+            (string) $lead->fresh()->get(AgentReachOutConfigEnum::REASON->value),
+        );
+    }
+
     public function testSkipsWhenLeadSourceNotInAllowlist(): void
     {
         $lead = $this->makeLeadWithCellphone();

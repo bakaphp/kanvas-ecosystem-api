@@ -100,6 +100,51 @@ class FollowUpLeadActionTest extends TestCase
     }
 
     // ─────────────────────────────────────────────────────────────────────
+    // Gate 1a: closed lead (status >= 2) → lead_not_active (skip)
+    // A won/lost lead must not be nudged even in a non-terminal nudge stage.
+    // ─────────────────────────────────────────────────────────────────────
+    public function testSkipsWhenLeadIsNotOpen(): void
+    {
+        $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
+        $lead->status = 2; // closed (won/lost) → isOpen() false
+        $lead->saveOrFail();
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertSame('lead_not_active', $outcome->reason);
+        $this->assertFalse($lead->isFollowUpExhausted(), 'Closed-lead skip is not an exhaustion.');
+    }
+
+    // Force does NOT bypass the active-lead gate — it only relaxes too_soon.
+    public function testForceDoesNotBypassActiveLeadGate(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $lead->status = 2;
+        $lead->saveOrFail();
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+            force: true,
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertSame('lead_not_active', $outcome->reason);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
     // Gate 1b: already exhausted → exhausted (skipped path)
     // ─────────────────────────────────────────────────────────────────────
     public function testSkipsWhenLeadAlreadyExhausted(): void
