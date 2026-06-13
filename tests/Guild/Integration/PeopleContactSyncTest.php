@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Integration;
 
-use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\DataTransferObject\Contact as ContactData;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -81,30 +80,35 @@ final class PeopleContactSyncTest extends TestCase
     }
 
     /**
-     * Two overlapping syncs for the same person must not shred each other's rows. While one
-     * holds the per-person lock, a second one skips instead of deleting + recreating contacts.
+     * When a value+type that was soft-deleted comes back in a sync (e.g. a number that flipped
+     * away and returned), the existing soft-deleted row is restored in place — not duplicated.
      */
-    public function testSyncSkipsWhileAnotherHoldsThePersonLock(): void
+    public function testRestoresSoftDeletedContactInsteadOfDuplicating(): void
     {
         $people = $this->createPersonWithContacts();
-        $before = $people->contacts()->orderBy('id')->pluck('id')->all();
+        $cellId = (int) $people->contacts()
+            ->where('contacts_types_id', ContactTypeEnum::CELLPHONE->value)
+            ->value('id');
 
-        $lock = Cache::lock('people-contacts-sync:' . $people->getKey(), 10);
-        $this->assertTrue($lock->get(), 'precondition: acquire the per-person lock');
+        // The cell was removed by an earlier sync (soft-deleted).
+        Contact::withTrashed()->find($cellId)->delete();
+        $this->assertSame(1, (int) Contact::withTrashed()->find($cellId)->is_deleted);
 
-        try {
-            $this->syncWith($people, [
-                new ContactData(value: 'changed@salesassist.io', contacts_types_id: ContactTypeEnum::EMAIL->value, weight: 100),
-            ]);
-        } finally {
-            $lock->release();
-        }
+        // The same cell number comes back on the next sync.
+        $this->syncWith($people, [
+            new ContactData(value: 'snow@salesassist.io', contacts_types_id: ContactTypeEnum::EMAIL->value, weight: 100),
+            new ContactData(value: '2011234567', contacts_types_id: ContactTypeEnum::PHONE->value, weight: 100),
+            new ContactData(value: '6503859777', contacts_types_id: ContactTypeEnum::CELLPHONE->value, weight: 3),
+        ]);
 
-        $this->assertSame(
-            $before,
-            $people->fresh()->contacts()->orderBy('id')->pluck('id')->all(),
-            'a sync must skip (touch nothing) while another holds the per-person lock'
-        );
+        $cells = Contact::withTrashed()
+            ->where('peoples_id', $people->getKey())
+            ->where('contacts_types_id', ContactTypeEnum::CELLPHONE->value)
+            ->get();
+
+        $this->assertCount(1, $cells, 'no duplicate cell row — the soft-deleted one is reused');
+        $this->assertSame($cellId, (int) $cells->first()->id, 'the original (soft-deleted) row is restored, same id');
+        $this->assertSame(0, (int) $cells->first()->is_deleted, 'the restored row is active again');
     }
 
     private function syncWith(People $people, array $contacts): void

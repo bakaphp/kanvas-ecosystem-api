@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Traits;
 
-use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Guild\Customers\DataTransferObject\Contact as ContactData;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
@@ -30,6 +27,7 @@ trait ManagesPeopleContactsTrait
         if (isset($contact->id) && (int) $contact->id > 0) {
             /** @var Contact|null $byId */
             $byId = $people->contacts()
+                ->withTrashed()
                 ->where('id', $contact->id)
                 ->first();
 
@@ -43,8 +41,14 @@ trait ManagesPeopleContactsTrait
             // existing row in place instead of deleting + recreating it on every sync.
         }
 
+        // Match against soft-deleted rows too, ordered active-first. When a value we've seen
+        // before comes back (e.g. a number that flipped away and back), we restore the existing
+        // row instead of inserting a duplicate — so soft-deleted rows don't pile up and the
+        // contact keeps a stable id. The caller clears is_deleted on the matched row.
         $query = $people->contacts()
-            ->where('contacts_types_id', $contact->contacts_types_id);
+            ->withTrashed()
+            ->where('contacts_types_id', $contact->contacts_types_id)
+            ->orderBy('is_deleted');
 
         if (Contact::isPhoneType($contact->contacts_types_id)) {
             // Match on the canonical NANP form (last 10 digits) so a country-code prefix or
@@ -152,31 +156,12 @@ trait ManagesPeopleContactsTrait
             return;
         }
 
-        try {
-            // Serialize contact syncs per person. The body runs read -> keep/add -> delete-whereNotIn
-            // non-atomically, so two overlapping syncs (overlapping pulls, or a CONTACT_SAVED workflow
-            // re-entering mid-sync) were shredding each other's rows and minting a new id every time.
-            Cache::lock('people-contacts-sync:' . $people->getKey(), 10)->block(
-                5,
-                fn () => $this->runContactsSyncForUpdate($people, $contacts)
-            );
-        } catch (LockTimeoutException) {
-            // Another sync for this person is already applying the same contacts — skip the race.
-        }
-    }
-
-    private function runContactsSyncForUpdate(People $people, DataCollection $contacts): void
-    {
         $deduplicatedContacts = $this->deduplicateContacts($contacts);
 
         // @todo remove once frontend sends opt-out updates via a separate mutation
         if ($this->isOptOutOnlyUpdate($deduplicatedContacts, $people)) {
             return;
         }
-
-        // @todo temporary diagnostic — remove once the VinSolution sync recreation is confirmed fixed.
-        $existingBefore = $people->contacts()->get(['id', 'value', 'contacts_types_id'])->toArray();
-        $decisions = [];
 
         $keepIds = [];
         $contactsToAdd = [];
@@ -190,15 +175,14 @@ trait ManagesPeopleContactsTrait
                 $existingContact->contacts_types_id = $contact->contacts_types_id;
                 $existingContact->weight = $contact->weight;
                 $existingContact->is_opt_out = (int) ($contact->is_opt_out ?? $existingContact->is_opt_out);
+                $existingContact->is_deleted = 0; // restore in place if the matched row was soft-deleted
                 $existingContact->saveOrFail();
                 $keepIds[] = $existingContact->id;
-                $decisions[] = ['in' => $contact->value, 'type' => $contact->contacts_types_id, 'norm' => $normalizedValue, 'result' => 'matched', 'id' => $existingContact->id];
             } else {
                 $createdContact = $this->addNewContact($people, $contact);
 
                 if ($createdContact !== null) {
                     $keepIds[] = $createdContact->id;
-                    $decisions[] = ['in' => $contact->value, 'type' => $contact->contacts_types_id, 'norm' => $normalizedValue, 'result' => 'added(updateOrCreate)', 'id' => $createdContact->id];
                 } else {
                     $contactsToAdd[] = new Contact([
                         'contacts_types_id' => $contact->contacts_types_id,
@@ -206,7 +190,6 @@ trait ManagesPeopleContactsTrait
                         'is_opt_out' => (int) ($contact->is_opt_out ?? 0),
                         'weight' => $contact->weight,
                     ]);
-                    $decisions[] = ['in' => $contact->value, 'type' => $contact->contacts_types_id, 'norm' => $normalizedValue, 'result' => 'added(insert)', 'id' => null];
                 }
             }
         }
@@ -216,22 +199,6 @@ trait ManagesPeopleContactsTrait
             foreach ($savedContacts as $saved) {
                 $keepIds[] = $saved->id;
             }
-        }
-
-        $deletedIds = $people->contacts()
-            ->when(! empty($keepIds), fn ($q) => $q->whereNotIn('id', $keepIds))
-            ->pluck('id')
-            ->all();
-
-        // Only fires when a sync actually deletes a contact — i.e. only when the bug reproduces.
-        if (! empty($deletedIds)) {
-            Log::warning('contact_sync_recreated', [
-                'peoples_id' => $people->getKey(),
-                'existing_before' => $existingBefore,
-                'incoming_decisions' => $decisions,
-                'keep_ids' => $keepIds,
-                'deleted_ids' => $deletedIds,
-            ]);
         }
 
         if (! empty($keepIds)) {
