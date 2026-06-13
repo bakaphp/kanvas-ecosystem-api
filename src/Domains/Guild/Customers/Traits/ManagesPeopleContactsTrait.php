@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Customers\Traits;
 
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Guild\Customers\DataTransferObject\Contact as ContactData;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
@@ -41,16 +40,10 @@ trait ManagesPeopleContactsTrait
             // existing row in place instead of deleting + recreating it on every sync.
         }
 
-        $phoneTypes = [
-            ContactTypeEnum::PHONE->value,
-            ContactTypeEnum::CELLPHONE->value,
-            ContactTypeEnum::WORK_PHONE->value,
-        ];
-
         $query = $people->contacts()
             ->where('contacts_types_id', $contact->contacts_types_id);
 
-        if (in_array($contact->contacts_types_id, $phoneTypes, true)) {
+        if (Contact::isPhoneType($contact->contacts_types_id)) {
             // Match on the canonical NANP form (last 10 digits) so a country-code prefix or
             // punctuation difference (+1 / (201) / -) doesn't read as a removed-then-added phone.
             $query->whereRaw("RIGHT(REGEXP_REPLACE(value, '[^0-9]', ''), 10) = ?", [$normalizedValue]);
@@ -163,12 +156,6 @@ trait ManagesPeopleContactsTrait
             return;
         }
 
-        $debugSync = (bool) $people->company?->get('contact_sync_debug');
-        $existingBefore = $debugSync
-            ? $people->contacts()->get(['id', 'value', 'contacts_types_id'])->toArray()
-            : [];
-        $decisions = [];
-
         $keepIds = [];
         $contactsToAdd = [];
 
@@ -183,13 +170,11 @@ trait ManagesPeopleContactsTrait
                 $existingContact->is_opt_out = (int) ($contact->is_opt_out ?? $existingContact->is_opt_out);
                 $existingContact->saveOrFail();
                 $keepIds[] = $existingContact->id;
-                $decisions[] = ['incoming' => $contact->value, 'type' => $contact->contacts_types_id, 'normalized' => $normalizedValue, 'result' => 'matched', 'id' => $existingContact->id];
             } else {
                 $createdContact = $this->addNewContact($people, $contact);
 
                 if ($createdContact !== null) {
                     $keepIds[] = $createdContact->id;
-                    $decisions[] = ['incoming' => $contact->value, 'type' => $contact->contacts_types_id, 'normalized' => $normalizedValue, 'result' => 'added(updateOrCreate)', 'id' => $createdContact->id];
                 } else {
                     $contactsToAdd[] = new Contact([
                         'contacts_types_id' => $contact->contacts_types_id,
@@ -197,7 +182,6 @@ trait ManagesPeopleContactsTrait
                         'is_opt_out' => (int) ($contact->is_opt_out ?? 0),
                         'weight' => $contact->weight,
                     ]);
-                    $decisions[] = ['incoming' => $contact->value, 'type' => $contact->contacts_types_id, 'normalized' => $normalizedValue, 'result' => 'added(insert)', 'id' => null];
                 }
             }
         }
@@ -209,29 +193,10 @@ trait ManagesPeopleContactsTrait
             }
         }
 
-        $deletedIds = $people->contacts()
-            ->when(! empty($keepIds), fn ($q) => $q->whereNotIn('id', $keepIds))
-            ->pluck('id')
-            ->all();
-
         if (! empty($keepIds)) {
             $people->contacts()->whereNotIn('id', $keepIds)->delete();
         } else {
             $people->contacts()->delete();
-        }
-
-        if ($debugSync) {
-            // Flip the company `contact_sync_debug` flag on to capture two consecutive pulls:
-            // if `existing_before` already holds the incoming (value,type) but they show as
-            // "added", the matcher is the problem; if `existing_before` differs from incoming,
-            // the third-party payload is the problem.
-            Log::channel('single')->info('contact_sync_debug', [
-                'peoples_id' => $people->getKey(),
-                'existing_before' => $existingBefore,
-                'decisions' => $decisions,
-                'keep_ids' => $keepIds,
-                'deleted_ids' => $deletedIds,
-            ]);
         }
     }
 }
