@@ -108,7 +108,11 @@ class Contact extends BaseModel
         ];
 
         if (in_array($contactsTypesId, $phoneTypes, true)) {
-            return (string) preg_replace('/\D/', '', $value);
+            $digits = (string) preg_replace('/\D/', '', $value);
+
+            // Canonical NANP form: compare on the last 10 digits so a country-code prefix
+            // (e.g. +1) or local formatting can't make the same number look like a new contact.
+            return strlen($digits) > 10 ? substr($digits, -10) : $digits;
         }
 
         if ($contactsTypesId === ContactTypeEnum::EMAIL->value) {
