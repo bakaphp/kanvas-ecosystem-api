@@ -175,5 +175,4 @@ class Customer extends Data
             'OptOutUse' => self::ynOrNull($people->get(CustomFieldEnum::CONSENT_OPT_OUT_USE->value)),
         ];
     }
-
 }
