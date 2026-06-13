@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
@@ -22,10 +23,12 @@ use Kanvas\Intelligence\FollowUp\Actions\FollowUpLeadAction;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpOutcomeKindEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Models\Event;
+use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
+use ReflectionProperty;
 use Tests\Stubs\FollowUp\FollowUpAgentStub;
 use Tests\TestCase;
 
@@ -94,6 +97,51 @@ class FollowUpLeadActionTest extends TestCase
 
         $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
         $this->assertSame('follow_up_disabled', $outcome->reason);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Gate 1a: closed lead (status >= 2) → lead_not_active (skip)
+    // A won/lost lead must not be nudged even in a non-terminal nudge stage.
+    // ─────────────────────────────────────────────────────────────────────
+    public function testSkipsWhenLeadIsNotOpen(): void
+    {
+        $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
+        $lead->status = 2; // closed (won/lost) → isOpen() false
+        $lead->saveOrFail();
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertSame('lead_not_active', $outcome->reason);
+        $this->assertFalse($lead->isFollowUpExhausted(), 'Closed-lead skip is not an exhaustion.');
+    }
+
+    // Force does NOT bypass the active-lead gate — it only relaxes too_soon.
+    public function testForceDoesNotBypassActiveLeadGate(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $lead->status = 2;
+        $lead->saveOrFail();
+
+        $outcome = new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+            force: true,
+        )->execute();
+
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertSame('lead_not_active', $outcome->reason);
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -1224,5 +1272,82 @@ class FollowUpLeadActionTest extends TestCase
         // Lead is NOT exhausted — it can retry next cron tick.
         $lead->refresh();
         $this->assertFalse($lead->isFollowUpExhausted());
+    }
+
+    public function testEmailFollowUpReusesOriginalSubjectAsReplyThread(): void
+    {
+        // The outreach anchored the original subject on the lead. The follow-up
+        // must reuse it (prefixed "Re: ") so the email threads under the
+        // original conversation instead of opening a brand-new thread.
+        Notification::fake();
+
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'email', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'email');
+        $lead->set('title_email_follow_up', 'Skydropx x Kanvas — operations');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Following up on my last note.',
+            reason: 'thread_reuse',
+        );
+
+        new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            function (Blank $notification): bool {
+                $subject = new ReflectionProperty($notification, 'subject')->getValue($notification);
+
+                return $subject === 'Re: Skydropx x Kanvas — operations';
+            }
+        );
+    }
+
+    public function testEmailFollowUpFallsBackToCompanyNameWhenNoAnchoredSubject(): void
+    {
+        // Legacy / non-email-originated lead with no anchored subject → fall back
+        // to the company name (NOT "Re: <company>").
+        Notification::fake();
+
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'email', 'enabled' => true, 'template_name' => null],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'email');
+
+        FollowUpAgentStub::configure(
+            shouldRespond: true,
+            advanceStage: false,
+            message: 'Just checking in.',
+            reason: 'no_anchor_fallback',
+        );
+
+        new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+        )->execute();
+
+        $companyName = $this->company->name;
+        Notification::assertSentOnDemand(
+            Blank::class,
+            function (Blank $notification) use ($companyName): bool {
+                $subject = new ReflectionProperty($notification, 'subject')->getValue($notification);
+
+                return $subject === $companyName;
+            }
+        );
     }
 }
