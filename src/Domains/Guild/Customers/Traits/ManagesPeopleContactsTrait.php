@@ -24,24 +24,29 @@ trait ManagesPeopleContactsTrait
 
     protected function findExistingContact(People $people, ContactData $contact, string $normalizedValue): ?Contact
     {
-        if (isset($contact->id) && $contact->id > 0) {
-            /** @var Contact|null */
-            return $people->contacts()
+        if (isset($contact->id) && (int) $contact->id > 0) {
+            /** @var Contact|null $byId */
+            $byId = $people->contacts()
                 ->where('id', $contact->id)
                 ->first();
-        }
 
-        $phoneTypes = [
-            ContactTypeEnum::PHONE->value,
-            ContactTypeEnum::CELLPHONE->value,
-            ContactTypeEnum::WORK_PHONE->value,
-        ];
+            if ($byId !== null) {
+                return $byId;
+            }
+
+            // The incoming id is stale or belongs to a third-party system (after a prior sync
+            // recreated the row, its local id no longer matches what the provider sends back).
+            // Never treat that as "new" — fall through to natural-key matching so we update the
+            // existing row in place instead of deleting + recreating it on every sync.
+        }
 
         $query = $people->contacts()
             ->where('contacts_types_id', $contact->contacts_types_id);
 
-        if (in_array($contact->contacts_types_id, $phoneTypes, true)) {
-            $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = ?", [$normalizedValue]);
+        if (Contact::isPhoneType($contact->contacts_types_id)) {
+            // Match on the canonical NANP form (last 10 digits) so a country-code prefix or
+            // punctuation difference (+1 / (201) / -) doesn't read as a removed-then-added phone.
+            $query->whereRaw("RIGHT(REGEXP_REPLACE(value, '[^0-9]', ''), 10) = ?", [$normalizedValue]);
         } else {
             $query->where('value', $normalizedValue);
         }
@@ -123,7 +128,7 @@ trait ManagesPeopleContactsTrait
         if (! $existingContact) {
             $existingContact = $people->contacts()
                 ->where('contacts_types_id', $contact->contacts_types_id)
-                ->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = ?", [$normalizedValue])
+                ->whereRaw("RIGHT(REGEXP_REPLACE(value, '[^0-9]', ''), 10) = ?", [$normalizedValue])
                 ->first();
         }
 

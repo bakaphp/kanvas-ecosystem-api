@@ -36,6 +36,12 @@ class Contact extends BaseModel
 
     public const DELETED_AT = 'is_deleted';
 
+    public const PHONE_TYPES = [
+        ContactTypeEnum::PHONE->value,
+        ContactTypeEnum::CELLPHONE->value,
+        ContactTypeEnum::WORK_PHONE->value,
+    ];
+
     protected $table = 'peoples_contacts';
     protected $guarded = [];
 
@@ -75,7 +81,23 @@ class Contact extends BaseModel
 
     public function getCleanPhone(): string
     {
-        return preg_replace('/\D+/', '', $this->value);
+        return self::cleanPhone($this->value);
+    }
+
+    public static function isPhoneType(int $contactsTypesId): bool
+    {
+        return in_array($contactsTypesId, self::PHONE_TYPES, true);
+    }
+
+    /**
+     * Strip a phone to bare digits — the form we STORE (keeps the country code).
+     * Single source of truth, used by the observer on write and by normalizeValue on match.
+     *
+     * Example: "+1 (201) 123-4567" => "12011234567"
+     */
+    public static function cleanPhone(string $value): string
+    {
+        return (string) preg_replace('/\D/', '', $value);
     }
 
     public function opOut(): bool
@@ -99,16 +121,22 @@ class Contact extends BaseModel
         return $this->is_opt_out === 1;
     }
 
+    /**
+     * Canonical form used to MATCH a contact (dedup + lookup) — NOT what we store.
+     *  - phone: last 10 digits (so a +1 / formatting can't look like a new number)
+     *  - email: lowercased + trimmed
+     *  - other: trimmed
+     *
+     * Example: phone "+1 (201) 123-4567" => "2011234567" ; email " Snow@X.io " => "snow@x.io"
+     */
     public static function normalizeValue(string $value, int $contactsTypesId): string
     {
-        $phoneTypes = [
-            ContactTypeEnum::PHONE->value,
-            ContactTypeEnum::CELLPHONE->value,
-            ContactTypeEnum::WORK_PHONE->value,
-        ];
+        if (self::isPhoneType($contactsTypesId)) {
+            $digits = self::cleanPhone($value);
 
-        if (in_array($contactsTypesId, $phoneTypes, true)) {
-            return (string) preg_replace('/\D/', '', $value);
+            // Canonical NANP form: compare on the last 10 digits so a country-code prefix
+            // (e.g. +1) or local formatting can't make the same number look like a new contact.
+            return strlen($digits) > 10 ? substr($digits, -10) : $digits;
         }
 
         if ($contactsTypesId === ContactTypeEnum::EMAIL->value) {
