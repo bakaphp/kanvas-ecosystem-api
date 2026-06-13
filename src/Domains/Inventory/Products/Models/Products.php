@@ -603,39 +603,39 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     {
         $limit = 9500; // headroom under Algolia's 10,000-byte hard limit
 
-        if ($this->byteSize($product) <= $limit) {
+        if (Arr::sizeInBytes($product) <= $limit) {
             return $product;
         }
 
         $product['custom_fields'] = [];
-        if ($this->byteSize($product) <= $limit) {
+        if (Arr::sizeInBytes($product) <= $limit) {
             return $product;
         }
 
         unset($product['translations']);
-        if ($this->byteSize($product) <= $limit) {
+        if (Arr::sizeInBytes($product) <= $limit) {
             return $product;
         }
 
         // Warehouse breakdown is internal stock detail, never shown in search.
         $product['variants'] = $this->stripFromVariants($product['variants'], ['warehouses']);
-        if ($this->byteSize($product) <= $limit) {
+        if (Arr::sizeInBytes($product) <= $limit) {
             return $product;
         }
 
         $product['description'] = Str::limit((string) ($product['description'] ?? ''), 500, '');
         $product['short_description'] = Str::limit((string) ($product['short_description'] ?? ''), 200, '');
-        if ($this->byteSize($product) <= $limit) {
+        if (Arr::sizeInBytes($product) <= $limit) {
             return $product;
         }
 
         // Last resort before dropping whole variants: give up variant images.
         $product['variants'] = $this->stripFromVariants($product['variants'], ['files']);
-        if ($this->byteSize($product) <= $limit) {
+        if (Arr::sizeInBytes($product) <= $limit) {
             return $product;
         }
 
-        while (! empty($product['variants']) && $this->byteSize($product) > $limit) {
+        while (! empty($product['variants']) && Arr::sizeInBytes($product) > $limit) {
             array_pop($product['variants']);
         }
 
@@ -655,11 +655,6 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             })
             ->values()
             ->all();
-    }
-
-    protected function byteSize(array $data): int
-    {
-        return strlen((string) json_encode($data));
     }
 
     public function getAllTranslationsAsString(string $key): string
