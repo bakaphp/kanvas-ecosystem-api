@@ -49,6 +49,17 @@ class AgentReachOutAction
             return ['message' => 'Reach-out already in flight (concurrent)', 'status' => $status];
         }
 
+        // === Active-lead guard ===
+        // Only reach out to open leads (status < 2). A lead already closed
+        // (won/lost/inactive) must not receive an outbound agent touch even if a
+        // workflow rule re-fires CREATED on it.
+        if (! $this->lead->isOpen()) {
+            $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_SKIPPED);
+            $this->lead->set(AgentReachOutConfigEnum::REASON->value, 'lead_not_active');
+
+            return ['message' => 'Lead is not active', 'status' => 'skipped'];
+        }
+
         // === Source allowlist ===
         $allowlist = (array) ($this->params['lead_source_allowlist'] ?? []);
         if ($allowlist !== []) {

@@ -70,6 +70,13 @@ final class FollowUpLeadAction
             return $this->skip('unsupported_mode_v1');
         }
 
+        // Only follow up on open leads (status < 2). A closed lead (won/lost/
+        // inactive) sitting in a non-terminal stage must not keep getting nudged.
+        // Not bypassed by `force` — force only relaxes the silence gate.
+        if (! $this->lead->isOpen()) {
+            return $this->skip('lead_not_active');
+        }
+
         if ($this->lead->isFollowUpExhausted()) {
             return $this->skip('exhausted');
         }
