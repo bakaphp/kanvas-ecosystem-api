@@ -29,9 +29,9 @@ final class PeopleContactSyncTest extends TestCase
         $this->assertCount(3, $before, 'fixture must start with 3 contacts');
 
         $this->syncWith($people, [
-            new ContactData(value: 'snow@salesassist.io', contacts_types_id: ContactTypeEnum::EMAIL->value, weight: 100),
-            new ContactData(value: '+1 (201) 123-4567', contacts_types_id: ContactTypeEnum::PHONE->value, weight: 100),
-            new ContactData(value: '650-385-9777', contacts_types_id: ContactTypeEnum::CELLPHONE->value, weight: 3),
+            new ContactData(value: 'test.contact@example.com', contacts_types_id: ContactTypeEnum::EMAIL->value, weight: 100),
+            new ContactData(value: '+1 (202) 555-0111', contacts_types_id: ContactTypeEnum::PHONE->value, weight: 100),
+            new ContactData(value: '202-555-0122', contacts_types_id: ContactTypeEnum::CELLPHONE->value, weight: 3),
         ]);
 
         $after = $people->fresh()->contacts()->orderBy('id')->pluck('id')->all();
@@ -46,13 +46,13 @@ final class PeopleContactSyncTest extends TestCase
     public function testNormalizeValueCanonicalizesNanpPhone(): void
     {
         $this->assertSame(
-            '2011234567',
-            Contact::normalizeValue('+1 (201) 123-4567', ContactTypeEnum::PHONE->value),
+            '2025550111',
+            Contact::normalizeValue('+1 (202) 555-0111', ContactTypeEnum::PHONE->value),
             'a +1 country code and punctuation must canonicalize to the bare 10-digit number'
         );
         $this->assertSame(
-            '2011234567',
-            Contact::normalizeValue('2011234567', ContactTypeEnum::CELLPHONE->value),
+            '2025550111',
+            Contact::normalizeValue('2025550111', ContactTypeEnum::CELLPHONE->value),
             'an already-bare number stays unchanged'
         );
     }
@@ -68,15 +68,15 @@ final class PeopleContactSyncTest extends TestCase
             ->value('id');
 
         $this->syncWith($people, [
-            new ContactData(value: 'snow@salesassist.io', contacts_types_id: ContactTypeEnum::EMAIL->value, weight: 100),
-            new ContactData(value: '7185551234', contacts_types_id: ContactTypeEnum::PHONE->value, weight: 50),
+            new ContactData(value: 'test.contact@example.com', contacts_types_id: ContactTypeEnum::EMAIL->value, weight: 100),
+            new ContactData(value: '2025550133', contacts_types_id: ContactTypeEnum::PHONE->value, weight: 50),
         ]);
 
         $contacts = $people->fresh()->contacts()->get();
 
         $this->assertCount(2, $contacts, 'removed contacts must be deleted, new one added');
         $this->assertTrue($contacts->contains('id', $keptEmailId), 'matched email keeps its id');
-        $this->assertTrue($contacts->contains('value', '7185551234'), 'new phone is added');
+        $this->assertTrue($contacts->contains('value', '2025550133'), 'new phone is added');
     }
 
     /**
@@ -96,9 +96,9 @@ final class PeopleContactSyncTest extends TestCase
 
         // The same cell number comes back on the next sync.
         $this->syncWith($people, [
-            new ContactData(value: 'snow@salesassist.io', contacts_types_id: ContactTypeEnum::EMAIL->value, weight: 100),
-            new ContactData(value: '2011234567', contacts_types_id: ContactTypeEnum::PHONE->value, weight: 100),
-            new ContactData(value: '6503859777', contacts_types_id: ContactTypeEnum::CELLPHONE->value, weight: 3),
+            new ContactData(value: 'test.contact@example.com', contacts_types_id: ContactTypeEnum::EMAIL->value, weight: 100),
+            new ContactData(value: '2025550111', contacts_types_id: ContactTypeEnum::PHONE->value, weight: 100),
+            new ContactData(value: '2025550122', contacts_types_id: ContactTypeEnum::CELLPHONE->value, weight: 3),
         ]);
 
         $cells = Contact::withTrashed()
@@ -139,9 +139,9 @@ final class PeopleContactSyncTest extends TestCase
             ->create();
 
         $people->contacts()->delete();
-        $people->addEmail('snow@salesassist.io', 0, 100);
-        $people->addPhone('2011234567', 0, 100);
-        $people->addCellPhone('6503859777', 0, 3);
+        $people->addEmail('test.contact@example.com', 0, 100);
+        $people->addPhone('2025550111', 0, 100);
+        $people->addCellPhone('2025550122', 0, 3);
 
         return $people->fresh();
     }
