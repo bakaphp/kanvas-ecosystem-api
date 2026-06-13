@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Traits;
 
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Guild\Customers\DataTransferObject\Contact as ContactData;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
@@ -149,12 +152,31 @@ trait ManagesPeopleContactsTrait
             return;
         }
 
+        try {
+            // Serialize contact syncs per person. The body runs read -> keep/add -> delete-whereNotIn
+            // non-atomically, so two overlapping syncs (overlapping pulls, or a CONTACT_SAVED workflow
+            // re-entering mid-sync) were shredding each other's rows and minting a new id every time.
+            Cache::lock('people-contacts-sync:' . $people->getKey(), 10)->block(
+                5,
+                fn () => $this->runContactsSyncForUpdate($people, $contacts)
+            );
+        } catch (LockTimeoutException) {
+            // Another sync for this person is already applying the same contacts — skip the race.
+        }
+    }
+
+    private function runContactsSyncForUpdate(People $people, DataCollection $contacts): void
+    {
         $deduplicatedContacts = $this->deduplicateContacts($contacts);
 
         // @todo remove once frontend sends opt-out updates via a separate mutation
         if ($this->isOptOutOnlyUpdate($deduplicatedContacts, $people)) {
             return;
         }
+
+        // @todo temporary diagnostic — remove once the VinSolution sync recreation is confirmed fixed.
+        $existingBefore = $people->contacts()->get(['id', 'value', 'contacts_types_id'])->toArray();
+        $decisions = [];
 
         $keepIds = [];
         $contactsToAdd = [];
@@ -170,11 +192,13 @@ trait ManagesPeopleContactsTrait
                 $existingContact->is_opt_out = (int) ($contact->is_opt_out ?? $existingContact->is_opt_out);
                 $existingContact->saveOrFail();
                 $keepIds[] = $existingContact->id;
+                $decisions[] = ['in' => $contact->value, 'type' => $contact->contacts_types_id, 'norm' => $normalizedValue, 'result' => 'matched', 'id' => $existingContact->id];
             } else {
                 $createdContact = $this->addNewContact($people, $contact);
 
                 if ($createdContact !== null) {
                     $keepIds[] = $createdContact->id;
+                    $decisions[] = ['in' => $contact->value, 'type' => $contact->contacts_types_id, 'norm' => $normalizedValue, 'result' => 'added(updateOrCreate)', 'id' => $createdContact->id];
                 } else {
                     $contactsToAdd[] = new Contact([
                         'contacts_types_id' => $contact->contacts_types_id,
@@ -182,6 +206,7 @@ trait ManagesPeopleContactsTrait
                         'is_opt_out' => (int) ($contact->is_opt_out ?? 0),
                         'weight' => $contact->weight,
                     ]);
+                    $decisions[] = ['in' => $contact->value, 'type' => $contact->contacts_types_id, 'norm' => $normalizedValue, 'result' => 'added(insert)', 'id' => null];
                 }
             }
         }
@@ -191,6 +216,22 @@ trait ManagesPeopleContactsTrait
             foreach ($savedContacts as $saved) {
                 $keepIds[] = $saved->id;
             }
+        }
+
+        $deletedIds = $people->contacts()
+            ->when(! empty($keepIds), fn ($q) => $q->whereNotIn('id', $keepIds))
+            ->pluck('id')
+            ->all();
+
+        // Only fires when a sync actually deletes a contact — i.e. only when the bug reproduces.
+        if (! empty($deletedIds)) {
+            Log::warning('contact_sync_recreated', [
+                'peoples_id' => $people->getKey(),
+                'existing_before' => $existingBefore,
+                'incoming_decisions' => $decisions,
+                'keep_ids' => $keepIds,
+                'deleted_ids' => $deletedIds,
+            ]);
         }
 
         if (! empty($keepIds)) {

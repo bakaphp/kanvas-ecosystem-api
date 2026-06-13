@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Integration;
 
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\DataTransferObject\Contact as ContactData;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -77,6 +78,33 @@ final class PeopleContactSyncTest extends TestCase
         $this->assertCount(2, $contacts, 'removed contacts must be deleted, new one added');
         $this->assertTrue($contacts->contains('id', $keptEmailId), 'matched email keeps its id');
         $this->assertTrue($contacts->contains('value', '7185551234'), 'new phone is added');
+    }
+
+    /**
+     * Two overlapping syncs for the same person must not shred each other's rows. While one
+     * holds the per-person lock, a second one skips instead of deleting + recreating contacts.
+     */
+    public function testSyncSkipsWhileAnotherHoldsThePersonLock(): void
+    {
+        $people = $this->createPersonWithContacts();
+        $before = $people->contacts()->orderBy('id')->pluck('id')->all();
+
+        $lock = Cache::lock('people-contacts-sync:' . $people->getKey(), 10);
+        $this->assertTrue($lock->get(), 'precondition: acquire the per-person lock');
+
+        try {
+            $this->syncWith($people, [
+                new ContactData(value: 'changed@salesassist.io', contacts_types_id: ContactTypeEnum::EMAIL->value, weight: 100),
+            ]);
+        } finally {
+            $lock->release();
+        }
+
+        $this->assertSame(
+            $before,
+            $people->fresh()->contacts()->orderBy('id')->pluck('id')->all(),
+            'a sync must skip (touch nothing) while another holds the per-person lock'
+        );
     }
 
     private function syncWith(People $people, array $contacts): void
