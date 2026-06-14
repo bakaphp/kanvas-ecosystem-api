@@ -60,6 +60,60 @@ type ScribePaymentTerm {
     updated_at: DateTime!
 }
 
+enum ScribeItemType {
+    SERVICE @enum(value: "service")
+    PRODUCT @enum(value: "product")
+    BUNDLE @enum(value: "bundle")
+    CHARGE @enum(value: "charge")
+}
+
+input ScribeItemInput {
+    item_number: String!
+    name: String!
+    type: ScribeItemType!
+    description: String
+    inventory_variant_id: Int
+    default_income_account_id: Int
+    default_expense_account_id: Int
+    default_tax_code_id: Int
+    default_price_native: Float
+    currency: String
+    is_active: Boolean
+    source: String
+    external_id: String
+    metadata: Mixed
+}
+
+input ScribeTaxRateInput {
+    name: String!
+    rate: Float!
+    effective_from: Date!
+    effective_to: Date
+    tax_account_id: Int
+    sort_order: Int
+    metadata: Mixed
+}
+
+input ScribeTaxCodeInput {
+    code: String!
+    name: String!
+    jurisdiction: String
+    is_active: Boolean
+    source: String
+    external_id: String
+    metadata: Mixed
+    rates: [ScribeTaxRateInput!]
+}
+
+input ScribePaymentTermInput {
+    name: String!
+    net_days: Int!
+    discount_days: Int
+    discount_pct: Float
+    is_default: Boolean
+    metadata: Mixed
+}
+
 extend type Query @guard {
     scribeItems(
         where: _
@@ -92,4 +146,21 @@ extend type Query @guard {
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
+}
+
+extend type Mutation @guard {
+    createScribeItem(input: ScribeItemInput!): ScribeItem!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Items\\ItemMutation@create")
+    updateScribeItem(id: ID!, input: ScribeItemInput!): ScribeItem!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Items\\ItemMutation@update")
+
+    createScribeTaxCode(input: ScribeTaxCodeInput!): ScribeTaxCode!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\TaxCodes\\TaxCodeMutation@create")
+    updateScribeTaxCode(id: ID!, input: ScribeTaxCodeInput!): ScribeTaxCode!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\TaxCodes\\TaxCodeMutation@update")
+
+    createScribePaymentTerm(input: ScribePaymentTermInput!): ScribePaymentTerm!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\PaymentTerms\\PaymentTermMutation@create")
+    updateScribePaymentTerm(id: ID!, input: ScribePaymentTermInput!): ScribePaymentTerm!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\PaymentTerms\\PaymentTermMutation@update")
 }

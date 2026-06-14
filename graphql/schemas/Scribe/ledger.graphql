@@ -202,3 +202,37 @@ extend type Query @guard {
             defaultCount: 50
         )
 }
+
+input ScribeAccountInput {
+    account_number: String!
+    name: String!
+    account_type: ScribeAccountType!
+    currency: String
+    description: String
+    account_sub_type: String
+    parent_account_id: Int
+    is_active: Boolean
+    source: String
+    external_id: String
+    metadata: Mixed
+}
+
+input ScribeFiscalPeriodInput {
+    period_start: Date!
+    period_end: Date!
+    metadata: Mixed
+}
+
+extend type Mutation @guard {
+    createScribeAccount(input: ScribeAccountInput!): ScribeAccount!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Ledger\\AccountMutation@create")
+    updateScribeAccount(id: ID!, input: ScribeAccountInput!): ScribeAccount!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Ledger\\AccountMutation@update")
+
+    openScribeFiscalPeriod(input: ScribeFiscalPeriodInput!): ScribeFiscalPeriod!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Ledger\\FiscalPeriodMutation@open")
+    closeScribeFiscalPeriod(id: ID!, hard: Boolean, close_notes: String): ScribeFiscalPeriod!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Ledger\\FiscalPeriodMutation@close")
+    reopenScribeFiscalPeriod(id: ID!, reopen_notes: String): ScribeFiscalPeriod!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Ledger\\FiscalPeriodMutation@reopen")
+}

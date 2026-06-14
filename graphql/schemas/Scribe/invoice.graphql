@@ -148,8 +148,6 @@ input ScribeInvoiceLineInput {
     tax_amount_native: Float
     tax_rate: Float
     item_id: Int
-    tax_code_id: Int
-    revenue_account_id: Int
     class_id: Int
     department_id: Int
     sort_order: Int
@@ -181,6 +179,20 @@ input ScribeInvoiceInput {
 
 input ScribeMarkInvoicePaidInput {
     paid_at: DateTime
+}
+
+input ScribeAmendInvoiceInput {
+    reason: String!
+    due_date: Date
+    expected_payment_date: Date
+    net_terms_days: Int
+    notes: String
+    internal_notes: String
+    terms: String
+    regional_compliance: Mixed
+    external_id: String
+    external_url: String
+    metadata: Mixed
 }
 
 extend type Query @guard {
@@ -223,22 +235,17 @@ extend type Query @guard {
 
 extend type Mutation @guard {
     createScribeInvoice(input: ScribeInvoiceInput!): ScribeInvoice!
-        @field(
-            resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@create"
-        )
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@create")
+    updateScribeInvoice(id: ID!, input: ScribeInvoiceInput!): ScribeInvoice!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@update")
     issueScribeInvoice(id: ID!): ScribeInvoice!
-        @field(
-            resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@issue"
-        )
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@issue")
     voidScribeInvoice(id: ID!, void_reason_code: String!): ScribeInvoice!
-        @field(
-            resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@void"
-        )
-    markScribeInvoicePaid(
-        id: ID!
-        input: ScribeMarkInvoicePaidInput
-    ): ScribeInvoice!
-        @field(
-            resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@markPaid"
-        )
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@void")
+    markScribeInvoicePaid(id: ID!, input: ScribeMarkInvoicePaidInput): ScribeInvoice!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@markPaid")
+    issueScribeCreditNote(parent_invoice_id: ID!, input: ScribeInvoiceInput!): ScribeInvoice!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@issueCreditNote")
+    amendScribeInvoice(id: ID!, input: ScribeAmendInvoiceInput!): ScribeInvoice!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@amend")
 }

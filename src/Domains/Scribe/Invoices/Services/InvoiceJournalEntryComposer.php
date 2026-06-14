@@ -204,6 +204,114 @@ class InvoiceJournalEntryComposer
     }
 
     /**
+     * Credit-note JE — inverse of the issue JE. Reduces revenue, reduces tax-payable, reduces AR.
+     *
+     *   DR Service Revenue        {net of discount}      (reverses earlier revenue recognition)
+     *   DR Sales Tax Payable      {tax}                   (reverses the tax liability)
+     *     CR Accounts Receivable   {total}                (reduces customer balance)
+     *
+     * The credit_note Invoice row carries POSITIVE amounts; the JE direction is what makes it a credit.
+     */
+    public function composeCreditNote(Invoice $creditNote): JournalEntryData
+    {
+        $app = $creditNote->app;
+        $company = $creditNote->company;
+        $billableType = $creditNote->billable_type;
+        $billableId = $creditNote->billable_id;
+
+        $arAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::ACCOUNTS_RECEIVABLE);
+        $revenueAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::SERVICE_REVENUE);
+
+        $netRevenueNative = (float) $creditNote->subtotal_native - (float) $creditNote->discount_native;
+        $netRevenueBase = (float) $creditNote->subtotal_base - (float) $creditNote->discount_base;
+        $totalNative = (float) $creditNote->total_native;
+        $totalBase = (float) $creditNote->total_base;
+        $taxNative = (float) $creditNote->tax_native;
+        $taxBase = (float) $creditNote->tax_base;
+        $currency = $creditNote->currency;
+        $fxRate = (float) $creditNote->fx_rate_to_base;
+
+        $lines = [
+            // DR Revenue
+            new JournalEntryLineData(
+                account_id: $revenueAccount->id,
+                debit_native: $netRevenueNative,
+                credit_native: 0.0,
+                debit_base: $netRevenueBase,
+                credit_base: 0.0,
+                currency: $currency,
+                fx_rate_to_base: $fxRate,
+                sort_order: 0,
+                customer_billable_type: $billableType,
+                customer_billable_id: $billableId,
+                memo: "Credit Note {$creditNote->invoice_number} — Revenue reversal",
+            ),
+        ];
+
+        if ($taxNative > 0) {
+            $taxLines = $creditNote->taxLines;
+            if ($taxLines->isNotEmpty()) {
+                $sortOrder = 1;
+                foreach ($taxLines as $taxLine) {
+                    $taxAccount = $this->resolveTaxAccount($creditNote, $taxLine->jurisdiction);
+                    $lines[] = new JournalEntryLineData(
+                        account_id: $taxAccount->id,
+                        debit_native: (float) $taxLine->tax_amount_native,
+                        credit_native: 0.0,
+                        debit_base: (float) $taxLine->tax_amount_base,
+                        credit_base: 0.0,
+                        currency: $currency,
+                        fx_rate_to_base: $fxRate,
+                        sort_order: $sortOrder++,
+                        memo: "Credit Note {$creditNote->invoice_number} — {$taxLine->name} reversal",
+                    );
+                }
+            } else {
+                $taxAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::SALES_TAX_PAYABLE);
+                $lines[] = new JournalEntryLineData(
+                    account_id: $taxAccount->id,
+                    debit_native: $taxNative,
+                    credit_native: 0.0,
+                    debit_base: $taxBase,
+                    credit_base: 0.0,
+                    currency: $currency,
+                    fx_rate_to_base: $fxRate,
+                    sort_order: 1,
+                    memo: "Credit Note {$creditNote->invoice_number} — Sales Tax reversal",
+                );
+            }
+        }
+
+        // CR Accounts Receivable
+        $lines[] = new JournalEntryLineData(
+            account_id: $arAccount->id,
+            debit_native: 0.0,
+            credit_native: $totalNative,
+            debit_base: 0.0,
+            credit_base: $totalBase,
+            currency: $currency,
+            fx_rate_to_base: $fxRate,
+            sort_order: count($lines),
+            customer_billable_type: $billableType,
+            customer_billable_id: $billableId,
+            memo: "Credit Note {$creditNote->invoice_number} — AR reduction",
+        );
+
+        return new JournalEntryData(
+            app: $app,
+            company: $company,
+            postedAt: $creditNote->issued_date ?? Carbon::now(),
+            sourceType: 'credit_note',
+            lines: new DataCollection(JournalEntryLineData::class, $lines),
+            sourceId: $creditNote->id,
+            memo: "Credit Note {$creditNote->invoice_number} issued",
+            source: $creditNote->source,
+            externalId: $creditNote->external_id,
+            origin: $creditNote->origin,
+        );
+    }
+
+    /**
      * Map a tax-line's jurisdiction to the correct payable GL account.
      *   - DR jurisdiction with ITBIS-shaped rate → dr_itbis_payable
      *   - Anything else → sales_tax_payable (generic US-default)

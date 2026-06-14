@@ -12,23 +12,18 @@ use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Exceptions\InvalidExpenseTransitionException;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Expenses\Services\ExpenseStateMachine;
-use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
-use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryData;
-use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLineData;
-use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
+use Kanvas\Scribe\Ledger\Actions\ReverseJournalEntryAction;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
-use Spatie\LaravelData\DataCollection;
 
 /**
- * Voids an expense by posting a mirror (DR↔CR swap) JE. Two valid entry points:
+ * Voids an expense by posting a mirror reversal JE via ReverseJournalEntryAction.
  *
- *   - DRAFT → VOIDED: no JE existed yet, so no reversal needed; just flip status.
- *   - APPROVED → VOIDED: original approval JE exists; post a mirror JE that reverses it; mark original as 'reversed'.
- *     If a reimbursement JE was already posted, that ALSO needs reversing (separate concern; for safety we
- *     refuse to void an already-reimbursed expense — that requires a more careful flow that PR 5 defers).
+ *   - DRAFT → VOIDED: no JE existed yet, just flip status (no reversal needed).
+ *   - APPROVED → VOIDED: original approval JE exists, post a mirror reversal.
  *
- * Parallel to VoidInvoiceAction / VoidSalesReceiptAction — same mirror-JE pattern; reuses helpers inline.
+ * Refuses to void an already-reimbursed expense (reimbursement_status=PAID) — that requires reversing
+ * two JEs and rebuilding the Due to Employees liability; defer to a separate adjusting-entry flow.
  */
 class VoidExpenseAction
 {
@@ -44,8 +39,6 @@ class VoidExpenseAction
     {
         $this->stateMachine->assertTransition($this->expense, ExpenseStatusEnum::VOIDED);
 
-        // Refuse to void an expense whose reimbursement has already been PAID — that requires reversing
-        // two JEs and rebuilding the Due to Employees liability. Defer that flow to a follow-up.
         if ($this->expense->reimbursement_status === ExpenseReimbursementStatusEnum::PAID) {
             throw new InvalidExpenseTransitionException(
                 "Expense {$this->expense->id} has already been reimbursed (reimbursement_status=paid). "
@@ -56,20 +49,23 @@ class VoidExpenseAction
         return DB::connection('accounting')->transaction(function (): Expense {
             $expense = $this->expense;
 
-            // Find the original approval JE (if it exists — drafts don't have one).
             $original = $this->findOriginalApprovalJournalEntry($expense);
-
             if ($original !== null) {
-                $this->postReversalJe($expense, $original);
-                $original->status = JournalEntryStatusEnum::REVERSED;
-                $original->save();
+                new ReverseJournalEntryAction(
+                    original: $original,
+                    app: $expense->app,
+                    company: $expense->company,
+                    memo: "Expense {$expense->expense_number} void — reverses JE {$original->je_number}",
+                    user: $this->user,
+                    sourceType: 'expense',
+                    sourceId: $expense->id,
+                )->execute();
             }
 
             $expense->status = ExpenseStatusEnum::VOIDED;
             $expense->voided_at = Carbon::now();
             $expense->void_reason_code = $this->voidReasonCode;
 
-            // If the expense had a pending reimbursement obligation, void clears it — no money owed anymore.
             if ($expense->reimbursement_status !== ExpenseReimbursementStatusEnum::NOT_APPLICABLE
                 && $expense->reimbursement_status !== ExpenseReimbursementStatusEnum::PAID) {
                 $expense->reimbursement_status = ExpenseReimbursementStatusEnum::NOT_APPLICABLE;
@@ -92,50 +88,5 @@ class VoidExpenseAction
             ->whereNull('is_reversal_of')
             ->orderBy('id')
             ->first();
-    }
-
-    private function postReversalJe(Expense $expense, JournalEntry $original): void
-    {
-        $original->load('lines');
-
-        $mirrored = [];
-        foreach ($original->lines as $i => $line) {
-            $mirrored[] = new JournalEntryLineData(
-                account_id: $line->account_id,
-                debit_native: (float) $line->credit_native,
-                credit_native: (float) $line->debit_native,
-                debit_base: (float) $line->credit_base,
-                credit_base: (float) $line->debit_base,
-                currency: $line->currency,
-                fx_rate_to_base: (float) $line->fx_rate_to_base,
-                sort_order: $i,
-                customer_billable_type: $line->customer_billable_type,
-                customer_billable_id: $line->customer_billable_id,
-                vendor_billable_type: $line->vendor_billable_type,
-                vendor_billable_id: $line->vendor_billable_id,
-                item_id: $line->item_id,
-                class_id: $line->class_id,
-                department_id: $line->department_id,
-                memo: $line->memo ? "REVERSAL — {$line->memo}" : null,
-                metadata: $line->metadata,
-            );
-        }
-
-        new PostJournalEntryAction(
-            data: new JournalEntryData(
-                app: $expense->app,
-                company: $expense->company,
-                postedAt: Carbon::now(),
-                sourceType: 'expense',
-                lines: new DataCollection(JournalEntryLineData::class, $mirrored),
-                sourceId: $expense->id,
-                memo: "Expense {$expense->expense_number} void — reverses JE {$original->je_number}",
-                isAdjustment: true,
-                isReversalOf: $original->id,
-                source: 'kanvas',
-                origin: JournalEntryOriginEnum::KANVAS,
-            ),
-            postedByUser: $this->user,
-        )->execute();
     }
 }

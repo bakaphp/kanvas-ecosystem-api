@@ -7,23 +7,16 @@ namespace Kanvas\Scribe\SalesReceipts\Actions;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
-use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryData;
-use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLineData;
-use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
+use Kanvas\Scribe\Ledger\Actions\ReverseJournalEntryAction;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
 use Kanvas\Scribe\SalesReceipts\Enums\SalesReceiptStatusEnum;
 use Kanvas\Scribe\SalesReceipts\Exceptions\InvalidSalesReceiptTransitionException;
 use Kanvas\Scribe\SalesReceipts\Models\SalesReceipt;
 use Kanvas\Scribe\SalesReceipts\Services\SalesReceiptStateMachine;
-use Spatie\LaravelData\DataCollection;
 
 /**
- * Voids a recorded sales receipt by posting a mirror (DR↔CR swap) JE that reverses the original Create JE.
- *
- * Parallel to VoidInvoiceAction — same pattern: original JE flagged status=reversed, new mirror JE has
- * is_reversal_of pointing at it, receipt flips to VOIDED.
+ * Voids a recorded sales receipt by posting a mirror reversal JE via ReverseJournalEntryAction.
  *
  * @see plan §7.7 — Reversals preserve history
  */
@@ -51,27 +44,15 @@ class VoidSalesReceiptAction
         return DB::connection('accounting')->transaction(function () use ($original): SalesReceipt {
             $receipt = $this->salesReceipt;
 
-            $reversalLines = $this->mirrorLines($original);
-
-            new PostJournalEntryAction(
-                data: new JournalEntryData(
-                    app: $receipt->app,
-                    company: $receipt->company,
-                    postedAt: Carbon::now(),
-                    sourceType: 'sales_receipt',
-                    lines: new DataCollection(JournalEntryLineData::class, $reversalLines),
-                    sourceId: $receipt->id,
-                    memo: "Sales Receipt {$receipt->receipt_number} void — reverses JE {$original->je_number}",
-                    isAdjustment: true,
-                    isReversalOf: $original->id,
-                    source: 'kanvas',
-                    origin: JournalEntryOriginEnum::KANVAS,
-                ),
-                postedByUser: $this->user,
+            new ReverseJournalEntryAction(
+                original: $original,
+                app: $receipt->app,
+                company: $receipt->company,
+                memo: "Sales Receipt {$receipt->receipt_number} void — reverses JE {$original->je_number}",
+                user: $this->user,
+                sourceType: 'sales_receipt',
+                sourceId: $receipt->id,
             )->execute();
-
-            $original->status = JournalEntryStatusEnum::REVERSED;
-            $original->save();
 
             $receipt->status = SalesReceiptStatusEnum::VOIDED;
             $receipt->voided_at = Carbon::now();
@@ -93,38 +74,5 @@ class VoidSalesReceiptAction
             ->whereNull('is_reversal_of')
             ->orderBy('id')
             ->first();
-    }
-
-    /**
-     * @return array<int, JournalEntryLineData>
-     */
-    private function mirrorLines(JournalEntry $original): array
-    {
-        $original->load('lines');
-
-        $mirrored = [];
-        foreach ($original->lines as $i => $line) {
-            $mirrored[] = new JournalEntryLineData(
-                account_id: $line->account_id,
-                debit_native: (float) $line->credit_native,
-                credit_native: (float) $line->debit_native,
-                debit_base: (float) $line->credit_base,
-                credit_base: (float) $line->debit_base,
-                currency: $line->currency,
-                fx_rate_to_base: (float) $line->fx_rate_to_base,
-                sort_order: $i,
-                customer_billable_type: $line->customer_billable_type,
-                customer_billable_id: $line->customer_billable_id,
-                vendor_billable_type: $line->vendor_billable_type,
-                vendor_billable_id: $line->vendor_billable_id,
-                item_id: $line->item_id,
-                class_id: $line->class_id,
-                department_id: $line->department_id,
-                memo: $line->memo ? "REVERSAL — {$line->memo}" : null,
-                metadata: $line->metadata,
-            );
-        }
-
-        return $mirrored;
     }
 }

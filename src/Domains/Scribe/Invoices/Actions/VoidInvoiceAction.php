@@ -11,24 +11,18 @@ use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Exceptions\InvalidInvoiceTransitionException;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Services\InvoiceStateMachine;
-use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
-use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryData;
-use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLineData;
-use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
+use Kanvas\Scribe\Ledger\Actions\ReverseJournalEntryAction;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
-use Spatie\LaravelData\DataCollection;
 
 /**
- * Voids an issued or sent invoice by posting a mirror JE (DR↔CR swap) that reverses the original Issue JE.
+ * Voids an issued or sent invoice by posting a mirror reversal JE via ReverseJournalEntryAction.
  *
  * Voiding a PAID invoice is intentionally not allowed (state machine rejects). For paid invoices, issue
- * a credit_note via IssueCreditNoteAction (Phase 2+) instead.
- *
- * Also updates the original journal_entry.status to 'reversed' on the original Issue JE row, sets is_reversal_of
- * on the new mirror JE. Preserves history per plan §7.7 — "Reversals preserve history".
+ * a credit_note via IssueCreditNoteAction instead.
  *
  * @see plan §7.7 — Reversals preserve history
+ * @see ReverseJournalEntryAction — shared mirror logic across all sub-ledger Void actions
  */
 class VoidInvoiceAction
 {
@@ -55,28 +49,15 @@ class VoidInvoiceAction
         return DB::connection('accounting')->transaction(function () use ($original): Invoice {
             $invoice = $this->invoice;
 
-            $reversalLines = $this->mirrorLines($original);
-
-            new PostJournalEntryAction(
-                data: new JournalEntryData(
-                    app: $invoice->app,
-                    company: $invoice->company,
-                    postedAt: Carbon::now(),
-                    sourceType: 'invoice',
-                    lines: new DataCollection(JournalEntryLineData::class, $reversalLines),
-                    sourceId: $invoice->id,
-                    memo: "Invoice {$invoice->invoice_number} void — reverses JE {$original->je_number}",
-                    isAdjustment: true,
-                    isReversalOf: $original->id,
-                    source: 'kanvas',
-                    origin: JournalEntryOriginEnum::KANVAS,
-                ),
-                postedByUser: $this->user,
+            new ReverseJournalEntryAction(
+                original: $original,
+                app: $invoice->app,
+                company: $invoice->company,
+                memo: "Invoice {$invoice->invoice_number} void — reverses JE {$original->je_number}",
+                user: $this->user,
+                sourceType: 'invoice',
+                sourceId: $invoice->id,
             )->execute();
-
-            // Mark the original JE as reversed
-            $original->status = JournalEntryStatusEnum::REVERSED;
-            $original->save();
 
             $invoice->document_status = InvoiceDocumentStatusEnum::VOIDED;
             $invoice->collection_state = null;
@@ -99,38 +80,5 @@ class VoidInvoiceAction
             ->whereNull('is_reversal_of')
             ->orderBy('id')
             ->first();
-    }
-
-    /**
-     * @return array<int, JournalEntryLineData>
-     */
-    private function mirrorLines(JournalEntry $original): array
-    {
-        $original->load('lines');
-
-        $mirrored = [];
-        foreach ($original->lines as $i => $line) {
-            $mirrored[] = new JournalEntryLineData(
-                account_id: $line->account_id,
-                debit_native: (float) $line->credit_native,    // swap
-                credit_native: (float) $line->debit_native,
-                debit_base: (float) $line->credit_base,
-                credit_base: (float) $line->debit_base,
-                currency: $line->currency,
-                fx_rate_to_base: (float) $line->fx_rate_to_base,
-                sort_order: $i,
-                customer_billable_type: $line->customer_billable_type,
-                customer_billable_id: $line->customer_billable_id,
-                vendor_billable_type: $line->vendor_billable_type,
-                vendor_billable_id: $line->vendor_billable_id,
-                item_id: $line->item_id,
-                class_id: $line->class_id,
-                department_id: $line->department_id,
-                memo: $line->memo ? "REVERSAL — {$line->memo}" : null,
-                metadata: $line->metadata,
-            );
-        }
-
-        return $mirrored;
     }
 }

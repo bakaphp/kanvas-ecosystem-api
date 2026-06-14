@@ -75,8 +75,6 @@ input ScribeSalesReceiptLineInput {
     tax_amount_native: Float
     tax_rate: Float
     item_id: Int
-    tax_code_id: Int
-    revenue_account_id: Int
     class_id: Int
     department_id: Int
     sort_order: Int

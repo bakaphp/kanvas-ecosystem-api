@@ -1,5 +1,4 @@
 "Scribe.Expenses — non-bill spending (company card, employee-paid travel, direct bank, petty cash)."
-
 enum ScribeExpenseStatus {
     DRAFT @enum(value: "draft")
     PENDING_APPROVAL @enum(value: "pending_approval")
@@ -136,8 +135,30 @@ input ScribeAttachExpenseReceiptInput {
 
 extend type Query @guard {
     scribeExpenses(
-        where: _ @whereConditions(columns: ["expense_number", "status", "paid_by", "reimbursement_status", "currency", "vendor_billable_type", "vendor_billable_id", "expense_date", "source"])
-        orderBy: _ @orderBy(columns: ["id", "expense_number", "expense_date", "total_base", "created_at"])
+        where: _
+            @whereConditions(
+                columns: [
+                    "expense_number"
+                    "status"
+                    "paid_by"
+                    "reimbursement_status"
+                    "currency"
+                    "vendor_billable_type"
+                    "vendor_billable_id"
+                    "expense_date"
+                    "source"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "expense_number"
+                    "expense_date"
+                    "total_base"
+                    "created_at"
+                ]
+            )
     ): [ScribeExpense!]!
         @paginate(
             model: "Kanvas\\Scribe\\Expenses\\Models\\Expense"
@@ -148,19 +169,41 @@ extend type Query @guard {
 
 extend type Mutation @guard {
     createScribeExpense(input: ScribeExpenseInput!): ScribeExpense!
-        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@create")
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@create"
+        )
     updateScribeExpense(id: ID!, input: ScribeExpenseInput!): ScribeExpense!
-        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@update")
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@update"
+        )
     submitScribeExpenseForApproval(id: ID!): ScribeExpense!
-        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@submitForApproval")
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@submitForApproval"
+        )
     approveScribeExpense(id: ID!): ScribeExpense!
-        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@approve")
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@approve"
+        )
     rejectScribeExpense(id: ID!, reason: String): ScribeExpense!
-        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@reject")
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@reject"
+        )
     voidScribeExpense(id: ID!, void_reason_code: String!): ScribeExpense!
-        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@void")
-    recordScribeExpenseReimbursement(id: ID!, reimbursement_payment_id: Int): ScribeExpense!
-        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@recordReimbursement")
-    attachScribeExpenseReceipt(id: ID!, input: ScribeAttachExpenseReceiptInput!): ScribeExpenseReceipt!
-        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@attachReceipt")
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@void"
+        )
+    recordScribeExpenseReimbursement(
+        id: ID!
+        reimbursement_payment_id: Int
+    ): ScribeExpense!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@recordReimbursement"
+        )
+    attachScribeExpenseReceipt(
+        id: ID!
+        input: ScribeAttachExpenseReceiptInput!
+    ): ScribeExpenseReceipt!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@attachReceipt"
+        )
 }
