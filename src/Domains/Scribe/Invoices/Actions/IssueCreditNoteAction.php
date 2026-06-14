@@ -149,6 +149,18 @@ class IssueCreditNoteAction
                 user: $this->user,
             )->execute();
 
+            $creditNote->emitLedgerEvent(
+                eventType: 'scribe.credit_note.issued',
+                payload: [
+                    'credit_note_number' => $creditNote->invoice_number,
+                    'parent_invoice_id' => $parent->id,
+                    'parent_invoice_number' => $parent->invoice_number,
+                    'currency' => $creditNote->currency,
+                    'total_native' => (float) $creditNote->total_native,
+                    'total_base' => (float) $creditNote->total_base,
+                ],
+            );
+
             return $creditNote->refresh();
         });
     }

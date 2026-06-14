@@ -73,6 +73,15 @@ class VoidExpenseAction
 
             $expense->save();
 
+            $expense->emitLedgerEvent(
+                eventType: 'scribe.expense.voided',
+                payload: [
+                    'expense_number' => $expense->expense_number,
+                    'void_reason_code' => $this->voidReasonCode,
+                    'had_approval_je' => $original !== null,
+                ],
+            );
+
             return $expense->refresh();
         });
     }

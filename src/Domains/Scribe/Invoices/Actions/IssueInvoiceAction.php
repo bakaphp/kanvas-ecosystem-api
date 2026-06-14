@@ -76,6 +76,20 @@ class IssueInvoiceAction
                 postedByUser: $this->user,
             )->execute();
 
+            $invoice->emitLedgerEvent(
+                eventType: 'scribe.invoice.issued',
+                payload: [
+                    'invoice_number' => $invoice->invoice_number,
+                    'billable_type' => $invoice->billable_type,
+                    'billable_id' => $invoice->billable_id,
+                    'billable_display_name' => $invoice->billable_display_name,
+                    'currency' => $invoice->currency,
+                    'total_native' => (float) $invoice->total_native,
+                    'total_base' => (float) $invoice->total_base,
+                    'due_date' => $invoice->due_date?->toDateString(),
+                ],
+            );
+
             return $invoice->refresh();
         });
     }

@@ -65,6 +65,15 @@ class VoidInvoiceAction
             $invoice->void_reason_code = $this->voidReasonCode;
             $invoice->save();
 
+            $invoice->emitLedgerEvent(
+                eventType: 'scribe.invoice.voided',
+                payload: [
+                    'invoice_number' => $invoice->invoice_number,
+                    'void_reason_code' => $this->voidReasonCode,
+                    'reversed_je_id' => $original->id,
+                ],
+            );
+
             return $invoice->refresh();
         });
     }

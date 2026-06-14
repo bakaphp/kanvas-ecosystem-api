@@ -79,6 +79,19 @@ class ApproveExpenseAction
 
             $this->closeApprovalQueueItem($expense);
 
+            $expense->emitLedgerEvent(
+                eventType: 'scribe.expense.approved',
+                payload: [
+                    'expense_number' => $expense->expense_number,
+                    'paid_by' => $expense->paid_by->value,
+                    'paid_by_users_id' => $expense->paid_by_users_id,
+                    'currency' => $expense->currency,
+                    'total_native' => (float) $expense->total_native,
+                    'total_base' => (float) $expense->total_base,
+                    'reimbursement_status' => $expense->reimbursement_status->value,
+                ],
+            );
+
             return $expense->refresh();
         });
     }

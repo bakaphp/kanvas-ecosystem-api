@@ -132,6 +132,19 @@ class CreateSalesReceiptAction
                 postedByUser: $this->user,
             )->execute();
 
+            $receipt->emitLedgerEvent(
+                eventType: 'scribe.sales_receipt.recorded',
+                payload: [
+                    'receipt_number' => $receipt->receipt_number,
+                    'billable_type' => $receipt->billable_type,
+                    'billable_id' => $receipt->billable_id,
+                    'billable_display_name' => $receipt->billable_display_name,
+                    'currency' => $receipt->currency,
+                    'total_native' => (float) $receipt->total_native,
+                    'total_base' => (float) $receipt->total_base,
+                ],
+            );
+
             return $receipt->refresh();
         });
     }

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\GraphQL\Scribe\Mutations\Invoices;
 
 use App\GraphQL\Scribe\Resolvers\BillableResolver;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Scribe\Invoices\Actions\AmendInvoiceAction;
@@ -163,8 +165,11 @@ class InvoiceMutation
         )->execute();
     }
 
-    private function buildInvoiceData(array $input, $app, $company): InvoiceData
-    {
+    private function buildInvoiceData(
+        array $input,
+        AppInterface $app,
+        CompanyInterface $company,
+    ): InvoiceData {
         $billable = $this->billableResolver->resolveBillableOrNull(
             $input['billable_type'] ?? null,
             isset($input['billable_id']) ? (int) $input['billable_id'] : null,

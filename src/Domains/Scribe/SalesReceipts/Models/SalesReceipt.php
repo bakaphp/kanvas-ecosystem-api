@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Models\BaseModel;
@@ -63,6 +64,7 @@ use Kanvas\Scribe\SalesReceipts\Enums\SalesReceiptStatusEnum;
  */
 class SalesReceipt extends BaseModel
 {
+    use EmitsLedgerEventsForEntity;
     use UuidTrait;
 
     protected $table = 'sales_receipts';
@@ -99,5 +101,10 @@ class SalesReceipt extends BaseModel
     public function cashAccount(): BelongsTo
     {
         return $this->belongsTo(Account::class, 'cash_account_id', 'id');
+    }
+
+    protected function sourceDomainForLedger(): string
+    {
+        return 'Scribe';
     }
 }

@@ -69,6 +69,15 @@ class AmendInvoiceAction
 
             $invoice->save();
 
+            $invoice->emitLedgerEvent(
+                eventType: 'scribe.invoice.amended',
+                payload: [
+                    'invoice_number' => $invoice->invoice_number,
+                    'reason' => $this->data->reason,
+                    'changes' => $changes,
+                ],
+            );
+
             return $invoice->refresh();
         });
     }

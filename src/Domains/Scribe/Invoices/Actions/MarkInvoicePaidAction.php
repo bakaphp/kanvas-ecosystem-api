@@ -38,6 +38,7 @@ class MarkInvoicePaidAction
     {
         return DB::connection('accounting')->transaction(function (): Invoice {
             $invoice = $this->invoice;
+            $statusBefore = $invoice->document_status;
 
             [$paidNative, $paidBase] = $this->sumActiveAllocations($invoice);
 
@@ -55,6 +56,19 @@ class MarkInvoicePaidAction
             }
 
             $invoice->save();
+
+            if ($statusBefore !== InvoiceDocumentStatusEnum::PAID
+                && $invoice->document_status === InvoiceDocumentStatusEnum::PAID) {
+                $invoice->emitLedgerEvent(
+                    eventType: 'scribe.invoice.paid',
+                    payload: [
+                        'invoice_number' => $invoice->invoice_number,
+                        'paid_native' => $paidNative,
+                        'paid_base' => $paidBase,
+                        'currency' => $invoice->currency,
+                    ],
+                );
+            }
 
             return $invoice->refresh();
         });

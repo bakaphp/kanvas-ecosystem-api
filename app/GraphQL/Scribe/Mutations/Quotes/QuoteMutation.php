@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\GraphQL\Scribe\Mutations\Quotes;
 
 use App\GraphQL\Scribe\Resolvers\BillableResolver;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -141,8 +143,11 @@ class QuoteMutation
         )->execute();
     }
 
-    private function buildQuoteData(array $input, $app, $company): QuoteData
-    {
+    private function buildQuoteData(
+        array $input,
+        AppInterface $app,
+        CompanyInterface $company,
+    ): QuoteData {
         $billable = $this->billableResolver->resolveBillableOrNull(
             $input['billable_type'] ?? null,
             isset($input['billable_id']) ? (int) $input['billable_id'] : null,

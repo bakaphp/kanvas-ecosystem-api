@@ -84,6 +84,17 @@ class RecordExpenseReimbursementAction
                 postedByUser: $this->user,
             )->execute();
 
+            $expense->emitLedgerEvent(
+                eventType: 'scribe.expense.reimbursed',
+                payload: [
+                    'expense_number' => $expense->expense_number,
+                    'paid_by_users_id' => $expense->paid_by_users_id,
+                    'reimbursement_payment_id' => $this->reimbursementPaymentId,
+                    'total_native' => (float) $expense->total_native,
+                    'total_base' => (float) $expense->total_base,
+                ],
+            );
+
             return $expense->refresh();
         });
     }

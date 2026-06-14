@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\GraphQL\Scribe\Mutations\Expenses;
 
 use App\GraphQL\Scribe\Resolvers\BillableResolver;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -157,8 +159,11 @@ class ExpenseMutation
         )->execute();
     }
 
-    private function buildExpenseData(array $input, $app, $company): ExpenseData
-    {
+    private function buildExpenseData(
+        array $input,
+        AppInterface $app,
+        CompanyInterface $company,
+    ): ExpenseData {
         $vendor = $this->billableResolver->resolvePayeeOrNull(
             $input['vendor_billable_type'] ?? null,
             isset($input['vendor_billable_id']) ? (int) $input['vendor_billable_id'] : null,

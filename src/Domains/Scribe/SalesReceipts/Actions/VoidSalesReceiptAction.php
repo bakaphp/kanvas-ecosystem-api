@@ -59,6 +59,15 @@ class VoidSalesReceiptAction
             $receipt->void_reason_code = $this->voidReasonCode;
             $receipt->save();
 
+            $receipt->emitLedgerEvent(
+                eventType: 'scribe.sales_receipt.voided',
+                payload: [
+                    'receipt_number' => $receipt->receipt_number,
+                    'void_reason_code' => $this->voidReasonCode,
+                    'reversed_je_id' => $original->id,
+                ],
+            );
+
             return $receipt->refresh();
         });
     }

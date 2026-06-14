@@ -173,11 +173,14 @@ jobs:
           - Baka
           - Event
           - ActionEngine
+          - Scribe
           - Unit
         include:
           - testsuite: Inventory
             processes: 1
           - testsuite: Intelligence
+            processes: 1
+          - testsuite: Scribe
             processes: 1
     services:
       mysql:

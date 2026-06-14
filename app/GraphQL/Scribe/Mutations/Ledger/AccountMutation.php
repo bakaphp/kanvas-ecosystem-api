@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Scribe\Mutations\Ledger;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Scribe\Ledger\Actions\CreateAccountAction;
 use Kanvas\Scribe\Ledger\Actions\UpdateAccountAction;
@@ -42,8 +44,11 @@ class AccountMutation
         )->execute();
     }
 
-    private function buildData(array $input, $app, $company): AccountData
-    {
+    private function buildData(
+        array $input,
+        AppInterface $app,
+        CompanyInterface $company,
+    ): AccountData {
         return new AccountData(
             app: $app,
             company: $company,

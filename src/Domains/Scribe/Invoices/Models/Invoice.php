@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
+use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Scribe\Invoices\Actions\MarkInvoicePaidAction;
 use Kanvas\Scribe\Invoices\Enums\AgingBucketEnum;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
@@ -88,6 +89,7 @@ use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
  */
 class Invoice extends BaseModel implements PayableInterface
 {
+    use EmitsLedgerEventsForEntity;
     use UuidTrait;
 
     protected $table = 'invoices';
@@ -203,5 +205,10 @@ class Invoice extends BaseModel implements PayableInterface
     public function isCreditNote(): bool
     {
         return $this->document_type === DocumentTypeEnum::CREDIT_NOTE;
+    }
+
+    protected function sourceDomainForLedger(): string
+    {
+        return 'Scribe';
     }
 }

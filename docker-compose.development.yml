@@ -161,6 +161,15 @@ services:
       - "php artisan config:cache && php artisan queue:work --queue=ledger
         --tries=3 --timeout=3750"
 
+  scribe-aging-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work
+        --queue=scribe-aging --tries=3 --timeout=3750"
+
   lead-follow-ups-queue:
     <<: *common-queue-settings
     # REMOVED container_name because replicas > 1

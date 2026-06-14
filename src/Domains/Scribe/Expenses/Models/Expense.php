@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Scribe\Banking\Models\BankAccount;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseReimbursementStatusEnum;
@@ -68,6 +69,7 @@ use Kanvas\Scribe\Models\BaseModel;
  */
 class Expense extends BaseModel
 {
+    use EmitsLedgerEventsForEntity;
     use UuidTrait;
 
     protected $table = 'expenses';
@@ -112,5 +114,10 @@ class Expense extends BaseModel
     public function bankAccount(): BelongsTo
     {
         return $this->belongsTo(BankAccount::class, 'bank_account_id', 'id');
+    }
+
+    protected function sourceDomainForLedger(): string
+    {
+        return 'Scribe';
     }
 }

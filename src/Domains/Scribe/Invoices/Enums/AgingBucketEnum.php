@@ -10,7 +10,7 @@ use Illuminate\Support\Carbon;
  * Standard AR-aging buckets. Computed (not stored) — derived from (due_date, today).
  *
  * Used by EvaluateInvoiceAgingJob to emit aging_changed events on bucket transition, and by the
- * ArAgingReport service to group open invoices.
+ * ArAgingRepository to group open invoices.
  *
  * @see plan §7.2 — aging is derived, not stored
  */

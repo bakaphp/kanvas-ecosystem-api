@@ -57,6 +57,15 @@ class RejectExpenseAction
                     'reason' => $this->reason,
                 ]);
 
+            $expense->emitLedgerEvent(
+                eventType: 'scribe.expense.rejected',
+                payload: [
+                    'expense_number' => $expense->expense_number,
+                    'reason' => $this->reason,
+                    'total_native' => (float) $expense->total_native,
+                ],
+            );
+
             return $expense->refresh();
         });
     }

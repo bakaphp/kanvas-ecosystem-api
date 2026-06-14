@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Scribe\Mutations\Ledger;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Scribe\Ledger\Actions\CloseFiscalPeriodAction;
@@ -65,7 +67,7 @@ class FiscalPeriodMutation
         )->execute();
     }
 
-    private function findPeriod(int $id, $app, $company): FiscalPeriod
+    private function findPeriod(int $id, AppInterface $app, CompanyInterface $company): FiscalPeriod
     {
         $period = FiscalPeriod::query()
             ->where('id', $id)
