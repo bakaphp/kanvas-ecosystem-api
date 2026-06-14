@@ -6,12 +6,12 @@ namespace Tests\Scribe\Ledger;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryData;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLineData;
+use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
 use Kanvas\Scribe\Ledger\Exceptions\ClosedFiscalPeriodException;
 use Kanvas\Scribe\Ledger\Exceptions\UnbalancedJournalEntryException;
@@ -45,7 +45,6 @@ class PostJournalEntryActionTest extends TestCase
     private Companies $company;
     private int $arAccountId;
     private int $revenueAccountId;
-    private int $cashAccountId;
 
     protected function setUp(): void
     {
@@ -57,14 +56,12 @@ class PostJournalEntryActionTest extends TestCase
         $seeder = new ChartOfAccountsSeederService();
         $seeder->seedUsDefault($this->kanvasApp->getId(), $this->company->getId());
 
-        $this->cashAccountId    = $this->accountIdBySubType('cash_checking');
-        $this->arAccountId      = $this->accountIdBySubType('accounts_receivable');
-        $this->revenueAccountId = $this->accountIdBySubType('service_revenue');
+        $this->arAccountId      = $this->accountIdBySubType(AccountSubTypeEnum::ACCOUNTS_RECEIVABLE);
+        $this->revenueAccountId = $this->accountIdBySubType(AccountSubTypeEnum::SERVICE_REVENUE);
 
         FiscalPeriod::create([
             'apps_id' => $this->kanvasApp->getId(),
             'companies_id' => $this->company->getId(),
-            'uuid' => (string) Str::uuid(),
             'period_start' => '2026-06-01',
             'period_end' => '2026-06-30',
             'status' => FiscalPeriodStatusEnum::OPEN,
@@ -139,7 +136,6 @@ class PostJournalEntryActionTest extends TestCase
         FiscalPeriod::create([
             'apps_id' => $this->kanvasApp->getId(),
             'companies_id' => $this->company->getId(),
-            'uuid' => (string) Str::uuid(),
             'period_start' => '2026-05-01',
             'period_end' => '2026-05-31',
             'status' => FiscalPeriodStatusEnum::HARD_CLOSED,
@@ -212,15 +208,15 @@ class PostJournalEntryActionTest extends TestCase
         );
     }
 
-    private function accountIdBySubType(string $subType): int
+    private function accountIdBySubType(AccountSubTypeEnum $subType): int
     {
         $row = Account::query()
             ->where('apps_id', $this->kanvasApp->getId())
             ->where('companies_id', $this->company->getId())
-            ->where('account_sub_type', $subType)
+            ->where('account_sub_type', $subType->value)
             ->first();
 
-        $this->assertNotNull($row, "Expected seeded account with sub_type='{$subType}'.");
+        $this->assertNotNull($row, "Expected seeded account with sub_type='{$subType->value}'.");
 
         return (int) $row->id;
     }

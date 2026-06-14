@@ -38,7 +38,12 @@ class DocumentNumberAllocator
         ?string $defaultPrefix = null,
     ): string {
         return DB::connection('accounting')->transaction(function () use ($appsId, $companiesId, $documentType, $defaultPrefix) {
-            $sequence = $this->lockOrCreateSequence($appsId, $companiesId, $documentType, $defaultPrefix);
+            $sequence = $this->lockOrCreateSequence(
+                $appsId,
+                $companiesId,
+                $documentType,
+                $defaultPrefix
+            );
 
             $allocated = $sequence->next_value;
             $sequence->next_value = $allocated + 1;

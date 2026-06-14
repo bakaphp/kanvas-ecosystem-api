@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\AccountTypeEnum;
 use Kanvas\Scribe\Models\BaseModel;
 
@@ -46,6 +47,7 @@ class Account extends BaseModel
         'last_synced_at' => 'datetime',
         'metadata' => Json::class,
         'account_type' => AccountTypeEnum::class,
+        'account_sub_type' => AccountSubTypeEnum::class,
     ];
 
     public function parent(): BelongsTo
