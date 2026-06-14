@@ -53,9 +53,24 @@ class DocumentNumberAllocatorTest extends TestCase
     {
         $allocator = new DocumentNumberAllocator();
 
-        $first  = $allocator->allocate(self::APPS_ID, self::MCDR_COMPANY_ID, DocumentTypeEnum::INVOICE, 'MCDR-INV-');
-        $second = $allocator->allocate(self::APPS_ID, self::MCDR_COMPANY_ID, DocumentTypeEnum::INVOICE, 'MCDR-INV-');
-        $third  = $allocator->allocate(self::APPS_ID, self::MCDR_COMPANY_ID, DocumentTypeEnum::INVOICE, 'MCDR-INV-');
+        $first = $allocator->allocate(
+            self::APPS_ID,
+            self::MCDR_COMPANY_ID,
+            DocumentTypeEnum::INVOICE,
+            'MCDR-INV-'
+        );
+        $second = $allocator->allocate(
+            self::APPS_ID,
+            self::MCDR_COMPANY_ID,
+            DocumentTypeEnum::INVOICE,
+            'MCDR-INV-'
+        );
+        $third = $allocator->allocate(
+            self::APPS_ID,
+            self::MCDR_COMPANY_ID,
+            DocumentTypeEnum::INVOICE,
+            'MCDR-INV-'
+        );
 
         $this->assertSame('MCDR-INV-1', $first);
         $this->assertSame('MCDR-INV-2', $second);
