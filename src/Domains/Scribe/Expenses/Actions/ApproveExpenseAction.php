@@ -11,12 +11,12 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum;
-use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocator;
+use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
 use Kanvas\Scribe\Expenses\Enums\ExpenseReimbursementStatusEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Models\Expense;
-use Kanvas\Scribe\Expenses\Services\ExpenseJournalEntryComposer;
-use Kanvas\Scribe\Expenses\Services\ExpenseStateMachine;
+use Kanvas\Scribe\Expenses\Services\ExpenseJournalEntryComposerService;
+use Kanvas\Scribe\Expenses\Services\ExpenseStateMachineService;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
 
 /**
@@ -25,10 +25,10 @@ use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
  * Atomic side effects (single accounting-DB transaction):
  *   1. State-machine assert
  *   2. Freeze vendor snapshot (if vendor present)
- *   3. Allocate expense_number via DocumentNumberAllocator
+ *   3. Allocate expense_number via DocumentNumberAllocatorService
  *   4. Flip status + stamp approved_at / approved_by_users_id
  *   5. For employee-paid: flip reimbursement_status PENDING → APPROVED
- *   6. Compose JE via ExpenseJournalEntryComposer::composeApproval + post via PostJournalEntryAction
+ *   6. Compose JE via ExpenseJournalEntryComposerService::composeApproval + post via PostJournalEntryAction
  *   7. Close the matching ApprovalQueueItem (if any) — APPROVED
  *
  * @see plan §11.4 — Juan's hotel; this is the "Finance approves" step that posts the DR Expense / CR Due to Employees JE
@@ -39,9 +39,9 @@ class ApproveExpenseAction
         public readonly Expense $expense,
         public readonly UserInterface $approver,
         public readonly ?PayeeInterface $vendor = null,
-        protected readonly ExpenseStateMachine $stateMachine = new ExpenseStateMachine(),
-        protected readonly ExpenseJournalEntryComposer $composer = new ExpenseJournalEntryComposer(),
-        protected readonly ?DocumentNumberAllocator $allocator = null,
+        protected readonly ExpenseStateMachineService $stateMachine = new ExpenseStateMachineService(),
+        protected readonly ExpenseJournalEntryComposerService $composer = new ExpenseJournalEntryComposerService(),
+        protected readonly ?DocumentNumberAllocatorService $allocator = null,
     ) {
     }
 
@@ -116,7 +116,7 @@ class ApproveExpenseAction
             return;
         }
 
-        $allocator = $this->allocator ?? new DocumentNumberAllocator();
+        $allocator = $this->allocator ?? new DocumentNumberAllocatorService();
         $expense->expense_number = $allocator->allocate(
             $expense->apps_id,
             $expense->companies_id,

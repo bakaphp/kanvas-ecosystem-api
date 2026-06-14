@@ -7,18 +7,18 @@ namespace Tests\Scribe\Quotes;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Kanvas\Scribe\Quotes\Exceptions\InvalidQuoteTransitionException;
 use Kanvas\Scribe\Quotes\Models\Quote;
-use Kanvas\Scribe\Quotes\Services\QuoteStateMachine;
+use Kanvas\Scribe\Quotes\Services\QuoteStateMachineService;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class QuoteStateMachineTest extends TestCase
 {
-    private QuoteStateMachine $machine;
+    private QuoteStateMachineService $machine;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->machine = new QuoteStateMachine();
+        $this->machine = new QuoteStateMachineService();
     }
 
     #[DataProvider('validTransitionProvider')]

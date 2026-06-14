@@ -13,7 +13,7 @@ use Kanvas\Scribe\Ledger\Models\JournalEntry;
 use Kanvas\Scribe\SalesReceipts\Enums\SalesReceiptStatusEnum;
 use Kanvas\Scribe\SalesReceipts\Exceptions\InvalidSalesReceiptTransitionException;
 use Kanvas\Scribe\SalesReceipts\Models\SalesReceipt;
-use Kanvas\Scribe\SalesReceipts\Services\SalesReceiptStateMachine;
+use Kanvas\Scribe\SalesReceipts\Services\SalesReceiptStateMachineService;
 
 /**
  * Voids a recorded sales receipt by posting a mirror reversal JE via ReverseJournalEntryAction.
@@ -26,7 +26,7 @@ class VoidSalesReceiptAction
         public readonly SalesReceipt $salesReceipt,
         public readonly string $voidReasonCode,
         public readonly ?UserInterface $user = null,
-        protected readonly SalesReceiptStateMachine $stateMachine = new SalesReceiptStateMachine(),
+        protected readonly SalesReceiptStateMachineService $stateMachine = new SalesReceiptStateMachineService(),
     ) {
     }
 

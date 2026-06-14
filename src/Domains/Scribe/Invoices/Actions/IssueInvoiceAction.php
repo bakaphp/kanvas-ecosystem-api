@@ -9,12 +9,12 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum as SequenceDocumentTypeEnum;
-use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocator;
+use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
 use Kanvas\Scribe\Invoices\Enums\InvoiceCollectionStateEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
-use Kanvas\Scribe\Invoices\Services\InvoiceJournalEntryComposer;
-use Kanvas\Scribe\Invoices\Services\InvoiceStateMachine;
+use Kanvas\Scribe\Invoices\Services\InvoiceJournalEntryComposerService;
+use Kanvas\Scribe\Invoices\Services\InvoiceStateMachineService;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
 
 /**
@@ -23,9 +23,9 @@ use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
  * Atomic side effects (all wrapped in the accounting-DB transaction):
  *   1. State-machine assert (draft → issued)
  *   2. Hydrate billable snapshot from the live Guild model (per plan §7.4 — frozen at issue)
- *   3. Allocate invoice_number via DocumentNumberAllocator (atomic SELECT … FOR UPDATE)
+ *   3. Allocate invoice_number via DocumentNumberAllocatorService (atomic SELECT … FOR UPDATE)
  *   4. Set issued_date / due_date (if not already), collection_state='current'
- *   5. Compose the JE via InvoiceJournalEntryComposer (DR AR / CR Revenue + CR Tax Payable)
+ *   5. Compose the JE via InvoiceJournalEntryComposerService (DR AR / CR Revenue + CR Tax Payable)
  *   6. PostJournalEntryAction writes the JE (which gates the fiscal-period check + validator)
  *   7. Update invoice.document_status = ISSUED
  *
@@ -39,9 +39,9 @@ class IssueInvoiceAction
         public readonly Invoice $invoice,
         public readonly BillableInterface $billable,
         public readonly ?UserInterface $user = null,
-        protected readonly InvoiceStateMachine $stateMachine = new InvoiceStateMachine(),
-        protected readonly InvoiceJournalEntryComposer $composer = new InvoiceJournalEntryComposer(),
-        protected readonly ?DocumentNumberAllocator $allocator = null,
+        protected readonly InvoiceStateMachineService $stateMachine = new InvoiceStateMachineService(),
+        protected readonly InvoiceJournalEntryComposerService $composer = new InvoiceJournalEntryComposerService(),
+        protected readonly ?DocumentNumberAllocatorService $allocator = null,
     ) {
     }
 
@@ -123,7 +123,7 @@ class IssueInvoiceAction
             return;
         }
 
-        $allocator = $this->allocator ?? new DocumentNumberAllocator();
+        $allocator = $this->allocator ?? new DocumentNumberAllocatorService();
         $sequenceType = $invoice->isCreditNote()
             ? SequenceDocumentTypeEnum::CREDIT_NOTE
             : SequenceDocumentTypeEnum::INVOICE;

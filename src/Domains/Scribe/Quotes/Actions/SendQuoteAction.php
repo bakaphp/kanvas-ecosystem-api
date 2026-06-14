@@ -9,10 +9,10 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum;
-use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocator;
+use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Kanvas\Scribe\Quotes\Models\Quote;
-use Kanvas\Scribe\Quotes\Services\QuoteStateMachine;
+use Kanvas\Scribe\Quotes\Services\QuoteStateMachineService;
 
 /**
  * Transitions a draft quote into SENT state.
@@ -20,7 +20,7 @@ use Kanvas\Scribe\Quotes\Services\QuoteStateMachine;
  * Atomic side effects (wrapped in the accounting-DB transaction):
  *   1. State-machine assert (draft → sent)
  *   2. Hydrate billable snapshot from the live Guild model (immutable post-send per plan §7.4)
- *   3. Allocate quote_number via DocumentNumberAllocator
+ *   3. Allocate quote_number via DocumentNumberAllocatorService
  *   4. Set sent_at = now; if valid_until is null, default to issued_date + 30 days
  *   5. Flip status to SENT
  *
@@ -34,8 +34,8 @@ class SendQuoteAction
         public readonly Quote $quote,
         public readonly BillableInterface $billable,
         public readonly ?UserInterface $user = null,
-        protected readonly QuoteStateMachine $stateMachine = new QuoteStateMachine(),
-        protected readonly ?DocumentNumberAllocator $allocator = null,
+        protected readonly QuoteStateMachineService $stateMachine = new QuoteStateMachineService(),
+        protected readonly ?DocumentNumberAllocatorService $allocator = null,
     ) {
     }
 
@@ -92,7 +92,7 @@ class SendQuoteAction
             return;
         }
 
-        $allocator = $this->allocator ?? new DocumentNumberAllocator();
+        $allocator = $this->allocator ?? new DocumentNumberAllocatorService();
         $quote->quote_number = $allocator->allocate(
             $quote->apps_id,
             $quote->companies_id,

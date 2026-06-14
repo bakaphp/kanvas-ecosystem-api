@@ -10,7 +10,7 @@ use Kanvas\Scribe\Quotes\DataTransferObject\QuoteData;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Kanvas\Scribe\Quotes\Exceptions\InvalidQuoteTransitionException;
 use Kanvas\Scribe\Quotes\Models\Quote;
-use Kanvas\Scribe\Quotes\Services\QuoteStateMachine;
+use Kanvas\Scribe\Quotes\Services\QuoteStateMachineService;
 
 /**
  * Creates a new revision of an existing quote.
@@ -31,7 +31,7 @@ class CreateQuoteRevisionAction
         public readonly Quote $originalQuote,
         public readonly QuoteData $newRevisionData,
         public readonly ?UserInterface $user = null,
-        protected readonly QuoteStateMachine $stateMachine = new QuoteStateMachine(),
+        protected readonly QuoteStateMachineService $stateMachine = new QuoteStateMachineService(),
     ) {
     }
 

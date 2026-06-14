@@ -93,13 +93,13 @@ class ReportsTest extends TestCase
             0.005,
         );
 
-        $arLine = $bs->assets->lines->first(
+        $arLine = $bs->assets->lines->toCollection()->first(
             fn ($l) => $l->account_sub_type === AccountSubTypeEnum::ACCOUNTS_RECEIVABLE->value,
         );
         $this->assertNotNull($arLine, 'AR line should appear in Assets.');
         $this->assertEquals(1000.0, $arLine->amount);
 
-        $cyeLine = $bs->equity->lines->first(fn ($l) => $l->account_number === '__cye__');
+        $cyeLine = $bs->equity->lines->toCollection()->first(fn ($l) => $l->account_number === '__cye__');
         $this->assertNotNull($cyeLine);
         $this->assertEquals(1000.0, $cyeLine->amount, 'Current Year Earnings = revenue through asOf.');
     }
@@ -141,7 +141,7 @@ class ReportsTest extends TestCase
         $this->assertEqualsWithDelta($tb->total_debits, $tb->total_credits, 0.005);
         $this->assertGreaterThan(0, $tb->rows->count());
 
-        $ar = $tb->rows->first(fn ($r) => $r->account_sub_type === AccountSubTypeEnum::ACCOUNTS_RECEIVABLE->value);
+        $ar = $tb->rows->toCollection()->first(fn ($r) => $r->account_sub_type === AccountSubTypeEnum::ACCOUNTS_RECEIVABLE->value);
         $this->assertNotNull($ar);
         $this->assertEquals(800.0, $ar->debit, 'AR is DR-normal — balance shows in debit column.');
         $this->assertEquals(0.0, $ar->credit);
@@ -169,7 +169,7 @@ class ReportsTest extends TestCase
         $this->assertEquals(1800.0, $report->grand_total);
 
         $this->assertCount(1, $report->rows, 'Single customer rolls up to one row.');
-        $row = $report->rows->first();
+        $row = $report->rows->toCollection()->first();
         $this->assertEquals(1800.0, $row->total);
     }
 
@@ -194,7 +194,7 @@ class ReportsTest extends TestCase
         $this->assertSame(3, $report->total_invoice_count);
         $this->assertCount(2, $report->rows);
 
-        $top = $report->rows->first();
+        $top = $report->rows->toCollection()->first();
         $this->assertSame(2000.0, $top->net_revenue, 'Highest revenue customer ranked first.');
     }
 
@@ -213,8 +213,9 @@ class ReportsTest extends TestCase
         );
 
         $this->assertCount(1, $report->rows);
-        $this->assertSame('2026-06', $report->rows->first()->group_key);
-        $this->assertSame(2300.0, $report->rows->first()->net_revenue);
+        $firstRow = $report->rows->toCollection()->first();
+        $this->assertSame('2026-06', $firstRow->group_key);
+        $this->assertSame(2300.0, $firstRow->net_revenue);
     }
 
     public function test_aging_evaluation_service_flips_overdue_invoices(): void
@@ -267,7 +268,7 @@ class ReportsTest extends TestCase
             company: $this->company,
             asOf: Carbon::parse('2026-06-20'),
         );
-        $arBefore = $bsBeforePayment->assets->lines->first(
+        $arBefore = $bsBeforePayment->assets->lines->toCollection()->first(
             fn ($l) => $l->account_sub_type === AccountSubTypeEnum::ACCOUNTS_RECEIVABLE->value,
         );
         $this->assertEquals(1000.0, $arBefore?->amount);
@@ -311,7 +312,7 @@ class ReportsTest extends TestCase
         );
         $this->assertTrue($bs->is_balanced);
 
-        $dueToEmp = $bs->liabilities->lines->first(
+        $dueToEmp = $bs->liabilities->lines->toCollection()->first(
             fn ($l) => $l->account_sub_type === AccountSubTypeEnum::DUE_TO_EMPLOYEES->value,
         );
         $this->assertNotNull($dueToEmp);
@@ -327,7 +328,7 @@ class ReportsTest extends TestCase
             company: $this->company,
             asOf: Carbon::parse('2026-06-30'),
         );
-        $dueToEmpAfter = $bsAfter->liabilities->lines->first(
+        $dueToEmpAfter = $bsAfter->liabilities->lines->toCollection()->first(
             fn ($l) => $l->account_sub_type === AccountSubTypeEnum::DUE_TO_EMPLOYEES->value,
         );
         $this->assertNull(

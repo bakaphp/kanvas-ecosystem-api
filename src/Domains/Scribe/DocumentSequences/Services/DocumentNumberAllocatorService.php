@@ -20,7 +20,7 @@ use Kanvas\Scribe\DocumentSequences\Models\DocumentSequence;
  *
  * @see plan §5 accounting.document_sequences schema
  */
-class DocumentNumberAllocator
+class DocumentNumberAllocatorService
 {
     /**
      * Allocate the next document number atomically.

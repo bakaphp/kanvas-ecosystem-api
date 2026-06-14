@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Invoices\Enums;
 
 /**
- * Document-level status — what the invoice *is* (mutually exclusive, transitions managed by InvoiceStateMachine).
+ * Document-level status — what the invoice *is* (mutually exclusive, transitions managed by InvoiceStateMachineService).
  *
  *   draft → issued → sent → paid
  *                 ↘ voided  (only from issued/sent — voiding a paid invoice = credit note instead)

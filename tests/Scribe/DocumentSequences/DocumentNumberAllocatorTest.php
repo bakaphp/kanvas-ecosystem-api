@@ -7,7 +7,7 @@ namespace Tests\Scribe\DocumentSequences;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\DocumentSequences\Models\DocumentSequence;
-use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocator;
+use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
 use Tests\TestCase;
 
 /**
@@ -28,7 +28,7 @@ class DocumentNumberAllocatorTest extends TestCase
 
     public function test_first_call_auto_creates_sequence_at_one(): void
     {
-        $allocator = new DocumentNumberAllocator();
+        $allocator = new DocumentNumberAllocatorService();
 
         $number = $allocator->allocate(
             self::APPS_ID,
@@ -51,7 +51,7 @@ class DocumentNumberAllocatorTest extends TestCase
 
     public function test_consecutive_calls_return_consecutive_numbers(): void
     {
-        $allocator = new DocumentNumberAllocator();
+        $allocator = new DocumentNumberAllocatorService();
 
         $first = $allocator->allocate(
             self::APPS_ID,
@@ -82,7 +82,7 @@ class DocumentNumberAllocatorTest extends TestCase
      */
     public function test_per_company_sequences_are_independent(): void
     {
-        $allocator = new DocumentNumberAllocator();
+        $allocator = new DocumentNumberAllocatorService();
 
         for ($i = 0; $i < 4; $i++) {
             $allocator->allocate(self::APPS_ID, self::MCDR_COMPANY_ID, DocumentTypeEnum::INVOICE, 'MCDR-INV-');
@@ -101,7 +101,7 @@ class DocumentNumberAllocatorTest extends TestCase
      */
     public function test_per_document_type_sequences_are_independent(): void
     {
-        $allocator = new DocumentNumberAllocator();
+        $allocator = new DocumentNumberAllocatorService();
 
         $inv1 = $allocator->allocate(self::APPS_ID, self::MCDR_COMPANY_ID, DocumentTypeEnum::INVOICE, 'INV-');
         $inv2 = $allocator->allocate(self::APPS_ID, self::MCDR_COMPANY_ID, DocumentTypeEnum::INVOICE, 'INV-');
@@ -116,7 +116,7 @@ class DocumentNumberAllocatorTest extends TestCase
 
     public function test_peek_does_not_consume_a_number(): void
     {
-        $allocator = new DocumentNumberAllocator();
+        $allocator = new DocumentNumberAllocatorService();
 
         $allocator->allocate(self::APPS_ID, self::MCDR_COMPANY_ID, DocumentTypeEnum::INVOICE, 'X-');
 

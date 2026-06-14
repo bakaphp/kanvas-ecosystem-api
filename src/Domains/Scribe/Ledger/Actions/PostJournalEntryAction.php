@@ -11,7 +11,7 @@ use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLineData;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
 use Kanvas\Scribe\Ledger\Models\JournalEntryLine;
-use Kanvas\Scribe\Ledger\Services\JournalEntryValidator;
+use Kanvas\Scribe\Ledger\Services\JournalEntryValidatorService;
 use Kanvas\Scribe\Ledger\Services\PeriodCloseService;
 
 /**
@@ -23,7 +23,7 @@ use Kanvas\Scribe\Ledger\Services\PeriodCloseService;
  *
  * Flow:
  *   1. PeriodCloseService.assertCanPostAt → throws ClosedFiscalPeriodException if the period rejects.
- *   2. JournalEntryValidator.validate → throws InvalidJournalEntryLineException / UnbalancedJournalEntryException
+ *   2. JournalEntryValidatorService.validate → throws InvalidJournalEntryLineException / UnbalancedJournalEntryException
  *      on shape or balance violations.
  *   3. Single DB transaction: insert journal_entries header + journal_entry_lines rows.
  *   4. Return the persisted JournalEntry with lines hydrated.
@@ -41,7 +41,7 @@ class PostJournalEntryAction
     public function __construct(
         public readonly JournalEntryData $data,
         public readonly ?UserInterface $postedByUser = null,
-        protected readonly JournalEntryValidator $validator = new JournalEntryValidator(),
+        protected readonly JournalEntryValidatorService $validator = new JournalEntryValidatorService(),
         protected readonly PeriodCloseService $periodCloseService = new PeriodCloseService(),
     ) {
     }

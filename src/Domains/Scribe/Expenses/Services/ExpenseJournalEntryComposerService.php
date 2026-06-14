@@ -13,7 +13,7 @@ use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLineData;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
-use Kanvas\Scribe\Ledger\Services\AccountResolver;
+use Kanvas\Scribe\Ledger\Services\AccountResolverService;
 use Spatie\LaravelData\DataCollection;
 
 /**
@@ -32,10 +32,10 @@ use Spatie\LaravelData\DataCollection;
  *
  * @see plan §11.4 — Juan's $500 hotel worked example (the four JE shapes)
  */
-class ExpenseJournalEntryComposer
+class ExpenseJournalEntryComposerService
 {
     public function __construct(
-        protected readonly AccountResolver $accountResolver = new AccountResolver(),
+        protected readonly AccountResolverService $accountResolver = new AccountResolverService(),
     ) {
     }
 

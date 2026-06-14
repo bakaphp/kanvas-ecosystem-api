@@ -12,7 +12,7 @@ use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLineData;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
-use Kanvas\Scribe\Ledger\Services\AccountResolver;
+use Kanvas\Scribe\Ledger\Services\AccountResolverService;
 use Spatie\LaravelData\DataCollection;
 
 /**
@@ -37,10 +37,10 @@ use Spatie\LaravelData\DataCollection;
  *
  * @see plan §3.5 sub-ledger → GL auto-posting table
  */
-class InvoiceJournalEntryComposer
+class InvoiceJournalEntryComposerService
 {
     public function __construct(
-        protected readonly AccountResolver $accountResolver = new AccountResolver(),
+        protected readonly AccountResolverService $accountResolver = new AccountResolverService(),
     ) {
     }
 

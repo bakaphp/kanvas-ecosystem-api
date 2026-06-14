@@ -8,7 +8,7 @@ namespace Kanvas\Scribe\Ledger\Enums;
  * Canonical catalog of system + standard account sub-types.
  *
  * Each case carries its own metadata via methods (default name, account number, account type, currency,
- * system flag). The seeder iterates cases; AccountResolver + JE composers reference the enum directly
+ * system flag). The seeder iterates cases; AccountResolverService + JE composers reference the enum directly
  * instead of stringly-typed sub-type names. Typos at compile time, not runtime.
  *
  * Sub-type groups:
@@ -33,6 +33,9 @@ enum AccountSubTypeEnum: string
     case INVENTORY_ASSET = 'inventory_asset';
     case PREPAID_EXPENSES = 'prepaid_expenses';
     case UNDEPOSITED_FUNDS = 'undeposited_funds';
+    case INPUT_TAX_RECEIVABLE = 'input_tax_receivable';
+    // DR-extension (input tax on Bills)
+    case DR_ITBIS_RECEIVABLE = 'dr_itbis_receivable';
 
     // ── Liabilities (2xxx) ───────────────────────────────────────────────
     case ACCOUNTS_PAYABLE = 'accounts_payable';
@@ -92,6 +95,8 @@ enum AccountSubTypeEnum: string
             self::INVENTORY_ASSET => '1300',
             self::PREPAID_EXPENSES => '1400',
             self::UNDEPOSITED_FUNDS => '1500',
+            self::INPUT_TAX_RECEIVABLE => '1600',
+            self::DR_ITBIS_RECEIVABLE => '1610',
             self::ACCOUNTS_PAYABLE => '2000',
             self::CREDIT_CARD_LIABILITY => '2100',
             self::SALES_TAX_PAYABLE => '2200',
@@ -140,6 +145,8 @@ enum AccountSubTypeEnum: string
             self::INVENTORY_ASSET => 'Inventory Asset',
             self::PREPAID_EXPENSES => 'Prepaid Expenses',
             self::UNDEPOSITED_FUNDS => 'Undeposited Funds',
+            self::INPUT_TAX_RECEIVABLE => 'Input Tax Receivable',
+            self::DR_ITBIS_RECEIVABLE => 'ITBIS Receivable (Input)',
             self::ACCOUNTS_PAYABLE => 'Accounts Payable',
             self::CREDIT_CARD_LIABILITY => 'Credit Card Liability',
             self::SALES_TAX_PAYABLE => 'Sales Tax Payable',
@@ -187,7 +194,9 @@ enum AccountSubTypeEnum: string
             self::VENDOR_PREPAYMENTS,
             self::INVENTORY_ASSET,
             self::PREPAID_EXPENSES,
-            self::UNDEPOSITED_FUNDS => AccountTypeEnum::ASSET,
+            self::UNDEPOSITED_FUNDS,
+            self::INPUT_TAX_RECEIVABLE,
+            self::DR_ITBIS_RECEIVABLE => AccountTypeEnum::ASSET,
 
             self::ACCOUNTS_PAYABLE,
             self::CREDIT_CARD_LIABILITY,
@@ -247,6 +256,8 @@ enum AccountSubTypeEnum: string
             self::DR_ITBIS_PAYABLE,
             self::DR_ISC_PAYABLE,
             self::DR_ISR_WITHHOLDING_PAYABLE,
+            self::INPUT_TAX_RECEIVABLE,
+            self::DR_ITBIS_RECEIVABLE,
             self::CUSTOMER_PREPAYMENTS,
             self::CUSTOMER_OVERPAYMENTS,
             self::DUE_TO_EMPLOYEES,
@@ -269,6 +280,7 @@ enum AccountSubTypeEnum: string
     {
         return match ($this) {
             self::DR_ITBIS_PAYABLE,
+            self::DR_ITBIS_RECEIVABLE,
             self::DR_ISC_PAYABLE,
             self::DR_ISR_WITHHOLDING_PAYABLE => 'DOP',
             default => null,
@@ -279,6 +291,7 @@ enum AccountSubTypeEnum: string
     {
         return match ($this) {
             self::DR_ITBIS_PAYABLE,
+            self::DR_ITBIS_RECEIVABLE,
             self::DR_ISC_PAYABLE,
             self::DR_ISR_WITHHOLDING_PAYABLE => true,
             default => false,

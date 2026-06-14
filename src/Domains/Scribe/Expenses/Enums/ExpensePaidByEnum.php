@@ -25,7 +25,7 @@ enum ExpensePaidByEnum: string
 
     /**
      * Which system account sub_type to CREDIT on the approval JE. Reimbursement (for EMPLOYEE_PERSONAL)
-     * has its own JE — see ExpenseJournalEntryComposer::composeReimbursement.
+     * has its own JE — see ExpenseJournalEntryComposerService::composeReimbursement.
      */
     public function creditAccountSubType(): AccountSubTypeEnum
     {

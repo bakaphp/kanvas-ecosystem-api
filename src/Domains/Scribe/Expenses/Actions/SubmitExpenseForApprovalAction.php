@@ -11,7 +11,7 @@ use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Models\Expense;
-use Kanvas\Scribe\Expenses\Services\ExpenseStateMachine;
+use Kanvas\Scribe\Expenses\Services\ExpenseStateMachineService;
 
 /**
  * Transitions DRAFT → PENDING_APPROVAL and creates an approval_queue row.
@@ -27,7 +27,7 @@ class SubmitExpenseForApprovalAction
     public function __construct(
         public readonly Expense $expense,
         public readonly ?UserInterface $user = null,
-        protected readonly ExpenseStateMachine $stateMachine = new ExpenseStateMachine(),
+        protected readonly ExpenseStateMachineService $stateMachine = new ExpenseStateMachineService(),
     ) {
     }
 

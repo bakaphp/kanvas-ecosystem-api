@@ -11,7 +11,7 @@ use Kanvas\Scribe\Expenses\Enums\ExpenseReimbursementStatusEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Exceptions\InvalidExpenseTransitionException;
 use Kanvas\Scribe\Expenses\Models\Expense;
-use Kanvas\Scribe\Expenses\Services\ExpenseStateMachine;
+use Kanvas\Scribe\Expenses\Services\ExpenseStateMachineService;
 use Kanvas\Scribe\Ledger\Actions\ReverseJournalEntryAction;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
@@ -31,7 +31,7 @@ class VoidExpenseAction
         public readonly Expense $expense,
         public readonly string $voidReasonCode,
         public readonly ?UserInterface $user = null,
-        protected readonly ExpenseStateMachine $stateMachine = new ExpenseStateMachine(),
+        protected readonly ExpenseStateMachineService $stateMachine = new ExpenseStateMachineService(),
     ) {
     }
 

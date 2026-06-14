@@ -12,7 +12,7 @@ use Kanvas\Scribe\Expenses\Enums\ExpenseReimbursementStatusEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Exceptions\InvalidExpenseTransitionException;
 use Kanvas\Scribe\Expenses\Models\Expense;
-use Kanvas\Scribe\Expenses\Services\ExpenseJournalEntryComposer;
+use Kanvas\Scribe\Expenses\Services\ExpenseJournalEntryComposerService;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
 
 /**
@@ -38,7 +38,7 @@ class RecordExpenseReimbursementAction
         public readonly Expense $expense,
         public readonly UserInterface $user,
         public readonly ?int $reimbursementPaymentId = null,
-        protected readonly ExpenseJournalEntryComposer $composer = new ExpenseJournalEntryComposer(),
+        protected readonly ExpenseJournalEntryComposerService $composer = new ExpenseJournalEntryComposerService(),
     ) {
     }
 

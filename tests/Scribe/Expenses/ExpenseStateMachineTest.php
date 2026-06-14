@@ -7,18 +7,18 @@ namespace Tests\Scribe\Expenses;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Exceptions\InvalidExpenseTransitionException;
 use Kanvas\Scribe\Expenses\Models\Expense;
-use Kanvas\Scribe\Expenses\Services\ExpenseStateMachine;
+use Kanvas\Scribe\Expenses\Services\ExpenseStateMachineService;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class ExpenseStateMachineTest extends TestCase
 {
-    private ExpenseStateMachine $machine;
+    private ExpenseStateMachineService $machine;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->machine = new ExpenseStateMachine();
+        $this->machine = new ExpenseStateMachineService();
     }
 
     #[DataProvider('validTransitionProvider')]

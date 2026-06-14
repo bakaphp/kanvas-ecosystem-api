@@ -11,10 +11,10 @@ use Kanvas\Scribe\SalesReceipts\Models\SalesReceipt;
 /**
  * Trivial state machine — only RECORDED → VOIDED is allowed.
  *
- * Kept as a class (vs inline match) for consistency with InvoiceStateMachine / QuoteStateMachine and to give
+ * Kept as a class (vs inline match) for consistency with InvoiceStateMachineService / QuoteStateMachineService and to give
  * the future observer a single entry point to attach to.
  */
-class SalesReceiptStateMachine
+class SalesReceiptStateMachineService
 {
     /**
      * @var array<string, list<SalesReceiptStatusEnum>>

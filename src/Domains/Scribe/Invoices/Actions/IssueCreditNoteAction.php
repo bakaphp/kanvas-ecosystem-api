@@ -8,7 +8,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum as SequenceDocumentTypeEnum;
-use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocator;
+use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLineData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceTaxLineData;
@@ -21,7 +21,7 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoiceLine;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Invoices\Models\InvoiceTaxLine;
-use Kanvas\Scribe\Invoices\Services\InvoiceJournalEntryComposer;
+use Kanvas\Scribe\Invoices\Services\InvoiceJournalEntryComposerService;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
 
 /**
@@ -37,7 +37,7 @@ use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
  *   1. Validate parent invoice state (must be ISSUED / SENT / PAID — not draft, not voided, not already-credit-note)
  *   2. Validate credit_amount ≤ parent.total_native (can't credit more than billed)
  *   3. Create credit-note Invoice row + lines + tax_lines
- *   4. Allocate credit-note number via DocumentNumberAllocator (CREDIT_NOTE document_type)
+ *   4. Allocate credit-note number via DocumentNumberAllocatorService (CREDIT_NOTE document_type)
  *   5. Post the credit-note JE via composeCreditNote (DR Revenue + DR Tax Payable / CR AR)
  *   6. Insert InvoicePaymentAllocation row on parent with source_type='credit_note'
  *   7. Re-run MarkInvoicePaidAction on the parent — recomputes balance_due, flips to PAID if balance hit zero
@@ -50,8 +50,8 @@ class IssueCreditNoteAction
         public readonly Invoice $parentInvoice,
         public readonly InvoiceData $data,
         public readonly ?UserInterface $user = null,
-        protected readonly InvoiceJournalEntryComposer $composer = new InvoiceJournalEntryComposer(),
-        protected readonly ?DocumentNumberAllocator $allocator = null,
+        protected readonly InvoiceJournalEntryComposerService $composer = new InvoiceJournalEntryComposerService(),
+        protected readonly ?DocumentNumberAllocatorService $allocator = null,
     ) {
     }
 
@@ -246,7 +246,7 @@ class IssueCreditNoteAction
             return;
         }
 
-        $allocator = $this->allocator ?? new DocumentNumberAllocator();
+        $allocator = $this->allocator ?? new DocumentNumberAllocatorService();
         $creditNote->invoice_number = $allocator->allocate(
             $creditNote->apps_id,
             $creditNote->companies_id,

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Scribe\Invoices\Actions\MarkInvoicePaidAction;
+use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceAmendment;
 use Kanvas\Scribe\Invoices\Enums\AgingBucketEnum;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceCollectionStateEnum;
@@ -21,6 +22,7 @@ use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
+use Throwable;
 
 /**
  * Scribe.Invoice — AR-side document (invoice OR credit_note via the document_type discriminator).
@@ -205,6 +207,50 @@ class Invoice extends BaseModel implements PayableInterface
     public function isCreditNote(): bool
     {
         return $this->document_type === DocumentTypeEnum::CREDIT_NOTE;
+    }
+
+    /**
+     * Typed view of `metadata.amendments[]` written by AmendInvoiceAction. Returns newest-first.
+     *
+     * Empty array (not null) when the invoice has never been amended — callers can iterate without
+     * null-checks. Malformed entries are silently skipped so a hand-edit to metadata.json can't
+     * crash the operator UI.
+     *
+     * @return list<InvoiceAmendment>
+     */
+    public function amendmentHistory(): array
+    {
+        $raw = $this->metadata['amendments'] ?? [];
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $out = [];
+        foreach (array_reverse($raw) as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            try {
+                $out[] = new InvoiceAmendment(
+                    amended_at: Carbon::parse((string) ($entry['amended_at'] ?? '')),
+                    amended_by_users_id: isset($entry['amended_by_users_id'])
+                        ? (int) $entry['amended_by_users_id']
+                        : null,
+                    reason: (string) ($entry['reason'] ?? ''),
+                    changes: is_array($entry['changes'] ?? null) ? $entry['changes'] : [],
+                );
+            } catch (Throwable) {
+                continue;
+            }
+        }
+
+        return $out;
+    }
+
+    public function hasBeenAmended(): bool
+    {
+        return $this->amendmentHistory() !== [];
     }
 
     protected function sourceDomainForLedger(): string

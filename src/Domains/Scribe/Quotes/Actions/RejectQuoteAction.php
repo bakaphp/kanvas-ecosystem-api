@@ -9,7 +9,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Kanvas\Scribe\Quotes\Models\Quote;
-use Kanvas\Scribe\Quotes\Services\QuoteStateMachine;
+use Kanvas\Scribe\Quotes\Services\QuoteStateMachineService;
 
 /**
  * Customer rejected the quote. Captures lost_reason for the lost-quote analytics (plan §11.1).
@@ -20,7 +20,7 @@ class RejectQuoteAction
         public readonly Quote $quote,
         public readonly ?string $lostReason = null,
         public readonly ?UserInterface $user = null,
-        protected readonly QuoteStateMachine $stateMachine = new QuoteStateMachine(),
+        protected readonly QuoteStateMachineService $stateMachine = new QuoteStateMachineService(),
     ) {
     }
 

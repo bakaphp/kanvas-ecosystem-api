@@ -17,7 +17,7 @@ use Kanvas\Scribe\Expenses\Models\Expense;
  *   REJECTED          → (terminal)
  *   VOIDED            → (terminal)
  */
-class ExpenseStateMachine
+class ExpenseStateMachineService
 {
     /**
      * @var array<string, list<ExpenseStatusEnum>>

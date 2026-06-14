@@ -10,7 +10,7 @@ use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
-use Kanvas\Scribe\Invoices\Services\InvoiceStateMachine;
+use Kanvas\Scribe\Invoices\Services\InvoiceStateMachineService;
 
 /**
  * Recomputes invoice.paid_native / balance_due_native from active allocations and flips status to PAID when
@@ -30,7 +30,7 @@ class MarkInvoicePaidAction
     public function __construct(
         public readonly Invoice $invoice,
         public readonly ?UserInterface $user = null,
-        protected readonly InvoiceStateMachine $stateMachine = new InvoiceStateMachine(),
+        protected readonly InvoiceStateMachineService $stateMachine = new InvoiceStateMachineService(),
     ) {
     }
 

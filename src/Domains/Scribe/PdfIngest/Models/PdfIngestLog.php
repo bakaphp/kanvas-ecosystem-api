@@ -23,6 +23,7 @@ use Kanvas\Scribe\PdfIngest\Enums\PdfIngestStatusEnum;
  * @property int $companies_id
  * @property string $uuid
  * @property int $filesystem_id
+ * @property string|null $content_sha256
  * @property string|null $message_id
  * @property string|null $from_email
  * @property string|null $from_name

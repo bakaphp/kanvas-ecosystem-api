@@ -45,7 +45,7 @@ use Tests\TestCase;
  * AttachExpenseReceiptAction (happy path + guards), UpdateExpenseAction (draft-only edits + line replace),
  * CreateBankAccountAction validation.
  */
-class ExpensePr5bActionsTest extends TestCase
+class ExpenseLifecycleTest extends TestCase
 {
     use DatabaseTransactions;
 

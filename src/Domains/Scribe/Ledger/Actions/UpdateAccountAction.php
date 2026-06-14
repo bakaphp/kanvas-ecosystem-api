@@ -14,7 +14,7 @@ use RuntimeException;
  * Updates a Chart-of-Accounts row.
  *
  * System accounts (`is_system=true`) have most fields locked — only is_active, description, and metadata
- * can change. Renaming/renumbering an AR / AP / Cash / RetainedEarnings row would break the AccountResolver
+ * can change. Renaming/renumbering an AR / AP / Cash / RetainedEarnings row would break the AccountResolverService
  * lookups that sub-ledger composers rely on.
  *
  * Account-type changes are also blocked even on non-system accounts — flipping ASSET → LIABILITY mid-life

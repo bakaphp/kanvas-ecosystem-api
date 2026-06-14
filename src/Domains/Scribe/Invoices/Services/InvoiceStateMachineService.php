@@ -26,7 +26,7 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
  *
  * @see plan §7.1 — two-axis status with state machine
  */
-class InvoiceStateMachine
+class InvoiceStateMachineService
 {
     /**
      * @var array<string, list<InvoiceDocumentStatusEnum>>

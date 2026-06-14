@@ -7,14 +7,14 @@ namespace Kanvas\Scribe\SalesReceipts\Actions;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum;
-use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocator;
+use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
 use Kanvas\Scribe\SalesReceipts\DataTransferObject\SalesReceiptData;
 use Kanvas\Scribe\SalesReceipts\DataTransferObject\SalesReceiptLineData;
 use Kanvas\Scribe\SalesReceipts\Enums\SalesReceiptStatusEnum;
 use Kanvas\Scribe\SalesReceipts\Models\SalesReceipt;
 use Kanvas\Scribe\SalesReceipts\Models\SalesReceiptLine;
-use Kanvas\Scribe\SalesReceipts\Services\SalesReceiptJournalEntryComposer;
+use Kanvas\Scribe\SalesReceipts\Services\SalesReceiptJournalEntryComposerService;
 
 /**
  * Creates a sales receipt atomically — the sale already happened, so the receipt is RECORDED on creation
@@ -23,7 +23,7 @@ use Kanvas\Scribe\SalesReceipts\Services\SalesReceiptJournalEntryComposer;
  * Side effects (single accounting-DB transaction):
  *   1. Compute header totals from line data
  *   2. Freeze billable snapshot (sale is the economic event)
- *   3. Allocate receipt_number via DocumentNumberAllocator
+ *   3. Allocate receipt_number via DocumentNumberAllocatorService
  *   4. Persist receipt header + lines
  *   5. Compose JE (DR Cash / CR Revenue + CR Sales Tax Payable)
  *   6. Post the JE — fiscal period gate + balance validator both run inside PostJournalEntryAction
@@ -35,8 +35,8 @@ class CreateSalesReceiptAction
     public function __construct(
         public readonly SalesReceiptData $data,
         public readonly ?UserInterface $user = null,
-        protected readonly SalesReceiptJournalEntryComposer $composer = new SalesReceiptJournalEntryComposer(),
-        protected readonly ?DocumentNumberAllocator $allocator = null,
+        protected readonly SalesReceiptJournalEntryComposerService $composer = new SalesReceiptJournalEntryComposerService(),
+        protected readonly ?DocumentNumberAllocatorService $allocator = null,
     ) {
     }
 
@@ -149,9 +149,9 @@ class CreateSalesReceiptAction
         });
     }
 
-    private function resolveAllocator(): DocumentNumberAllocator
+    private function resolveAllocator(): DocumentNumberAllocatorService
     {
-        return $this->allocator ?? new DocumentNumberAllocator();
+        return $this->allocator ?? new DocumentNumberAllocatorService();
     }
 
     /**

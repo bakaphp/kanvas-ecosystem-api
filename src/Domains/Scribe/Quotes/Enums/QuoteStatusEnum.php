@@ -7,7 +7,7 @@ namespace Kanvas\Scribe\Quotes\Enums;
 /**
  * Quote lifecycle status (per plan §11.1 — quotes are pre-economic-event; no JE posts).
  *
- * Transitions managed by QuoteStateMachine. Direct status mutation is banned (code-review rule for now;
+ * Transitions managed by QuoteStateMachineService. Direct status mutation is banned (code-review rule for now;
  * observer enforcement comes with the wider state-machine observer).
  *
  *   draft → sent → accepted | rejected | expired

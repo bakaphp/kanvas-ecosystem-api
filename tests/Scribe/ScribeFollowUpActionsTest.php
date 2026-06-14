@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Scribe\Pr56;
+namespace Tests\Scribe;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
@@ -64,7 +64,7 @@ use Tests\TestCase;
  *   - ReverseJournalEntryAction behavior via refactored VoidInvoice/SalesReceipt/Expense (regression covered
  *     by the existing Void tests)
  */
-class Pr56ActionsTest extends TestCase
+class ScribeFollowUpActionsTest extends TestCase
 {
     use DatabaseTransactions;
 

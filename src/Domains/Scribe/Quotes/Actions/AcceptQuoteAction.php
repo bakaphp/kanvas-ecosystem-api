@@ -9,7 +9,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Kanvas\Scribe\Quotes\Models\Quote;
-use Kanvas\Scribe\Quotes\Services\QuoteStateMachine;
+use Kanvas\Scribe\Quotes\Services\QuoteStateMachineService;
 
 /**
  * Customer accepted the quote — flips status to ACCEPTED + stamps accepted_at.
@@ -21,7 +21,7 @@ class AcceptQuoteAction
     public function __construct(
         public readonly Quote $quote,
         public readonly ?UserInterface $user = null,
-        protected readonly QuoteStateMachine $stateMachine = new QuoteStateMachine(),
+        protected readonly QuoteStateMachineService $stateMachine = new QuoteStateMachineService(),
     ) {
     }
 

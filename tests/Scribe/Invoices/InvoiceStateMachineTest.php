@@ -7,7 +7,7 @@ namespace Tests\Scribe\Invoices;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Exceptions\InvalidInvoiceTransitionException;
 use Kanvas\Scribe\Invoices\Models\Invoice;
-use Kanvas\Scribe\Invoices\Services\InvoiceStateMachine;
+use Kanvas\Scribe\Invoices\Services\InvoiceStateMachineService;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -16,12 +16,12 @@ use Tests\TestCase;
  */
 class InvoiceStateMachineTest extends TestCase
 {
-    private InvoiceStateMachine $machine;
+    private InvoiceStateMachineService $machine;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->machine = new InvoiceStateMachine();
+        $this->machine = new InvoiceStateMachineService();
     }
 
     #[DataProvider('validTransitionProvider')]

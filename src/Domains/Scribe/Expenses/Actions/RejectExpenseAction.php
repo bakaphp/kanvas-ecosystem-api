@@ -11,7 +11,7 @@ use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Models\Expense;
-use Kanvas\Scribe\Expenses\Services\ExpenseStateMachine;
+use Kanvas\Scribe\Expenses\Services\ExpenseStateMachineService;
 
 /**
  * Rejects a pending-approval expense. No JE posts — the expense never hit the books.
@@ -23,7 +23,7 @@ class RejectExpenseAction
         public readonly Expense $expense,
         public readonly UserInterface $rejector,
         public readonly ?string $reason = null,
-        protected readonly ExpenseStateMachine $stateMachine = new ExpenseStateMachine(),
+        protected readonly ExpenseStateMachineService $stateMachine = new ExpenseStateMachineService(),
     ) {
     }
 

@@ -21,7 +21,7 @@ use RuntimeException;
  * Throws if a required system account is missing — that means the company didn't get a COA seed and the
  * tenant onboarding flow has a bug.
  */
-class AccountResolver
+class AccountResolverService
 {
     public function bySubType(
         AppInterface $app,

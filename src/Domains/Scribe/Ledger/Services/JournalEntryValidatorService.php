@@ -22,7 +22,7 @@ use Kanvas\Scribe\Ledger\Exceptions\UnbalancedJournalEntryException;
  *
  * Throws on first violation. Called by PostJournalEntryAction before the DB write.
  */
-class JournalEntryValidator
+class JournalEntryValidatorService
 {
     /**
      * Tolerance for the balanced-JE check, in base currency units.

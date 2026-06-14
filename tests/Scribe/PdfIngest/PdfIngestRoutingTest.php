@@ -33,7 +33,7 @@ use Tests\TestCase;
  * and the pdf_ingest_log captures the right status. The FakePdfClassifier swaps in for the live Gemini
  * binding so tests stay offline.
  */
-class Pr9PdfIngestTest extends TestCase
+class PdfIngestRoutingTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -124,8 +124,10 @@ class Pr9PdfIngestTest extends TestCase
         $this->assertSame('Mercury Coffee', $ingest['vendor_name']);
     }
 
-    public function test_vendor_invoice_logs_awaiting_bill_support_without_creating_entity(): void
+    public function test_vendor_invoice_creates_draft_bill(): void
     {
+        // PR 10 promoted vendor-invoice routing from "log only" to "draft Bill creation".
+        // The Bill lands in DRAFT for operator review (vendor resolution + receive happen there).
         $pdf = $this->createFilesystemRow();
         $classifier = new FakePdfClassifier()->queue(new PdfClassificationResult(
             document_type: PdfIngestDocumentTypeEnum::VENDOR_INVOICE,
@@ -155,11 +157,18 @@ class Pr9PdfIngestTest extends TestCase
             classifier: $classifier,
         )->execute();
 
-        $this->assertSame(PdfIngestStatusEnum::AWAITING_BILL_SUPPORT, $log->status);
+        $this->assertSame(PdfIngestStatusEnum::ENTITY_CREATED, $log->status);
         $this->assertSame(PdfIngestDocumentTypeEnum::VENDOR_INVOICE, $log->document_type);
-        $this->assertNull($log->linked_entity_type);
-        $this->assertNull($log->linked_entity_id);
-        $this->assertStringContainsString('Bill sub-ledger ships in PR 10', $log->rejected_reason ?? '');
+        $this->assertSame('bill', $log->linked_entity_type);
+        $this->assertNotNull($log->linked_entity_id);
+
+        $bill = \Kanvas\Scribe\Bills\Models\Bill::query()->where('id', $log->linked_entity_id)->first();
+        $this->assertNotNull($bill);
+        $this->assertSame(\Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum::DRAFT, $bill->document_status);
+        $this->assertSame('parsed_pdf', $bill->source);
+        $this->assertEquals(5240.00, (float) $bill->total_native);
+        $this->assertSame('Amazon Web Services', $bill->vendor_display_name);
+        $this->assertSame((int) $log->id, (int) $bill->pdf_ingest_log_id);
     }
 
     public function test_vendor_quote_logs_quote_inbound_only(): void

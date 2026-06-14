@@ -7,18 +7,18 @@ namespace Tests\Scribe\SalesReceipts;
 use Kanvas\Scribe\SalesReceipts\Enums\SalesReceiptStatusEnum;
 use Kanvas\Scribe\SalesReceipts\Exceptions\InvalidSalesReceiptTransitionException;
 use Kanvas\Scribe\SalesReceipts\Models\SalesReceipt;
-use Kanvas\Scribe\SalesReceipts\Services\SalesReceiptStateMachine;
+use Kanvas\Scribe\SalesReceipts\Services\SalesReceiptStateMachineService;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class SalesReceiptStateMachineTest extends TestCase
 {
-    private SalesReceiptStateMachine $machine;
+    private SalesReceiptStateMachineService $machine;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->machine = new SalesReceiptStateMachine();
+        $this->machine = new SalesReceiptStateMachineService();
     }
 
     #[DataProvider('validTransitionProvider')]

@@ -9,11 +9,13 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Scribe\PdfIngest\Contracts\PdfClassifierServiceInterface;
+use Kanvas\Scribe\PdfIngest\Contracts\PdfContentHasherInterface;
 use Kanvas\Scribe\PdfIngest\DataTransferObject\PdfIngestInput;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestDocumentTypeEnum;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestStatusEnum;
 use Kanvas\Scribe\PdfIngest\Models\PdfIngestLog;
-use Kanvas\Scribe\PdfIngest\Services\GeminiPdfClassifier;
+use Kanvas\Scribe\PdfIngest\Services\GeminiPdfClassifierService;
+use Kanvas\Scribe\PdfIngest\Services\RemotePdfContentHasherService;
 use Throwable;
 
 /**
@@ -41,6 +43,7 @@ class ProcessAccountingPdfAction
         public readonly PdfIngestInput $input,
         public readonly ?UserInterface $user = null,
         protected readonly ?PdfClassifierServiceInterface $classifier = null,
+        protected readonly ?PdfContentHasherInterface $hasher = null,
     ) {
     }
 
@@ -51,7 +54,29 @@ class ProcessAccountingPdfAction
             return $existing;
         }
 
+        // Path 2 — content hash dedup. Compute once, check against prior ingests; if we've already
+        // processed this exact PDF (regardless of how it arrived), short-circuit and link the new
+        // log row to the pre-existing entity.
+        $contentHash = $this->resolveHasher()->hash($this->input->pdf);
+        $priorWithSameHash = $this->findPriorWithSameHash($contentHash);
+
         $log = $this->createPendingLog();
+        $log->content_sha256 = $contentHash;
+
+        if ($priorWithSameHash !== null) {
+            $log->status = PdfIngestStatusEnum::IGNORED_DUPLICATE;
+            $log->document_type = $priorWithSameHash->document_type;
+            $log->confidence = (float) $priorWithSameHash->confidence;
+            $log->extracted_payload = $priorWithSameHash->extracted_payload;
+            $log->linked_entity_type = $priorWithSameHash->linked_entity_type;
+            $log->linked_entity_id = $priorWithSameHash->linked_entity_id;
+            $log->rejected_reason = "Duplicate of pdf_ingest_log #{$priorWithSameHash->id} (same content hash). "
+                . 'Linked to the existing entity rather than re-creating.';
+            $log->processed_at = Carbon::now();
+            $log->save();
+
+            return $log->refresh();
+        }
 
         try {
             $result = $this->resolveClassifier()->classify(
@@ -103,6 +128,26 @@ class ProcessAccountingPdfAction
             ->first();
     }
 
+    /**
+     * Path 2 — find a prior log row for this tenant with the same content hash that produced a
+     * usable outcome (created an entity or logged as informational). FAILED + REJECTED_UNKNOWN
+     * rows are NOT considered duplicates — re-processing them might succeed.
+     */
+    private function findPriorWithSameHash(string $contentHash): ?PdfIngestLog
+    {
+        return PdfIngestLog::query()
+            ->where('apps_id', $this->input->app->getId())
+            ->where('companies_id', $this->input->company->getId())
+            ->where('content_sha256', $contentHash)
+            ->whereNotIn('status', [
+                PdfIngestStatusEnum::FAILED->value,
+                PdfIngestStatusEnum::REJECTED_UNKNOWN->value,
+                PdfIngestStatusEnum::PENDING->value,
+            ])
+            ->orderBy('id')
+            ->first();
+    }
+
     private function createPendingLog(): PdfIngestLog
     {
         $log = new PdfIngestLog();
@@ -134,9 +179,7 @@ class ProcessAccountingPdfAction
 
                 return;
             case PdfIngestDocumentTypeEnum::VENDOR_INVOICE:
-                $log->status = PdfIngestStatusEnum::AWAITING_BILL_SUPPORT;
-                $log->rejected_reason = 'Vendor invoice received — Bill sub-ledger ships in PR 10. '
-                    . 'This row will auto-backfill once Bills are live.';
+                $this->routeVendorInvoice($log, $extracted);
 
                 return;
             case PdfIngestDocumentTypeEnum::VENDOR_QUOTE:
@@ -158,6 +201,33 @@ class ProcessAccountingPdfAction
 
                 return;
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $extracted
+     */
+    private function routeVendorInvoice(PdfIngestLog $log, array $extracted): void
+    {
+        $bill = new ProposeBillFromPdfAction(
+            app: $this->input->app,
+            company: $this->input->company,
+            pdf: $this->input->pdf,
+            extracted: $extracted,
+            pdfIngestLogId: (int) $log->id,
+            user: $this->user,
+            fromEmail: $this->input->fromEmail,
+        )->execute();
+
+        if ($bill === null) {
+            $log->status = PdfIngestStatusEnum::FAILED;
+            $log->rejected_reason = 'Bill creation failed — extracted payload missing required fields.';
+
+            return;
+        }
+
+        $log->status = PdfIngestStatusEnum::ENTITY_CREATED;
+        $log->linked_entity_type = 'bill';
+        $log->linked_entity_id = (int) $bill->id;
     }
 
     /**
@@ -195,6 +265,18 @@ class ProcessAccountingPdfAction
             return app(PdfClassifierServiceInterface::class);
         }
 
-        return new GeminiPdfClassifier();
+        return new GeminiPdfClassifierService();
+    }
+
+    private function resolveHasher(): PdfContentHasherInterface
+    {
+        if ($this->hasher !== null) {
+            return $this->hasher;
+        }
+        if (app()->bound(PdfContentHasherInterface::class)) {
+            return app(PdfContentHasherInterface::class);
+        }
+
+        return new RemotePdfContentHasherService();
     }
 }

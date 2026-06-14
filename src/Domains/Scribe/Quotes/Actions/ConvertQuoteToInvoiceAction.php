@@ -12,7 +12,7 @@ use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLineData;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Kanvas\Scribe\Quotes\Models\Quote;
-use Kanvas\Scribe\Quotes\Services\QuoteStateMachine;
+use Kanvas\Scribe\Quotes\Services\QuoteStateMachineService;
 use Spatie\LaravelData\DataCollection;
 
 /**
@@ -34,7 +34,7 @@ class ConvertQuoteToInvoiceAction
         public readonly Quote $quote,
         public readonly ?int $netTermsDays = 30,
         public readonly ?UserInterface $user = null,
-        protected readonly QuoteStateMachine $stateMachine = new QuoteStateMachine(),
+        protected readonly QuoteStateMachineService $stateMachine = new QuoteStateMachineService(),
     ) {
     }
 

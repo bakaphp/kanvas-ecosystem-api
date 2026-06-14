@@ -6,7 +6,7 @@ namespace Tests\Scribe\Ledger;
 
 use Kanvas\Scribe\Ledger\Exceptions\InvalidJournalEntryLineException;
 use Kanvas\Scribe\Ledger\Exceptions\UnbalancedJournalEntryException;
-use Kanvas\Scribe\Ledger\Services\JournalEntryValidator;
+use Kanvas\Scribe\Ledger\Services\JournalEntryValidatorService;
 use Tests\TestCase;
 
 /**
@@ -16,12 +16,12 @@ use Tests\TestCase;
  */
 class JournalEntryValidatorTest extends TestCase
 {
-    private JournalEntryValidator $validator;
+    private JournalEntryValidatorService $validator;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->validator = new JournalEntryValidator();
+        $this->validator = new JournalEntryValidatorService();
     }
 
     /**

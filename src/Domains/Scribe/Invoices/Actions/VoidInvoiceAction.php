@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Exceptions\InvalidInvoiceTransitionException;
 use Kanvas\Scribe\Invoices\Models\Invoice;
-use Kanvas\Scribe\Invoices\Services\InvoiceStateMachine;
+use Kanvas\Scribe\Invoices\Services\InvoiceStateMachineService;
 use Kanvas\Scribe\Ledger\Actions\ReverseJournalEntryAction;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
@@ -30,7 +30,7 @@ class VoidInvoiceAction
         public readonly Invoice $invoice,
         public readonly string $voidReasonCode,
         public readonly ?UserInterface $user = null,
-        protected readonly InvoiceStateMachine $stateMachine = new InvoiceStateMachine(),
+        protected readonly InvoiceStateMachineService $stateMachine = new InvoiceStateMachineService(),
     ) {
     }
 

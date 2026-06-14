@@ -30,7 +30,7 @@ use Spatie\LaravelData\DataCollection;
 use Tests\TestCase;
 
 /**
- * Verifies the three JE shapes ExpenseJournalEntryComposer produces depending on `paid_by`, plus the
+ * Verifies the three JE shapes ExpenseJournalEntryComposerService produces depending on `paid_by`, plus the
  * reimbursement cycle for employee-paid expenses (plan §11.4 — Juan's hotel).
  */
 class ApproveExpenseActionTest extends TestCase

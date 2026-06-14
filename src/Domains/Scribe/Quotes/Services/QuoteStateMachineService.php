@@ -23,7 +23,7 @@ use Kanvas\Scribe\Quotes\Models\Quote;
  *
  * SUPERSEDED is set by CreateQuoteRevisionAction on the parent when a new revision is created.
  */
-class QuoteStateMachine
+class QuoteStateMachineService
 {
     /**
      * @var array<string, list<QuoteStatusEnum>>

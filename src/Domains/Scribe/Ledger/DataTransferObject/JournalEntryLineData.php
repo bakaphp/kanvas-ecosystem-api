@@ -8,11 +8,11 @@ use Spatie\LaravelData\Data;
 
 /**
  * Typed shape of one line on a journal entry. Used by sub-ledger composers
- * (InvoiceJournalEntryComposer, BillJournalEntryComposer, etc.) to build the
+ * (InvoiceJournalEntryComposerService, BillJournalEntryComposerService, etc.) to build the
  * JE payload that flows into PostJournalEntryAction.
  *
  * Exactly one of (debit_native, credit_native) must be non-zero — enforced by
- * JournalEntryValidator at write time.
+ * JournalEntryValidatorService at write time.
  */
 class JournalEntryLineData extends Data
 {

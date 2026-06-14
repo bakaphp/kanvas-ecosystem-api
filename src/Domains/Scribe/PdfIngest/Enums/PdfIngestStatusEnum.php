@@ -13,6 +13,9 @@ namespace Kanvas\Scribe\PdfIngest\Enums;
  *   awaiting_bill_support     → classified as vendor_invoice; Bill sub-ledger lands in PR 10. Backfill auto-runs then.
  *   quote_inbound_logged      → classified as vendor_quote; informational, no entity
  *   ignored_our_doc           → it's one of OUR docs forwarded back (already in DB)
+ *   ignored_duplicate         → PR 9.1 dedup hit — same PDF content (Path 2) or same vendor+bill_number
+ *                                (Path 3) already produced an entity. linked_entity_* points at the
+ *                                pre-existing one.
  *   rejected_unknown          → not an accounting doc; ingest rejected with reason
  *   failed                    → extractor errored, classification failed, attach failed, etc.
  */
@@ -23,6 +26,7 @@ enum PdfIngestStatusEnum: string
     case AWAITING_BILL_SUPPORT = 'awaiting_bill_support';
     case QUOTE_INBOUND_LOGGED = 'quote_inbound_logged';
     case IGNORED_OUR_DOC = 'ignored_our_doc';
+    case IGNORED_DUPLICATE = 'ignored_duplicate';
     case REJECTED_UNKNOWN = 'rejected_unknown';
     case FAILED = 'failed';
 }

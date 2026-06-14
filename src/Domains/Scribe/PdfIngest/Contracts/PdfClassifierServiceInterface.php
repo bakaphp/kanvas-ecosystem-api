@@ -10,7 +10,7 @@ use Kanvas\Scribe\PdfIngest\DataTransferObject\PdfClassificationResult;
 /**
  * Classifies + extracts structured data from an accounting PDF.
  *
- * Real impl: GeminiPdfClassifier (one multimodal LLM call → classification + extraction in one shot).
+ * Real impl: GeminiPdfClassifierService (one multimodal LLM call → classification + extraction in one shot).
  * Test impl: FakePdfClassifier (returns a pre-set verdict, no network).
  *
  * The interface lets the orchestrator action stay testable without mocking the LLM transport.
