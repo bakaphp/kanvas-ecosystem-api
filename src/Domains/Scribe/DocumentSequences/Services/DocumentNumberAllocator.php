@@ -37,7 +37,7 @@ class DocumentNumberAllocator
         DocumentTypeEnum $documentType,
         ?string $defaultPrefix = null,
     ): string {
-        return DB::connection('accounting')->transaction(function () use ($appsId, $companiesId, $documentType, $defaultPrefix) {
+        return DB::connection('accounting')->transaction(function () use ($appsId, $companiesId, $documentType, $defaultPrefix): string {
             $sequence = $this->lockOrCreateSequence(
                 $appsId,
                 $companiesId,
