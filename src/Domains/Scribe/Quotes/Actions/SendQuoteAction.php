@@ -47,7 +47,7 @@ class SendQuoteAction
             return $this->quote;
         }
 
-        return DB::connection('accounting')->transaction(function () {
+        return DB::connection('accounting')->transaction(function (): Quote {
             $quote = $this->quote;
 
             $this->freezeBillableSnapshot($quote, $this->billable);

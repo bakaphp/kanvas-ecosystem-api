@@ -52,12 +52,12 @@ class VoidInvoiceAction
             );
         }
 
-        return DB::connection('accounting')->transaction(function () use ($original) {
+        return DB::connection('accounting')->transaction(function () use ($original): Invoice {
             $invoice = $this->invoice;
 
             $reversalLines = $this->mirrorLines($original);
 
-            $reversalJe = new PostJournalEntryAction(
+            new PostJournalEntryAction(
                 data: new JournalEntryData(
                     app: $invoice->app,
                     company: $invoice->company,

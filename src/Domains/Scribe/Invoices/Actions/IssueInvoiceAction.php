@@ -54,7 +54,7 @@ class IssueInvoiceAction
             return $this->invoice;
         }
 
-        return DB::connection('accounting')->transaction(function () {
+        return DB::connection('accounting')->transaction(function (): Invoice {
             $invoice = $this->invoice;
 
             $this->freezeBillableSnapshot($invoice, $this->billable);

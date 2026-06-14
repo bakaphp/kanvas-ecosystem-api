@@ -7,12 +7,10 @@ namespace Kanvas\Scribe\Quotes\Actions;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Quotes\DataTransferObject\QuoteData;
-use Kanvas\Scribe\Quotes\DataTransferObject\QuoteLineData;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Kanvas\Scribe\Quotes\Exceptions\InvalidQuoteTransitionException;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\Quotes\Services\QuoteStateMachine;
-use Spatie\LaravelData\DataCollection;
 
 /**
  * Creates a new revision of an existing quote.
@@ -46,7 +44,7 @@ class CreateQuoteRevisionAction
             );
         }
 
-        return DB::connection('accounting')->transaction(function () {
+        return DB::connection('accounting')->transaction(function (): Quote {
             // Build a new QuoteData with parent_quote_id + revision_number wired up.
             // (Caller's $newRevisionData provides the changes; we override the chain fields.)
             $revisionData = new QuoteData(

@@ -31,7 +31,7 @@ class ExpireQuoteAction
             return $this->quote;
         }
 
-        return DB::connection('accounting')->transaction(function () {
+        return DB::connection('accounting')->transaction(function (): Quote {
             $quote = $this->quote;
             $quote->status = QuoteStatusEnum::EXPIRED;
             $quote->save();

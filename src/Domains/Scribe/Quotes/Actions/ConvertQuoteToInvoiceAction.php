@@ -42,7 +42,7 @@ class ConvertQuoteToInvoiceAction
     {
         $this->stateMachine->assertTransition($this->quote, QuoteStatusEnum::CONVERTED);
 
-        return DB::connection('accounting')->transaction(function () {
+        return DB::connection('accounting')->transaction(function (): Invoice {
             $quote = $this->quote;
 
             $invoiceLineData = $quote->lines->map(function ($line) {

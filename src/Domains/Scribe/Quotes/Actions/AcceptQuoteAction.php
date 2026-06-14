@@ -33,7 +33,7 @@ class AcceptQuoteAction
             return $this->quote;
         }
 
-        return DB::connection('accounting')->transaction(function () {
+        return DB::connection('accounting')->transaction(function (): Quote {
             $quote = $this->quote;
             $quote->status = QuoteStatusEnum::ACCEPTED;
             $quote->accepted_at = Carbon::now();

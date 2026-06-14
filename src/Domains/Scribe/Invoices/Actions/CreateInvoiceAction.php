@@ -35,7 +35,7 @@ class CreateInvoiceAction
 
     public function execute(): Invoice
     {
-        return DB::connection('accounting')->transaction(function () {
+        return DB::connection('accounting')->transaction(function (): Invoice {
             [$totals, $baseTotals] = $this->computeTotals();
 
             $invoice = new Invoice();
@@ -132,7 +132,9 @@ class CreateInvoiceAction
                 }
             }
 
-            return $invoice->fresh(['lines', 'taxLines']);
+            $invoice->load(['lines', 'taxLines']);
+
+            return $invoice;
         });
     }
 

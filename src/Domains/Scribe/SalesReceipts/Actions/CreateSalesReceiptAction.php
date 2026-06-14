@@ -42,7 +42,7 @@ class CreateSalesReceiptAction
 
     public function execute(): SalesReceipt
     {
-        return DB::connection('accounting')->transaction(function () {
+        return DB::connection('accounting')->transaction(function (): SalesReceipt {
             [$totals, $baseTotals] = $this->computeTotals();
             $fxRate = (float) $this->data->fx_rate_to_base;
 

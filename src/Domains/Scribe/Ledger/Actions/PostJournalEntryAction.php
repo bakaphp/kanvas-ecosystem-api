@@ -61,7 +61,7 @@ class PostJournalEntryAction
         $linesArray = $this->linesToArray();
         $this->validator->validate($linesArray);
 
-        return DB::connection('accounting')->transaction(function () use ($appsId, $companiesId, $period, $linesArray) {
+        return DB::connection('accounting')->transaction(function () use ($appsId, $companiesId, $period, $linesArray): JournalEntry {
             $entry = new JournalEntry();
             $entry->apps_id = $appsId;
             $entry->companies_id = $companiesId;

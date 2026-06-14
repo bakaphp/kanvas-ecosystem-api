@@ -86,7 +86,7 @@ class ChartOfAccountsSeederService
             ->all();
 
         $inserted = 0;
-        DB::connection('accounting')->transaction(function () use ($subTypes, $existingNumbers, $appsId, $companiesId, $defaultCurrency, $userId, &$inserted) {
+        DB::connection('accounting')->transaction(function () use ($subTypes, $existingNumbers, $appsId, $companiesId, $defaultCurrency, $userId, &$inserted): void {
             foreach ($subTypes as $subType) {
                 if (in_array($subType->defaultAccountNumber(), $existingNumbers, true)) {
                     continue;

@@ -36,7 +36,7 @@ class MarkInvoicePaidAction
 
     public function execute(): Invoice
     {
-        return DB::connection('accounting')->transaction(function () {
+        return DB::connection('accounting')->transaction(function (): Invoice {
             $invoice = $this->invoice;
 
             [$paidNative, $paidBase] = $this->sumActiveAllocations($invoice);

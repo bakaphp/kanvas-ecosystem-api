@@ -33,7 +33,7 @@ class CreateQuoteAction
 
     public function execute(): Quote
     {
-        return DB::connection('accounting')->transaction(function () {
+        return DB::connection('accounting')->transaction(function (): Quote {
             [$totals, $baseTotals] = $this->computeTotals();
 
             $quote = new Quote();

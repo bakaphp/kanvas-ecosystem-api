@@ -48,7 +48,7 @@ class VoidSalesReceiptAction
             );
         }
 
-        return DB::connection('accounting')->transaction(function () use ($original) {
+        return DB::connection('accounting')->transaction(function () use ($original): SalesReceipt {
             $receipt = $this->salesReceipt;
 
             $reversalLines = $this->mirrorLines($original);
