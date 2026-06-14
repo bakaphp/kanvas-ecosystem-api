@@ -36,11 +36,18 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
         $channelId = $this->hijackMessagePhone($this->message->message['from_email']);
 
+        // Always reply with a "Re:" prefix so Gmail threads the agent's response
+        // under the existing conversation. Sending the bare title_email_follow_up
+        // (no prefix) reads as a new email on the same topic → new thread.
+        $threadSubject = $entity->get('title_email_follow_up')
+            ?: ($this->message->message['subject'] ?? 'No subject');
+
         $emailRequest = [
             'template_name' => 'agent-email-response',
             'email' => $channelId,
-            'subject' => $entity->get('title_email_follow_up')
-                ?? 'Re: ' . ($this->message->message['subject'] ?? 'No subject'),
+            'subject' => preg_match('/^\s*re:/i', (string) $threadSubject)
+                ? (string) $threadSubject
+                : 'Re: ' . $threadSubject,
         ];
 
         $responseContent = new AgentChatKernel(

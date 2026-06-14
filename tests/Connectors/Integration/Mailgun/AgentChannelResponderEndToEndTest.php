@@ -16,10 +16,12 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionDto;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
+use ReflectionProperty;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 use Throwable;
@@ -32,6 +34,94 @@ class AgentChannelResponderEndToEndTest extends TestCase
     {
         Notification::fake();
 
+        ['app' => $app, 'company' => $company, 'channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session] =
+            $this->seedInboundEmailScenario();
+
+        $action = new AgentChannelResponderAction($channel, $inbound, $agent, $session);
+
+        try {
+            $action->execute([]);
+        } catch (Throwable) {
+            // Outbound email delivery may throw in test env — persistence ran first.
+        }
+
+        $outbound = Message::query()
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->whereJsonContains('message->from_ia', true)
+            ->whereHas(
+                'channels',
+                fn ($q) => $q->where('channels.id', $channel->getId()),
+            )
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($outbound, 'Agent reply must be persisted on the channel');
+        $this->assertStringContainsString('Hola Mundo', (string) ($outbound->message['content'] ?? ''));
+        $this->assertSame((string) $session->uuid, (string) ($outbound->message['session_id'] ?? ''));
+    }
+
+    // Regression: when title_email_follow_up is set, the responder used it as the
+    // subject VERBATIM (no "Re:"), which made Gmail treat the agent reply as a new
+    // thread instead of a reply. The subject must always carry a "Re:" prefix.
+    public function testAgentReplySubjectIsAlwaysRePrefixedSoItThreads(): void
+    {
+        Notification::fake();
+
+        ['channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session, 'lead' => $lead] =
+            $this->seedInboundEmailScenario();
+
+        $lead->set('title_email_follow_up', 'Connecting dealer CRM & CMS for AI execution');
+
+        $action = new AgentChannelResponderAction($channel, $inbound, $agent, $session);
+
+        try {
+            $action->execute([]);
+        } catch (Throwable) {
+        }
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            function (Blank $notification): bool {
+                $subject = new ReflectionProperty($notification, 'subject')->getValue($notification);
+
+                return $subject === 'Re: Connecting dealer CRM & CMS for AI execution';
+            },
+        );
+    }
+
+    // A title that ALREADY starts with "Re:" must not be double-prefixed.
+    public function testAgentReplySubjectDoesNotDoublePrefixRe(): void
+    {
+        Notification::fake();
+
+        ['channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session, 'lead' => $lead] =
+            $this->seedInboundEmailScenario();
+
+        $lead->set('title_email_follow_up', 'Re: Connecting dealer CRM & CMS for AI execution');
+
+        $action = new AgentChannelResponderAction($channel, $inbound, $agent, $session);
+
+        try {
+            $action->execute([]);
+        } catch (Throwable) {
+        }
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            function (Blank $notification): bool {
+                $subject = new ReflectionProperty($notification, 'subject')->getValue($notification);
+
+                return $subject === 'Re: Connecting dealer CRM & CMS for AI execution';
+            },
+        );
+    }
+
+    /**
+     * @return array{app: Apps, company: \Kanvas\Companies\Models\Companies, channel: Channel, inbound: Message, agent: Agent, session: \Kanvas\Intelligence\Sessions\Models\Session, lead: Lead}
+     */
+    private function seedInboundEmailScenario(): array
+    {
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -124,32 +214,14 @@ class AgentChannelResponderEndToEndTest extends TestCase
             ])
         )->execute();
 
-        $action = new AgentChannelResponderAction(
-            $channel,
-            $inbound,
-            $agent,
-            $session,
-        );
-
-        try {
-            $action->execute([]);
-        } catch (Throwable) {
-            // Outbound email delivery may throw in test env — persistence ran first.
-        }
-
-        $outbound = Message::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->whereJsonContains('message->from_ia', true)
-            ->whereHas(
-                'channels',
-                fn ($q) => $q->where('channels.id', $channel->getId()),
-            )
-            ->latest('id')
-            ->first();
-
-        $this->assertNotNull($outbound, 'Agent reply must be persisted on the channel');
-        $this->assertStringContainsString('Hola Mundo', (string) ($outbound->message['content'] ?? ''));
-        $this->assertSame((string) $session->uuid, (string) ($outbound->message['session_id'] ?? ''));
+        return [
+            'app' => $app,
+            'company' => $company,
+            'channel' => $channel,
+            'inbound' => $inbound,
+            'agent' => $agent,
+            'session' => $session,
+            'lead' => $lead,
+        ];
     }
 }
