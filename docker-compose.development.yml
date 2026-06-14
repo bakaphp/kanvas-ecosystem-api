@@ -170,6 +170,15 @@ services:
       - "php artisan config:cache && php artisan queue:work
         --queue=scribe-aging --tries=3 --timeout=3750"
 
+  scribe-pdf-ingest-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work
+        --queue=scribe-pdf-ingest --tries=3 --timeout=3750"
+
   lead-follow-ups-queue:
     <<: *common-queue-settings
     # REMOVED container_name because replicas > 1

@@ -299,6 +299,14 @@ services:
       - "-c"
       - "php artisan config:cache && php artisan queue:work
         --queue=scribe-aging --tries=3 --timeout=3750"
+  scribe-pdf-ingest-queue:
+    <<: *common-queue-settings
+    container_name: scribe-pdf-ingest-queue
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work
+        --queue=scribe-pdf-ingest --tries=3 --timeout=3750"
   lead-follow-ups-queue:
     <<: *common-queue-settings
     container_name: lead-follow-ups-queue
