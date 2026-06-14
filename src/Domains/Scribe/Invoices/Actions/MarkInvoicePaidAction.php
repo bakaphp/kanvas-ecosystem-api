@@ -6,11 +6,11 @@ namespace Kanvas\Scribe\Invoices\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Invoices\Services\InvoiceStateMachineService;
+use Kanvas\Scribe\Ledger\Services\PaymentAllocationSumService;
 
 /**
  * Recomputes invoice.paid_native / balance_due_native from active allocations and flips status to PAID when
@@ -31,6 +31,7 @@ class MarkInvoicePaidAction
         public readonly Invoice $invoice,
         public readonly ?UserInterface $user = null,
         protected readonly InvoiceStateMachineService $stateMachine = new InvoiceStateMachineService(),
+        protected readonly PaymentAllocationSumService $allocationSummer = new PaymentAllocationSumService(),
     ) {
     }
 
@@ -40,7 +41,11 @@ class MarkInvoicePaidAction
             $invoice = $this->invoice;
             $statusBefore = $invoice->document_status;
 
-            [$paidNative, $paidBase] = $this->sumActiveAllocations($invoice);
+            [$paidNative, $paidBase] = $this->allocationSummer->sumActive(
+                allocationModelClass: InvoicePaymentAllocation::class,
+                fkColumn: 'invoice_id',
+                entityId: (int) $invoice->id,
+            );
 
             $invoice->paid_native = $paidNative;
             $invoice->paid_base = $paidBase;
@@ -72,21 +77,5 @@ class MarkInvoicePaidAction
 
             return $invoice->refresh();
         });
-    }
-
-    /**
-     * @return array{0: float, 1: float} [paidNative, paidBase]
-     */
-    private function sumActiveAllocations(Invoice $invoice): array
-    {
-        $rows = InvoicePaymentAllocation::query()
-            ->where('invoice_id', $invoice->id)
-            ->where('status', AllocationStatusEnum::ACTIVE->value)
-            ->get(['amount_native', 'amount_base']);
-
-        return [
-            (float) $rows->sum('amount_native'),
-            (float) $rows->sum('amount_base'),
-        ];
     }
 }

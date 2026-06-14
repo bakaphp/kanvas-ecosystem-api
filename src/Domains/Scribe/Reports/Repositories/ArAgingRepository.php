@@ -31,15 +31,15 @@ class ArAgingRepository
         string $currency = 'USD',
     ): ArAgingData {
         $openInvoices = Invoice::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
             ->where('document_type', DocumentTypeEnum::INVOICE)
             ->whereIn('document_status', [
                 InvoiceDocumentStatusEnum::ISSUED,
                 InvoiceDocumentStatusEnum::SENT,
             ])
             ->where('balance_due_base', '>', 0.005)
-            ->where('is_deleted', false)
             ->get();
 
         $byCustomer = [];

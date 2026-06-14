@@ -10,7 +10,7 @@ use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Models\BillPaymentAllocation;
 use Kanvas\Scribe\Bills\Services\BillStateMachineService;
-use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
+use Kanvas\Scribe\Ledger\Services\PaymentAllocationSumService;
 
 /**
  * Recomputes bill.paid_native / balance_due_native from active allocations and flips status to PAID
@@ -25,6 +25,7 @@ class MarkBillPaidAction
         public readonly Bill $bill,
         public readonly ?UserInterface $user = null,
         protected readonly BillStateMachineService $stateMachine = new BillStateMachineService(),
+        protected readonly PaymentAllocationSumService $allocationSummer = new PaymentAllocationSumService(),
     ) {
     }
 
@@ -34,7 +35,11 @@ class MarkBillPaidAction
             $bill = $this->bill;
             $statusBefore = $bill->document_status;
 
-            [$paidNative, $paidBase] = $this->sumActiveAllocations($bill);
+            [$paidNative, $paidBase] = $this->allocationSummer->sumActive(
+                allocationModelClass: BillPaymentAllocation::class,
+                fkColumn: 'bill_id',
+                entityId: (int) $bill->id,
+            );
 
             $bill->paid_native = $paidNative;
             $bill->paid_base = $paidBase;
@@ -65,21 +70,5 @@ class MarkBillPaidAction
 
             return $bill->refresh();
         });
-    }
-
-    /**
-     * @return array{0: float, 1: float} [paidNative, paidBase]
-     */
-    private function sumActiveAllocations(Bill $bill): array
-    {
-        $rows = BillPaymentAllocation::query()
-            ->where('bill_id', $bill->id)
-            ->where('status', AllocationStatusEnum::ACTIVE->value)
-            ->get(['amount_native', 'amount_base']);
-
-        return [
-            (float) $rows->sum('amount_native'),
-            (float) $rows->sum('amount_base'),
-        ];
     }
 }

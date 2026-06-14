@@ -12,8 +12,7 @@ use Kanvas\Scribe\Bills\Exceptions\InvalidBillTransitionException;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Services\BillStateMachineService;
 use Kanvas\Scribe\Ledger\Actions\ReverseJournalEntryAction;
-use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
-use Kanvas\Scribe\Ledger\Models\JournalEntry;
+use Kanvas\Scribe\Ledger\Services\JournalEntryLookupService;
 
 /**
  * Voids a received Bill by posting a mirror reversal JE via ReverseJournalEntryAction.
@@ -30,6 +29,7 @@ class VoidBillAction
         public readonly string $voidReasonCode,
         public readonly ?UserInterface $user = null,
         protected readonly BillStateMachineService $stateMachine = new BillStateMachineService(),
+        protected readonly JournalEntryLookupService $journalEntryLookup = new JournalEntryLookupService(),
     ) {
     }
 
@@ -37,7 +37,12 @@ class VoidBillAction
     {
         $this->stateMachine->assertTransition($this->bill, BillDocumentStatusEnum::VOIDED);
 
-        $original = $this->findOriginalReceiveJournalEntry($this->bill);
+        $original = $this->journalEntryLookup->findOriginalPosted(
+            appsId: (int) $this->bill->apps_id,
+            companiesId: (int) $this->bill->companies_id,
+            sourceType: 'bill',
+            sourceId: (int) $this->bill->id,
+        );
         if ($original === null) {
             throw new InvalidBillTransitionException(
                 "Bill {$this->bill->id} has no posted Receive journal entry to reverse. "
@@ -75,18 +80,5 @@ class VoidBillAction
 
             return $bill->refresh();
         });
-    }
-
-    private function findOriginalReceiveJournalEntry(Bill $bill): ?JournalEntry
-    {
-        return JournalEntry::query()
-            ->where('apps_id', $bill->apps_id)
-            ->where('companies_id', $bill->companies_id)
-            ->where('source_type', 'bill')
-            ->where('source_id', $bill->id)
-            ->where('status', JournalEntryStatusEnum::POSTED->value)
-            ->whereNull('is_reversal_of')
-            ->orderBy('id')
-            ->first();
     }
 }

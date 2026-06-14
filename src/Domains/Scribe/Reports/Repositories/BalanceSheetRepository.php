@@ -95,9 +95,9 @@ class BalanceSheetRepository
     private function loadActiveAccounts(AppInterface $app, CompanyInterface $company): Collection
     {
         return Account::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('is_deleted', false)
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
             ->orderBy('account_number')
             ->get();
     }

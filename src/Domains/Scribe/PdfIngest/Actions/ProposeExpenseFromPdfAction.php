@@ -16,8 +16,7 @@ use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseData;
 use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseLineData;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
 use Kanvas\Scribe\Expenses\Models\Expense;
-use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
-use Kanvas\Scribe\Ledger\Models\Account;
+use Kanvas\Scribe\PdfIngest\Traits\ExtractsPdfPayloadValuesTrait;
 use Spatie\LaravelData\DataCollection;
 
 /**
@@ -40,6 +39,8 @@ use Spatie\LaravelData\DataCollection;
  */
 class ProposeExpenseFromPdfAction
 {
+    use ExtractsPdfPayloadValuesTrait;
+
     public function __construct(
         public readonly AppInterface $app,
         public readonly CompanyInterface $company,
@@ -196,30 +197,6 @@ class ProposeExpenseFromPdfAction
         return $out;
     }
 
-    private function resolveDefaultExpenseAccountId(): ?int
-    {
-        $row = Account::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('account_sub_type', AccountSubTypeEnum::TRAVEL_AND_MEALS->value)
-            ->where('is_deleted', false)
-            ->value('id');
-
-        if ($row !== null) {
-            return (int) $row;
-        }
-
-        // Last-resort fallback — any active EXPENSE-typed account
-        $row = Account::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('account_type', 'expense')
-            ->where('is_deleted', false)
-            ->value('id');
-
-        return $row !== null ? (int) $row : null;
-    }
-
     private function mapPaymentMethodHint(?string $hint): ExpensePaidByEnum
     {
         return match ($hint) {
@@ -227,39 +204,7 @@ class ProposeExpenseFromPdfAction
             'bank_transfer' => ExpensePaidByEnum::COMPANY_BANK_TRANSFER,
             'cash' => ExpensePaidByEnum::COMPANY_CASH,
             'employee_personal' => ExpensePaidByEnum::EMPLOYEE_PERSONAL,
-            default => ExpensePaidByEnum::COMPANY_CARD,         // safest "we paid it somehow" default
+            default => ExpensePaidByEnum::COMPANY_CARD,
         };
-    }
-
-    private function numeric(mixed $value): ?float
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        return is_numeric($value) ? (float) $value : null;
-    }
-
-    private function parseDate(mixed $value): ?Carbon
-    {
-        if (! is_string($value) || $value === '') {
-            return null;
-        }
-
-        try {
-            return Carbon::parse($value);
-        } catch (\Throwable) {
-            return null;
-        }
-    }
-
-    private function trimOrDefault(mixed $value, ?string $default): ?string
-    {
-        if (! is_string($value)) {
-            return $default;
-        }
-        $trimmed = trim($value);
-
-        return $trimmed === '' ? $default : $trimmed;
     }
 }

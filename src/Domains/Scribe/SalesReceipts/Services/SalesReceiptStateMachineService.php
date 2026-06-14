@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\SalesReceipts\Services;
 
+use Closure;
+use Kanvas\Scribe\Ledger\Services\AbstractDocumentStateMachineService;
 use Kanvas\Scribe\SalesReceipts\Enums\SalesReceiptStatusEnum;
 use Kanvas\Scribe\SalesReceipts\Exceptions\InvalidSalesReceiptTransitionException;
 use Kanvas\Scribe\SalesReceipts\Models\SalesReceipt;
 
 /**
- * Trivial state machine — only RECORDED → VOIDED is allowed.
- *
- * Kept as a class (vs inline match) for consistency with InvoiceStateMachineService / QuoteStateMachineService and to give
- * the future observer a single entry point to attach to.
+ * Trivial state machine — only RECORDED → VOIDED is allowed. Kept as its own class (vs an inline
+ * match) for parity with the other sub-ledger machines + to give the future observer a single
+ * attachment point.
  */
-class SalesReceiptStateMachineService
+class SalesReceiptStateMachineService extends AbstractDocumentStateMachineService
 {
     /**
      * @var array<string, list<SalesReceiptStatusEnum>>
@@ -24,26 +25,30 @@ class SalesReceiptStateMachineService
         'voided' => [],
     ];
 
+    /**
+     * @throws InvalidSalesReceiptTransitionException
+     */
     public function assertTransition(SalesReceipt $receipt, SalesReceiptStatusEnum $target): void
     {
-        $current = $receipt->status;
-
-        if (! $this->canTransition($current, $target)) {
-            throw new InvalidSalesReceiptTransitionException(
-                "Sales receipt {$receipt->id} cannot transition status "
-                . "from '{$current->value}' to '{$target->value}'."
-            );
-        }
+        $this->guardTransition(
+            entityId: (int) $receipt->id,
+            current: $receipt->status,
+            target: $target,
+        );
     }
 
-    public function canTransition(SalesReceiptStatusEnum $from, SalesReceiptStatusEnum $to): bool
+    protected function allowedTransitions(): array
     {
-        if ($from === $to) {
-            return true;
-        }
+        return self::ALLOWED;
+    }
 
-        $allowed = self::ALLOWED[$from->value] ?? [];
+    protected function entityLabel(): string
+    {
+        return 'Sales receipt';
+    }
 
-        return in_array($to, $allowed, true);
+    protected function transitionExceptionFactory(): Closure
+    {
+        return fn (string $message) => new InvalidSalesReceiptTransitionException($message);
     }
 }

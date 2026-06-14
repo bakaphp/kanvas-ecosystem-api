@@ -13,8 +13,7 @@ use Kanvas\Scribe\Expenses\Exceptions\InvalidExpenseTransitionException;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Expenses\Services\ExpenseStateMachineService;
 use Kanvas\Scribe\Ledger\Actions\ReverseJournalEntryAction;
-use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
-use Kanvas\Scribe\Ledger\Models\JournalEntry;
+use Kanvas\Scribe\Ledger\Services\JournalEntryLookupService;
 
 /**
  * Voids an expense by posting a mirror reversal JE via ReverseJournalEntryAction.
@@ -32,6 +31,7 @@ class VoidExpenseAction
         public readonly string $voidReasonCode,
         public readonly ?UserInterface $user = null,
         protected readonly ExpenseStateMachineService $stateMachine = new ExpenseStateMachineService(),
+        protected readonly JournalEntryLookupService $journalEntryLookup = new JournalEntryLookupService(),
     ) {
     }
 
@@ -49,7 +49,12 @@ class VoidExpenseAction
         return DB::connection('accounting')->transaction(function (): Expense {
             $expense = $this->expense;
 
-            $original = $this->findOriginalApprovalJournalEntry($expense);
+            $original = $this->journalEntryLookup->findOriginalPosted(
+                appsId: (int) $expense->apps_id,
+                companiesId: (int) $expense->companies_id,
+                sourceType: 'expense',
+                sourceId: (int) $expense->id,
+            );
             if ($original !== null) {
                 new ReverseJournalEntryAction(
                     original: $original,
@@ -84,18 +89,5 @@ class VoidExpenseAction
 
             return $expense->refresh();
         });
-    }
-
-    private function findOriginalApprovalJournalEntry(Expense $expense): ?JournalEntry
-    {
-        return JournalEntry::query()
-            ->where('apps_id', $expense->apps_id)
-            ->where('companies_id', $expense->companies_id)
-            ->where('source_type', 'expense')
-            ->where('source_id', $expense->id)
-            ->where('status', JournalEntryStatusEnum::POSTED->value)
-            ->whereNull('is_reversal_of')
-            ->orderBy('id')
-            ->first();
     }
 }

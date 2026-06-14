@@ -12,8 +12,7 @@ use Kanvas\Scribe\Invoices\Exceptions\InvalidInvoiceTransitionException;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Services\InvoiceStateMachineService;
 use Kanvas\Scribe\Ledger\Actions\ReverseJournalEntryAction;
-use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
-use Kanvas\Scribe\Ledger\Models\JournalEntry;
+use Kanvas\Scribe\Ledger\Services\JournalEntryLookupService;
 
 /**
  * Voids an issued or sent invoice by posting a mirror reversal JE via ReverseJournalEntryAction.
@@ -31,6 +30,7 @@ class VoidInvoiceAction
         public readonly string $voidReasonCode,
         public readonly ?UserInterface $user = null,
         protected readonly InvoiceStateMachineService $stateMachine = new InvoiceStateMachineService(),
+        protected readonly JournalEntryLookupService $journalEntryLookup = new JournalEntryLookupService(),
     ) {
     }
 
@@ -38,7 +38,12 @@ class VoidInvoiceAction
     {
         $this->stateMachine->assertTransition($this->invoice, InvoiceDocumentStatusEnum::VOIDED);
 
-        $original = $this->findOriginalIssueJournalEntry($this->invoice);
+        $original = $this->journalEntryLookup->findOriginalPosted(
+            appsId: (int) $this->invoice->apps_id,
+            companiesId: (int) $this->invoice->companies_id,
+            sourceType: 'invoice',
+            sourceId: (int) $this->invoice->id,
+        );
         if ($original === null) {
             throw new InvalidInvoiceTransitionException(
                 "Invoice {$this->invoice->id} has no posted Issue journal entry to reverse. "
@@ -76,18 +81,5 @@ class VoidInvoiceAction
 
             return $invoice->refresh();
         });
-    }
-
-    private function findOriginalIssueJournalEntry(Invoice $invoice): ?JournalEntry
-    {
-        return JournalEntry::query()
-            ->where('apps_id', $invoice->apps_id)
-            ->where('companies_id', $invoice->companies_id)
-            ->where('source_type', 'invoice')
-            ->where('source_id', $invoice->id)
-            ->where('status', JournalEntryStatusEnum::POSTED->value)
-            ->whereNull('is_reversal_of')
-            ->orderBy('id')
-            ->first();
     }
 }

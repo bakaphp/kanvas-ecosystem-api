@@ -15,8 +15,7 @@ use Kanvas\Scribe\Bills\DataTransferObject\BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLineData;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
-use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
-use Kanvas\Scribe\Ledger\Models\Account;
+use Kanvas\Scribe\PdfIngest\Traits\ExtractsPdfPayloadValuesTrait;
 use Spatie\LaravelData\DataCollection;
 
 /**
@@ -36,6 +35,8 @@ use Spatie\LaravelData\DataCollection;
  */
 class ProposeBillFromPdfAction
 {
+    use ExtractsPdfPayloadValuesTrait;
+
     public function __construct(
         public readonly AppInterface $app,
         public readonly CompanyInterface $company,
@@ -205,60 +206,5 @@ class ProposeBillFromPdfAction
             ->where('is_deleted', false)
             ->orderBy('id')
             ->first();
-    }
-
-    private function resolveDefaultExpenseAccountId(): ?int
-    {
-        $row = Account::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('account_sub_type', AccountSubTypeEnum::TRAVEL_AND_MEALS->value)
-            ->where('is_deleted', false)
-            ->value('id');
-
-        if ($row !== null) {
-            return (int) $row;
-        }
-
-        $row = Account::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('account_type', 'expense')
-            ->where('is_deleted', false)
-            ->value('id');
-
-        return $row !== null ? (int) $row : null;
-    }
-
-    private function numeric(mixed $value): ?float
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        return is_numeric($value) ? (float) $value : null;
-    }
-
-    private function parseDate(mixed $value): ?Carbon
-    {
-        if (! is_string($value) || $value === '') {
-            return null;
-        }
-
-        try {
-            return Carbon::parse($value);
-        } catch (\Throwable) {
-            return null;
-        }
-    }
-
-    private function trimOrDefault(mixed $value, ?string $default): ?string
-    {
-        if (! is_string($value)) {
-            return $default;
-        }
-        $trimmed = trim($value);
-
-        return $trimmed === '' ? $default : $trimmed;
     }
 }

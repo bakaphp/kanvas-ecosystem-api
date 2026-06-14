@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Bills\Services;
 
+use Closure;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Exceptions\InvalidBillTransitionException;
 use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Ledger\Services\AbstractDocumentStateMachineService;
 
 /**
  * Gates Bill document_status transitions.
@@ -16,10 +18,8 @@ use Kanvas\Scribe\Bills\Models\Bill;
  *   RECEIVED  → VOIDED     (posts reversal JE)
  *   PAID      → (terminal — issue a vendor credit instead of voiding)
  *   VOIDED    → (terminal)
- *
- * Same-state transitions (X → X) are allowed for idempotency (re-running Receive on already-received).
  */
-class BillStateMachineService
+class BillStateMachineService extends AbstractDocumentStateMachineService
 {
     /**
      * @var array<string, list<BillDocumentStatusEnum>>
@@ -36,34 +36,31 @@ class BillStateMachineService
         'voided' => [],
     ];
 
+    /**
+     * @throws InvalidBillTransitionException
+     */
     public function assertTransition(Bill $bill, BillDocumentStatusEnum $target): void
     {
-        if (! $this->canTransition($bill->document_status, $target)) {
-            throw new InvalidBillTransitionException(
-                "Bill {$bill->id} cannot transition document_status "
-                . "from '{$bill->document_status->value}' to '{$target->value}'. "
-                . 'Allowed: ' . $this->formatAllowed($bill->document_status) . '.'
-            );
-        }
+        $this->guardTransition(
+            entityId: (int) $bill->id,
+            current: $bill->document_status,
+            target: $target,
+            fieldName: 'document_status',
+        );
     }
 
-    public function canTransition(BillDocumentStatusEnum $from, BillDocumentStatusEnum $to): bool
+    protected function allowedTransitions(): array
     {
-        if ($from === $to) {
-            return true;
-        }
-        $allowed = self::ALLOWED[$from->value] ?? [];
-
-        return in_array($to, $allowed, true);
+        return self::ALLOWED;
     }
 
-    private function formatAllowed(BillDocumentStatusEnum $from): string
+    protected function entityLabel(): string
     {
-        $allowed = self::ALLOWED[$from->value] ?? [];
-        if ($allowed === []) {
-            return '(none — terminal)';
-        }
+        return 'Bill';
+    }
 
-        return implode(', ', array_map(fn (BillDocumentStatusEnum $e) => $e->value, $allowed));
+    protected function transitionExceptionFactory(): Closure
+    {
+        return fn (string $message) => new InvalidBillTransitionException($message);
     }
 }

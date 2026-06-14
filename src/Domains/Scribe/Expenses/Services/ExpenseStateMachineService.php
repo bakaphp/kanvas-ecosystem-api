@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Expenses\Services;
 
+use Closure;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Exceptions\InvalidExpenseTransitionException;
 use Kanvas\Scribe\Expenses\Models\Expense;
+use Kanvas\Scribe\Ledger\Services\AbstractDocumentStateMachineService;
 
 /**
  * Gates expense status transitions.
@@ -17,7 +19,7 @@ use Kanvas\Scribe\Expenses\Models\Expense;
  *   REJECTED          → (terminal)
  *   VOIDED            → (terminal)
  */
-class ExpenseStateMachineService
+class ExpenseStateMachineService extends AbstractDocumentStateMachineService
 {
     /**
      * @var array<string, list<ExpenseStatusEnum>>
@@ -38,37 +40,30 @@ class ExpenseStateMachineService
         'voided' => [],
     ];
 
+    /**
+     * @throws InvalidExpenseTransitionException
+     */
     public function assertTransition(Expense $expense, ExpenseStatusEnum $target): void
     {
-        $current = $expense->status;
-
-        if (! $this->canTransition($current, $target)) {
-            throw new InvalidExpenseTransitionException(
-                "Expense {$expense->id} cannot transition status "
-                . "from '{$current->value}' to '{$target->value}'. "
-                . 'Allowed targets: ' . $this->formatAllowed($current) . '.'
-            );
-        }
+        $this->guardTransition(
+            entityId: (int) $expense->id,
+            current: $expense->status,
+            target: $target,
+        );
     }
 
-    public function canTransition(ExpenseStatusEnum $from, ExpenseStatusEnum $to): bool
+    protected function allowedTransitions(): array
     {
-        if ($from === $to) {
-            return true;
-        }
-
-        $allowed = self::ALLOWED[$from->value] ?? [];
-
-        return in_array($to, $allowed, true);
+        return self::ALLOWED;
     }
 
-    private function formatAllowed(ExpenseStatusEnum $from): string
+    protected function entityLabel(): string
     {
-        $allowed = self::ALLOWED[$from->value] ?? [];
-        if ($allowed === []) {
-            return '(none — terminal state)';
-        }
+        return 'Expense';
+    }
 
-        return implode(', ', array_map(fn (ExpenseStatusEnum $e) => $e->value, $allowed));
+    protected function transitionExceptionFactory(): Closure
+    {
+        return fn (string $message) => new InvalidExpenseTransitionException($message);
     }
 }

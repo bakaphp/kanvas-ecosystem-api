@@ -42,8 +42,9 @@ class RevenueRepository
         string $currency = 'USD',
     ): RevenueReportData {
         $invoices = Invoice::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
             ->where('document_type', DocumentTypeEnum::INVOICE)
             ->whereIn('document_status', [
                 InvoiceDocumentStatusEnum::ISSUED,
@@ -52,17 +53,16 @@ class RevenueRepository
             ])
             ->whereDate('issued_date', '>=', $periodStart)
             ->whereDate('issued_date', '<=', $periodEnd)
-            ->where('is_deleted', false)
             ->with('lines')
             ->get();
 
         $creditNotes = Invoice::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
             ->where('document_type', DocumentTypeEnum::CREDIT_NOTE)
             ->whereDate('issued_date', '>=', $periodStart)
             ->whereDate('issued_date', '<=', $periodEnd)
-            ->where('is_deleted', false)
             ->get();
 
         return match ($groupBy) {

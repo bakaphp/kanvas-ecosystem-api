@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Quotes\Services;
 
+use Closure;
+use Kanvas\Scribe\Ledger\Services\AbstractDocumentStateMachineService;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Kanvas\Scribe\Quotes\Exceptions\InvalidQuoteTransitionException;
 use Kanvas\Scribe\Quotes\Models\Quote;
 
 /**
- * Gates every status transition on Quote.
- *
- * Allowed graph (mirrors plan §11.1):
+ * Gates every status transition on Quote (mirrors plan §11.1).
  *
  *   DRAFT      → SENT      | SUPERSEDED
  *   SENT       → ACCEPTED  | REJECTED | EXPIRED | SUPERSEDED
@@ -23,7 +23,7 @@ use Kanvas\Scribe\Quotes\Models\Quote;
  *
  * SUPERSEDED is set by CreateQuoteRevisionAction on the parent when a new revision is created.
  */
-class QuoteStateMachineService
+class QuoteStateMachineService extends AbstractDocumentStateMachineService
 {
     /**
      * @var array<string, list<QuoteStatusEnum>>
@@ -42,44 +42,36 @@ class QuoteStateMachineService
         'accepted' => [
             QuoteStatusEnum::CONVERTED,
         ],
-        // Terminal states have no outgoing transitions.
         'rejected' => [],
         'expired' => [],
         'converted' => [],
         'superseded' => [],
     ];
 
+    /**
+     * @throws InvalidQuoteTransitionException
+     */
     public function assertTransition(Quote $quote, QuoteStatusEnum $target): void
     {
-        $current = $quote->status;
-
-        if (! $this->canTransition($current, $target)) {
-            throw new InvalidQuoteTransitionException(
-                "Quote {$quote->id} cannot transition status "
-                . "from '{$current->value}' to '{$target->value}'. "
-                . 'Allowed targets: ' . $this->formatAllowed($current) . '.'
-            );
-        }
+        $this->guardTransition(
+            entityId: (int) $quote->id,
+            current: $quote->status,
+            target: $target,
+        );
     }
 
-    public function canTransition(QuoteStatusEnum $from, QuoteStatusEnum $to): bool
+    protected function allowedTransitions(): array
     {
-        if ($from === $to) {
-            return true;       // idempotent no-op
-        }
-
-        $allowed = self::ALLOWED[$from->value] ?? [];
-
-        return in_array($to, $allowed, true);
+        return self::ALLOWED;
     }
 
-    private function formatAllowed(QuoteStatusEnum $from): string
+    protected function entityLabel(): string
     {
-        $allowed = self::ALLOWED[$from->value] ?? [];
-        if ($allowed === []) {
-            return '(none — terminal state)';
-        }
+        return 'Quote';
+    }
 
-        return implode(', ', array_map(fn (QuoteStatusEnum $e) => $e->value, $allowed));
+    protected function transitionExceptionFactory(): Closure
+    {
+        return fn (string $message) => new InvalidQuoteTransitionException($message);
     }
 }

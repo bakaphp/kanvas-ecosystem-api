@@ -8,8 +8,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Ledger\Actions\ReverseJournalEntryAction;
-use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
-use Kanvas\Scribe\Ledger\Models\JournalEntry;
+use Kanvas\Scribe\Ledger\Services\JournalEntryLookupService;
 use Kanvas\Scribe\SalesReceipts\Enums\SalesReceiptStatusEnum;
 use Kanvas\Scribe\SalesReceipts\Exceptions\InvalidSalesReceiptTransitionException;
 use Kanvas\Scribe\SalesReceipts\Models\SalesReceipt;
@@ -27,6 +26,7 @@ class VoidSalesReceiptAction
         public readonly string $voidReasonCode,
         public readonly ?UserInterface $user = null,
         protected readonly SalesReceiptStateMachineService $stateMachine = new SalesReceiptStateMachineService(),
+        protected readonly JournalEntryLookupService $journalEntryLookup = new JournalEntryLookupService(),
     ) {
     }
 
@@ -34,7 +34,12 @@ class VoidSalesReceiptAction
     {
         $this->stateMachine->assertTransition($this->salesReceipt, SalesReceiptStatusEnum::VOIDED);
 
-        $original = $this->findOriginalCreateJournalEntry($this->salesReceipt);
+        $original = $this->journalEntryLookup->findOriginalPosted(
+            appsId: (int) $this->salesReceipt->apps_id,
+            companiesId: (int) $this->salesReceipt->companies_id,
+            sourceType: 'sales_receipt',
+            sourceId: (int) $this->salesReceipt->id,
+        );
         if ($original === null) {
             throw new InvalidSalesReceiptTransitionException(
                 "Sales receipt {$this->salesReceipt->id} has no posted Create JE to reverse."
@@ -70,18 +75,5 @@ class VoidSalesReceiptAction
 
             return $receipt->refresh();
         });
-    }
-
-    private function findOriginalCreateJournalEntry(SalesReceipt $receipt): ?JournalEntry
-    {
-        return JournalEntry::query()
-            ->where('apps_id', $receipt->apps_id)
-            ->where('companies_id', $receipt->companies_id)
-            ->where('source_type', 'sales_receipt')
-            ->where('source_id', $receipt->id)
-            ->where('status', JournalEntryStatusEnum::POSTED->value)
-            ->whereNull('is_reversal_of')
-            ->orderBy('id')
-            ->first();
     }
 }
