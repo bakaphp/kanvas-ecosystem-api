@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Event;
 
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Jobs\GenerateTimeSlots;
@@ -107,6 +109,120 @@ class ScheduleRulesTest extends TestCase
         ]);
 
         Queue::assertPushed(GenerateTimeSlots::class);
+    }
+
+    public function testGenerateTimeSlotsExpandsFullDayWithByHour(): void
+    {
+        $now = Carbon::parse('2026-07-06 06:00:00', 'UTC'); // Monday, before the daily open
+        Carbon::setTestNow($now);
+
+        $day = '20260706';
+
+        $scheduleRule = ScheduleRules::create([
+            'apps_id' => $this->apps->getId(),
+            'companies_id' => $this->company->getId(),
+            'resources_id' => $this->variantId,
+            'resources_type' => 'Kanvas\Inventory\Variants\Models\Variants',
+            'start_at' => $now->clone(),
+            'end_at' => $now->clone()->addDay(),
+            'rrule' => "DTSTART:{$day}T080000Z\nRRULE:FREQ=DAILY;UNTIL={$day}T235959Z",
+            'day_rrule' => "DTSTART:{$day}T080000\nRRULE:FREQ=MINUTELY;INTERVAL=15;BYHOUR=8,9,10,11,12,13,14,15,16,17;BYMINUTE=0,15,30,45",
+            'slot_duration_min' => 15,
+            'lead_time_min' => 0,
+            'cutoff_time_min' => 0,
+            'capacity_override' => 4,
+        ]);
+
+        new GenerateTimeSlots(
+            $this->variantId,
+            $scheduleRule->id,
+            $now->clone(),
+            $now->clone()->addDay(),
+        )->handle();
+
+        // 08:00–17:45 every 15 min = 40 slots. php-rrule's BYHOUR truncation stopped at 22 (13:45),
+        // dropping every afternoon slot — this guards against that regression.
+        $slots = DB::connection('event')->table('time_slots')
+            ->where('schedule_rules_id', $scheduleRule->id)
+            ->selectRaw('count(*) as total, min(start_at) as first_at, max(start_at) as last_at')
+            ->first();
+
+        $this->assertGreaterThanOrEqual(35, $slots->total);
+
+        // The truncation bug capped the day at 08:00–13:45 (a ~5.75h span). A full 08:00–17:45
+        // day spans ~9.75h, so requiring >= 8h between first and last slot proves the afternoon
+        // slots are present regardless of the resource timezone.
+        $spanHours = Carbon::parse($slots->first_at)->diffInHours(Carbon::parse($slots->last_at));
+        $this->assertGreaterThanOrEqual(8, $spanHours);
+
+        Carbon::setTestNow();
+    }
+
+    public function testGenerationWindowUsesFutureStartAndEndDates(): void
+    {
+        Queue::fake();
+
+        $start = now()->addDays(3)->startOfHour();
+        $end = now()->addDays(10)->startOfHour();
+
+        $this->graphQL('
+            mutation createScheduleRules($input: ScheduleRulesInput!) {
+                createScheduleRules(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'resources_id' => $this->variantId,
+                'resources_type' => 'variant',
+                'start_at' => $start->format('Y-m-d H:i:s'),
+                'end_at' => $end->format('Y-m-d H:i:s'),
+                'rrule' => 'DTSTART:' . $start->format('Ymd\THis') . "\nRRULE:FREQ=DAILY",
+                'day_rrule' => 'DTSTART:' . $start->format('Ymd\THis') . "\nRRULE:FREQ=MINUTELY;INTERVAL=15",
+                'slot_duration_min' => 15,
+                'lead_time_min' => 0,
+                'cutoff_time_min' => 0,
+            ],
+        ])->assertSuccessful();
+
+        // Future start_at is honored (not now()), and end_at bounds the window (not now()+1yr).
+        Queue::assertPushed(
+            GenerateTimeSlots::class,
+            fn ($job) => $job->windowFrom->format('Y-m-d H:i:s') === $start->format('Y-m-d H:i:s')
+                && $job->windowTo->format('Y-m-d H:i:s') === $end->format('Y-m-d H:i:s')
+        );
+    }
+
+    public function testGenerationWindowClampsPastStartToNow(): void
+    {
+        Carbon::setTestNow(now());
+        $frozenNow = now();
+        Queue::fake();
+
+        $start = $frozenNow->clone()->subDays(5); // already in the past
+
+        $this->graphQL('
+            mutation createScheduleRules($input: ScheduleRulesInput!) {
+                createScheduleRules(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'resources_id' => $this->variantId,
+                'resources_type' => 'variant',
+                'start_at' => $start->format('Y-m-d H:i:s'),
+                'rrule' => 'DTSTART:' . $start->format('Ymd\THis') . "\nRRULE:FREQ=DAILY",
+                'day_rrule' => 'DTSTART:' . $start->format('Ymd\THis') . "\nRRULE:FREQ=MINUTELY;INTERVAL=15",
+                'slot_duration_min' => 15,
+                'lead_time_min' => 0,
+                'cutoff_time_min' => 0,
+            ],
+        ])->assertSuccessful();
+
+        // Past start_at must not backfill — the window starts at now, not 5 days ago.
+        Queue::assertPushed(
+            GenerateTimeSlots::class,
+            fn ($job) => $job->windowFrom->format('Y-m-d H:i:s') === $frozenNow->format('Y-m-d H:i:s')
+        );
+
+        Carbon::setTestNow();
     }
 
     public function testUpdateScheduleRule(): void

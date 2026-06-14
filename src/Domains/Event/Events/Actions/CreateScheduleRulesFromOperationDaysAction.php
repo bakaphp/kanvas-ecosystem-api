@@ -35,6 +35,9 @@ class CreateScheduleRulesFromOperationDaysAction
         protected int $cutoffTimeMin = 0,
         protected string $frequency = 'WEEKLY',
         protected ?string $scheduleType = null,
+        protected bool $generateSlots = true,
+        protected ?Carbon $startAt = null,
+        protected ?Carbon $endAt = null,
     ) {
     }
 
@@ -62,7 +65,10 @@ class CreateScheduleRulesFromOperationDaysAction
 
             if ($rule) {
                 $upsertedRules[] = $rule;
-                $this->dispatchTimeSlotGeneration($rule);
+
+                if ($this->generateSlots) {
+                    $this->dispatchTimeSlotGeneration($rule);
+                }
             }
         }
 
@@ -88,7 +94,8 @@ class CreateScheduleRulesFromOperationDaysAction
     protected function upsertRuleForDay(string $dayName, string $dayCode, array $periods): ?ScheduleRules
     {
         $firstPeriod = $periods[0];
-        $startAt = Carbon::parse('today ' . $firstPeriod['open']);
+        $baseDate = $this->startAt?->toDateString() ?? 'today';
+        $startAt = Carbon::parse($baseDate . ' ' . $firstPeriod['open']);
         $dtstart = $startAt->format('Ymd\THis');
         $rrule = "DTSTART:{$dtstart}\nRRULE:FREQ={$this->frequency};BYDAY={$dayCode}";
 
@@ -132,7 +139,7 @@ class CreateScheduleRulesFromOperationDaysAction
             $this->naturalKey($dayName),
             [
                 'start_at' => $startAt,
-                'end_at' => null,
+                'end_at' => $this->endAt?->clone(),
                 'rrule' => $rrule,
                 'day_rrule' => $dayRrule,
                 'slot_duration_min' => $this->slotDurationMinutes,
@@ -176,11 +183,13 @@ class CreateScheduleRulesFromOperationDaysAction
 
     protected function dispatchTimeSlotGeneration(ScheduleRules $scheduleRule): void
     {
+        [$windowFrom, $windowTo] = GenerateTimeSlots::resolveWindow($scheduleRule->start_at, $scheduleRule->end_at);
+
         dispatch(new GenerateTimeSlots(
             $this->resource->getId(),
             $scheduleRule->id,
-            Carbon::now(),
-            Carbon::now()->addYear()
+            $windowFrom,
+            $windowTo
         ));
     }
 

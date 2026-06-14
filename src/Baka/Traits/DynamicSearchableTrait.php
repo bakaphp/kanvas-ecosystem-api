@@ -38,6 +38,18 @@ trait DynamicSearchableTrait
             return true;
         }
 
+        return $this->resolvedEngineName() === 'typesense';
+    }
+
+    public function isAlgolia(): bool
+    {
+        // algolia is the default engine in config/scout.php, so an unset/null
+        // resolved engine still routes through the Algolia client.
+        return $this->resolvedEngineName() === 'algolia';
+    }
+
+    protected function resolvedEngineName(): string
+    {
         try {
             $model = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
         } catch (BadMethodCallException $e) {
@@ -49,10 +61,9 @@ trait DynamicSearchableTrait
         $defaultEngine = $app->get('search_engine') ?? config('scout.driver', 'algolia');
         // If there's a model, try to get model-specific engine setting
         $modelSpecificEngine = $app->get($this->getTable() . '_search_engine') ?? null;
-        // Use model-specific engine if available, otherwise use default
-        $engine = $modelSpecificEngine ?? $defaultEngine;
 
-        return $engine === 'typesense';
+        // Use model-specific engine if available, otherwise use default
+        return $modelSpecificEngine ?? $defaultEngine;
     }
 
     public function getRelations(?string $modelClass = null): array

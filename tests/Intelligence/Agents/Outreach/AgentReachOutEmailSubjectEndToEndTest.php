@@ -103,6 +103,13 @@ class AgentReachOutEmailSubjectEndToEndTest extends TestCase
             }
         );
 
+        // The outreach subject is anchored on the lead so the follow-up engine can
+        // reuse it ("Re: ...") and thread under the original email.
+        $this->assertSame(
+            SalesEmailEnvelopeNeuronAgentStub::SUBJECT,
+            $lead->get('title_email_follow_up'),
+        );
+
         // The persisted outbound body is the clean envelope body — no subject line,
         // and it appears exactly once (regression guard for the duplication bug).
         $outbound = Message::query()

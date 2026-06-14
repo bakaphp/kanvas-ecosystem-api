@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Str;
 use Exception;
 use finfo;
@@ -328,12 +329,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     protected function processImageWithOpenAI(string $imageUrl, string $prompt, Model $entity, array $params = []): ?Filesystem
     {
         // Download the image file
-        $imageContents = file_get_contents($imageUrl);
+        $imageContents = SafeUrlFetcher::fetch($imageUrl);
         $filename = basename(parse_url($imageUrl, PHP_URL_PATH));
-
-        if ($imageContents === false) {
-            throw new Exception("Failed to download image from URL: {$imageUrl}");
-        }
 
         // Create a temporary file
         $tempFile = tempnam(sys_get_temp_dir(), 'openai_img_');

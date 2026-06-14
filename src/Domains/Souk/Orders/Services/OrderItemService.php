@@ -8,6 +8,7 @@ use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Users\Models\Users;
 use League\Csv\Reader;
 
@@ -83,6 +84,8 @@ class OrderItemService
         $cartItems = [];
         $errors = [];
 
+        $validateStock = ! (bool) $this->app->get(ConfigurationEnum::DISABLE_ORDER_ITEM_STOCK_VALIDATION->value);
+
         foreach ($orderItems as $orderItem) {
             $variant = Variants::where('id', $orderItem['variant_id'])->first();
             $channel = $variant->variantChannels()->where('channels_id', $channelId)->first();
@@ -100,7 +103,7 @@ class OrderItemService
              * @todo validate overselling
              */
             $barcode = "<b>($variant->barcode)</b>";
-            if ($currentStock < $orderItem['quantity']) {
+            if ($validateStock && $currentStock < $orderItem['quantity']) {
                 $errors[] = "$barcode: You only have $currentStock in stock for $variant->name.";
 
                 continue;

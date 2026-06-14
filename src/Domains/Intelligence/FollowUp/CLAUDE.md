@@ -199,6 +199,32 @@ The agent prompt shows the rendered body either way — with `[agent message slo
 
 The verb filter (`whatsapp-text`) was dropped from the inbound query. `from_me = false` on a People-keyed channel is the only test; this catches email/SMS/WhatsApp inbound uniformly.
 
+## Only open leads are nudged (`isOpen()` / status < 2)
+
+Follow-up (and the outbound outreach in `AgentReachOutAction`) only act on **open** leads — `Lead::isOpen()` (`status < 2`). A closed lead (won/lost/inactive) sitting in a non-terminal nudge stage is excluded two ways:
+- [`DispatchAppLeadFollowUpsJob`](Jobs/DispatchAppLeadFollowUpsJob.php) SQL-filters candidates to `status IS NULL OR status < 2` (null = open, matching the model; the column is nullable default 0) so closed leads never spawn a job.
+- [`FollowUpLeadAction`](Actions/FollowUpLeadAction.php) re-checks `isOpen()` as a hard gate → `skip('lead_not_active')`. **Not bypassed by `force`** — force only relaxes the silence gate.
+
+Inbound agent **replies** are intentionally NOT gated on status — if a customer writes back even on a closed lead, the agent still answers. Only proactive touches (outreach + follow-up) require an open lead.
+
+`Lead::isOpen()` reads the `status` column explicitly (`getAttributeValue`) because `status` is both a column and a `status()` relation — `$this->status` on a partially-hydrated model resolves to the `LeadStatus` object and TypeErrors on `< 2`.
+
+## Email follow-ups thread under the original outreach (`title_email_follow_up`)
+
+Email follow-ups must land in the **same thread** as the agent's first outreach, not start a fresh one. The mechanism is a single lead custom field, `title_email_follow_up`, that all three email send-paths agree on:
+
+| Path | File | Role |
+|---|---|---|
+| Outreach (first touch) | [`AgentReachOutOnChannelAction`](../Agents/Actions/Outreach/AgentReachOutOnChannelAction.php) | **Writes** the anchor — persists the agent's email subject to `title_email_follow_up`. First touch wins (guarded by `! $lead->get(...)`) so later reach-outs don't clobber it. |
+| Inbound auto-reply | [`Mailgun/AgentChannelResponderAction`](../../Connectors/Mailgun/Actions/AgentChannelResponderAction.php) | **Reads** it as the outbound subject (falls back to `Re: <incoming subject>`). Read-only — never overwrites the anchor. |
+| Follow-up (cron, days later) | [`FollowUpLeadAction::resolveEmailTitle()`](Actions/FollowUpLeadAction.php) | **Reads** it, prefixes `Re: ` (idempotent — won't double-prefix). Falls back to the company name when no anchor exists. |
+
+Because all three read the same persisted field, the subject stays constant across outreach → customer reply → follow-up, and Gmail/Apple Mail group them into one thread (they strip `Re:` when threading). The anchor is a lead custom field, so it survives the multi-day gap between touches.
+
+**Known limitations (deferred, by decision):**
+- **Inbound-first leads have no anchor.** If a lead is created from a cold *inbound* email (no agent outreach ran), `AgentReachOutOnChannelAction` never fires, so `title_email_follow_up` is never persisted — the inbound responder uses `Re: <incoming subject>` but doesn't save it, so a later follow-up falls back to the company name and starts a new thread. Fix when cold-inbound becomes a real path: have the Mailgun inbound responder persist the anchor when it's not already set.
+- **No RFC threading headers.** Threading is subject-based only; `In-Reply-To` / `References` aren't emitted because the outbound `message_id` is hardcoded `'--'`. Works in Gmail/Apple Mail; strict header-only clients (some Outlook configs) may not thread. Capturing the real Mailgun Message-ID on send is a separate task.
+
 ## Channel resolution lives on the Lead, NOT the Session
 
 Reachable channels come from the person's `Contact` rows + stage-enabled channels + opt-outs — never from `Session::getChannel()` (which stays valid for inspection but is `@deprecated for outbound channel selection`).

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\GraphQL\Event\Mutations\ScheduleRules;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Jobs\GenerateTimeSlots;
 use Kanvas\Event\Events\Models\ScheduleRules;
@@ -36,9 +35,7 @@ class ScheduleRulesManagementMutation
             'metadata' => $req['input']['metadata'] ?? null,
         ]);
 
-        // Dispatch job to generate time slots
-        $windowFrom = Carbon::now();
-        $windowTo = Carbon::now()->addYear();
+        [$windowFrom, $windowTo] = GenerateTimeSlots::resolveWindow($scheduleRule->start_at, $scheduleRule->end_at);
 
         dispatch(new GenerateTimeSlots(
             $entity->id,
@@ -74,8 +71,7 @@ class ScheduleRulesManagementMutation
             'metadata' => $req['input']['metadata'] ?? $scheduleRule->metadata,
         ]);
 
-        $windowFrom = Carbon::now();
-        $windowTo = Carbon::now()->addYear();
+        [$windowFrom, $windowTo] = GenerateTimeSlots::resolveWindow($scheduleRule->start_at, $scheduleRule->end_at);
 
         dispatch(new GenerateTimeSlots(
             $scheduleRule->resources_id,

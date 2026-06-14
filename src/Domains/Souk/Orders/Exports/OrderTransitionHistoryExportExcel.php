@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Exports;
 
+use Baka\Http\SafeUrlFetcher;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -217,8 +218,8 @@ class OrderTransitionHistoryExportExcel implements FromQuery, WithMapping, WithD
 
             foreach ($this->data['header_info']['logos'] as $index => $logoUrl) {
                 try {
-                    $imageContent = file_get_contents($logoUrl);
-                    if ($imageContent !== false) {
+                    $imageContent = SafeUrlFetcher::fetch($logoUrl);
+                    if ($imageContent !== '') {
                         $tempPath = storage_path('app/temp_logo_' . $index . '.png');
                         file_put_contents($tempPath, $imageContent);
 

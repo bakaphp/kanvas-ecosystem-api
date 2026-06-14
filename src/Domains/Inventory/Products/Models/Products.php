@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Products\Models;
 
 use Awobaz\Compoships\Compoships;
+use Baka\Support\Arr;
 use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
@@ -582,7 +583,78 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 : (string) $value;
         }
 
+        if ($this->isAlgolia()) {
+            $product = $this->fitWithinAlgoliaRecordLimit($product);
+        }
+
         return $product;
+    }
+
+    /**
+     * Algolia rejects any record over 10,000 bytes (and fails the whole batch),
+     * so trim the heaviest fields ONLY when the payload is actually over budget.
+     * Records that already fit are left untouched (variant images included).
+     * Trimming runs least-important first; variant files (images) and product
+     * images are sacrificed last so they survive whenever the record fits. The
+     * dropped detail is re-hydrated from the DB by the search/recommendation
+     * tools anyway.
+     */
+    protected function fitWithinAlgoliaRecordLimit(array $product): array
+    {
+        $limit = 9500; // headroom under Algolia's 10,000-byte hard limit
+
+        if (Arr::sizeInBytes($product) <= $limit) {
+            return $product;
+        }
+
+        $product['custom_fields'] = [];
+        if (Arr::sizeInBytes($product) <= $limit) {
+            return $product;
+        }
+
+        unset($product['translations']);
+        if (Arr::sizeInBytes($product) <= $limit) {
+            return $product;
+        }
+
+        // Warehouse breakdown is internal stock detail, never shown in search.
+        $product['variants'] = $this->stripFromVariants($product['variants'], ['warehouses']);
+        if (Arr::sizeInBytes($product) <= $limit) {
+            return $product;
+        }
+
+        $product['description'] = Str::limit((string) ($product['description'] ?? ''), 500, '');
+        $product['short_description'] = Str::limit((string) ($product['short_description'] ?? ''), 200, '');
+        if (Arr::sizeInBytes($product) <= $limit) {
+            return $product;
+        }
+
+        // Last resort before dropping whole variants: give up variant images.
+        $product['variants'] = $this->stripFromVariants($product['variants'], ['files']);
+        if (Arr::sizeInBytes($product) <= $limit) {
+            return $product;
+        }
+
+        while (! empty($product['variants']) && Arr::sizeInBytes($product) > $limit) {
+            array_pop($product['variants']);
+        }
+
+        return $product;
+    }
+
+    protected function stripFromVariants(mixed $variants, array $keys): array
+    {
+        return collect($variants)
+            ->map(function ($variant) use ($keys) {
+                $variant = (array) $variant;
+                foreach ($keys as $key) {
+                    unset($variant[$key]);
+                }
+
+                return $variant;
+            })
+            ->values()
+            ->all();
     }
 
     public function getAllTranslationsAsString(string $key): string

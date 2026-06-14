@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -35,7 +36,7 @@ class CreateFilesystemAction
         $fileSystem->users_id = $this->user->getKey();
         $fileSystem->path = $uploadPath;
         $fileSystem->url = $uploadUrl;
-        $fileSystem->file_type = $this->file->getClientOriginalExtension() ?: 'unknown';
+        $fileSystem->file_type = $this->resolveFileType();
         $fileSystem->size = $this->file->getSize();
         $fileSystem->saveOrFail();
 
@@ -49,5 +50,34 @@ class CreateFilesystemAction
         $fileSystem->refresh();
 
         return $fileSystem;
+    }
+
+    /**
+     * Resolve the stored file_type. For images — the formats ImageMagick/GD will later decode —
+     * trust the magic bytes so a file claiming a `.heic`/`.png` extension but carrying crafted
+     * content can't steer the decoder (e.g. ConvertHeicToJpgActivity branches on file_type).
+     * For non-image types (docs, csv, zip-based Office formats whose magic bytes are ambiguous)
+     * keep the client extension, which is only used for display.
+     */
+    private function resolveFileType(): string
+    {
+        $clientExtension = strtolower($this->file->getClientOriginalExtension());
+        $realPath = $this->file->getRealPath();
+
+        if ($realPath === false) {
+            return $clientExtension ?: 'unknown';
+        }
+
+        $mimeType = FilesystemServices::detectMimeType($realPath);
+
+        if (! str_starts_with($mimeType, 'image/')) {
+            return $clientExtension ?: 'unknown';
+        }
+
+        $detectedExtension = FilesystemServices::getExtensionFromMimeType($mimeType);
+
+        return $detectedExtension !== 'bin'
+            ? $detectedExtension
+            : ($clientExtension ?: 'unknown');
     }
 }

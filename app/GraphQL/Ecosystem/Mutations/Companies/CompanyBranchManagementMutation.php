@@ -28,7 +28,6 @@ class CompanyBranchManagementMutation
 
     /**
      * createCompaniesBranch
-     *
      */
     public function createCompaniesBranch(mixed $root, array $request): CompaniesBranches
     {
@@ -41,7 +40,6 @@ class CompanyBranchManagementMutation
 
     /**
      * updateCompanyBranch
-     *
      */
     public function updateCompanyBranch(mixed $root, array $request): CompaniesBranches
     {
@@ -81,7 +79,9 @@ class CompanyBranchManagementMutation
 
         $filesystem = new FilesystemServices(app(Apps::class));
         $file = $request['file'];
-        $extension = strtolower($file->getClientOriginalExtension());
+        // Validate by the magic-byte-derived extension, not the client-supplied filename, so a
+        // non-image renamed to .png can't pass the image-only gate.
+        $extension = strtolower((string) $file->extension());
         in_array($extension, AllowedFileExtensionEnum::ONLY_IMAGES->getAllowedExtensions()) ?: throw new Exception('Invalid file format ' . $extension);
 
         $filesystemEntity = $filesystem->upload($file, $user);

@@ -91,6 +91,12 @@ final class AppendToolInstructionsTest extends TestCase
         $this->assertStringContainsString('FMP Company News', $agent->instructions);
         $this->assertStringContainsString('FMP Company Rating', $agent->instructions);
         $this->assertStringContainsString('FMP Financial Ratios', $agent->instructions);
+
+        $this->assertNotNull($agent->tool_usage, 'tool_usage must be populated when tools are assigned.');
+        $this->assertStringNotContainsString('## Tool Usage Guidelines', $agent->tool_usage, 'tool_usage must not contain the section header.');
+        $this->assertStringContainsString('FMP Company Search', $agent->tool_usage);
+        $this->assertStringContainsString('FMP Company Profile', $agent->tool_usage);
+        $this->assertStringContainsString('FMP Financial Ratios', $agent->tool_usage);
     }
 
     public function testToolGuidelinesSectionAppearsExactlyOnce(): void
@@ -141,6 +147,7 @@ final class AppendToolInstructionsTest extends TestCase
 
         $agent = $this->createAgentViaMutation($agentType, ['instructions' => 'My own instructions.']);
         $this->assertStringNotContainsString('## Tool Usage Guidelines', $agent->instructions ?? '');
+        $this->assertNull($agent->tool_usage, 'tool_usage must be null when no tools are assigned.');
 
         new AgentManagementMutation()->update(null, [
             'id' => $agent->getId(),
@@ -154,7 +161,9 @@ final class AppendToolInstructionsTest extends TestCase
             ],
         ]);
 
-        $this->assertStringNotContainsString('## Tool Usage Guidelines', $agent->fresh()->instructions ?? '');
+        $fresh = $agent->fresh();
+        $this->assertStringNotContainsString('## Tool Usage Guidelines', $fresh->instructions ?? '');
+        $this->assertNull($fresh->tool_usage, 'tool_usage must remain null after update without tools.');
     }
 
     public function testUpdateRegeneratesInstructionsWhenNewToolAdded(): void
@@ -300,12 +309,15 @@ final class AppendToolInstructionsTest extends TestCase
             ],
         ]);
 
+        $fresh = $updated->fresh();
         $this->assertStringNotContainsString(
             'FMP Financial Ratios',
-            $updated->fresh()->instructions ?? '',
+            $fresh->instructions ?? '',
             'Removed tool instruction must not appear after update.'
         );
-        $this->assertSame(1, substr_count($updated->fresh()->instructions, '## Tool Usage Guidelines'));
+        $this->assertSame(1, substr_count($fresh->instructions, '## Tool Usage Guidelines'));
+        $this->assertStringNotContainsString('FMP Financial Ratios', $fresh->tool_usage ?? '', 'Removed tool must not appear in tool_usage.');
+        $this->assertStringNotContainsString('## Tool Usage Guidelines', $fresh->tool_usage ?? '', 'tool_usage must not contain the section header.');
     }
 
     public function testAgentTypeInstructionsUsedAsBaseWhenAgentHasNone(): void
@@ -380,5 +392,10 @@ final class AppendToolInstructionsTest extends TestCase
         $this->assertStringContainsString('FMP Company Search', $fresh->instructions, 'Previously assigned tool instruction must be preserved.');
         $this->assertStringContainsString('Analyze corporate distress events.', $fresh->instructions, 'Custom base instructions must be preserved when tool_ids is updated without passing instructions.');
         $this->assertSame(1, substr_count($fresh->instructions, '## Tool Usage Guidelines'), 'Tool guidelines section must appear exactly once.');
+
+        $this->assertNotNull($fresh->tool_usage, 'tool_usage must be populated after adding tools.');
+        $this->assertStringContainsString('FMP Financial Snapshot', $fresh->tool_usage, 'tool_usage must contain the new tool.');
+        $this->assertStringContainsString('FMP Company Search', $fresh->tool_usage, 'tool_usage must contain the previously assigned tool.');
+        $this->assertStringNotContainsString('## Tool Usage Guidelines', $fresh->tool_usage, 'tool_usage must not contain the section header.');
     }
 }

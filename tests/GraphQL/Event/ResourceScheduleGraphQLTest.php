@@ -7,7 +7,10 @@ namespace Tests\GraphQL\Event;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Event\Events\Jobs\GenerateTimeSlots;
 use Kanvas\Event\Events\Models\ScheduleException;
+use Kanvas\Event\Events\Models\ScheduleRules;
+use Kanvas\Event\Events\Models\TimeSlots;
 use Kanvas\Event\Support\Setup;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
@@ -109,6 +112,143 @@ class ResourceScheduleGraphQLTest extends TestCase
         $this->assertEquals('WEEKLY', $data['schedule_type']);
         $this->assertEquals(3, $data['days_count']);
         $this->assertCount(7, $data['days']);
+    }
+
+    public function testSetResourceScheduleSkipsGenerationWhenFlagFalse(): void
+    {
+        Queue::fake();
+
+        $input = [
+            'resources_id' => $this->product->getId(),
+            'resources_type' => 'product',
+            'schedule_type' => 'WEEKLY',
+            'generate_slots' => false,
+            'days' => [
+                ['day' => 'monday', 'active' => true, 'open' => '08:00', 'close' => '18:00'],
+                ['day' => 'tuesday', 'active' => false],
+                ['day' => 'wednesday', 'active' => false],
+                ['day' => 'thursday', 'active' => false],
+                ['day' => 'friday', 'active' => false],
+                ['day' => 'saturday', 'active' => false],
+                ['day' => 'sunday', 'active' => false],
+            ],
+        ];
+
+        $this->graphQL('
+            mutation setResourceSchedule($input: ResourceScheduleInput!) {
+                setResourceSchedule(input: $input) { is_configured days_count }
+            }
+        ', ['input' => $input])
+            ->assertSuccessful()
+            ->assertJson(['data' => ['setResourceSchedule' => ['is_configured' => true]]]);
+
+        // The schedule rule is persisted, but no slot generation is dispatched.
+        $this->assertDatabaseHas('schedule_rules', [
+            'resources_id' => $this->product->getId(),
+            'operation_day' => 'monday',
+            'is_deleted' => 0,
+        ], 'event');
+        Queue::assertNotPushed(GenerateTimeSlots::class);
+    }
+
+    public function testGenerateSlotsFalseStillClearsUpcomingSlots(): void
+    {
+        Queue::fake();
+
+        $baseInput = [
+            'resources_id' => $this->product->getId(),
+            'resources_type' => 'product',
+            'schedule_type' => 'WEEKLY',
+            'slot_duration_min' => 60,
+            'days' => [
+                ['day' => 'monday', 'active' => true, 'open' => '08:00', 'close' => '18:00'],
+                ['day' => 'tuesday', 'active' => false],
+                ['day' => 'wednesday', 'active' => false],
+                ['day' => 'thursday', 'active' => false],
+                ['day' => 'friday', 'active' => false],
+                ['day' => 'saturday', 'active' => false],
+                ['day' => 'sunday', 'active' => false],
+            ],
+        ];
+
+        $this->graphQL('
+            mutation setResourceSchedule($input: ResourceScheduleInput!) {
+                setResourceSchedule(input: $input) { is_configured }
+            }
+        ', ['input' => $baseInput])->assertSuccessful();
+
+        $rule = ScheduleRules::withoutGlobalScopes()
+            ->where('resources_id', $this->product->getId())
+            ->where('resources_type', $this->product->getMorphClass())
+            ->where('operation_day', 'monday')
+            ->firstOrFail();
+
+        $slot = TimeSlots::create([
+            'apps_id' => $this->apps->getId(),
+            'companies_id' => $this->company->getId(),
+            'resources_id' => $this->product->getId(),
+            'resources_type' => $this->product->getMorphClass(),
+            'schedule_rules_id' => $rule->id,
+            'start_at' => now()->addDays(3),
+            'end_at' => now()->addDays(3)->addHour(),
+            'initial_capacity' => 5,
+        ]);
+
+        // Reset recorded jobs so the assertion targets only the config-only re-set below.
+        Queue::fake();
+
+        // Re-set with a changed slot duration (triggers the rule change) and generation off.
+        $changedInput = $baseInput;
+        $changedInput['slot_duration_min'] = 30;
+        $changedInput['generate_slots'] = false;
+
+        $this->graphQL('
+            mutation setResourceSchedule($input: ResourceScheduleInput!) {
+                setResourceSchedule(input: $input) { is_configured }
+            }
+        ', ['input' => $changedInput])->assertSuccessful();
+
+        // Upcoming slots are cleared even though no new ones are generated.
+        $this->assertDatabaseMissing('time_slots', ['id' => $slot->id], 'event');
+        Queue::assertNotPushed(GenerateTimeSlots::class);
+    }
+
+    public function testSetResourceScheduleRespectsStartAndEndDates(): void
+    {
+        Queue::fake();
+
+        $start = now()->addWeek();
+        $end = now()->addMonth();
+
+        $input = [
+            'resources_id' => $this->product->getId(),
+            'resources_type' => 'product',
+            'schedule_type' => 'WEEKLY',
+            'start_at' => $start->format('Y-m-d'),
+            'end_at' => $end->format('Y-m-d'),
+            'days' => [
+                ['day' => 'monday', 'active' => true, 'open' => '08:00', 'close' => '18:00'],
+                ['day' => 'tuesday', 'active' => false],
+                ['day' => 'wednesday', 'active' => false],
+                ['day' => 'thursday', 'active' => false],
+                ['day' => 'friday', 'active' => false],
+                ['day' => 'saturday', 'active' => false],
+                ['day' => 'sunday', 'active' => false],
+            ],
+        ];
+
+        $this->graphQL('
+            mutation setResourceSchedule($input: ResourceScheduleInput!) {
+                setResourceSchedule(input: $input) { is_configured }
+            }
+        ', ['input' => $input])->assertSuccessful();
+
+        // Future start_at bounds the generation window (not now()), and end_at caps it (not +1yr).
+        Queue::assertPushed(
+            GenerateTimeSlots::class,
+            fn ($job) => $job->windowFrom->format('Y-m-d') === $start->format('Y-m-d')
+                && $job->windowTo->format('Y-m-d') === $end->format('Y-m-d')
+        );
     }
 
     public function testQueryResourceSchedule(): void
