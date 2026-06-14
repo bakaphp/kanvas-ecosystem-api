@@ -45,7 +45,7 @@ return new class () extends Migration {
             $table->enum('status', ['pending', 'active', 'reversed'])->default('active');
 
             $table->decimal('amount_native', 18, 4);
-            $table->decimal('amount_base',   18, 4);
+            $table->decimal('amount_base', 18, 4);
             $table->string('currency', 3);
             $table->decimal('fx_rate_to_base', 20, 10);
             $table->timestamp('fx_rate_at')->nullable();

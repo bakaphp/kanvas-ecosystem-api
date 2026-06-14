@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Ledger\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\KanvasAppScopesTrait;
+use Baka\Traits\KanvasCompanyScopesTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -39,6 +41,8 @@ use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
  */
 class JournalEntry extends EloquentModel
 {
+    use KanvasAppScopesTrait;
+    use KanvasCompanyScopesTrait;
     use UuidTrait;
 
     protected $connection = 'accounting';

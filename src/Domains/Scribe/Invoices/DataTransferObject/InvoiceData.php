@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Invoices\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Baka\Contracts\BillableInterface;
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;

@@ -1,0 +1,204 @@
+"Scribe.Ledger — Chart of Accounts, JournalEntries, FiscalPeriods, DocumentSequences, FxRates."
+enum ScribeAccountType {
+    ASSET @enum(value: "asset")
+    LIABILITY @enum(value: "liability")
+    EQUITY @enum(value: "equity")
+    REVENUE @enum(value: "revenue")
+    EXPENSE @enum(value: "expense")
+    COGS @enum(value: "cogs")
+    OTHER_INCOME @enum(value: "other_income")
+    OTHER_EXPENSE @enum(value: "other_expense")
+}
+
+enum ScribeFiscalPeriodStatus {
+    OPEN @enum(value: "open")
+    SOFT_CLOSED @enum(value: "soft_closed")
+    HARD_CLOSED @enum(value: "hard_closed")
+}
+
+enum ScribeJournalEntryStatus {
+    DRAFT @enum(value: "draft")
+    POSTED @enum(value: "posted")
+    REVERSED @enum(value: "reversed")
+}
+
+enum ScribeJournalEntryOrigin {
+    EXTERNAL @enum(value: "external")
+    KANVAS @enum(value: "kanvas")
+}
+
+type ScribeAccount {
+    id: ID!
+    uuid: String!
+    account_number: String
+    name: String!
+    description: String
+    account_type: ScribeAccountType!
+    account_sub_type: String
+    parent_account_id: Int
+    currency: String!
+    is_active: Boolean!
+    is_system: Boolean!
+    source: String
+    external_id: String
+    metadata: Mixed
+    company: Company! @belongsTo(relation: "company")
+    user: User @belongsTo(relation: "user")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type ScribeFiscalPeriod {
+    id: ID!
+    period_start: Date!
+    period_end: Date!
+    status: ScribeFiscalPeriodStatus!
+    closed_at: DateTime
+    closed_by_users_id: Int
+    company: Company! @belongsTo(relation: "company")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type ScribeJournalEntry {
+    id: ID!
+    uuid: String!
+    je_number: String
+    posted_at: DateTime!
+    source_type: String!
+    source_id: Int
+    source_external_id: String
+    memo: String
+    status: ScribeJournalEntryStatus!
+    is_adjustment: Boolean!
+    is_reversal_of: Int
+    source: String!
+    external_id: String
+    origin: ScribeJournalEntryOrigin!
+    metadata: Mixed
+    company: Company! @belongsTo(relation: "company")
+    user: User @belongsTo(relation: "user")
+    lines: [ScribeJournalEntryLine!]! @hasMany(relation: "lines")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type ScribeJournalEntryLine {
+    id: ID!
+    sort_order: Int!
+    account: ScribeAccount! @belongsTo(relation: "account")
+    debit_native: Float!
+    credit_native: Float!
+    debit_base: Float!
+    credit_base: Float!
+    currency: String!
+    fx_rate_to_base: Float!
+    customer_billable_type: String
+    customer_billable_id: Int
+    vendor_billable_type: String
+    vendor_billable_id: Int
+    item_id: Int
+    class_id: Int
+    department_id: Int
+    memo: String
+    metadata: Mixed
+}
+
+type ScribeDocumentSequence {
+    id: ID!
+    document_type: String!
+    prefix: String
+    next_value: Int!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type ScribeFxRate {
+    id: ID!
+    base_currency: String!
+    quote_currency: String!
+    rate: Float!
+    rate_date: Date!
+    source: String
+    metadata: Mixed
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+extend type Query @guard {
+    scribeAccounts(
+        where: _
+            @whereConditions(
+                columns: [
+                    "account_number"
+                    "name"
+                    "account_type"
+                    "account_sub_type"
+                    "currency"
+                    "is_active"
+                    "is_system"
+                ]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "account_number", "name", "created_at"])
+    ): [ScribeAccount!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\Ledger\\Models\\Account"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 50
+        )
+
+    scribeFiscalPeriods(
+        where: _
+            @whereConditions(columns: ["status", "period_start", "period_end"])
+        orderBy: _ @orderBy(columns: ["period_start", "period_end"])
+    ): [ScribeFiscalPeriod!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\Ledger\\Models\\FiscalPeriod"
+            scopes: ["fromApp", "fromCompany"]
+            defaultCount: 25
+        )
+
+    scribeJournalEntries(
+        where: _
+            @whereConditions(
+                columns: [
+                    "je_number"
+                    "source_type"
+                    "source_id"
+                    "status"
+                    "is_adjustment"
+                    "origin"
+                    "posted_at"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["posted_at", "id", "je_number"])
+    ): [ScribeJournalEntry!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\Ledger\\Models\\JournalEntry"
+            scopes: ["fromApp", "fromCompany"]
+            defaultCount: 50
+        )
+
+    scribeDocumentSequences(
+        where: _ @whereConditions(columns: ["document_type", "prefix"])
+    ): [ScribeDocumentSequence!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\DocumentSequences\\Models\\DocumentSequence"
+            scopes: ["fromApp", "fromCompany"]
+            defaultCount: 25
+        )
+
+    scribeFxRates(
+        where: _
+            @whereConditions(
+                columns: ["base_currency", "quote_currency", "rate_date"]
+            )
+        orderBy: _ @orderBy(columns: ["rate_date", "id"])
+    ): [ScribeFxRate!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\FxRates\\Models\\FxRate"
+            scopes: ["fromApp"]
+            defaultCount: 50
+        )
+}

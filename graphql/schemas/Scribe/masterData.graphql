@@ -1,0 +1,95 @@
+"Scribe master data — Items, Tax Codes/Rates, Payment Terms."
+type ScribeItem {
+    id: ID!
+    uuid: String!
+    sku: String
+    name: String!
+    description: String
+    item_type: String
+    income_account_id: Int
+    expense_account_id: Int
+    cogs_account_id: Int
+    inventory_variant_id: Int
+    default_unit_price: Float
+    default_tax_code_id: Int
+    is_active: Boolean!
+    source: String
+    external_id: String
+    metadata: Mixed
+    company: Company! @belongsTo(relation: "company")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type ScribeTaxCode {
+    id: ID!
+    code: String!
+    name: String!
+    description: String
+    country_code: String
+    is_active: Boolean!
+    source: String
+    external_id: String
+    metadata: Mixed
+    company: Company! @belongsTo(relation: "company")
+    rates: [ScribeTaxRate!]! @hasMany(relation: "rates")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type ScribeTaxRate {
+    id: ID!
+    name: String!
+    rate: Float!
+    jurisdiction: String
+    effective_from: Date
+    effective_to: Date
+    metadata: Mixed
+    created_at: DateTime!
+}
+
+type ScribePaymentTerm {
+    id: ID!
+    name: String!
+    net_days: Int!
+    discount_days: Int
+    discount_percent: Float
+    is_active: Boolean!
+    company: Company! @belongsTo(relation: "company")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+extend type Query @guard {
+    scribeItems(
+        where: _
+            @whereConditions(columns: ["sku", "name", "item_type", "is_active"])
+        orderBy: _ @orderBy(columns: ["name", "sku", "created_at"])
+    ): [ScribeItem!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\Items\\Models\\Item"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 50
+        )
+
+    scribeTaxCodes(
+        where: _
+            @whereConditions(
+                columns: ["code", "name", "country_code", "is_active"]
+            )
+    ): [ScribeTaxCode!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\TaxCodes\\Models\\TaxCode"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+
+    scribePaymentTerms(
+        where: _ @whereConditions(columns: ["name", "net_days", "is_active"])
+    ): [ScribePaymentTerm!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\PaymentTerms\\Models\\PaymentTerm"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+}

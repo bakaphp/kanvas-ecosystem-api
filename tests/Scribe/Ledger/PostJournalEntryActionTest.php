@@ -56,7 +56,7 @@ class PostJournalEntryActionTest extends TestCase
         $seeder = new ChartOfAccountsSeederService();
         $seeder->seedUsDefault($this->kanvasApp->getId(), $this->company->getId());
 
-        $this->arAccountId      = $this->accountIdBySubType(AccountSubTypeEnum::ACCOUNTS_RECEIVABLE);
+        $this->arAccountId = $this->accountIdBySubType(AccountSubTypeEnum::ACCOUNTS_RECEIVABLE);
         $this->revenueAccountId = $this->accountIdBySubType(AccountSubTypeEnum::SERVICE_REVENUE);
 
         FiscalPeriod::create([
@@ -88,7 +88,7 @@ class PostJournalEntryActionTest extends TestCase
         $this->assertSame('posted', $je->status->value);
         $this->assertCount(2, $je->lines, 'JE should have 2 lines after posting.');
 
-        $totalDebit  = $je->lines->sum('debit_base');
+        $totalDebit = $je->lines->sum('debit_base');
         $totalCredit = $je->lines->sum('credit_base');
         $this->assertEquals($totalDebit, $totalCredit, 'Debit base sum equals credit base sum.');
 

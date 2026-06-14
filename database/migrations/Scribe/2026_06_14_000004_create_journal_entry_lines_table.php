@@ -16,10 +16,10 @@ return new class () extends Migration {
             $table->unsignedBigInteger('account_id');
             $table->unsignedSmallInteger('sort_order')->default(0);
 
-            $table->decimal('debit_native',  18, 4)->default(0);
+            $table->decimal('debit_native', 18, 4)->default(0);
             $table->decimal('credit_native', 18, 4)->default(0);
-            $table->decimal('debit_base',    18, 4)->default(0);
-            $table->decimal('credit_base',   18, 4)->default(0);
+            $table->decimal('debit_base', 18, 4)->default(0);
+            $table->decimal('credit_base', 18, 4)->default(0);
 
             $table->string('currency', 3);
             $table->decimal('fx_rate_to_base', 20, 10);

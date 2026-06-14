@@ -26,7 +26,7 @@ return new class () extends Migration {
             $table->string('jurisdiction', 32)->nullable();
 
             $table->decimal('tax_amount_native', 18, 4)->default(0);
-            $table->decimal('tax_amount_base',   18, 4)->default(0);
+            $table->decimal('tax_amount_base', 18, 4)->default(0);
 
             $table->json('metadata')->nullable();
             $table->timestamps();

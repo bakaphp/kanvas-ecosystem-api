@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\DocumentSequences\Models;
 
+use Baka\Traits\KanvasAppScopesTrait;
+use Baka\Traits\KanvasCompanyScopesTrait;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum;
 
@@ -23,6 +25,9 @@ use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum;
  */
 class DocumentSequence extends EloquentModel
 {
+    use KanvasAppScopesTrait;
+    use KanvasCompanyScopesTrait;
+
     protected $connection = 'accounting';
     protected $table = 'document_sequences';
     protected $guarded = [];

@@ -1,0 +1,178 @@
+"Scribe.Quotes — pre-economic-event documents that can convert into invoices."
+enum ScribeQuoteStatus {
+    DRAFT @enum(value: "draft")
+    SENT @enum(value: "sent")
+    ACCEPTED @enum(value: "accepted")
+    REJECTED @enum(value: "rejected")
+    EXPIRED @enum(value: "expired")
+    CONVERTED @enum(value: "converted")
+    SUPERSEDED @enum(value: "superseded")
+}
+
+type ScribeQuote {
+    id: ID!
+    uuid: String!
+    quote_number: String
+    billable_type: String
+    billable_id: Int
+    billable_display_name: String
+    billable_legal_name: String
+    billable_email: String
+    status: ScribeQuoteStatus!
+    issued_date: Date
+    valid_until: Date
+    sent_at: DateTime
+    accepted_at: DateTime
+    rejected_at: DateTime
+    expired_at: DateTime
+    converted_at: DateTime
+    converted_to_invoice_id: Int
+    parent_quote_id: Int
+    superseded_by_quote_id: Int
+    currency: String!
+    fx_rate_to_base: Float!
+    subtotal_native: Float!
+    tax_native: Float!
+    discount_native: Float!
+    total_native: Float!
+    subtotal_base: Float!
+    tax_base: Float!
+    discount_base: Float!
+    total_base: Float!
+    regional_compliance: Mixed
+    notes: String
+    internal_notes: String
+    terms: String
+    source: String!
+    external_id: String
+    origin: ScribeJournalEntryOrigin!
+    metadata: Mixed
+    company: Company! @belongsTo(relation: "company")
+    user: User @belongsTo(relation: "user")
+    lines: [ScribeQuoteLine!]! @hasMany(relation: "lines")
+    parent_quote: ScribeQuote @belongsTo(relation: "parentQuote")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type ScribeQuoteLine {
+    id: ID!
+    sort_order: Int!
+    item_id: Int
+    description: String
+    quantity: Float!
+    unit_price_native: Float!
+    discount_amount_native: Float!
+    tax_amount_native: Float!
+    line_total_native: Float!
+    unit_price_base: Float!
+    discount_amount_base: Float!
+    tax_amount_base: Float!
+    line_total_base: Float!
+    discount_rate: Float
+    tax_rate: Float
+    revenue_account_id: Int
+    tax_code_id: Int
+    class_id: Int
+    department_id: Int
+    metadata: Mixed
+}
+
+input ScribeQuoteLineInput {
+    description: String
+    quantity: Float
+    unit_price_native: Float!
+    discount_amount_native: Float
+    discount_rate: Float
+    tax_amount_native: Float
+    tax_rate: Float
+    item_id: Int
+    tax_code_id: Int
+    revenue_account_id: Int
+    class_id: Int
+    department_id: Int
+    sort_order: Int
+    metadata: Mixed
+}
+
+input ScribeQuoteInput {
+    billable_type: String
+    billable_id: Int
+    issued_date: Date
+    valid_until: Date
+    currency: String!
+    fx_rate_to_base: Float
+    quote_number: String
+    parent_quote_id: Int
+    notes: String
+    internal_notes: String
+    terms: String
+    regional_compliance: Mixed
+    metadata: Mixed
+    lines: [ScribeQuoteLineInput!]!
+}
+
+extend type Query @guard {
+    scribeQuotes(
+        where: _
+            @whereConditions(
+                columns: [
+                    "quote_number"
+                    "status"
+                    "currency"
+                    "billable_type"
+                    "billable_id"
+                    "issued_date"
+                    "valid_until"
+                    "source"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "quote_number"
+                    "issued_date"
+                    "valid_until"
+                    "total_base"
+                    "created_at"
+                ]
+            )
+    ): [ScribeQuote!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\Quotes\\Models\\Quote"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 50
+        )
+}
+
+extend type Mutation @guard {
+    createScribeQuote(input: ScribeQuoteInput!): ScribeQuote!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Quotes\\QuoteMutation@create"
+        )
+    sendScribeQuote(id: ID!): ScribeQuote!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Quotes\\QuoteMutation@send"
+        )
+    acceptScribeQuote(id: ID!): ScribeQuote!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Quotes\\QuoteMutation@accept"
+        )
+    rejectScribeQuote(id: ID!, reason: String): ScribeQuote!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Quotes\\QuoteMutation@reject"
+        )
+    expireScribeQuote(id: ID!): ScribeQuote!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Quotes\\QuoteMutation@expire"
+        )
+    createScribeQuoteRevision(id: ID!, input: ScribeQuoteInput!): ScribeQuote!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Quotes\\QuoteMutation@createRevision"
+        )
+    convertScribeQuoteToInvoice(id: ID!): ScribeInvoice!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Quotes\\QuoteMutation@convertToInvoice"
+        )
+}

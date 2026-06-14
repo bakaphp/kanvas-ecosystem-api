@@ -18,9 +18,9 @@ return new class () extends Migration {
             $table->text('description')->nullable();
 
             $table->decimal('amount_native', 18, 4);
-            $table->decimal('amount_base',   18, 4);
+            $table->decimal('amount_base', 18, 4);
             $table->decimal('tax_amount_native', 18, 4)->default(0);
-            $table->decimal('tax_amount_base',   18, 4)->default(0);
+            $table->decimal('tax_amount_base', 18, 4)->default(0);
 
             // Which P&L expense account this line debits. NOT nullable — every expense line must hit some
             // expense account to balance the credit side (Cash / CC / Due to Employees / Bank).

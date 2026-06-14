@@ -105,7 +105,7 @@ class DocumentNumberAllocatorTest extends TestCase
 
         $inv1 = $allocator->allocate(self::APPS_ID, self::MCDR_COMPANY_ID, DocumentTypeEnum::INVOICE, 'INV-');
         $inv2 = $allocator->allocate(self::APPS_ID, self::MCDR_COMPANY_ID, DocumentTypeEnum::INVOICE, 'INV-');
-        $qte1 = $allocator->allocate(self::APPS_ID, self::MCDR_COMPANY_ID, DocumentTypeEnum::QUOTE,   'QTE-');
+        $qte1 = $allocator->allocate(self::APPS_ID, self::MCDR_COMPANY_ID, DocumentTypeEnum::QUOTE, 'QTE-');
         $crn1 = $allocator->allocate(self::APPS_ID, self::MCDR_COMPANY_ID, DocumentTypeEnum::CREDIT_NOTE, 'CRN-');
 
         $this->assertSame('INV-1', $inv1);

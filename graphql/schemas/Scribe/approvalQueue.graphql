@@ -1,0 +1,51 @@
+"Scribe.Approvals — durable approval queue rows (Cut B: expense approvals only)."
+enum ScribeApprovalQueueStatus {
+    PENDING @enum(value: "pending")
+    APPROVED @enum(value: "approved")
+    REJECTED @enum(value: "rejected")
+    EXPIRED @enum(value: "expired")
+}
+
+type ScribeApprovalQueueItem {
+    id: ID!
+    uuid: String!
+    requested_by_agent_id: Int
+    requested_by_users_id: Int
+    action_type: String!
+    target_type: String!
+    target_id: Int!
+    payload: Mixed
+    status: ScribeApprovalQueueStatus!
+    approved_by_users_id: Int
+    approved_at: DateTime
+    reason: String
+    expires_at: DateTime
+    nervous_system_plan_id: Int
+    nervous_system_task_id: Int
+    metadata: Mixed
+    company: Company! @belongsTo(relation: "company")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+extend type Query @guard {
+    scribeApprovalQueue(
+        where: _
+            @whereConditions(
+                columns: [
+                    "action_type"
+                    "target_type"
+                    "target_id"
+                    "status"
+                    "requested_by_users_id"
+                ]
+            )
+        orderBy: _
+            @orderBy(columns: ["created_at", "expires_at", "approved_at"])
+    ): [ScribeApprovalQueueItem!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\Approvals\\Models\\ApprovalQueueItem"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 50
+        )
+}

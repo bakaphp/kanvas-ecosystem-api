@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\SalesReceipts\Services;
 
-use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryData;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLineData;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;

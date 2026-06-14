@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\FxRates\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\KanvasAppScopesTrait;
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 
 /**
@@ -23,6 +25,9 @@ use Illuminate\Database\Eloquent\Model as EloquentModel;
  */
 class FxRate extends EloquentModel
 {
+    use KanvasAppScopesTrait;
+    use NoCompanyRelationshipTrait;
+
     protected $connection = 'accounting';
     protected $table = 'fx_rates';
     protected $guarded = [];

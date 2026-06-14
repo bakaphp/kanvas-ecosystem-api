@@ -62,13 +62,13 @@ return new class () extends Migration {
 
             // Native amounts
             $table->decimal('subtotal_native', 18, 4)->default(0);
-            $table->decimal('tax_native',      18, 4)->default(0);
-            $table->decimal('total_native',    18, 4)->default(0);
+            $table->decimal('tax_native', 18, 4)->default(0);
+            $table->decimal('total_native', 18, 4)->default(0);
 
             // Base amounts
             $table->decimal('subtotal_base', 18, 4)->default(0);
-            $table->decimal('tax_base',      18, 4)->default(0);
-            $table->decimal('total_base',    18, 4)->default(0);
+            $table->decimal('tax_base', 18, 4)->default(0);
+            $table->decimal('total_base', 18, 4)->default(0);
 
             $table->json('tax_metadata')->nullable();
             $table->json('regional_compliance')->nullable();

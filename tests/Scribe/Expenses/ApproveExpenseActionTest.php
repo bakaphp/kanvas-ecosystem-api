@@ -80,8 +80,11 @@ class ApproveExpenseActionTest extends TestCase
         // State
         $this->assertSame(ExpenseStatusEnum::APPROVED, $approved->status);
         $this->assertSame('1', $approved->expense_number, 'Number allocated on approval.');
-        $this->assertSame(ExpenseReimbursementStatusEnum::APPROVED, $approved->reimbursement_status,
-            'Employee-paid expense reimbursement_status flips PENDING → APPROVED on approval.');
+        $this->assertSame(
+            ExpenseReimbursementStatusEnum::APPROVED,
+            $approved->reimbursement_status,
+            'Employee-paid expense reimbursement_status flips PENDING → APPROVED on approval.'
+        );
 
         // JE shape: DR Travel & Meals $500 / CR Due to Employees $500
         $je = JournalEntry::query()
@@ -106,8 +109,11 @@ class ApproveExpenseActionTest extends TestCase
         $creditLine = $je->lines->firstWhere('account_id', $dueToEmployeesId);
         $this->assertNotNull($creditLine, 'CR Due to Employees line.');
         $this->assertEquals(500.0, (float) $creditLine->credit_native);
-        $this->assertSame('users', $creditLine->vendor_billable_type,
-            'Credit line tagged with vendor_billable_type=users for sub-ledger by user.');
+        $this->assertSame(
+            'users',
+            $creditLine->vendor_billable_type,
+            'Credit line tagged with vendor_billable_type=users for sub-ledger by user.'
+        );
         $this->assertEquals(static::$cachedUser->getId(), $creditLine->vendor_billable_id);
 
         // Approval queue item closed as APPROVED
@@ -134,8 +140,11 @@ class ApproveExpenseActionTest extends TestCase
             approver: static::$cachedUser,
         )->execute();
 
-        $this->assertSame(ExpenseReimbursementStatusEnum::NOT_APPLICABLE, $approved->reimbursement_status,
-            'Company-card expenses never generate a reimbursement obligation.');
+        $this->assertSame(
+            ExpenseReimbursementStatusEnum::NOT_APPLICABLE,
+            $approved->reimbursement_status,
+            'Company-card expenses never generate a reimbursement obligation.'
+        );
 
         $je = JournalEntry::query()
             ->where('source_type', 'expense')

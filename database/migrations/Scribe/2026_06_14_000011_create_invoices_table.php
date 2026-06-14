@@ -56,20 +56,20 @@ return new class () extends Migration {
             $table->timestamp('fx_rate_at')->nullable();
 
             // Native amounts (DECIMAL(18,4))
-            $table->decimal('subtotal_native',     18, 4)->default(0);
-            $table->decimal('tax_native',          18, 4)->default(0);
-            $table->decimal('discount_native',     18, 4)->default(0);
-            $table->decimal('total_native',        18, 4)->default(0);
-            $table->decimal('paid_native',         18, 4)->default(0);
-            $table->decimal('balance_due_native',  18, 4)->default(0);
+            $table->decimal('subtotal_native', 18, 4)->default(0);
+            $table->decimal('tax_native', 18, 4)->default(0);
+            $table->decimal('discount_native', 18, 4)->default(0);
+            $table->decimal('total_native', 18, 4)->default(0);
+            $table->decimal('paid_native', 18, 4)->default(0);
+            $table->decimal('balance_due_native', 18, 4)->default(0);
 
             // Base amounts (DECIMAL(18,4))
-            $table->decimal('subtotal_base',     18, 4)->default(0);
-            $table->decimal('tax_base',          18, 4)->default(0);
-            $table->decimal('discount_base',     18, 4)->default(0);
-            $table->decimal('total_base',        18, 4)->default(0);
-            $table->decimal('paid_base',         18, 4)->default(0);
-            $table->decimal('balance_due_base',  18, 4)->default(0);
+            $table->decimal('subtotal_base', 18, 4)->default(0);
+            $table->decimal('tax_base', 18, 4)->default(0);
+            $table->decimal('discount_base', 18, 4)->default(0);
+            $table->decimal('total_base', 18, 4)->default(0);
+            $table->decimal('paid_base', 18, 4)->default(0);
+            $table->decimal('balance_due_base', 18, 4)->default(0);
 
             $table->json('tax_metadata')->nullable();              // verbatim external tax fields
             $table->json('regional_compliance')->nullable();       // NCF/CFDI/NFE — validated by per-region validator

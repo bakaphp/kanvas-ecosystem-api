@@ -20,15 +20,15 @@ return new class () extends Migration {
             $table->decimal('quantity', 18, 4)->default(1);
 
             // Per-line dual-stored amounts (Round-4 #10)
-            $table->decimal('unit_price_native',      18, 4)->default(0);
+            $table->decimal('unit_price_native', 18, 4)->default(0);
             $table->decimal('discount_amount_native', 18, 4)->default(0);
-            $table->decimal('tax_amount_native',      18, 4)->default(0);
-            $table->decimal('line_total_native',      18, 4)->default(0);
+            $table->decimal('tax_amount_native', 18, 4)->default(0);
+            $table->decimal('line_total_native', 18, 4)->default(0);
 
-            $table->decimal('unit_price_base',      18, 4)->default(0);
+            $table->decimal('unit_price_base', 18, 4)->default(0);
             $table->decimal('discount_amount_base', 18, 4)->default(0);
-            $table->decimal('tax_amount_base',      18, 4)->default(0);
-            $table->decimal('line_total_base',      18, 4)->default(0);
+            $table->decimal('tax_amount_base', 18, 4)->default(0);
+            $table->decimal('line_total_base', 18, 4)->default(0);
 
             $table->decimal('discount_rate', 5, 4)->nullable();     // Round-6 M6 — percentage discount
             $table->decimal('tax_rate', 10, 6)->nullable();
