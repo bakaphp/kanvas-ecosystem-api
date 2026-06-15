@@ -9,18 +9,30 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Scribe\Expenses\Actions\ApproveExpenseAction;
+use Kanvas\Scribe\Expenses\Actions\CreateExpenseAction;
+use Kanvas\Scribe\Expenses\Actions\SubmitExpenseForApprovalAction;
+use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseData;
+use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseLineData;
+use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
+use Kanvas\Scribe\Expenses\Models\Expense;
+use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
+use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
+use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceData;
+use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLineData;
+use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\FiscalPeriod;
 use Kanvas\Scribe\Ledger\Services\ChartOfAccountsSeederService;
+use Spatie\LaravelData\DataCollection;
+use Tests\Scribe\Invoices\Stubs\StubBillable;
 use Tests\TestCase;
 
 /**
  * Shared setup for every Scribe test class. Seeds the chart of accounts + an OPEN fiscal period
  * covering June 2026, and provides the helpers every test reaches for.
- *
- * Eliminates the ~30-line setUp() + helper duplication that piled up across PR 1-10 test files.
  *
  * Extend this instead of TestCase when the test touches Scribe data.
  */
@@ -28,7 +40,12 @@ abstract class ScribeTestCase extends TestCase
 {
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'accounting'];
+    /**
+     * `intelligence` is included so the NervousSystem ledger events emitted by Scribe Actions
+     * (via EmitsLedgerEventsForEntity) get rolled back at the end of each test — otherwise
+     * stale `nervous_system_events` rows leak across tests.
+     */
+    protected array $connectionsToTransact = ['mysql', 'accounting', 'intelligence'];
 
     protected Apps $kanvasApp;
     protected Companies $company;
@@ -134,5 +151,88 @@ abstract class ScribeTestCase extends TestCase
     protected function fiscalPeriodEnd(): string
     {
         return '2026-06-30';
+    }
+
+    // ───────────────────── shared E2E flow helpers ─────────────────────
+
+    /**
+     * Issue a one-line invoice end-to-end (Create → Issue). Used by the cross-flow E2E tests
+     * that need a "real" invoice on the books to exercise downstream reports / payments.
+     */
+    protected function issueTestInvoice(
+        StubBillable $billable,
+        float $subtotal,
+        float $tax = 0.0,
+        string $issuedDate = '2026-06-15',
+        string $dueDate = '2026-07-15',
+    ): Invoice {
+        $draft = new CreateInvoiceAction(
+            data: new InvoiceData(
+                app: $this->kanvasApp,
+                company: $this->company,
+                billable: $billable,
+                lines: new DataCollection(InvoiceLineData::class, [
+                    new InvoiceLineData(
+                        description: 'Test service',
+                        quantity: 1,
+                        unit_price_native: $subtotal,
+                        tax_amount_native: $tax,
+                    ),
+                ]),
+                currency: 'USD',
+                fx_rate_to_base: 1.0,
+                issued_date: Carbon::parse($issuedDate),
+                due_date: Carbon::parse($dueDate),
+            ),
+            user: static::$cachedUser,
+        )->execute();
+
+        return new IssueInvoiceAction(
+            invoice: $draft,
+            billable: $billable,
+            user: static::$cachedUser,
+        )->execute();
+    }
+
+    /**
+     * Submit + approve a one-line Expense end-to-end. The line lands on Travel & Meals (the
+     * seeded sub-type) so reports pick it up under operating expenses.
+     */
+    protected function approveTestExpense(
+        float $amount,
+        ExpensePaidByEnum $paidBy = ExpensePaidByEnum::COMPANY_CARD,
+        ?int $paidByUsersId = null,
+    ): Expense {
+        $travelAccountId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
+
+        $draft = new CreateExpenseAction(
+            data: new ExpenseData(
+                app: $this->kanvasApp,
+                company: $this->company,
+                lines: new DataCollection(ExpenseLineData::class, [
+                    new ExpenseLineData(
+                        description: 'Test expense line',
+                        amount_native: $amount,
+                        expense_account_id: $travelAccountId,
+                    ),
+                ]),
+                expense_date: Carbon::parse('2026-06-15'),
+                currency: 'USD',
+                fx_rate_to_base: 1.0,
+                paid_by: $paidBy,
+                paid_by_users_id: $paidByUsersId,
+            ),
+            user: static::$cachedUser,
+        )->execute();
+
+        $submitted = new SubmitExpenseForApprovalAction(
+            expense: $draft,
+            user: static::$cachedUser,
+        )->execute();
+
+        return new ApproveExpenseAction(
+            expense: $submitted,
+            approver: static::$cachedUser,
+        )->execute();
     }
 }

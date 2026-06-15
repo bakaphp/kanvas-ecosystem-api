@@ -6,14 +6,8 @@ namespace Tests\Scribe\Invoices;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Invoices\Actions\AmendInvoiceAction;
-use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
-use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\AmendInvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceAmendment;
-use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceData;
-use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLineData;
-use Kanvas\Scribe\Invoices\Models\Invoice;
-use Spatie\LaravelData\DataCollection;
 use Tests\Scribe\Invoices\Stubs\StubBillable;
 use Tests\Scribe\ScribeTestCase;
 
@@ -25,7 +19,7 @@ class InvoiceAmendmentHistoryTest extends ScribeTestCase
 {
     public function test_amendment_history_empty_on_new_invoice(): void
     {
-        $invoice = $this->issueTestInvoice();
+        $invoice = $this->issueTestInvoice(new StubBillable(), subtotal: 500.0);
 
         $this->assertSame([], $invoice->amendmentHistory());
         $this->assertFalse($invoice->hasBeenAmended());
@@ -33,7 +27,7 @@ class InvoiceAmendmentHistoryTest extends ScribeTestCase
 
     public function test_amendment_history_returns_typed_entries_newest_first(): void
     {
-        $invoice = $this->issueTestInvoice();
+        $invoice = $this->issueTestInvoice(new StubBillable(), subtotal: 500.0);
 
         new AmendInvoiceAction(
             invoice: $invoice,
@@ -75,7 +69,7 @@ class InvoiceAmendmentHistoryTest extends ScribeTestCase
 
     public function test_amendment_history_skips_malformed_entries(): void
     {
-        $invoice = $this->issueTestInvoice();
+        $invoice = $this->issueTestInvoice(new StubBillable(), subtotal: 500.0);
         $invoice->metadata = [
             'amendments' => [
                 ['amended_at' => '2026-06-20T10:00:00+00:00', 'reason' => 'real', 'changes' => ['notes' => ['from' => null, 'to' => 'hi']]],
@@ -91,32 +85,5 @@ class InvoiceAmendmentHistoryTest extends ScribeTestCase
         // The valid entry survives; the malformed ones are silently skipped (operator UI doesn't crash)
         $this->assertCount(1, $history);
         $this->assertSame('real', $history[0]->reason);
-    }
-
-    private function issueTestInvoice(): Invoice
-    {
-        $billable = new StubBillable();
-        $draft = new CreateInvoiceAction(
-            data: new InvoiceData(
-                app: $this->kanvasApp,
-                company: $this->company,
-                billable: $billable,
-                lines: new DataCollection(InvoiceLineData::class, [
-                    new InvoiceLineData(description: 'Test', quantity: 1, unit_price_native: 500.0),
-                ]),
-                currency: 'USD',
-                fx_rate_to_base: 1.0,
-                issued_date: Carbon::parse('2026-06-15'),
-                due_date: Carbon::parse('2026-07-15'),
-                net_terms_days: 30,
-            ),
-            user: static::$cachedUser,
-        )->execute();
-
-        return new IssueInvoiceAction(
-            invoice: $draft,
-            billable: $billable,
-            user: static::$cachedUser,
-        )->execute();
     }
 }
