@@ -9,18 +9,12 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Reynolds\Entities\Lead as LeadEntity;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Reynolds\Exceptions\ReynoldsException;
-use Kanvas\Guild\Customers\DataTransferObject\Address;
-use Kanvas\Guild\Customers\DataTransferObject\Contact;
-use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
-use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
-use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadData;
 use Kanvas\Guild\Leads\Models\Lead as LeadModel;
 use Kanvas\Guild\Leads\Models\LeadSource;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Leads\Models\LeadType;
-use Kanvas\Locations\Models\Countries;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -28,7 +22,14 @@ use Kanvas\Users\Models\Users;
  *
  * Receives the parsed array of a `rey_SalesAssistCRMPublishLeadUpdate.Record` element
  * and creates/updates the corresponding Lead + People in Kanvas. Vehicle of interest
- * and trade-in are stored as Lead custom fields (matching the Elead/VinSolution pattern).
+ * and trade-in are stored as Lead custom fields under the Kanvas-standard keys
+ * `vehicle_of_interest` and `trade_in`.
+ *
+ * People sync is delegated entirely to SyncLeadByThirdPartyCustomFieldAction —
+ * we build the PeopleData via Customer::toPeopleData() once and hand it off.
+ * The previous flow that also invoked PullPeopleAction up-front caused two
+ * round-trips through SyncPeopleByThirdPartyCustomFieldAction (idempotent but
+ * wasted DB + cache work).
  */
 class PullLeadAction
 {
@@ -46,8 +47,6 @@ class PullLeadAction
         if ($entity->prospectId === null || $entity->customer === null) {
             throw new ReynoldsException('Lead Update payload missing ProspectId or Customer');
         }
-
-        $people = new PullPeopleAction($this->app, $this->company, $this->user)->execute($record);
 
         $customFields = [
             CustomFieldEnum::PROSPECT_ID->value => $entity->prospectId,
@@ -99,7 +98,11 @@ class PullLeadAction
             'user' => $this->user,
             'title' => $this->buildTitle($entity),
             'pipeline_stage_id' => 0,
-            'people' => $this->buildPeopleDtoForLead($people, $entity),
+            'people' => $entity->customer->toPeopleData(
+                $this->app,
+                $this->company->defaultBranch,
+                $this->user
+            ),
             'leads_owner_id' => $this->resolveOwnerId($entity) ?? $this->user->getId(),
             'type_id' => $this->resolveTypeId($entity->prospectType),
             'status_id' => $this->resolveStatusId($entity->prospectStatus),
@@ -121,69 +124,6 @@ class PullLeadAction
         }
 
         return $name;
-    }
-
-    /**
-     * Construct the People DTO embedded in the Lead DTO. The People row itself is
-     * already created/updated by PullPeopleAction — we pass the same data so the
-     * SyncLeadByThirdPartyCustomFieldAction wiring stays happy.
-     */
-    private function buildPeopleDtoForLead(People $people, LeadEntity $entity): PeopleData
-    {
-        $customer = $entity->customer;
-        $country = Countries::getByCode($customer?->address['Country'] ?? 'US') ?? Countries::getByCode('US');
-
-        $contacts = [];
-        if ($customer?->email !== null) {
-            $contacts[] = Contact::from([
-                'value' => $customer->email,
-                'contacts_types_id' => ContactTypeEnum::EMAIL->value,
-                'weight' => 0,
-            ]);
-        }
-
-        foreach ($customer?->phones ?? [] as $phone) {
-            $num = preg_replace('/\D+/', '', (string) ($phone['num'] ?? ''));
-            if ($num === '') {
-                continue;
-            }
-
-            $contacts[] = Contact::from([
-                'value' => $num,
-                'contacts_types_id' => ($phone['type'] ?? '') === 'C'
-                    ? ContactTypeEnum::CELLPHONE->value
-                    : ContactTypeEnum::PHONE->value,
-                'weight' => ($phone['type'] ?? '') === 'C' ? 100 : 0,
-            ]);
-        }
-
-        $addresses = [];
-        if (! empty($customer?->address)) {
-            $addresses[] = Address::from([
-                'address' => $customer->address['Addr1'] ?? '',
-                'address_2' => $customer->address['Addr2'] ?? '',
-                'city' => $customer->address['City'] ?? '',
-                'state' => $customer->address['State'] ?? '',
-                'zip' => $customer->address['Zip'] ?? '',
-                'county' => $customer->address['County'] ?? '',
-                'countries_id' => $country?->getId(),
-            ]);
-        }
-
-        return PeopleData::from([
-            'id' => $people->getId(),
-            'app' => $this->app,
-            'branch' => $this->company->defaultBranch,
-            'user' => $this->user,
-            'firstname' => $people->firstname,
-            'lastname' => $people->lastname,
-            'middlename' => $people->middlename,
-            'contacts' => $contacts,
-            'address' => $addresses,
-            'custom_fields' => [
-                CustomFieldEnum::NAME_REC_ID->value => $customer?->nameRecId,
-            ],
-        ]);
     }
 
     private function resolveOwnerId(LeadEntity $entity): ?int

@@ -4,6 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Reynolds\Entities;
 
+use Baka\Contracts\AppInterface;
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Reynolds\Exceptions\ReynoldsException;
+use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Locations\Models\Countries;
+
 class Customer
 {
     public function __construct(
@@ -106,5 +115,134 @@ class Customer
         }
 
         return trim(($this->firstName ?? '') . ' ' . ($this->lastName ?? ''));
+    }
+
+    /**
+     * Project this Customer onto a Kanvas People DTO.
+     *
+     * NAME_REC_ID is the first custom field on purpose:
+     * SyncPeopleByThirdPartyCustomFieldAction picks array_keys()[0] as the
+     * lookup key, so the DMS Customer Id is what disambiguates the People
+     * row across reimports. If $existingPeopleId is supplied the DTO is
+     * tagged with it so callers that already loaded the People row can
+     * short-circuit the duplicate-detection lookup.
+     */
+    public function toPeopleData(
+        AppInterface $app,
+        CompaniesBranches $branch,
+        UserInterface $user,
+        ?int $existingPeopleId = null
+    ): PeopleData {
+        if ($this->nameRecId === null) {
+            throw new ReynoldsException(
+                'Customer is missing NameRecId — cannot build PeopleData without an external identifier'
+            );
+        }
+
+        $customFields = [
+            CustomFieldEnum::NAME_REC_ID->value => $this->nameRecId,
+            CustomFieldEnum::CONTACT_TYPE->value => $this->isBusiness ? 'B' : 'I',
+        ];
+        $customFields += $this->buildConsentCustomFields();
+
+        if ($this->preferredContact !== null) {
+            $customFields[CustomFieldEnum::PREFERRED_CONTACT->value] = $this->preferredContact;
+        }
+        if ($this->language !== null) {
+            $customFields[CustomFieldEnum::LANGUAGE->value] = $this->language;
+        }
+        if ($this->sendTextsTo !== null) {
+            $customFields[CustomFieldEnum::SEND_TEXTS_TO->value] = $this->sendTextsTo;
+        }
+
+        $payload = [
+            'app' => $app,
+            'branch' => $branch,
+            'user' => $user,
+            'firstname' => $this->firstName ?? $this->businessName ?? 'Unknown',
+            'lastname' => $this->lastName,
+            'middlename' => $this->middleName,
+            'organization' => $this->isBusiness ? $this->businessName : null,
+            'contacts' => $this->buildContactsForPeopleData(),
+            'address' => $this->buildAddressForPeopleData(),
+            'custom_fields' => $customFields,
+        ];
+
+        if ($existingPeopleId !== null) {
+            $payload['id'] = $existingPeopleId;
+        }
+
+        return PeopleData::from($payload);
+    }
+
+    private function buildContactsForPeopleData(): array
+    {
+        $contacts = [];
+
+        if ($this->email !== null) {
+            $contacts[] = [
+                'value' => $this->email,
+                'contacts_types_id' => ContactTypeEnum::EMAIL->value,
+                'weight' => 0,
+            ];
+        }
+
+        foreach ($this->phones as $phone) {
+            $num = preg_replace('/\D+/', '', (string) ($phone['num'] ?? ''));
+            if ($num === '') {
+                continue;
+            }
+
+            $contacts[] = [
+                'value' => $num,
+                'contacts_types_id' => self::mapPhoneType((string) ($phone['type'] ?? '')),
+                'weight' => ($phone['type'] ?? '') === 'C' ? 100 : 0,
+            ];
+        }
+
+        return $contacts;
+    }
+
+    private function buildAddressForPeopleData(): array
+    {
+        if (empty($this->address)) {
+            return [];
+        }
+
+        $countryCode = $this->address['Country'] ?? 'US';
+        $country = Countries::getByCode($countryCode) ?? Countries::getByCode('US');
+
+        return [[
+            'address' => $this->address['Addr1'] ?? '',
+            'address_2' => $this->address['Addr2'] ?? '',
+            'city' => $this->address['City'] ?? '',
+            'state' => $this->address['State'] ?? '',
+            'zip' => $this->address['Zip'] ?? '',
+            'county' => $this->address['County'] ?? '',
+            'countries_id' => $country?->getId(),
+        ]];
+    }
+
+    private static function mapPhoneType(string $reynoldsType): int
+    {
+        return match ($reynoldsType) {
+            'C' => ContactTypeEnum::CELLPHONE->value,
+            'B' => ContactTypeEnum::WORK_PHONE->value,
+            default => ContactTypeEnum::PHONE->value,
+        };
+    }
+
+    private function buildConsentCustomFields(): array
+    {
+        $mapping = [
+            CustomFieldEnum::CONSENT_EMAIL->value => $this->consent['Email'] ?? null,
+            CustomFieldEnum::CONSENT_TEXT->value => $this->consent['Text'] ?? null,
+            CustomFieldEnum::CONSENT_PHONE->value => $this->consent['Phone'] ?? null,
+            CustomFieldEnum::CONSENT_MAIL->value => $this->consent['Mail'] ?? null,
+            CustomFieldEnum::CONSENT_OPT_OUT->value => $this->consent['OptOut'] ?? null,
+            CustomFieldEnum::CONSENT_OPT_OUT_USE->value => $this->consent['OptOutUse'] ?? null,
+        ];
+
+        return array_filter($mapping, fn ($v) => $v !== null && $v !== '');
     }
 }
