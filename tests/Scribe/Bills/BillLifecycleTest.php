@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\MarkBillPaidAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
@@ -32,7 +33,6 @@ use Kanvas\Scribe\PdfIngest\Enums\PdfIngestDocumentTypeEnum;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestStatusEnum;
 use Kanvas\Scribe\PdfIngest\Models\PdfIngestLog;
 use Spatie\LaravelData\DataCollection;
-use Tests\Scribe\Bills\Stubs\StubPayee;
 use Tests\TestCase;
 
 /**
@@ -73,7 +73,7 @@ class BillLifecycleTest extends TestCase
 
     public function test_receive_bill_posts_balanced_dr_expense_cr_ap_je(): void
     {
-        $vendor = new StubPayee();
+        $vendor = $this->seedOrganization('Vendor');
         $bill = $this->createDraftBill(unitPrice: 2000.0, tax: 0.0);
 
         $received = new ReceiveBillAction(
@@ -83,9 +83,12 @@ class BillLifecycleTest extends TestCase
         )->execute();
 
         $this->assertSame(BillDocumentStatusEnum::RECEIVED, $received->document_status);
-        $this->assertSame('Mercury Bank', $received->vendor_display_name);
-        $this->assertSame('Mercury Bank Inc.', $received->vendor_legal_name);
-        $this->assertSame('12-3456789', $received->vendor_tax_id);
+        $this->assertSame($vendor->name, $received->vendor_display_name);
+        $this->assertSame($vendor->name, $received->vendor_legal_name);
+        $this->assertNull(
+            $received->vendor_tax_id,
+            'Org has no tax_id custom field — vendor_tax_id snapshot is null.',
+        );
         $this->assertNotNull($received->bill_number, 'Bill number must be allocated on receive');
         $this->assertNotNull($received->received_date);
         $this->assertNotNull($received->due_date);
@@ -109,7 +112,7 @@ class BillLifecycleTest extends TestCase
 
     public function test_receive_bill_with_input_tax_credits_dr_input_tax_account(): void
     {
-        $vendor = new StubPayee();
+        $vendor = $this->seedOrganization('Vendor');
         $bill = $this->createDraftBill(unitPrice: 1000.0, tax: 180.0);
 
         new ReceiveBillAction(
@@ -137,7 +140,7 @@ class BillLifecycleTest extends TestCase
 
     public function test_mark_bill_paid_via_allocation_flips_status(): void
     {
-        $vendor = new StubPayee();
+        $vendor = $this->seedOrganization('Vendor');
         $bill = $this->createDraftBill(unitPrice: 500.0, tax: 0.0);
 
         $received = new ReceiveBillAction(
@@ -171,7 +174,7 @@ class BillLifecycleTest extends TestCase
 
     public function test_void_received_bill_posts_mirror_reversal(): void
     {
-        $vendor = new StubPayee();
+        $vendor = $this->seedOrganization('Vendor');
         $bill = $this->createDraftBill(unitPrice: 750.0, tax: 0.0);
         $received = new ReceiveBillAction(
             bill: $bill,
@@ -327,5 +330,17 @@ class BillLifecycleTest extends TestCase
         $this->assertNotNull($row, "Expected seeded account with sub_type='{$subType->value}'.");
 
         return (int) $row->id;
+    }
+
+    private function seedOrganization(string $name = 'Test Org', ?string $address = null): Organization
+    {
+        return Organization::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => $name,
+            'address' => $address ?? '',
+            'total_employees' => 0,
+        ]);
     }
 }

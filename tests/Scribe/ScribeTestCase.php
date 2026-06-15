@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Scribe;
 
+use Baka\Contracts\BillableInterface;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Expenses\Actions\ApproveExpenseAction;
 use Kanvas\Scribe\Expenses\Actions\CreateExpenseAction;
 use Kanvas\Scribe\Expenses\Actions\SubmitExpenseForApprovalAction;
@@ -27,7 +29,6 @@ use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\FiscalPeriod;
 use Kanvas\Scribe\Ledger\Services\ChartOfAccountsSeederService;
 use Spatie\LaravelData\DataCollection;
-use Tests\Scribe\Invoices\Stubs\StubBillable;
 use Tests\TestCase;
 
 /**
@@ -156,11 +157,31 @@ abstract class ScribeTestCase extends TestCase
     // ───────────────────── shared E2E flow helpers ─────────────────────
 
     /**
+     * Seed a real Guild Organization row for the current tenant. Tests should use this instead of
+     * `new StubBillable()` so the polymorphic FK on Scribe transactions points at a real Guild
+     * entity — same shape as production. Returns the Organization typed as BillableInterface +
+     * PayeeInterface (it implements both via the Guild traits).
+     */
+    protected function seedTestOrganization(
+        string $name = 'ACME Corp',
+        ?string $address = '101 Main St, Santo Domingo, DO 10101',
+    ): Organization {
+        return Organization::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => $name,
+            'address' => $address ?? '',
+            'total_employees' => 0,
+        ]);
+    }
+
+    /**
      * Issue a one-line invoice end-to-end (Create → Issue). Used by the cross-flow E2E tests
      * that need a "real" invoice on the books to exercise downstream reports / payments.
      */
     protected function issueTestInvoice(
-        StubBillable $billable,
+        BillableInterface $billable,
         float $subtotal,
         float $tax = 0.0,
         string $issuedDate = '2026-06-15',

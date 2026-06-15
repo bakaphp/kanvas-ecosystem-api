@@ -48,8 +48,8 @@ class InvoiceJournalEntryComposerService
     {
         $app = $invoice->app;
         $company = $invoice->company;
-        $billableType = $invoice->billable_type;
-        $billableId = $invoice->billable_id;
+        $billableType = 'organization'; // Phase 4: Org-only
+        $billableId = $invoice->customer_organization_id;
 
         $arAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::ACCOUNTS_RECEIVABLE);
         $revenueAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::SERVICE_REVENUE);
@@ -183,8 +183,8 @@ class InvoiceJournalEntryComposerService
                 currency: $currency,
                 fx_rate_to_base: $fxRate,
                 sort_order: 1,
-                customer_billable_type: $invoice->billable_type,
-                customer_billable_id: $invoice->billable_id,
+                customer_billable_type: 'organization',
+                customer_billable_id: $invoice->customer_organization_id,
                 memo: "Invoice {$invoice->invoice_number} — AR cleared",
             ),
         ];
@@ -216,8 +216,8 @@ class InvoiceJournalEntryComposerService
     {
         $app = $creditNote->app;
         $company = $creditNote->company;
-        $billableType = $creditNote->billable_type;
-        $billableId = $creditNote->billable_id;
+        $billableType = 'organization'; // Phase 4: Org-only
+        $billableId = $creditNote->customer_organization_id;
 
         $arAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::ACCOUNTS_RECEIVABLE);
         $revenueAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::SERVICE_REVENUE);

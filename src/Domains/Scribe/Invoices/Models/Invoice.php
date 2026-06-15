@@ -35,9 +35,8 @@ use Throwable;
  * @property int $companies_id
  * @property string $uuid
  * @property DocumentTypeEnum $document_type
+ * @property int|null $customer_organization_id
  * @property string|null $invoice_number
- * @property string|null $billable_type
- * @property int|null $billable_id
  * @property string|null $billable_display_name
  * @property string|null $billable_legal_name
  * @property string|null $billable_tax_id
@@ -48,18 +47,18 @@ use Throwable;
  * @property InvoiceCollectionStateEnum|null $collection_state
  * @property string $tax_calculation_mode
  * @property string $delivery_status
- * @property \Illuminate\Support\Carbon|null $delivery_last_attempt_at
+ * @property Carbon|null $delivery_last_attempt_at
  * @property string|null $delivery_bounce_reason
- * @property \Illuminate\Support\Carbon|null $expected_payment_date
- * @property \Illuminate\Support\Carbon|null $issued_date
- * @property \Illuminate\Support\Carbon|null $due_date
- * @property \Illuminate\Support\Carbon|null $sent_at
+ * @property Carbon|null $expected_payment_date
+ * @property Carbon|null $issued_date
+ * @property Carbon|null $due_date
+ * @property Carbon|null $sent_at
  * @property int $net_terms_days
- * @property \Illuminate\Support\Carbon|null $voided_at
+ * @property Carbon|null $voided_at
  * @property string|null $void_reason_code
  * @property string $currency
  * @property float $fx_rate_to_base
- * @property \Illuminate\Support\Carbon|null $fx_rate_at
+ * @property Carbon|null $fx_rate_at
  * @property float $subtotal_native
  * @property float $tax_native
  * @property float $discount_native
@@ -81,7 +80,7 @@ use Throwable;
  * @property string $source
  * @property string|null $external_id
  * @property string|null $external_url
- * @property \Illuminate\Support\Carbon|null $last_synced_at
+ * @property Carbon|null $last_synced_at
  * @property JournalEntryOriginEnum $origin
  * @property int|null $quote_id
  * @property int|null $parent_invoice_id

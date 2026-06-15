@@ -16,7 +16,7 @@ use Kanvas\Scribe\Reports\DataTransferObject\ArAgingRow;
 use Spatie\LaravelData\DataCollection;
 
 /**
- * Open-AR aging snapshot grouped by customer (billable_type + billable_id), with the outstanding balance
+ * Open-AR aging snapshot grouped by customer Organization, with the outstanding balance
  * bucketed by `AgingBucketEnum::forInvoice($invoice->due_date, $asOf)`.
  *
  * Only includes invoices in document_status ∈ {ISSUED, SENT} with balance_due_base > 0. Drafts, voided,
@@ -54,12 +54,13 @@ class ArAgingRepository
         foreach ($openInvoices as $invoice) {
             $bucket = AgingBucketEnum::forInvoice($invoice->due_date, $asOf);
             $balance = (float) $invoice->balance_due_base;
-            $key = ($invoice->billable_type ?? '_unbilled') . '|' . ($invoice->billable_id ?? 0);
+            $orgId = $invoice->customer_organization_id !== null ? (int) $invoice->customer_organization_id : 0;
+            $key = (string) $orgId;
 
             if (! isset($byCustomer[$key])) {
                 $byCustomer[$key] = [
-                    'customer_type' => $invoice->billable_type,
-                    'customer_id' => $invoice->billable_id !== null ? (int) $invoice->billable_id : null,
+                    'customer_type' => 'organization',
+                    'customer_id' => $orgId === 0 ? null : $orgId,
                     'customer_name' => (string) ($invoice->billable_display_name ?? 'Unknown'),
                     AgingBucketEnum::CURRENT->value => 0.0,
                     AgingBucketEnum::BUCKET_1_30->value => 0.0,

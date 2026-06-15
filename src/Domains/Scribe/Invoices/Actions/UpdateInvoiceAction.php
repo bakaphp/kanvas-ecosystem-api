@@ -84,11 +84,9 @@ class UpdateInvoiceAction
 
             // Billable reference — allow swap (or clear) while in draft
             if ($this->data->billable !== null) {
-                $invoice->billable_type = $this->data->billable->getBillableType();
-                $invoice->billable_id = $this->data->billable->getBillableId();
+                $invoice->customer_organization_id = $this->data->billable->getBillableId();
             } else {
-                $invoice->billable_type = null;
-                $invoice->billable_id = null;
+                $invoice->customer_organization_id = null;
             }
 
             $invoice->save();

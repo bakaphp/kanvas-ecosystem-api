@@ -89,8 +89,7 @@ class ConvertQuoteToInvoiceAction
 
             // The InvoiceData carried null billable; copy the polymorphic FK from the quote so IssueInvoiceAction
             // can later look up the live Guild model and freeze its snapshot.
-            $invoice->billable_type = $quote->billable_type;
-            $invoice->billable_id = $quote->billable_id;
+            $invoice->customer_organization_id = $quote->customer_organization_id;
             $invoice->save();
 
             $quote->status = QuoteStatusEnum::CONVERTED;

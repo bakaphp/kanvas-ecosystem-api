@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
 use Kanvas\Scribe\Ledger\Models\FiscalPeriod;
@@ -21,7 +22,6 @@ use Kanvas\Scribe\Quotes\DataTransferObject\QuoteData;
 use Kanvas\Scribe\Quotes\DataTransferObject\QuoteLineData;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Spatie\LaravelData\DataCollection;
-use Tests\Scribe\Invoices\Stubs\StubBillable;
 use Tests\TestCase;
 
 /**
@@ -57,7 +57,7 @@ class ConvertQuoteToInvoiceActionTest extends TestCase
 
     public function test_full_quote_lifecycle_into_draft_invoice(): void
     {
-        $billable = new StubBillable(displayName: 'BrightStar Foods');
+        $billable = $this->seedOrganization('BrightStar Foods');
 
         // 1. Create draft quote — 10h × $100 = $1000 + 18% tax = $1180
         $draft = new CreateQuoteAction(
@@ -111,8 +111,7 @@ class ConvertQuoteToInvoiceActionTest extends TestCase
         $this->assertEquals(1180.0, (float) $invoice->total_native);
         $this->assertEquals(180.0, (float) $invoice->tax_native);
         $this->assertSame($accepted->id, $invoice->quote_id, 'Invoice links back to source quote.');
-        $this->assertSame('organization', $invoice->billable_type);
-        $this->assertSame(4711, $invoice->billable_id, 'Billable polymorphic FK copied from quote.');
+        $this->assertSame((int) $billable->id, (int) $invoice->customer_organization_id, 'Customer FK copied from quote.');
 
         $invoice->load('lines');
         $this->assertCount(1, $invoice->lines);
@@ -126,7 +125,7 @@ class ConvertQuoteToInvoiceActionTest extends TestCase
 
     public function test_revision_chain_supersedes_parent(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
 
         $original = new CreateQuoteAction(
             data: $this->makeQuoteData(
@@ -184,7 +183,7 @@ class ConvertQuoteToInvoiceActionTest extends TestCase
      * @param array<int, QuoteLineData> $lines
      */
     private function makeQuoteData(
-        StubBillable $billable,
+        Organization $billable,
         array $lines,
         string $currency = 'USD',
         float $fxRate = 1.0,
@@ -199,5 +198,17 @@ class ConvertQuoteToInvoiceActionTest extends TestCase
             fx_rate_to_base: $fxRate,
             issued_date: $issuedDate,
         );
+    }
+
+    private function seedOrganization(string $name = 'Test Org', ?string $address = null): Organization
+    {
+        return Organization::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => $name,
+            'address' => $address ?? '',
+            'total_employees' => 0,
+        ]);
     }
 }

@@ -23,7 +23,6 @@ use Kanvas\Scribe\Reports\Repositories\AccountActivityRepository;
 use Kanvas\Scribe\Reports\Repositories\ArAgingRepository;
 use Kanvas\Scribe\Reports\Repositories\RevenueRepository;
 use Spatie\LaravelData\DataCollection;
-use Tests\Scribe\Invoices\Stubs\StubBillable;
 use Tests\Scribe\ScribeTestCase;
 
 /**
@@ -47,11 +46,7 @@ class InvoiceToPaymentFlowTest extends ScribeTestCase
 {
     public function test_full_invoice_to_payment_cycle(): void
     {
-        $billable = new StubBillable(
-            id: 5001,
-            displayName: 'ACME Studios',
-            email: 'ap@acme.test',
-        );
+        $billable = $this->seedTestOrganization('ACME Studios');
 
         // ── Step 1 — create draft invoice (2 service lines + 1 tax line) ──
         $draft = new CreateInvoiceAction(
@@ -222,7 +217,7 @@ class InvoiceToPaymentFlowTest extends ScribeTestCase
 
     public function test_partial_payment_does_not_flip_to_paid(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedTestOrganization();
         $invoice = $this->issueTestInvoice($billable, subtotal: 1000.0);
         $this->assertEqualsWithDelta(1000.0, (float) $invoice->balance_due_native, 0.005);
 

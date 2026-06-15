@@ -18,7 +18,7 @@ use Tests\Scribe\ScribeTestCase;
  *
  * Receive + Void require a real PayeeInterface from Guild. For this smoke test we skip the full
  * receive/void flow (no Guild factory wired here) — the Action-level Pr10BillsTest already proves
- * that path works end-to-end with the StubPayee. This test class verifies the GraphQL wiring:
+ * that path works end-to-end with a real Guild Organization. This test class verifies the GraphQL wiring:
  * resolvers reachable, errors propagate, queries paginate.
  */
 class BillMutationGraphQLTest extends ScribeTestCase
@@ -199,7 +199,7 @@ class BillMutationGraphQLTest extends ScribeTestCase
         $billId = $create->json('data.createScribeBill.id');
         $this->assertSame(
             0,
-            (int) (Bill::query()->where('id', $billId)->value('vendor_billable_id') ?? 0),
+            (int) (Bill::query()->where('id', $billId)->value('vendor_organization_id') ?? 0),
             'Smoke: bill has no vendor pre-receive.',
         );
 

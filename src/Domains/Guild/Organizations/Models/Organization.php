@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Organizations\Models;
 
+use Baka\Contracts\BillableInterface;
+use Baka\Contracts\PayeeInterface;
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
@@ -20,6 +22,13 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Observers\OrganizationObserver;
+use Kanvas\Guild\Traits\BillableTrait;
+use Kanvas\Guild\Traits\PayeeTrait;
+use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Expenses\Models\Expense;
+use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Quotes\Models\Quote;
+use Kanvas\Scribe\SalesReceipts\Models\SalesReceipt;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Override;
 
@@ -36,11 +45,13 @@ use Override;
  * @property int $total_employees
  */
 #[ObservedBy([OrganizationObserver::class])]
-class Organization extends BaseModel
+class Organization extends BaseModel implements BillableInterface, PayeeInterface
 {
+    use BillableTrait;
     use DatabaseSearchableTrait;
     use HasLightHouseCache;
     use HasTagsTrait;
+    use PayeeTrait;
     use UuidTrait;
 
     protected $table = 'organizations';
@@ -87,6 +98,37 @@ class Organization extends BaseModel
     }
 
     /**
+     * Scribe back-relations — every transaction whose customer/vendor FK points at this Org. Live
+     * here (not in Scribe) because Guild owns the Organization model and Scribe never references
+     * Guild classes directly. Phase 4 flattened the polymorphism — these are now HasMany on
+     * direct FK columns rather than MorphMany.
+     */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class, 'customer_organization_id', 'id');
+    }
+
+    public function quotes(): HasMany
+    {
+        return $this->hasMany(Quote::class, 'customer_organization_id', 'id');
+    }
+
+    public function salesReceipts(): HasMany
+    {
+        return $this->hasMany(SalesReceipt::class, 'customer_organization_id', 'id');
+    }
+
+    public function bills(): HasMany
+    {
+        return $this->hasMany(Bill::class, 'vendor_organization_id', 'id');
+    }
+
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class, 'vendor_organization_id', 'id');
+    }
+
+    /**
      * @psalm-suppress MixedReturnStatement
      */
     public function addPeople(People $people): OrganizationPeople
@@ -96,7 +138,6 @@ class Organization extends BaseModel
             'peoples_id' => $people->getId(),
         ], [
             'created_at' => date('Y-m-d H:i:s'),
-
         ]);
     }
 

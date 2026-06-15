@@ -22,7 +22,6 @@ use Kanvas\Scribe\PdfIngest\DataTransferObject\PdfIngestInput;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestDocumentTypeEnum;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestStatusEnum;
 use Kanvas\Scribe\Reports\Repositories\AccountActivityRepository;
-use Tests\Scribe\Bills\Stubs\StubPayee;
 use Tests\Scribe\PdfIngest\Stubs\FakePdfClassifier;
 use Tests\Scribe\PdfIngest\Stubs\FakePdfContentHasher;
 use Tests\Scribe\ScribeTestCase;
@@ -99,7 +98,7 @@ class PdfToBillFlowTest extends ScribeTestCase
         $this->assertEqualsWithDelta(1080.0, (float) $bill->total_native, 0.005);
 
         // ── Step 3 — operator resolves vendor (stub Payee) and receives the bill ──
-        $vendor = new StubPayee(id: 7777, displayName: 'Amazon Web Services');
+        $vendor = $this->seedTestOrganization('Amazon Web Services');
         $received = new ReceiveBillAction(
             bill: $bill,
             vendor: $vendor,
@@ -107,7 +106,7 @@ class PdfToBillFlowTest extends ScribeTestCase
         )->execute();
 
         $this->assertSame(BillDocumentStatusEnum::RECEIVED, $received->document_status);
-        $this->assertSame($vendor->getPayeeType(), $received->vendor_billable_type, 'Vendor snapshot frozen at receive.');
+        $this->assertSame((int) $vendor->id, (int) $received->vendor_organization_id, 'Vendor FK frozen at receive.');
 
         $receiveJes = $this->postedJesFor('bill', (int) $received->id);
         $this->assertCount(1, $receiveJes);

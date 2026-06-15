@@ -82,8 +82,7 @@ class CreateInvoiceAction
 
             // Billable reference (the polymorphic id+type; snapshot fields stay null until Issue)
             if ($this->data->billable !== null) {
-                $invoice->billable_type = $this->data->billable->getBillableType();
-                $invoice->billable_id = $this->data->billable->getBillableId();
+                $invoice->customer_organization_id = $this->data->billable->getBillableId();
             }
 
             $invoice->save();

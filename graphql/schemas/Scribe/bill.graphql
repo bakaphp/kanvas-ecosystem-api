@@ -17,8 +17,7 @@ type ScribeBill {
     id: ID!
     uuid: String!
     bill_number: String
-    vendor_billable_type: String
-    vendor_billable_id: Int
+    vendor_organization_id: Int
     vendor_display_name: String
     vendor_legal_name: String
     vendor_tax_id: String
@@ -146,8 +145,7 @@ input ScribeBillLineInput {
 
 input ScribeBillInput {
     "Vendor reference — Guild.Organization or Guild.People (PayeeInterface implementor)."
-    vendor_billable_type: String
-    vendor_billable_id: Int
+    vendor_organization_id: Int
     bill_number: String
     bill_date: Date
     received_date: Date
@@ -175,8 +173,7 @@ extend type Query @guard {
                     "document_status"
                     "collection_state"
                     "currency"
-                    "vendor_billable_type"
-                    "vendor_billable_id"
+                    "vendor_organization_id"
                     "bill_date"
                     "due_date"
                     "source"

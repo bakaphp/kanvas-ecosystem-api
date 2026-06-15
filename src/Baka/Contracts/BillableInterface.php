@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Baka\Contracts;
 
 /**
- * A model that can be billed (the customer on an invoice or the vendor on a bill).
+ * A model that can be billed (the customer on an invoice).
  *
- * Implemented by Kanvas\Guild\Organizations\Models\Organization and Kanvas\Guild\Customers\Models\People.
- * Implementation lives in Guild; Scribe consumes the interface — no Guild→Scribe dependency arrow.
+ * Implemented by Kanvas\Guild\Organizations\Models\Organization ONLY — the legal customer on a Scribe
+ * transaction is always an Organization. Implementation lives in Guild; Scribe consumes the interface
+ * with no Guild→Scribe dependency arrow.
  *
  * The billable snapshot frozen on issued invoices is hydrated from these getters at issue time and never
  * auto-updated (per plan §7.4 — billable snapshots frozen at issue).
@@ -19,12 +20,6 @@ namespace Baka\Contracts;
 interface BillableInterface
 {
     public function getBillableId(): int;
-
-    /**
-     * Polymorphic discriminator stored on the invoice's billable_type column.
-     * Convention: lowercase short name — 'organization' for Guild Organization, 'people' for Guild People.
-     */
-    public function getBillableType(): string;
 
     public function getBillableDisplayName(): string;
 

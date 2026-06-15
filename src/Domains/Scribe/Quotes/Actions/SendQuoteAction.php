@@ -65,8 +65,7 @@ class SendQuoteAction
 
     private function freezeBillableSnapshot(Quote $quote, BillableInterface $billable): void
     {
-        $quote->billable_type = $billable->getBillableType();
-        $quote->billable_id = $billable->getBillableId();
+        $quote->customer_organization_id = $billable->getBillableId();
         $quote->billable_display_name = $billable->getBillableDisplayName();
         $quote->billable_legal_name = $billable->getBillableLegalName();
         $quote->billable_tax_id = $billable->getBillableTaxId();

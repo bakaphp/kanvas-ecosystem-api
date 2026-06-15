@@ -8,8 +8,7 @@ type ScribeSalesReceipt {
     id: ID!
     uuid: String!
     receipt_number: String
-    billable_type: String
-    billable_id: Int
+    customer_organization_id: Int
     billable_display_name: String
     billable_email: String
     status: ScribeSalesReceiptStatus!
@@ -82,8 +81,7 @@ input ScribeSalesReceiptLineInput {
 }
 
 input ScribeSalesReceiptInput {
-    billable_type: String
-    billable_id: Int
+    customer_organization_id: Int
     receipt_date: Date
     currency: String!
     fx_rate_to_base: Float
@@ -105,8 +103,7 @@ extend type Query @guard {
                     "receipt_number"
                     "status"
                     "currency"
-                    "billable_type"
-                    "billable_id"
+                    "customer_organization_id"
                     "receipt_date"
                     "source"
                 ]

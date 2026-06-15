@@ -102,8 +102,7 @@ class ApproveExpenseAction
             return;
         }
 
-        $expense->vendor_billable_type = $this->vendor->getPayeeType();
-        $expense->vendor_billable_id = $this->vendor->getPayeeId();
+        $expense->vendor_organization_id = $this->vendor->getPayeeId();
         $expense->vendor_display_name = $this->vendor->getPayeeDisplayName();
         $expense->vendor_legal_name = $this->vendor->getPayeeLegalName();
         $expense->vendor_tax_id = $this->vendor->getPayeeTaxId();

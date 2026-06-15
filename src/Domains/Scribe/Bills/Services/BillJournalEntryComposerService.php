@@ -42,8 +42,8 @@ class BillJournalEntryComposerService
     {
         $app = $bill->app;
         $company = $bill->company;
-        $vendorBillableType = $bill->vendor_billable_type;
-        $vendorBillableId = $bill->vendor_billable_id;
+        $vendorBillableType = 'organization'; // Phase 4: Org-only
+        $vendorBillableId = $bill->vendor_organization_id;
         $currency = $bill->currency;
         $fxRate = (float) $bill->fx_rate_to_base;
 
@@ -180,8 +180,8 @@ class BillJournalEntryComposerService
                 currency: $currency,
                 fx_rate_to_base: $fxRate,
                 sort_order: 0,
-                vendor_billable_type: $bill->vendor_billable_type,
-                vendor_billable_id: $bill->vendor_billable_id,
+                vendor_billable_type: 'organization',
+                vendor_billable_id: $bill->vendor_organization_id,
                 memo: "Bill {$bill->bill_number} — AP cleared",
             ),
             // CR Cash

@@ -79,8 +79,7 @@ class CreateBillAction
             $bill->users_id = $this->user?->getId();
 
             if ($this->data->vendor !== null) {
-                $bill->vendor_billable_type = $this->data->vendor->getPayeeType();
-                $bill->vendor_billable_id = $this->data->vendor->getPayeeId();
+                $bill->vendor_organization_id = $this->data->vendor->getPayeeId();
             }
 
             $bill->save();

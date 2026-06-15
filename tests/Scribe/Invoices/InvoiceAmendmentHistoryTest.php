@@ -8,7 +8,6 @@ use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Invoices\Actions\AmendInvoiceAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\AmendInvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceAmendment;
-use Tests\Scribe\Invoices\Stubs\StubBillable;
 use Tests\Scribe\ScribeTestCase;
 
 /**
@@ -19,7 +18,7 @@ class InvoiceAmendmentHistoryTest extends ScribeTestCase
 {
     public function test_amendment_history_empty_on_new_invoice(): void
     {
-        $invoice = $this->issueTestInvoice(new StubBillable(), subtotal: 500.0);
+        $invoice = $this->issueTestInvoice($this->seedTestOrganization(), subtotal: 500.0);
 
         $this->assertSame([], $invoice->amendmentHistory());
         $this->assertFalse($invoice->hasBeenAmended());
@@ -27,7 +26,7 @@ class InvoiceAmendmentHistoryTest extends ScribeTestCase
 
     public function test_amendment_history_returns_typed_entries_newest_first(): void
     {
-        $invoice = $this->issueTestInvoice(new StubBillable(), subtotal: 500.0);
+        $invoice = $this->issueTestInvoice($this->seedTestOrganization(), subtotal: 500.0);
 
         new AmendInvoiceAction(
             invoice: $invoice,
@@ -69,7 +68,7 @@ class InvoiceAmendmentHistoryTest extends ScribeTestCase
 
     public function test_amendment_history_skips_malformed_entries(): void
     {
-        $invoice = $this->issueTestInvoice(new StubBillable(), subtotal: 500.0);
+        $invoice = $this->issueTestInvoice($this->seedTestOrganization(), subtotal: 500.0);
         $invoice->metadata = [
             'amendments' => [
                 ['amended_at' => '2026-06-20T10:00:00+00:00', 'reason' => 'real', 'changes' => ['notes' => ['from' => null, 'to' => 'hi']]],

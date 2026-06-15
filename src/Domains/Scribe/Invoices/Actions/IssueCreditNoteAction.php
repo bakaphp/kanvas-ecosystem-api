@@ -116,8 +116,7 @@ class IssueCreditNoteAction
             $creditNote->users_id = $this->user?->getId();
 
             // Inherit billable snapshot from parent (frozen — same customer the credit goes to)
-            $creditNote->billable_type = $parent->billable_type;
-            $creditNote->billable_id = $parent->billable_id;
+            $creditNote->customer_organization_id = $parent->customer_organization_id;
             $creditNote->billable_display_name = $parent->billable_display_name;
             $creditNote->billable_legal_name = $parent->billable_legal_name;
             $creditNote->billable_tax_id = $parent->billable_tax_id;

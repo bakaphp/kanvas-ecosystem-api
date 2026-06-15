@@ -78,8 +78,7 @@ class CreateSalesReceiptAction
             $receipt->users_id = $this->user?->getId();
 
             // Billable + snapshot — frozen immediately (no draft phase)
-            $receipt->billable_type = $this->data->billable->getBillableType();
-            $receipt->billable_id = $this->data->billable->getBillableId();
+            $receipt->customer_organization_id = $this->data->billable->getBillableId();
             $receipt->billable_display_name = $this->data->billable->getBillableDisplayName();
             $receipt->billable_legal_name = $this->data->billable->getBillableLegalName();
             $receipt->billable_tax_id = $this->data->billable->getBillableTaxId();
@@ -136,8 +135,7 @@ class CreateSalesReceiptAction
                 eventType: 'scribe.sales_receipt.recorded',
                 payload: [
                     'receipt_number' => $receipt->receipt_number,
-                    'billable_type' => $receipt->billable_type,
-                    'billable_id' => $receipt->billable_id,
+                                        'billable_id' => $receipt->customer_organization_id,
                     'billable_display_name' => $receipt->billable_display_name,
                     'currency' => $receipt->currency,
                     'total_native' => (float) $receipt->total_native,

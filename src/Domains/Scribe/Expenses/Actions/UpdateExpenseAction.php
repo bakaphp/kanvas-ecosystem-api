@@ -74,11 +74,9 @@ class UpdateExpenseAction
 
             // Vendor reference — allow swap (or clear) while in draft
             if ($this->data->vendor !== null) {
-                $expense->vendor_billable_type = $this->data->vendor->getPayeeType();
-                $expense->vendor_billable_id = $this->data->vendor->getPayeeId();
+                $expense->vendor_organization_id = $this->data->vendor->getPayeeId();
             } else {
-                $expense->vendor_billable_type = null;
-                $expense->vendor_billable_id = null;
+                $expense->vendor_organization_id = null;
             }
 
             $expense->save();

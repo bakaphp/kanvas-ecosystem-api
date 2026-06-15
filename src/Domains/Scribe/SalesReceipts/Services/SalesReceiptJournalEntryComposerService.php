@@ -36,8 +36,8 @@ class SalesReceiptJournalEntryComposerService
     {
         $app = $receipt->app;
         $company = $receipt->company;
-        $billableType = $receipt->billable_type;
-        $billableId = $receipt->billable_id;
+        $billableType = 'organization'; // Phase 4: Org-only
+        $billableId = $receipt->customer_organization_id;
 
         $cashAccount = $this->resolveCashAccount($receipt);
         $defaultRevenueAccount = $this->accountResolver->bySubType(

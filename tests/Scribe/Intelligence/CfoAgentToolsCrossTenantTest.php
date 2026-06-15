@@ -15,7 +15,6 @@ use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLineData;
 use Spatie\LaravelData\DataCollection;
-use Tests\Scribe\Invoices\Stubs\StubBillable;
 use Tests\Scribe\ScribeTestCase;
 
 /**
@@ -99,7 +98,7 @@ class CfoAgentToolsCrossTenantTest extends ScribeTestCase
 
     private function seedIssuedInvoice(float $total, int $dueDateOffsetDays = 0): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedTestOrganization();
         $draft = new CreateInvoiceAction(
             data: new InvoiceData(
                 app: $this->kanvasApp,

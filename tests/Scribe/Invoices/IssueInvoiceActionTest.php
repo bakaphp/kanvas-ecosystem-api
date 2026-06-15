@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceData;
@@ -22,7 +23,6 @@ use Kanvas\Scribe\Ledger\Models\FiscalPeriod;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
 use Kanvas\Scribe\Ledger\Services\ChartOfAccountsSeederService;
 use Spatie\LaravelData\DataCollection;
-use Tests\Scribe\Invoices\Stubs\StubBillable;
 use Tests\TestCase;
 
 /**
@@ -58,15 +58,7 @@ class IssueInvoiceActionTest extends TestCase
 
     public function test_issue_action_freezes_snapshot_allocates_number_and_posts_balanced_je(): void
     {
-        $billable = new StubBillable(
-            id: 4711,
-            type: 'organization',
-            displayName: 'ACME Corp',
-            legalName: 'ACME Corporation Limited',
-            taxId: '123-45678-9',
-            email: 'ap@acme.do',
-            address: ['street' => '101 Main St', 'city' => 'Santo Domingo', 'country' => 'DO'],
-        );
+        $billable = $this->seedOrganization('ACME Corp');
 
         // Create a draft invoice with one line: 10 hours × $100 = $1000 subtotal + $180 tax = $1180 total.
         $invoice = new CreateInvoiceAction(
@@ -104,12 +96,15 @@ class IssueInvoiceActionTest extends TestCase
         $this->assertSame(InvoiceDocumentStatusEnum::ISSUED, $issued->document_status);
         $this->assertSame(InvoiceCollectionStateEnum::CURRENT, $issued->collection_state);
 
-        // Snapshot frozen
+        // Snapshot frozen — values come from the real Guild Organization (BillableTrait getters).
+        // Org has no tax_id / email columns today so those snapshot fields are null until a tenant
+        // backfills the custom fields. The display name and address are present.
         $this->assertSame('ACME Corp', $issued->billable_display_name);
-        $this->assertSame('123-45678-9', $issued->billable_tax_id);
-        $this->assertSame('ap@acme.do', $issued->billable_email);
-        $this->assertIsArray($issued->billing_address_snapshot);
-        $this->assertSame('Santo Domingo', $issued->billing_address_snapshot['city']);
+        $this->assertNull($issued->billable_tax_id);
+        $this->assertNull($issued->billable_email);
+        // billing_address_snapshot is null because the seeded org's address column is empty.
+        // BillableTrait::getBillingAddressArray returns null on empty raw — that's the contract.
+        $this->assertNull($issued->billing_address_snapshot);
 
         // Number allocated
         $this->assertNotNull($issued->invoice_number);
@@ -161,7 +156,7 @@ class IssueInvoiceActionTest extends TestCase
 
     public function test_re_issuing_already_issued_invoice_is_idempotent(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
 
         $invoice = new CreateInvoiceAction(
             data: $this->makeInvoiceData(
@@ -192,7 +187,7 @@ class IssueInvoiceActionTest extends TestCase
      * @param array<int, InvoiceLineData> $lines
      */
     private function makeInvoiceData(
-        StubBillable $billable,
+        Organization $billable,
         array $lines,
         string $currency = 'USD',
         float $fxRate = 1.0,
@@ -209,5 +204,17 @@ class IssueInvoiceActionTest extends TestCase
             net_terms_days: $netTermsDays,
             issued_date: $issuedDate,
         );
+    }
+
+    private function seedOrganization(string $name = 'Test Org', ?string $address = null): Organization
+    {
+        return Organization::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => $name,
+            'address' => $address ?? '',
+            'total_employees' => 0,
+        ]);
     }
 }

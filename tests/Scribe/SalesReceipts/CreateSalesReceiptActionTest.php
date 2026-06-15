@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
@@ -21,7 +22,6 @@ use Kanvas\Scribe\SalesReceipts\DataTransferObject\SalesReceiptData;
 use Kanvas\Scribe\SalesReceipts\DataTransferObject\SalesReceiptLineData;
 use Kanvas\Scribe\SalesReceipts\Enums\SalesReceiptStatusEnum;
 use Spatie\LaravelData\DataCollection;
-use Tests\Scribe\Invoices\Stubs\StubBillable;
 use Tests\TestCase;
 
 /**
@@ -59,7 +59,7 @@ class CreateSalesReceiptActionTest extends TestCase
 
     public function test_create_action_writes_receipt_freezes_snapshot_and_posts_balanced_je(): void
     {
-        $billable = new StubBillable(displayName: 'QuickShop LLC');
+        $billable = $this->seedOrganization('QuickShop LLC');
 
         // QuickShop buys a $49 SaaS Pro Plan — no tax for simplicity
         $receipt = new CreateSalesReceiptAction(
@@ -117,7 +117,7 @@ class CreateSalesReceiptActionTest extends TestCase
 
     public function test_create_with_tax_includes_three_je_lines(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
 
         // $100 product + 18% tax = $118
         $receipt = new CreateSalesReceiptAction(
@@ -159,7 +159,7 @@ class CreateSalesReceiptActionTest extends TestCase
 
     public function test_void_posts_mirror_je_and_marks_original_reversed(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
 
         $receipt = new CreateSalesReceiptAction(
             data: new SalesReceiptData(
@@ -233,5 +233,17 @@ class CreateSalesReceiptActionTest extends TestCase
         $this->assertNotNull($row);
 
         return (int) $row->id;
+    }
+
+    private function seedOrganization(string $name = 'Test Org', ?string $address = null): Organization
+    {
+        return Organization::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => $name,
+            'address' => $address ?? '',
+            'total_employees' => 0,
+        ]);
     }
 }

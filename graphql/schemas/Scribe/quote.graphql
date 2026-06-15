@@ -13,8 +13,7 @@ type ScribeQuote {
     id: ID!
     uuid: String!
     quote_number: String
-    billable_type: String
-    billable_id: Int
+    customer_organization_id: Int
     billable_display_name: String
     billable_legal_name: String
     billable_email: String
@@ -49,6 +48,7 @@ type ScribeQuote {
     metadata: Mixed
     company: Company! @belongsTo(relation: "company")
     user: User @belongsTo(relation: "user")
+    contact: People @belongsTo(relation: "contact")
     lines: [ScribeQuoteLine!]! @hasMany(relation: "lines")
     parent_quote: ScribeQuote @belongsTo(relation: "parentQuote")
     created_at: DateTime!
@@ -94,8 +94,8 @@ input ScribeQuoteLineInput {
 }
 
 input ScribeQuoteInput {
-    billable_type: String
-    billable_id: Int
+    customer_organization_id: Int
+    contact_people_id: Int
     issued_date: Date
     valid_until: Date
     currency: String!
@@ -118,8 +118,7 @@ extend type Query @guard {
                     "quote_number"
                     "status"
                     "currency"
-                    "billable_type"
-                    "billable_id"
+                    "customer_organization_id"
                     "issued_date"
                     "valid_until"
                     "source"

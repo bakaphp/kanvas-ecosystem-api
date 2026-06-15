@@ -80,8 +80,7 @@ class IssueInvoiceAction
                 eventType: 'scribe.invoice.issued',
                 payload: [
                     'invoice_number' => $invoice->invoice_number,
-                    'billable_type' => $invoice->billable_type,
-                    'billable_id' => $invoice->billable_id,
+                                        'billable_id' => $invoice->customer_organization_id,
                     'billable_display_name' => $invoice->billable_display_name,
                     'currency' => $invoice->currency,
                     'total_native' => (float) $invoice->total_native,
@@ -96,8 +95,7 @@ class IssueInvoiceAction
 
     private function freezeBillableSnapshot(Invoice $invoice, BillableInterface $billable): void
     {
-        $invoice->billable_type = $billable->getBillableType();
-        $invoice->billable_id = $billable->getBillableId();
+        $invoice->customer_organization_id = $billable->getBillableId();
         $invoice->billable_display_name = $billable->getBillableDisplayName();
         $invoice->billable_legal_name = $billable->getBillableLegalName();
         $invoice->billable_tax_id = $billable->getBillableTaxId();

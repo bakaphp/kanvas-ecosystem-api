@@ -24,8 +24,7 @@ type ScribeInvoice {
     uuid: String!
     document_type: ScribeInvoiceDocumentType!
     invoice_number: String
-    billable_type: String
-    billable_id: Int
+    customer_organization_id: Int
     billable_display_name: String
     billable_legal_name: String
     billable_tax_id: String
@@ -156,8 +155,7 @@ input ScribeInvoiceLineInput {
 
 input ScribeInvoiceInput {
     "Customer / billable model id from Guild (Organization or People). billable_type clarifies which."
-    billable_type: String
-    billable_id: Int
+    customer_organization_id: Int
     issued_date: Date
     due_date: Date
     expected_payment_date: Date
@@ -205,8 +203,7 @@ extend type Query @guard {
                     "document_status"
                     "collection_state"
                     "currency"
-                    "billable_type"
-                    "billable_id"
+                    "customer_organization_id"
                     "issued_date"
                     "due_date"
                     "source"

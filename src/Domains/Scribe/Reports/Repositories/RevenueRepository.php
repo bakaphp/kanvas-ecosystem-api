@@ -24,7 +24,7 @@ use Spatie\LaravelData\DataCollection;
  * invoice's issued_date also falls in (or before) the window.
  *
  * Three grouping modes:
- *   - CUSTOMER: one row per billable_type+billable_id with their display name
+ *   - CUSTOMER: one row per customer_organization_id with their display name
  *   - MONTH:    one row per YYYY-MM
  *   - ITEM:     one row per item_id (with NULL items grouped as "Uncategorized")
  *
@@ -86,7 +86,7 @@ class RevenueRepository
         $buckets = [];
 
         foreach ($invoices as $invoice) {
-            $key = ($invoice->billable_type ?? '_unbilled') . '|' . ($invoice->billable_id ?? 0);
+            $key = (string) ($invoice->customer_organization_id ?? 0);
             $label = (string) ($invoice->billable_display_name ?? 'Unknown');
             $buckets[$key] ??= ['label' => $label, 'gross' => 0.0, 'discounts' => 0.0, 'count' => 0];
             $buckets[$key]['gross'] += (float) $invoice->subtotal_base - (float) $invoice->discount_base;
@@ -94,7 +94,7 @@ class RevenueRepository
         }
 
         foreach ($creditNotes as $cn) {
-            $key = ($cn->billable_type ?? '_unbilled') . '|' . ($cn->billable_id ?? 0);
+            $key = (string) ($cn->customer_organization_id ?? 0);
             $label = (string) ($cn->billable_display_name ?? 'Unknown');
             $buckets[$key] ??= ['label' => $label, 'gross' => 0.0, 'discounts' => 0.0, 'count' => 0];
             $buckets[$key]['discounts'] += (float) $cn->subtotal_base - (float) $cn->discount_base;

@@ -18,7 +18,6 @@ use Kanvas\Scribe\Ledger\Models\JournalEntryLine;
 use Kanvas\Scribe\Reports\Repositories\BalanceSheetRepository;
 use Kanvas\Scribe\Reports\Repositories\ProfitAndLossRepository;
 use Kanvas\Scribe\Reports\Repositories\TrialBalanceRepository;
-use Tests\Scribe\Invoices\Stubs\StubBillable;
 use Tests\Scribe\ScribeTestCase;
 
 /**
@@ -40,7 +39,7 @@ class GeneralLedgerInvariantsFlowTest extends ScribeTestCase
 {
     public function test_general_ledger_invariants_hold_across_heterogeneous_flows(): void
     {
-        $billable = new StubBillable(id: 8001, displayName: 'Composite Customer');
+        $billable = $this->seedTestOrganization('Composite Customer');
 
         // ── Flow 1 — Invoice + payment ──
         $invoice = $this->issueTestInvoice(

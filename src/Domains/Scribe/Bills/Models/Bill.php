@@ -23,30 +23,18 @@ use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
  *
  * Mirrors Invoice but flipped to vendor (Payee) side. Implements Baka\Contracts\PayableInterface so
  * Souk.Payments can attach via the polymorphic 'payable' morph for outbound payment runs.
- *
- * @property int $id
- * @property int $apps_id
- * @property int $companies_id
- * @property string $uuid
- * @property string|null $bill_number
- * @property string|null $vendor_billable_type
- * @property int|null $vendor_billable_id
- * @property string|null $vendor_display_name
- * @property string|null $vendor_legal_name
- * @property string|null $vendor_tax_id
- * @property string|null $vendor_email
+|null $vendor_email
  * @property array|null $vendor_address_snapshot
  * @property BillDocumentStatusEnum $document_status
  * @property BillCollectionStateEnum|null $collection_state
- * @property string $tax_calculation_mode
+ $tax_calculation_mode
  * @property \Illuminate\Support\Carbon|null $bill_date
  * @property \Illuminate\Support\Carbon|null $received_date
  * @property \Illuminate\Support\Carbon|null $due_date
  * @property \Illuminate\Support\Carbon|null $scheduled_payment_date
- * @property int $net_terms_days
+ $net_terms_days
  * @property \Illuminate\Support\Carbon|null $voided_at
- * @property string|null $void_reason_code
- * @property string $currency
+ $currency
  * @property float $fx_rate_to_base
  * @property \Illuminate\Support\Carbon|null $fx_rate_at
  * @property float $subtotal_native
@@ -63,19 +51,13 @@ use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
  * @property float $balance_due_base
  * @property array|null $tax_metadata
  * @property array|null $regional_compliance
- * @property string|null $notes
- * @property string|null $internal_notes
- * @property string|null $terms
- * @property string $source
- * @property string|null $external_id
- * @property string|null $external_url
+|null $external_url
  * @property \Illuminate\Support\Carbon|null $last_synced_at
  * @property JournalEntryOriginEnum $origin
- * @property int|null $purchase_order_id
- * @property int|null $pdf_ingest_log_id
+|null $pdf_ingest_log_id
  * @property array|null $metadata
  * @property bool $is_deleted
- * @property int|null $users_id
+|null $users_id
  */
 class Bill extends BaseModel implements PayableInterface
 {

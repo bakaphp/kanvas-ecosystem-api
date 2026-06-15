@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\BillableInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
@@ -42,6 +43,12 @@ class QuoteData extends Data
         public readonly JournalEntryOriginEnum $origin = JournalEntryOriginEnum::KANVAS,
         public readonly ?int $parent_quote_id = null,
         public readonly int $revision_number = 1,
+        /**
+         * The human at the customer Organization the quote was addressed to (e.g. "Attn: John Doe").
+         * The legal customer is still `$billable` (always an Organization); this is the recipient.
+         * Optional — quotes that go to an organization mailbox / no specific person leave it null.
+         */
+        public readonly ?People $contact = null,
     ) {
     }
 }

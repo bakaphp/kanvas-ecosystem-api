@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
@@ -23,18 +24,7 @@ use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
  * Revision chain: when a customer asks for a changed version, CreateQuoteRevisionAction creates a new Quote
  * with parent_quote_id pointing at the original and increments revision_number. The parent is moved to
  * SUPERSEDED so it's clear the offer that's "live" is the latest revision.
- *
- * @property int $id
- * @property int $apps_id
- * @property int $companies_id
- * @property string $uuid
- * @property string|null $quote_number
- * @property string|null $billable_type
- * @property int|null $billable_id
- * @property string|null $billable_display_name
- * @property string|null $billable_legal_name
- * @property string|null $billable_tax_id
- * @property string|null $billable_email
+|null $billable_email
  * @property array|null $billing_address_snapshot
  * @property QuoteStatusEnum $status
  * @property \Illuminate\Support\Carbon|null $issued_date
@@ -42,13 +32,7 @@ use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
  * @property \Illuminate\Support\Carbon|null $valid_until
  * @property \Illuminate\Support\Carbon|null $accepted_at
  * @property \Illuminate\Support\Carbon|null $rejected_at
- * @property string|null $lost_reason
- * @property int|null $converted_to_invoice_id
- * @property int|null $parent_quote_id
- * @property int $revision_number
- * @property string $tax_calculation_mode
- * @property string $delivery_status
- * @property string $currency
+ $currency
  * @property float $fx_rate_to_base
  * @property float $subtotal_native
  * @property float $tax_native
@@ -59,16 +43,11 @@ use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
  * @property float $discount_base
  * @property float $total_base
  * @property array|null $regional_compliance
- * @property string|null $notes
- * @property string|null $internal_notes
- * @property string|null $terms
- * @property string $source
- * @property string|null $external_id
- * @property string|null $external_url
+|null $external_url
  * @property JournalEntryOriginEnum $origin
  * @property array|null $metadata
  * @property bool $is_deleted
- * @property int|null $users_id
+|null $users_id
  */
 class Quote extends BaseModel
 {
@@ -120,5 +99,14 @@ class Quote extends BaseModel
     public function convertedInvoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class, 'converted_to_invoice_id', 'id');
+    }
+
+    /**
+     * The human contact at the customer Organization the quote was addressed to. Lives in the
+     * `crm` connection — Eloquent's BelongsTo handles the cross-connection lookup. Optional.
+     */
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(People::class, 'contact_people_id', 'id');
     }
 }

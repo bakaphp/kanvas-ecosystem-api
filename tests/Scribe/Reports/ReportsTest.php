@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Expenses\Actions\ApproveExpenseAction;
 use Kanvas\Scribe\Expenses\Actions\CreateExpenseAction;
 use Kanvas\Scribe\Expenses\Actions\RecordExpenseReimbursementAction;
@@ -35,7 +36,6 @@ use Kanvas\Scribe\Reports\Repositories\ProfitAndLossRepository;
 use Kanvas\Scribe\Reports\Repositories\RevenueRepository;
 use Kanvas\Scribe\Reports\Repositories\TrialBalanceRepository;
 use Spatie\LaravelData\DataCollection;
-use Tests\Scribe\Invoices\Stubs\StubBillable;
 use Tests\TestCase;
 
 /**
@@ -77,7 +77,7 @@ class ReportsTest extends TestCase
 
     public function test_balance_sheet_balances_after_invoice_issue(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
         $this->issueTestInvoice($billable, subtotal: 1000.0, tax: 0.0);
 
         $bs = new BalanceSheetRepository()->generate(
@@ -106,7 +106,7 @@ class ReportsTest extends TestCase
 
     public function test_profit_and_loss_for_period_with_revenue_and_expense(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
         $this->issueTestInvoice($billable, subtotal: 2000.0, tax: 0.0);
         $this->approveExpense(amount: 500.0);
 
@@ -127,7 +127,7 @@ class ReportsTest extends TestCase
 
     public function test_trial_balance_grand_total_balances(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
         $this->issueTestInvoice($billable, subtotal: 750.0, tax: 50.0);
         $this->approveExpense(amount: 200.0);
 
@@ -149,7 +149,7 @@ class ReportsTest extends TestCase
 
     public function test_ar_aging_buckets_by_due_date(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
         // Three invoices with staggered due dates so they fall into different buckets relative to 2026-09-01
         $this->issueAtDueDate($billable, 1000.0, dueDate: '2026-09-15');         // future → CURRENT
         $this->issueAtDueDate($billable, 500.0, dueDate: '2026-08-15');           // ~17 days → 1-30
@@ -175,8 +175,8 @@ class ReportsTest extends TestCase
 
     public function test_revenue_report_groups_by_customer(): void
     {
-        $billableA = new StubBillable(id: 1001, displayName: 'ACME Corp');
-        $billableB = new StubBillable(id: 1002, displayName: 'Globex');
+        $billableA = $this->seedOrganization('ACME Corp');
+        $billableB = $this->seedOrganization('Globex');
 
         $this->issueTestInvoice($billableA, subtotal: 1000.0, tax: 0.0);
         $this->issueTestInvoice($billableA, subtotal: 500.0, tax: 0.0);
@@ -200,7 +200,7 @@ class ReportsTest extends TestCase
 
     public function test_revenue_report_groups_by_month(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
         $this->issueAtDueDate($billable, 1500.0, dueDate: '2026-07-30', issuedDate: '2026-06-15');
         $this->issueAtDueDate($billable, 800.0, dueDate: '2026-08-30', issuedDate: '2026-06-25');
 
@@ -220,7 +220,7 @@ class ReportsTest extends TestCase
 
     public function test_aging_evaluation_service_flips_overdue_invoices(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
         $invoice = $this->issueAtDueDate($billable, 1000.0, dueDate: '2026-06-15');
         $this->assertSame(InvoiceCollectionStateEnum::CURRENT, $invoice->collection_state);
 
@@ -239,7 +239,7 @@ class ReportsTest extends TestCase
 
     public function test_aging_evaluation_preserves_disputed_state(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
         $invoice = $this->issueAtDueDate($billable, 1000.0, dueDate: '2026-06-15');
         $invoice->collection_state = InvoiceCollectionStateEnum::DISPUTED;
         $invoice->save();
@@ -260,7 +260,7 @@ class ReportsTest extends TestCase
 
     public function test_e2e_flow_1_invoice_then_payment_through_reports(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
         $invoice = $this->issueTestInvoice($billable, subtotal: 1000.0, tax: 0.0);
 
         $bsBeforePayment = new BalanceSheetRepository()->generate(
@@ -339,7 +339,7 @@ class ReportsTest extends TestCase
     }
 
     private function issueTestInvoice(
-        StubBillable $billable,
+        Organization $billable,
         float $subtotal,
         float $tax,
     ): Invoice {
@@ -373,7 +373,7 @@ class ReportsTest extends TestCase
     }
 
     private function issueAtDueDate(
-        StubBillable $billable,
+        Organization $billable,
         float $amount,
         string $dueDate,
         string $issuedDate = '2026-06-15',
@@ -445,5 +445,17 @@ class ReportsTest extends TestCase
             expense: $submitted,
             approver: static::$cachedUser,
         )->execute();
+    }
+
+    private function seedOrganization(string $name = 'Test Org', ?string $address = null): Organization
+    {
+        return Organization::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => $name,
+            'address' => $address ?? '',
+            'total_employees' => 0,
+        ]);
     }
 }

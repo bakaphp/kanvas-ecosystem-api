@@ -43,8 +43,8 @@ class ExpenseJournalEntryComposerService
     {
         $app = $expense->app;
         $company = $expense->company;
-        $vendorBillableType = $expense->vendor_billable_type;
-        $vendorBillableId = $expense->vendor_billable_id;
+        $vendorBillableType = 'organization'; // Phase 4: Org-only
+        $vendorBillableId = $expense->vendor_organization_id;
         $currency = $expense->currency;
         $fxRate = (float) $expense->fx_rate_to_base;
 

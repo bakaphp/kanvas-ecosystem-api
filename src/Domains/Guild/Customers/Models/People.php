@@ -29,6 +29,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Locations\Models\Countries;
+use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
@@ -62,18 +63,18 @@ use Override;
  */
 class People extends BaseModel
 {
-    use UuidTrait;
+    use CanUseWorkflow;
+    use CascadeSoftDeletes;
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
-    use HasTagsTrait;
-    use CanUseWorkflow;
-    use SocialInteractionsTrait;
-    use Notifiable;
     use HasLightHouseCache;
+    use HasTagsTrait;
     use LikableTrait;
+    use Notifiable;
+    use SocialInteractionsTrait;
     use SoftDeletesTrait;
-    use CascadeSoftDeletes;
+    use UuidTrait;
 
     public const DELETED_AT = 'is_deleted';
 
@@ -140,6 +141,18 @@ class People extends BaseModel
     public function peopleType(): BelongsTo
     {
         return $this->belongsTo(PeopleType::class, 'people_types_id');
+    }
+
+    /**
+     * Quotes addressed to this person as a contact (Phase 4: quotes.contact_people_id).
+     *
+     * The customer Organization remains the legal counterparty on the quote — this relation lists
+     * the quotes whose "Attn: X" recipient is this People row. Live here (not in Scribe) because
+     * People is the Guild model and Scribe never references Guild classes directly.
+     */
+    public function quotesAsContact(): HasMany
+    {
+        return $this->hasMany(Quote::class, 'contact_people_id', 'id');
     }
 
     public function emails(): HasMany

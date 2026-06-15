@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Invoices\Actions\AmendInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\IssueCreditNoteAction;
@@ -51,7 +52,6 @@ use Kanvas\Scribe\TaxCodes\DataTransferObject\TaxRateData;
 use Kanvas\Scribe\TaxCodes\Models\TaxCode;
 use RuntimeException;
 use Spatie\LaravelData\DataCollection;
-use Tests\Scribe\Invoices\Stubs\StubBillable;
 use Tests\TestCase;
 
 /**
@@ -93,7 +93,7 @@ class ScribeFollowUpActionsTest extends TestCase
 
     public function test_update_draft_invoice_replaces_lines_and_recomputes_totals(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
         $draft = $this->createDraftInvoice($billable, unitPrice: 100.0, tax: 0.0);
 
         $updated = new UpdateInvoiceAction(
@@ -123,7 +123,7 @@ class ScribeFollowUpActionsTest extends TestCase
 
     public function test_update_non_draft_invoice_throws(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
         $invoice = $this->issueTestInvoice($billable);
 
         $this->expectException(InvalidInvoiceTransitionException::class);
@@ -147,7 +147,7 @@ class ScribeFollowUpActionsTest extends TestCase
 
     public function test_issue_credit_note_creates_credit_note_invoice_posts_inverse_je_and_recomputes_parent(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
         $parent = $this->issueTestInvoice($billable, subtotal: 1000.0, tax: 180.0);
         $this->assertEquals(1180.0, (float) $parent->total_native);
         $this->assertEquals(1180.0, (float) $parent->balance_due_native);
@@ -199,7 +199,7 @@ class ScribeFollowUpActionsTest extends TestCase
 
     public function test_issue_credit_note_for_full_amount_marks_parent_paid(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
         $parent = $this->issueTestInvoice($billable, subtotal: 500.0, tax: 0.0);
 
         new IssueCreditNoteAction(
@@ -226,7 +226,7 @@ class ScribeFollowUpActionsTest extends TestCase
 
     public function test_issue_credit_note_rejects_amount_exceeding_parent_total(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
         $parent = $this->issueTestInvoice($billable, subtotal: 100.0, tax: 0.0);
 
         $this->expectException(InvalidInvoiceTransitionException::class);
@@ -251,7 +251,7 @@ class ScribeFollowUpActionsTest extends TestCase
 
     public function test_amend_invoice_changes_due_date_and_appends_history(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
         $invoice = $this->issueTestInvoice($billable);
         $originalDueDate = $invoice->due_date;
 
@@ -280,7 +280,7 @@ class ScribeFollowUpActionsTest extends TestCase
 
     public function test_amend_invoice_rejected_on_draft(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
         $draft = $this->createDraftInvoice($billable);
 
         $this->expectException(InvalidInvoiceTransitionException::class);
@@ -609,7 +609,7 @@ class ScribeFollowUpActionsTest extends TestCase
     }
 
     private function createDraftInvoice(
-        StubBillable $billable,
+        Organization $billable,
         float $unitPrice = 100.0,
         float $tax = 0.0,
     ): Invoice {
@@ -636,7 +636,7 @@ class ScribeFollowUpActionsTest extends TestCase
     }
 
     private function issueTestInvoice(
-        StubBillable $billable,
+        Organization $billable,
         float $subtotal = 1000.0,
         float $tax = 180.0,
     ): Invoice {
@@ -659,5 +659,17 @@ class ScribeFollowUpActionsTest extends TestCase
         $this->assertNotNull($row);
 
         return (int) $row->id;
+    }
+
+    private function seedOrganization(string $name = 'Test Org', ?string $address = null): Organization
+    {
+        return Organization::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => $name,
+            'address' => $address ?? '',
+            'total_employees' => 0,
+        ]);
     }
 }

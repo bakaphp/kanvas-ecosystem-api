@@ -19,25 +19,12 @@ use Kanvas\Scribe\SalesReceipts\Enums\SalesReceiptStatusEnum;
  *
  * Lifecycle: RECORDED → VOIDED (no draft state — the sale already happened).
  * JE posts immediately on creation (DR Cash / CR Revenue + CR Tax Payable per plan §11.3).
- *
- * @property int $id
- * @property int $apps_id
- * @property int $companies_id
- * @property string $uuid
- * @property string|null $receipt_number
- * @property string|null $billable_type
- * @property int|null $billable_id
- * @property string|null $billable_display_name
- * @property string|null $billable_legal_name
- * @property string|null $billable_tax_id
- * @property string|null $billable_email
+|null $billable_email
  * @property array|null $billing_address_snapshot
  * @property SalesReceiptStatusEnum $status
  * @property \Illuminate\Support\Carbon $receipt_date
  * @property \Illuminate\Support\Carbon|null $voided_at
- * @property string|null $void_reason_code
- * @property string $tax_calculation_mode
- * @property string $currency
+ $currency
  * @property float $fx_rate_to_base
  * @property float $subtotal_native
  * @property float $tax_native
@@ -49,18 +36,11 @@ use Kanvas\Scribe\SalesReceipts\Enums\SalesReceiptStatusEnum;
  * @property float $total_base
  * @property array|null $tax_metadata
  * @property array|null $regional_compliance
- * @property int|null $cash_account_id
- * @property int|null $payment_method_id
- * @property int|null $payment_id
- * @property string|null $notes
- * @property string|null $internal_notes
- * @property string $source
- * @property string|null $external_id
- * @property string|null $external_url
+|null $external_url
  * @property JournalEntryOriginEnum $origin
  * @property array|null $metadata
  * @property bool $is_deleted
- * @property int|null $users_id
+|null $users_id
  */
 class SalesReceipt extends BaseModel
 {

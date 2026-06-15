@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\VoidInvoiceAction;
@@ -20,7 +21,6 @@ use Kanvas\Scribe\Ledger\Models\FiscalPeriod;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
 use Kanvas\Scribe\Ledger\Services\ChartOfAccountsSeederService;
 use Spatie\LaravelData\DataCollection;
-use Tests\Scribe\Invoices\Stubs\StubBillable;
 use Tests\TestCase;
 
 /**
@@ -59,7 +59,7 @@ class VoidInvoiceActionTest extends TestCase
 
     public function test_voiding_an_issued_invoice_posts_mirror_je_and_marks_original_reversed(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
         $invoice = $this->issueTestInvoice($billable, totalNative: 1180.00, taxNative: 180.00);
 
         $originalJe = JournalEntry::query()
@@ -124,7 +124,7 @@ class VoidInvoiceActionTest extends TestCase
 
     public function test_voiding_a_draft_throws(): void
     {
-        $billable = new StubBillable();
+        $billable = $this->seedOrganization();
 
         // Draft invoice — never issued
         $invoice = new CreateInvoiceAction(
@@ -149,7 +149,7 @@ class VoidInvoiceActionTest extends TestCase
         )->execute();
     }
 
-    private function issueTestInvoice(StubBillable $billable, float $totalNative, float $taxNative): \Kanvas\Scribe\Invoices\Models\Invoice
+    private function issueTestInvoice(Organization $billable, float $totalNative, float $taxNative): \Kanvas\Scribe\Invoices\Models\Invoice
     {
         $unitPrice = ($totalNative - $taxNative);     // subtotal = total - tax (no discount)
 
@@ -179,5 +179,17 @@ class VoidInvoiceActionTest extends TestCase
             billable: $billable,
             user: static::$cachedUser,
         )->execute();
+    }
+
+    private function seedOrganization(string $name = 'Test Org', ?string $address = null): Organization
+    {
+        return Organization::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => $name,
+            'address' => $address ?? '',
+            'total_employees' => 0,
+        ]);
     }
 }

@@ -70,8 +70,11 @@ class CreateQuoteAction
             $quote->users_id = $this->user?->getId();
 
             if ($this->data->billable !== null) {
-                $quote->billable_type = $this->data->billable->getBillableType();
-                $quote->billable_id = $this->data->billable->getBillableId();
+                $quote->customer_organization_id = $this->data->billable->getBillableId();
+            }
+
+            if ($this->data->contact !== null) {
+                $quote->contact_people_id = $this->data->contact->getId();
             }
 
             $quote->save();

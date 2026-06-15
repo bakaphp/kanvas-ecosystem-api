@@ -69,8 +69,7 @@ class CreateExpenseAction
 
             // Vendor reference (snapshot fields stay null until Approval; same pattern as Invoice billable)
             if ($this->data->vendor !== null) {
-                $expense->vendor_billable_type = $this->data->vendor->getPayeeType();
-                $expense->vendor_billable_id = $this->data->vendor->getPayeeId();
+                $expense->vendor_organization_id = $this->data->vendor->getPayeeId();
             }
 
             $expense->save();

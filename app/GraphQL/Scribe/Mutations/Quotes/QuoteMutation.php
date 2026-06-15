@@ -9,6 +9,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Quotes\Actions\AcceptQuoteAction;
 use Kanvas\Scribe\Quotes\Actions\ConvertQuoteToInvoiceAction;
@@ -173,6 +174,12 @@ class QuoteMutation
             $input['lines'],
         ));
 
+        $contact = null;
+        if (isset($input['contact_people_id'])) {
+            /** @var People $contact */
+            $contact = People::getByIdFromCompanyApp((int) $input['contact_people_id'], $company, $app);
+        }
+
         return new QuoteData(
             app: $app,
             company: $company,
@@ -189,6 +196,7 @@ class QuoteMutation
             regional_compliance: $input['regional_compliance'] ?? null,
             metadata: $input['metadata'] ?? null,
             parent_quote_id: isset($input['parent_quote_id']) ? (int) $input['parent_quote_id'] : null,
+            contact: $contact,
         );
     }
 }
