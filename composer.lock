@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e37f98b98bff07f99f9c82ed49921fff",
+    "content-hash": "187a65305925587267e97924ecd511cd",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -3205,16 +3205,16 @@
         },
         {
             "name": "guzzlehttp/uri-template",
-            "version": "v1.0.6",
+            "version": "v1.0.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/uri-template.git",
-                "reference": "eef7f87bab6f204eba3c39224d8075c70c637946"
+                "reference": "7fe811c23a9e3cd712b4389eaeb50b5456d8c529"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/uri-template/zipball/eef7f87bab6f204eba3c39224d8075c70c637946",
-                "reference": "eef7f87bab6f204eba3c39224d8075c70c637946",
+                "url": "https://api.github.com/repos/guzzle/uri-template/zipball/7fe811c23a9e3cd712b4389eaeb50b5456d8c529",
+                "reference": "7fe811c23a9e3cd712b4389eaeb50b5456d8c529",
                 "shasum": ""
             },
             "require": {
@@ -3271,7 +3271,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/uri-template/issues",
-                "source": "https://github.com/guzzle/uri-template/tree/v1.0.6"
+                "source": "https://github.com/guzzle/uri-template/tree/v1.0.7"
             },
             "funding": [
                 {
@@ -3287,7 +3287,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-23T22:00:21+00:00"
+            "time": "2026-06-12T21:33:43+00:00"
         },
         {
             "name": "haydenpierce/class-finder",
@@ -7168,16 +7168,16 @@
         },
         {
             "name": "nesbot/carbon",
-            "version": "3.11.4",
+            "version": "3.12.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/CarbonPHP/carbon.git",
-                "reference": "e890471a3494740f7d9326d72ce6a8c559ffee60"
+                "reference": "6e7853a668c3107294aff38d42bf760ec02126b6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/e890471a3494740f7d9326d72ce6a8c559ffee60",
-                "reference": "e890471a3494740f7d9326d72ce6a8c559ffee60",
+                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/6e7853a668c3107294aff38d42bf760ec02126b6",
+                "reference": "6e7853a668c3107294aff38d42bf760ec02126b6",
                 "shasum": ""
             },
             "require": {
@@ -7269,7 +7269,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-04-07T09:57:54+00:00"
+            "time": "2026-06-14T20:41:42+00:00"
         },
         {
             "name": "nette/schema",
@@ -17145,16 +17145,16 @@
         },
         {
             "name": "wearepixel/laravel-cart",
-            "version": "2.1.3",
+            "version": "3.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/wearepixel/laravel-cart.git",
-                "reference": "e61ffae5fee73c12e48db395f49019921e6199f0"
+                "reference": "d1169f502f911c75cbfd4965ba0f9f2de897574f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/wearepixel/laravel-cart/zipball/e61ffae5fee73c12e48db395f49019921e6199f0",
-                "reference": "e61ffae5fee73c12e48db395f49019921e6199f0",
+                "url": "https://api.github.com/repos/wearepixel/laravel-cart/zipball/d1169f502f911c75cbfd4965ba0f9f2de897574f",
+                "reference": "d1169f502f911c75cbfd4965ba0f9f2de897574f",
                 "shasum": ""
             },
             "require": {
@@ -17169,7 +17169,8 @@
                 "larapack/dd": "dev-master",
                 "laravel/pint": "^1.21",
                 "mockery/mockery": "^2.0",
-                "pestphp/pest": "^4.7"
+                "pestphp/pest": "^4.7",
+                "phpstan/phpstan": "2.2.x-dev"
             },
             "type": "library",
             "extra": {
@@ -17209,9 +17210,9 @@
             ],
             "support": {
                 "issues": "https://github.com/wearepixel/laravel-cart/issues",
-                "source": "https://github.com/wearepixel/laravel-cart/tree/v2.1.3"
+                "source": "https://github.com/wearepixel/laravel-cart/tree/v3.0.0"
             },
-            "time": "2026-05-29T04:27:02+00:00"
+            "time": "2026-06-13T05:57:26+00:00"
         },
         {
             "name": "weble/zohoclient",
@@ -17337,16 +17338,16 @@
         },
         {
             "name": "webmozart/assert",
-            "version": "2.4.0",
+            "version": "2.4.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/webmozarts/assert.git",
-                "reference": "9007ea6f45ecf352a9422b36644e4bfc039b9155"
+                "reference": "2ccb7c2e821038c03a3e6e1700c570c158c55f70"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/webmozarts/assert/zipball/9007ea6f45ecf352a9422b36644e4bfc039b9155",
-                "reference": "9007ea6f45ecf352a9422b36644e4bfc039b9155",
+                "url": "https://api.github.com/repos/webmozarts/assert/zipball/2ccb7c2e821038c03a3e6e1700c570c158c55f70",
+                "reference": "2ccb7c2e821038c03a3e6e1700c570c158c55f70",
                 "shasum": ""
             },
             "require": {
@@ -17397,9 +17398,9 @@
             ],
             "support": {
                 "issues": "https://github.com/webmozarts/assert/issues",
-                "source": "https://github.com/webmozarts/assert/tree/2.4.0"
+                "source": "https://github.com/webmozarts/assert/tree/2.4.1"
             },
-            "time": "2026-05-20T13:07:01+00:00"
+            "time": "2026-06-15T15:31:57+00:00"
         },
         {
             "name": "webonyx/graphql-php",

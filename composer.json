@@ -88,7 +88,7 @@
         "twilio/sdk": "^8.11",
         "typesense/typesense-php": "^6.0",
         "vlucas/phpdotenv": "^5.5",
-        "wearepixel/laravel-cart": "^2.0",
+        "wearepixel/laravel-cart": "^3.0",
         "webleit/zohocrmapi": "^5.5",
         "yakovenko/laravel-lighthouse-graphql-multi-schema": "^2.2"
     },
