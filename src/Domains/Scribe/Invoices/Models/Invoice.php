@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Scribe\Invoices\Actions\MarkInvoicePaidAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceAmendment;
@@ -250,6 +251,15 @@ class Invoice extends BaseModel implements PayableInterface
     public function hasBeenAmended(): bool
     {
         return $this->amendmentHistory() !== [];
+    }
+
+    /**
+     * The Guild Organization that is the legal customer on this invoice. Phase 4 — direct FK,
+     * no polymorphism (the legal counterparty is always an Organization).
+     */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class, 'customer_organization_id', 'id');
     }
 
     protected function sourceDomainForLedger(): string

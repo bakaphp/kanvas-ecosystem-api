@@ -8,8 +8,10 @@ use Baka\Casts\Json;
 use Baka\Contracts\PayableInterface;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Scribe\Bills\Actions\MarkBillPaidAction;
 use Kanvas\Scribe\Bills\Enums\BillCollectionStateEnum;
@@ -23,18 +25,29 @@ use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
  *
  * Mirrors Invoice but flipped to vendor (Payee) side. Implements Baka\Contracts\PayableInterface so
  * Souk.Payments can attach via the polymorphic 'payable' morph for outbound payment runs.
-|null $vendor_email
+ *
+ * @property int $id
+ * @property int $apps_id
+ * @property int $companies_id
+ * @property string $uuid
+ * @property int|null $vendor_organization_id
+ * @property string|null $bill_number
+ * @property string|null $vendor_display_name
+ * @property string|null $vendor_legal_name
+ * @property string|null $vendor_tax_id
+ * @property string|null $vendor_email
  * @property array|null $vendor_address_snapshot
  * @property BillDocumentStatusEnum $document_status
  * @property BillCollectionStateEnum|null $collection_state
- $tax_calculation_mode
+ * @property string $tax_calculation_mode
  * @property \Illuminate\Support\Carbon|null $bill_date
  * @property \Illuminate\Support\Carbon|null $received_date
  * @property \Illuminate\Support\Carbon|null $due_date
  * @property \Illuminate\Support\Carbon|null $scheduled_payment_date
- $net_terms_days
+ * @property int $net_terms_days
  * @property \Illuminate\Support\Carbon|null $voided_at
- $currency
+ * @property string|null $void_reason_code
+ * @property string $currency
  * @property float $fx_rate_to_base
  * @property \Illuminate\Support\Carbon|null $fx_rate_at
  * @property float $subtotal_native
@@ -51,13 +64,19 @@ use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
  * @property float $balance_due_base
  * @property array|null $tax_metadata
  * @property array|null $regional_compliance
-|null $external_url
+ * @property string|null $notes
+ * @property string|null $internal_notes
+ * @property string|null $terms
+ * @property string $source
+ * @property string|null $external_id
+ * @property string|null $external_url
  * @property \Illuminate\Support\Carbon|null $last_synced_at
  * @property JournalEntryOriginEnum $origin
-|null $pdf_ingest_log_id
+ * @property int|null $purchase_order_id
+ * @property int|null $pdf_ingest_log_id
  * @property array|null $metadata
  * @property bool $is_deleted
-|null $users_id
+ * @property int|null $users_id
  */
 class Bill extends BaseModel implements PayableInterface
 {
@@ -118,6 +137,15 @@ class Bill extends BaseModel implements PayableInterface
         return $this->morphMany(SoukPayment::class, 'payable')
             ->where('is_deleted', 0)
             ->latest();
+    }
+
+    /**
+     * The Guild Organization that is the vendor on this bill. Phase 4 — direct FK, no polymorphism
+     * (the legal counterparty on AP is always an Organization).
+     */
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class, 'vendor_organization_id', 'id');
     }
 
     // ────────── PayableInterface ──────────

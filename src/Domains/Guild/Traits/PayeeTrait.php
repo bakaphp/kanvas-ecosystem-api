@@ -34,9 +34,9 @@ trait PayeeTrait
 
     public function getPayeeTaxId(): ?string
     {
-        return $this->payeeCustomFieldValue('tax_id')
-            ?? $this->payeeCustomFieldValue('rnc')
-            ?? $this->payeeCustomFieldValue('ein');
+        return $this->get('tax_id')
+            ?? $this->get('rnc')
+            ?? $this->get('ein');
     }
 
     public function getPayeeEmail(): ?string
@@ -64,19 +64,8 @@ trait PayeeTrait
 
     public function getDefaultPayableCurrency(): string
     {
-        $stored = $this->payeeCustomFieldValue('default_currency');
+        $stored = $this->get('default_currency');
 
         return is_string($stored) && $stored !== '' ? $stored : 'USD';
-    }
-
-    private function payeeCustomFieldValue(string $key): ?string
-    {
-        if (! method_exists($this, 'getCustomField')) {
-            return null;
-        }
-
-        $value = $this->getCustomField($key);
-
-        return is_string($value) && $value !== '' ? $value : null;
     }
 }

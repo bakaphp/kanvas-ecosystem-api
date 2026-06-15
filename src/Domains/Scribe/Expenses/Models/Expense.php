@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Scribe\Banking\Models\BankAccount;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
@@ -18,22 +19,35 @@ use Kanvas\Scribe\Models\BaseModel;
 
 /**
  * Scribe.Expense — non-bill spending (company card, employee-paid travel, direct bank debit, petty cash).
-|null $vendor_email
+ *
+ * @property int $id
+ * @property int $apps_id
+ * @property int $companies_id
+ * @property string $uuid
+ * @property int|null $vendor_organization_id
+ * @property string|null $expense_number
+ * @property string|null $vendor_display_name
+ * @property string|null $vendor_legal_name
+ * @property string|null $vendor_tax_id
+ * @property string|null $vendor_email
  * @property ExpenseStatusEnum $status
  * @property \Illuminate\Support\Carbon $expense_date
  * @property \Illuminate\Support\Carbon|null $submitted_at
  * @property \Illuminate\Support\Carbon|null $approved_at
-|null $approved_by_users_id
+ * @property int|null $approved_by_users_id
  * @property \Illuminate\Support\Carbon|null $rejected_at
-|null $reject_reason
+ * @property int|null $rejected_by_users_id
+ * @property string|null $reject_reason
  * @property \Illuminate\Support\Carbon|null $voided_at
-|null $void_reason_code
+ * @property string|null $void_reason_code
  * @property ExpensePaidByEnum $paid_by
-|null $bank_account_id
+ * @property int|null $paid_by_users_id
+ * @property int|null $payment_method_id
+ * @property int|null $bank_account_id
  * @property ExpenseReimbursementStatusEnum $reimbursement_status
-|null $reimbursement_payment_id
+ * @property int|null $reimbursement_payment_id
  * @property \Illuminate\Support\Carbon|null $reimbursed_at
- $currency
+ * @property string $currency
  * @property float $fx_rate_to_base
  * @property float $subtotal_native
  * @property float $tax_native
@@ -43,11 +57,15 @@ use Kanvas\Scribe\Models\BaseModel;
  * @property float $total_base
  * @property array|null $tax_metadata
  * @property array|null $regional_compliance
-|null $external_url
+ * @property string|null $notes
+ * @property string|null $internal_notes
+ * @property string $source
+ * @property string|null $external_id
+ * @property string|null $external_url
  * @property JournalEntryOriginEnum $origin
  * @property array|null $metadata
  * @property bool $is_deleted
-|null $users_id
+ * @property int|null $users_id
  */
 class Expense extends BaseModel
 {
@@ -96,6 +114,15 @@ class Expense extends BaseModel
     public function bankAccount(): BelongsTo
     {
         return $this->belongsTo(BankAccount::class, 'bank_account_id', 'id');
+    }
+
+    /**
+     * The Guild Organization that is the vendor for this expense. Optional — petty cash / out-of-pocket
+     * expenses can land without a specific vendor recorded.
+     */
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class, 'vendor_organization_id', 'id');
     }
 
     protected function sourceDomainForLedger(): string

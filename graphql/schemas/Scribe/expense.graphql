@@ -25,7 +25,7 @@ type ScribeExpense {
     id: ID!
     uuid: String!
     expense_number: String
-    vendor_organization_id: Int
+    vendor: Organization @belongsTo(relation: "vendor")
     vendor_display_name: String
     vendor_legal_name: String
     vendor_tax_id: String

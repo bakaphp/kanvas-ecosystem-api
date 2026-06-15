@@ -24,7 +24,7 @@ type ScribeInvoice {
     uuid: String!
     document_type: ScribeInvoiceDocumentType!
     invoice_number: String
-    customer_organization_id: Int
+    customer: Organization @belongsTo(relation: "customer")
     billable_display_name: String
     billable_legal_name: String
     billable_tax_id: String

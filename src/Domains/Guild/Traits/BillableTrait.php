@@ -35,9 +35,9 @@ trait BillableTrait
 
     public function getBillableTaxId(): ?string
     {
-        return $this->customFieldValue('tax_id')
-            ?? $this->customFieldValue('rnc')
-            ?? $this->customFieldValue('ein');
+        return $this->get('tax_id')
+            ?? $this->get('rnc')
+            ?? $this->get('ein');
     }
 
     public function getBillingEmail(): ?string
@@ -71,7 +71,7 @@ trait BillableTrait
 
     public function getDefaultPaymentTermsDays(): int
     {
-        $stored = $this->customFieldValue('default_payment_terms_days');
+        $stored = $this->get('default_payment_terms_days');
         if ($stored !== null && is_numeric($stored)) {
             return (int) $stored;
         }
@@ -81,23 +81,8 @@ trait BillableTrait
 
     public function getDefaultCurrency(): string
     {
-        $stored = $this->customFieldValue('default_currency');
+        $stored = $this->get('default_currency');
 
         return is_string($stored) && $stored !== '' ? $stored : 'USD';
-    }
-
-    /**
-     * Best-effort custom field read — uses `getCustomField` when present, returns null otherwise.
-     * Stays defensive so the trait doesn't fatal on models without the CustomFields trait wired.
-     */
-    private function customFieldValue(string $key): ?string
-    {
-        if (! method_exists($this, 'getCustomField')) {
-            return null;
-        }
-
-        $value = $this->getCustomField($key);
-
-        return is_string($value) && $value !== '' ? $value : null;
     }
 }

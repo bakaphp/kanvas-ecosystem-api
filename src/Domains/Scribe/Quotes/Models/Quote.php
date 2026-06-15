@@ -9,6 +9,7 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
@@ -24,7 +25,18 @@ use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
  * Revision chain: when a customer asks for a changed version, CreateQuoteRevisionAction creates a new Quote
  * with parent_quote_id pointing at the original and increments revision_number. The parent is moved to
  * SUPERSEDED so it's clear the offer that's "live" is the latest revision.
-|null $billable_email
+ *
+ * @property int $id
+ * @property int $apps_id
+ * @property int $companies_id
+ * @property string $uuid
+ * @property int|null $customer_organization_id
+ * @property int|null $contact_people_id
+ * @property string|null $quote_number
+ * @property string|null $billable_display_name
+ * @property string|null $billable_legal_name
+ * @property string|null $billable_tax_id
+ * @property string|null $billable_email
  * @property array|null $billing_address_snapshot
  * @property QuoteStatusEnum $status
  * @property \Illuminate\Support\Carbon|null $issued_date
@@ -32,7 +44,7 @@ use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
  * @property \Illuminate\Support\Carbon|null $valid_until
  * @property \Illuminate\Support\Carbon|null $accepted_at
  * @property \Illuminate\Support\Carbon|null $rejected_at
- $currency
+ * @property string $currency
  * @property float $fx_rate_to_base
  * @property float $subtotal_native
  * @property float $tax_native
@@ -43,11 +55,18 @@ use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
  * @property float $discount_base
  * @property float $total_base
  * @property array|null $regional_compliance
-|null $external_url
+ * @property string|null $notes
+ * @property string|null $internal_notes
+ * @property string|null $terms
+ * @property string $source
+ * @property string|null $external_id
+ * @property string|null $external_url
  * @property JournalEntryOriginEnum $origin
+ * @property int|null $parent_quote_id
+ * @property int $revision_number
  * @property array|null $metadata
  * @property bool $is_deleted
-|null $users_id
+ * @property int|null $users_id
  */
 class Quote extends BaseModel
 {
@@ -108,5 +127,14 @@ class Quote extends BaseModel
     public function contact(): BelongsTo
     {
         return $this->belongsTo(People::class, 'contact_people_id', 'id');
+    }
+
+    /**
+     * The Guild Organization that is the legal customer this quote was issued to. Phase 4 —
+     * direct FK, no polymorphism.
+     */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class, 'customer_organization_id', 'id');
     }
 }
