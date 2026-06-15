@@ -16,7 +16,6 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
-use Stripe\Event;
 use Stripe\Exception\SignatureVerificationException;
 use Stripe\StripeObject;
 use Stripe\Webhook;

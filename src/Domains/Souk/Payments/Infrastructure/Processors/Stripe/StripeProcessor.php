@@ -26,24 +26,6 @@ use Stripe\Exception\ApiErrorException;
 use Stripe\PaymentIntent;
 use Stripe\StripeClient;
 
-/**
- * Stripe payment processor for Souk Order charges.
- *
- * Charges flow through Stripe PaymentIntents, never the Cashier/subscription code:
- *   - authorize() : create (or retrieve) a PaymentIntent and map its status to the Payment.
- *   - capture()   : settle a manual-capture PaymentIntent; no-op when already captured.
- *   - refund()    : create a Stripe Refund and append a payment_refunds row.
- *   - void()      : cancel an uncaptured PaymentIntent; refusing once funds are captured.
- *   - verify()    : reconcile local status against Stripe (used by the reconciliation cron).
- *
- * 3DS (ThreeDSProcessorInterface): when a PaymentIntent lands in `requires_action`,
- * authorize() returns the `client_secret` in AuthorizeResult.data so the browser can run
- * the challenge; finalizeChallenge() re-reads the intent and advances the Payment.
- *
- * This class MUST NOT import StripeCheckoutService, StripePlanService,
- * StripePaymentLinkService, or any Cashier class — credentials and the client are
- * Company-scoped and injected by PaymentProcessorServiceProvider.
- */
 final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcessorInterface
 {
     public function __construct(
@@ -60,7 +42,6 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
 
     public function authorize(Payments $payment, Order $order, array $context = []): AuthorizeResult
     {
-        // Already settled/closed — never create a fresh charge (the webhook may have landed first).
         if ($this->isTerminal((string) $payment->status)) {
             return new AuthorizeResult(
                 success: $payment->status === PaymentStatusEnum::PAID->value,
@@ -70,19 +51,15 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
             );
         }
 
-        // Idempotency: if a PaymentIntent already exists, reflect it instead of double-charging.
         if (! empty($payment->payment_intent_id)) {
             try {
                 $intent = $this->stripe->paymentIntents->retrieve((string) $payment->payment_intent_id);
 
                 return $this->toAuthorizeResult($payment, $order, $intent, 'authorize_retrieved');
             } catch (ApiErrorException) {
-                // Intent vanished at Stripe — fall through and create a fresh one.
             }
         }
 
-        // off_session defaults to true here — authorize() is the saved-card / merchant-initiated
-        // entry. For a customer-present 3DS charge use startChallenge() (off_session = false).
         try {
             $intent = $this->createIntent($payment, $order, $context);
         } catch (ApiErrorException $e) {
@@ -115,7 +92,6 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
         try {
             $intent = $this->stripe->paymentIntents->retrieve($intentId);
 
-            // Automatic-capture intents settle at authorize time — nothing to do.
             if ($intent->status === 'succeeded') {
                 return new CaptureResult(
                     success: true,
@@ -156,9 +132,6 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
 
     public function refund(Payments $payment, Order $order, ?float $amount = null, array $context = []): RefundResult
     {
-        // Only a captured (PAID) payment can be refunded — AUTHORIZED should be voided, and a
-        // REVERSED/CANCELLED payment has nothing left to refund. A partially-refunded payment
-        // stays PAID until fully refunded, so it correctly passes this guard.
         if ($payment->status !== PaymentStatusEnum::PAID->value) {
             return new RefundResult(
                 success: false,
@@ -178,13 +151,10 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
             );
         }
 
-        // Default to the amount actually charged (Payment.amount), not the order total — they can
-        // diverge (partial captures, order edits after capture). Refund what Stripe took.
         $refundAmount = $amount ?? (float) $payment->amount;
         $amountCents = $this->toCents($refundAmount);
 
         $params = ['amount' => $amountCents];
-        // Stripe prefers refunding by charge; fall back to the PaymentIntent when the charge id is unknown.
         if ($chargeId !== '') {
             $params['charge'] = $chargeId;
         } else {
@@ -227,8 +197,6 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
 
         $refund->processor_refund_id = $stripeRefund->id;
         $refund->save();
-        // markAsCompleted flips the Payment to REVERSED once cumulative refunds reach the total
-        // and cascades to the Order via SyncPayablePaymentStatusAction.
         $refund->markAsCompleted([
             'stripe_refund_id' => $stripeRefund->id,
             'stripe_status' => $stripeRefund->status,
@@ -343,13 +311,6 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
         );
     }
 
-    /**
-     * Customer-present entry point. Creates and confirms the PaymentIntent on-session
-     * (off_session = false) so Stripe runs the 3DS challenge inline and returns a
-     * client_secret for stripe.handleNextAction(). Charges that don't need a challenge
-     * settle straight to PAID here. Re-callable: an existing PaymentIntent is reflected,
-     * not recreated.
-     */
     public function startChallenge(Payments $payment, Order $order, array $context = []): ThreeDSResult
     {
         if ($this->isTerminal((string) $payment->status)) {
@@ -410,7 +371,6 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
             );
         }
 
-        // Idempotent: client and webhook may both finalize — once terminal, report without re-writing.
         if ($this->isTerminal((string) $payment->status)) {
             return new ThreeDSResult(
                 success: $payment->status === PaymentStatusEnum::PAID->value,
@@ -446,11 +406,6 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
         );
     }
 
-    /**
-     * Map the PaymentIntent status onto the Payment and persist the transition.
-     * Terminal Payments (PAID / REVERSED / CANCELLED) short-circuit so repeated calls
-     * from the API path and the webhook stay idempotent.
-     */
     private function syncPaymentFromIntent(Payments $payment, Order $order, PaymentIntent $intent, string $event): PaymentStatusEnum
     {
         if ($this->isTerminal((string) $payment->status)) {
@@ -546,11 +501,6 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
         );
     }
 
-    /**
-     * Build and confirm a PaymentIntent for this order. Shared by authorize() (off_session
-     * defaults true — saved card / MIT) and startChallenge() (off_session forced false —
-     * customer present). Throws ApiErrorException; callers map that to a FAILED payment.
-     */
     private function createIntent(Payments $payment, Order $order, array $context): PaymentIntent
     {
         $this->assertSupportedCurrency($order);
@@ -574,8 +524,7 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
             'confirm' => true,
             'off_session' => $context['off_session'] ?? true,
             'capture_method' => ($context['manual_capture'] ?? false) ? 'manual' : 'automatic',
-            // Card-only processor: accounts with automatic payment methods enabled reject
-            // confirm-without-return_url. allow_redirects 'never' still permits 3DS (handleNextAction).
+            // allow_redirects 'never' lets a card-only confirm skip return_url while still allowing 3DS.
             'automatic_payment_methods' => ['enabled' => true, 'allow_redirects' => 'never'],
             'metadata' => [
                 'kanvas_app_id' => $this->app->getId(),
@@ -627,16 +576,11 @@ final class StripeProcessor implements PaymentProcessorInterface, ThreeDSProcess
             return null;
         }
 
-        // latest_charge is a charge id when unexpanded, or a Charge object when expanded.
         return is_string($intent->latest_charge)
             ? $intent->latest_charge
             : ($intent->latest_charge->id ?? null);
     }
 
-    /**
-     * The client_secret grants action on the PaymentIntent — drop it once the Payment
-     * reaches a state where no further challenge is expected.
-     */
     private function clearClientSecret(Payments $payment): void
     {
         $metadata = $payment->metadata ?? [];
