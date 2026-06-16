@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -39,11 +40,11 @@ use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
  * @property string|null $billable_email
  * @property array|null $billing_address_snapshot
  * @property QuoteStatusEnum $status
- * @property \Illuminate\Support\Carbon|null $issued_date
- * @property \Illuminate\Support\Carbon|null $sent_at
- * @property \Illuminate\Support\Carbon|null $valid_until
- * @property \Illuminate\Support\Carbon|null $accepted_at
- * @property \Illuminate\Support\Carbon|null $rejected_at
+ * @property Carbon|null $issued_date
+ * @property Carbon|null $sent_at
+ * @property Carbon|null $valid_until
+ * @property Carbon|null $accepted_at
+ * @property Carbon|null $rejected_at
  * @property string $currency
  * @property float $fx_rate_to_base
  * @property float $subtotal_native

@@ -14,6 +14,7 @@ use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Services\AccountResolverService;
+use RuntimeException;
 use Spatie\LaravelData\DataCollection;
 
 /**
@@ -56,7 +57,7 @@ class ExpenseJournalEntryComposerService
         $expense->load('lines');
         foreach ($expense->lines as $line) {
             if ($line->expense_account_id === null) {
-                throw new \RuntimeException(
+                throw new RuntimeException(
                     "ExpenseLine {$line->id} has no expense_account_id — cannot post approval JE. "
                     . 'Assign an expense account before approving.'
                 );

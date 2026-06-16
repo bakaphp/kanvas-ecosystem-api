@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\KanvasAppScopesTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
+use Illuminate\Support\Carbon;
 
 /**
  * Daily FX rate cache.
@@ -19,7 +20,7 @@ use Illuminate\Database\Eloquent\Model as EloquentModel;
  * @property string $base_currency
  * @property string $quote_currency
  * @property float $rate
- * @property \Illuminate\Support\Carbon $rate_date
+ * @property Carbon $rate_date
  * @property string $source
  * @property array|null $metadata
  */

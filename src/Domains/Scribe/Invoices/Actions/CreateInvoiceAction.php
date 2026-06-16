@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Invoices\Actions;
 
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLineData;
@@ -53,7 +54,7 @@ class CreateInvoiceAction
             $invoice->due_date = $this->data->due_date;
             $invoice->currency = $this->data->currency;
             $invoice->fx_rate_to_base = $this->data->fx_rate_to_base;
-            $invoice->fx_rate_at = $this->data->issued_date ?? \Illuminate\Support\Carbon::now();
+            $invoice->fx_rate_at = $this->data->issued_date ?? Carbon::now();
             $invoice->subtotal_native = $totals['subtotal'];
             $invoice->tax_native = $totals['tax'];
             $invoice->discount_native = $totals['discount'];

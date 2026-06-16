@@ -6,6 +6,7 @@ namespace Kanvas\Scribe\Approvals\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
 use Kanvas\Scribe\Models\BaseModel;
 
@@ -27,9 +28,9 @@ use Kanvas\Scribe\Models\BaseModel;
  * @property array|null $payload
  * @property ApprovalQueueStatusEnum $status
  * @property int|null $approved_by_users_id
- * @property \Illuminate\Support\Carbon|null $approved_at
+ * @property Carbon|null $approved_at
  * @property string|null $reason
- * @property \Illuminate\Support\Carbon|null $expires_at
+ * @property Carbon|null $expires_at
  * @property int|null $nervous_system_plan_id
  * @property int|null $nervous_system_task_id
  * @property array|null $metadata

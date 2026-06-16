@@ -11,6 +11,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Carbon;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Scribe\Bills\Actions\MarkBillPaidAction;
@@ -40,16 +41,16 @@ use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
  * @property BillDocumentStatusEnum $document_status
  * @property BillCollectionStateEnum|null $collection_state
  * @property string $tax_calculation_mode
- * @property \Illuminate\Support\Carbon|null $bill_date
- * @property \Illuminate\Support\Carbon|null $received_date
- * @property \Illuminate\Support\Carbon|null $due_date
- * @property \Illuminate\Support\Carbon|null $scheduled_payment_date
+ * @property Carbon|null $bill_date
+ * @property Carbon|null $received_date
+ * @property Carbon|null $due_date
+ * @property Carbon|null $scheduled_payment_date
  * @property int $net_terms_days
- * @property \Illuminate\Support\Carbon|null $voided_at
+ * @property Carbon|null $voided_at
  * @property string|null $void_reason_code
  * @property string $currency
  * @property float $fx_rate_to_base
- * @property \Illuminate\Support\Carbon|null $fx_rate_at
+ * @property Carbon|null $fx_rate_at
  * @property float $subtotal_native
  * @property float $tax_native
  * @property float $discount_native
@@ -70,7 +71,7 @@ use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
  * @property string $source
  * @property string|null $external_id
  * @property string|null $external_url
- * @property \Illuminate\Support\Carbon|null $last_synced_at
+ * @property Carbon|null $last_synced_at
  * @property JournalEntryOriginEnum $origin
  * @property int|null $purchase_order_id
  * @property int|null $pdf_ingest_log_id

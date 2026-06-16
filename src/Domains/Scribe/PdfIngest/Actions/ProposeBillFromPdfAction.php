@@ -10,6 +10,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Guild\Organizations\Actions\ResolveOrCreateOrganizationFromVendorPayloadAction;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\DataTransferObject\BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLineData;
@@ -124,8 +125,28 @@ class ProposeBillFromPdfAction
 
         $bill = new CreateBillAction(data: $data, user: $this->user)->execute();
 
+        // Auto-resolve/create the vendor Guild Org from the extracted payload + email hint. Drafts
+        // ship with vendor_organization_id already set so the operator doesn't have to pick during
+        // approval. Duplicates are cleaned up later via MergeOrganizationsAction.
+        if ($this->user !== null) {
+            $vendor = new ResolveOrCreateOrganizationFromVendorPayloadAction(
+                app: $this->app,
+                company: $this->company,
+                user: $this->user,
+                payload: [
+                    'vendor_name' => $this->extracted['vendor_name'] ?? $vendorDisplayName,
+                    'vendor_email' => $this->extracted['vendor_email'] ?? $this->fromEmail,
+                    'vendor_tax_id' => $this->extracted['vendor_tax_id'] ?? null,
+                ],
+            )->execute();
+            if ($vendor !== null) {
+                $bill->vendor_organization_id = (int) $vendor->id;
+            }
+        }
+
         // Set the vendor display name into the snapshot up-front so the operator sees it in the list
-        // (legal_name/tax_id/email stay null until ReceiveBill freezes the full PayeeInterface snapshot).
+        // (legal_name/tax_id/email also populated from the extraction; ReceiveBill re-freezes them
+        // from the linked Guild Org at the moment of receipt).
         $bill->vendor_display_name = $vendorDisplayName;
         $bill->vendor_legal_name = $this->trimOrDefault($this->extracted['vendor_name'] ?? null, null);
         $bill->vendor_tax_id = $this->trimOrDefault($this->extracted['vendor_tax_id'] ?? null, null);

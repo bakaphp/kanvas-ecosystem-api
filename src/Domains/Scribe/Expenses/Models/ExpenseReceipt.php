@@ -7,6 +7,7 @@ namespace Kanvas\Scribe\Expenses\Models;
 use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Pointer to a Kanvas Filesystem row (cross-DB; no DDL FK).
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $expense_id
  * @property int $filesystem_id
- * @property \Illuminate\Support\Carbon $uploaded_at
+ * @property Carbon $uploaded_at
  * @property int|null $uploaded_by_users_id
  * @property array|null $metadata
  */

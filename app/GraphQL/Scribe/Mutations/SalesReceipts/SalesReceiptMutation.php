@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Scribe\Mutations\SalesReceipts;
 
-use App\GraphQL\Scribe\Resolvers\BillableResolver;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\SalesReceipts\Actions\CreateSalesReceiptAction;
 use Kanvas\Scribe\SalesReceipts\Actions\VoidSalesReceiptAction;
 use Kanvas\Scribe\SalesReceipts\DataTransferObject\SalesReceiptData;
@@ -17,11 +17,6 @@ use Spatie\LaravelData\DataCollection;
 
 class SalesReceiptMutation
 {
-    public function __construct(
-        protected readonly BillableResolver $billableResolver = new BillableResolver(),
-    ) {
-    }
-
     public function create(mixed $rootValue, array $request): SalesReceipt
     {
         $app = app(Apps::class);
@@ -29,16 +24,16 @@ class SalesReceiptMutation
         $company = $user->getCurrentCompany();
         $input = $request['input'];
 
-        $billable = $this->billableResolver->resolveBillableOrNull(
-            $input['billable_type'] ?? null,
-            isset($input['billable_id']) ? (int) $input['billable_id'] : null,
-            $app,
-            $company,
-        );
-
-        if ($billable === null) {
-            throw new RuntimeException('billable_type + billable_id are required to create a sales receipt.');
+        if (! isset($input['customer_organization_id'])) {
+            throw new RuntimeException('customer_organization_id is required to create a sales receipt.');
         }
+
+        /** @var Organization $billable */
+        $billable = Organization::getByIdFromCompanyApp(
+            (int) $input['customer_organization_id'],
+            $company,
+            $app,
+        );
 
         $lines = new DataCollection(SalesReceiptLineData::class, array_map(
             fn (array $line): SalesReceiptLineData => new SalesReceiptLineData(

@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
@@ -33,8 +34,8 @@ use Kanvas\Scribe\SalesReceipts\Enums\SalesReceiptStatusEnum;
  * @property string|null $billable_email
  * @property array|null $billing_address_snapshot
  * @property SalesReceiptStatusEnum $status
- * @property \Illuminate\Support\Carbon $receipt_date
- * @property \Illuminate\Support\Carbon|null $voided_at
+ * @property Carbon $receipt_date
+ * @property Carbon|null $voided_at
  * @property string|null $void_reason_code
  * @property string $tax_calculation_mode
  * @property string $currency

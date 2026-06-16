@@ -10,6 +10,7 @@ use Baka\Traits\KanvasCompanyScopesTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
 
 /**
@@ -21,10 +22,10 @@ use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
  * @property int $apps_id
  * @property int $companies_id
  * @property string $uuid
- * @property \Illuminate\Support\Carbon $period_start
- * @property \Illuminate\Support\Carbon $period_end
+ * @property Carbon $period_start
+ * @property Carbon $period_end
  * @property string $status
- * @property \Illuminate\Support\Carbon|null $closed_at
+ * @property Carbon|null $closed_at
  * @property int|null $closed_by_users_id
  * @property string|null $close_notes
  * @property array|null $metadata

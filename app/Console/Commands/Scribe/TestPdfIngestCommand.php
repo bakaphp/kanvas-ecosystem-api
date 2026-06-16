@@ -12,9 +12,12 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\PdfIngest\Actions\ProcessAccountingPdfAction;
 use Kanvas\Scribe\PdfIngest\DataTransferObject\PdfIngestInput;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestStatusEnum;
+use Kanvas\Scribe\PdfIngest\Models\PdfIngestLog;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -193,7 +196,7 @@ class TestPdfIngestCommand extends Command
             $this->error('Gemini API key not configured for this app.');
             $this->line('Set it with:');
             $this->line(
-                "  app(\Kanvas\Apps\Models\Apps::class)->set('"
+                "  app(Apps::class)->set('"
                 . ConfigurationEnum::GEMINI_KEY->value
                 . "', 'YOUR_KEY')"
             );
@@ -226,7 +229,7 @@ class TestPdfIngestCommand extends Command
         return $row;
     }
 
-    private function renderResult(\Kanvas\Scribe\PdfIngest\Models\PdfIngestLog $log): void
+    private function renderResult(PdfIngestLog $log): void
     {
         $this->line('');
         $this->info('── PdfIngestLog ──');
@@ -258,8 +261,8 @@ class TestPdfIngestCommand extends Command
     private function renderLinkedEntity(string $type, int $id): void
     {
         $class = match ($type) {
-            'expense' => \Kanvas\Scribe\Expenses\Models\Expense::class,
-            'bill' => \Kanvas\Scribe\Bills\Models\Bill::class,
+            'expense' => Expense::class,
+            'bill' => Bill::class,
             default => null,
         };
         if ($class === null) {

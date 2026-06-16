@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Quotes\Actions;
 
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Quotes\DataTransferObject\QuoteData;
 use Kanvas\Scribe\Quotes\DataTransferObject\QuoteLineData;
@@ -47,7 +48,7 @@ class CreateQuoteAction
             $quote->valid_until = $this->data->valid_until;
             $quote->currency = $this->data->currency;
             $quote->fx_rate_to_base = $this->data->fx_rate_to_base;
-            $quote->fx_rate_at = $this->data->issued_date ?? \Illuminate\Support\Carbon::now();
+            $quote->fx_rate_at = $this->data->issued_date ?? Carbon::now();
             $quote->subtotal_native = $totals['subtotal'];
             $quote->tax_native = $totals['tax'];
             $quote->discount_native = $totals['discount'];

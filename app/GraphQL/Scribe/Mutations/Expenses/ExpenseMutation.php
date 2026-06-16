@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Scribe\Mutations\Expenses;
 
-use App\GraphQL\Scribe\Resolvers\BillableResolver;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Expenses\Actions\ApproveExpenseAction;
 use Kanvas\Scribe\Expenses\Actions\AttachExpenseReceiptAction;
 use Kanvas\Scribe\Expenses\Actions\CreateExpenseAction;
@@ -27,11 +27,6 @@ use Spatie\LaravelData\DataCollection;
 
 class ExpenseMutation
 {
-    public function __construct(
-        protected readonly BillableResolver $billableResolver = new BillableResolver(),
-    ) {
-    }
-
     public function create(mixed $rootValue, array $request): Expense
     {
         $app = app(Apps::class);
@@ -164,12 +159,15 @@ class ExpenseMutation
         AppInterface $app,
         CompanyInterface $company,
     ): ExpenseData {
-        $vendor = $this->billableResolver->resolvePayeeOrNull(
-            $input['vendor_billable_type'] ?? null,
-            isset($input['vendor_billable_id']) ? (int) $input['vendor_billable_id'] : null,
-            $app,
-            $company,
-        );
+        $vendor = null;
+        if (isset($input['vendor_organization_id'])) {
+            /** @var Organization $vendor */
+            $vendor = Organization::getByIdFromCompanyApp(
+                (int) $input['vendor_organization_id'],
+                $company,
+                $app,
+            );
+        }
 
         $lines = new DataCollection(ExpenseLineData::class, array_map(
             fn (array $line): ExpenseLineData => new ExpenseLineData(

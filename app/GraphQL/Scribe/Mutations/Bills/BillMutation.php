@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Scribe\Mutations\Bills;
 
-use App\GraphQL\Scribe\Resolvers\BillableResolver;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\MarkBillPaidAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
@@ -21,11 +21,6 @@ use Spatie\LaravelData\DataCollection;
 
 class BillMutation
 {
-    public function __construct(
-        protected readonly BillableResolver $billableResolver = new BillableResolver(),
-    ) {
-    }
-
     public function create(mixed $rootValue, array $request): Bill
     {
         $app = app(Apps::class);
@@ -47,17 +42,17 @@ class BillMutation
         /** @var Bill $bill */
         $bill = Bill::getByIdFromCompanyApp((int) $request['id'], $company, $app);
 
-        if ($bill->vendor_billable_type === null || $bill->vendor_billable_id === null) {
+        if ($bill->vendor_organization_id === null) {
             throw new RuntimeException(
                 "Bill {$bill->id} has no vendor reference — assign a vendor before receiving."
             );
         }
 
-        $vendor = $this->billableResolver->resolvePayee(
-            $bill->vendor_billable_type,
-            (int) $bill->vendor_billable_id,
-            $app,
+        /** @var Organization $vendor */
+        $vendor = Organization::getByIdFromCompanyApp(
+            (int) $bill->vendor_organization_id,
             $company,
+            $app,
         );
 
         return new ReceiveBillAction(
@@ -100,12 +95,15 @@ class BillMutation
         AppInterface $app,
         CompanyInterface $company,
     ): BillData {
-        $vendor = $this->billableResolver->resolvePayeeOrNull(
-            $input['vendor_billable_type'] ?? null,
-            isset($input['vendor_billable_id']) ? (int) $input['vendor_billable_id'] : null,
-            $app,
-            $company,
-        );
+        $vendor = null;
+        if (isset($input['vendor_organization_id'])) {
+            /** @var Organization $vendor */
+            $vendor = Organization::getByIdFromCompanyApp(
+                (int) $input['vendor_organization_id'],
+                $company,
+                $app,
+            );
+        }
 
         $lines = new DataCollection(BillLineData::class, array_map(
             fn (array $line): BillLineData => new BillLineData(

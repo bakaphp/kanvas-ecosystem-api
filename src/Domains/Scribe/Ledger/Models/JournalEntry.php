@@ -11,6 +11,7 @@ use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
 
@@ -20,7 +21,7 @@ use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
  * @property int $companies_id
  * @property string $uuid
  * @property string|null $je_number
- * @property \Illuminate\Support\Carbon $posted_at
+ * @property Carbon $posted_at
  * @property int|null $fiscal_period_id
  * @property string $source_type
  * @property int|null $source_id

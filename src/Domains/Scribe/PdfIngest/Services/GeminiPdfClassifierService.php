@@ -136,14 +136,47 @@ Analyze the attached PDF and return a single JSON object matching this shape:
   }
 }
 
-Classification rules (apply in order):
-  1. If the document shows "Paid", a credit card last-4, or any payment-already-made indicator → expense_receipt.
-  2. If the document is from a vendor TO our company with a "Pay By" date in the future and balance due > 0 → vendor_invoice.
-  3. If it's a quote / estimate / proforma from a vendor → vendor_quote.
-  4. If the document is FROM our company and we recognize our own letterhead → our_invoice or our_quote.
-  5. Otherwise → unknown.
+Classification rules (apply STRICTLY in order — return the FIRST that matches):
 
-For Dominican Republic documents look for "NCF" (Comprobante Fiscal) and "RNC" (tax id) — extract verbatim into tax_metadata.
+  1. our_invoice / our_quote — ONLY when the document is clearly FROM US (our company name in the
+     "From" header or our letterhead/logo). For outbound docs the operator already created and
+     forwarded back to themselves.
+
+  2. vendor_quote — title or first heading contains "Quote", "Estimate", "Proforma Invoice",
+     "Pro Forma Invoice", or "Cotización" (DR). No real billing happens yet.
+
+  3. vendor_invoice — this is the DEFAULT for any formal billing document FROM a vendor TO our
+     company. Trigger when ANY of these are true:
+       - Document title or header contains "Invoice", "Tax Invoice", "Bill", or "Factura" (DR)
+       - Anywhere on the document there's an invoice/bill number field: "Invoice #",
+         "Invoice Number", "Invoice No", "INV-…", "Bill No", "Bill #", "Número de Factura"
+       - Has a "Due By", "Pay By", "Payment Due", "Net 30/60", or "Payment Terms" field
+         (even if blank or unfilled)
+       - Has bank account / wire / ACH / BSB / SWIFT / IBAN coordinates so the vendor can be paid
+       - Has a remit-to address or "Make checks payable to" instructions
+
+     vendor_invoice is the SAFE DEFAULT. Pick it whenever you're choosing between vendor_invoice
+     and expense_receipt and the doc has any invoice-like structure.
+
+  4. expense_receipt — pick this ONLY when ALL of the following are true:
+       - There is NO invoice number anywhere on the document
+       - There IS explicit payment-already-completed evidence: a "PAID" stamp,
+         a transaction id / authorization code, a credit card last-4 ("•••• 1234"), "Auth Code: …",
+         a card terminal slip layout, a "Change due: 0.00" line, or a POS-style total line
+       - Typical source: restaurant, taxi/rideshare, hotel folio, retail store/POS, fuel station,
+         parking, coffee shop, grocery, in-store small purchase
+
+     IMPORTANT: A document with an invoice number plus bank account details for the vendor to
+     receive payment is NOT an expense_receipt — that's a vendor_invoice (the vendor is asking
+     US to pay them, the bank details are how to remit). Bank coordinates ≠ proof of payment.
+
+  5. unknown — when none of the above match with confidence ≥ 0.7.
+
+If unsure between two options: prefer vendor_invoice over expense_receipt, and prefer unknown
+over guessing. Conservative misclassifications are cheaper to fix than aggressive ones.
+
+For Dominican Republic documents look for "NCF" (Comprobante Fiscal) and "RNC" (tax id) — extract
+verbatim into tax_metadata.
 {$contextBlock}
 Output ONLY the JSON — no surrounding prose, no markdown, no code fence.
 PROMPT;

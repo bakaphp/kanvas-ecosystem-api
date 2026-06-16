@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\AccountTypeEnum;
 use Kanvas\Scribe\Models\BaseModel;
@@ -28,7 +29,7 @@ use Kanvas\Scribe\Models\BaseModel;
  * @property bool $is_system
  * @property string $source
  * @property string|null $external_id
- * @property \Illuminate\Support\Carbon|null $last_synced_at
+ * @property Carbon|null $last_synced_at
  * @property array|null $metadata
  * @property bool $is_deleted
  * @property int|null $users_id

@@ -7,6 +7,7 @@ namespace Kanvas\Scribe\Banking\Models;
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Models\BaseModel;
 
@@ -26,11 +27,11 @@ use Kanvas\Scribe\Models\BaseModel;
  * @property int $gl_account_id
  * @property float|null $current_balance_native
  * @property float|null $available_balance_native
- * @property \Illuminate\Support\Carbon|null $last_balance_sync_at
+ * @property Carbon|null $last_balance_sync_at
  * @property bool $is_active
  * @property string $source
  * @property string|null $external_id
- * @property \Illuminate\Support\Carbon|null $last_synced_at
+ * @property Carbon|null $last_synced_at
  * @property array|null $metadata
  * @property bool $is_deleted
  * @property int|null $users_id

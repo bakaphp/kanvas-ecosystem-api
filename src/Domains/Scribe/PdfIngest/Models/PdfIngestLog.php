@@ -9,6 +9,7 @@ use Baka\Traits\KanvasAppScopesTrait;
 use Baka\Traits\KanvasCompanyScopesTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
+use Illuminate\Support\Carbon;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestDocumentTypeEnum;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestStatusEnum;
 
@@ -37,7 +38,7 @@ use Kanvas\Scribe\PdfIngest\Enums\PdfIngestStatusEnum;
  * @property string|null $linked_entity_type
  * @property int|null $linked_entity_id
  * @property string|null $rejected_reason
- * @property \Illuminate\Support\Carbon|null $processed_at
+ * @property Carbon|null $processed_at
  * @property int|null $users_id
  */
 class PdfIngestLog extends EloquentModel

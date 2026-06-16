@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Scribe\Mutations\Quotes;
 
-use App\GraphQL\Scribe\Resolvers\BillableResolver;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Quotes\Actions\AcceptQuoteAction;
 use Kanvas\Scribe\Quotes\Actions\ConvertQuoteToInvoiceAction;
@@ -26,11 +26,6 @@ use Spatie\LaravelData\DataCollection;
 
 class QuoteMutation
 {
-    public function __construct(
-        protected readonly BillableResolver $billableResolver = new BillableResolver(),
-    ) {
-    }
-
     public function create(mixed $rootValue, array $request): Quote
     {
         $app = app(Apps::class);
@@ -52,17 +47,17 @@ class QuoteMutation
         /** @var Quote $quote */
         $quote = Quote::getByIdFromCompanyApp((int) $request['id'], $company, $app);
 
-        if ($quote->billable_type === null || $quote->billable_id === null) {
+        if ($quote->customer_organization_id === null) {
             throw new RuntimeException(
-                "Quote {$quote->id} has no billable reference — assign one before sending."
+                "Quote {$quote->id} has no customer reference — assign one before sending."
             );
         }
 
-        $billable = $this->billableResolver->resolveBillable(
-            $quote->billable_type,
-            (int) $quote->billable_id,
-            $app,
+        /** @var Organization $billable */
+        $billable = Organization::getByIdFromCompanyApp(
+            (int) $quote->customer_organization_id,
             $company,
+            $app,
         );
 
         return new SendQuoteAction(
@@ -149,12 +144,15 @@ class QuoteMutation
         AppInterface $app,
         CompanyInterface $company,
     ): QuoteData {
-        $billable = $this->billableResolver->resolveBillableOrNull(
-            $input['billable_type'] ?? null,
-            isset($input['billable_id']) ? (int) $input['billable_id'] : null,
-            $app,
-            $company,
-        );
+        $billable = null;
+        if (isset($input['customer_organization_id'])) {
+            /** @var Organization $billable */
+            $billable = Organization::getByIdFromCompanyApp(
+                (int) $input['customer_organization_id'],
+                $company,
+                $app,
+            );
+        }
 
         $lines = new DataCollection(QuoteLineData::class, array_map(
             fn (array $line): QuoteLineData => new QuoteLineData(

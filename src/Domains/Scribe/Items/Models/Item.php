@@ -7,6 +7,7 @@ namespace Kanvas\Scribe\Items\Models;
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Scribe\Items\Enums\ItemTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
@@ -37,7 +38,7 @@ use Kanvas\Scribe\TaxCodes\Models\TaxCode;
  * @property bool $is_active
  * @property string $source
  * @property string|null $external_id
- * @property \Illuminate\Support\Carbon|null $last_synced_at
+ * @property Carbon|null $last_synced_at
  * @property array|null $metadata
  * @property bool $is_deleted
  * @property int|null $users_id

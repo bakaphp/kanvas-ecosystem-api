@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Scribe\Banking\Models\BankAccount;
@@ -31,14 +32,14 @@ use Kanvas\Scribe\Models\BaseModel;
  * @property string|null $vendor_tax_id
  * @property string|null $vendor_email
  * @property ExpenseStatusEnum $status
- * @property \Illuminate\Support\Carbon $expense_date
- * @property \Illuminate\Support\Carbon|null $submitted_at
- * @property \Illuminate\Support\Carbon|null $approved_at
+ * @property Carbon $expense_date
+ * @property Carbon|null $submitted_at
+ * @property Carbon|null $approved_at
  * @property int|null $approved_by_users_id
- * @property \Illuminate\Support\Carbon|null $rejected_at
+ * @property Carbon|null $rejected_at
  * @property int|null $rejected_by_users_id
  * @property string|null $reject_reason
- * @property \Illuminate\Support\Carbon|null $voided_at
+ * @property Carbon|null $voided_at
  * @property string|null $void_reason_code
  * @property ExpensePaidByEnum $paid_by
  * @property int|null $paid_by_users_id
@@ -46,7 +47,7 @@ use Kanvas\Scribe\Models\BaseModel;
  * @property int|null $bank_account_id
  * @property ExpenseReimbursementStatusEnum $reimbursement_status
  * @property int|null $reimbursement_payment_id
- * @property \Illuminate\Support\Carbon|null $reimbursed_at
+ * @property Carbon|null $reimbursed_at
  * @property string $currency
  * @property float $fx_rate_to_base
  * @property float $subtotal_native

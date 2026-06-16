@@ -335,7 +335,14 @@ class PdfIngestRoutingTest extends TestCase
 
         $this->assertSame(PdfIngestStatusEnum::FAILED, $log->status);
         $this->assertStringContainsString('missing required fields', (string) $log->rejected_reason);
-        $this->assertSame(0, Expense::query()->where('source', 'parsed_pdf')->count());
+        $this->assertSame(
+            0,
+            Expense::query()
+                ->where('apps_id', $this->kanvasApp->getId())
+                ->where('companies_id', $this->company->getId())
+                ->where('source', 'parsed_pdf')
+                ->count(),
+        );
     }
 
     private function createFilesystemRow(): Filesystem

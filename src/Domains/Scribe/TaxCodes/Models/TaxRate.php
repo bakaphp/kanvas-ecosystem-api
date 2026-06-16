@@ -7,6 +7,7 @@ namespace Kanvas\Scribe\TaxCodes\Models;
 use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Ledger\Models\Account;
 
 /**
@@ -16,8 +17,8 @@ use Kanvas\Scribe\Ledger\Models\Account;
  * @property float $rate
  * @property int|null $tax_account_id
  * @property int $sort_order
- * @property \Illuminate\Support\Carbon $effective_from
- * @property \Illuminate\Support\Carbon|null $effective_to
+ * @property Carbon $effective_from
+ * @property Carbon|null $effective_to
  * @property array|null $metadata
  */
 class TaxRate extends EloquentModel

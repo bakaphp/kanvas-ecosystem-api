@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Invoices\Enums\AllocationSourceTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
 use Kanvas\Scribe\Invoices\Enums\ReversalReasonCodeEnum;
@@ -35,10 +36,10 @@ use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
  * @property float $amount_base
  * @property string $currency
  * @property float $fx_rate_to_base
- * @property \Illuminate\Support\Carbon|null $fx_rate_at
- * @property \Illuminate\Support\Carbon $allocated_at
+ * @property Carbon|null $fx_rate_at
+ * @property Carbon $allocated_at
  * @property int|null $allocated_by_users_id
- * @property \Illuminate\Support\Carbon|null $reversed_at
+ * @property Carbon|null $reversed_at
  * @property int|null $reversed_by_users_id
  * @property string|null $reversal_reason
  * @property string|null $reversal_reason_code
