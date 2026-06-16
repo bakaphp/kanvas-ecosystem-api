@@ -17,6 +17,7 @@ use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Scribe\Bills\Actions\MarkBillPaidAction;
 use Kanvas\Scribe\Bills\Enums\BillCollectionStateEnum;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
+use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
@@ -39,6 +40,7 @@ use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
  * @property string|null $vendor_email
  * @property array|null $vendor_address_snapshot
  * @property BillDocumentStatusEnum $document_status
+ * @property PaymentStatusHintEnum $payment_status_hint
  * @property BillCollectionStateEnum|null $collection_state
  * @property string $tax_calculation_mode
  * @property Carbon|null $bill_date
@@ -89,6 +91,7 @@ class Bill extends BaseModel implements PayableInterface
 
     protected $casts = [
         'document_status' => BillDocumentStatusEnum::class,
+        'payment_status_hint' => PaymentStatusHintEnum::class,
         'collection_state' => BillCollectionStateEnum::class,
         'origin' => JournalEntryOriginEnum::class,
         'is_deleted' => 'boolean',

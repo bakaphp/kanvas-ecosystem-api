@@ -68,7 +68,9 @@ class GeminiPdfClassifierPromptSnapshotTest extends TestCase
     {
         $prompt = GeminiPdfClassifierService::buildPrompt(['app_currency_default' => 'DOP']);
 
-        $this->assertStringContainsString('default DOP', $prompt);
+        // Post-laravel-ai migration the prompt phrases the default like
+        // "Default currency when none stated: DOP" instead of "default {$x}".
+        $this->assertStringContainsString('Default currency when none stated: DOP', $prompt);
     }
 
     public function test_prompt_keeps_dr_specific_extraction_hints(): void
@@ -77,5 +79,23 @@ class GeminiPdfClassifierPromptSnapshotTest extends TestCase
 
         $this->assertStringContainsString('NCF', $prompt, 'DR Comprobante Fiscal extraction must stay supported.');
         $this->assertStringContainsString('RNC', $prompt, 'DR tax-id extraction must stay supported.');
+    }
+
+    public function test_prompt_specifies_payment_status_hint_rules(): void
+    {
+        $prompt = GeminiPdfClassifierService::buildPrompt([]);
+
+        // The hint drives the "Mark as already paid?" suggestion in the operator UI. If the LLM
+        // stops returning it for reasonable docs (paid receipts), drafts won't surface the
+        // suggestion — this assertion catches prompt drift on that signal.
+        $this->assertStringContainsString('payment_status_hint', $prompt);
+        $this->assertStringContainsString("'paid'", $prompt);
+        $this->assertStringContainsString("'unpaid'", $prompt);
+        $this->assertStringContainsString('PAID', $prompt, 'PAID stamp must be listed as a paid-evidence signal.');
+        $this->assertStringContainsString(
+            'Date paid',
+            $prompt,
+            'Date-paid field is a classic paid signal (Anthropic-style receipts).',
+        );
     }
 }

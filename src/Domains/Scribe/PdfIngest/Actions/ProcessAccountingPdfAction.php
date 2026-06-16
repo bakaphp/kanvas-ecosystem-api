@@ -8,6 +8,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\PdfIngest\Contracts\PdfClassifierServiceInterface;
 use Kanvas\Scribe\PdfIngest\Contracts\PdfContentHasherInterface;
 use Kanvas\Scribe\PdfIngest\DataTransferObject\PdfIngestInput;
@@ -220,7 +221,7 @@ class ProcessAccountingPdfAction
 
         if ($bill === null) {
             $log->status = PdfIngestStatusEnum::FAILED;
-            $log->rejected_reason = 'Bill creation failed — extracted payload missing required fields.';
+            $log->rejected_reason = $this->explainProposeFailure('Bill', $extracted);
 
             return;
         }
@@ -246,7 +247,7 @@ class ProcessAccountingPdfAction
 
         if ($expense === null) {
             $log->status = PdfIngestStatusEnum::FAILED;
-            $log->rejected_reason = 'Expense creation failed — extracted payload missing required fields.';
+            $log->rejected_reason = $this->explainProposeFailure('Expense', $extracted);
 
             return;
         }
@@ -254,6 +255,41 @@ class ProcessAccountingPdfAction
         $log->status = PdfIngestStatusEnum::ENTITY_CREATED;
         $log->linked_entity_type = 'expense';
         $log->linked_entity_id = (int) $expense->id;
+    }
+
+    /**
+     * Translate a Propose action's `return null` into a useful operator-facing reason.
+     *
+     * The two failure modes — "extraction garbage" vs "tenant COA not seeded" — need very
+     * different operator follow-ups, but the Propose actions return null in both cases. Inspect
+     * the extracted payload + the live COA to figure out which one fired, so the rejected_reason
+     * row in `pdf_ingest_log` actually tells the operator what to do.
+     *
+     * @param  array<string, mixed>  $extracted
+     */
+    private function explainProposeFailure(string $kind, array $extracted): string
+    {
+        $total = $extracted['total'] ?? null;
+        if (! is_numeric($total) || (float) $total <= 0) {
+            return "{$kind} creation skipped — LLM extraction had no usable `total` (got: "
+                . var_export($total, true) . '). Re-classify the PDF or improve the prompt.';
+        }
+
+        $hasExpenseAccount = Account::query()
+            ->where('apps_id', $this->input->app->getId())
+            ->where('companies_id', $this->input->company->getId())
+            ->where('is_deleted', false)
+            ->where('account_type', 'expense')
+            ->exists();
+
+        if (! $hasExpenseAccount) {
+            return "{$kind} creation skipped — no expense accounts exist in this tenant's COA. "
+                . 'Seed the chart of accounts first: '
+                . '`ChartOfAccountsSeederService::seedUsDefault($appId, $companyId)`.';
+        }
+
+        return "{$kind} creation skipped — no specific cause identified. "
+            . 'Check the orchestrator logs for details.';
     }
 
     private function resolveClassifier(): PdfClassifierServiceInterface

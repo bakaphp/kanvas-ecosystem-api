@@ -1,4 +1,3 @@
-"Scribe.Bills — AP sub-ledger (vendor invoices we owe)."
 enum ScribeBillDocumentStatus {
     DRAFT @enum(value: "draft")
     RECEIVED @enum(value: "received")
@@ -13,6 +12,13 @@ enum ScribeBillCollectionState {
     UNCOLLECTIBLE @enum(value: "uncollectible")
 }
 
+"Operator-UI hint extracted from PDF ingest. NOT a GL state — the authoritative status is document_status. Use this to surface 'Mark as already paid?' suggestions on drafts."
+enum ScribePaymentStatusHint {
+    PAID @enum(value: "paid")
+    UNPAID @enum(value: "unpaid")
+    UNKNOWN @enum(value: "unknown")
+}
+
 type ScribeBill {
     id: ID!
     uuid: String!
@@ -24,6 +30,7 @@ type ScribeBill {
     vendor_email: String
     vendor_address_snapshot: Mixed
     document_status: ScribeBillDocumentStatus!
+    payment_status_hint: ScribePaymentStatusHint!
     collection_state: ScribeBillCollectionState
     tax_calculation_mode: String!
     bill_date: Date

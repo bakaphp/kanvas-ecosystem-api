@@ -334,7 +334,11 @@ class PdfIngestRoutingTest extends TestCase
         )->execute();
 
         $this->assertSame(PdfIngestStatusEnum::FAILED, $log->status);
-        $this->assertStringContainsString('missing required fields', (string) $log->rejected_reason);
+        $this->assertStringContainsString(
+            'no usable `total`',
+            (string) $log->rejected_reason,
+            'rejected_reason must say "no usable total" so the operator knows the LLM extraction was the problem.',
+        );
         $this->assertSame(
             0,
             Expense::query()

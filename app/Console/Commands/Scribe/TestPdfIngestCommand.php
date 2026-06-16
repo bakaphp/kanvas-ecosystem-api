@@ -6,10 +6,12 @@ namespace App\Console\Commands\Scribe;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Filesystem\Actions\UploadFileAction;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
@@ -39,7 +41,7 @@ class TestPdfIngestCommand extends Command
     use KanvasJobsTrait;
 
     protected $signature = 'scribe:test-pdf-ingest
-                            {url : Publicly fetchable URL of the invoice / receipt PDF}
+                            {source : Either a publicly fetchable URL (https://…/file.pdf) OR a local file path (/absolute/path/to/file.pdf)}
                             {--app= : Apps id (defaults to first non-deleted app)}
                             {--company= : Companies id (defaults to first company for the app)}
                             {--user= : Users id (defaults to first user; needs to be a member of the company)}
@@ -50,9 +52,16 @@ class TestPdfIngestCommand extends Command
 
     public function handle(): int
     {
-        $url = trim((string) $this->argument('url'));
-        if ($url === '') {
-            $this->error('URL is required.');
+        $source = trim((string) $this->argument('source'));
+        if ($source === '') {
+            $this->error('A URL or file path is required.');
+
+            return self::FAILURE;
+        }
+
+        $isLocalFile = $this->looksLikeLocalPath($source);
+        if ($isLocalFile && ! is_readable($source)) {
+            $this->error("Local file does not exist or is not readable: {$source}");
 
             return self::FAILURE;
         }
@@ -76,8 +85,14 @@ class TestPdfIngestCommand extends Command
             return self::FAILURE;
         }
 
-        $pdf = $this->createFilesystemRowFromUrl($url, $app, $company, $user);
-        $this->info("Filesystem row created — id={$pdf->getId()} uuid={$pdf->uuid}");
+        // For a local file: wrap it as an UploadedFile and push it through UploadFileAction —
+        // exactly the same path a real uploaded PDF takes. Result: a Filesystem row with a real
+        // (S3 / public storage) URL that SafeUrlFetcher can fetch normally. No byte-override
+        // backdoor needed — the production ingest pipeline runs unchanged from here.
+        $pdf = $isLocalFile
+            ? $this->uploadLocalFileToFilesystem($source, $app, $user)
+            : $this->createFilesystemRowFromUrl($source, $app, $company, $user);
+        $this->info("Filesystem row created — id={$pdf->getId()} uuid={$pdf->uuid} url={$pdf->url}");
 
         $this->info('Calling ProcessAccountingPdfAction with the LIVE Gemini classifier…');
 
@@ -103,6 +118,42 @@ class TestPdfIngestCommand extends Command
         $this->renderResult($log);
 
         return $log->status === PdfIngestStatusEnum::FAILED ? self::FAILURE : self::SUCCESS;
+    }
+
+    /**
+     * Treats anything starting with `/` (absolute path) or `./` / `../` (relative) as a local path.
+     * Anything else (`https://…`, `http://…`) is treated as a URL.
+     */
+    private function looksLikeLocalPath(string $source): bool
+    {
+        return str_starts_with($source, '/')
+            || str_starts_with($source, './')
+            || str_starts_with($source, '../');
+    }
+
+    /**
+     * Uploads the local file via the same UploadFileAction the production HTTP-upload path uses.
+     * Result is a fully-formed Filesystem row with a real storage URL — the rest of the ingest
+     * pipeline doesn't care that this came from disk vs an HTTP upload.
+     */
+    private function uploadLocalFileToFilesystem(string $path, Apps $app, Users $user): Filesystem
+    {
+        $name = basename($path);
+        if (! str_ends_with(strtolower($name), '.pdf')) {
+            $name .= '.pdf';
+        }
+
+        // The 5th argument `$test = true` skips the "must have been uploaded via HTTP POST" check —
+        // safe here because this is a CLI-only test command, not a request-handling path.
+        $uploaded = new UploadedFile(
+            path: $path,
+            originalName: $name,
+            mimeType: 'application/pdf',
+            error: null,
+            test: true,
+        );
+
+        return new UploadFileAction(user: $user, app: $app)->execute($uploaded);
     }
 
     private function resolveApp(): ?Apps

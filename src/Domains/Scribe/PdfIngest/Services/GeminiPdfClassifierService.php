@@ -5,42 +5,45 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\PdfIngest\Services;
 
 use Baka\Http\SafeUrlFetcher;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Scribe\PdfIngest\Contracts\PdfClassifierServiceInterface;
 use Kanvas\Scribe\PdfIngest\DataTransferObject\PdfClassificationResult;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestDocumentTypeEnum;
+use Laravel\Ai\Enums\Lab;
+use Laravel\Ai\Exceptions\AiException;
+use Laravel\Ai\Files\Document;
+use Laravel\Ai\Responses\StructuredAgentResponse;
 use RuntimeException;
 use Throwable;
 
+use function Laravel\Ai\agent;
+
 /**
- * Gemini 2.5 multimodal classifier — one HTTP call extracts + classifies.
+ * Gemini 2.5 multimodal classifier — one structured agent call extracts + classifies.
+ *
+ * Wired through `Laravel\Ai\agent()` with `Lab::Gemini`. The package handles:
+ *   - API-key resolution (via the KanvasGeminiGateway registered in AppServiceProvider)
+ *   - HTTP transport, retries, model failover
+ *   - JSON-schema enforcement on the response (returns a typed array via `$response->structured`)
  *
  * Flow:
  *   1. Fetch PDF bytes via SafeUrlFetcher (SSRF-guarded per the root CLAUDE.md rule)
- *   2. Base64-encode for inline_data part of the request
- *   3. POST to v1beta/models/{model}:generateContent with the JSON-schema'd prompt
- *   4. Parse the JSON response into a PdfClassificationResult
+ *   2. Base64-encode + wrap as `Document::fromBase64()` so the package can send `inline_data`
+ *   3. Call agent(schema)->prompt() — package serializes/deserializes; our schema definition
+ *      mirrors the JSON shape the prompt describes
+ *   4. Map the validated dict to PdfClassificationResult
  *
- * Key resolution: app-level ConfigurationEnum::GEMINI_KEY (per-tenant) — same key the NeuronAI
- * agents use. Model defaults to gemini-2.5-flash for cost/latency on receipt-grade docs;
- * override via ConfigurationEnum::GEMINI_MODEL or scribe-specific config later.
- *
- * Error semantics: any failure (missing key, fetch error, HTTP error, malformed JSON) raises a
- * RuntimeException which ProcessAccountingPdfAction catches and stamps `status=failed` on the log row.
- * The orchestrator NEVER propagates the exception to the queue — failed ingests are recoverable via
- * retry.
+ * Error semantics: any failure (missing key, fetch error, AI error) raises a RuntimeException
+ * which ProcessAccountingPdfAction catches and stamps `status=failed` on the log row. Failed
+ * ingests are recoverable via retry.
  */
 class GeminiPdfClassifierService implements PdfClassifierServiceInterface
 {
-    public const ENDPOINT_TEMPLATE = 'https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent';
     public const DEFAULT_MODEL = 'gemini-2.5-flash';
 
     public function __construct(
-        protected readonly ?string $apiKeyOverride = null,
         protected readonly ?string $modelOverride = null,
         protected readonly int $timeoutSeconds = 60,
     ) {
@@ -48,46 +51,67 @@ class GeminiPdfClassifierService implements PdfClassifierServiceInterface
 
     public function classify(Filesystem $pdf, array $hints = []): PdfClassificationResult
     {
-        $apiKey = $this->resolveApiKey();
+        $bytes = $this->fetchPdfBytes($pdf);
+        $prompt = self::buildPrompt($hints);
         $model = $this->resolveModel();
 
-        $bytes = $this->fetchPdfBytes($pdf);
-        $base64 = base64_encode($bytes);
-
-        $endpoint = sprintf(self::ENDPOINT_TEMPLATE, $model);
-        $prompt = self::buildPrompt($hints);
-
-        $response = Http::timeout($this->timeoutSeconds)
-            ->retry(2, 1500, throw: false)
-            ->post($endpoint . '?key=' . $apiKey, [
-                'contents' => [[
-                    'parts' => [
-                        ['inline_data' => ['mime_type' => 'application/pdf', 'data' => $base64]],
-                        ['text' => $prompt],
-                    ],
-                ]],
-                'generationConfig' => [
-                    'responseMimeType' => 'application/json',
-                    'temperature' => 0.1,
+        try {
+            /** @var StructuredAgentResponse $response */
+            $response = agent(
+                schema: fn ($s) => [
+                    'document_type' => $s->string()
+                        ->enum([
+                            PdfIngestDocumentTypeEnum::EXPENSE_RECEIPT->value,
+                            PdfIngestDocumentTypeEnum::VENDOR_INVOICE->value,
+                            PdfIngestDocumentTypeEnum::VENDOR_QUOTE->value,
+                            PdfIngestDocumentTypeEnum::OUR_INVOICE->value,
+                            PdfIngestDocumentTypeEnum::OUR_QUOTE->value,
+                            PdfIngestDocumentTypeEnum::UNKNOWN->value,
+                        ])
+                        ->description('One of: expense_receipt | vendor_invoice | vendor_quote | our_invoice | our_quote | unknown')
+                        ->required(),
+                    'confidence' => $s->number()->description('Confidence 0..1 in the document_type call.')->required(),
+                    'reasoning' => $s->string()->description('1-2 sentences explaining why this classification was picked.'),
+                    'extracted' => $s->object([
+                        'vendor_name' => $s->string()->description('The vendor / sender name as printed on the document.'),
+                        'vendor_tax_id' => $s->string()->description('RNC / EIN / tax id when visible; empty string when not.'),
+                        'vendor_email' => $s->string()->description('Vendor email when visible; empty string when not.'),
+                        'bill_number' => $s->string()->description("Invoice / bill number (e.g. 'INV-3337'). Empty when not present."),
+                        'issue_date' => $s->string()->description('YYYY-MM-DD or empty.'),
+                        'due_date' => $s->string()->description('YYYY-MM-DD for vendor_invoice with a future Pay By; empty otherwise.'),
+                        'currency' => $s->string()->description('ISO 4217 code (e.g. USD, DOP).'),
+                        'subtotal' => $s->number()->description('Pre-tax line total. 0 if not present.'),
+                        'tax' => $s->number()->description('Tax amount. 0 if not present.'),
+                        'total' => $s->number()->description('Grand total. 0 if not present.'),
+                        'payment_method_hint' => $s->string()
+                            ->enum(['credit_card', 'bank_transfer', 'cash', 'employee_personal', 'unknown'])
+                            ->description("Inferred payment method ('credit_card' | 'bank_transfer' | 'cash' | 'employee_personal' | 'unknown')."),
+                        'payment_status_hint' => $s->string()
+                            ->enum(['paid', 'unpaid', 'unknown'])
+                            ->description("Whether the document shows it has ALREADY been paid. 'paid' for receipts / paid-stamps / payment history sections. 'unpaid' for invoices with a future Pay By and no payment evidence. 'unknown' otherwise."),
+                        'notes' => $s->string()->description('Free-text notes / memos visible on the doc.'),
+                    ]),
                 ],
-            ]);
-
-        if (! $response->successful()) {
+            )->prompt(
+                $prompt,
+                attachments: [Document::fromBase64(base64_encode($bytes), 'application/pdf')],
+                provider: Lab::Gemini,
+                model: $model,
+                timeout: $this->timeoutSeconds,
+            );
+        } catch (AiException $e) {
             throw new RuntimeException(
-                "Gemini classify request failed: HTTP {$response->status()} — "
-                . substr((string) $response->body(), 0, 300)
+                "Gemini structured-classification call failed: {$e->getMessage()}",
+                previous: $e,
+            );
+        } catch (Throwable $e) {
+            throw new RuntimeException(
+                "Gemini structured-classification call failed (non-AI): {$e->getMessage()}",
+                previous: $e,
             );
         }
 
-        $text = $this->extractTextPart($response->json());
-        $decoded = json_decode($text, associative: true);
-        if (! is_array($decoded)) {
-            throw new RuntimeException(
-                'Gemini returned non-JSON text payload: ' . substr($text, 0, 300)
-            );
-        }
-
-        return $this->mapToResult($decoded);
+        return $this->mapToResult((array) $response->structured);
     }
 
     /**
@@ -112,29 +136,10 @@ class GeminiPdfClassifierService implements PdfClassifierServiceInterface
         return <<<PROMPT
 You are a strict accounting document classifier and extractor for a small business in the US and/or Dominican Republic.
 
-Analyze the attached PDF and return a single JSON object matching this shape:
+Analyze the attached PDF and return a structured result matching the response schema.
 
-{
-  "document_type": "expense_receipt" | "vendor_invoice" | "vendor_quote" | "our_invoice" | "our_quote" | "unknown",
-  "confidence": 0.0 - 1.0,
-  "reasoning": "1-2 sentences why",
-  "extracted": {
-    "vendor_name": "string",
-    "vendor_tax_id": "string or null",
-    "vendor_email": "string or null",
-    "bill_number": "string or null (the vendor's invoice number)",
-    "issue_date": "YYYY-MM-DD or null",
-    "due_date": "YYYY-MM-DD or null (only for vendor_invoice)",
-    "currency": "ISO 4217 code, default {$defaultCurrency}",
-    "subtotal": number,
-    "tax": number,
-    "total": number,
-    "line_items": [{"description": "string", "qty": number, "unit_price": number, "line_total": number}],
-    "tax_metadata": {"ncf": "string or null", "rnc": "string or null", "jurisdiction": "DO|US|... or null"},
-    "payment_method_hint": "credit_card | bank_transfer | cash | employee_personal | unknown",
-    "notes": "free-text"
-  }
-}
+Allowed document_type values: expense_receipt | vendor_invoice | vendor_quote | our_invoice | our_quote | unknown
+Default currency when none stated: {$defaultCurrency}
 
 Classification rules (apply STRICTLY in order — return the FIRST that matches):
 
@@ -176,27 +181,19 @@ If unsure between two options: prefer vendor_invoice over expense_receipt, and p
 over guessing. Conservative misclassifications are cheaper to fix than aggressive ones.
 
 For Dominican Republic documents look for "NCF" (Comprobante Fiscal) and "RNC" (tax id) — extract
-verbatim into tax_metadata.
+verbatim into vendor_tax_id where appropriate.
+
+Payment status — drive the `payment_status_hint` field:
+  - 'paid'    when ANY paid-evidence signal is present: a "Receipt" header, "PAID" stamp, "Amount
+              paid" line, a payment history / payment method table, "Date paid" field, transaction
+              id / authorization code, credit card last-4, POS terminal slip.
+  - 'unpaid'  when document has a "Pay By" / "Payment Due" / "Due By" date in the future, a
+              non-zero balance-due, or "Make checks payable to" instructions.
+  - 'unknown' when neither is clearly indicated.
 {$contextBlock}
-Output ONLY the JSON — no surrounding prose, no markdown, no code fence.
+Empty-string is acceptable for any extracted field that's not on the document. Do NOT invent
+values that aren't visible.
 PROMPT;
-    }
-
-    protected function resolveApiKey(): string
-    {
-        if ($this->apiKeyOverride !== null && $this->apiKeyOverride !== '') {
-            return $this->apiKeyOverride;
-        }
-
-        $key = app(Apps::class)->get(ConfigurationEnum::GEMINI_KEY->value);
-        if (! is_string($key) || $key === '') {
-            throw new RuntimeException(
-                'Gemini API key is not configured for this app. '
-                . 'Set the ' . ConfigurationEnum::GEMINI_KEY->value . ' setting on the app.'
-            );
-        }
-
-        return $key;
     }
 
     protected function resolveModel(): string
@@ -232,30 +229,9 @@ PROMPT;
     }
 
     /**
-     * Drill into Gemini's response envelope to pull out the text part. Shape:
-     *   { candidates: [{ content: { parts: [{ text: '...' }] } }] }
-     *
-     * Logs + raises with a helpful diagnostic when the shape isn't what we expect, so prompt
-     * regressions surface fast.
-     *
-     * @param  array<string, mixed>|null  $payload
-     */
-    protected function extractTextPart(?array $payload): string
-    {
-        $text = $payload['candidates'][0]['content']['parts'][0]['text'] ?? null;
-        if (! is_string($text) || $text === '') {
-            Log::warning('Scribe.PdfIngest.Gemini unexpected response shape', ['payload' => $payload]);
-
-            throw new RuntimeException('Gemini response missing candidates[0].content.parts[0].text');
-        }
-
-        return $text;
-    }
-
-    /**
-     * Convert the parsed JSON into the typed result. Unknown document_type strings fall back to
-     * UNKNOWN; missing confidence defaults to 0 (so it always lands in the operator's "low conf"
-     * bucket rather than auto-trusting a malformed extraction).
+     * Convert the schema-validated dict from `agent()->structured` into the typed result. Defensive
+     * lookups stay because the schema's `->required()` only applies to top-level keys; nested
+     * fields default to empty when not present.
      *
      * @param  array<string, mixed>  $decoded
      */

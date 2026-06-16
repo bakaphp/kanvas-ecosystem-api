@@ -15,6 +15,7 @@ use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\DataTransferObject\BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLineData;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
+use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\PdfIngest\Traits\ExtractsPdfPayloadValuesTrait;
 use Spatie\LaravelData\DataCollection;
@@ -154,6 +155,17 @@ class ProposeBillFromPdfAction
             $this->extracted['vendor_email'] ?? null,
             $this->fromEmail,
         );
+
+        // LLM payment-status hint. The operator UI uses this to surface a "Mark as already paid?"
+        // suggestion on PDF-ingested drafts. Defaults to UNKNOWN when LLM didn't emit a value.
+        $hint = $this->trimOrDefault($this->extracted['payment_status_hint'] ?? null, null);
+        if ($hint !== null) {
+            $parsed = PaymentStatusHintEnum::tryFrom(strtolower($hint));
+            if ($parsed !== null) {
+                $bill->payment_status_hint = $parsed;
+            }
+        }
+
         $bill->save();
 
         return $bill->refresh();
