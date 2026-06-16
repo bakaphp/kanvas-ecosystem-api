@@ -7,10 +7,29 @@ namespace Kanvas\Connectors\Reynolds\Handlers;
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Leads\Models\LeadStatus;
+use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\LeadSources\Models\LeadSource;
 use Override;
 
 class ReynoldsHandler extends BaseIntegration
 {
+    /**
+     * Reynolds SalesAssist Insert Sales Lead spec defines a fixed enum for
+     * ProspectType. We seed these four so name-based lookup in PullLeadAction /
+     * PushLeadAction can resolve them at runtime without the dealer having
+     * to pre-create them in Kanvas.
+     */
+    private const SEED_LEAD_TYPES = ['Internet', 'Phone', 'Other', 'List'];
+
+    /**
+     * LeadObserver::closeSold()/closeNotSold() match the lead's status name
+     * against substrings 'active' / 'sold' / 'not sold'. These four cover
+     * those cases and the Reynolds disposition lifecycle (Active -> Sold
+     * happy path, Lost-Sale -> Lost, anything else -> Closed).
+     */
+    private const SEED_LEAD_STATUSES = ['Active', 'Sold', 'Lost', 'Closed'];
+
     #[Override]
     public function setup(): bool
     {
@@ -46,6 +65,58 @@ class ReynoldsHandler extends BaseIntegration
             $this->data['business_unit_name'] ?? $this->company->name
         );
 
+        $this->seedCatalogs();
+
         return true;
+    }
+
+    /**
+     * Seed the catalogs the connector relies on for name-based lookup. Each
+     * row is idempotent on (apps_id, companies_id, name) so reinvoking
+     * setup() during reconfiguration does not duplicate. LeadSource is
+     * also backfilled lazily from real inbound ProviderName values in
+     * PullLeadAction — this only seeds the default "Kanvas" provider used
+     * by Push.
+     */
+    private function seedCatalogs(): void
+    {
+        foreach (self::SEED_LEAD_TYPES as $name) {
+            LeadType::firstOrCreate(
+                [
+                    'apps_id' => $this->app->getId(),
+                    'companies_id' => $this->company->getId(),
+                    'name' => $name,
+                ],
+                [
+                    'description' => "Reynolds ProspectType: {$name}",
+                    'is_active' => 1,
+                ]
+            );
+        }
+
+        foreach (self::SEED_LEAD_STATUSES as $i => $name) {
+            LeadStatus::firstOrCreate(
+                [
+                    'apps_id' => $this->app->getId(),
+                    'companies_id' => $this->company->getId(),
+                    'name' => $name,
+                ],
+                [
+                    'is_default' => $i === 0 ? 1 : 0,
+                ]
+            );
+        }
+
+        LeadSource::firstOrCreate(
+            [
+                'apps_id' => $this->app->getId(),
+                'companies_id' => $this->company->getId(),
+                'name' => 'Kanvas',
+            ],
+            [
+                'description' => 'Default lead source used when Kanvas pushes to Reynolds (PushLeadAction)',
+                'is_active' => 1,
+            ]
+        );
     }
 }
