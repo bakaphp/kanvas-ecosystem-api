@@ -180,7 +180,7 @@ class ProcessAccountingPdfAction
 
                 return;
             case PdfIngestDocumentTypeEnum::VENDOR_INVOICE:
-                $this->routeVendorInvoice($log, $extracted);
+                $this->routeVendorInvoice($log, $extracted, (float) $log->confidence);
 
                 return;
             case PdfIngestDocumentTypeEnum::VENDOR_QUOTE:
@@ -207,7 +207,7 @@ class ProcessAccountingPdfAction
     /**
      * @param  array<string, mixed>  $extracted
      */
-    private function routeVendorInvoice(PdfIngestLog $log, array $extracted): void
+    private function routeVendorInvoice(PdfIngestLog $log, array $extracted, float $confidence): void
     {
         $bill = new ProposeBillFromPdfAction(
             app: $this->input->app,
@@ -217,6 +217,7 @@ class ProcessAccountingPdfAction
             pdfIngestLogId: (int) $log->id,
             user: $this->user,
             fromEmail: $this->input->fromEmail,
+            confidence: $confidence,
         )->execute();
 
         if ($bill === null) {

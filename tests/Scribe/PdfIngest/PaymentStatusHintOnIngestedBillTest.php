@@ -15,16 +15,15 @@ use Tests\Scribe\PdfIngest\Stubs\FakePdfContentHasher;
 use Tests\Scribe\ScribeTestCase;
 
 /**
- * Covers `payment_status_hint` propagation from LLM extraction → Bill column. This is the
- * data-capture side of the Option-A "Mark as already paid?" operator UI suggestion. The hint
- * never auto-advances the lifecycle; it just lights up the column on drafts.
+ * Covers `payment_status_hint` propagation from LLM extraction → Bill column.
  *
  *   - LLM returns 'paid'    → Bill.payment_status_hint = PAID
  *   - LLM returns 'unpaid'  → Bill.payment_status_hint = UNPAID
  *   - LLM omits / returns garbage → Bill.payment_status_hint = UNKNOWN (default)
  *
- * Bill.document_status remains DRAFT in all cases — operator still has to click receive + mark
- * paid in the UI. The hint only changes what suggestion the UI shows.
+ * GL-side outcome (auto-advance from PAID hint when confidence ≥ threshold) is covered in
+ * AutoAdvancePaidBillOnIngestTest. To keep these tests focused on the column value, they pin
+ * confidence BELOW the auto-advance threshold so the Bill stays DRAFT regardless of the hint.
  */
 class PaymentStatusHintOnIngestedBillTest extends ScribeTestCase
 {
@@ -75,7 +74,8 @@ class PaymentStatusHintOnIngestedBillTest extends ScribeTestCase
         $pdf = $this->createFilesystemRow();
         $classifier = new FakePdfClassifier()->queue(new PdfClassificationResult(
             document_type: PdfIngestDocumentTypeEnum::VENDOR_INVOICE,
-            confidence: 0.93,
+            // Sub-threshold so auto-advance does NOT fire — these tests cover only the column value.
+            confidence: 0.50,
             reasoning: 'Vendor invoice for unit test.',
             extracted: $extraExtractedFields + [
                 'vendor_name' => 'TestVendor ' . uniqid(),

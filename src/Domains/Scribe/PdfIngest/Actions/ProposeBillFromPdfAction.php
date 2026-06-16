@@ -11,7 +11,10 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Organizations\Actions\ResolveOrCreateOrganizationFromVendorPayloadAction;
+use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Scribe\Bills\Actions\AllocateBillPaymentAction;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
+use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
 use Kanvas\Scribe\Bills\DataTransferObject\BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLineData;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
@@ -19,6 +22,7 @@ use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\PdfIngest\Traits\ExtractsPdfPayloadValuesTrait;
 use Spatie\LaravelData\DataCollection;
+use Throwable;
 
 /**
  * Writes a DRAFT Bill from the LLM-extracted PDF payload.
@@ -39,6 +43,13 @@ class ProposeBillFromPdfAction
 {
     use ExtractsPdfPayloadValuesTrait;
 
+    /**
+     * Minimum LLM classification confidence to auto-advance a PDF-ingested Bill from DRAFT all the way
+     * to PAID when payment_status_hint='paid'. Below this, the Bill stays DRAFT and the operator
+     * decides via the UI suggestion. Anthropic-style clean receipts typically come in at ≥ 0.9.
+     */
+    public const AUTO_ADVANCE_CONFIDENCE_THRESHOLD = 0.85;
+
     public function __construct(
         public readonly AppInterface $app,
         public readonly CompanyInterface $company,
@@ -47,6 +58,7 @@ class ProposeBillFromPdfAction
         public readonly int $pdfIngestLogId,
         public readonly ?UserInterface $user = null,
         public readonly ?string $fromEmail = null,
+        public readonly ?float $confidence = null,
     ) {
     }
 
@@ -129,6 +141,7 @@ class ProposeBillFromPdfAction
         // Auto-resolve/create the vendor Guild Org from the extracted payload + email hint. Drafts
         // ship with vendor_organization_id already set so the operator doesn't have to pick during
         // approval. Duplicates are cleaned up later via MergeOrganizationsAction.
+        $vendor = null;
         if ($this->user !== null) {
             $vendor = new ResolveOrCreateOrganizationFromVendorPayloadAction(
                 app: $this->app,
@@ -167,8 +180,63 @@ class ProposeBillFromPdfAction
         }
 
         $bill->save();
+        $bill->refresh();
+
+        $this->maybeAutoAdvanceToPaid($bill, $vendor ?? null);
 
         return $bill->refresh();
+    }
+
+    /**
+     * When the LLM said "this PDF is already paid" with high confidence, run the full lifecycle:
+     * DRAFT → RECEIVED (posts AP JE) → PAID (manual allocation posts Cash JE).
+     *
+     * Skip silently when any precondition is missing — bill stays DRAFT and the UI hint guides the
+     * operator. Failures inside the lifecycle bubble up logged but don't fail the whole ingest
+     * (the Bill is still usable; operator can advance manually).
+     */
+    private function maybeAutoAdvanceToPaid(Bill $bill, ?Organization $vendor): void
+    {
+        if ($bill->payment_status_hint !== PaymentStatusHintEnum::PAID) {
+            return;
+        }
+        if ($this->confidence === null || $this->confidence < self::AUTO_ADVANCE_CONFIDENCE_THRESHOLD) {
+            return;
+        }
+        if ($vendor === null) {
+            // Vendor resolution failed earlier — we'd have nothing to freeze into the snapshot.
+            return;
+        }
+        if ($this->user === null) {
+            return;
+        }
+
+        try {
+            new ReceiveBillAction(
+                bill: $bill,
+                vendor: $vendor,
+                user: $this->user,
+            )->execute();
+
+            new AllocateBillPaymentAction(
+                bill: $bill->refresh(),
+                amountNative: (float) $bill->total_native,
+                user: $this->user,
+                source: 'manual',
+                metadata: [
+                    'origin' => 'pdf_ingest_auto',
+                    'pdf_ingest_log_id' => $this->pdfIngestLogId,
+                    'confidence' => $this->confidence,
+                ],
+            )->execute();
+        } catch (Throwable $e) {
+            // Auto-advance is best-effort. Bill stays in whatever state it reached; operator finishes manually.
+            Log::warning('Scribe.PdfIngest.ProposeBill auto-advance to PAID failed', [
+                'bill_id' => $bill->id,
+                'confidence' => $this->confidence,
+                'exception' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
