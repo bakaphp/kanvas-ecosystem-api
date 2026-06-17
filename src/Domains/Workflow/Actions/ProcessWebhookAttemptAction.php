@@ -36,6 +36,9 @@ class ProcessWebhookAttemptAction
             'url' => $this->request->fullUrl(),
             'headers' => $this->request->headers->all(),
             'payload' => $payload,
+            // Preserve the exact bytes so deferred jobs can verify body-hash signatures
+            // (Stripe, GitHub, …); re-serialising `payload` would change the bytes.
+            'raw_payload' => $this->request->getContent(),
         ]);
     }
 

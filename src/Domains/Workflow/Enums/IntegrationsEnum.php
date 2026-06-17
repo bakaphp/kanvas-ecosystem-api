@@ -57,4 +57,5 @@ enum IntegrationsEnum: string
     case LICENSE_PLATE_EXTRACTOR = 'license_plate_extractor';
     case LENDFLOW = 'lendflow';
     case PRODUCT_ENRICHMENT = 'product_enrichment';
+    case REYNOLDS = 'reynolds';
 }
