@@ -10,7 +10,7 @@ class AddressParser
      * Parse a US street address into components.
      *
      * Sources like driver-license OCR are inconsistent about comma placement
-     * ("ST, City, IN 46410", "ST, City, IN, 46410", "ST City IN 46410", or a
+     * ("ST, City, IN 12345", "ST, City, IN, 12345", "ST City IN 12345", or a
      * two-line form). Rather than enumerate every layout, anchor on the one
      * reliably-structured tail — the two-letter state followed by a 5(-4) ZIP at
      * the end — and tolerate any comma/space arrangement around it. Whatever

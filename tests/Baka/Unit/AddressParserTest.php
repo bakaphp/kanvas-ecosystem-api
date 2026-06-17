@@ -12,15 +12,15 @@ class AddressParserTest extends TestCase
     public function testParsesCommaBeforeZip(): void
     {
         // Regression: Intellicheck OCR emits a comma between state and zip
-        // ("IN, 46410"), which the old parsers dropped (lead 702409).
+        // ("IN, 47150"), which the old parsers dropped (lead 702409).
         $this->assertSame(
             [
-                'address' => '2503 W LINCOLN HWY',
-                'city' => 'MERRILLVILLE',
+                'address' => '100 N EXAMPLE BLVD',
+                'city' => 'TESTVILLE',
                 'state' => 'IN',
-                'zipcode' => '46410',
+                'zipcode' => '47150',
             ],
-            AddressParser::parse('2503 W LINCOLN HWY, MERRILLVILLE, IN, 46410')
+            AddressParser::parse('100 N EXAMPLE BLVD, TESTVILLE, IN, 47150')
         );
     }
 
@@ -41,12 +41,12 @@ class AddressParserTest extends TestCase
     {
         $this->assertSame(
             [
-                'address' => '2503 W LINCOLN HWY',
-                'city' => 'MERRILLVILLE',
+                'address' => '100 N EXAMPLE BLVD',
+                'city' => 'TESTVILLE',
                 'state' => 'IN',
-                'zipcode' => '46410',
+                'zipcode' => '47150',
             ],
-            AddressParser::parse('2503 W LINCOLN HWY MERRILLVILLE IN 46410')
+            AddressParser::parse('100 N EXAMPLE BLVD TESTVILLE IN 47150')
         );
     }
 
