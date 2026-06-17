@@ -56,6 +56,54 @@ class DriverLicenseVerificationServiceTest extends TestCase
         );
     }
 
+    public function testParseAddressCommaBeforeZip(): void
+    {
+        // Regression: Intellicheck OCR emits a comma between state and zip
+        // ("IN, 46410"). The old regexes required whitespace there and returned
+        // null, so the People address was silently dropped (lead 702409).
+        $result = DriverLicenseVerificationService::parseAddress('2503 W LINCOLN HWY, MERRILLVILLE, IN, 46410');
+
+        $this->assertSame(
+            [
+                'address' => '2503 W LINCOLN HWY',
+                'city' => 'MERRILLVILLE',
+                'state' => 'IN',
+                'zipcode' => '46410',
+            ],
+            $result
+        );
+    }
+
+    public function testParseAddressNoCommas(): void
+    {
+        $result = DriverLicenseVerificationService::parseAddress('2503 W LINCOLN HWY MERRILLVILLE IN 46410');
+
+        $this->assertSame(
+            [
+                'address' => '2503 W LINCOLN HWY',
+                'city' => 'MERRILLVILLE',
+                'state' => 'IN',
+                'zipcode' => '46410',
+            ],
+            $result
+        );
+    }
+
+    public function testParseAddressNoSpacesAroundCommas(): void
+    {
+        $result = DriverLicenseVerificationService::parseAddress('789 ELM ST,DALLAS,TX,75001');
+
+        $this->assertSame(
+            [
+                'address' => '789 ELM ST',
+                'city' => 'DALLAS',
+                'state' => 'TX',
+                'zipcode' => '75001',
+            ],
+            $result
+        );
+    }
+
     public function testParseAddressZipPlusFour(): void
     {
         $result = DriverLicenseVerificationService::parseAddress("100 Elm St\nMiami, FL 33101-1234");

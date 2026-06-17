@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OCR\DataTransferObjects;
 
+use Baka\Support\AddressParser;
 use Spatie\LaravelData\Data;
 
 class DriversLicense extends Data
@@ -88,23 +89,11 @@ class DriversLicense extends Data
 
     public static function fromIntellicheckDriversLicense(array $license): self
     {
-        // Parse the address into components
-        $addressLines = explode("\n", trim($license['address'] ?? ''));
-        $streetAddress = $addressLines[0] ?? '';
-        if (count($addressLines) > 1 && strpos($addressLines[1], 'APT') === 0) {
-            $streetAddress .= ' ' . $addressLines[1];
-            $cityStateZip = $addressLines[2] ?? '';
-        } else {
-            $cityStateZip = $addressLines[1] ?? '';
-        }
-
-        // Parse city, state, zip from the last address line
-        $cityStateZipParts = explode(', ', $cityStateZip);
-        $city = $cityStateZipParts[0] ?? '';
-        $stateZip = $cityStateZipParts[1] ?? '';
-        $stateZipParts = explode(' ', $stateZip);
-        $state = $stateZipParts[0] ?? $license['state'] ?? '';
-        $zipCode = $stateZipParts[1] ?? '';
+        $parsed = AddressParser::parse((string) ($license['address'] ?? ''));
+        $streetAddress = $parsed['address'] ?? trim(explode("\n", (string) ($license['address'] ?? ''))[0]);
+        $city = $parsed['city'] ?? '';
+        $state = $parsed['state'] ?? (string) ($license['state'] ?? '');
+        $zipCode = $parsed['zipcode'] ?? '';
 
         // Format dates
         $birthDate = '';
