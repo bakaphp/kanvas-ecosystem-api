@@ -142,4 +142,23 @@ trait ScalarCoercionTrait
 
         return array_values(array_map(static fn (mixed $item): string => (string) $item, $value));
     }
+
+    /**
+     * Coerce a truthy / falsy-ish value to the literal 'Y' / 'N'. Many B2B
+     * integrations (Reynolds RCI, ADF, STAR standard, banking flat-files)
+     * carry boolean fields as Yes/No characters. Null / empty input passes
+     * through as null so callers can omit absent fields rather than
+     * defaulting to 'N'.
+     *
+     * Truthy: 'Y', 'y', '1', 'true', 'TRUE' (case-insensitive).
+     * Anything else non-empty → 'N'.
+     */
+    protected static function ynOrNull(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return in_array(strtoupper((string) $value), ['Y', '1', 'TRUE'], true) ? 'Y' : 'N';
+    }
 }
