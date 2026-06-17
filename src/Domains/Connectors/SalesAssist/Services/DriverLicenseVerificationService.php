@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\Services;
 
+use Baka\Support\AddressParser;
 use Baka\Support\Str;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
@@ -54,72 +55,7 @@ class DriverLicenseVerificationService
 
     public static function parseAddress(string $fullAddress): ?array
     {
-        $address = trim($fullAddress);
-
-        if (strpos($address, "\n") !== false) {
-            $parts = explode("\n", $address);
-            if (count($parts) >= 2) {
-                $streetAddress = trim($parts[0]);
-                $cityStateZip = trim($parts[1]);
-
-                $pattern = '/^(.+),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i';
-                if (preg_match($pattern, $cityStateZip, $matches)) {
-                    return [
-                        'address' => $streetAddress,
-                        'city' => trim($matches[1]),
-                        'state' => strtoupper(trim($matches[2])),
-                        'zipcode' => trim($matches[3]),
-                    ];
-                }
-
-                $pattern2 = '/^(.+)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i';
-                if (preg_match($pattern2, $cityStateZip, $matches)) {
-                    return [
-                        'address' => $streetAddress,
-                        'city' => trim($matches[1]),
-                        'state' => strtoupper(trim($matches[2])),
-                        'zipcode' => trim($matches[3]),
-                    ];
-                }
-            }
-        }
-
-        $address = trim(preg_replace('/\s+/', ' ', $address));
-
-        $pattern = '/^(.+),\s*([^,]+),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i';
-        if (preg_match($pattern, $address, $matches)) {
-            return [
-                'address' => trim($matches[1]),
-                'city' => trim($matches[2]),
-                'state' => strtoupper(trim($matches[3])),
-                'zipcode' => trim($matches[4]),
-            ];
-        }
-
-        $pattern2 = '/^(.+)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i';
-        if (preg_match($pattern2, $address, $matches)) {
-            $streetAndCity = trim($matches[1]);
-            $state = strtoupper(trim($matches[2]));
-            $zipcode = trim($matches[3]);
-
-            $words = explode(' ', $streetAndCity);
-            if (count($words) >= 2) {
-                $city = array_pop($words);
-                if (count($words) >= 2 && strlen($city) < 4) {
-                    $city = array_pop($words) . ' ' . $city;
-                }
-                $street = implode(' ', $words);
-
-                return [
-                    'address' => $street,
-                    'city' => $city,
-                    'state' => $state,
-                    'zipcode' => $zipcode,
-                ];
-            }
-        }
-
-        return null;
+        return AddressParser::parse($fullAddress);
     }
 
     public static function isValidDate(string $date): bool
