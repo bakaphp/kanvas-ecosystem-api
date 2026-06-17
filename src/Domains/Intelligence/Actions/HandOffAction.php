@@ -165,6 +165,11 @@ class HandOffAction
                 'company' => $this->lead->company,
                 'app' => $this->lead->app,
                 'user' => $leadOwner,
+                'lead_info' => [
+                    'lead_name' => $this->lead->people->name,
+                    'lead_id' => $this->lead->getId(),
+                    'people_id' => $this->lead->people->getId(),
+                ],
                 ...$this->params,
             ]
         );
