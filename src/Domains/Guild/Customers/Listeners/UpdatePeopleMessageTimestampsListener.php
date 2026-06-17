@@ -52,11 +52,14 @@ class UpdatePeopleMessageTimestampsListener implements ShouldQueue
             return;
         }
 
-        // Only human-authored messages mark the people record as unread; agent/AI
-        // messages flow through the same listener but must not flip the flag.
+        // An inbound customer reply marks the people record as unread so a rep sees it.
+        // Our own side must not flip the flag: outbound replies carry from_me=true and
+        // AI/agent messages carry from_ia=true. Gate on direction rather than from_human —
+        // connectors only set from_human on human-agent-takeover paths, never on the
+        // inbound customer message itself, so a from_human gate never fired here.
         $messageData = (array) ($appModuleMessage->message?->message ?? []);
 
-        if (! (bool) ($messageData['from_human'] ?? false) || (bool) ($messageData['from_me'] ?? false)) {
+        if ((bool) ($messageData['from_me'] ?? false) || (bool) ($messageData['from_ia'] ?? false)) {
             return;
         }
 
