@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Exports;
 
+use Baka\Http\SafeUrlFetcher;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Kanvas\Souk\Orders\Models\Order;
@@ -52,9 +53,9 @@ class OrderExportExcel implements FromQuery, WithMapping, WithDrawings, WithColu
             $value = $this->getNestedValue($order, $fieldPath);
             $row[] = $value;
         }
+
         return $row;
     }
-
 
     public function startCell(): string
     {
@@ -254,8 +255,8 @@ class OrderExportExcel implements FromQuery, WithMapping, WithDrawings, WithColu
 
             foreach ($this->data['header_info']['logos'] as $index => $logoUrl) {
                 try {
-                    $imageContent = file_get_contents($logoUrl);
-                    if ($imageContent !== false) {
+                    $imageContent = SafeUrlFetcher::fetch($logoUrl);
+                    if ($imageContent !== '') {
                         $tempPath = storage_path('app/temp_logo_' . $index . '.png');
                         file_put_contents($tempPath, $imageContent);
 
@@ -302,6 +303,7 @@ class OrderExportExcel implements FromQuery, WithMapping, WithDrawings, WithColu
             $column = chr(($index % 26) + 65) . $column;
             $index = intval($index / 26) - 1;
         }
+
         return $column;
     }
 

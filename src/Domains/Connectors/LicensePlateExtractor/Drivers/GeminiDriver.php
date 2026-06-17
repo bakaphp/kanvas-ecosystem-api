@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\LicensePlateExtractor\Drivers;
 
 use Baka\Contracts\AppInterface;
+use Baka\Http\SafeUrl;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\LicensePlateExtractor\Contracts\PlateExtractorDriverInterface;
 use Kanvas\Connectors\LicensePlateExtractor\DataTransferObject\LicensePlate;
@@ -94,6 +95,8 @@ PROMPT;
      */
     private function downloadImageAsBase64(string $imageUrl): Image
     {
+        SafeUrl::assertSafe($imageUrl);
+
         $response = Http::timeout(30)->get($imageUrl);
 
         if (! $response->successful()) {

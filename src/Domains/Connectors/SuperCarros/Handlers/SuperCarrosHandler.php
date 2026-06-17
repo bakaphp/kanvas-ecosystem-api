@@ -32,11 +32,11 @@ class SuperCarrosHandler extends BaseIntegration
             throw new ValidationException('SuperCarros customer ID is required.');
         }
 
-        // Store configuration in the app
+        // base_url is the shared API endpoint, kept at app level. The access key and
+        // customer id identify a single dealer rooftop and are stored per-company so a
+        // company can only ever pull its own inventory.
         $this->app->set(ConfigurationEnum::BASE_URL->value, $baseUrl);
-        $this->app->set(ConfigurationEnum::ACCESS_KEY->value, $accessKey);
-
-        // Store customer ID in the company
+        $this->company->set(ConfigurationEnum::ACCESS_KEY->value, $accessKey);
         $this->company->set(ConfigurationEnum::CUSTOMER_ID->value, $customerId);
 
         try {

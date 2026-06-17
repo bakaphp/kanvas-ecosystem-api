@@ -22,6 +22,7 @@ class ReceiverWebhookCall extends BaseModel
         'url',
         'headers',
         'payload',
+        'raw_payload',
         'exception',
         'status',
         'results',

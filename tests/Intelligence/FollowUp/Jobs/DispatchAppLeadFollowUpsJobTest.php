@@ -85,6 +85,15 @@ class DispatchAppLeadFollowUpsJobTest extends TestCase
             'pipeline_id' => $pipeline->getId(),
             'pipeline_stage_id' => $disabledStage->getId(),
         ]);
+
+        // Closed lead (status >= 2) in the enabled stage — must NOT queue even
+        // though its stage is nudge-enabled and non-terminal.
+        $closedLead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create([
+            'pipeline_id' => $pipeline->getId(),
+            'pipeline_stage_id' => $enabledStage->getId(),
+            'status' => 2,
+        ]);
+
         new DispatchAppLeadFollowUpsJob(app: $app, company: $company)->handle();
 
         // Assert the specific eligible lead was dispatched, and that the
@@ -107,6 +116,12 @@ class DispatchAppLeadFollowUpsJobTest extends TestCase
         Queue::assertNotPushed(
             LeadFollowUpJob::class,
             fn (LeadFollowUpJob $job): bool => $job->lead->pipeline_stage_id === $disabledStageId,
+        );
+
+        $closedLeadId = $closedLead->getId();
+        Queue::assertNotPushed(
+            LeadFollowUpJob::class,
+            fn (LeadFollowUpJob $job): bool => $job->lead->getId() === $closedLeadId,
         );
     }
 }

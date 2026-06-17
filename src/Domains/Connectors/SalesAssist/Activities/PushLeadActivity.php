@@ -9,11 +9,15 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\DriveCentric\Actions\PushLeadAction;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Reynolds\Actions\PushLeadAction as ReynoldsPushLeadAction;
+use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum as ReynoldsConfigurationEnum;
+use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum as ReynoldsCustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
 #[WorkflowAction]
 class PushLeadActivity extends KanvasActivity
@@ -38,12 +42,34 @@ class PushLeadActivity extends KanvasActivity
                 $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
                 $isVinSolutions = $company->get(EnumsCustomFieldEnum::COMPANY->value) !== null;
                 $isDriveCentric = $company->get(ConfigurationEnum::STORE_ID->value) !== null;
+                $isReynolds = $company->get(ReynoldsConfigurationEnum::REYNOLDS_DEALER_NUMBER->value) !== null;
                 $connectedCRM = null;
 
                 $result = [];
                 if ($isDriveCentric) {
                     $connectedCRM = 'DriveCentric';
                     $result = new PushLeadAction($lead)->execute();
+                } elseif ($isReynolds) {
+                    $connectedCRM = 'Reynolds';
+
+                    // Reynolds rejects ISL re-sends for leads that already carry a
+                    // REYNOLDS_PROSPECT_ID. Short-circuit here so the workflow does
+                    // not blow up when it is wired to a generic "lead saved" trigger.
+                    if ($lead->get(ReynoldsCustomFieldEnum::PROSPECT_ID->value)) {
+                        $result = [
+                            'message' => 'Lead already exists in Reynolds — skipping ISL',
+                            'prospect_id' => (string) $lead->get(ReynoldsCustomFieldEnum::PROSPECT_ID->value),
+                        ];
+                    } else {
+                        try {
+                            $result = new ReynoldsPushLeadAction($lead)->execute();
+                        } catch (Throwable $e) {
+                            return $this->failWorkflow([
+                                'error' => 'Reynolds Insert Sales Lead failed: ' . $e->getMessage(),
+                                'crm' => $connectedCRM,
+                            ]);
+                        }
+                    }
                 }
 
                 return [
