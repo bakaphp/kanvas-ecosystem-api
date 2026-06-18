@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Payments\Actions\LogPaymentEventAction;
@@ -78,6 +79,11 @@ class Payments extends BaseModel
     }
 
     public function order(): BelongsTo
+    {
+        return $this->morphTo('payable');
+    }
+
+    public function payable(): MorphTo
     {
         return $this->morphTo('payable');
     }
