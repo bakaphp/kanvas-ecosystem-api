@@ -16,7 +16,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       # rsync --delete so renames/deletions in git are reflected on the server.
       # Plain scp is additive and leaves stale files behind, which corrupts the
       # Lighthouse schema merge whenever a .graphql file moves (see incident
