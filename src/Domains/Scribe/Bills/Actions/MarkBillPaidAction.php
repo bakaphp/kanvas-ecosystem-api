@@ -5,19 +5,18 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Bills\Actions;
 
 use Baka\Users\Contracts\UserInterface;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Models\BillPaymentAllocation;
 use Kanvas\Scribe\Bills\Services\BillStateMachineService;
-use Kanvas\Scribe\Ledger\Services\PaymentAllocationSumService;
+use Kanvas\Scribe\Ledger\Services\PayableMarkAsPaidExecutorService;
 
 /**
- * Recomputes bill.paid_native / balance_due_native from active allocations and flips status to PAID
- * when the balance hits zero. Pure state-recompute — does NOT post a JE itself. The DR AP / CR Cash JE
- * is posted by the AllocatePaymentAction (or its equivalent) when the allocation row is created.
+ * Recomputes bill paid/balance from active allocations and flips status to PAID when the balance
+ * hits zero. Workflow is shared with the AR side — see `PayableMarkAsPaidExecutorService`.
  *
- * Idempotent: re-running on an already-paid bill is a no-op.
+ * Idempotent on already-paid bills. Does NOT post the Cash JE — that's the responsibility of
+ * AllocateBillPaymentAction when the allocation row is created.
  */
 class MarkBillPaidAction
 {
@@ -25,50 +24,26 @@ class MarkBillPaidAction
         public readonly Bill $bill,
         public readonly ?UserInterface $user = null,
         protected readonly BillStateMachineService $stateMachine = new BillStateMachineService(),
-        protected readonly PaymentAllocationSumService $allocationSummer = new PaymentAllocationSumService(),
+        protected readonly PayableMarkAsPaidExecutorService $executor = new PayableMarkAsPaidExecutorService(),
     ) {
     }
 
     public function execute(): Bill
     {
-        return DB::connection('accounting')->transaction(function (): Bill {
-            $bill = $this->bill;
-            $statusBefore = $bill->document_status;
+        /** @var Bill $bill */
+        $bill = $this->executor->execute(
+            entity: $this->bill,
+            paidStatusEnum: BillDocumentStatusEnum::PAID,
+            canTransitionToPaid: fn ($current) => $this->stateMachine->canTransition(
+                $current,
+                BillDocumentStatusEnum::PAID,
+            ),
+            allocationModelClass: BillPaymentAllocation::class,
+            allocationFkColumn: 'bill_id',
+            ledgerEventName: 'scribe.bill.paid',
+            extraEventPayload: ['bill_number' => $this->bill->bill_number],
+        );
 
-            [$paidNative, $paidBase] = $this->allocationSummer->sumActive(
-                allocationModelClass: BillPaymentAllocation::class,
-                fkColumn: 'bill_id',
-                entityId: (int) $bill->id,
-            );
-
-            $bill->paid_native = $paidNative;
-            $bill->paid_base = $paidBase;
-            $bill->balance_due_native = max(0.0, (float) $bill->total_native - $paidNative);
-            $bill->balance_due_base = max(0.0, (float) $bill->total_base - $paidBase);
-
-            if ($bill->balance_due_native <= 0 && ! $bill->document_status->isTerminal()) {
-                if ($this->stateMachine->canTransition($bill->document_status, BillDocumentStatusEnum::PAID)) {
-                    $bill->document_status = BillDocumentStatusEnum::PAID;
-                    $bill->collection_state = null;
-                }
-            }
-
-            $bill->save();
-
-            if ($statusBefore !== BillDocumentStatusEnum::PAID
-                && $bill->document_status === BillDocumentStatusEnum::PAID) {
-                $bill->emitLedgerEvent(
-                    eventType: 'scribe.bill.paid',
-                    payload: [
-                        'bill_number' => $bill->bill_number,
-                        'paid_native' => $paidNative,
-                        'paid_base' => $paidBase,
-                        'currency' => $bill->currency,
-                    ],
-                );
-            }
-
-            return $bill->refresh();
-        });
+        return $bill;
     }
 }

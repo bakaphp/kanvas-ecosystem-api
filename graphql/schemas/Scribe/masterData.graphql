@@ -6,12 +6,10 @@ type ScribeItem {
     name: String!
     description: String
     item_type: String
-    income_account_id: Int
-    expense_account_id: Int
-    cogs_account_id: Int
-    inventory_variant_id: Int
+    default_income_account: ScribeAccount @belongsTo(relation: "defaultIncomeAccount")
+    default_expense_account: ScribeAccount @belongsTo(relation: "defaultExpenseAccount")
     default_unit_price: Float
-    default_tax_code_id: Int
+    default_tax_code: ScribeTaxCode @belongsTo(relation: "defaultTaxCode")
     is_active: Boolean!
     source: String
     external_id: String

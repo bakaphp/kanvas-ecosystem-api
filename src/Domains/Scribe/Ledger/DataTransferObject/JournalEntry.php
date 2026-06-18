@@ -19,16 +19,16 @@ use Spatie\LaravelData\DataCollection;
  * doesn't bite — but never put a JournalEntryData instance directly on a ShouldQueue job's constructor; rebuild
  * it inside handle() from primitive fields + model lookups.
  *
- * @property DataCollection<JournalEntryLineData> $lines
+ * @property DataCollection<JournalEntryLine> $lines
  */
-class JournalEntryData extends Data
+class JournalEntry extends Data
 {
     public function __construct(
         public readonly AppInterface $app,
         public readonly CompanyInterface $company,
         public readonly Carbon $postedAt,
         public readonly string $sourceType,
-        /** @var DataCollection<JournalEntryLineData> */
+        /** @var DataCollection<JournalEntryLine> */
         public readonly DataCollection $lines,
         public readonly ?int $sourceId = null,
         public readonly ?string $sourceExternalId = null,

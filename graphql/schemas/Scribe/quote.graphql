@@ -25,8 +25,7 @@ type ScribeQuote {
     rejected_at: DateTime
     expired_at: DateTime
     converted_at: DateTime
-    converted_to_invoice_id: Int
-    parent_quote_id: Int
+    converted_invoice: ScribeInvoice @belongsTo(relation: "convertedInvoice")
     superseded_by_quote_id: Int
     currency: String!
     fx_rate_to_base: Float!
@@ -58,7 +57,7 @@ type ScribeQuote {
 type ScribeQuoteLine {
     id: ID!
     sort_order: Int!
-    item_id: Int
+    item: ScribeItem @belongsTo(relation: "item")
     description: String
     quantity: Float!
     unit_price_native: Float!
@@ -71,8 +70,6 @@ type ScribeQuoteLine {
     line_total_base: Float!
     discount_rate: Float
     tax_rate: Float
-    revenue_account_id: Int
-    tax_code_id: Int
     class_id: Int
     department_id: Int
     metadata: Mixed

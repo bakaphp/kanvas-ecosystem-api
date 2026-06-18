@@ -6,7 +6,7 @@ namespace Kanvas\Scribe\Invoices\DataTransferObject;
 
 use Spatie\LaravelData\Data;
 
-class InvoiceTaxLineData extends Data
+class InvoiceTaxLine extends Data
 {
     public function __construct(
         public readonly string $name,

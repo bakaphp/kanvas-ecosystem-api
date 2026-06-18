@@ -6,7 +6,7 @@ namespace Tests\Scribe\Invoices;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Invoices\Actions\AmendInvoiceAction;
-use Kanvas\Scribe\Invoices\DataTransferObject\AmendInvoiceData;
+use Kanvas\Scribe\Invoices\DataTransferObject\AmendInvoice as AmendInvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceAmendment;
 use Tests\Scribe\ScribeTestCase;
 

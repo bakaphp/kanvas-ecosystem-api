@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
+use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
 
 /**
  * Maps one Souk.Payments (outbound) — or a vendor_credit / prepayment / wallet adjustment — to N Bills.
@@ -64,5 +65,10 @@ class BillPaymentAllocation extends EloquentModel
     public function bill(): BelongsTo
     {
         return $this->belongsTo(Bill::class, 'bill_id', 'id');
+    }
+
+    public function soukPayment(): BelongsTo
+    {
+        return $this->belongsTo(SoukPayment::class, 'payment_id', 'id');
     }
 }

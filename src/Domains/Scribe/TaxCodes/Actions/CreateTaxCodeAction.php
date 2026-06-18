@@ -6,8 +6,8 @@ namespace Kanvas\Scribe\TaxCodes\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Scribe\TaxCodes\DataTransferObject\TaxCodeData;
-use Kanvas\Scribe\TaxCodes\DataTransferObject\TaxRateData;
+use Kanvas\Scribe\TaxCodes\DataTransferObject\TaxCode as TaxCodeData;
+use Kanvas\Scribe\TaxCodes\DataTransferObject\TaxRate as TaxRateData;
 use Kanvas\Scribe\TaxCodes\Models\TaxCode;
 use Kanvas\Scribe\TaxCodes\Models\TaxRate;
 use RuntimeException;

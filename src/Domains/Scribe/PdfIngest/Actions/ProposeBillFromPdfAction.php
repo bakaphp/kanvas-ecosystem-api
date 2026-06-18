@@ -15,8 +15,8 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Bills\Actions\AllocateBillPaymentAction;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
-use Kanvas\Scribe\Bills\DataTransferObject\BillData;
-use Kanvas\Scribe\Bills\DataTransferObject\BillLineData;
+use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
+use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
@@ -64,7 +64,7 @@ class ProposeBillFromPdfAction
 
     public function execute(): ?Bill
     {
-        $total = $this->numeric($this->extracted['total'] ?? null);
+        $total = $this->floatOrNull($this->extracted['total'] ?? null);
         if ($total === null || $total <= 0) {
             Log::warning('Scribe.PdfIngest.ProposeBill skipped — no total in extraction', [
                 'filesystem_id' => $this->pdf->getKey(),
@@ -95,11 +95,11 @@ class ProposeBillFromPdfAction
             return null;
         }
 
-        $billDate = $this->parseDate($this->extracted['issue_date'] ?? null) ?? Carbon::today();
-        $dueDate = $this->parseDate($this->extracted['due_date'] ?? null);
+        $billDate = $this->parseIso($this->extracted['issue_date'] ?? null) ?? Carbon::today();
+        $dueDate = $this->parseIso($this->extracted['due_date'] ?? null);
         $currency = $this->trimOrDefault($this->extracted['currency'] ?? null, 'USD');
-        $taxNative = $this->numeric($this->extracted['tax'] ?? null) ?? 0.0;
-        $subtotal = $this->numeric($this->extracted['subtotal'] ?? null) ?? ($total - $taxNative);
+        $taxNative = $this->floatOrNull($this->extracted['tax'] ?? null) ?? 0.0;
+        $subtotal = $this->floatOrNull($this->extracted['subtotal'] ?? null) ?? ($total - $taxNative);
         $notes = trim('Imported from PDF. ' . (string) ($this->extracted['notes'] ?? ''));
         $vendorDisplayName = $this->trimOrDefault(
             $this->extracted['vendor_name'] ?? null,
@@ -262,9 +262,9 @@ class ProposeBillFromPdfAction
             if (! is_array($item)) {
                 continue;
             }
-            $unitPrice = $this->numeric($item['unit_price'] ?? null) ?? 0.0;
-            $qty = $this->numeric($item['qty'] ?? null) ?? 1.0;
-            $lineTotal = $this->numeric($item['line_total'] ?? null) ?? ($qty * $unitPrice);
+            $unitPrice = $this->floatOrNull($item['unit_price'] ?? null) ?? 0.0;
+            $qty = $this->floatOrNull($item['qty'] ?? null) ?? 1.0;
+            $lineTotal = $this->floatOrNull($item['line_total'] ?? null) ?? ($qty * $unitPrice);
             if ($lineTotal <= 0) {
                 continue;
             }

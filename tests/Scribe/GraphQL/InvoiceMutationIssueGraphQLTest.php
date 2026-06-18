@@ -6,8 +6,8 @@ namespace Tests\Scribe\GraphQL;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
-use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceData;
-use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLineData;
+use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
+use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Spatie\LaravelData\DataCollection;

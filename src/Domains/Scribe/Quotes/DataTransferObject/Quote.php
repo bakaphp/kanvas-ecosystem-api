@@ -2,58 +2,53 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Scribe\Invoices\DataTransferObject;
+namespace Kanvas\Scribe\Quotes\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\BillableInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
-use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
 
 /**
- * Typed payload CreateInvoiceAction consumes.
+ * Typed payload CreateQuoteAction consumes.
  *
- * Per memory rule "Don't queue Spatie Data DTOs with Eloquent models", this DTO holds App + Company + Billable
- * model references. Actions calling it are SYNCHRONOUS (not queued) so the rule doesn't bite — but never put an
- * InvoiceData instance directly on a ShouldQueue job's constructor.
- *
- * @property DataCollection<InvoiceLineData> $lines
- * @property DataCollection<InvoiceTaxLineData>|null $taxLines
+ * @property DataCollection<QuoteLine> $lines
  */
-class InvoiceData extends Data
+class Quote extends Data
 {
     public function __construct(
         public readonly AppInterface $app,
         public readonly CompanyInterface $company,
         public readonly ?BillableInterface $billable,
-        /** @var DataCollection<InvoiceLineData> */
+        /** @var DataCollection<QuoteLine> */
         public readonly DataCollection $lines,
         public readonly string $currency,
         public readonly float $fx_rate_to_base,
-        public readonly DocumentTypeEnum $document_type = DocumentTypeEnum::INVOICE,
-        public readonly ?string $invoice_number = null,
-        public readonly ?int $net_terms_days = null,
+        public readonly ?string $quote_number = null,
         public readonly ?Carbon $issued_date = null,
-        public readonly ?Carbon $due_date = null,
-        public readonly ?Carbon $expected_payment_date = null,
+        public readonly ?Carbon $valid_until = null,
         public readonly ?string $notes = null,
         public readonly ?string $internal_notes = null,
         public readonly ?string $terms = null,
-        public readonly ?int $quote_id = null,
-        public readonly ?int $parent_invoice_id = null,
         public readonly ?array $regional_compliance = null,
-        public readonly ?array $tax_metadata = null,
         public readonly ?array $metadata = null,
         public readonly string $tax_calculation_mode = 'exclusive',
         public readonly string $source = 'kanvas',
         public readonly ?string $external_id = null,
         public readonly ?string $external_url = null,
         public readonly JournalEntryOriginEnum $origin = JournalEntryOriginEnum::KANVAS,
-        /** @var DataCollection<InvoiceTaxLineData>|null */
-        public readonly ?DataCollection $taxLines = null,
+        public readonly ?int $parent_quote_id = null,
+        public readonly int $revision_number = 1,
+        /**
+         * The human at the customer Organization the quote was addressed to (e.g. "Attn: John Doe").
+         * The legal customer is still `$billable` (always an Organization); this is the recipient.
+         * Optional — quotes that go to an organization mailbox / no specific person leave it null.
+         */
+        public readonly ?People $contact = null,
     ) {
     }
 }

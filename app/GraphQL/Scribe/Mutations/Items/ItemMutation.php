@@ -9,7 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Scribe\Items\Actions\CreateItemAction;
 use Kanvas\Scribe\Items\Actions\UpdateItemAction;
-use Kanvas\Scribe\Items\DataTransferObject\ItemData;
+use Kanvas\Scribe\Items\DataTransferObject\Item as ItemData;
 use Kanvas\Scribe\Items\Enums\ItemTypeEnum;
 use Kanvas\Scribe\Items\Models\Item;
 

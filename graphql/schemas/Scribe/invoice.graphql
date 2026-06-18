@@ -69,8 +69,6 @@ type ScribeInvoice {
     external_url: String
     last_synced_at: DateTime
     origin: ScribeJournalEntryOrigin!
-    quote_id: Int
-    parent_invoice_id: Int
     metadata: Mixed
     company: Company! @belongsTo(relation: "company")
     user: User @belongsTo(relation: "user")
@@ -87,7 +85,7 @@ type ScribeInvoice {
 type ScribeInvoiceLine {
     id: ID!
     sort_order: Int!
-    item_id: Int
+    item: ScribeItem @belongsTo(relation: "item")
     description: String
     quantity: Float!
     unit_price_native: Float!
@@ -100,8 +98,6 @@ type ScribeInvoiceLine {
     line_total_base: Float!
     discount_rate: Float
     tax_rate: Float
-    tax_code_id: Int
-    revenue_account_id: Int
     class_id: Int
     department_id: Int
     metadata: Mixed
@@ -109,7 +105,7 @@ type ScribeInvoiceLine {
 
 type ScribeInvoiceTaxLine {
     id: ID!
-    tax_code_id: Int
+    tax_code: ScribeTaxCode @belongsTo(relation: "taxCode")
     tax_rate: Float
     jurisdiction: String
     tax_amount_native: Float!
@@ -119,7 +115,7 @@ type ScribeInvoiceTaxLine {
 
 type ScribeInvoicePaymentAllocation {
     id: ID!
-    payment_id: Int!
+    payment: Payment @belongsTo(relation: "soukPayment")
     status: String!
     amount_native: Float!
     amount_base: Float!

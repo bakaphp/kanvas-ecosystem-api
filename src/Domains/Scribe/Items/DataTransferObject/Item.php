@@ -9,7 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\Scribe\Items\Enums\ItemTypeEnum;
 use Spatie\LaravelData\Data;
 
-class ItemData extends Data
+class Item extends Data
 {
     public function __construct(
         public readonly AppInterface $app,

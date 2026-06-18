@@ -6,8 +6,8 @@ namespace Tests\Scribe\GraphQL;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
-use Kanvas\Scribe\Bills\DataTransferObject\BillData;
-use Kanvas\Scribe\Bills\DataTransferObject\BillLineData;
+use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
+use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;

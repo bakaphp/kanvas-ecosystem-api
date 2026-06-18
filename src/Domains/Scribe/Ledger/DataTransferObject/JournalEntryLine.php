@@ -14,7 +14,7 @@ use Spatie\LaravelData\Data;
  * Exactly one of (debit_native, credit_native) must be non-zero — enforced by
  * JournalEntryValidatorService at write time.
  */
-class JournalEntryLineData extends Data
+class JournalEntryLine extends Data
 {
     public function __construct(
         public readonly int $account_id,

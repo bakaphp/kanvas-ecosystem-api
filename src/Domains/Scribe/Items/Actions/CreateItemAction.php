@@ -6,7 +6,7 @@ namespace Kanvas\Scribe\Items\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Scribe\Items\DataTransferObject\ItemData;
+use Kanvas\Scribe\Items\DataTransferObject\Item as ItemData;
 use Kanvas\Scribe\Items\Models\Item;
 use RuntimeException;
 

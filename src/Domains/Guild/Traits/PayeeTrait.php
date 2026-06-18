@@ -4,17 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Traits;
 
-/**
- * Default implementation of `Baka\Contracts\PayeeInterface` for Guild Organization.
- *
- * Only `Organization` mixes this in — the legal vendor on Scribe transactions is always an
- * Organization (an employee that gets paid via Expense reimbursement is tracked via
- * `expense.paid_by_users_id`, not as a Payee).
- *
- * Same Organization satisfies BillableInterface + PayeeInterface — a Guild Org can be customer
- * and vendor simultaneously. The Scribe Action decides which getter set to call based on the
- * transaction's direction.
- */
 trait PayeeTrait
 {
     public function getPayeeId(): int
@@ -57,9 +46,20 @@ trait PayeeTrait
      */
     public function getPayeeAddressArray(): ?array
     {
-        $raw = trim((string) ($this->address ?? ''));
+        // Vendor address = the Org's billing address. Same chain as BillableTrait: walk to
+        // People::getBillingAddressArray() (typed `peoples_address` row), fall back to the
+        // Organization's free-text column.
+        if (method_exists($this, 'peoples')) {
+            $primary = $this->peoples()->first();
+            $address = $primary?->getBillingAddressArray();
+            if ($address !== null) {
+                return $address;
+            }
+        }
 
-        return $raw === '' ? null : ['raw' => $raw];
+        $line = trim((string) ($this->address ?? ''));
+
+        return $line === '' ? null : ['address' => $line];
     }
 
     public function getDefaultPayableCurrency(): string

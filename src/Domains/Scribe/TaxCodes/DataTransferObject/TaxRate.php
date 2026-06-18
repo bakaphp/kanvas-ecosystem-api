@@ -7,7 +7,7 @@ namespace Kanvas\Scribe\TaxCodes\DataTransferObject;
 use Illuminate\Support\Carbon;
 use Spatie\LaravelData\Data;
 
-class TaxRateData extends Data
+class TaxRate extends Data
 {
     public function __construct(
         public readonly string $name,

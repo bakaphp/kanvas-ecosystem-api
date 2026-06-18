@@ -35,7 +35,7 @@ type ScribeAccount {
     description: String
     account_type: ScribeAccountType!
     account_sub_type: String
-    parent_account_id: Int
+    parent_account: ScribeAccount @belongsTo(relation: "parent")
     currency: String!
     is_active: Boolean!
     is_system: Boolean!
@@ -71,7 +71,7 @@ type ScribeJournalEntry {
     memo: String
     status: ScribeJournalEntryStatus!
     is_adjustment: Boolean!
-    is_reversal_of: Int
+    reversal_of: ScribeJournalEntry @belongsTo(relation: "reversalOf")
     source: String!
     external_id: String
     origin: ScribeJournalEntryOrigin!

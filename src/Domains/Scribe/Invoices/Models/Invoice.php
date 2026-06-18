@@ -167,8 +167,6 @@ class Invoice extends BaseModel implements PayableInterface
             ->latest();
     }
 
-    // ────────── PayableInterface ──────────
-
     public function getPayableTotalNative(): float
     {
         return (float) ($this->total_native ?? 0);
@@ -253,10 +251,6 @@ class Invoice extends BaseModel implements PayableInterface
         return $this->amendmentHistory() !== [];
     }
 
-    /**
-     * The Guild Organization that is the legal customer on this invoice. Phase 4 — direct FK,
-     * no polymorphism (the legal counterparty is always an Organization).
-     */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'customer_organization_id', 'id');

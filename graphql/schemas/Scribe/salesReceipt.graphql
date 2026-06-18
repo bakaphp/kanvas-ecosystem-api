@@ -15,7 +15,6 @@ type ScribeSalesReceipt {
     receipt_date: Date!
     voided_at: DateTime
     void_reason_code: String
-    bank_account_id: Int
     currency: String!
     fx_rate_to_base: Float!
     subtotal_native: Float!
@@ -45,7 +44,7 @@ type ScribeSalesReceipt {
 type ScribeSalesReceiptLine {
     id: ID!
     sort_order: Int!
-    item_id: Int
+    item: ScribeItem @belongsTo(relation: "item")
     description: String
     quantity: Float!
     unit_price_native: Float!
@@ -58,8 +57,7 @@ type ScribeSalesReceiptLine {
     line_total_base: Float!
     discount_rate: Float
     tax_rate: Float
-    revenue_account_id: Int
-    tax_code_id: Int
+    revenue_account: ScribeAccount @belongsTo(relation: "incomeAccount")
     class_id: Int
     department_id: Int
     metadata: Mixed

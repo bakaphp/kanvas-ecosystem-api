@@ -7,7 +7,7 @@ namespace Kanvas\Scribe\Invoices\Actions;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Scribe\Invoices\DataTransferObject\AmendInvoiceData;
+use Kanvas\Scribe\Invoices\DataTransferObject\AmendInvoice as AmendInvoiceData;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Exceptions\InvalidInvoiceTransitionException;
 use Kanvas\Scribe\Invoices\Models\Invoice;

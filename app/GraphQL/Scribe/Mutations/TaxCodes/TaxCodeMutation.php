@@ -8,8 +8,8 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Scribe\TaxCodes\Actions\CreateTaxCodeAction;
 use Kanvas\Scribe\TaxCodes\Actions\UpdateTaxCodeAction;
-use Kanvas\Scribe\TaxCodes\DataTransferObject\TaxCodeData;
-use Kanvas\Scribe\TaxCodes\DataTransferObject\TaxRateData;
+use Kanvas\Scribe\TaxCodes\DataTransferObject\TaxCode as TaxCodeData;
+use Kanvas\Scribe\TaxCodes\DataTransferObject\TaxRate as TaxRateData;
 use Kanvas\Scribe\TaxCodes\Models\TaxCode;
 use Spatie\LaravelData\DataCollection;
 

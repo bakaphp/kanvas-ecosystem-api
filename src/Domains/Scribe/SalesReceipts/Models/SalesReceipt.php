@@ -103,9 +103,6 @@ class SalesReceipt extends BaseModel
         return $this->belongsTo(Account::class, 'cash_account_id', 'id');
     }
 
-    /**
-     * The Guild Organization that is the customer on this cash sale. Phase 4 — direct FK.
-     */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'customer_organization_id', 'id');

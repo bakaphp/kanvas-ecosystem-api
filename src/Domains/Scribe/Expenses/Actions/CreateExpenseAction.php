@@ -6,8 +6,8 @@ namespace Kanvas\Scribe\Expenses\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseData;
-use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseLineData;
+use Kanvas\Scribe\Expenses\DataTransferObject\Expense as ExpenseData;
+use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseLine as ExpenseLineData;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseReimbursementStatusEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;

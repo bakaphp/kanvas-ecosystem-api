@@ -143,16 +143,10 @@ class Bill extends BaseModel implements PayableInterface
             ->latest();
     }
 
-    /**
-     * The Guild Organization that is the vendor on this bill. Phase 4 — direct FK, no polymorphism
-     * (the legal counterparty on AP is always an Organization).
-     */
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'vendor_organization_id', 'id');
     }
-
-    // ────────── PayableInterface ──────────
 
     public function getPayableTotalNative(): float
     {

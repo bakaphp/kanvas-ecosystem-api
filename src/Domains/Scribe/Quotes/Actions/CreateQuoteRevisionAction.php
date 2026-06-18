@@ -6,7 +6,7 @@ namespace Kanvas\Scribe\Quotes\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Scribe\Quotes\DataTransferObject\QuoteData;
+use Kanvas\Scribe\Quotes\DataTransferObject\Quote as QuoteData;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Kanvas\Scribe\Quotes\Exceptions\InvalidQuoteTransitionException;
 use Kanvas\Scribe\Quotes\Models\Quote;

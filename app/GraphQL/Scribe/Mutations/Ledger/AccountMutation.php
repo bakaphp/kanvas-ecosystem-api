@@ -9,7 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Scribe\Ledger\Actions\CreateAccountAction;
 use Kanvas\Scribe\Ledger\Actions\UpdateAccountAction;
-use Kanvas\Scribe\Ledger\DataTransferObject\AccountData;
+use Kanvas\Scribe\Ledger\DataTransferObject\Account as AccountData;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\AccountTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;

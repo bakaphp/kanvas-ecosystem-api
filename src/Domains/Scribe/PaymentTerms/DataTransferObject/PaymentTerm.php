@@ -8,7 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Spatie\LaravelData\Data;
 
-class PaymentTermData extends Data
+class PaymentTerm extends Data
 {
     public function __construct(
         public readonly AppInterface $app,

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Scribe\Bills\DataTransferObject;
+namespace Kanvas\Scribe\SalesReceipts\DataTransferObject;
 
 use Spatie\LaravelData\Data;
 
-class BillLineData extends Data
+class SalesReceiptLine extends Data
 {
     public function __construct(
         public readonly string $description,
@@ -19,8 +19,8 @@ class BillLineData extends Data
         public readonly float $discount_amount_native = 0.0,
         public readonly ?float $tax_rate = null,
         public readonly float $tax_amount_native = 0.0,
-        public readonly ?int $expense_account_id = null,
         public readonly ?array $tax_metadata = null,
+        public readonly ?int $income_account_id = null,
         public readonly ?int $class_id = null,
         public readonly ?int $department_id = null,
         public readonly ?array $metadata = null,

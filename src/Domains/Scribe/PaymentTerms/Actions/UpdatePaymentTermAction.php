@@ -6,7 +6,7 @@ namespace Kanvas\Scribe\PaymentTerms\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Scribe\PaymentTerms\DataTransferObject\PaymentTermData;
+use Kanvas\Scribe\PaymentTerms\DataTransferObject\PaymentTerm as PaymentTermData;
 use Kanvas\Scribe\PaymentTerms\Models\PaymentTerm;
 use RuntimeException;
 

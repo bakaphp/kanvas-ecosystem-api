@@ -5,23 +5,18 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Invoices\Actions;
 
 use Baka\Users\Contracts\UserInterface;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Invoices\Services\InvoiceStateMachineService;
-use Kanvas\Scribe\Ledger\Services\PaymentAllocationSumService;
+use Kanvas\Scribe\Ledger\Services\PayableMarkAsPaidExecutorService;
 
 /**
- * Recomputes invoice.paid_native / balance_due_native from active allocations and flips status to PAID when
- * the balance hits zero. Called from Souk.Payments::markAsPaid() via Invoice::markAsPaid() and from
- * AllocatePaymentAction after every new allocation.
+ * Recomputes invoice paid/balance from active allocations and flips status to PAID when the balance
+ * hits zero. Workflow is shared with the AP side — see `PayableMarkAsPaidExecutorService`.
  *
- * Pure state-recompute — does NOT post a JE itself. The JE for "DR Cash / CR AR" is posted by the
- * AllocatePaymentAction (or its equivalent) when the allocation row is created. This Action's job is to
- * keep the invoice's denormalized totals in sync with the truth held in invoice_payment_allocations.
- *
- * Idempotent: re-running on an already-paid invoice is a no-op.
+ * Called from Souk.Payments::markAsPaid() via Invoice::markAsPaid() and from AllocatePaymentAction
+ * after every new allocation. Idempotent on already-paid invoices.
  *
  * @see plan §11 Flow 1 — payment cycle worked example
  */
@@ -31,51 +26,26 @@ class MarkInvoicePaidAction
         public readonly Invoice $invoice,
         public readonly ?UserInterface $user = null,
         protected readonly InvoiceStateMachineService $stateMachine = new InvoiceStateMachineService(),
-        protected readonly PaymentAllocationSumService $allocationSummer = new PaymentAllocationSumService(),
+        protected readonly PayableMarkAsPaidExecutorService $executor = new PayableMarkAsPaidExecutorService(),
     ) {
     }
 
     public function execute(): Invoice
     {
-        return DB::connection('accounting')->transaction(function (): Invoice {
-            $invoice = $this->invoice;
-            $statusBefore = $invoice->document_status;
+        /** @var Invoice $invoice */
+        $invoice = $this->executor->execute(
+            entity: $this->invoice,
+            paidStatusEnum: InvoiceDocumentStatusEnum::PAID,
+            canTransitionToPaid: fn ($current) => $this->stateMachine->canTransition(
+                $current,
+                InvoiceDocumentStatusEnum::PAID,
+            ),
+            allocationModelClass: InvoicePaymentAllocation::class,
+            allocationFkColumn: 'invoice_id',
+            ledgerEventName: 'scribe.invoice.paid',
+            extraEventPayload: ['invoice_number' => $this->invoice->invoice_number],
+        );
 
-            [$paidNative, $paidBase] = $this->allocationSummer->sumActive(
-                allocationModelClass: InvoicePaymentAllocation::class,
-                fkColumn: 'invoice_id',
-                entityId: (int) $invoice->id,
-            );
-
-            $invoice->paid_native = $paidNative;
-            $invoice->paid_base = $paidBase;
-            $invoice->balance_due_native = max(0.0, (float) $invoice->total_native - $paidNative);
-            $invoice->balance_due_base = max(0.0, (float) $invoice->total_base - $paidBase);
-
-            // Transition to PAID only if the balance is zero AND we're in a non-terminal state that allows it.
-            if ($invoice->balance_due_native <= 0 && ! $invoice->document_status->isTerminal()) {
-                if ($this->stateMachine->canTransition($invoice->document_status, InvoiceDocumentStatusEnum::PAID)) {
-                    $invoice->document_status = InvoiceDocumentStatusEnum::PAID;
-                    $invoice->collection_state = null;       // cleared on payment per plan §7.1
-                }
-            }
-
-            $invoice->save();
-
-            if ($statusBefore !== InvoiceDocumentStatusEnum::PAID
-                && $invoice->document_status === InvoiceDocumentStatusEnum::PAID) {
-                $invoice->emitLedgerEvent(
-                    eventType: 'scribe.invoice.paid',
-                    payload: [
-                        'invoice_number' => $invoice->invoice_number,
-                        'paid_native' => $paidNative,
-                        'paid_base' => $paidBase,
-                        'currency' => $invoice->currency,
-                    ],
-                );
-            }
-
-            return $invoice->refresh();
-        });
+        return $invoice;
     }
 }

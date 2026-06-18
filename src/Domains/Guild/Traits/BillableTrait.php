@@ -4,18 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Traits;
 
-/**
- * Default implementation of `Baka\Contracts\BillableInterface` for Guild Organization.
- *
- * Only `Organization` mixes this in — People is not a customer. The legal counterparty on every
- * Scribe transaction is always an Organization; per-person addressing on Quote happens via the
- * separate `contact_people_id` field.
- *
- * Field mapping is defensive: most accessors fall back to null when the underlying Guild schema
- * doesn't carry the field today (tax id, structured address, etc.). Snapshot-on-issue means
- * downstream Scribe rows still get good data — operators fill the gaps once and the snapshot is
- * frozen on the invoice.
- */
 trait BillableTrait
 {
     public function getBillableId(): int
@@ -61,12 +49,17 @@ trait BillableTrait
      */
     public function getBillingAddressArray(): ?array
     {
-        // Organization keeps a free-text `address` column for now — return it as a single-field array
-        // so downstream code can render it without further schema work. When Guild adopts a
-        // structured Org-address model, swap this out.
-        $raw = trim((string) ($this->address ?? ''));
+        if (method_exists($this, 'peoples')) {
+            $primary = $this->peoples()->first();
+            $address = $primary?->getBillingAddressArray();
+            if ($address !== null) {
+                return $address;
+            }
+        }
 
-        return $raw === '' ? null : ['raw' => $raw];
+        $line = trim((string) ($this->address ?? ''));
+
+        return $line === '' ? null : ['address' => $line];
     }
 
     public function getDefaultPaymentTermsDays(): int

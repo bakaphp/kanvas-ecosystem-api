@@ -75,7 +75,7 @@ type ScribeExpense {
 type ScribeExpenseLine {
     id: ID!
     sort_order: Int!
-    item_id: Int
+    item: ScribeItem @belongsTo(relation: "item")
     description: String
     amount_native: Float!
     amount_base: Float!

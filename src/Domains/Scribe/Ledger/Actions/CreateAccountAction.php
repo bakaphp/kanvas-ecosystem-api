@@ -6,7 +6,7 @@ namespace Kanvas\Scribe\Ledger\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Scribe\Ledger\DataTransferObject\AccountData;
+use Kanvas\Scribe\Ledger\DataTransferObject\Account as AccountData;
 use Kanvas\Scribe\Ledger\Models\Account;
 use RuntimeException;
 

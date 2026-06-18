@@ -97,12 +97,6 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
         );
     }
 
-    /**
-     * Scribe back-relations — every transaction whose customer/vendor FK points at this Org. Live
-     * here (not in Scribe) because Guild owns the Organization model and Scribe never references
-     * Guild classes directly. Phase 4 flattened the polymorphism — these are now HasMany on
-     * direct FK columns rather than MorphMany.
-     */
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class, 'customer_organization_id', 'id');

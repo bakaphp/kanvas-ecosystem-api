@@ -15,7 +15,7 @@ use Spatie\LaravelData\Data;
  *
  * All fields optional; only the ones present in the payload get applied.
  */
-class AmendInvoiceData extends Data
+class AmendInvoice extends Data
 {
     public function __construct(
         public readonly string $reason,

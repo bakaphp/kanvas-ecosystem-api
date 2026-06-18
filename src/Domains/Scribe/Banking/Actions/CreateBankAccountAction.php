@@ -6,7 +6,7 @@ namespace Kanvas\Scribe\Banking\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Scribe\Banking\DataTransferObject\BankAccountData;
+use Kanvas\Scribe\Banking\DataTransferObject\BankAccount as BankAccountData;
 use Kanvas\Scribe\Banking\Models\BankAccount;
 use Kanvas\Scribe\Ledger\Enums\AccountTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;

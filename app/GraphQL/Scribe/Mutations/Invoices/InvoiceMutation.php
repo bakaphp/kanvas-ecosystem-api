@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Scribe\Mutations\Invoices;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -16,13 +14,10 @@ use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\MarkInvoicePaidAction;
 use Kanvas\Scribe\Invoices\Actions\UpdateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\VoidInvoiceAction;
-use Kanvas\Scribe\Invoices\DataTransferObject\AmendInvoiceData;
-use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceData;
-use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLineData;
-use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
+use Kanvas\Scribe\Invoices\DataTransferObject\AmendInvoice as AmendInvoiceData;
+use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use RuntimeException;
-use Spatie\LaravelData\DataCollection;
 
 class InvoiceMutation
 {
@@ -33,7 +28,7 @@ class InvoiceMutation
         $company = $user->getCurrentCompany();
 
         return new CreateInvoiceAction(
-            data: $this->buildInvoiceData($request['input'], $app, $company),
+            data: InvoiceData::from($app, $company, $request['input']),
             user: $user,
         )->execute();
     }
@@ -109,7 +104,7 @@ class InvoiceMutation
 
         return new UpdateInvoiceAction(
             invoice: $invoice,
-            data: $this->buildInvoiceData($request['input'], $app, $company),
+            data: InvoiceData::from($app, $company, $request['input']),
             user: $user,
         )->execute();
     }
@@ -125,7 +120,7 @@ class InvoiceMutation
 
         return new IssueCreditNoteAction(
             parentInvoice: $parent,
-            data: $this->buildInvoiceData($request['input'], $app, $company),
+            data: InvoiceData::from($app, $company, $request['input']),
             user: $user,
         )->execute();
     }
@@ -159,66 +154,5 @@ class InvoiceMutation
             ),
             user: $user,
         )->execute();
-    }
-
-    private function buildInvoiceData(
-        array $input,
-        AppInterface $app,
-        CompanyInterface $company,
-    ): InvoiceData {
-        $billable = null;
-        if (isset($input['customer_organization_id'])) {
-            /** @var Organization $billable */
-            $billable = Organization::getByIdFromCompanyApp(
-                (int) $input['customer_organization_id'],
-                $company,
-                $app,
-            );
-        }
-
-        $lines = new DataCollection(InvoiceLineData::class, array_map(
-            fn (array $line): InvoiceLineData => new InvoiceLineData(
-                description: (string) ($line['description'] ?? ''),
-                quantity: (float) ($line['quantity'] ?? 1),
-                unit_price_native: (float) $line['unit_price_native'],
-                item_id: isset($line['item_id']) ? (int) $line['item_id'] : null,
-                sort_order: isset($line['sort_order']) ? (int) $line['sort_order'] : null,
-                discount_rate: isset($line['discount_rate']) ? (float) $line['discount_rate'] : null,
-                discount_amount_native: (float) ($line['discount_amount_native'] ?? 0),
-                tax_rate: isset($line['tax_rate']) ? (float) $line['tax_rate'] : null,
-                tax_amount_native: (float) ($line['tax_amount_native'] ?? 0),
-                class_id: isset($line['class_id']) ? (int) $line['class_id'] : null,
-                department_id: isset($line['department_id']) ? (int) $line['department_id'] : null,
-                metadata: $line['metadata'] ?? null,
-            ),
-            $input['lines'],
-        ));
-
-        return new InvoiceData(
-            app: $app,
-            company: $company,
-            billable: $billable,
-            lines: $lines,
-            currency: (string) $input['currency'],
-            fx_rate_to_base: (float) ($input['fx_rate_to_base'] ?? 1.0),
-            document_type: isset($input['document_type'])
-                ? DocumentTypeEnum::from((string) $input['document_type'])
-                : DocumentTypeEnum::INVOICE,
-            invoice_number: $input['invoice_number'] ?? null,
-            net_terms_days: isset($input['net_terms_days']) ? (int) $input['net_terms_days'] : null,
-            issued_date: isset($input['issued_date']) ? Carbon::parse((string) $input['issued_date']) : null,
-            due_date: isset($input['due_date']) ? Carbon::parse((string) $input['due_date']) : null,
-            expected_payment_date: isset($input['expected_payment_date'])
-                ? Carbon::parse((string) $input['expected_payment_date'])
-                : null,
-            notes: $input['notes'] ?? null,
-            internal_notes: $input['internal_notes'] ?? null,
-            terms: $input['terms'] ?? null,
-            quote_id: isset($input['quote_id']) ? (int) $input['quote_id'] : null,
-            parent_invoice_id: isset($input['parent_invoice_id']) ? (int) $input['parent_invoice_id'] : null,
-            regional_compliance: $input['regional_compliance'] ?? null,
-            tax_metadata: $input['tax_metadata'] ?? null,
-            metadata: $input['metadata'] ?? null,
-        );
     }
 }

@@ -9,7 +9,7 @@ use Spatie\LaravelData\Data;
 /**
  * Typed shape of one invoice line. Used by CreateInvoiceAction / UpdateInvoiceAction.
  */
-class InvoiceLineData extends Data
+class InvoiceLine extends Data
 {
     public function __construct(
         public readonly string $description,

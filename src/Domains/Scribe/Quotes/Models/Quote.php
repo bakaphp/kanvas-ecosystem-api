@@ -121,19 +121,11 @@ class Quote extends BaseModel
         return $this->belongsTo(Invoice::class, 'converted_to_invoice_id', 'id');
     }
 
-    /**
-     * The human contact at the customer Organization the quote was addressed to. Lives in the
-     * `crm` connection — Eloquent's BelongsTo handles the cross-connection lookup. Optional.
-     */
     public function contact(): BelongsTo
     {
         return $this->belongsTo(People::class, 'contact_people_id', 'id');
     }
 
-    /**
-     * The Guild Organization that is the legal customer this quote was issued to. Phase 4 —
-     * direct FK, no polymorphism.
-     */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'customer_organization_id', 'id');

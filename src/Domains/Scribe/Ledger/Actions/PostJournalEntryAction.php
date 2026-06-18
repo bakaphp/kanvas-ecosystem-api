@@ -6,8 +6,8 @@ namespace Kanvas\Scribe\Ledger\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryData;
-use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLineData;
+use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntry as JournalEntryData;
+use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLine as JournalEntryLineData;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
 use Kanvas\Scribe\Ledger\Models\JournalEntryLine;

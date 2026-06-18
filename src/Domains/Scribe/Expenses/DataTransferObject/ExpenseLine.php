@@ -6,7 +6,7 @@ namespace Kanvas\Scribe\Expenses\DataTransferObject;
 
 use Spatie\LaravelData\Data;
 
-class ExpenseLineData extends Data
+class ExpenseLine extends Data
 {
     public function __construct(
         public readonly string $description,

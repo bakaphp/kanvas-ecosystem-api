@@ -7,7 +7,7 @@ namespace App\GraphQL\Scribe\Mutations\PaymentTerms;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Scribe\PaymentTerms\Actions\CreatePaymentTermAction;
 use Kanvas\Scribe\PaymentTerms\Actions\UpdatePaymentTermAction;
-use Kanvas\Scribe\PaymentTerms\DataTransferObject\PaymentTermData;
+use Kanvas\Scribe\PaymentTerms\DataTransferObject\PaymentTerm as PaymentTermData;
 use Kanvas\Scribe\PaymentTerms\Models\PaymentTerm;
 
 class PaymentTermMutation

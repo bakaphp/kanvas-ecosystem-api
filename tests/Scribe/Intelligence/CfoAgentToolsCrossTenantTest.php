@@ -12,8 +12,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryRecentExpensesTool;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
-use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceData;
-use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLineData;
+use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
+use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
 use Spatie\LaravelData\DataCollection;
 use Tests\Scribe\ScribeTestCase;
 

@@ -10,7 +10,7 @@ use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\AccountTypeEnum;
 use Spatie\LaravelData\Data;
 
-class AccountData extends Data
+class Account extends Data
 {
     public function __construct(
         public readonly AppInterface $app,

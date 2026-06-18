@@ -6,7 +6,7 @@ namespace App\GraphQL\Scribe\Mutations\Banking;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Scribe\Banking\Actions\CreateBankAccountAction;
-use Kanvas\Scribe\Banking\DataTransferObject\BankAccountData;
+use Kanvas\Scribe\Banking\DataTransferObject\BankAccount as BankAccountData;
 use Kanvas\Scribe\Banking\Models\BankAccount;
 
 class BankAccountMutation

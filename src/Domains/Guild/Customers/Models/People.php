@@ -143,16 +143,41 @@ class People extends BaseModel
         return $this->belongsTo(PeopleType::class, 'people_types_id');
     }
 
-    /**
-     * Quotes addressed to this person as a contact (Phase 4: quotes.contact_people_id).
-     *
-     * The customer Organization remains the legal counterparty on the quote — this relation lists
-     * the quotes whose "Attn: X" recipient is this People row. Live here (not in Scribe) because
-     * People is the Guild model and Scribe never references Guild classes directly.
-     */
-    public function quotesAsContact(): HasMany
+    public function quotes(): HasMany
     {
         return $this->hasMany(Quote::class, 'contact_people_id', 'id');
+    }
+
+    /**
+     * Structured address shape `{address, address_2, city, state, zip, country}` for the BILLING-typed
+     * row in `peoples_address`. Returns null when no BILLING address is on file. Consumed by
+     * `Organization::getBillingAddressArray()` and snapshot freezers at invoice/bill issue time.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getBillingAddressArray(): ?array
+    {
+        $typeId = AddressType::query()
+            ->where('name', AddressTypeEnum::BILLING->value)
+            ->value('id');
+
+        /** @var Address|null $row */
+        $row = $this->address()
+            ->when($typeId !== null, fn ($q) => $q->where('address_type_id', $typeId))
+            ->first();
+
+        if ($row === null) {
+            return null;
+        }
+
+        return [
+            'address' => (string) ($row->address ?? '') ?: null,
+            'address_2' => (string) ($row->address_2 ?? '') ?: null,
+            'city' => (string) ($row->city ?? '') ?: null,
+            'state' => (string) ($row->state ?? '') ?: null,
+            'zip' => (string) ($row->zip ?? '') ?: null,
+            'country' => $row->countries_id !== null ? (string) $row->countries_id : null,
+        ];
     }
 
     public function emails(): HasMany

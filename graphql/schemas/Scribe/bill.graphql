@@ -81,7 +81,7 @@ type ScribeBill {
 type ScribeBillLine {
     id: ID!
     sort_order: Int!
-    item_id: Int
+    item: ScribeItem @belongsTo(relation: "item")
     sku: String
     description: String!
     quantity: Float!
@@ -103,7 +103,7 @@ type ScribeBillLine {
 
 type ScribeBillTaxLine {
     id: ID!
-    tax_code_id: Int
+    tax_code: ScribeTaxCode @belongsTo(relation: "taxCode")
     name: String!
     tax_rate: Float
     jurisdiction: String
@@ -114,8 +114,9 @@ type ScribeBillTaxLine {
 
 type ScribeBillPaymentAllocation {
     id: ID!
-    payment_id: Int
+    payment: Payment @belongsTo(relation: "soukPayment")
     source_type: String!
+
     status: String!
     amount_native: Float!
     amount_base: Float!

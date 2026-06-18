@@ -13,8 +13,8 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Organizations\Actions\ResolveOrCreateOrganizationFromVendorPayloadAction;
 use Kanvas\Scribe\Expenses\Actions\AttachExpenseReceiptAction;
 use Kanvas\Scribe\Expenses\Actions\CreateExpenseAction;
-use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseData;
-use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseLineData;
+use Kanvas\Scribe\Expenses\DataTransferObject\Expense as ExpenseData;
+use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseLine as ExpenseLineData;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\PdfIngest\Traits\ExtractsPdfPayloadValuesTrait;
@@ -54,7 +54,7 @@ class ProposeExpenseFromPdfAction
 
     public function execute(): ?Expense
     {
-        $total = $this->numeric($this->extracted['total'] ?? null);
+        $total = $this->floatOrNull($this->extracted['total'] ?? null);
         if ($total === null || $total <= 0) {
             Log::warning('Scribe.PdfIngest.ProposeExpense skipped — no total in extraction', [
                 'filesystem_id' => $this->pdf->getKey(),
@@ -73,15 +73,15 @@ class ProposeExpenseFromPdfAction
             return null;
         }
 
-        $expenseDate = $this->parseDate($this->extracted['issue_date'] ?? null) ?? Carbon::today();
+        $expenseDate = $this->parseIso($this->extracted['issue_date'] ?? null) ?? Carbon::today();
         $currency = $this->trimOrDefault($this->extracted['currency'] ?? null, 'USD');
         $paidBy = $this->mapPaymentMethodHint($this->extracted['payment_method_hint'] ?? null);
         $vendorDisplayName = $this->trimOrDefault(
             $this->extracted['vendor_name'] ?? null,
             $this->fromEmail !== null ? "Vendor ({$this->fromEmail})" : 'Unknown vendor',
         );
-        $taxNative = $this->numeric($this->extracted['tax'] ?? null) ?? 0.0;
-        $subtotal = $this->numeric($this->extracted['subtotal'] ?? null) ?? ($total - $taxNative);
+        $taxNative = $this->floatOrNull($this->extracted['tax'] ?? null) ?? 0.0;
+        $subtotal = $this->floatOrNull($this->extracted['subtotal'] ?? null) ?? ($total - $taxNative);
         $notes = trim('Imported from PDF. ' . (string) ($this->extracted['notes'] ?? ''));
 
         $lines = $this->buildLines($expenseAccountId, $subtotal, $taxNative);
@@ -189,8 +189,8 @@ class ProposeExpenseFromPdfAction
             if (! is_array($item)) {
                 continue;
             }
-            $lineTotal = $this->numeric($item['line_total'] ?? null)
-                ?? (($this->numeric($item['qty'] ?? null) ?? 1) * ($this->numeric($item['unit_price'] ?? null) ?? 0));
+            $lineTotal = $this->floatOrNull($item['line_total'] ?? null)
+                ?? (($this->floatOrNull($item['qty'] ?? null) ?? 1) * ($this->floatOrNull($item['unit_price'] ?? null) ?? 0));
             if ($lineTotal <= 0) {
                 continue;
             }

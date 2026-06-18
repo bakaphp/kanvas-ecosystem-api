@@ -12,7 +12,7 @@ use Spatie\LaravelData\DataCollection;
 /**
  * @property DataCollection<TaxRateData>|null $rates
  */
-class TaxCodeData extends Data
+class TaxCode extends Data
 {
     public function __construct(
         public readonly AppInterface $app,

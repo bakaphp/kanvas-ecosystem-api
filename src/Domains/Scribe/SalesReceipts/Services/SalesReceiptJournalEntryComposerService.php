@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\SalesReceipts\Services;
 
-use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryData;
-use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLineData;
+use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntry as JournalEntryData;
+use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLine as JournalEntryLineData;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Services\AccountResolverService;
