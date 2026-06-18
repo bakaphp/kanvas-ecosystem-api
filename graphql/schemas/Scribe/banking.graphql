@@ -1,0 +1,63 @@
+"Scribe.Banking — minimal bank-account surface backing GL Cash accounts."
+type ScribeBankAccount {
+    id: ID!
+    uuid: String!
+    account_name: String!
+    account_number_last4: String
+    routing_number_masked: String
+    institution_name: String
+    currency: String!
+    gl_account: ScribeAccount! @belongsTo(relation: "glAccount")
+    current_balance_native: Money
+    available_balance_native: Money
+    last_balance_sync_at: DateTime
+    is_active: Boolean!
+    source: String!
+    external_id: String
+    last_synced_at: DateTime
+    metadata: Mixed
+    company: Company! @belongsTo(relation: "company")
+    user: User @belongsTo(relation: "user")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+input ScribeBankAccountInput {
+    account_name: String!
+    gl_account_id: Int!
+    currency: String!
+    account_number_last4: String
+    routing_number_masked: String
+    institution_name: String
+    is_active: Boolean
+    source: String
+    external_id: String
+    metadata: Mixed
+}
+
+extend type Query @guard {
+    scribeBankAccounts(
+        where: _
+            @whereConditions(
+                columns: [
+                    "account_name"
+                    "currency"
+                    "institution_name"
+                    "is_active"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["account_name", "created_at"])
+    ): [ScribeBankAccount!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\Banking\\Models\\BankAccount"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+}
+
+extend type Mutation @guard {
+    createScribeBankAccount(input: ScribeBankAccountInput!): ScribeBankAccount!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Banking\\BankAccountMutation@create"
+        )
+}

@@ -122,6 +122,7 @@
             "Kanvas\\ActionEngine\\": "src/Domains/ActionEngine",
             "Kanvas\\Event\\": "src/Domains/Event",
             "Kanvas\\Intelligence\\": "src/Domains/Intelligence",
+            "Kanvas\\Scribe\\": "src/Domains/Scribe",
             "Kanvas\\Analytics\\": "src/Domains/Analytics",
             "Kanvas\\NervousSystem\\": "src/Domains/NervousSystem",
             "Database\\Factories\\": "database/factories/",
@@ -158,7 +159,8 @@
             "php artisan migrate --path database/migrations/Subscription/ --database mysql",
             "php artisan migrate --path database/migrations/Event/ --database event",
             "php artisan migrate --path database/migrations/Workflow/ --database workflow",
-            "php artisan migrate --path database/migrations/Intelligence/ --database intelligence"
+            "php artisan migrate --path database/migrations/Intelligence/ --database intelligence",
+            "php artisan migrate --path database/migrations/Scribe/ --database accounting"
         ],
         "migrate-kanvas": [
             "php artisan migrate"
@@ -192,6 +194,9 @@
         ],
         "migrate-intelligence": [
             "php artisan migrate --path database/migrations/Intelligence/ --database intelligence"
+        ],
+        "migrate-scribe": [
+            "php artisan migrate --path database/migrations/Scribe/ --database accounting"
         ],
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },

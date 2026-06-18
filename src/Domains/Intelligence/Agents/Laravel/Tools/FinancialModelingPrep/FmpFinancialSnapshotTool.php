@@ -31,7 +31,7 @@ class FmpFinancialSnapshotTool implements KanvasToolInterface
     {
         $name = AgentTool::fromClass($this)?->name ?? $this->name();
 
-        return "Use `{$name}` to retrieve a year-over-year financial snapshot for a public company. Returns current and prior-year values with % change for: Revenue, EBITDA, Interest Expense, Cash, Total Debt, and Stock Price. Requires a ticker symbol — call FMP Company Search first if you only have the company name.";
+        return "Use `{$name}` to retrieve a year-over-year financial snapshot for a public company. Returns current and prior-year values with % change for: Revenue, EBITDA, Interest Expense, Cash, Total Debt, and Stock Price. Also returns stock performance % change for 30 days, 3 months, 6 months, 1 year, and 2 years. Requires a ticker symbol — call FMP Company Search first if you only have the company name.";
     }
 
     #[Override]
@@ -71,6 +71,16 @@ class FmpFinancialSnapshotTool implements KanvasToolInterface
                 'from' => $priorDate,
                 'to' => $priorEnd,
             ]);
+
+            $prior2yDate = Carbon::now()->subYears(2)->format('Y-m-d');
+            $prior2yEnd = Carbon::now()->subYears(2)->addDays(7)->format('Y-m-d');
+            $historical2y = $client->get('/stable/historical-price-eod/full', [
+                'symbol' => $symbol,
+                'from' => $prior2yDate,
+                'to' => $prior2yEnd,
+            ]);
+
+            $priceChange = $client->get('/stable/stock-price-change', ['symbol' => $symbol]);
         } catch (Throwable $e) {
             return json_encode(['error' => $e->getMessage()]);
         }
@@ -85,6 +95,11 @@ class FmpFinancialSnapshotTool implements KanvasToolInterface
 
         $histEntries = $historical['historical'] ?? [];
         $priorClose = ! empty($histEntries) ? ($histEntries[0]['close'] ?? null) : null;
+
+        $hist2yEntries = $historical2y['historical'] ?? [];
+        $prior2yClose = ! empty($hist2yEntries) ? ($hist2yEntries[0]['close'] ?? null) : null;
+
+        $priceChangeItem = is_array($priceChange[0] ?? null) ? $priceChange[0] : ($priceChange ?: []);
 
         $currency = $incomeNow['reportedCurrency'] ?? ($profileItem['currency'] ?? 'USD');
 
@@ -122,6 +137,13 @@ class FmpFinancialSnapshotTool implements KanvasToolInterface
                     $priorClose,
                     Carbon::now()->format('Y-m-d'),
                 ),
+            ],
+            'stock_performance' => [
+                '30d_pct' => isset($priceChangeItem['1M']) ? round((float) $priceChangeItem['1M'], 2) : null,
+                '3m_pct' => isset($priceChangeItem['3M']) ? round((float) $priceChangeItem['3M'], 2) : null,
+                '6m_pct' => isset($priceChangeItem['6M']) ? round((float) $priceChangeItem['6M'], 2) : null,
+                '1y_pct' => isset($priceChangeItem['1Y']) ? round((float) $priceChangeItem['1Y'], 2) : null,
+                '2y_pct' => $this->changePct($currentPrice, $prior2yClose),
             ],
         ]);
     }
