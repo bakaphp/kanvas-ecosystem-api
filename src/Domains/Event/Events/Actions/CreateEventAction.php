@@ -115,11 +115,13 @@ class CreateEventAction
             }
 
             $shouldCreateOrder = isset($this->metadata['create_order']) && $this->metadata['create_order'] == '1';
+            $orderCreated = false;
             if ($event->resources_id && ! $event->orders->count() && $shouldCreateOrder) {
                 $this->createEventOrder(
                     $eventVersion,
                     $this->event->orderItems
                 );
+                $orderCreated = true;
             }
 
             // Store additional resources in pivot table
@@ -129,7 +131,10 @@ class CreateEventAction
 
             $participants = $eventVersion->participants;
 
-            if (! $participants->isEmpty()) {
+            // Bookings that create an order are paid flows: passes + the BOOKING_CREATED email
+            // are deferred to ActivateBookingOnPaymentActivity (after-payment-intent). Free
+            // bookings (no order) still issue passes and notify immediately on creation.
+            if (! $participants->isEmpty() && ! $orderCreated) {
                 $codes = new CreatePassAction(
                     $eventVersion->event,
                     $eventVersion

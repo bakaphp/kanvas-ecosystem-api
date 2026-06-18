@@ -8,6 +8,7 @@ use Illuminate\Database\Seeder;
 use Kanvas\Connectors\CardNet\Handlers\CardNetHandler;
 use Kanvas\Connectors\Internal\Handlers\InternalHandler;
 use Kanvas\Connectors\Stripe\Handlers\StripeHandler;
+use Kanvas\Connectors\TeeTime\Handlers\TeeTimeHandler;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\Integrations;
 
@@ -45,6 +46,16 @@ class IntegrationsSeeder extends Seeder
             ],
             [
                 'handler' => StripeHandler::class,
+            ]
+        );
+
+        Integrations::firstOrCreate(
+            [
+                'name' => IntegrationsEnum::TEE_TIME->value,
+                'apps_id' => 0,
+            ],
+            [
+                'handler' => TeeTimeHandler::class,
             ]
         );
     }
