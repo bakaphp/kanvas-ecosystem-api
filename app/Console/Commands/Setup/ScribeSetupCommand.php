@@ -18,9 +18,14 @@ class ScribeSetupCommand extends Command
 {
     use KanvasJobsTrait;
 
-    protected $signature = 'kanvas-scribe:setup {app_id} {user_id} {company_id} {--country=US : ISO 3166-1 alpha-2 country code (US, DO, …)}';
+    protected $signature = 'kanvas-scribe:setup
+        {app_id}
+        {user_id}
+        {company_id}
+        {--country=US : ISO 3166-1 alpha-2 country code (US, DO, …) — selects COA template}
+        {--fiscal-year= : Calendar year to open monthly fiscal periods for (default: current year)}';
 
-    protected $description = 'Initialize Scribe accounting for a company — seed Chart of Accounts (country-aware) and open the current fiscal period.';
+    protected $description = 'Initialize Scribe accounting for a company — seed Chart of Accounts (country-aware) and pre-open all 12 monthly fiscal periods for the year.';
 
     public function handle(): int
     {
@@ -28,6 +33,7 @@ class ScribeSetupCommand extends Command
         $user = Users::getById((int) $this->argument('user_id'));
         $company = Companies::getById((int) $this->argument('company_id'));
         $country = strtoupper((string) $this->option('country'));
+        $fiscalYear = (int) ($this->option('fiscal-year') ?? Carbon::today()->year);
 
         $this->overwriteAppService($app);
 
@@ -39,28 +45,45 @@ class ScribeSetupCommand extends Command
         );
         $this->info("Chart of Accounts seeded for country={$country}: {$inserted} accounts inserted.");
 
-        $today = Carbon::today();
-        $period = FiscalPeriod::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('period_start', '<=', $today)
-            ->where('period_end', '>=', $today)
-            ->first();
-        if ($period === null) {
-            $period = FiscalPeriod::create([
-                'apps_id' => $app->getId(),
-                'companies_id' => $company->getId(),
-                'period_start' => $today->copy()->startOfMonth(),
-                'period_end' => $today->copy()->endOfMonth(),
-                'status' => FiscalPeriodStatusEnum::OPEN,
-            ]);
-            $this->info("Fiscal period opened: {$period->period_start->toDateString()} → {$period->period_end->toDateString()}.");
-        } else {
-            $this->info("Fiscal period already exists (status={$period->status->value}); skipping.");
+        // Pre-open all 12 monthly periods for the fiscal year. Posting outside any open period
+        // would otherwise throw ClosedFiscalPeriodException — operators shouldn't have to manually
+        // open every month before recording transactions.
+        $opened = 0;
+        $skipped = 0;
+        $cursor = Carbon::create($fiscalYear, 1, 1)->startOfMonth();
+        $yearEnd = Carbon::create($fiscalYear, 12, 31);
+
+        while ($cursor->lte($yearEnd)) {
+            $monthStart = $cursor->copy()->startOfMonth();
+            $monthEnd = $cursor->copy()->endOfMonth();
+
+            $existing = FiscalPeriod::query()
+                ->where('apps_id', $app->getId())
+                ->where('companies_id', $company->getId())
+                ->where('period_start', $monthStart->toDateString())
+                ->where('period_end', $monthEnd->toDateString())
+                ->first();
+
+            if ($existing === null) {
+                FiscalPeriod::create([
+                    'apps_id' => $app->getId(),
+                    'companies_id' => $company->getId(),
+                    'period_start' => $monthStart,
+                    'period_end' => $monthEnd,
+                    'status' => FiscalPeriodStatusEnum::OPEN,
+                ]);
+                ++$opened;
+            } else {
+                ++$skipped;
+            }
+
+            $cursor->addMonthNoOverflow();
         }
 
+        $this->info("Fiscal year {$fiscalYear}: {$opened} months opened, {$skipped} already existed.");
+
         $this->newLine();
-        $this->info("Scribe setup complete for {$company->name} (app={$app->name}, country={$country}).");
+        $this->info("Scribe setup complete for {$company->name} (app={$app->name}, country={$country}, fiscal year={$fiscalYear}).");
 
         return self::SUCCESS;
     }
