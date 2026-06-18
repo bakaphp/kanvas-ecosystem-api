@@ -1,0 +1,145 @@
+"Scribe.Reports — GL-driven financial reports (Balance Sheet, P&L, Trial Balance, AR Aging, Revenue)."
+enum ScribeRevenueGroupBy {
+    CUSTOMER @enum(value: "customer")
+    MONTH @enum(value: "month")
+    ITEM @enum(value: "item")
+}
+
+type ScribeReportLineItem {
+    account_id: Int!
+    account_number: String!
+    name: String!
+    account_type: String!
+    account_sub_type: String
+    amount: Money!
+}
+
+type ScribeReportSection {
+    title: String!
+    lines: [ScribeReportLineItem!]!
+    total: Money!
+}
+
+type ScribeBalanceSheet {
+    as_of: Date!
+    currency: String!
+    assets: ScribeReportSection!
+    liabilities: ScribeReportSection!
+    equity: ScribeReportSection!
+    total_liabilities_and_equity: Money!
+    is_balanced: Boolean!
+}
+
+type ScribeProfitAndLoss {
+    period_start: Date!
+    period_end: Date!
+    currency: String!
+    revenue: ScribeReportSection!
+    cogs: ScribeReportSection!
+    gross_profit: Money!
+    operating_expenses: ScribeReportSection!
+    operating_income: Money!
+    other_income: ScribeReportSection!
+    other_expenses: ScribeReportSection!
+    net_income: Money!
+}
+
+type ScribeTrialBalanceRow {
+    account_id: Int!
+    account_number: String!
+    name: String!
+    account_type: String!
+    account_sub_type: String
+    debit: Money!
+    credit: Money!
+}
+
+type ScribeTrialBalance {
+    as_of: Date!
+    currency: String!
+    rows: [ScribeTrialBalanceRow!]!
+    total_debits: Money!
+    total_credits: Money!
+    is_balanced: Boolean!
+}
+
+type ScribeArAgingRow {
+    customer_type: String
+    customer_id: Int
+    customer_name: String
+    current: Money!
+    bucket_1_30: Money!
+    bucket_31_60: Money!
+    bucket_61_90: Money!
+    bucket_90_plus: Money!
+    total: Money!
+}
+
+type ScribeArAging {
+    as_of: Date!
+    currency: String!
+    rows: [ScribeArAgingRow!]!
+    total_current: Money!
+    total_1_30: Money!
+    total_31_60: Money!
+    total_61_90: Money!
+    total_90_plus: Money!
+    grand_total: Money!
+}
+
+type ScribeRevenueRow {
+    group_key: String!
+    group_label: String!
+    gross_revenue: Money!
+    discounts: Money!
+    net_revenue: Money!
+    invoice_count: Int!
+}
+
+type ScribeRevenueReport {
+    period_start: Date!
+    period_end: Date!
+    currency: String!
+    group_by: String!
+    rows: [ScribeRevenueRow!]!
+    total_gross_revenue: Money!
+    total_discounts: Money!
+    total_net_revenue: Money!
+    total_invoice_count: Int!
+}
+
+extend type Query @guard {
+    scribeBalanceSheet(as_of: Date!, currency: String): ScribeBalanceSheet!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Queries\\Reports\\ReportsQuery@balanceSheet"
+        )
+
+    scribeProfitAndLoss(
+        period_start: Date!
+        period_end: Date!
+        currency: String
+    ): ScribeProfitAndLoss!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Queries\\Reports\\ReportsQuery@profitAndLoss"
+        )
+
+    scribeTrialBalance(as_of: Date!, currency: String): ScribeTrialBalance!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Queries\\Reports\\ReportsQuery@trialBalance"
+        )
+
+    scribeArAging(as_of: Date!, currency: String): ScribeArAging!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Queries\\Reports\\ReportsQuery@arAging"
+        )
+
+    scribeRevenueReport(
+        period_start: Date!
+        period_end: Date!
+        group_by: ScribeRevenueGroupBy
+        currency: String
+    ): ScribeRevenueReport!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Queries\\Reports\\ReportsQuery@revenue"
+        )
+}

@@ -1,0 +1,41 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Scribe\FxRates\Models;
+
+use Baka\Casts\Json;
+use Baka\Traits\KanvasAppScopesTrait;
+use Baka\Traits\NoCompanyRelationshipTrait;
+use Illuminate\Database\Eloquent\Model as EloquentModel;
+use Illuminate\Support\Carbon;
+
+/**
+ * Daily FX rate cache.
+ *
+ * Per-app (not per-company) because tenants on the same app share a rate table.
+ *
+ * @property int $id
+ * @property int $apps_id
+ * @property string $base_currency
+ * @property string $quote_currency
+ * @property float $rate
+ * @property Carbon $rate_date
+ * @property string $source
+ * @property array|null $metadata
+ */
+class FxRate extends EloquentModel
+{
+    use KanvasAppScopesTrait;
+    use NoCompanyRelationshipTrait;
+
+    protected $connection = 'accounting';
+    protected $table = 'fx_rates';
+    protected $guarded = [];
+
+    protected $casts = [
+        'rate' => 'float',
+        'rate_date' => 'date',
+        'metadata' => Json::class,
+    ];
+}

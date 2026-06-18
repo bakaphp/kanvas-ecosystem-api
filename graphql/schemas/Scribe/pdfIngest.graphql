@@ -1,0 +1,63 @@
+"Scribe.PdfIngest — audit trail for email-driven PDF ingest. Read-only surface."
+enum ScribePdfIngestDocumentType {
+    EXPENSE_RECEIPT @enum(value: "expense_receipt")
+    VENDOR_INVOICE @enum(value: "vendor_invoice")
+    VENDOR_QUOTE @enum(value: "vendor_quote")
+    OUR_INVOICE @enum(value: "our_invoice")
+    OUR_QUOTE @enum(value: "our_quote")
+    UNKNOWN @enum(value: "unknown")
+}
+
+enum ScribePdfIngestStatus {
+    PENDING @enum(value: "pending")
+    ENTITY_CREATED @enum(value: "entity_created")
+    AWAITING_BILL_SUPPORT @enum(value: "awaiting_bill_support")
+    QUOTE_INBOUND_LOGGED @enum(value: "quote_inbound_logged")
+    IGNORED_OUR_DOC @enum(value: "ignored_our_doc")
+    REJECTED_UNKNOWN @enum(value: "rejected_unknown")
+    FAILED @enum(value: "failed")
+}
+
+type ScribePdfIngestLog {
+    id: ID!
+    uuid: String!
+    filesystem: Filesystem! @belongsTo(relation: "filesystem")
+    message_id: String
+    from_email: String
+    from_name: String
+    subject: String
+    inbound_metadata: Mixed
+    document_type: ScribePdfIngestDocumentType!
+    confidence: Float!
+    extracted_payload: Mixed
+    classification_reasoning: String
+    status: ScribePdfIngestStatus!
+    linked_entity_type: String
+    linked_entity_id: Int
+    rejected_reason: String
+    processed_at: DateTime
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+extend type Query @guard {
+    scribePdfIngestLogs(
+        where: _
+            @whereConditions(
+                columns: [
+                    "document_type"
+                    "status"
+                    "from_email"
+                    "linked_entity_type"
+                    "linked_entity_id"
+                    "processed_at"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["processed_at", "created_at", "id"])
+    ): [ScribePdfIngestLog!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\PdfIngest\\Models\\PdfIngestLog"
+            scopes: ["fromApp", "fromCompany"]
+            defaultCount: 50
+        )
+}

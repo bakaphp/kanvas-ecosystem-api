@@ -19,7 +19,7 @@ class LeadRotation extends Data
         public string $name,
         #[MapInputName(SnakeCaseMapper::class)]
         #[MapOutputName(SnakeCaseMapper::class)]
-        public ?string $leadsRotationsEmail  = null,
+        public ?string $leadsRotationsEmail = null,
         public int $hits = 0,
         public array $agents = []
     ) {

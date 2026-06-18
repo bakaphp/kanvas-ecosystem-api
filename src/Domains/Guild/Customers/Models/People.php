@@ -29,6 +29,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Locations\Models\Countries;
+use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
@@ -62,18 +63,18 @@ use Override;
  */
 class People extends BaseModel
 {
-    use UuidTrait;
+    use CanUseWorkflow;
+    use CascadeSoftDeletes;
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
-    use HasTagsTrait;
-    use CanUseWorkflow;
-    use SocialInteractionsTrait;
-    use Notifiable;
     use HasLightHouseCache;
+    use HasTagsTrait;
     use LikableTrait;
+    use Notifiable;
+    use SocialInteractionsTrait;
     use SoftDeletesTrait;
-    use CascadeSoftDeletes;
+    use UuidTrait;
 
     public const DELETED_AT = 'is_deleted';
 
@@ -140,6 +141,43 @@ class People extends BaseModel
     public function peopleType(): BelongsTo
     {
         return $this->belongsTo(PeopleType::class, 'people_types_id');
+    }
+
+    public function quotes(): HasMany
+    {
+        return $this->hasMany(Quote::class, 'contact_people_id', 'id');
+    }
+
+    /**
+     * Structured address shape `{address, address_2, city, state, zip, country}` for the BILLING-typed
+     * row in `peoples_address`. Returns null when no BILLING address is on file. Consumed by
+     * `Organization::getBillingAddressArray()` and snapshot freezers at invoice/bill issue time.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getBillingAddressArray(): ?array
+    {
+        $typeId = AddressType::query()
+            ->where('name', AddressTypeEnum::BILLING->value)
+            ->value('id');
+
+        /** @var Address|null $row */
+        $row = $this->address()
+            ->when($typeId !== null, fn ($q) => $q->where('address_type_id', $typeId))
+            ->first();
+
+        if ($row === null) {
+            return null;
+        }
+
+        return [
+            'address' => (string) ($row->address ?? '') ?: null,
+            'address_2' => (string) ($row->address_2 ?? '') ?: null,
+            'city' => (string) ($row->city ?? '') ?: null,
+            'state' => (string) ($row->state ?? '') ?: null,
+            'zip' => (string) ($row->zip ?? '') ?: null,
+            'country' => $row->countries_id !== null ? (string) $row->countries_id : null,
+        ];
     }
 
     public function emails(): HasMany
