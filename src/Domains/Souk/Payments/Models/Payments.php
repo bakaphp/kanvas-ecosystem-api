@@ -77,9 +77,18 @@ class Payments extends BaseModel
         return $this->getRefundedAmount() >= (float) $this->amount;
     }
 
-    public function order(): BelongsTo
+    public function payable(): BelongsTo
     {
         return $this->morphTo('payable');
+    }
+
+    /**
+     * @deprecated Use payable() — kept as alias during the migration to the
+     *             generic PayableInterface. Will be removed once all callers move.
+     */
+    public function order(): BelongsTo
+    {
+        return $this->payable();
     }
 
     public function getMetadata(string $key): mixed

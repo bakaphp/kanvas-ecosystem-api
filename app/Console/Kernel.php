@@ -10,6 +10,7 @@ use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
 use App\Console\Commands\Lead\Schedules\LeadFollowUpSchedule;
 use App\Console\Commands\NervousSystem\Schedules\NervousSystemSchedule;
+use App\Console\Commands\Scribe\Schedules\ScribeSchedule;
 use App\Console\Commands\Social\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
 use App\Console\Commands\Souk\CancelStalePaymentsCommand;
@@ -54,6 +55,9 @@ class Kernel extends ConsoleKernel
         // Lead follow-up v2 — hourly fan-out + daily summary. Timing map +
         // rationale live in LeadFollowUpSchedule.
         LeadFollowUpSchedule::register($schedule);
+
+        // Scribe — daily AR-aging fan-out (per (app, company) tuple with open AR).
+        ScribeSchedule::register($schedule);
 
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()

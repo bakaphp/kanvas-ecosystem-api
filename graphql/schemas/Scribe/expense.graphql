@@ -1,0 +1,206 @@
+"Scribe.Expenses — non-bill spending (company card, employee-paid travel, direct bank, petty cash)."
+enum ScribeExpenseStatus {
+    DRAFT @enum(value: "draft")
+    PENDING_APPROVAL @enum(value: "pending_approval")
+    APPROVED @enum(value: "approved")
+    REJECTED @enum(value: "rejected")
+    VOIDED @enum(value: "voided")
+}
+
+enum ScribeExpensePaidBy {
+    COMPANY_CARD @enum(value: "company_card")
+    COMPANY_CASH @enum(value: "company_cash")
+    EMPLOYEE_PERSONAL @enum(value: "employee_personal")
+    COMPANY_BANK_TRANSFER @enum(value: "company_bank_transfer")
+}
+
+enum ScribeExpenseReimbursementStatus {
+    NOT_APPLICABLE @enum(value: "not_applicable")
+    PENDING @enum(value: "pending")
+    APPROVED @enum(value: "approved")
+    PAID @enum(value: "paid")
+}
+
+type ScribeExpense {
+    id: ID!
+    uuid: String!
+    expense_number: String
+    vendor: Organization @belongsTo(relation: "vendor")
+    vendor_display_name: String
+    vendor_legal_name: String
+    vendor_tax_id: String
+    vendor_email: String
+    status: ScribeExpenseStatus!
+    expense_date: Date!
+    submitted_at: DateTime
+    approved_at: DateTime
+    approved_by: User @belongsTo(relation: "approvedBy")
+    rejected_at: DateTime
+    rejected_by: User @belongsTo(relation: "rejectedBy")
+    reject_reason: String
+    voided_at: DateTime
+    void_reason_code: String
+    paid_by: ScribeExpensePaidBy!
+    paid_by_user: User @belongsTo(relation: "paidByUser")
+    payment_method: PaymentMethod @belongsTo(relation: "paymentMethod")
+    bank_account: ScribeBankAccount @belongsTo(relation: "bankAccount")
+    reimbursement_status: ScribeExpenseReimbursementStatus!
+    reimbursement_payment: Payment @belongsTo(relation: "reimbursementPayment")
+    reimbursed_at: DateTime
+    currency: String!
+    fx_rate_to_base: Float!
+    subtotal_native: Money!
+    tax_native: Money!
+    total_native: Money!
+    subtotal_base: Money!
+    tax_base: Money!
+    total_base: Money!
+    tax_metadata: Mixed
+    regional_compliance: Mixed
+    notes: String
+    internal_notes: String
+    source: String!
+    external_id: String
+    external_url: String
+    origin: ScribeJournalEntryOrigin!
+    metadata: Mixed
+    company: Company! @belongsTo(relation: "company")
+    user: User @belongsTo(relation: "user")
+    lines: [ScribeExpenseLine!]! @hasMany(relation: "lines")
+    receipts: [ScribeExpenseReceipt!]! @hasMany(relation: "receipts")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type ScribeExpenseLine {
+    id: ID!
+    sort_order: Int!
+    item: ScribeItem @belongsTo(relation: "item")
+    description: String
+    amount_native: Money!
+    amount_base: Money!
+    tax_amount_native: Money!
+    tax_amount_base: Money!
+    expense_account: ScribeAccount! @belongsTo(relation: "expenseAccount")
+    class_id: Int
+    department_id: Int
+    metadata: Mixed
+}
+
+type ScribeExpenseReceipt {
+    id: ID!
+    expense: ScribeExpense! @belongsTo(relation: "expense")
+    filesystem: Filesystem! @belongsTo(relation: "filesystem")
+    uploaded_at: DateTime!
+    uploaded_by: User @belongsTo(relation: "uploadedBy")
+    metadata: Mixed
+}
+
+input ScribeExpenseLineInput {
+    description: String
+    amount_native: Money!
+    tax_amount_native: Money
+    expense_account_id: Int!
+    item_id: Int
+    class_id: Int
+    department_id: Int
+    sort_order: Int
+    metadata: Mixed
+}
+
+input ScribeExpenseInput {
+    expense_date: Date!
+    currency: String!
+    fx_rate_to_base: Float
+    paid_by: ScribeExpensePaidBy!
+    paid_by_users_id: Int
+    payment_method_id: Int
+    bank_account_id: Int
+    vendor_organization_id: Int
+    expense_number: String
+    notes: String
+    internal_notes: String
+    regional_compliance: Mixed
+    tax_metadata: Mixed
+    metadata: Mixed
+    lines: [ScribeExpenseLineInput!]!
+}
+
+input ScribeAttachExpenseReceiptInput {
+    filesystem_id: Int!
+    metadata: Mixed
+}
+
+extend type Query @guard {
+    scribeExpenses(
+        where: _
+            @whereConditions(
+                columns: [
+                    "expense_number"
+                    "status"
+                    "paid_by"
+                    "reimbursement_status"
+                    "currency"
+                    "vendor_organization_id"
+                    "expense_date"
+                    "source"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "expense_number"
+                    "expense_date"
+                    "total_base"
+                    "created_at"
+                ]
+            )
+    ): [ScribeExpense!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\Expenses\\Models\\Expense"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 50
+        )
+}
+
+extend type Mutation @guard {
+    createScribeExpense(input: ScribeExpenseInput!): ScribeExpense!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@create"
+        )
+    updateScribeExpense(id: ID!, input: ScribeExpenseInput!): ScribeExpense!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@update"
+        )
+    submitScribeExpenseForApproval(id: ID!): ScribeExpense!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@submitForApproval"
+        )
+    approveScribeExpense(id: ID!): ScribeExpense!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@approve"
+        )
+    rejectScribeExpense(id: ID!, reason: String): ScribeExpense!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@reject"
+        )
+    voidScribeExpense(id: ID!, void_reason_code: String!): ScribeExpense!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@void"
+        )
+    recordScribeExpenseReimbursement(
+        id: ID!
+        reimbursement_payment_id: Int
+    ): ScribeExpense!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@recordReimbursement"
+        )
+    attachScribeExpenseReceipt(
+        id: ID!
+        input: ScribeAttachExpenseReceiptInput!
+    ): ScribeExpenseReceipt!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Expenses\\ExpenseMutation@attachReceipt"
+        )
+}

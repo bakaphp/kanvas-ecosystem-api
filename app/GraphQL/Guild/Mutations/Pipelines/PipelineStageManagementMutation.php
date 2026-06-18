@@ -80,6 +80,7 @@ class PipelineStageManagementMutation
         new StageCounterAction(
             $pipelineStage->pipeline
         )->execute();
+
         return $pipelineStage->softDelete();
     }
 

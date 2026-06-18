@@ -122,6 +122,7 @@
             "Kanvas\\ActionEngine\\": "src/Domains/ActionEngine",
             "Kanvas\\Event\\": "src/Domains/Event",
             "Kanvas\\Intelligence\\": "src/Domains/Intelligence",
+            "Kanvas\\Scribe\\": "src/Domains/Scribe",
             "Kanvas\\Analytics\\": "src/Domains/Analytics",
             "Kanvas\\NervousSystem\\": "src/Domains/NervousSystem",
             "Database\\Factories\\": "database/factories/",

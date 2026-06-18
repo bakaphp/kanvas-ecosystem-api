@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Orders\Models;
 
 use Baka\Casts\Json;
+use Baka\Contracts\PayableInterface;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -100,7 +101,7 @@ use Spatie\LaravelData\DataCollection;
  * @property Carbon|null $updated_at
  */
 #[ObservedBy(OrderObserver::class)]
-class Order extends BaseModel
+class Order extends BaseModel implements PayableInterface
 {
     use UuidTrait;
     use DynamicSearchableTrait {

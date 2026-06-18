@@ -11,7 +11,6 @@ interface EnumsInterface
 {
     /**
      * Get Enum case value.
-     *
      */
     public function getValue(): mixed;
 }
