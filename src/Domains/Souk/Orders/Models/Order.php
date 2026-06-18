@@ -221,6 +221,15 @@ class Order extends BaseModel implements PayableInterface
         return $this->getTotalAmount() - $this->getSubTotalAmount();
     }
 
+    /**
+     * Amount the customer must actually pay: the net total after order-level discounts.
+     * Payment processors must charge this, NOT getTotalAmount() (the pre-discount gross).
+     */
+    public function getTotalDueAmount(): float
+    {
+        return (float) $this->total_net_amount;
+    }
+
     public function addItems(DataCollection $items): void
     {
         foreach ($items as $item) {

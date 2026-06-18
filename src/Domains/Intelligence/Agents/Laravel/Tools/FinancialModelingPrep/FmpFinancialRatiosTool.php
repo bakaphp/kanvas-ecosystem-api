@@ -30,7 +30,7 @@ class FmpFinancialRatiosTool implements KanvasToolInterface
     {
         $name = AgentTool::fromClass($this)?->name ?? $this->name();
 
-        return "Use `{$name}` to fetch TTM financial ratios (current ratio, debt-to-equity, profit margins, cash flow per share) for a public company. Requires a ticker symbol. Use these metrics to assess liquidity and leverage risk.";
+        return "Use `{$name}` to fetch financial ratios for a public company: current ratio, quick ratio, debt-to-equity, profit margins, cash flow per share, and interest coverage — both current (TTM) and prior-year values. Requires a ticker symbol. Use these metrics to assess liquidity and leverage risk.";
     }
 
     #[Override]
@@ -48,20 +48,29 @@ class FmpFinancialRatiosTool implements KanvasToolInterface
 
         try {
             $client = new Client($this->app);
-            $results = $client->get('/stable/ratios-ttm', ['symbol' => $symbol]);
+            $ttm = $client->get('/stable/ratios-ttm', ['symbol' => $symbol]);
+            $annual = $client->get('/stable/ratios', [
+                'symbol' => $symbol,
+                'period' => 'annual',
+                'limit' => 2,
+            ]);
         } catch (Throwable $e) {
             return json_encode(['error' => $e->getMessage()]);
         }
 
-        if (empty($results)) {
+        if (empty($ttm)) {
             return json_encode(['error' => "No financial ratios found for symbol '{$symbol}'."]);
         }
 
-        $item = is_array($results[0] ?? null) ? $results[0] : $results;
+        $item = is_array($ttm[0] ?? null) ? $ttm[0] : $ttm;
+        $annualPrev = $annual[1] ?? [];
 
         return json_encode([
             'symbol' => $symbol,
             'currentRatio' => $item['currentRatioTTM'] ?? null,
+            'currentRatioPriorYear' => $annualPrev['currentRatio'] ?? null,
+            'quickRatio' => $item['quickRatioTTM'] ?? null,
+            'quickRatioPriorYear' => $annualPrev['quickRatio'] ?? null,
             'debtToEquityRatio' => $item['debtToEquityRatioTTM'] ?? null,
             'debtToAssetsRatio' => $item['debtToAssetsRatioTTM'] ?? null,
             'operatingCashFlowPerShare' => $item['operatingCashFlowPerShareTTM'] ?? null,

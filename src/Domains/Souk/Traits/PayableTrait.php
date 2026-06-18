@@ -52,7 +52,7 @@ trait PayableTrait
     {
         return $this->payments()
             ->where('status', PaymentStatusEnum::AUTHORIZED->value)
-            ->where('amount', '>=', $this->getTotalAmount())
+            ->where('amount', '>=', $this->getTotalDueAmount())
             ->exists();
     }
 
