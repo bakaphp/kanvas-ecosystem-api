@@ -9,19 +9,19 @@ enum ScribeApprovalQueueStatus {
 type ScribeApprovalQueueItem {
     id: ID!
     uuid: String!
-    requested_by_agent_id: Int
-    requested_by_users_id: Int
+    requested_by_agent: Agent @belongsTo(relation: "requestedByAgent")
+    requested_by_user: User @belongsTo(relation: "requestedByUser")
     action_type: String!
     target_type: String!
     target_id: Int!
     payload: Mixed
     status: ScribeApprovalQueueStatus!
-    approved_by_users_id: Int
+    approved_by_user: User @belongsTo(relation: "approvedByUser")
     approved_at: DateTime
     reason: String
     expires_at: DateTime
-    nervous_system_plan_id: Int
-    nervous_system_task_id: Int
+    plan: NervousSystemPlan @belongsTo(relation: "plan")
+    task: NervousSystemTask @belongsTo(relation: "task")
     metadata: Mixed
     company: Company! @belongsTo(relation: "company")
     created_at: DateTime!

@@ -9,9 +9,11 @@ use Baka\Traits\KanvasAppScopesTrait;
 use Baka\Traits\KanvasCompanyScopesTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
+use Kanvas\Users\Models\Users;
 
 /**
  * Fiscal periods are admin-managed time slots, immutable after closing — no soft delete needed.
@@ -51,6 +53,11 @@ class FiscalPeriod extends EloquentModel
     public function journalEntries(): HasMany
     {
         return $this->hasMany(JournalEntry::class, 'fiscal_period_id', 'id');
+    }
+
+    public function closedBy(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'closed_by_users_id', 'id');
     }
 
     public function acceptsPostings(): bool

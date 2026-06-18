@@ -235,7 +235,7 @@ class ScribeGraphQLSurfaceTest extends TestCase
             mutation($id: ID!, $input: ScribeAttachExpenseReceiptInput!) {
                 attachScribeExpenseReceipt(id: $id, input: $input) {
                     id
-                    filesystem_id
+                    filesystem { id }
                 }
             }
         ', [
@@ -243,7 +243,7 @@ class ScribeGraphQLSurfaceTest extends TestCase
             'input' => ['filesystem_id' => (int) $filesystem->id],
         ])->assertSuccessful();
 
-        $response->assertJsonPath('data.attachScribeExpenseReceipt.filesystem_id', (int) $filesystem->id);
+        $response->assertJsonPath('data.attachScribeExpenseReceipt.filesystem.id', (string) $filesystem->id);
     }
 
     public function test_scribe_expenses_list_filters_by_status(): void

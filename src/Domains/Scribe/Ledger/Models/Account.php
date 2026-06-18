@@ -6,12 +6,12 @@ namespace Kanvas\Scribe\Ledger\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\AccountTypeEnum;
 use Kanvas\Scribe\Models\BaseModel;
+use Nevadskiy\Tree\AsTree;
 
 /**
  * @property int $id
@@ -36,6 +36,7 @@ use Kanvas\Scribe\Models\BaseModel;
  */
 class Account extends BaseModel
 {
+    use AsTree;
     use UuidTrait;
 
     protected $table = 'accounts';
@@ -51,14 +52,9 @@ class Account extends BaseModel
         'account_sub_type' => AccountSubTypeEnum::class,
     ];
 
-    public function parent(): BelongsTo
+    public function getParentKeyName(): string
     {
-        return $this->belongsTo(self::class, 'parent_account_id', 'id');
-    }
-
-    public function children(): HasMany
-    {
-        return $this->hasMany(self::class, 'parent_account_id', 'id');
+        return 'parent_account_id';
     }
 
     public function lines(): HasMany

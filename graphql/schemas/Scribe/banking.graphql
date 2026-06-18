@@ -8,8 +8,8 @@ type ScribeBankAccount {
     institution_name: String
     currency: String!
     gl_account: ScribeAccount! @belongsTo(relation: "glAccount")
-    current_balance_native: Float
-    available_balance_native: Float
+    current_balance_native: Money
+    available_balance_native: Money
     last_balance_sync_at: DateTime
     is_active: Boolean!
     source: String!

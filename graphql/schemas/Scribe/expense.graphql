@@ -34,27 +34,27 @@ type ScribeExpense {
     expense_date: Date!
     submitted_at: DateTime
     approved_at: DateTime
-    approved_by_users_id: Int
+    approved_by: User @belongsTo(relation: "approvedBy")
     rejected_at: DateTime
-    rejected_by_users_id: Int
+    rejected_by: User @belongsTo(relation: "rejectedBy")
     reject_reason: String
     voided_at: DateTime
     void_reason_code: String
     paid_by: ScribeExpensePaidBy!
-    paid_by_users_id: Int
-    payment_method_id: Int
+    paid_by_user: User @belongsTo(relation: "paidByUser")
+    payment_method: PaymentMethod @belongsTo(relation: "paymentMethod")
     bank_account: ScribeBankAccount @belongsTo(relation: "bankAccount")
     reimbursement_status: ScribeExpenseReimbursementStatus!
-    reimbursement_payment_id: Int
+    reimbursement_payment: Payment @belongsTo(relation: "reimbursementPayment")
     reimbursed_at: DateTime
     currency: String!
     fx_rate_to_base: Float!
-    subtotal_native: Float!
-    tax_native: Float!
-    total_native: Float!
-    subtotal_base: Float!
-    tax_base: Float!
-    total_base: Float!
+    subtotal_native: Money!
+    tax_native: Money!
+    total_native: Money!
+    subtotal_base: Money!
+    tax_base: Money!
+    total_base: Money!
     tax_metadata: Mixed
     regional_compliance: Mixed
     notes: String
@@ -77,10 +77,10 @@ type ScribeExpenseLine {
     sort_order: Int!
     item: ScribeItem @belongsTo(relation: "item")
     description: String
-    amount_native: Float!
-    amount_base: Float!
-    tax_amount_native: Float!
-    tax_amount_base: Float!
+    amount_native: Money!
+    amount_base: Money!
+    tax_amount_native: Money!
+    tax_amount_base: Money!
     expense_account: ScribeAccount! @belongsTo(relation: "expenseAccount")
     class_id: Int
     department_id: Int
@@ -90,16 +90,16 @@ type ScribeExpenseLine {
 type ScribeExpenseReceipt {
     id: ID!
     expense: ScribeExpense! @belongsTo(relation: "expense")
-    filesystem_id: Int!
+    filesystem: Filesystem! @belongsTo(relation: "filesystem")
     uploaded_at: DateTime!
-    uploaded_by_users_id: Int
+    uploaded_by: User @belongsTo(relation: "uploadedBy")
     metadata: Mixed
 }
 
 input ScribeExpenseLineInput {
     description: String
-    amount_native: Float!
-    tax_amount_native: Float
+    amount_native: Money!
+    tax_amount_native: Money
     expense_account_id: Int!
     item_id: Int
     class_id: Int

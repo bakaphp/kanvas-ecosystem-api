@@ -8,6 +8,8 @@ use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Users\Models\Users;
 
 /**
  * Pointer to a Kanvas Filesystem row (cross-DB; no DDL FK).
@@ -33,5 +35,15 @@ class ExpenseReceipt extends EloquentModel
     public function expense(): BelongsTo
     {
         return $this->belongsTo(Expense::class, 'expense_id', 'id');
+    }
+
+    public function filesystem(): BelongsTo
+    {
+        return $this->belongsTo(Filesystem::class, 'filesystem_id', 'id');
+    }
+
+    public function uploadedBy(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'uploaded_by_users_id', 'id');
     }
 }

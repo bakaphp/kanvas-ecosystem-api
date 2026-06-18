@@ -9,7 +9,9 @@ use Baka\Traits\KanvasAppScopesTrait;
 use Baka\Traits\KanvasCompanyScopesTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestDocumentTypeEnum;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestStatusEnum;
 
@@ -59,4 +61,9 @@ class PdfIngestLog extends EloquentModel
         'extracted_payload' => Json::class,
         'processed_at' => 'datetime',
     ];
+
+    public function filesystem(): BelongsTo
+    {
+        return $this->belongsTo(Filesystem::class, 'filesystem_id', 'id');
+    }
 }

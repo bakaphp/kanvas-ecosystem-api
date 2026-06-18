@@ -29,14 +29,14 @@ type ScribeQuote {
     superseded_by_quote_id: Int
     currency: String!
     fx_rate_to_base: Float!
-    subtotal_native: Float!
-    tax_native: Float!
-    discount_native: Float!
-    total_native: Float!
-    subtotal_base: Float!
-    tax_base: Float!
-    discount_base: Float!
-    total_base: Float!
+    subtotal_native: Money!
+    tax_native: Money!
+    discount_native: Money!
+    total_native: Money!
+    subtotal_base: Money!
+    tax_base: Money!
+    discount_base: Money!
+    total_base: Money!
     regional_compliance: Mixed
     notes: String
     internal_notes: String
@@ -60,14 +60,14 @@ type ScribeQuoteLine {
     item: ScribeItem @belongsTo(relation: "item")
     description: String
     quantity: Float!
-    unit_price_native: Float!
-    discount_amount_native: Float!
-    tax_amount_native: Float!
-    line_total_native: Float!
-    unit_price_base: Float!
-    discount_amount_base: Float!
-    tax_amount_base: Float!
-    line_total_base: Float!
+    unit_price_native: Money!
+    discount_amount_native: Money!
+    tax_amount_native: Money!
+    line_total_native: Money!
+    unit_price_base: Money!
+    discount_amount_base: Money!
+    tax_amount_base: Money!
+    line_total_base: Money!
     discount_rate: Float
     tax_rate: Float
     class_id: Int
@@ -78,10 +78,10 @@ type ScribeQuoteLine {
 input ScribeQuoteLineInput {
     description: String
     quantity: Float
-    unit_price_native: Float!
-    discount_amount_native: Float
+    unit_price_native: Money!
+    discount_amount_native: Money
     discount_rate: Float
-    tax_amount_native: Float
+    tax_amount_native: Money
     tax_rate: Float
     item_id: Int
     class_id: Int

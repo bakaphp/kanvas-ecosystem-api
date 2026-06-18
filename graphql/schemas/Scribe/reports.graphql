@@ -11,13 +11,13 @@ type ScribeReportLineItem {
     name: String!
     account_type: String!
     account_sub_type: String
-    amount: Float!
+    amount: Money!
 }
 
 type ScribeReportSection {
     title: String!
     lines: [ScribeReportLineItem!]!
-    total: Float!
+    total: Money!
 }
 
 type ScribeBalanceSheet {
@@ -26,7 +26,7 @@ type ScribeBalanceSheet {
     assets: ScribeReportSection!
     liabilities: ScribeReportSection!
     equity: ScribeReportSection!
-    total_liabilities_and_equity: Float!
+    total_liabilities_and_equity: Money!
     is_balanced: Boolean!
 }
 
@@ -36,12 +36,12 @@ type ScribeProfitAndLoss {
     currency: String!
     revenue: ScribeReportSection!
     cogs: ScribeReportSection!
-    gross_profit: Float!
+    gross_profit: Money!
     operating_expenses: ScribeReportSection!
-    operating_income: Float!
+    operating_income: Money!
     other_income: ScribeReportSection!
     other_expenses: ScribeReportSection!
-    net_income: Float!
+    net_income: Money!
 }
 
 type ScribeTrialBalanceRow {
@@ -50,16 +50,16 @@ type ScribeTrialBalanceRow {
     name: String!
     account_type: String!
     account_sub_type: String
-    debit: Float!
-    credit: Float!
+    debit: Money!
+    credit: Money!
 }
 
 type ScribeTrialBalance {
     as_of: Date!
     currency: String!
     rows: [ScribeTrialBalanceRow!]!
-    total_debits: Float!
-    total_credits: Float!
+    total_debits: Money!
+    total_credits: Money!
     is_balanced: Boolean!
 }
 
@@ -67,32 +67,32 @@ type ScribeArAgingRow {
     customer_type: String
     customer_id: Int
     customer_name: String
-    current: Float!
-    bucket_1_30: Float!
-    bucket_31_60: Float!
-    bucket_61_90: Float!
-    bucket_90_plus: Float!
-    total: Float!
+    current: Money!
+    bucket_1_30: Money!
+    bucket_31_60: Money!
+    bucket_61_90: Money!
+    bucket_90_plus: Money!
+    total: Money!
 }
 
 type ScribeArAging {
     as_of: Date!
     currency: String!
     rows: [ScribeArAgingRow!]!
-    total_current: Float!
-    total_1_30: Float!
-    total_31_60: Float!
-    total_61_90: Float!
-    total_90_plus: Float!
-    grand_total: Float!
+    total_current: Money!
+    total_1_30: Money!
+    total_31_60: Money!
+    total_61_90: Money!
+    total_90_plus: Money!
+    grand_total: Money!
 }
 
 type ScribeRevenueRow {
     group_key: String!
     group_label: String!
-    gross_revenue: Float!
-    discounts: Float!
-    net_revenue: Float!
+    gross_revenue: Money!
+    discounts: Money!
+    net_revenue: Money!
     invoice_count: Int!
 }
 
@@ -102,9 +102,9 @@ type ScribeRevenueReport {
     currency: String!
     group_by: String!
     rows: [ScribeRevenueRow!]!
-    total_gross_revenue: Float!
-    total_discounts: Float!
-    total_net_revenue: Float!
+    total_gross_revenue: Money!
+    total_discounts: Money!
+    total_net_revenue: Money!
     total_invoice_count: Int!
 }
 

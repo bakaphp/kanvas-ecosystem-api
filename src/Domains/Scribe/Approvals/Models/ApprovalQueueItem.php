@@ -6,9 +6,14 @@ namespace Kanvas\Scribe\Approvals\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
 use Kanvas\Scribe\Models\BaseModel;
+use Kanvas\Users\Models\Users;
 
 /**
  * Durable accounting audit row for an approval request.
@@ -51,4 +56,29 @@ class ApprovalQueueItem extends BaseModel
         'payload' => Json::class,
         'metadata' => Json::class,
     ];
+
+    public function requestedByUser(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'requested_by_users_id', 'id');
+    }
+
+    public function requestedByAgent(): BelongsTo
+    {
+        return $this->belongsTo(Agent::class, 'requested_by_agent_id', 'id');
+    }
+
+    public function approvedByUser(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'approved_by_users_id', 'id');
+    }
+
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(Plan::class, 'nervous_system_plan_id', 'id');
+    }
+
+    public function task(): BelongsTo
+    {
+        return $this->belongsTo(Task::class, 'nervous_system_task_id', 'id');
+    }
 }

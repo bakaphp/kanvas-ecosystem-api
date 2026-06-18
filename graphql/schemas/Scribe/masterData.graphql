@@ -8,7 +8,7 @@ type ScribeItem {
     item_type: String
     default_income_account: ScribeAccount @belongsTo(relation: "defaultIncomeAccount")
     default_expense_account: ScribeAccount @belongsTo(relation: "defaultExpenseAccount")
-    default_unit_price: Float
+    default_unit_price: Money
     default_tax_code: ScribeTaxCode @belongsTo(relation: "defaultTaxCode")
     is_active: Boolean!
     source: String
@@ -74,7 +74,7 @@ input ScribeItemInput {
     default_income_account_id: Int
     default_expense_account_id: Int
     default_tax_code_id: Int
-    default_price_native: Float
+    default_price_native: Money
     currency: String
     is_active: Boolean
     source: String

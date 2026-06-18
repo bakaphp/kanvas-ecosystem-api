@@ -21,7 +21,7 @@ enum ScribePdfIngestStatus {
 type ScribePdfIngestLog {
     id: ID!
     uuid: String!
-    filesystem_id: Int!
+    filesystem: Filesystem! @belongsTo(relation: "filesystem")
     message_id: String
     from_email: String
     from_name: String

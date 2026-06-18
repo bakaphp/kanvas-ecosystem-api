@@ -43,18 +43,18 @@ type ScribeBill {
     currency: String!
     fx_rate_to_base: Float!
     fx_rate_at: DateTime
-    subtotal_native: Float!
-    tax_native: Float!
-    discount_native: Float!
-    total_native: Float!
-    paid_native: Float!
-    balance_due_native: Float!
-    subtotal_base: Float!
-    tax_base: Float!
-    discount_base: Float!
-    total_base: Float!
-    paid_base: Float!
-    balance_due_base: Float!
+    subtotal_native: Money!
+    tax_native: Money!
+    discount_native: Money!
+    total_native: Money!
+    paid_native: Money!
+    balance_due_native: Money!
+    subtotal_base: Money!
+    tax_base: Money!
+    discount_base: Money!
+    total_base: Money!
+    paid_base: Money!
+    balance_due_base: Money!
     tax_metadata: Mixed
     regional_compliance: Mixed
     notes: String
@@ -85,14 +85,14 @@ type ScribeBillLine {
     sku: String
     description: String!
     quantity: Float!
-    unit_price_native: Float!
-    discount_amount_native: Float!
-    tax_amount_native: Float!
-    line_total_native: Float!
-    unit_price_base: Float!
-    discount_amount_base: Float!
-    tax_amount_base: Float!
-    line_total_base: Float!
+    unit_price_native: Money!
+    discount_amount_native: Money!
+    tax_amount_native: Money!
+    line_total_native: Money!
+    unit_price_base: Money!
+    discount_amount_base: Money!
+    tax_amount_base: Money!
+    line_total_base: Money!
     discount_rate: Float
     tax_rate: Float
     expense_account: ScribeAccount @belongsTo(relation: "expenseAccount")
@@ -107,8 +107,8 @@ type ScribeBillTaxLine {
     name: String!
     tax_rate: Float
     jurisdiction: String
-    tax_amount_native: Float!
-    tax_amount_base: Float!
+    tax_amount_native: Money!
+    tax_amount_base: Money!
     metadata: Mixed
 }
 
@@ -118,15 +118,15 @@ type ScribeBillPaymentAllocation {
     source_type: String!
 
     status: String!
-    amount_native: Float!
-    amount_base: Float!
+    amount_native: Money!
+    amount_base: Money!
     currency: String!
     fx_rate_to_base: Float!
     fx_rate_at: DateTime
     allocated_at: DateTime
-    allocated_by_users_id: Int
+    allocated_by: User @belongsTo(relation: "allocatedBy")
     reversed_at: DateTime
-    reversed_by_users_id: Int
+    reversed_by: User @belongsTo(relation: "reversedBy")
     reversal_reason: String
     source: String!
     external_id: String
@@ -137,14 +137,14 @@ type ScribeBillPaymentAllocation {
 input ScribeBillLineInput {
     description: String!
     quantity: Float
-    unit_price_native: Float!
+    unit_price_native: Money!
     item_id: Int
     sku: String
     sort_order: Int
     discount_rate: Float
-    discount_amount_native: Float
+    discount_amount_native: Money
     tax_rate: Float
-    tax_amount_native: Float
+    tax_amount_native: Money
     expense_account_id: Int!
     class_id: Int
     department_id: Int

@@ -13,6 +13,7 @@ use Kanvas\Scribe\Invoices\Enums\AllocationSourceTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
 use Kanvas\Scribe\Invoices\Enums\ReversalReasonCodeEnum;
 use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
+use Kanvas\Users\Models\Users;
 
 /**
  * Maps one Souk.Payments (or credit_note, prepayment, overpayment) to N invoices.
@@ -78,6 +79,16 @@ class InvoicePaymentAllocation extends EloquentModel
     public function soukPayment(): BelongsTo
     {
         return $this->belongsTo(SoukPayment::class, 'payment_id', 'id');
+    }
+
+    public function allocatedBy(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'allocated_by_users_id', 'id');
+    }
+
+    public function reversedBy(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'reversed_by_users_id', 'id');
     }
 
     public function isActive(): bool

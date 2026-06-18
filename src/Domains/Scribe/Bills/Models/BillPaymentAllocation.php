@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
+use Kanvas\Users\Models\Users;
 
 /**
  * Maps one Souk.Payments (outbound) — or a vendor_credit / prepayment / wallet adjustment — to N Bills.
@@ -70,5 +71,15 @@ class BillPaymentAllocation extends EloquentModel
     public function soukPayment(): BelongsTo
     {
         return $this->belongsTo(SoukPayment::class, 'payment_id', 'id');
+    }
+
+    public function allocatedBy(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'allocated_by_users_id', 'id');
+    }
+
+    public function reversedBy(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'reversed_by_users_id', 'id');
     }
 }

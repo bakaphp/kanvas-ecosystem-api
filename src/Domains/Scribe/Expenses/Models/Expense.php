@@ -11,12 +11,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
+use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Scribe\Banking\Models\BankAccount;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseReimbursementStatusEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
+use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
+use Kanvas\Users\Models\Users;
 
 /**
  * Scribe.Expense — non-bill spending (company card, employee-paid travel, direct bank debit, petty cash).
@@ -117,13 +120,34 @@ class Expense extends BaseModel
         return $this->belongsTo(BankAccount::class, 'bank_account_id', 'id');
     }
 
-    /**
-     * The Guild Organization that is the vendor for this expense. Optional — petty cash / out-of-pocket
-     * expenses can land without a specific vendor recorded.
-     */
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'vendor_organization_id', 'id');
+    }
+
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'approved_by_users_id', 'id');
+    }
+
+    public function rejectedBy(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'rejected_by_users_id', 'id');
+    }
+
+    public function paidByUser(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'paid_by_users_id', 'id');
+    }
+
+    public function paymentMethod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethods::class, 'payment_method_id', 'id');
+    }
+
+    public function reimbursementPayment(): BelongsTo
+    {
+        return $this->belongsTo(SoukPayment::class, 'reimbursement_payment_id', 'id');
     }
 
     protected function sourceDomainForLedger(): string

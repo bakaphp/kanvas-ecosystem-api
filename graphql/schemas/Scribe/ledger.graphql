@@ -54,7 +54,7 @@ type ScribeFiscalPeriod {
     period_end: Date!
     status: ScribeFiscalPeriodStatus!
     closed_at: DateTime
-    closed_by_users_id: Int
+    closed_by: User @belongsTo(relation: "closedBy")
     company: Company! @belongsTo(relation: "company")
     created_at: DateTime!
     updated_at: DateTime!
@@ -87,10 +87,10 @@ type ScribeJournalEntryLine {
     id: ID!
     sort_order: Int!
     account: ScribeAccount! @belongsTo(relation: "account")
-    debit_native: Float!
-    credit_native: Float!
-    debit_base: Float!
-    credit_base: Float!
+    debit_native: Money!
+    credit_native: Money!
+    debit_base: Money!
+    credit_base: Money!
     currency: String!
     fx_rate_to_base: Float!
     customer_billable_type: String
