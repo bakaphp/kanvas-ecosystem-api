@@ -10,10 +10,13 @@ use Illuminate\Support\Facades\Schema;
 return new class () extends Migration {
     public function up(): void
     {
-        Schema::connection('accounting')->table('accounts', function (Blueprint $table): void {
-            $table->string('path')->nullable()->after('parent_account_id');
-            $table->index(['apps_id', 'companies_id', 'path'], 'accounts_app_company_path_idx');
-        });
+        // Idempotent — earlier partial runs may have already added the column without recording the migration.
+        if (! Schema::connection('accounting')->hasColumn('accounts', 'path')) {
+            Schema::connection('accounting')->table('accounts', function (Blueprint $table): void {
+                $table->string('path')->nullable()->after('parent_account_id');
+                $table->index(['apps_id', 'companies_id', 'path'], 'accounts_app_company_path_idx');
+            });
+        }
 
         // Roots (no parent) → path = id
         DB::connection('accounting')->update(<<<'SQL'
