@@ -100,6 +100,9 @@ class SyncEmailTemplateAction
             ],[
                 'name' => EngagementsEnumsNotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED->value,
                 'template' => File::get(resource_path('views/push/engagement-status-changed.blade.php')),
+            ], [
+                'name' => EngagementsEnumsNotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED_DATABASE->value,
+                'template' => File::get(resource_path('views/push/engagement-status-changed-db.blade.php')),
             ],
         ];
 
@@ -126,8 +129,17 @@ class SyncEmailTemplateAction
                 'is_system' => true,
             ]);
             $action = new CreateTemplateAction($dto);
+            // push + database templates render to raw JSON / plain text — wrapping them in the
+            // HTML email parent corrupts the payload (invalid push JSON, HTML-polluted db content).
+            $noParentTemplates = [
+                PushNotificationTemplateEnum::DEFAULT->value,
+                'user-email-update',
+                EngagementsEnumsNotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED->value,
+                EngagementsEnumsNotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED_DATABASE->value,
+            ];
+
             $action->execute(
-                (! in_array($template['name'], [PushNotificationTemplateEnum::DEFAULT->value, 'user-email-update']) ? $parent : null),
+                (! in_array($template['name'], $noParentTemplates) ? $parent : null),
                 $overWrite
             );
         }
