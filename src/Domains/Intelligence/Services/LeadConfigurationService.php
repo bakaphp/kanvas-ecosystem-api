@@ -25,6 +25,17 @@ class LeadConfigurationService
         return $this->isV2;
     }
 
+    public function isFirstFollowUpActiveDefault(Lead $lead): bool
+    {
+        $leadTypeConfig = $lead->type()->first()?->config ?? [];
+        $value = $leadTypeConfig[$this->getFirstMessageDefaultKey($lead)] ?? null;
+
+        return $value === true
+            || $value === 1
+            || $value === '1'
+            || $value === 'true';
+    }
+
     private function getStatusSuffix(Lead $lead): string
     {
         $statusName = strtolower($lead->status()->first()?->name ?? '');

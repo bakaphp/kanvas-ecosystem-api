@@ -141,12 +141,31 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $currentAiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(new LeadConfigurationService()->getAiModeKey($lead)));
                 $disableSending = $currentAiMode?->isOff() ?? false;
 
+                $configService = new LeadConfigurationService();
+                $isV2 = $configService->isV2Enabled($lead->company);
+
                 $leadType = $lead->type()->first();
-                $firstMessageDefaultKey = new LeadConfigurationService()->getFirstMessageDefaultKey($lead);
+                $firstMessageDefaultKey = $configService->getFirstMessageDefaultKey($lead);
                 $leadTypeConfig = $leadType?->config ?? [];
 
                 if (isset($leadTypeConfig[$firstMessageDefaultKey]) && ! $leadTypeConfig[$firstMessageDefaultKey]) {
                     $disableSending = true;
+                }
+
+                // v2 gate: send only if first_fu_active_default is 1 AND lead has not been contacted.
+                $v2SkipReason = null;
+                if ($isV2) {
+                    $firstActiveEnabled = $configService->isFirstFollowUpActiveDefault($lead);
+                    $alreadyContacted = $lead->hasBeenContacted();
+
+                    if (! $firstActiveEnabled || $alreadyContacted) {
+                        $disableSending = true;
+                        $v2SkipReason = match (true) {
+                            ! $firstActiveEnabled && $alreadyContacted => 'first_fu_active_default_not_one_and_already_contacted',
+                            ! $firstActiveEnabled => 'first_fu_active_default_not_one',
+                            default => 'already_contacted',
+                        };
+                    }
                 }
 
                 $totalSentMessages = 0;
@@ -359,6 +378,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     'message_id' => isset($createMessage) ? $createMessage->getId() : null,
                     'total_sent_messages' => $totalSentMessages,
                     'sent_channels' => $sentChannels,
+                    'v2_skip_reason' => $v2SkipReason,
                     //'double_check_is_internet' => $doubleCheckIsInternet ?? null,
                 ];
             }
