@@ -47,3 +47,4 @@ docs/
 .claude/skills/Intelligence/
 app/Console/Commands/Inventory/SeedVehicleProductsCommand.php
 app/Console/Commands/local/
+src/Baka/Search/KanvasDatabaseEngine.php

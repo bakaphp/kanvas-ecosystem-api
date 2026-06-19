@@ -318,6 +318,16 @@ class Lead extends BaseModel implements EventResourceInterface
         return $statusName !== 'inactive' && (Str::contains($statusName, 'active') || Str::contains($statusName, 'created') || Str::contains($statusName, 'hot'));
     }
 
+    public function isAiFollowUpEnabled(): bool
+    {
+        $value = $this->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
+
+        return $value === true
+            || $value === 1
+            || $value === '1'
+            || $value === 'true';
+    }
+
     public function closeSold(): bool
     {
         $statusName = strtolower($this->status()->firstOrFail()->name);
