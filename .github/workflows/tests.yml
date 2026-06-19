@@ -216,7 +216,7 @@ jobs:
         ports:
           - 7700:7700
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Load Aditional Test Secrets
         run: |
