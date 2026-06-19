@@ -12,7 +12,7 @@ use Kanvas\Templates\Enums\EmailTemplateEnum as EnumsEmailTemplateEnum;
 
 class EngagementStatusChangedNotification extends Notification
 {
-    public array $channels = ['push', 'database'];
+    public array $channels = ['push', 'database', 'expo'];
     public string $slackChannel;
 
     public function __construct(
