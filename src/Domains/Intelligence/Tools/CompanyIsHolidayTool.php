@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Tools;
 
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Kanvas\Companies\Services\CompanyHolidayService;
+use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Override;
 
 class CompanyIsHolidayTool implements ContextToolInterface
