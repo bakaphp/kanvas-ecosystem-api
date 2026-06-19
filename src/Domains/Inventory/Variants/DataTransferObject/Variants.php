@@ -26,7 +26,8 @@ class Variants extends Data
         public ?string $slug = null,
         public array $files = [],
         public ?float $weight = null,
-        public ?bool $is_published = true
+        public ?bool $is_published = true,
+        public ?UserInterface $ownerUser = null
     ) {
     }
 
