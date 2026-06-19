@@ -19,6 +19,7 @@ class EngagementStatusChangedNotification extends Notification
         Engagement $engagement,
         array $data,
     ) {
+        $data['company'] = $engagement->company;
         parent::__construct($engagement, $data);
         $this->setType(EnumsEmailTemplateEnum::BLANK->value);
         $this->setTemplateName(NotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED->value);
