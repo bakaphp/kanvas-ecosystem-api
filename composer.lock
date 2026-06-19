@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "62e9ea771a47e2bee6fabaae4d639307",
+    "content-hash": "402b4aa2388dabaf5be8012974fe6a54",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -6734,16 +6734,16 @@
         },
         {
             "name": "mindee/mindee",
-            "version": "v2.9.0",
+            "version": "v3.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mindee/mindee-api-php.git",
-                "reference": "1719007baa7b4a20d8854fade053b361d1657be5"
+                "reference": "b032af0a2faadea89f07188383a7a72f67528682"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/1719007baa7b4a20d8854fade053b361d1657be5",
-                "reference": "1719007baa7b4a20d8854fade053b361d1657be5",
+                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/b032af0a2faadea89f07188383a7a72f67528682",
+                "reference": "b032af0a2faadea89f07188383a7a72f67528682",
                 "shasum": ""
             },
             "require": {
@@ -6759,8 +6759,11 @@
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.38",
                 "madewithlove/license-checker": "^v1.0",
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-deprecation-rules": "^2.0",
                 "phpunit/phpunit": "^9.6",
-                "squizlabs/php_codesniffer": "^3.7"
+                "projektgopher/whisky": "^0.7.4",
+                "rector/rector": "^2.4"
             },
             "suggest": {
                 "ext-imagick": "Required for PDF rasterization and image processing features",
@@ -6783,9 +6786,9 @@
             "description": "Mindee Client Library for PHP",
             "support": {
                 "issues": "https://github.com/mindee/mindee-api-php/issues",
-                "source": "https://github.com/mindee/mindee-api-php/tree/v2.9.0"
+                "source": "https://github.com/mindee/mindee-api-php/tree/v3.0.1"
             },
-            "time": "2026-05-11T08:25:44+00:00"
+            "time": "2026-06-19T08:20:46+00:00"
         },
         {
             "name": "mll-lab/graphql-php-scalars",
