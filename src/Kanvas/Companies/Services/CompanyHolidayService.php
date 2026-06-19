@@ -32,11 +32,14 @@ class CompanyHolidayService
         $isWorkingDay = $this->matches($holidayName, $workingHolidays);
         $isRecognizedHoliday = $this->matches($holidayName, $recognizedHolidays);
 
+        //@todo this is a temp solution till frontend changes to use is_recognized
+        $isHoliday = empty($recognizedHolidays) ? $holidayName !== null : $isRecognizedHoliday;
+
         return [
-            'is_holiday' => empty($recognizedHolidays) ? $holidayName !== null : $isRecognizedHoliday,
+            'is_holiday' => $isHoliday,
             'is_a_working_day' => $isWorkingDay,
             'is_recognized_holiday' => $isRecognizedHoliday,
-            'holiday_info' => $holidayName ? [
+            'holiday_info' => $isHoliday ? [
                 'holiday' => $holidayName,
                 'company_observes' => $isWorkingDay,
                 'company_recognizes' => $isRecognizedHoliday,
