@@ -144,14 +144,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $configService = new LeadConfigurationService();
                 $isV2 = $configService->isV2Enabled($lead->company);
 
-                $leadType = $lead->type()->first();
-                $firstMessageDefaultKey = $configService->getFirstMessageDefaultKey($lead);
-                $leadTypeConfig = $leadType?->config ?? [];
-
-                if (isset($leadTypeConfig[$firstMessageDefaultKey]) && ! $leadTypeConfig[$firstMessageDefaultKey]) {
-                    $disableSending = true;
-                }
-
                 // v2 gate: send only if first_fu_active_default is 1 AND lead has not been contacted.
                 $v2SkipReason = null;
                 if ($isV2) {
