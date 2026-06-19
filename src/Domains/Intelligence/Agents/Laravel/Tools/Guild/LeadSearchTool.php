@@ -32,6 +32,8 @@ class LeadSearchTool implements KanvasToolInterface
         $eventSubType = $request->string('event_sub_type') ? (string) $request->string('event_sub_type') : null;
         $descriptionSnippet = $request->string('description_snippet') ? (string) $request->string('description_snippet') : null;
         $onlyPublished = $request->boolean('only_published', true);
+        $exactField = $request->string('exact_field') ? (string) $request->string('exact_field') : null;
+        $exactValue = $request->string('exact_value') ? (string) $request->string('exact_value') : null;
 
         $leads = Lead::query()
             ->fromApp($this->app)
@@ -44,6 +46,10 @@ class LeadSearchTool implements KanvasToolInterface
                     ->orWhere('firstname', 'LIKE', "%{$query}%");
             })
             ->when($descriptionSnippet, fn ($q) => $q->where('description', 'LIKE', $descriptionSnippet . '%'))
+            ->when(
+                $exactField && $exactValue,
+                fn ($q) => $q->where($exactField, $exactValue)
+            )
             ->when($eventSubType, fn ($q) => $q->whereHas(
                 'customFields',
                 fn ($q) => $q->where('name', 'event_sub_type')->where('value', $eventSubType)
@@ -90,6 +96,12 @@ class LeadSearchTool implements KanvasToolInterface
             'description_snippet' => $schema
                 ->string()
                 ->description('First 150 characters of the event text verbatim. When provided, also searches for leads whose description starts with this exact string — used for reliable exact-duplicate detection before keyword-based reasoning.'),
+            'exact_field' => $schema
+                ->string()
+                ->description('Column name to match exactly (e.g. "description", "title"). Must be used together with exact_value. When both are provided, adds a WHERE {exact_field} = {exact_value} condition for deterministic duplicate detection.'),
+            'exact_value' => $schema
+                ->string()
+                ->description('Exact value to match against exact_field. Pass the complete field content (e.g. the full event description). Must be used together with exact_field.'),
         ];
     }
 }

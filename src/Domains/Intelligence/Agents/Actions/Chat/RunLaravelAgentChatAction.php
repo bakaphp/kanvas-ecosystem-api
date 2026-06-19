@@ -63,9 +63,15 @@ class RunLaravelAgentChatAction
         }
 
         if (! $usesMemory) {
-            // Forward the tool calls/results/usage so the agent_conversation_messages
-            // row mirrors what the Neuron + RemembersConversations paths persist —
-            // without this the Laravel-agent turn lands with empty tool_calls.
+            // Fold the model laravel-ai used (response meta) into the usage blob so
+            // the daily rollup can price the turn — Laravel doesn't persist it elsewhere.
+            $usage = $response->usage->toArray();
+            if ($response->meta->model !== null) {
+                $usage['model'] = $response->meta->model;
+            }
+
+            // Forward tool calls/results/usage so the agent_conversation_messages row
+            // mirrors the Neuron + RemembersConversations paths (else empty tool_calls).
             new KanvasConversationStore()->logTurn(
                 userId: $this->user->getId(),
                 sessionId: $sessionId,
@@ -75,7 +81,7 @@ class RunLaravelAgentChatAction
                 agentId: $this->agent->getId(),
                 toolCalls: $response->toolCalls->toArray(),
                 toolResults: $response->toolResults->toArray(),
-                usage: $response->usage->toArray(),
+                usage: $usage,
             );
         }
 

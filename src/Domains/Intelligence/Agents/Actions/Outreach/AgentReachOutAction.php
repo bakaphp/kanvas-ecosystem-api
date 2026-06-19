@@ -49,6 +49,17 @@ class AgentReachOutAction
             return ['message' => 'Reach-out already in flight (concurrent)', 'status' => $status];
         }
 
+        // === Active-lead guard ===
+        // Only reach out to open leads (status < 2). A lead already closed
+        // (won/lost/inactive) must not receive an outbound agent touch even if a
+        // workflow rule re-fires CREATED on it.
+        if (! $this->lead->isOpen()) {
+            $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_SKIPPED);
+            $this->lead->set(AgentReachOutConfigEnum::REASON->value, 'lead_not_active');
+
+            return ['message' => 'Lead is not active', 'status' => 'skipped'];
+        }
+
         // === Source allowlist ===
         $allowlist = (array) ($this->params['lead_source_allowlist'] ?? []);
         if ($allowlist !== []) {
@@ -70,6 +81,16 @@ class AgentReachOutAction
             $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_MUTED);
 
             return ['message' => 'Lead AI mode is off', 'status' => 'muted'];
+        }
+
+        // === Do-not-contact guard ===
+        // Humans drop free-text like "do not reach out" / "no llamar" in the lead
+        // description; honor it before spending an agent turn on the lead.
+        if ($this->descriptionRequestsNoContact()) {
+            $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_SKIPPED);
+            $this->lead->set(AgentReachOutConfigEnum::REASON->value, 'do_not_contact');
+
+            return ['message' => 'Lead description requests no contact', 'status' => 'skipped'];
         }
 
         // === Agent resolution: params > company config > throw ===
@@ -135,5 +156,61 @@ class AgentReachOutAction
             'channels_sent' => $sentChannels,
             'errors' => $errors,
         ];
+    }
+
+    /**
+     * Scan the free-text lead description for human-written do-not-contact intent.
+     * Matches common English/Spanish phrasings ("do not reach out", "no contact",
+     * "don't call", "no llamar", "remove me", "dnc") regardless of spacing,
+     * apostrophe style, or punctuation.
+     */
+    private function descriptionRequestsNoContact(): bool
+    {
+        $description = (string) $this->lead->description;
+        if (trim($description) === '') {
+            return false;
+        }
+
+        // Normalize: lowercase, strip apostrophes (don't → dont), collapse any
+        // non-alphanumeric run to a single space so "do-not-contact" == "do not contact".
+        $normalized = strtolower($description);
+        $normalized = str_replace(["'", '’', '`'], '', $normalized);
+        $normalized = (string) preg_replace('/[^a-z0-9]+/', ' ', $normalized);
+        $normalized = trim((string) preg_replace('/\s+/', ' ', $normalized));
+
+        $patterns = [
+            'do not contact',
+            'dont contact',
+            'do not reach out',
+            'dont reach out',
+            'do not reachout',
+            'dont reachout',
+            'do not call',
+            'dont call',
+            'do not text',
+            'dont text',
+            'do not email',
+            'dont email',
+            'do not message',
+            'dont message',
+            'no contact',
+            'no llamar',
+            'no contactar',
+            'stop contacting',
+            'stop reaching out',
+            'remove me',
+            'unsubscribe',
+            'dnc',
+        ];
+
+        foreach ($patterns as $pattern) {
+            // Word-boundary match so "dnc" doesn't fire inside "abcdncxyz" and
+            // "no contact" doesn't match a substring of a longer unrelated token.
+            if (preg_match('/\b' . preg_quote($pattern, '/') . '\b/', $normalized) === 1) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

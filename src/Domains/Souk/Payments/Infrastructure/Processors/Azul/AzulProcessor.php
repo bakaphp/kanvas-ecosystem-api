@@ -158,7 +158,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
                 'order_id' => $order->id,
                 'azul_order_id' => $response->azulOrderId,
                 'authorization_code' => $response->authorizationCode,
-                'amount' => $order->getTotalAmount(),
+                'amount' => $order->getTotalDueAmount(),
                 'response_time_ms' => $responseTimeMs,
                 'request' => $this->sanitizeRequest($request->toArray()),
                 'response' => $response->toArray(),
@@ -227,7 +227,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             );
         }
 
-        $captureAmount = $amount ?? $order->getTotalAmount();
+        $captureAmount = $amount ?? $order->getTotalDueAmount();
         $request = $this->buildCaptureRequest($azulOrderId, $captureAmount, $order);
         $start = hrtime(true);
 
@@ -306,7 +306,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             );
         }
 
-        $refundAmount = $amount ?? $order->getTotalAmount();
+        $refundAmount = $amount ?? $order->getTotalDueAmount();
         $request = $this->buildRefundRequest($azulOrderId, $refundAmount, $order);
         $start = hrtime(true);
 
@@ -894,7 +894,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             store: (string) ($this->app->get(ConfigurationEnum::AZUL_STORE->value) ?? ''),
             trxType: TransactionTypeEnum::POST,
             amount: $this->toCents($captureAmount),
-            itbis: $this->toCents($order->getTotalTaxAmount()) ?: '000',
+            itbis: '000',
             customOrderId: (string) $order->id,
             azulOrderId: $azulOrderId,
         );
@@ -919,7 +919,7 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             store: (string) ($this->app->get(ConfigurationEnum::AZUL_STORE->value) ?? ''),
             trxType: TransactionTypeEnum::REFUND,
             amount: $this->toCents($refundAmount),
-            itbis: $this->toCents($order->getTotalTaxAmount()) ?: '000',
+            itbis: '000',
             customOrderId: (string) $order->id,
             azulOrderId: $azulOrderId,
         );
@@ -968,8 +968,8 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             cvc: $cvc,
             posInputMode: 'E-Commerce',
             trxType: TransactionTypeEnum::SALE,
-            amount: $this->toCents($order->getTotalAmount()),
-            itbis: $this->toCents($order->getTotalTaxAmount()) ?: '000',
+            amount: $this->toCents($order->getTotalDueAmount()),
+            itbis: '000',
             orderNumber: (string) $order->order_number,
             customOrderId: (string) $order->id,
             dataVaultToken: $dataVaultToken,
@@ -1130,8 +1130,8 @@ class AzulProcessor implements PaymentProcessorInterface, TokenizationProcessorI
             cvc: $dataVaultToken ? null : $paymentMethod->getMetadata('cvc'),
             posInputMode: 'E-Commerce',
             trxType: TransactionTypeEnum::SALE,
-            amount: $this->toCents($order->getTotalAmount()),
-            itbis: $this->toCents($order->getTotalTaxAmount()) ?: '000',
+            amount: $this->toCents($order->getTotalDueAmount()),
+            itbis: '000',
             orderNumber: (string) $order->order_number,
             customOrderId: (string) $order->id,
             dataVaultToken: $dataVaultToken,

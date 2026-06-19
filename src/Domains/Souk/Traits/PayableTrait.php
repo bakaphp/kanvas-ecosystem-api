@@ -30,14 +30,29 @@ trait PayableTrait
 
     public function isPaid(): bool
     {
-        return $this->getPaidAmount() >= $this->total_net_amount;
+        return $this->getPaidAmount() >= $this->getPayableTotalNative();
+    }
+
+    public function getPayableTotalNative(): float
+    {
+        return (float) ($this->total_net_amount ?? 0);
+    }
+
+    public function getPayableBalanceDueNative(): float
+    {
+        return $this->getPayableTotalNative() - $this->getPaidAmount();
+    }
+
+    public function getPayableCurrency(): string
+    {
+        return (string) ($this->currency ?? 'USD');
     }
 
     public function hasAuthorizedPayment(): bool
     {
         return $this->payments()
             ->where('status', PaymentStatusEnum::AUTHORIZED->value)
-            ->where('amount', '>=', $this->getTotalAmount())
+            ->where('amount', '>=', $this->getTotalDueAmount())
             ->exists();
     }
 

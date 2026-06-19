@@ -30,7 +30,7 @@ class FmpCompanyProfileTool implements KanvasToolInterface
     {
         $name = AgentTool::fromClass($this)?->name ?? $this->name();
 
-        return "Use `{$name}` to fetch sector, industry, market cap, beta, and business description for a public company. Requires a ticker symbol — call `FMP Company Search` first if you only have the company name.";
+        return "Use `{$name}` to fetch the full company profile (sector, industry, market cap, beta, CEO, employees, address, exchange, and more) as a `company_profile` JSON object. Requires a ticker symbol — call `FMP Company Search` first if you only have the company name. The returned `company_profile` is the base — before saving, merge in these sections built in later steps: `ownership` (type + owners), `executive_team` (array with bios), `board_of_directors` (array with bios), and `lender_summary` (summary + facilities array). Save the fully merged object as the `company_profile` custom field in a single Set Organization Custom Fields call.";
     }
 
     #[Override]
@@ -60,19 +60,42 @@ class FmpCompanyProfileTool implements KanvasToolInterface
         $item = is_array($results[0] ?? null) ? $results[0] : $results;
 
         return json_encode([
-            'symbol' => $item['symbol'] ?? $symbol,
-            'name' => $item['companyName'] ?? '',
-            'sector' => $item['sector'] ?? '',
-            'industry' => $item['industry'] ?? '',
-            'description' => $item['description'] ?? '',
-            'price' => $item['price'] ?? null,
-            'change' => $item['change'] ?? null,
-            'changePercentage' => $item['changePercentage'] ?? null,
-            'mktCap' => $item['marketCap'] ?? null,
-            'beta' => $item['beta'] ?? null,
-            'website' => $item['website'] ?? '',
-            'country' => $item['country'] ?? '',
-            'exchange' => $item['exchange'] ?? '',
+            'company_profile' => [
+                'symbol' => $item['symbol'] ?? $symbol,
+                'companyName' => $item['companyName'] ?? '',
+                'sector' => $item['sector'] ?? '',
+                'industry' => $item['industry'] ?? '',
+                'description' => $item['description'] ?? '',
+                'ceo' => $item['ceo'] ?? '',
+                'price' => $item['price'] ?? null,
+                'change' => $item['change'] ?? null,
+                'changePercentage' => $item['changePercentage'] ?? null,
+                'marketCap' => $item['marketCap'] ?? null,
+                'beta' => $item['beta'] ?? null,
+                'lastDividend' => $item['lastDividend'] ?? null,
+                'range' => $item['range'] ?? '',
+                'volume' => $item['volume'] ?? null,
+                'averageVolume' => $item['averageVolume'] ?? null,
+                'currency' => $item['currency'] ?? '',
+                'exchange' => $item['exchange'] ?? '',
+                'exchangeFullName' => $item['exchangeFullName'] ?? '',
+                'website' => $item['website'] ?? '',
+                'country' => $item['country'] ?? '',
+                'fullTimeEmployees' => $item['fullTimeEmployees'] ?? null,
+                'phone' => $item['phone'] ?? '',
+                'address' => $item['address'] ?? '',
+                'city' => $item['city'] ?? '',
+                'state' => $item['state'] ?? '',
+                'zip' => $item['zip'] ?? '',
+                'ipoDate' => $item['ipoDate'] ?? '',
+                'image' => $item['image'] ?? '',
+                'isEtf' => $item['isEtf'] ?? false,
+                'isActivelyTrading' => $item['isActivelyTrading'] ?? false,
+                'isAdr' => $item['isAdr'] ?? false,
+                'isFund' => $item['isFund'] ?? false,
+                'isin' => $item['isin'] ?? '',
+                'cik' => $item['cik'] ?? '',
+            ],
         ]);
     }
 

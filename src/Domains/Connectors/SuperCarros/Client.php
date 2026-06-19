@@ -22,13 +22,21 @@ class Client
         protected AppInterface $app,
         protected CompanyInterface $company,
     ) {
-        $this->baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value);
-        $this->accessKey = $this->app->get(ConfigurationEnum::ACCESS_KEY->value);
-        $this->customerId = $this->company->get(ConfigurationEnum::CUSTOMER_ID->value);
+        // base_url is the shared API endpoint and stays app-level; the access key and
+        // customer id identify a single dealer rooftop, so they MUST be read per-company.
+        // Reading the access key from the app would let one company's key pull another
+        // rooftop's inventory into the wrong customer account.
+        $baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value);
+        $accessKey = $this->company->get(ConfigurationEnum::ACCESS_KEY->value);
+        $customerId = $this->company->get(ConfigurationEnum::CUSTOMER_ID->value);
 
-        if (empty($this->baseUrl) || empty($this->accessKey) || empty($this->customerId)) {
-            throw new ValidationException('SuperCarros configuration is missing');
+        if (empty($baseUrl) || empty($accessKey) || empty($customerId)) {
+            throw new ValidationException('SuperCarros configuration is missing for this company (base_url, access_key and customer_id are required).');
         }
+
+        $this->baseUrl = (string) $baseUrl;
+        $this->accessKey = (string) $accessKey;
+        $this->customerId = $customerId;
 
         $this->client = new GuzzleClient([
             'base_uri' => $this->baseUrl,

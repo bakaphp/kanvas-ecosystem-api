@@ -26,9 +26,12 @@ class CalendarEventTool extends Tool
     {
         parent::__construct(
             name: 'create_calendar_event',
-            description: 'Create an internal calendar event (appointment / demo) for the lead owner in the Kanvas Event domain. '
+            description: 'Create a NEW internal calendar event (appointment / demo) for the lead owner in the Kanvas Event domain. '
                 . 'Use this once the prospect has agreed on a specific date and time. '
-                . 'The event will appear in subsequent availability checks so the same slot cannot be double-booked.',
+                . 'The event will appear in subsequent availability checks so the same slot cannot be double-booked. '
+                . 'IMPORTANT: if the lead ALREADY has an upcoming appointment (see get_lead_ref appointments.upcoming), '
+                . 'do NOT call this to move it — use reschedule_calendar_event (to change the time) or '
+                . 'cancel_calendar_event (to cancel). Calling create for an existing meeting double-books the lead.',
         );
     }
 

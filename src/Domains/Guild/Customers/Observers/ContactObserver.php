@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Observers;
 
-use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -32,14 +31,8 @@ class ContactObserver
 
     private function cleanPhoneNumber(Contact $contact): void
     {
-        $phoneTypes = [
-            ContactTypeEnum::PHONE->value,
-            ContactTypeEnum::CELLPHONE->value,
-            ContactTypeEnum::WORK_PHONE->value,
-        ];
-
-        if (! empty($contact->value) && in_array($contact->contacts_types_id, $phoneTypes, true)) {
-            $contact->value = preg_replace('/\D/', '', $contact->value);
+        if (! empty($contact->value) && Contact::isPhoneType((int) $contact->contacts_types_id)) {
+            $contact->value = Contact::cleanPhone($contact->value);
         }
     }
 

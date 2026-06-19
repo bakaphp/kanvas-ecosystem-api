@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Baka\Validations;
 
+use Baka\Http\SafeUrl;
 use Exception;
 
 class Pdf
@@ -14,6 +15,8 @@ class Pdf
     public static function isValidFile(string $fileUrl): bool
     {
         try {
+            SafeUrl::assertSafe($fileUrl);
+
             // Check file signature (magic bytes) - more reliable than just EOF
             $context = stream_context_create([
                 'http' => [
@@ -47,6 +50,8 @@ class Pdf
     private static function checkPdfEof(string $fileUrl): bool
     {
         try {
+            SafeUrl::assertSafe($fileUrl);
+
             $context = stream_context_create([
                 'http' => [
                     'method' => 'GET',

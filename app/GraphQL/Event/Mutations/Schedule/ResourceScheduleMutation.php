@@ -33,6 +33,9 @@ class ResourceScheduleMutation
 
         $scheduleType = ScheduleTypeEnum::from(strtolower($input['schedule_type']));
 
+        $startAt = ($input['start_at'] ?? null)?->clone()->startOfDay();
+        $endAt = ($input['end_at'] ?? null)?->clone()->endOfDay();
+
         $rules = new SetResourceScheduleAction(
             resource: $resource,
             app: $app,
@@ -41,6 +44,9 @@ class ResourceScheduleMutation
             scheduleType: $scheduleType,
             slotDurationMin: $input['slot_duration_min'] ?? 60,
             capacityOverride: $input['capacity_override'] ?? null,
+            generateSlots: $input['generate_slots'] ?? true,
+            startAt: $startAt,
+            endAt: $endAt,
         )->execute();
 
         new CreateScheduleHistoryAction(

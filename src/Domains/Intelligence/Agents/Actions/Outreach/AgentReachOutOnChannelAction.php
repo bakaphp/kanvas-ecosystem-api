@@ -53,10 +53,7 @@ class AgentReachOutOnChannelAction
         $responseContent = new AgentChatKernel(
             agent: $this->agent,
             session: $session,
-            message: sprintf(
-                'Send the first reach-out %s message to this lead now. Use get_lead_ref to load context.',
-                $this->channelType,
-            ),
+            message: $this->buildTriggerMessage(),
             user: $aiAgentUser,
             currentLead: $this->lead,
             sourceChannel: $channel,
@@ -65,6 +62,32 @@ class AgentReachOutOnChannelAction
         )->execute();
 
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
+
+        // Email needs a real subject as the mail title. Prefer a structured `subject`
+        // field from the agent's JSON envelope (what buildTriggerMessage asks for); fall
+        // back to a legacy in-body `Subject: ...` line for agents that don't emit it.
+        $emailSubject = null;
+        if ($this->channelType === ChannelCategoryEnum::EMAIL->value) {
+            $emailSubject = ChatHelper::extractSubjectFromResponse($responseContent);
+
+            if ($emailSubject === null) {
+                $parsed = ChatHelper::extractEmailSubjectAndBody($responseText);
+                $emailSubject = $parsed['subject'];
+                $responseText = $parsed['body'];
+            }
+
+            // Anchor the email thread: the follow-up engine reuses this subject
+            // (as "Re: ...") so later touches thread under the original email
+            // instead of starting a fresh one. First touch wins — don't clobber
+            // an existing anchor on subsequent reach-outs.
+            if (
+                $emailSubject !== null
+                && $emailSubject !== ''
+                && ! $this->lead->get('title_email_follow_up')
+            ) {
+                $this->lead->set('title_email_follow_up', $emailSubject);
+            }
+        }
 
         $messageTypeVerb = $this->resolveMessageTypeVerb();
         $type = MessageTypeService::getOrCreate($this->lead->app, $messageTypeVerb);
@@ -120,13 +143,35 @@ class AgentReachOutOnChannelAction
             channel: $this->channelType,
             message: $responseText,
             from: null,
-            title: null,
+            title: $emailSubject,
             signature: false,
             files: null,
             to: $this->recipient,
         );
 
         return $outbound;
+    }
+
+    /**
+     * The user-turn that triggers the first reach-out. For email we additionally ask
+     * the agent to return a JSON envelope carrying a `subject` so it becomes the mail
+     * title instead of being buried in the body. ChatHelper parses the envelope on the
+     * way out (and falls back gracefully if the agent ignores the request).
+     */
+    private function buildTriggerMessage(): string
+    {
+        $message = sprintf(
+            'Send the first reach-out %s message to this lead now. Use get_lead_ref to load context.',
+            $this->channelType,
+        );
+
+        if ($this->channelType === ChannelCategoryEnum::EMAIL->value) {
+            $message .= ' Reply with a JSON object of the form'
+                . ' {"subject": "<concise email subject>", "response": "<the email body>"}'
+                . ' and nothing else. Do not put the subject line inside the body.';
+        }
+
+        return $message;
     }
 
     /** Match the verb the inbound responder uses so history loaders find both. */

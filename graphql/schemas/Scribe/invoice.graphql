@@ -1,0 +1,244 @@
+"Scribe.Invoices — AR sub-ledger documents (Invoice + CreditNote via document_type discriminator)."
+enum ScribeInvoiceDocumentType {
+    INVOICE @enum(value: "invoice")
+    CREDIT_NOTE @enum(value: "credit_note")
+}
+
+enum ScribeInvoiceDocumentStatus {
+    DRAFT @enum(value: "draft")
+    ISSUED @enum(value: "issued")
+    SENT @enum(value: "sent")
+    PAID @enum(value: "paid")
+    VOIDED @enum(value: "voided")
+}
+
+enum ScribeInvoiceCollectionState {
+    CURRENT @enum(value: "current")
+    OVERDUE @enum(value: "overdue")
+    DISPUTED @enum(value: "disputed")
+    UNCOLLECTIBLE @enum(value: "uncollectible")
+}
+
+type ScribeInvoice {
+    id: ID!
+    uuid: String!
+    document_type: ScribeInvoiceDocumentType!
+    invoice_number: String
+    customer: Organization @belongsTo(relation: "customer")
+    billable_display_name: String
+    billable_legal_name: String
+    billable_tax_id: String
+    billable_email: String
+    billing_address_snapshot: Mixed
+    shipping_address_snapshot: Mixed
+    document_status: ScribeInvoiceDocumentStatus!
+    collection_state: ScribeInvoiceCollectionState
+    tax_calculation_mode: String!
+    delivery_status: String!
+    delivery_last_attempt_at: DateTime
+    delivery_bounce_reason: String
+    expected_payment_date: Date
+    issued_date: Date
+    due_date: Date
+    sent_at: DateTime
+    net_terms_days: Int!
+    voided_at: DateTime
+    void_reason_code: String
+    currency: String!
+    fx_rate_to_base: Float!
+    fx_rate_at: DateTime
+    subtotal_native: Money!
+    tax_native: Money!
+    discount_native: Money!
+    total_native: Money!
+    paid_native: Money!
+    balance_due_native: Money!
+    subtotal_base: Money!
+    tax_base: Money!
+    discount_base: Money!
+    total_base: Money!
+    paid_base: Money!
+    balance_due_base: Money!
+    tax_metadata: Mixed
+    regional_compliance: Mixed
+    notes: String
+    internal_notes: String
+    terms: String
+    source: String!
+    external_id: String
+    external_url: String
+    last_synced_at: DateTime
+    origin: ScribeJournalEntryOrigin!
+    metadata: Mixed
+    company: Company! @belongsTo(relation: "company")
+    user: User @belongsTo(relation: "user")
+    lines: [ScribeInvoiceLine!]! @hasMany(relation: "lines")
+    tax_lines: [ScribeInvoiceTaxLine!]! @hasMany(relation: "taxLines")
+    allocations: [ScribeInvoicePaymentAllocation!]!
+        @hasMany(relation: "allocations")
+    parent_invoice: ScribeInvoice @belongsTo(relation: "parentInvoice")
+    credit_notes: [ScribeInvoice!]! @hasMany(relation: "creditNotes")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type ScribeInvoiceLine {
+    id: ID!
+    sort_order: Int!
+    item: ScribeItem @belongsTo(relation: "item")
+    description: String
+    quantity: Float!
+    unit_price_native: Money!
+    discount_amount_native: Money!
+    tax_amount_native: Money!
+    line_total_native: Money!
+    unit_price_base: Money!
+    discount_amount_base: Money!
+    tax_amount_base: Money!
+    line_total_base: Money!
+    discount_rate: Float
+    tax_rate: Float
+    class_id: Int
+    department_id: Int
+    metadata: Mixed
+}
+
+type ScribeInvoiceTaxLine {
+    id: ID!
+    tax_code: ScribeTaxCode @belongsTo(relation: "taxCode")
+    tax_rate: Float
+    jurisdiction: String
+    tax_amount_native: Money!
+    tax_amount_base: Money!
+    metadata: Mixed
+}
+
+type ScribeInvoicePaymentAllocation {
+    id: ID!
+    payment: Payment @belongsTo(relation: "soukPayment")
+    status: String!
+    amount_native: Money!
+    amount_base: Money!
+    currency: String!
+    fx_rate_to_base: Float!
+    fx_rate_at: DateTime
+    allocated_at: DateTime
+    allocated_by: User @belongsTo(relation: "allocatedBy")
+    reversed_at: DateTime
+    reversed_by: User @belongsTo(relation: "reversedBy")
+    reversal_reason: String
+    source: String!
+    source_type: String
+    external_id: String
+    idempotency_key: String
+    metadata: Mixed
+}
+
+input ScribeInvoiceLineInput {
+    description: String
+    quantity: Float
+    unit_price_native: Money!
+    discount_amount_native: Money
+    discount_rate: Float
+    tax_amount_native: Money
+    tax_rate: Float
+    item_id: Int
+    class_id: Int
+    department_id: Int
+    sort_order: Int
+    metadata: Mixed
+}
+
+input ScribeInvoiceInput {
+    "Customer / billable model id from Guild (Organization or People). billable_type clarifies which."
+    customer_organization_id: Int
+    issued_date: Date
+    due_date: Date
+    expected_payment_date: Date
+    net_terms_days: Int
+    currency: String!
+    fx_rate_to_base: Float
+    document_type: ScribeInvoiceDocumentType
+    invoice_number: String
+    parent_invoice_id: Int
+    quote_id: Int
+    notes: String
+    internal_notes: String
+    terms: String
+    regional_compliance: Mixed
+    tax_metadata: Mixed
+    metadata: Mixed
+    lines: [ScribeInvoiceLineInput!]!
+}
+
+input ScribeMarkInvoicePaidInput {
+    paid_at: DateTime
+}
+
+input ScribeAmendInvoiceInput {
+    reason: String!
+    due_date: Date
+    expected_payment_date: Date
+    net_terms_days: Int
+    notes: String
+    internal_notes: String
+    terms: String
+    regional_compliance: Mixed
+    external_id: String
+    external_url: String
+    metadata: Mixed
+}
+
+extend type Query @guard {
+    scribeInvoices(
+        where: _
+            @whereConditions(
+                columns: [
+                    "invoice_number"
+                    "document_type"
+                    "document_status"
+                    "collection_state"
+                    "currency"
+                    "customer_organization_id"
+                    "issued_date"
+                    "due_date"
+                    "source"
+                    "external_id"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "invoice_number"
+                    "issued_date"
+                    "due_date"
+                    "total_base"
+                    "balance_due_base"
+                    "created_at"
+                ]
+            )
+    ): [ScribeInvoice!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\Invoices\\Models\\Invoice"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 50
+        )
+}
+
+extend type Mutation @guard {
+    createScribeInvoice(input: ScribeInvoiceInput!): ScribeInvoice!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@create")
+    updateScribeInvoice(id: ID!, input: ScribeInvoiceInput!): ScribeInvoice!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@update")
+    issueScribeInvoice(id: ID!): ScribeInvoice!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@issue")
+    voidScribeInvoice(id: ID!, void_reason_code: String!): ScribeInvoice!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@void")
+    markScribeInvoicePaid(id: ID!, input: ScribeMarkInvoicePaidInput): ScribeInvoice!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@markPaid")
+    issueScribeCreditNote(parent_invoice_id: ID!, input: ScribeInvoiceInput!): ScribeInvoice!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@issueCreditNote")
+    amendScribeInvoice(id: ID!, input: ScribeAmendInvoiceInput!): ScribeInvoice!
+        @field(resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@amend")
+}

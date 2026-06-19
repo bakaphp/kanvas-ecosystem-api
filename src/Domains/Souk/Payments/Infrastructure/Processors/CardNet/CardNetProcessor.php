@@ -115,7 +115,7 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
                 'order_id' => $order->id,
                 'purchase_id' => $purchaseId,
                 'approval_code' => $approvalCode,
-                'amount' => $order->getTotalAmount(),
+                'amount' => $order->getTotalDueAmount(),
                 'response_time_ms' => $responseTimeMs,
                 'response' => $response->getResponseMessage(),
             ]);
@@ -206,7 +206,7 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
                 'order_id' => $order->id,
                 'hold_purchase_id' => $purchaseId,
                 'capture_purchase_id' => $response->getPurchaseId(),
-                'amount' => $amount ?? $order->getTotalAmount(),
+                'amount' => $amount ?? $order->getTotalDueAmount(),
                 'response_time_ms' => $responseTimeMs,
                 'response' => $response->getResponseMessage(),
             ]);
@@ -617,7 +617,7 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
         return new CardNetPurchaseRequest(
             trxToken: $trxToken,
             order: (string) $order->id,
-            amount: $this->toCardNetAmount($order->getTotalAmount()),
+            amount: $this->toCardNetAmount($order->getTotalDueAmount()),
             currency: (string) ($order->currency ?? 'DOP'),
             invoice: (string) ($order->order_number ?? $order->id),
             capture: $capture,

@@ -227,6 +227,9 @@ class Lead extends BaseModel implements EventResourceInterface
             ->where('entity_namespace', self::class);
     }
 
+    /**
+     * lead note channel
+     */
     public function notes(): HasOne
     {
         return $this->hasOne(Channel::class, 'entity_id', 'string_id')
@@ -234,6 +237,9 @@ class Lead extends BaseModel implements EventResourceInterface
             ->where('name', ChannelNameEnum::NOTES->value);
     }
 
+    /**
+     * lead default system notes channel
+     */
     public function systemNotes(): HasOne
     {
         return $this->hasOne(Channel::class, 'entity_id', 'string_id')
@@ -298,14 +304,18 @@ class Lead extends BaseModel implements EventResourceInterface
 
     public function isOpen(): bool
     {
-        return $this->status < 2;
+        // `status` is both a column AND a relation (status()). On a partially
+        // hydrated model `$this->status` resolves to the LeadStatus relation
+        // object (TypeError on `< 2`), so read the column explicitly. A missing
+        // status means a freshly created lead → treat as open.
+        return (int) ($this->getAttributeValue('status') ?? 0) < 2;
     }
 
     public function isActive(): bool
     {
         $statusName = strtolower($this->status()->firstOrFail()->name);
 
-        return $statusName !== 'inactive' && (Str::contains($statusName, 'active') || Str::contains($statusName, 'created'));
+        return $statusName !== 'inactive' && (Str::contains($statusName, 'active') || Str::contains($statusName, 'created') || Str::contains($statusName, 'hot'));
     }
 
     public function closeSold(): bool
@@ -321,9 +331,7 @@ class Lead extends BaseModel implements EventResourceInterface
             return false;
         }
 
-        $statusName = strtolower($this->status()->firstOrFail()->name);
-
-        return ! Str::contains($statusName, 'complete');
+        return true;
     }
 
     public function close(): void

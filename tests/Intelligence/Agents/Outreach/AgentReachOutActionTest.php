@@ -20,6 +20,7 @@ use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Leads\Enums\AgentReachOutConfigEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\SystemModules\Models\SystemModules;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 
@@ -52,6 +53,26 @@ class AgentReachOutActionTest extends TestCase
 
         $this->assertSame(AgentReachOutConfigEnum::STATUS_IN_PROGRESS, $result['status']);
         $this->assertStringContainsString('in flight', (string) $result['message']);
+    }
+
+    public function testSkipsWhenLeadIsNotOpen(): void
+    {
+        $lead = $this->makeLeadWithCellphone();
+        $lead->status = 2; // closed (won/lost) → isOpen() false
+        $lead->saveOrFail();
+
+        // agent_id 999 would throw if the guard didn't short-circuit first.
+        $result = new AgentReachOutAction($lead, ['agent_id' => 999])->execute();
+
+        $this->assertSame('skipped', $result['status']);
+        $this->assertSame(
+            AgentReachOutConfigEnum::STATUS_SKIPPED,
+            (string) $lead->fresh()->get(AgentReachOutConfigEnum::STATUS->value),
+        );
+        $this->assertSame(
+            'lead_not_active',
+            (string) $lead->fresh()->get(AgentReachOutConfigEnum::REASON->value),
+        );
     }
 
     public function testSkipsWhenLeadSourceNotInAllowlist(): void
@@ -94,6 +115,57 @@ class AgentReachOutActionTest extends TestCase
             AgentReachOutConfigEnum::STATUS_MUTED,
             (string) $lead->fresh()->get(AgentReachOutConfigEnum::STATUS->value),
         );
+    }
+
+    #[DataProvider('noContactDescriptionsProvider')]
+    public function testSkipsWhenDescriptionRequestsNoContact(string $description): void
+    {
+        $lead = $this->makeLeadWithCellphone();
+        $lead->description = $description;
+        $lead->saveOrFail();
+
+        // agent_id 999 would throw if the guard didn't short-circuit first.
+        $result = new AgentReachOutAction($lead, ['agent_id' => 999])->execute();
+
+        $this->assertSame('skipped', $result['status']);
+        $this->assertSame(
+            AgentReachOutConfigEnum::STATUS_SKIPPED,
+            (string) $lead->fresh()->get(AgentReachOutConfigEnum::STATUS->value),
+        );
+        $this->assertSame(
+            'do_not_contact',
+            (string) $lead->fresh()->get(AgentReachOutConfigEnum::REASON->value),
+        );
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function noContactDescriptionsProvider(): array
+    {
+        return [
+            'plain' => ['Do not contact'],
+            'apostrophe' => ["Don't reach out to this guy"],
+            'hyphenated' => ['Lead is do-not-contact per request'],
+            'spanish' => ['Cliente pidió no llamar'],
+            'dnc token' => ['Flag: DNC'],
+            'unsubscribe' => ['Please unsubscribe me from everything'],
+            'mixed case noise' => ['VIP — STOP CONTACTING immediately!!!'],
+        ];
+    }
+
+    public function testProceedsWhenDescriptionDoesNotRequestNoContact(): void
+    {
+        $lead = $this->makeLeadWithCellphone();
+        // "dnc" must not fire as a substring of a normal word.
+        $lead->description = 'Interested buyer, wants a callback about financing.';
+        $lead->saveOrFail();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('No agent configured for reach-out');
+
+        // Reaching agent resolution proves the do-not-contact guard did NOT short-circuit.
+        new AgentReachOutAction($lead, [])->execute();
     }
 
     public function testThrowsWhenNoAgentResolved(): void

@@ -175,4 +175,63 @@ class CheckLeadDuplicateSubAgentTest extends TestCase
         $this->assertFalse($result['is_duplicate']);
         $this->assertNull($result['lead_id']);
     }
+
+    public function testLeadSearchToolExactFieldMatchFindsLeadByDescription(): void
+    {
+        $uniqueCompany = 'ExactMatchCorp' . uniqid();
+        $description = "{$uniqueCompany} filed for Chapter 11 bankruptcy with $3.2B in liabilities on June 9, 2026.";
+
+        $createTool = $this->makeCreateLeadTool();
+        $createResponse = json_decode((string) $createTool->handle($this->makeRequest([
+            'title' => "{$uniqueCompany} Chapter 11 Bankruptcy",
+            'firstname' => $uniqueCompany,
+            'description' => $description,
+        ])), true);
+
+        $this->assertArrayHasKey('lead_id', $createResponse);
+
+        $searchTool = $this->makeLeadSearchTool();
+        $result = json_decode((string) $searchTool->handle($this->makeRequest([
+            'query' => $uniqueCompany,
+            'exact_field' => 'description',
+            'exact_value' => $description,
+            'days_back' => 180,
+        ])), true);
+
+        $this->assertNotEmpty($result['leads'], 'exact_field=description must find the lead when the same description is passed.');
+        $leadIds = array_column($result['leads'], 'id');
+        $this->assertContains($createResponse['lead_id'], $leadIds);
+    }
+
+    public function testLeadSearchToolExactFieldDoesNotMatchDifferentDescription(): void
+    {
+        $uniqueCompany = 'NoDupCorp' . uniqid();
+        $originalDescription = "{$uniqueCompany} filed for Chapter 11 bankruptcy.";
+        $differentDescription = "{$uniqueCompany} announced record profits this quarter.";
+
+        $createTool = $this->makeCreateLeadTool();
+        $createTool->handle($this->makeRequest([
+            'title' => "{$uniqueCompany} Chapter 11",
+            'firstname' => $uniqueCompany,
+            'description' => $originalDescription,
+        ]));
+
+        $searchTool = $this->makeLeadSearchTool();
+        $result = json_decode((string) $searchTool->handle($this->makeRequest([
+            'query' => $uniqueCompany,
+            'exact_field' => 'description',
+            'exact_value' => $differentDescription,
+        ])), true);
+
+        $this->assertEmpty($result['leads'], 'exact_field must not match when description is different.');
+    }
+
+    public function testSubAgentInstructionsReferenceExactFieldParam(): void
+    {
+        $subAgent = new CheckLeadDuplicateSubAgent();
+        $instructions = (string) $subAgent->instructions();
+
+        $this->assertStringContainsString('exact_field', $instructions);
+        $this->assertStringContainsString('exact_value', $instructions);
+    }
 }

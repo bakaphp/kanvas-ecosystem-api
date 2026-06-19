@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Http\SafeUrlFetcher;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -14,7 +15,7 @@ class DownloadImageAndUploadToS3Action
 {
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
-        $file = file_get_contents($entity->url);
+        $file = SafeUrlFetcher::fetch($entity->url);
         $filesystemName = uniqid(Str::random(10) . '_');
         Storage::disk('local')->put($filesystemName, $file);
         if ($app->get('size_product_width') && $app->get('size_product_height')) {

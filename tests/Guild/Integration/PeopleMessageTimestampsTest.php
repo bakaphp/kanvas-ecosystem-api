@@ -124,6 +124,95 @@ final class PeopleMessageTimestampsTest extends TestCase
         );
     }
 
+    public function testInboundCustomerMessageMarksPeopleUnread(): void
+    {
+        [$people, $lead] = $this->createPeopleAndLead();
+        $people->set('unread_message', 0);
+
+        // Inbound customer reply: neither from_me nor from_ia — the rep must see it.
+        $message = $this->makeMessage(
+            $lead,
+            $this->communicationMessageType(),
+            $lead->apps_id,
+            $lead->companies_id,
+            ['content' => 'Thanks for helping me.', 'from_me' => false, 'from_ia' => false],
+        );
+        $this->runListener($message);
+
+        $this->assertSame(
+            1,
+            (int) $people->get('unread_message'),
+            'An inbound customer message must mark the people record as unread',
+        );
+    }
+
+    public function testOutboundMessageDoesNotMarkUnread(): void
+    {
+        [$people, $lead] = $this->createPeopleAndLead();
+        $people->set('unread_message', 0);
+
+        // Our own outbound reply carries from_me=true — it must not flip the flag.
+        $message = $this->makeMessage(
+            $lead,
+            $this->communicationMessageType(),
+            $lead->apps_id,
+            $lead->companies_id,
+            ['content' => 'How can I help?', 'from_me' => true, 'from_ia' => false],
+        );
+        $this->runListener($message);
+
+        $this->assertSame(
+            0,
+            (int) $people->get('unread_message'),
+            'An outbound (from_me) message must not mark the people record as unread',
+        );
+    }
+
+    public function testHumanRepMessageToCustomerDoesNotMarkUnread(): void
+    {
+        [$people, $lead] = $this->createPeopleAndLead();
+        $people->set('unread_message', 0);
+
+        // A human rep typing to the customer: from_human=true, from_me=true, no from_ia
+        // key at all. It is still our side (from_me) so it must not flip the flag.
+        $message = $this->makeMessage(
+            $lead,
+            $this->communicationMessageType(),
+            $lead->apps_id,
+            $lead->companies_id,
+            ['content' => 'I spoke with Owen...', 'from_human' => true, 'from_me' => true],
+        );
+        $this->runListener($message);
+
+        $this->assertSame(
+            0,
+            (int) $people->get('unread_message'),
+            'A human rep message to the customer (from_me) must not mark the people record as unread',
+        );
+    }
+
+    public function testAgentMessageDoesNotMarkUnread(): void
+    {
+        [$people, $lead] = $this->createPeopleAndLead();
+        $people->set('unread_message', 0);
+
+        // AI/agent authored reply carries from_ia=true — it must not flip the flag.
+        $message = $this->makeMessage(
+            $lead,
+            $this->communicationMessageType(),
+            $lead->apps_id,
+            $lead->companies_id,
+            ['content' => 'Sure, I can assist.', 'from_me' => true, 'from_ia' => true],
+        );
+        $this->runListener($message);
+
+        $this->assertSame(
+            0,
+            (int) $people->get('unread_message'),
+            'An AI/agent (from_ia) message must not mark the people record as unread',
+        );
+    }
+
     public function testPeoplesQueryCanOrderByLastMessageAt(): void
     {
         [$older, ] = $this->createPeopleAndLead();
@@ -206,13 +295,24 @@ final class PeopleMessageTimestampsTest extends TestCase
         return $message;
     }
 
-    private function makeMessage(Model $entity, MessageType $type, int $appsId, int $companiesId): Message
-    {
-        $message = Message::factory()->create([
+    private function makeMessage(
+        Model $entity,
+        MessageType $type,
+        int $appsId,
+        int $companiesId,
+        array $messagePayload = [],
+    ): Message {
+        $attributes = [
             'apps_id' => $appsId,
             'companies_id' => $companiesId,
             'message_types_id' => $type->getId(),
-        ]);
+        ];
+
+        if ($messagePayload !== []) {
+            $attributes['message'] = $messagePayload;
+        }
+
+        $message = Message::factory()->create($attributes);
         $message->addEntity($entity);
 
         return $message->fresh('appModuleMessage');

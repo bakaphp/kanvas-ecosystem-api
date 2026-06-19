@@ -38,6 +38,7 @@ class CreatePipelineAction
 
         //create stages
         new AssociateStageToPipelineAction($pipeline, $this->pipelineData->stages)->execute();
+
         return $pipeline;
     }
 }

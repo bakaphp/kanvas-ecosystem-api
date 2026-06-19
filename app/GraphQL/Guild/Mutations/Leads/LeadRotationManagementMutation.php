@@ -20,8 +20,9 @@ class LeadRotationManagementMutation
             'name' => $request['input']['name'],
             'leads_rotations_email' => key_exists('leads_rotations_email', $request['input']) ? $request['input']['leads_rotations_email'] : null,
             'hits' => key_exists('hits', array: $request['input']) ? $request['input']['hits'] : 0,
-            'agents' => key_exists('agents', $request['input']) ? $request['input']['agents'] : []
+            'agents' => key_exists('agents', $request['input']) ? $request['input']['agents'] : [],
         ]);
+
         return (new CreateLeadRotationAction($dto))->execute();
     }
 
@@ -33,15 +34,17 @@ class LeadRotationManagementMutation
             'name' => $request['input']['name'],
             'leads_rotations_email' => key_exists('leads_rotations_email', $request['input']) ? $request['input']['leads_rotations_email'] : null,
             'hits' => key_exists('hits', array: $request['input']) ? $request['input']['hits'] : 0,
-            'agents' => key_exists('agents', $request['input']) ? $request['input']['agents'] : []
+            'agents' => key_exists('agents', $request['input']) ? $request['input']['agents'] : [],
         ]);
         $leadRotation = LeadRotationModel::getById($request['id'], app(Apps::class));
+
         return (new UpdateLeadRotationAction($leadRotation, $dto))->execute();
     }
 
     public function delete(mixed $root, array $request): bool
     {
         $leadRotation = LeadRotationModel::getById($request['id'], app(Apps::class));
+
         return $leadRotation->delete();
     }
 }

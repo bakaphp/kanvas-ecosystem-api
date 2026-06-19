@@ -16,7 +16,9 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Jobs\MigrateCorporateUserVariantsJob;
 use Kanvas\Connectors\Movipass\Workflows\Activities\AutoApproveCorporateLeadActivity;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Services\SetupService;
 use Kanvas\Users\Actions\AssignCompanyAction;
+use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Models\Users;
 
 class EnableCorporateModeAction
@@ -48,6 +50,10 @@ class EnableCorporateModeAction
             $this->setCompanyFields($company);
             $this->setUserFields();
             $this->associateUserAsAdmin($company, $appsModel);
+            // Same onboarding the registration/lead-accept path runs — provisions the
+            // company's default inventory (region + warehouse) via OnBoardingJob.
+            new SetupService()->onBoarding($this->user, $appsModel, $company);
+            $this->switchToCorporateCompany($company);
 
             dispatch(new MigrateCorporateUserVariantsJob(
                 userId: $this->user->getId(),
@@ -117,5 +123,12 @@ class EnableCorporateModeAction
         )->execute();
 
         new AssignRoleAction($this->user, $adminRole)->execute();
+    }
+
+    private function switchToCorporateCompany(Companies $company): void
+    {
+        $branch = $company->branch()->firstOrFail();
+
+        new SwitchCompanyBranchAction($this->user, $branch->getId())->execute();
     }
 }

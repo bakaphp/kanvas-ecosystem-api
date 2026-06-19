@@ -1,0 +1,228 @@
+enum ScribeBillDocumentStatus {
+    DRAFT @enum(value: "draft")
+    RECEIVED @enum(value: "received")
+    PAID @enum(value: "paid")
+    VOIDED @enum(value: "voided")
+}
+
+enum ScribeBillCollectionState {
+    CURRENT @enum(value: "current")
+    OVERDUE @enum(value: "overdue")
+    DISPUTED @enum(value: "disputed")
+    UNCOLLECTIBLE @enum(value: "uncollectible")
+}
+
+"Operator-UI hint extracted from PDF ingest. NOT a GL state — the authoritative status is document_status. Use this to surface 'Mark as already paid?' suggestions on drafts."
+enum ScribePaymentStatusHint {
+    PAID @enum(value: "paid")
+    UNPAID @enum(value: "unpaid")
+    UNKNOWN @enum(value: "unknown")
+}
+
+type ScribeBill {
+    id: ID!
+    uuid: String!
+    bill_number: String
+    vendor: Organization @belongsTo(relation: "vendor")
+    vendor_display_name: String
+    vendor_legal_name: String
+    vendor_tax_id: String
+    vendor_email: String
+    vendor_address_snapshot: Mixed
+    document_status: ScribeBillDocumentStatus!
+    payment_status_hint: ScribePaymentStatusHint!
+    collection_state: ScribeBillCollectionState
+    tax_calculation_mode: String!
+    bill_date: Date
+    received_date: Date
+    due_date: Date
+    scheduled_payment_date: Date
+    net_terms_days: Int!
+    voided_at: DateTime
+    void_reason_code: String
+    currency: String!
+    fx_rate_to_base: Float!
+    fx_rate_at: DateTime
+    subtotal_native: Money!
+    tax_native: Money!
+    discount_native: Money!
+    total_native: Money!
+    paid_native: Money!
+    balance_due_native: Money!
+    subtotal_base: Money!
+    tax_base: Money!
+    discount_base: Money!
+    total_base: Money!
+    paid_base: Money!
+    balance_due_base: Money!
+    tax_metadata: Mixed
+    regional_compliance: Mixed
+    notes: String
+    internal_notes: String
+    terms: String
+    source: String!
+    external_id: String
+    external_url: String
+    last_synced_at: DateTime
+    origin: ScribeJournalEntryOrigin!
+    purchase_order_id: Int
+    pdf_ingest_log_id: Int
+    metadata: Mixed
+    company: Company! @belongsTo(relation: "company")
+    user: User @belongsTo(relation: "user")
+    lines: [ScribeBillLine!]! @hasMany(relation: "lines")
+    tax_lines: [ScribeBillTaxLine!]! @hasMany(relation: "taxLines")
+    allocations: [ScribeBillPaymentAllocation!]!
+        @hasMany(relation: "allocations")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type ScribeBillLine {
+    id: ID!
+    sort_order: Int!
+    item: ScribeItem @belongsTo(relation: "item")
+    sku: String
+    description: String!
+    quantity: Float!
+    unit_price_native: Money!
+    discount_amount_native: Money!
+    tax_amount_native: Money!
+    line_total_native: Money!
+    unit_price_base: Money!
+    discount_amount_base: Money!
+    tax_amount_base: Money!
+    line_total_base: Money!
+    discount_rate: Float
+    tax_rate: Float
+    expense_account: ScribeAccount @belongsTo(relation: "expenseAccount")
+    class_id: Int
+    department_id: Int
+    metadata: Mixed
+}
+
+type ScribeBillTaxLine {
+    id: ID!
+    tax_code: ScribeTaxCode @belongsTo(relation: "taxCode")
+    name: String!
+    tax_rate: Float
+    jurisdiction: String
+    tax_amount_native: Money!
+    tax_amount_base: Money!
+    metadata: Mixed
+}
+
+type ScribeBillPaymentAllocation {
+    id: ID!
+    payment: Payment @belongsTo(relation: "soukPayment")
+    source_type: String!
+
+    status: String!
+    amount_native: Money!
+    amount_base: Money!
+    currency: String!
+    fx_rate_to_base: Float!
+    fx_rate_at: DateTime
+    allocated_at: DateTime
+    allocated_by: User @belongsTo(relation: "allocatedBy")
+    reversed_at: DateTime
+    reversed_by: User @belongsTo(relation: "reversedBy")
+    reversal_reason: String
+    source: String!
+    external_id: String
+    idempotency_key: String
+    metadata: Mixed
+}
+
+input ScribeBillLineInput {
+    description: String!
+    quantity: Float
+    unit_price_native: Money!
+    item_id: Int
+    sku: String
+    sort_order: Int
+    discount_rate: Float
+    discount_amount_native: Money
+    tax_rate: Float
+    tax_amount_native: Money
+    expense_account_id: Int!
+    class_id: Int
+    department_id: Int
+    metadata: Mixed
+}
+
+input ScribeBillInput {
+    "Vendor reference — Guild.Organization or Guild.People (PayeeInterface implementor)."
+    vendor_organization_id: Int
+    bill_number: String
+    bill_date: Date
+    received_date: Date
+    due_date: Date
+    scheduled_payment_date: Date
+    net_terms_days: Int
+    currency: String!
+    fx_rate_to_base: Float
+    notes: String
+    internal_notes: String
+    terms: String
+    purchase_order_id: Int
+    regional_compliance: Mixed
+    tax_metadata: Mixed
+    metadata: Mixed
+    lines: [ScribeBillLineInput!]!
+}
+
+extend type Query @guard {
+    scribeBills(
+        where: _
+            @whereConditions(
+                columns: [
+                    "bill_number"
+                    "document_status"
+                    "collection_state"
+                    "currency"
+                    "vendor_organization_id"
+                    "bill_date"
+                    "due_date"
+                    "source"
+                    "external_id"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "bill_number"
+                    "bill_date"
+                    "due_date"
+                    "total_base"
+                    "balance_due_base"
+                    "created_at"
+                ]
+            )
+    ): [ScribeBill!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\Bills\\Models\\Bill"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 50
+        )
+}
+
+extend type Mutation @guard {
+    createScribeBill(input: ScribeBillInput!): ScribeBill!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Bills\\BillMutation@create"
+        )
+    receiveScribeBill(id: ID!): ScribeBill!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Bills\\BillMutation@receive"
+        )
+    voidScribeBill(id: ID!, void_reason_code: String!): ScribeBill!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Bills\\BillMutation@void"
+        )
+    markScribeBillPaid(id: ID!): ScribeBill!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Bills\\BillMutation@markPaid"
+        )
+}
