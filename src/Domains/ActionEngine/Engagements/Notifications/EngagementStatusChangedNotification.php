@@ -12,16 +12,18 @@ use Kanvas\Templates\Enums\EmailTemplateEnum as EnumsEmailTemplateEnum;
 
 class EngagementStatusChangedNotification extends Notification
 {
-    public array $channels = ['push'];
+    public array $channels = ['push', 'database', 'expo'];
     public string $slackChannel;
 
     public function __construct(
         Engagement $engagement,
         array $data,
     ) {
+        $data['company'] = $engagement->company;
         parent::__construct($engagement, $data);
         $this->setType(EnumsEmailTemplateEnum::BLANK->value);
         $this->setTemplateName(NotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED->value);
+        $this->setDatabaseTemplateName(NotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED_DATABASE->value);
         $this->setData($data);
         $this->slackChannel = $data['slack_channel'] ?? $engagement->app->get('slack_channel', 'engagements');
     }
