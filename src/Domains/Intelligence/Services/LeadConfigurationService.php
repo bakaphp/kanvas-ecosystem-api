@@ -25,7 +25,7 @@ class LeadConfigurationService
         return $this->isV2;
     }
 
-    private function getStatusSuffix(Lead $lead): string
+    public function getStatusSuffix(Lead $lead): string
     {
         $statusName = strtolower($lead->status()->first()?->name ?? '');
 

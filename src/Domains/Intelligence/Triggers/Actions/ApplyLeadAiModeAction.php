@@ -148,6 +148,12 @@ class ApplyLeadAiModeAction
         $this->setMode($aiModeValue);
 
         $this->lead->set('first_followup', $configService->getAllDefaultKeys($this->lead, $isOpen));
+
+        match ($configService->getStatusSuffix($this->lead)) {
+            'closed-sold' => $this->soldLead(),
+            'closed-not-sold' => $this->closeLead(),
+            default => null,
+        };
     }
 
     protected function isCompanyWithinWorkingHours(): bool
