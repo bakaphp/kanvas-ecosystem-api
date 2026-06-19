@@ -19,10 +19,8 @@ use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 /**
- * Covers the optional import owner ("stamp owner only" semantics): when a
- * ProductImporterAction receives an $ownerUser, that user must own the created
- * products and variants (users_id), while the acting user still gates the
- * publish decision. With no owner the behavior is unchanged (acting user owns).
+ * Optional import owner: $ownerUser stamps products/variants users_id while the
+ * acting user still gates publishing; no owner keeps the old behavior.
  */
 final class ProductImporterOwnerTest extends TestCase
 {

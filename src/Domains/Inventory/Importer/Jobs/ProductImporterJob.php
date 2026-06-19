@@ -45,12 +45,11 @@ class ProductImporterJob extends AbstractImporterJob
         $this->startFilesystemMapperImport();
         $processProducts = [];
 
+        // Optional owner: stamps products/variants users_id; $this->user still gates auth + publishing.
         $ownerUser = null;
         $extra = $this->filesystemImport?->extra;
         $ownerId = is_array($extra) ? ($extra['users_id'] ?? null) : null;
         if (! empty($ownerId)) {
-            // Optional import owner: stamps products/variants users_id without
-            // changing the actor ($this->user still gates auth + publishing).
             $ownerUser = UsersRepository::getUserOfCompanyById($company, (int) $ownerId);
         }
 

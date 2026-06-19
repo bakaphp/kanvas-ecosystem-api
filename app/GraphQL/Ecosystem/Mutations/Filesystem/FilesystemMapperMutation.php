@@ -120,8 +120,6 @@ class FilesystemMapperMutation
 
         $extra = is_array($input['extra'] ?? null) ? $input['extra'] : [];
         if (! empty($input['users_id'])) {
-            // Validate the owner belongs to this company; the importer stays the
-            // actor, this id only populates products/variants users_id on import.
             $owner = UsersRepository::getUserOfCompanyById($company, (int) $input['users_id']);
             $extra['users_id'] = $owner->getId();
         }
