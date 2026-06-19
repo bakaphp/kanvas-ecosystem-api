@@ -1,4 +1,4 @@
-<?php
+\<?php
 
 declare(strict_types=1);
 
@@ -38,8 +38,9 @@ class TriggerIntelligenceActivity extends KanvasActivity
                     ? ApplyLeadAiModeAction::class
                     : ApplyLeadAiModeV1Action::class;
                 $result = new $actionClass($lead, $triggerType)->execute();
-
-                $this->sendDataToOrchestration($lead, $lead->get($configService->getAiModeKey($lead)));
+                if ($aiMode = $lead->get($configService->getAiModeKey($lead))) {
+                    $this->sendDataToOrchestration($lead, $aiMode);
+                }
 
                 return array_merge(['Trigger IA executed'], $result);
             }
