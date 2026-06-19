@@ -3582,16 +3582,16 @@
         },
         {
             "name": "inspector-apm/inspector-php",
-            "version": "3.17.1",
+            "version": "3.18.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/inspector-apm/inspector-php.git",
-                "reference": "43ce00c8d32f50ef9b2ef30a9e0469ab829fad16"
+                "reference": "0eb86241dc91d34c6d8d84716b6d491997af1443"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/43ce00c8d32f50ef9b2ef30a9e0469ab829fad16",
-                "reference": "43ce00c8d32f50ef9b2ef30a9e0469ab829fad16",
+                "url": "https://api.github.com/repos/inspector-apm/inspector-php/zipball/0eb86241dc91d34c6d8d84716b6d491997af1443",
+                "reference": "0eb86241dc91d34c6d8d84716b6d491997af1443",
                 "shasum": ""
             },
             "require": {
@@ -3600,7 +3600,7 @@
             "require-dev": {
                 "ext-curl": "*",
                 "friendsofphp/php-cs-fixer": "^3.75",
-                "neuron-core/neuron-ai": "^3.0",
+                "neuron-core/neuron-ai": "4.x-dev",
                 "phpstan/phpstan": "^2.1",
                 "phpunit/phpunit": "^9.0",
                 "rector/rector": "^2.2",
@@ -3638,9 +3638,9 @@
             ],
             "support": {
                 "issues": "https://github.com/inspector-apm/inspector-php/issues",
-                "source": "https://github.com/inspector-apm/inspector-php/tree/3.17.1"
+                "source": "https://github.com/inspector-apm/inspector-php/tree/3.18.0"
             },
-            "time": "2026-04-10T12:22:10+00:00"
+            "time": "2026-06-19T15:39:04+00:00"
         },
         {
             "name": "intervention/gif",
