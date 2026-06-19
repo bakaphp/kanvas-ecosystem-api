@@ -38,8 +38,12 @@ class VariantService
     /**
      * Create a new product variants.
      */
-    public static function createVariantsFromArray(Products $product, array $variants, UserInterface $user, ?UserInterface $ownerUser = null): array
-    {
+    public static function createVariantsFromArray(
+        Products $product,
+        array $variants,
+        UserInterface $user,
+        ?UserInterface $ownerUser = null
+    ): array {
         $variantsData = [];
 
         foreach ($variants as $variant) {
