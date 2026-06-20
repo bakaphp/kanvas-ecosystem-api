@@ -340,6 +340,15 @@ class Order extends BaseModel implements PayableInterface
                 'app' => $this->app,
             ]
         );
+
+        $this->fireWorkflow(
+            WorkflowEnum::AFTER_PAYMENT_INTENT->value,
+            true,
+            [
+                'app' => $this->app,
+                'company' => $this->company,
+            ]
+        );
     }
 
     public function scopeWhereNotCompleted(Builder $query): Builder
