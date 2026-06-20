@@ -36,6 +36,7 @@ class CreateUserAction
     protected Apps $app;
     protected bool $runWorkflow = true;
     protected bool $extraValidation = false;
+    protected bool $emailSpamProtection = false;
 
     public function __construct(
         protected RegisterInput $data,
@@ -50,6 +51,10 @@ class CreateUserAction
         $company = $this->data->branch ? $this->data->branch->company : null;
 
         $this->validateEmail();
+
+        if ($this->emailSpamProtection) {
+            $this->validateEmailNotSpam();
+        }
 
         try {
             /**
@@ -119,14 +124,16 @@ class CreateUserAction
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
-
-        $this->validateEmailNotSpam();
     }
 
     /**
      * Reject bot signups by their email signature — a blocklisted/disposable
      * domain or a randomized local part — independent of IP, name or any other
      * field the frontend may omit. Built-in blocklist plus per-app additions.
+     *
+     * Only the public register mutation opts into this. Social logins
+     * (Apple/Google/Facebook) are provider-verified and legitimately produce
+     * randomized relay addresses (e.g. Apple Hide-My-Email), so they skip it.
      */
     protected function validateEmailNotSpam(): void
     {
@@ -362,5 +369,10 @@ class CreateUserAction
     public function enableExtraValidation(): void
     {
         $this->extraValidation = true;
+    }
+
+    public function enableEmailSpamProtection(): void
+    {
+        $this->emailSpamProtection = true;
     }
 }
