@@ -61,6 +61,55 @@ final class AddFundsToCompanyWalletActionTest extends TestCase
         $this->assertEquals(100.0, (float) $transaction->amountFloat);
     }
 
+    public function testCreditsCompanyWhenAdminPlacesOrderForACompanyTheyDoNotBelongTo(): void
+    {
+        /** @var Users $admin */
+        $admin = auth()->user();
+        $app = app(Apps::class);
+
+        $owner = Users::factory()->create();
+
+        $correctCompany = Companies::factory()->create(['users_id' => $owner->getId()]);
+        $correctCompany->associateApp($app);
+        $correctCompany->associateUserApp($owner, $app, 1);
+
+        $this->assertNotSame(
+            $admin->getId(),
+            (int) $correctCompany->users_id,
+            'Admin must NOT be the owner/member of the target company for this regression to be meaningful.'
+        );
+
+        $people = People::factory()
+            ->withUserId($admin->getId())
+            ->withAppId($app->getId())
+            ->withCompanyId($admin->getCurrentCompany()->getId())
+            ->create();
+
+        $order = Order::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($admin->getCurrentCompany()->getId())
+            ->withUserId($admin->getId())
+            ->withPeopleId($people->getId())
+            ->create([
+                'metadata' => ['user_company_id' => $correctCompany->getId()],
+                'reference' => 'wallet-admin-on-behalf',
+            ]);
+
+        $transaction = new AddFundsToCompanyWalletAction(
+            order: $order,
+            amount: 75.0,
+            source: TransactionSourceEnum::RECHARGE_MANUAL,
+            resolveCompanyFromMetadata: true,
+        )->execute();
+
+        $wallet = $transaction->wallet;
+
+        $this->assertSame(Companies::class, $wallet->holder_type);
+        $this->assertSame($correctCompany->getId(), (int) $wallet->holder_id);
+        $this->assertEquals(75.0, (float) $transaction->amountFloat);
+        $this->assertSame($admin->getId(), (int) $transaction->meta['actor_user_id']);
+    }
+
     public function testIdempotentReRunReturnsExistingTransactionWithoutDoubleDeposit(): void
     {
         /** @var Users $user */
