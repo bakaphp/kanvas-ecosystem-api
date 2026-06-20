@@ -143,6 +143,7 @@ class AuthManagementMutation
         $data = RegisterInput::fromArray($request['data'], $branch);
         $user = new RegisterUsersAction($data, $app);
         $user->enableExtraValidation();
+        $user->enableEmailSpamProtection();
         $request = request();
 
         $registeredUser = $user->execute();

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Auth\Actions;
 
 use Baka\Contracts\CompanyInterface;
+use Baka\Validations\EmailDomain;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
@@ -34,6 +36,7 @@ class CreateUserAction
     protected Apps $app;
     protected bool $runWorkflow = true;
     protected bool $extraValidation = false;
+    protected bool $emailSpamProtection = false;
 
     public function __construct(
         protected RegisterInput $data,
@@ -48,6 +51,10 @@ class CreateUserAction
         $company = $this->data->branch ? $this->data->branch->company : null;
 
         $this->validateEmail();
+
+        if ($this->emailSpamProtection) {
+            $this->validateEmailNotSpam();
+        }
 
         try {
             /**
@@ -117,6 +124,50 @@ class CreateUserAction
         if ($validator->fails()) {
             throw new ValidationException($validator);
         }
+    }
+
+    /**
+     * Reject bot signups by their email signature — a blocklisted/disposable
+     * domain or a randomized local part — independent of IP, name or any other
+     * field the frontend may omit. Built-in blocklist plus per-app additions.
+     *
+     * Only the public register mutation opts into this. Social logins
+     * (Apple/Google/Facebook) are provider-verified and legitimately produce
+     * randomized relay addresses (e.g. Apple Hide-My-Email), so they skip it.
+     */
+    protected function validateEmailNotSpam(): void
+    {
+        if (EmailDomain::isBlockedDomain($this->data->email, $this->getBlockedEmailDomains())
+            || EmailDomain::hasSpamLocalPart($this->data->email)
+        ) {
+            Log::warning('auth.registration_spam_email_blocked', [
+                'app_id' => $this->app->getId(),
+                'app_name' => $this->app->name,
+                'email' => $this->data->email,
+            ]);
+
+            throw ValidationException::withMessages([
+                'email' => ['The email provided is not allowed.'],
+            ]);
+        }
+    }
+
+    /**
+     * Extra blocked domains configured per app, comma/space/newline separated.
+     */
+    protected function getBlockedEmailDomains(): array
+    {
+        $configured = $this->app->get(AppSettingsEnums::BLOCKED_EMAIL_DOMAINS->getValue());
+
+        if (empty($configured)) {
+            return [];
+        }
+
+        if (is_array($configured)) {
+            return $configured;
+        }
+
+        return array_filter(array_map('trim', preg_split('/[\s,]+/', (string) $configured)));
     }
 
     protected function validateNames(): void
@@ -318,5 +369,10 @@ class CreateUserAction
     public function enableExtraValidation(): void
     {
         $this->extraValidation = true;
+    }
+
+    public function enableEmailSpamProtection(): void
+    {
+        $this->emailSpamProtection = true;
     }
 }
