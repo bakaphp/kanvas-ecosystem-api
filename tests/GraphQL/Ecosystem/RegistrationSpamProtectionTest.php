@@ -15,8 +15,73 @@ class RegistrationSpamProtectionTest extends TestCase
     {
         $app = app(Apps::class);
         $app->del(AppSettingsEnums::VALIDATE_EMAIL_DNS->getValue());
+        $app->del(AppSettingsEnums::BLOCKED_EMAIL_DOMAINS->getValue());
 
         parent::tearDown();
+    }
+
+    private function registerWithEmail(string $email)
+    {
+        $app = app(Apps::class);
+        RateLimiter::clear('register_attempt:' . $app->getId() . ':127.0.0.1');
+
+        $password = fake()->password(9);
+
+        return $this->graphQL(/** @lang GraphQL */ '
+            mutation register($data: RegisterInput!) {
+                register(data: $data) {
+                    user { email }
+                    token { token }
+                }
+            }
+        ', [
+            'data' => [
+                'email' => $email,
+                'password' => $password,
+                'password_confirmation' => $password,
+            ],
+        ]);
+    }
+
+    public function testRegistrationBlocksKnownSpamDomain(): void
+    {
+        $response = $this->registerWithEmail('somerealname@web-library.net');
+
+        $errors = $response->json('errors');
+        $this->assertNotNull($errors, 'Expected blocklisted-domain rejection but got none');
+        $this->assertStringContainsString(
+            'not allowed',
+            $errors[0]['message'] ?? $errors[0]['extensions']['debugMessage'] ?? ''
+        );
+    }
+
+    public function testRegistrationBlocksRandomizedLocalPart(): void
+    {
+        $response = $this->registerWithEmail('8rhpkhzq6sqwcx3@gmail.com');
+
+        $errors = $response->json('errors');
+        $this->assertNotNull($errors, 'Expected randomized-local-part rejection but got none');
+        $this->assertStringContainsString(
+            'not allowed',
+            $errors[0]['message'] ?? $errors[0]['extensions']['debugMessage'] ?? ''
+        );
+    }
+
+    public function testRegistrationBlocksAppConfiguredDomain(): void
+    {
+        $app = app(Apps::class);
+        $app->set(AppSettingsEnums::BLOCKED_EMAIL_DOMAINS->getValue(), 'badactor.io, spammy.example');
+
+        $response = $this->registerWithEmail('jane@badactor.io');
+
+        $errors = $response->json('errors');
+        $this->assertNotNull($errors, 'Expected app-configured blocked-domain rejection but got none');
+    }
+
+    public function testRegistrationAllowsNormalEmail(): void
+    {
+        $this->registerWithEmail('john.smith' . fake()->numberBetween(1, 99999) . '@gmail.com')
+            ->assertSuccessful();
     }
 
     public function testRegistrationRateLimitByIp(): void
