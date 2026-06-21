@@ -6734,16 +6734,16 @@
         },
         {
             "name": "mindee/mindee",
-            "version": "v3.0.1",
+            "version": "v2.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mindee/mindee-api-php.git",
-                "reference": "b032af0a2faadea89f07188383a7a72f67528682"
+                "reference": "1719007baa7b4a20d8854fade053b361d1657be5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/b032af0a2faadea89f07188383a7a72f67528682",
-                "reference": "b032af0a2faadea89f07188383a7a72f67528682",
+                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/1719007baa7b4a20d8854fade053b361d1657be5",
+                "reference": "1719007baa7b4a20d8854fade053b361d1657be5",
                 "shasum": ""
             },
             "require": {
@@ -6759,11 +6759,8 @@
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.38",
                 "madewithlove/license-checker": "^v1.0",
-                "phpstan/phpstan": "^2.1",
-                "phpstan/phpstan-deprecation-rules": "^2.0",
                 "phpunit/phpunit": "^9.6",
-                "projektgopher/whisky": "^0.7.4",
-                "rector/rector": "^2.4"
+                "squizlabs/php_codesniffer": "^3.7"
             },
             "suggest": {
                 "ext-imagick": "Required for PDF rasterization and image processing features",
@@ -6786,9 +6783,9 @@
             "description": "Mindee Client Library for PHP",
             "support": {
                 "issues": "https://github.com/mindee/mindee-api-php/issues",
-                "source": "https://github.com/mindee/mindee-api-php/tree/v3.0.1"
+                "source": "https://github.com/mindee/mindee-api-php/tree/v2.9.0"
             },
-            "time": "2026-06-19T08:20:46+00:00"
+            "time": "2026-05-11T08:25:44+00:00"
         },
         {
             "name": "mll-lab/graphql-php-scalars",

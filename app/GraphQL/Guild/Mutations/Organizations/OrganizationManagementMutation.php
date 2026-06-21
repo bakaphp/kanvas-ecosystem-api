@@ -61,7 +61,10 @@ class OrganizationManagementMutation
             organizationType: $organizationType,
         );
 
-        return new UpdateOrganizationAction($organization, $organizationData)->execute();
+        return new UpdateOrganizationAction(
+            $organization,
+            $organizationData
+        )->execute();
     }
 
     public function delete(mixed $root, array $req): bool

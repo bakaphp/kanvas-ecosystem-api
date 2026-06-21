@@ -12,9 +12,6 @@ use Spatie\LaravelData\Data;
 
 class Organization extends Data
 {
-    /**
-     * __construct.
-     */
     public function __construct(
         public readonly CompanyInterface $company,
         public readonly UserInterface $user,

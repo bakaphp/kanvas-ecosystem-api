@@ -83,7 +83,9 @@ class PullParticipantsEmploymentHistoryTest extends TestCase
 
         $rows = $this->employmentRows($people, $org);
         $this->assertCount(1, $rows, 'The employer link is still recorded when Intras has no title.');
-        $this->assertNull($rows[0]->position);
+        // position is NOT NULL in the schema, so a missing Intras title is stored as ''.
+        $this->assertSame('', $rows[0]->position);
+        $this->assertNotNull($rows[0]->start_date, 'start_date is anchored to the person record (NOT NULL column).');
     }
 
     private function seedOrganizationMap(PullParticipantsFromIntrasAction $action, array $map): void

@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Intras\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use Carbon\Carbon;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
@@ -214,6 +215,15 @@ class PullParticipantsFromIntrasAction
         // record a single status=1 row keyed on (app, person, org). updateOrCreate
         // keeps the title in sync with Intras and shares the same table Apollo
         // enrichment writes its full history into.
+        //
+        // position and start_date are NOT NULL in the schema, but Intras has no role
+        // title for some participants and never a start date. We store '' for a
+        // missing title and anchor start_date to when we first recorded the person
+        // (a stable proxy, so re-syncs don't churn the row).
+        $startDate = $people->created_at
+            ? Carbon::parse($people->created_at)->format('Y-m-d')
+            : date('Y-m-d');
+
         PeopleEmploymentHistory::updateOrCreate(
             [
                 'apps_id' => $this->app->getId(),
@@ -222,7 +232,8 @@ class PullParticipantsFromIntrasAction
                 'status' => 1,
             ],
             [
-                'position' => $position,
+                'position' => $position ?? '',
+                'start_date' => $startDate,
             ]
         );
     }
