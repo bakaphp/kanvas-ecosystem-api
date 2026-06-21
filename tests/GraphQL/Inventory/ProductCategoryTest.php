@@ -52,7 +52,7 @@ class ProductCategoryTest extends TestCase
                     is_published
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createWarehouse' => $data]
+            'data' => ['createWarehouse' => $data],
         ]);
 
         $categoryData = [
@@ -60,7 +60,7 @@ class ProductCategoryTest extends TestCase
             'code' => fake()->name,
             'position' => 1,
             'is_published' => true,
-            'weight' => 0
+            'weight' => 0,
         ];
         $categoryResponse = $this->graphQL('
             mutation($data: CategoryInput!) {
@@ -74,19 +74,19 @@ class ProductCategoryTest extends TestCase
                     weight
                 }
             }', ['data' => $categoryData])->assertJson([
-            'data' => ['createCategory' => $categoryData]
+            'data' => ['createCategory' => $categoryData],
         ]);
         $idCategory = $categoryResponse->json()['data']['createCategory']['id'];
 
         $data = [
             'name' => fake()->name,
-            'sku' => fake()->time,
+            'sku' => fake()->unique()->uuid(),
             'description' => fake()->text,
             'categories' => [
                 [
-                    'id' => $idCategory
-                ]
-            ]
+                    'id' => $idCategory,
+                ],
+            ],
         ];
 
         $response = $this->graphQL('

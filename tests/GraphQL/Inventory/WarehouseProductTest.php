@@ -31,7 +31,7 @@ class WarehouseProductTest extends TestCase
             }
         }
     ', [
-            'data' => $data
+            'data' => $data,
         ])->assertSuccessful();
 
         $response = $response->decodeResponseJson();
@@ -56,13 +56,13 @@ class WarehouseProductTest extends TestCase
                 is_published
             }
         }', ['data' => $data])->assertJson([
-            'data' => ['createWarehouse' => $data]
+            'data' => ['createWarehouse' => $data],
         ]);
         $warehouseId = $response->decodeResponseJson()['data']['createWarehouse']['id'];
 
         $data = [
             'name' => fake()->name,
-            'sku' => fake()->time,
+            'sku' => fake()->unique()->uuid(),
             'description' => fake()->text,
         ];
 
@@ -93,10 +93,10 @@ class WarehouseProductTest extends TestCase
             ',
             [
                 'id' => $productId,
-                'warehouse_id' => $warehouseId
+                'warehouse_id' => $warehouseId,
             ]
         )->assertJson([
-            'data' => ['addWarehouse' => ['id' => $productId]]
+            'data' => ['addWarehouse' => ['id' => $productId]],
         ]);
     }
 }

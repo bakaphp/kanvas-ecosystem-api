@@ -24,7 +24,7 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->time,
+            'sku' => fake()->unique()->uuid(),
             'weight' => 1,
             'attributes' => [
                 [
@@ -45,7 +45,7 @@ class ProductsTest extends TestCase
     public function testSortByAttributes(): void
     {
         $attributeName = fake()->name;
-        $sku = fake()->time;
+        $sku = fake()->unique()->uuid();
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
@@ -91,7 +91,7 @@ class ProductsTest extends TestCase
     public function testSortByVariantAttributes(): void
     {
         $attributeName = fake()->name;
-        $sku = fake()->time;
+        $sku = fake()->unique()->uuid();
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
@@ -144,7 +144,7 @@ class ProductsTest extends TestCase
 
     public function testFilterByNearByLocation(): void
     {
-        $sku = fake()->time;
+        $sku = fake()->unique()->uuid();
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
@@ -346,7 +346,7 @@ class ProductsTest extends TestCase
         $productData = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->time,
+            'sku' => fake()->unique()->uuid(),
         ];
         $productResponse = $this->graphQL('
         mutation($data: ProductInput!) {
@@ -461,7 +461,7 @@ class ProductsTest extends TestCase
         $productResponse = $this->createProduct([
             'name' => 'Warehouse Location Test ' . fake()->word(),
             'description' => fake()->text,
-            'sku' => fake()->time,
+            'sku' => fake()->unique()->uuid(),
         ])->json();
 
         $productId = $productResponse['data']['createProduct']['id'];
