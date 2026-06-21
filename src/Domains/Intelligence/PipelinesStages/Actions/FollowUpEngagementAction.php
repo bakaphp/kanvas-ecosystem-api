@@ -102,7 +102,9 @@ class FollowUpEngagementAction
         $processedChannels = [];
         foreach ($sessions as $session) {
             $messageTemplateChannel = $session->getChannel();
-
+            if (! $messageTemplateChannel) {
+                continue;
+            }
             // Skip if this channel has already been processed
             if (in_array($messageTemplateChannel, $processedChannels)) {
                 continue;
