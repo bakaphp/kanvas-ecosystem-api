@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Observers;
 
 use Baka\Support\Str;
-use Illuminate\Support\Carbon;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Events\LeadCompanyUpdateEvent;
 use Kanvas\Guild\Leads\Events\LeadUpdateEvent;
@@ -17,16 +16,10 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Actions\WriteLeadStageChangeThreadMessageAction;
 use Kanvas\Intelligence\Sessions\Actions\DeleteSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\UpdateLeadSessionsAction;
-use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
-use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
-use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
-use Throwable;
 
 class LeadObserver
 {
@@ -99,80 +92,6 @@ class LeadObserver
                 fromStageId: $fromStageId !== null ? (int) $fromStageId : null,
                 toStageId: (int) $toStageId,
             )->execute();
-        }
-
-        // DEBUG: writes a private, locked system note into the lead's system thread
-        // every time leads_status_id changes, including a truncated PHP call stack so
-        // we can trace which path (UI mutation, workflow, close-sold action, etc.) is
-        // mutating the status. Remove once the source of unexpected status mutations
-        // has been identified.
-        if ($lead->isDirty('leads_status_id')) {
-            $this->writeStatusChangeDebugNote(
-                $lead,
-                $lead->getOriginal('leads_status_id'),
-                $lead->leads_status_id,
-            );
-        }
-    }
-
-    // DEBUG ONLY — see updating() for context. Best-effort; never blocks the Lead update.
-    private function writeStatusChangeDebugNote(Lead $lead, mixed $fromStatusId, mixed $toStatusId): void
-    {
-        try {
-            $channel = $lead->systemNotes;
-            if ($channel === null) {
-                return;
-            }
-
-            $user = $lead->company->getAiAgentUser() ?? $lead->user;
-            if ($user === null) {
-                return;
-            }
-
-            $fromName = $fromStatusId
-                ? (LeadStatus::find($fromStatusId)?->name ?? "#{$fromStatusId}")
-                : 'null';
-            $toName = $toStatusId
-                ? (LeadStatus::find($toStatusId)?->name ?? "#{$toStatusId}")
-                : 'null';
-            $tz = $lead->company->timezone ?? 'UTC';
-            $when = Carbon::now($tz)->format('Y-m-d H:i:s');
-
-            $trace = collect(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 15))
-                ->skip(1)
-                ->take(12)
-                ->map(fn ($f) => ($f['class'] ?? '') . ($f['type'] ?? '') . ($f['function'] ?? '') . ':' . ($f['line'] ?? '?'))
-                ->implode("\n  ");
-
-            $body = "[DEBUG] Status: {$fromName} → {$toName} · {$when}\nTrace:\n  {$trace}";
-
-            $payload = new AiChatMessagePayload(
-                content: $body,
-                from_me: true,
-                from_ia: true,
-                raw_data: $body,
-            );
-
-            $messageInput = MessageInput::from([
-                'app' => $lead->app,
-                'company' => $lead->company,
-                'user' => $user,
-                'type' => MessageTypeService::getOrCreate($lead->app, 'system'),
-                'message' => $payload->toArray(),
-                'is_public' => 0,
-            ]);
-
-            $message = new CreateSocialMessageAction(
-                $messageInput,
-                SystemModulesRepository::getByModelName(Lead::class, $lead->app),
-                $lead->getId(),
-            )->execute();
-
-            $channel->addMessage($message);
-            $message->addTag('status-change-debug');
-            $message->setLock();
-        } catch (Throwable $e) {
-            report($e);
         }
     }
 

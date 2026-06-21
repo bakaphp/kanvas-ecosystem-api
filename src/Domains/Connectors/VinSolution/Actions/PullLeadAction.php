@@ -124,6 +124,15 @@ class PullLeadAction
 
                 $lead->refresh();
 
+                $lead->fireWorkflow(
+                    WorkflowEnum::LEAD_PULLED->value,
+                    true,
+                    [
+                        'app' => $lead->app,
+                        'company' => $lead->company,
+                    ]
+                );
+
                 return [
                     [
                         'id' => $lead->id,
