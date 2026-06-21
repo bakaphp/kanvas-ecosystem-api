@@ -320,12 +320,12 @@ class Lead extends BaseModel implements EventResourceInterface
 
     public function isAiFollowUpEnabled(): bool
     {
-        $value = $this->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
+        $followUpEnabled = $this->get(IntelligenceModeEnum::AI_FOLLOW_UP->value);
 
-        return $value === true
-            || $value === 1
-            || $value === '1'
-            || $value === 'true';
+        return $followUpEnabled === true
+            || $followUpEnabled === 1
+            || $followUpEnabled === '1'
+            || $followUpEnabled === 'true';
     }
 
     public function closeSold(): bool
