@@ -16,6 +16,7 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\ContactType;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Models\PeopleType;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
@@ -121,7 +122,8 @@ class PullParticipantsFromIntrasAction
 
                 self::attachContactsToPeople($people, $mapped['contacts']);
 
-                $this->linkToOrganization($people, $row->companies_id);
+                $position = isset($row->position) ? trim((string) $row->position) : null;
+                $this->linkToOrganization($people, $row->companies_id, $position !== '' ? $position : null);
 
                 $count++;
             }
@@ -188,7 +190,7 @@ class PullParticipantsFromIntrasAction
         }
     }
 
-    protected function linkToOrganization(People $people, ?int $intrasCompanyId): void
+    protected function linkToOrganization(People $people, ?int $intrasCompanyId, ?string $position = null): void
     {
         if ($intrasCompanyId === null) {
             return;
@@ -207,6 +209,22 @@ class PullParticipantsFromIntrasAction
         ], [
             'created_at' => date('Y-m-d H:i:s'),
         ]);
+
+        // Intras only knows the current employer/role (no historical roles), so we
+        // record a single status=1 row keyed on (app, person, org). updateOrCreate
+        // keeps the title in sync with Intras and shares the same table Apollo
+        // enrichment writes its full history into.
+        PeopleEmploymentHistory::updateOrCreate(
+            [
+                'apps_id' => $this->app->getId(),
+                'peoples_id' => $people->getId(),
+                'organizations_id' => $organizationId,
+                'status' => 1,
+            ],
+            [
+                'position' => $position,
+            ]
+        );
     }
 
     /**
