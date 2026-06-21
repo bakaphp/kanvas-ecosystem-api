@@ -210,7 +210,7 @@ class FixOrderItemCommand extends Command
             $item->delete();
         }
 
-        $orderItem = OrderItem::viaRequest($order->app, $order->company, $order->region, [
+        $orderItem = OrderItem::from($order->app, $order->company, $order->region, [
             'variant_id' => $newVariant->id,
             'quantity' => 1, // Default quantity, adjust as needed
             'price' => $price, // Will be calculated from variant price

@@ -94,7 +94,7 @@ class CreateBaseOrderAction
             $lineItems = [];
 
             foreach ($this->request['input']['items'] as $key => $lineItem) {
-                $lineItems[$key] = OrderItem::viaRequest(
+                $lineItems[$key] = OrderItem::from(
                     $this->app,
                     $this->company,
                     $this->region,

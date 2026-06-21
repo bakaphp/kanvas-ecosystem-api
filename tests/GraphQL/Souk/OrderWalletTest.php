@@ -1232,6 +1232,7 @@ class OrderWalletTest extends TestCase
                     [
                         'variant_id' => $variant->getId(),
                         'quantity' => $quantity,
+                        'price' => $unitPrice,
                     ],
                 ],
                 'shipping_address' => [
