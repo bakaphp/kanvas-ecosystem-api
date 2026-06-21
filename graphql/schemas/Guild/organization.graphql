@@ -92,7 +92,15 @@ extend type Query @guard {
     organizations(
         search: String @search
         where: _
-            @whereConditions(columns: ["id", "name", "uuid", "total_employees"])
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "uuid"
+                    "total_employees"
+                    "organization_type_id"
+                ]
+            )
         orderBy: _
             @orderBy(
                 columns: [
