@@ -127,7 +127,7 @@ class DraftOrder extends Data
         $totalShipping = 0;
         $lineItems = [];
         foreach ($request['input']['items'] as $key => $lineItem) {
-            $lineItems[$key] = OrderItem::viaRequest($app, $branch->company, $region, $lineItem);
+            $lineItems[$key] = OrderItem::from($app, $branch->company, $region, $lineItem);
             $total += $lineItems[$key]->getTotal();
             $totalTax = $lineItems[$key]->getTotalTax();
             $totalDiscount = $lineItems[$key]->getTotalDiscount();

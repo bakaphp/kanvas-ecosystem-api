@@ -32,7 +32,7 @@ class OrderStatsQuery
         $date = $input['date'] ?? null;
         $startDate = $input['startDate'] ?? null;
         $endDate = $input['endDate'] ?? null;
-        $timezone = $input['timezone'] ?? null;
+        $timezone = $input['timezone'] ?? 'UTC';
         $baseDate = $input['baseDate'] ?? null;
         $groupBy = strtolower($input['groupBy'] ?? 'DAY');
         $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);

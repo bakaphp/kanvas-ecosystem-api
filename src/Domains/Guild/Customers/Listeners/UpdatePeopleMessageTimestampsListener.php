@@ -34,18 +34,7 @@ class UpdatePeopleMessageTimestampsListener implements ShouldQueue
 
         $messageAt = (string) $appModuleMessage->created_at;
 
-        // An inbound customer reply marks the people record as unread so a rep sees it.
-        // Our own side must not flip the flag: outbound replies carry from_me=true and
-        // AI/agent messages carry from_ia=true. Gate on direction rather than from_human —
-        // connectors only set from_human on human-agent-takeover paths, never on the
-        // inbound customer message itself, so a from_human gate never fired here.
-        $messageData = (array) ($appModuleMessage->message?->message ?? []);
-
-        if ((bool) ($messageData['from_me'] ?? false) || (bool) ($messageData['from_ia'] ?? false)) {
-            return;
-        }
-
-        DB::connection('crm')->update(
+        $affected = DB::connection('crm')->update(
             <<<'SQL'
             UPDATE peoples p
             INNER JOIN leads l ON l.people_id = p.id
@@ -58,6 +47,21 @@ class UpdatePeopleMessageTimestampsListener implements ShouldQueue
             SQL,
             [$messageAt, $messageAt, $messageAt, $appModuleMessage->entity_id],
         );
+
+        if ($affected === 0) {
+            return;
+        }
+
+        // An inbound customer reply marks the people record as unread so a rep sees it.
+        // Our own side must not flip the flag: outbound replies carry from_me=true and
+        // AI/agent messages carry from_ia=true. Gate on direction rather than from_human —
+        // connectors only set from_human on human-agent-takeover paths, never on the
+        // inbound customer message itself, so a from_human gate never fired here.
+        $messageData = (array) ($appModuleMessage->message?->message ?? []);
+
+        if ((bool) ($messageData['from_me'] ?? false) || (bool) ($messageData['from_ia'] ?? false)) {
+            return;
+        }
 
         $appModuleMessage->entity?->people?->set('unread_message', 1);
     }

@@ -7,13 +7,11 @@ namespace Kanvas\Guild\Organizations\DataTransferObject;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Guild\Organizations\Models\OrganizationType;
 use Spatie\LaravelData\Data;
 
 class Organization extends Data
 {
-    /**
-     * __construct.
-     */
     public function __construct(
         public readonly CompanyInterface $company,
         public readonly UserInterface $user,
@@ -25,6 +23,7 @@ class Organization extends Data
         public readonly ?string $city = null,
         public readonly ?string $state = null,
         public readonly ?string $zip = null,
+        public readonly ?OrganizationType $organizationType = null,
     ) {
     }
 }

@@ -43,7 +43,7 @@ class UpdateOrderAction
 
         if ($hasItems) {
             foreach ($this->orderData['items'] as $key => $lineItem) {
-                $lineItems[$key] = OrderItem::viaRequest($this->order->app, $this->order->company, $this->order->region, $lineItem);
+                $lineItems[$key] = OrderItem::from($this->order->app, $this->order->company, $this->order->region, $lineItem);
                 $total += $lineItems[$key]->getTotal();
                 $totalTax += $lineItems[$key]->getTotalTax();
                 $totalDiscount = $lineItems[$key]->getTotalDiscount();
