@@ -20,9 +20,9 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Triggers\Actions\ApplyLeadClosingStatusAction;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
@@ -120,14 +120,8 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                     $params,
                     $agent->getId(),
                 )->execute();
-                $resolvedLead->fireWorkflow(
-                    WorkflowEnum::LEAD_PULLED->value,
-                    true,
-                    [
-                        'app' => $app,
-                        'company' => $company,
-                    ]
-                );
+
+                new ApplyLeadClosingStatusAction($resolvedLead)->execute();
             }
         } catch (Throwable $e) {
             report($e);
