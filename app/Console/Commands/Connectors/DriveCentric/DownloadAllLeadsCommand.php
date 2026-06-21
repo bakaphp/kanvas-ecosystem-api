@@ -16,6 +16,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\DriveCentric\Actions\PullLeadAction;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\DriveCentric\Services\LeadService;
+use Kanvas\Intelligence\Triggers\Actions\ApplyLeadClosingStatusAction;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -251,6 +252,7 @@ class DownloadAllLeadsCommand extends Command
                         Cache::lock($lockKey, 10)->block(10, function () use ($pullLeadAction, $deal, &$successCount): void {
                             $syncLead = $pullLeadAction->syncDeal($deal);
                             $syncLead->set('downloaded_from_drivecentric', 1);
+                            new ApplyLeadClosingStatusAction($syncLead)->execute();
                             $successCount++;
                         });
 

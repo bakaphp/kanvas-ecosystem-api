@@ -20,6 +20,7 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Kanvas\Intelligence\Triggers\Actions\ApplyLeadClosingStatusAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
@@ -257,6 +258,8 @@ class DownloadAllLeadsCommand extends Command
                                     $dailyLeadsCount++;
      */
                                 if (! empty($result)) {
+                                    $pulledLead = ModelsLead::getById((int) $result[0]['id'], $app);
+                                    new ApplyLeadClosingStatusAction($pulledLead)->execute();
                                     $successCount++;
                                 }
                             });
