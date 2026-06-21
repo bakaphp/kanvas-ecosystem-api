@@ -22,6 +22,7 @@ use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
@@ -119,6 +120,14 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                     $params,
                     $agent->getId(),
                 )->execute();
+                $resolvedLead->fireWorkflow(
+                    WorkflowEnum::LEAD_PULLED->value,
+                    true,
+                    [
+                        'app' => $app,
+                        'company' => $company,
+                    ]
+                );
             }
         } catch (Throwable $e) {
             report($e);
