@@ -22,7 +22,6 @@ use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Tools\ToolInterface;
 use Override;
-use Ramsey\Uuid\Uuid;
 
 class KanvasMessageHistory extends AbstractChatHistory
 {
@@ -35,19 +34,27 @@ class KanvasMessageHistory extends AbstractChatHistory
      *                                the user message so a later text-only history rebuild can still
      *                                remember the attachment.
      */
+    private ?string $conversationId = null;
+
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
         private readonly Users $user,
         private readonly string $agentClass,
-        private ?string $conversationId = null,
+        private readonly ?string $sessionId = null,
         int $contextWindow = 50000,
         private readonly ?Agent $agent = null,
         private readonly array $turnMedia = [],
+        private readonly ?string $model = null,
     ) {
         parent::__construct($contextWindow);
 
-        $this->conversationId = $this->normalizeConversationId($this->conversationId) ?? $this->findLatestConversation();
+        // Key the conversation on the session (one thread per session+agent), not "latest by user"
+        // which can glom onto an unrelated conversation. Falls back to latest only when there's no
+        // session id at all (ad-hoc invocations).
+        $this->conversationId = $this->sessionId !== null
+            ? $this->findOrCreateConversationBySession($this->sessionId)
+            : $this->findLatestConversation();
 
         if ($this->conversationId !== null) {
             $this->load();
@@ -59,18 +66,20 @@ class KanvasMessageHistory extends AbstractChatHistory
         return $this->conversationId;
     }
 
-    /**
-     * conversation_id is varchar(36). The conversation key can come in as a session uuid that's
-     * actually a channel slug (e.g. "wa-chat-…-1-22613"), which overflows the column. Fold any
-     * over-length key into a deterministic UUID so the same key always maps to the same row.
-     */
-    private function normalizeConversationId(?string $id): ?string
+    private function findOrCreateConversationBySession(string $sessionId): string
     {
-        if ($id === null || strlen($id) <= 36) {
-            return $id;
-        }
+        $agentId = $this->agent?->getId();
 
-        return Uuid::uuid5(Uuid::NAMESPACE_OID, $id)->toString();
+        $query = DB::connection(self::CONNECTION)
+            ->table(self::TABLE_CONVERSATIONS)
+            ->where('user_id', $this->user->getId())
+            ->where('apps_id', $this->app->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('title', $sessionId);
+
+        $query = $agentId !== null ? $query->where('agent_id', $agentId) : $query->whereNull('agent_id');
+
+        return $query->first()?->id ?? $this->createConversation($sessionId);
     }
 
     private function findLatestConversation(): ?string
@@ -182,6 +191,11 @@ class KanvasMessageHistory extends AbstractChatHistory
             : [];
 
         $usage = $message->getUsage()?->jsonSerialize() ?? [];
+        // Carry the model on assistant turns so the usage rollup can price them — Neuron doesn't
+        // put the model on the message, and logTurn (which used to add it) no longer runs here.
+        if ($role === MessageRole::ASSISTANT->value && $this->model !== null && ! isset($usage['model'])) {
+            $usage['model'] = $this->model;
+        }
 
         $meta = $message->jsonSerialize();
         unset($meta['role'], $meta['content'], $meta['usage'], $meta['tools']);
@@ -261,6 +275,9 @@ class KanvasMessageHistory extends AbstractChatHistory
         DB::connection(self::CONNECTION)->table(self::TABLE_CONVERSATIONS)->insert([
             'id' => $conversationId,
             'user_id' => $this->user->getId(),
+            // Without agent_id the usage rollup + agentConversations list skip the row
+            // (both filter whereNotNull('agent_id')).
+            'agent_id' => $this->agent?->getId(),
             'apps_id' => $this->app->getId(),
             'companies_id' => $this->company->getId(),
             'title' => Str::limit($firstMessage, 100, ''),

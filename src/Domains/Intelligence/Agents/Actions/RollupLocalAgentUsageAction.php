@@ -45,11 +45,8 @@ class RollupLocalAgentUsageAction
             ->whereNotNull('c.agent_id')
             ->where('m.created_at', '>=', $dayStart)
             ->where('m.created_at', '<', $dayEnd)
-            // Attribute the snapshot to the agent's own app/company (matching the
-            // container collectors and AgentCostService's filter) — a conversation
-            // can be logged under a different company than the agent owns.
-            ->groupBy('c.agent_id', 'a.apps_id', 'a.companies_id', 't.provider')
-            ->selectRaw('c.agent_id, a.apps_id, a.companies_id, t.provider as agent_provider')
+            ->groupBy('c.agent_id', 'c.apps_id', 'c.companies_id', 't.provider')
+            ->selectRaw('c.agent_id, c.apps_id, c.companies_id, t.provider as agent_provider')
             // usage key names vary by runtime/version: prompt_tokens/completion_tokens/
             // cache_*_input_tokens OR input_tokens/output_tokens/cache_*. Accept both.
             ->selectRaw("COALESCE(SUM(CAST(COALESCE(JSON_EXTRACT(m.`usage`, '$.prompt_tokens'), JSON_EXTRACT(m.`usage`, '$.input_tokens'), 0) AS UNSIGNED)), 0) as input_tokens")
