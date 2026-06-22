@@ -70,6 +70,17 @@ class BaseKanvasAgent extends NeuronAIAgent
     }
 
     /**
+     * Whether this agent's chatHistory already writes each turn to the agent_conversation_messages
+     * store. When true, RunNeuronChatAction skips its own logTurn to avoid a duplicate conversation.
+     * Default false — SalesAssist-style histories write to Social messages, so logTurn is their only
+     * conversation-store record.
+     */
+    public function persistsTurnsToConversationStore(): bool
+    {
+        return false;
+    }
+
+    /**
      * Per-turn "which deal is the conversation about right now" — independent
      * of the session entity (People-keyed). Sourced from the request's lead_id
      * by AgentChatKernel every turn.
