@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Services;
 
 use Baka\Http\SafeUrlFetcher;
 use finfo;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Users\Models\Users;
@@ -71,6 +72,17 @@ class AttachmentDescriptionService
             $mimeType === 'application/pdf' => 'pdf',
             default => null,
         };
+    }
+
+    /**
+     * The attachment kinds the agent's multimodal model can describe (image / audio / PDF) — the
+     * same set this service captions and the runners send natively.
+     */
+    public static function isDescribableFile(Filesystem $file): bool
+    {
+        $mediaType = $file->mediaType();
+
+        return $mediaType->isImage() || $mediaType->isAudio() || $mediaType->isDocument();
     }
 
     /**
