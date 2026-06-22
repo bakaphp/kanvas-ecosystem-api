@@ -7,13 +7,16 @@ namespace Kanvas\Intelligence\Agents\Actions;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
 use Kanvas\Intelligence\Notifications\AgentReplyNotification;
+use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
+use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionData;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -25,17 +28,9 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
- * Internal (non-connector) channel responder. Mirrors the connector responders' shape
- * — react to a message that was just added to a channel, run the agent, persist the
- * reply back into the same channel — but routes through AgentChatKernel so it works
- * with every backend (Neuron, Laravel, ADK, Runtime), not just container runtimes.
- *
- * Why this exists separately from RuntimeAgentChannelResponderAction: that one calls
- * AgentRuntimeProviderFactory directly and only resolves OpenClaw/Hermes deployments.
- *
- * persistConversation is FALSE on the kernel call: the inbound message already exists
- * (the caller created it before firing AFTER_ADDING_MESSAGE_TO_CHANNEL), so the kernel
- * must NOT re-persist the user turn — only the reply is written, here.
+ * Internal (non-connector) channel responder. Unlike RuntimeAgentChannelResponderAction (which
+ * only resolves OpenClaw/Hermes deployments), this routes through AgentChatKernel so every backend
+ * works — Neuron, Laravel, ADK, Runtime.
  */
 class InternalAgentChannelResponderAction
 {
@@ -55,15 +50,14 @@ class InternalAgentChannelResponderAction
     {
         $payload = $this->message->getMessage();
 
-        // Loop guard: the reply this action writes is flagged `from_me`, and that reply
-        // re-enters the channel workflow. Bailing on `from_me` is what stops the agent
-        // from answering its own messages forever.
+        // Loop guard: our reply is flagged `from_me` and re-enters this workflow.
         if (($payload['from_me'] ?? false) === true) {
             return $this->message;
         }
 
-        // Backfill text descriptions onto the inbound Social message so its `attachment_descriptions`
-        // are present for the agent's text-only history on later turns.
+        // Stable per-channel session keeps every inbound on one conversation (memory).
+        $this->session ??= $this->resolveChannelSession();
+
         $this->dispatchAttachmentDescription($this->message, $this->agent, $this->channel);
 
         ['images' => $imageUrls, 'documents' => $documentUrls] = $this->collectAttachmentUrls();
@@ -88,6 +82,7 @@ class InternalAgentChannelResponderAction
             currentLead: $entity instanceof Lead ? $entity : null,
             sourceChannel: $this->channel,
             sourceMessage: $this->message,
+            documents: $documentUrls,
             persistConversation: false,
         )->execute();
 
@@ -100,9 +95,37 @@ class InternalAgentChannelResponderAction
     }
 
     /**
-     * Push-notify the author of the inbound message that the agent answered them.
-     * Mirrors the userChat path (PersistChatTurnToSocialAction) so every agent reply
-     * a human can see triggers the same notification, regardless of backend.
+     * Find-or-create the channel's durable session (uuid is channel-derived, so it's the one
+     * conversation thread). Entity is the channel unless the inbound is tied to a Lead/People/Users
+     * — those keep rich session content; anything else skips the generator (it only knows those three).
+     */
+    private function resolveChannelSession(): Session
+    {
+        $entity = $this->message->entity();
+        $useEntity = $entity instanceof Lead || $entity instanceof People || $entity instanceof Users;
+        $author = $this->message->user ?? $this->agent->user;
+
+        return new CreateSessionAction(
+            SessionData::from([
+                'app' => $this->message->app,
+                'company' => $this->message->company,
+                'agent' => $this->agent,
+                'channel' => $this->channel,
+                'entity_namespace' => $useEntity ? $entity::class : $this->channel::class,
+                'entity_id' => $useEntity ? (string) $entity->getId() : (string) $this->channel->getId(),
+                'canal_id' => $this->message->getMessage()['chat_jid'] ?? (string) $this->channel->getId(),
+                'user' => [
+                    'id' => $author->getId(),
+                    'name' => (string) ($author->displayname ?? ''),
+                    'email' => (string) ($author->email ?? ''),
+                ],
+                'content' => $useEntity ? [] : ['channel' => $this->channel->uuid],
+            ])
+        )->execute();
+    }
+
+    /**
+     * Push-notify the inbound author that the agent answered, mirroring the userChat path.
      */
     private function notifyRecipientOfReply(Message $replyMessage): void
     {
@@ -128,10 +151,6 @@ class InternalAgentChannelResponderAction
     }
 
     /**
-     * Split the inbound message's attachments by what the backends accept: image URLs go
-     * through as native multimodal content, every other file (PDF, doc, ...) comes back
-     * under `documents` so its link can be folded into the message text.
-     *
      * @return array{images: list<string>, documents: list<string>}
      */
     private function collectAttachmentUrls(): array
@@ -189,8 +208,7 @@ class InternalAgentChannelResponderAction
             tags: [self::AGENT_RESPONSE_TYPE_VERB],
         );
 
-        // Suppress the create action's own workflow pass; CREATED is fired manually below,
-        // after the source-entity link is attached, so rules that read the entity see it.
+        // Fire CREATED manually below, after the entity link is attached, so rules see the entity.
         $createMessage = new CreateMessageAction($messageInput);
         $createMessage->runWorkflow = false;
 

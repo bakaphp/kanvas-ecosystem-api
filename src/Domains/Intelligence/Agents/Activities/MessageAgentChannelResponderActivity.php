@@ -15,13 +15,9 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 /**
- * Internal kernel-based channel responder. Bind a Rule on the Channel model + the
- * `after-adding-message-to-channel` event to this activity to get an agent reply
- * for any non-connector channel. Unlike RuntimeAgentChannelResponderActivity, this
- * routes through AgentChatKernel so Neuron / Laravel / ADK agents all work.
- *
- * Set the Rule's is_async = 0 to run it inline (blocking) so the reply is created in
- * the channel synchronously.
+ * Internal kernel-based channel responder: bind a Rule on Channel + `after-adding-message-to-channel`
+ * to get an agent reply on any non-connector channel. Routes through AgentChatKernel (Neuron/Laravel/
+ * ADK all work). Rule is_async = 0 runs it inline (blocking).
  */
 #[WorkflowAction]
 class MessageAgentChannelResponderActivity extends KanvasActivity
