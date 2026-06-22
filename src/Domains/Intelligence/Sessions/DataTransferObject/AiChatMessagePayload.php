@@ -20,6 +20,11 @@ class AiChatMessagePayload extends Data
 {
     /**
      * @param list<string> $images
+     * @param list<string> $image_descriptions Vision-generated captions, parallel to $images.
+     *                                          Backfilled async by CaptionMessageImagesJob so the
+     *                                          agent's text-only history "remembers" what each image
+     *                                          was (the live turn sees the real bytes; later turns
+     *                                          only have this text).
      */
     public function __construct(
         public readonly ?string $content,
@@ -31,6 +36,7 @@ class AiChatMessagePayload extends Data
         public readonly ?string $message_id = null,
         public readonly ?string $chat_jid = null,
         public readonly array $images = [],
+        public readonly array $image_descriptions = [],
     ) {
     }
 

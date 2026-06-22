@@ -13,6 +13,8 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
+use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
+use Kanvas\Intelligence\Agents\Jobs\CaptionMessageImagesJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
@@ -96,6 +98,39 @@ class BaseAgentChannelReplyAction
         if ($message->is_un_response) {
             throw new Exception('Message is responded previous');
         }
+
+        $this->dispatchImageCaptioning();
+    }
+
+    /**
+     * Inbound channel images arrive as filesystem attachments, not in the message JSON, so the
+     * text-only history loader can't "see" them on later turns. Caption them async with the
+     * agent's own model and stash the text on the message so the agent remembers what was sent.
+     * No-ops for non-Neuron agents (the job's ImageCaptionService::forAgent returns null).
+     */
+    protected function dispatchImageCaptioning(): void
+    {
+        $imageUrls = [];
+        foreach ($this->message->files as $file) {
+            if ($file->url !== '' && $file->mediaType()->isImage()) {
+                $imageUrls[] = $file->url;
+            }
+        }
+
+        if ($imageUrls === []) {
+            return;
+        }
+
+        $user = $this->channel->company->getAiAgentUser() ?? $this->message->user;
+
+        CaptionMessageImagesJob::dispatch(
+            $this->message->app,
+            $this->agent,
+            $user,
+            CaptionTargetEnum::SOCIAL_MESSAGE,
+            (string) $this->message->getId(),
+            $imageUrls,
+        );
     }
 
     protected function createMessage(
