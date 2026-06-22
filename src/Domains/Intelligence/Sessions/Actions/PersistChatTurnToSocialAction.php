@@ -87,25 +87,25 @@ class PersistChatTurnToSocialAction
         // Client-provided URL media (already hosted on the CDN, not uploaded this turn) isn't in
         // $this->attachments, so it never lands on the message — attach it too so the file shows on
         // the message and feeds the cross-channel file rollup. addFileFromUrl only records the URL
-        // reference (no re-download).
+        // reference (no re-download). Reuse the existing Filesystem's real name (set when the file
+        // was first uploaded) for the attachment tag so filesystem_entities mirrors the file's
+        // actual name instead of the hashed URL basename.
         $nativeMedia = array_values([...$this->images, ...$this->documents]);
+        $filenames = [];
         foreach ($nativeMedia as $url) {
-            if (isset($uploadedNamesByUrl[$url])) {
-                continue;
+            $name = $uploadedNamesByUrl[$url] ?? $this->resolveFileName($url);
+            $filenames[] = $name;
+
+            if (! isset($uploadedNamesByUrl[$url])) {
+                $incoming->addFileFromUrl($url, $name !== '' ? $name : $this->fileTagFromUrl($url), $this->app);
             }
-            $incoming->addFileFromUrl($url, $this->fileTagFromUrl($url), $this->app);
         }
 
         // Describe the prompt's attachments (image/audio/PDF) with the agent's own model so later
         // turns — whose history is rebuilt from text only — still "remember" what was sent. Async:
         // the current turn already saw the real bytes, the description only has to land before the
-        // next turn. Pass the real upload name when we have it so the description can name the file.
+        // next turn. The real filename lets the description name the file ("PDF \"invoice.pdf\": …").
         if ($nativeMedia !== []) {
-            $filenames = array_map(
-                static fn (string $url): string => $uploadedNamesByUrl[$url] ?? '',
-                $nativeMedia,
-            );
-
             DescribeMessageAttachmentsJob::dispatch(
                 $this->app,
                 $this->agent,
@@ -210,6 +210,21 @@ class PersistChatTurnToSocialAction
         $this->session->saveOrFail();
 
         return $channel;
+    }
+
+    /**
+     * The real name of the file behind a URL — the Filesystem row created when it was uploaded
+     * carries the original name (e.g. "invoice.pdf") even though the URL is a hash. Empty string
+     * when the URL was never uploaded through us (a raw external link).
+     */
+    private function resolveFileName(string $url): string
+    {
+        $filesystem = Filesystem::fromApp($this->app)
+            ->fromCompany($this->company)
+            ->where('url', $url)
+            ->first();
+
+        return $filesystem !== null ? (string) $filesystem->name : '';
     }
 
     private function fileTagFromUrl(string $url): string
