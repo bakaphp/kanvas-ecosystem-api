@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Guild\Mutations\Peoples;
 
-use DateTimeInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Validation\ValidationException;
 use Kanvas\Apps\Models\Apps;
@@ -40,8 +39,8 @@ class PeopleEmploymentHistoryMutation
                 organization: $organization,
                 position: $input['position'],
                 status: (int) $input['status'],
-                start_date: $this->normalizeDate($input['start_date'] ?? null),
-                end_date: $this->normalizeDate($input['end_date'] ?? null),
+                start_date: ($input['start_date'] ?? null)?->format('Y-m-d'),
+                end_date: ($input['end_date'] ?? null)?->format('Y-m-d'),
                 income: isset($input['income']) ? (float) $input['income'] : null,
                 income_type: $input['income_type'] ?? null,
             )
@@ -65,8 +64,8 @@ class PeopleEmploymentHistoryMutation
                 organization: $organization,
                 position: $input['position'],
                 status: (int) $input['status'],
-                start_date: $this->normalizeDate($input['start_date'] ?? null),
-                end_date: $this->normalizeDate($input['end_date'] ?? null),
+                start_date: ($input['start_date'] ?? null)?->format('Y-m-d'),
+                end_date: ($input['end_date'] ?? null)?->format('Y-m-d'),
                 income: isset($input['income']) ? (float) $input['income'] : null,
                 income_type: $input['income_type'] ?? null,
             )
@@ -92,17 +91,5 @@ class PeopleEmploymentHistoryMutation
 
         return $employmentHistory;
     }
-
-    private function normalizeDate(mixed $date): ?string
-    {
-        if (empty($date)) {
-            return null;
-        }
-
-        if ($date instanceof DateTimeInterface) {
-            return $date->format('Y-m-d');
-        }
-
-        return (string) $date;
-    }
 }
+
