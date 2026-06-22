@@ -33,7 +33,7 @@ use function Sentry\captureException;
  *             Kanvas\Intelligence\FollowUp\Actions\ — see
  *             docs/intelligence/follow-up-deprecation-spec.md kill list.
  */
-class FollowUpEngagementAction
+final class FollowUpEngagementAction
 {
     protected ?FollowUp $followUp = null;
     protected ?FollowUpLog $log = null;
