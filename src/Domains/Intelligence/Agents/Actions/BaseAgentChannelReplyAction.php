@@ -112,9 +112,11 @@ class BaseAgentChannelReplyAction
     protected function dispatchAttachmentDescription(): void
     {
         $urls = [];
+        $filenames = [];
         foreach ($this->message->files as $file) {
             if ($file->url !== '' && SalesAssistKanvasMessageHistory::isDescribableFile($file)) {
                 $urls[] = $file->url;
+                $filenames[] = (string) $file->name;
             }
         }
 
@@ -131,6 +133,7 @@ class BaseAgentChannelReplyAction
             CaptionTargetEnum::SOCIAL_MESSAGE,
             (string) $this->message->getId(),
             $urls,
+            $filenames,
         );
     }
 

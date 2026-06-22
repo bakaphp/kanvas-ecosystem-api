@@ -75,12 +75,37 @@ class PersistChatTurnToSocialAction
             images: $this->images,
         );
 
+        // Use a unique tag per upload — AttachFilesystemAction replaces on tag collision, so
+        // a shared "attachment" tag would let later uploads silently overwrite earlier ones.
+        $uploadedNamesByUrl = [];
+        foreach ($this->attachments as $filesystem) {
+            $tag = $filesystem->name !== '' ? $filesystem->name : 'attachment-' . (string) $filesystem->getId();
+            $incoming->addFile($filesystem, $tag);
+            $uploadedNamesByUrl[(string) $filesystem->url] = (string) $filesystem->name;
+        }
+
+        // Client-provided URL media (already hosted on the CDN, not uploaded this turn) isn't in
+        // $this->attachments, so it never lands on the message — attach it too so the file shows on
+        // the message and feeds the cross-channel file rollup. addFileFromUrl only records the URL
+        // reference (no re-download).
+        $nativeMedia = array_values([...$this->images, ...$this->documents]);
+        foreach ($nativeMedia as $url) {
+            if (isset($uploadedNamesByUrl[$url])) {
+                continue;
+            }
+            $incoming->addFileFromUrl($url, $this->fileTagFromUrl($url), $this->app);
+        }
+
         // Describe the prompt's attachments (image/audio/PDF) with the agent's own model so later
         // turns — whose history is rebuilt from text only — still "remember" what was sent. Async:
         // the current turn already saw the real bytes, the description only has to land before the
-        // next turn.
-        $nativeMedia = array_values([...$this->images, ...$this->documents]);
+        // next turn. Pass the real upload name when we have it so the description can name the file.
         if ($nativeMedia !== []) {
+            $filenames = array_map(
+                static fn (string $url): string => $uploadedNamesByUrl[$url] ?? '',
+                $nativeMedia,
+            );
+
             DescribeMessageAttachmentsJob::dispatch(
                 $this->app,
                 $this->agent,
@@ -88,14 +113,8 @@ class PersistChatTurnToSocialAction
                 CaptionTargetEnum::SOCIAL_MESSAGE,
                 (string) $incoming->getId(),
                 $nativeMedia,
+                $filenames,
             );
-        }
-
-        // Use a unique tag per upload — AttachFilesystemAction replaces on tag collision, so
-        // a shared "attachment" tag would let later uploads silently overwrite earlier ones.
-        foreach ($this->attachments as $filesystem) {
-            $tag = $filesystem->name !== '' ? $filesystem->name : 'attachment-' . (string) $filesystem->getId();
-            $incoming->addFile($filesystem, $tag);
         }
 
         $reply = $this->createMessage(
@@ -191,6 +210,14 @@ class PersistChatTurnToSocialAction
         $this->session->saveOrFail();
 
         return $channel;
+    }
+
+    private function fileTagFromUrl(string $url): string
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+        $basename = is_string($path) && $path !== '' ? basename($path) : '';
+
+        return $basename !== '' ? $basename : 'attachment-' . md5($url);
     }
 
     /**
