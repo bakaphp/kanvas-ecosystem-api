@@ -17,7 +17,8 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Sentry\Laravel\Facade as Sentry;
 use Throwable;
 use Webleit\ZohoCrmApi\Exception\ApiError;
-use Webleit\ZohoCrmApi\Modules\Leads as ZohoLeadModule;
+use Webleit\ZohoCrmApi\Modules\Records as ZohoRecordsModule;
+use Webleit\ZohoCrmApi\ZohoCrm;
 
 class SyncLeadToZohoAction
 {
@@ -39,6 +40,7 @@ class SyncLeadToZohoAction
             $usesAgentsModule = $company->get(CustomFieldEnum::ZOHO_HAS_AGENTS_MODULE->value);
 
             $zohoCrm = Client::getInstance($this->app, $company);
+            $leadModule = $this->resolveLeadModule($zohoCrm, $company);
 
             if (! $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value)) {
                 if ($usesAgentsModule && ! $leadRotation) {
@@ -66,7 +68,7 @@ class SyncLeadToZohoAction
                 }
 
                 try {
-                    $zohoLead = $zohoCrm->leads->create($zohoData);
+                    $zohoLead = $leadModule->create($zohoData);
                     $zohoLeadId = $zohoLead->getId();
 
                     $lead->set(
@@ -86,9 +88,9 @@ class SyncLeadToZohoAction
                     });
                 }
             } else {
-                $zohoLeadInfo = $zohoCrm->leads->get((string) $zohoLeadId)->getData();
+                $zohoLeadInfo = $leadModule->get((string) $zohoLeadId)->getData();
                 if (! empty($zohoLeadInfo)) {
-                    $zohoLead = $zohoCrm->leads->update(
+                    $zohoLead = $leadModule->update(
                         (string) $zohoLeadId,
                         $zohoData
                     );
@@ -97,10 +99,26 @@ class SyncLeadToZohoAction
                 }
             }
 
-            $this->uploadAttachments($zohoCrm->leads, $lead);
+            $this->uploadAttachments($leadModule, $lead);
 
             return $zohoData;
         });
+    }
+
+    /**
+     * Target module for lead sync. Defaults to the standard "Leads" module; a company can set the
+     * ZOHO_LEAD_MODULE custom field (e.g. "Zoho_Form_Enquiries") to route incoming leads into a
+     * staging module where Zoho's own dedup/matching workflow runs before a Leads record is created.
+     */
+    protected function resolveLeadModule(ZohoCrm $zohoCrm, Companies $company): ZohoRecordsModule
+    {
+        $moduleName = $company->get(CustomFieldEnum::ZOHO_LEAD_MODULE->value);
+
+        if (empty($moduleName) || strtolower((string) $moduleName) === 'leads') {
+            return $zohoCrm->leads;
+        }
+
+        return $zohoCrm->createRecordsModule((string) $moduleName);
     }
 
     protected function assignAgent(
@@ -186,7 +204,7 @@ class SyncLeadToZohoAction
         }
     }
 
-    protected function uploadAttachments(ZohoLeadModule $zohoLead, Lead $lead): void
+    protected function uploadAttachments(ZohoRecordsModule $zohoLead, Lead $lead): void
     {
         $lead->load('files');
         $attachmentString = $lead->get('Attachments');
