@@ -44,6 +44,7 @@ class PaymentMutation
     {
         $app = app(Apps::class);
         $orderId = (int) $request['orderID'];
+        $user = auth()->user();
         $order = Order::where([
             'apps_id' => $app->getId(),
             'id' => $orderId,
@@ -53,6 +54,13 @@ class PaymentMutation
 
         if (! $payment) {
             throw new Exception('Payment not found');
+        }
+
+        // The payment row is created by whoever opened the order (often the corporate actor/system),
+        // but it must belong to whoever actually pays. Capture that here, while it's still pending.
+        if ($payment->status === PaymentStatusEnum::PENDING->value && (int) $payment->users_id !== $user->getId()) {
+            $payment->users_id = $user->getId();
+            $payment->saveQuietly();
         }
 
         $paymentIntent = new MakePaymentIntentAction($payment);

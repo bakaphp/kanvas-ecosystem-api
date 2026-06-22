@@ -11,32 +11,34 @@ use Kanvas\Users\Repositories\UsersRepository;
 
 class SwitchCompanyBranchAction
 {
-    /**
-     * __construct
-     * @return void
-     */
     public function __construct(
         protected Users $user,
         protected int $companyBranchId
     ) {
     }
 
-    /**
-     * execute
-     *
-     */
     public function execute(): bool
     {
         $branch = CompaniesBranches::getById($this->companyBranchId);
         $company = $branch->company()->firstOrFail();
-        UsersRepository::belongsToCompanyBranch($this->user, $company, $branch);
+        UsersRepository::belongsToCompanyBranch(
+            $this->user,
+            $company,
+            $branch
+        );
 
         $this->user->default_company = $company->getId();
         $this->user->default_company_branch = $branch->getId();
         $this->user->saveOrFail();
 
-        $this->user->set(Companies::cacheKey(), $branch->company->getId());
-        $this->user->set($company->branchCacheKey(), $branch->getId());
+        $this->user->set(
+            Companies::cacheKey(),
+            $branch->company->getId()
+        );
+        $this->user->set(
+            $company->branchCacheKey(),
+            $branch->getId()
+        );
 
         return true;
     }
