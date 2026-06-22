@@ -44,6 +44,9 @@ class AiChatMessagePayload extends Data
      * Drop null fields so stored JSON only carries keys the writer actually populated.
      * `content` is exempt — it's a hard contract for downstream readers, so a null content
      * (image-only MMS, sticker, reaction) is coerced to an empty string rather than stripped.
+     * `image_descriptions` is also dropped when empty: it's never set at write time (the caption
+     * job backfills it later via Message::addMessage), so keeping it would add a dead `[]` to
+     * every message.
      */
     #[Override]
     public function toArray(): array
@@ -54,6 +57,10 @@ class AiChatMessagePayload extends Data
         );
 
         $array['content'] ??= '';
+
+        if (($array['image_descriptions'] ?? null) === []) {
+            unset($array['image_descriptions']);
+        }
 
         return $array;
     }
