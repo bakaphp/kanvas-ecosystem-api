@@ -6,10 +6,15 @@ namespace Tests\Intelligence\Agents;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunLaravelAgentChatAction;
+use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
+use Kanvas\Intelligence\Agents\Jobs\CaptionMessageImagesJob;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Sessions\Models\Session;
+use Laravel\Ai\Files\Base64Image;
 use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\Data\Meta;
 use Laravel\Ai\Responses\Data\ToolCall;
@@ -74,6 +79,103 @@ class RunLaravelAgentChatActionTest extends TestCase
 
         $this->assertSame(10, $usage['prompt_tokens']);
         $this->assertSame(20, $usage['completion_tokens']);
+    }
+
+    public function testForwardsImagesToTheModelAsAttachments(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+
+        $imagePath = $this->writeTempPng();
+        $response = new AgentResponse('inv-3', 'I see a 1x1 image.', new Usage(1, 1), new Meta());
+
+        $handler = Mockery::mock(KanvasLaravelAgent::class);
+        $handler->shouldReceive('promptWithConfig')
+            ->once()
+            ->with(
+                'what is this?',
+                Mockery::on(
+                    static fn (array $attachments): bool => count($attachments) === 1 && $attachments[0] instanceof Base64Image,
+                ),
+            )
+            ->andReturn($response);
+
+        $result = new RunLaravelAgentChatAction(
+            agent: $agent,
+            session: null,
+            message: 'what is this?',
+            app: $app,
+            company: $company,
+            user: $user,
+            handler: $handler,
+            images: [$imagePath],
+        )->execute();
+
+        unlink($imagePath);
+
+        $this->assertSame('I see a 1x1 image.', $result);
+    }
+
+    public function testDispatchesCaptionJobToRememberImagesInHistory(): void
+    {
+        Queue::fake();
+
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+
+        $imagePath = $this->writeTempPng();
+        $response = new AgentResponse('inv-4', 'noted', new Usage(1, 1), new Meta());
+
+        $handler = Mockery::mock(KanvasLaravelAgent::class);
+        $handler->shouldReceive('promptWithConfig')->once()->andReturn($response);
+
+        // Session with an entity → the action writes an AgentHistory row and captions its images.
+        $session = Mockery::mock(Session::class)->makePartial();
+        $session->shouldReceive('entity')->andReturn($agent);
+        $session->uuid = 'sess-img-1';
+
+        new RunLaravelAgentChatAction(
+            agent: $agent,
+            session: $session,
+            message: 'check this',
+            app: $app,
+            company: $company,
+            user: $user,
+            handler: $handler,
+            images: [$imagePath],
+        )->execute();
+
+        unlink($imagePath);
+
+        Queue::assertPushed(
+            CaptionMessageImagesJob::class,
+            static fn (CaptionMessageImagesJob $job): bool => $job->target === CaptionTargetEnum::AGENT_HISTORY
+                && $job->imageUrls === [$imagePath],
+        );
+    }
+
+    private function writeTempPng(): string
+    {
+        // 1x1 transparent PNG — finfo detects image/png, no network needed.
+        $bytes = base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+        );
+        $path = tempnam(sys_get_temp_dir(), 'img') . '.png';
+        file_put_contents($path, $bytes);
+
+        return $path;
     }
 
     public function testReturnsStructuredPayloadAsContentForStructuredAgent(): void
