@@ -7,6 +7,7 @@ namespace Kanvas\Guild\Organizations\Actions;
 use Baka\Support\Str;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization as OrganizationData;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Services\OrganizationNameNormalizerService;
 
 class CreateOrganizationAction
 {
@@ -23,8 +24,10 @@ class CreateOrganizationAction
      */
     public function execute(): Organization
     {
+        $name = Str::limit(OrganizationNameNormalizerService::normalize($this->organizationData->name), 128, '');
+
         return Organization::firstOrCreate([
-            'name' => Str::limit($this->organizationData->name, 128, ''),
+            'name' => $name,
             'companies_id' => $this->organizationData->company->getId(),
             'apps_id' => $this->organizationData->app->getId(),
         ], [
