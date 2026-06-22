@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
@@ -13,11 +14,14 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Notifications\AgentReplyNotification;
+use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
+use Ramsey\Uuid\Uuid;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 
@@ -63,6 +67,51 @@ class InternalAgentChannelResponderActionTest extends TestCase
             $channel->messages()->wherePivot('messages_id', $reply->getId())->exists(),
             'Agent reply should be attached to the channel',
         );
+    }
+
+    public function testKeepsOneConversationPerChannelAcrossMessages(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        [$agent, $channel, $first] = $this->makeChannelConversation('first message', fromMe: false);
+        new InternalAgentChannelResponderAction($agent, $first, $channel)->execute();
+
+        // A second inbound on the SAME channel must continue the same conversation, not start a new one.
+        $second = Message::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create([
+                'message' => [
+                    'content' => 'second message',
+                    'chat_jid' => 'test-jid@channel',
+                    'from_me' => false,
+                ],
+            ]);
+        $channel->addMessage($second);
+        new InternalAgentChannelResponderAction($agent, $second, $channel)->execute();
+
+        // The channel is find-or-created into exactly one durable Session.
+        $this->assertSame(
+            1,
+            Session::where('channel_id', $channel->getId())->where('agents_id', $agent->getId())->count(),
+            'A channel must resolve to one durable session, not one per message',
+        );
+
+        // Both turns' Neuron conversation rows share the single channel-derived conversation id.
+        // KanvasMessageHistory folds an over-length session-uuid slug into a deterministic UUID
+        // (conversation_id is varchar(36)), so mirror that here.
+        $sessionUuid = SessionChannelService::buildChannelSessionUuid($channel, $app, $company);
+        $conversationId = strlen($sessionUuid) <= 36
+            ? $sessionUuid
+            : Uuid::uuid5(Uuid::NAMESPACE_OID, $sessionUuid)->toString();
+
+        $distinct = DB::connection('intelligence')
+            ->table('agent_conversation_messages')
+            ->where('conversation_id', $conversationId)
+            ->distinct()
+            ->count('conversation_id');
+        $this->assertSame(1, $distinct, 'Every turn on the channel must belong to one conversation');
     }
 
     public function testSkipsMessagesComingFromTheAgentSide(): void

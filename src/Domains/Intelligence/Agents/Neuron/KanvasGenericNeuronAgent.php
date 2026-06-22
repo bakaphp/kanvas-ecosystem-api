@@ -34,7 +34,9 @@ class KanvasGenericNeuronAgent extends BaseKanvasAgent
             company: $this->company,
             user: $this->user,
             agentClass: static::class,
-            conversationId: $this->threadId,
+            // Channel path leaves threadId null; fall back to the per-channel session so the channel
+            // keeps ONE conversation instead of "latest conversation for this user".
+            conversationId: $this->threadId ?? $this->session?->uuid,
             agent: $this->agent,
             turnMedia: $this->turnMedia,
         );
