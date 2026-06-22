@@ -22,7 +22,7 @@ class SyncAllPeopleInCompanyCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:guild-apollo-people-sync {app_id} {company_id} {total=150} {perPage=50}';
+    protected $signature = 'kanvas:guild-apollo-people-sync {app_id} {company_id} {total=150} {perPage=50} {--order=desc : Sort people by id (asc|desc)}';
 
     /**
      * The console command description.
@@ -42,6 +42,8 @@ class SyncAllPeopleInCompanyCommand extends Command
         $total = (int) $this->argument('total');
         $this->overwriteAppService($app);
         $company = Companies::getById((int) $this->argument('company_id'));
+
+        $order = strtolower((string) $this->option('order')) === 'asc' ? 'ASC' : 'DESC';
 
         $hourlyRateLimit = 400;
         $dailyRateLimit = 2000;
@@ -68,12 +70,12 @@ class SyncAllPeopleInCompanyCommand extends Command
         $currentHourlyCount = Cache::get($hourlyCacheKey, 0);
         $currentDailyCount = Cache::get($dailyCacheKey, 0);
 
-        $this->line("Syncing people for company {$company->name} from app {$app->name}, total {$total}, per page {$perPage}");
+        $this->line("Syncing people for company {$company->name} from app {$app->name}, total {$total}, per page {$perPage}, order {$order}");
 
         People::fromApp($app)
             ->fromCompany($company)
             ->notDeleted(0)
-            ->orderBy('peoples.id', 'DESC')
+            ->orderBy('peoples.id', $order)
             ->limit($total)
             ->chunk($perPage, function ($peoples) use (&$currentHourlyCount, &$currentDailyCount, $hourlyRateLimit, $dailyRateLimit, $hourlyCacheKey, $dailyCacheKey, $resetHourlyKey, $resetDailyKey, $hourlyTimeWindow, $dailyTimeWindow) {
                 foreach ($peoples as $people) {
