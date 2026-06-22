@@ -22,6 +22,7 @@ use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Tools\ToolInterface;
 use Override;
+use Ramsey\Uuid\Uuid;
 
 class KanvasMessageHistory extends AbstractChatHistory
 {
@@ -46,7 +47,7 @@ class KanvasMessageHistory extends AbstractChatHistory
     ) {
         parent::__construct($contextWindow);
 
-        $this->conversationId ??= $this->findLatestConversation();
+        $this->conversationId = $this->normalizeConversationId($this->conversationId) ?? $this->findLatestConversation();
 
         if ($this->conversationId !== null) {
             $this->load();
@@ -56,6 +57,20 @@ class KanvasMessageHistory extends AbstractChatHistory
     public function getConversationId(): ?string
     {
         return $this->conversationId;
+    }
+
+    /**
+     * conversation_id is varchar(36). The conversation key can come in as a session uuid that's
+     * actually a channel slug (e.g. "wa-chat-…-1-22613"), which overflows the column. Fold any
+     * over-length key into a deterministic UUID so the same key always maps to the same row.
+     */
+    private function normalizeConversationId(?string $id): ?string
+    {
+        if ($id === null || strlen($id) <= 36) {
+            return $id;
+        }
+
+        return Uuid::uuid5(Uuid::NAMESPACE_OID, $id)->toString();
     }
 
     private function findLatestConversation(): ?string
