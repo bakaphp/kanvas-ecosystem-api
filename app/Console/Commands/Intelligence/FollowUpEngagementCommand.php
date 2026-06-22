@@ -25,6 +25,7 @@ use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementV1Action;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Intelligence\Triggers\Actions\ApplyLeadClosingStatusAction;
 use Kanvas\Services\DailyReportService;
 
 /**
@@ -82,6 +83,7 @@ class FollowUpEngagementCommand extends Command
                 $this->overwriteAppService($lead->app);
                 // $this->reSyncLead($lead);
                 $lead->refresh();
+                new ApplyLeadClosingStatusAction($lead)->execute();
 
                 $this->info('Processing lead ID ' . $lead->id . ' - ' . $lead->people->name);
 
