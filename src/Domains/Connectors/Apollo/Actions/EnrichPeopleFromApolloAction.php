@@ -20,6 +20,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
+use Kanvas\Guild\Organizations\Models\Organization as OrganizationModel;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Locations\Models\States;
@@ -104,12 +105,45 @@ class EnrichPeopleFromApolloAction
 
         $this->attachContacts($peopleData);
 
+        $currentOrgIds = [];
+
         if (! empty($peopleData['organization'])) {
-            $this->setOrganization($peopleData['organization']);
+            $organization = $this->setOrganization($peopleData['organization']);
+            if ($organization !== null) {
+                $currentOrgIds[$organization->getId()] = $organization->getId();
+            }
         }
 
-        $this->updateEmploymentHistory($peopleData['employment_history'] ?? []);
+        foreach ($this->updateEmploymentHistory($peopleData['employment_history'] ?? []) as $currentOrgId) {
+            $currentOrgIds[$currentOrgId] = $currentOrgId;
+        }
+
+        $this->syncCurrentOrganizationLinks(array_values($currentOrgIds));
+
         $this->updateTodayReport(! empty($peopleData['employment_history']));
+    }
+
+    /**
+     * Make the person's organization links reflect only where they CURRENTLY work.
+     *
+     * Apollo can report multiple concurrent current roles, so we keep every current
+     * employer and hard-remove the stale links (the pivot has no is_deleted column).
+     * Only the organizations_peoples relationship is touched — the Organization rows
+     * and the full peoples_employment_history stay intact. We never prune when there
+     * is no confirmed current employer, so a bare match can't strip every link.
+     *
+     * @param list<int> $currentOrgIds
+     */
+    private function syncCurrentOrganizationLinks(array $currentOrgIds): void
+    {
+        if (empty($currentOrgIds)) {
+            return;
+        }
+
+        OrganizationPeople::query()
+            ->where('peoples_id', $this->people->getId())
+            ->whereNotIn('organizations_id', $currentOrgIds)
+            ->delete();
     }
 
     /**
@@ -184,10 +218,10 @@ class EnrichPeopleFromApolloAction
         $this->people->set(ConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value, time());
     }
 
-    private function setOrganization(array $organizationData): void
+    private function setOrganization(array $organizationData): ?OrganizationModel
     {
         if (empty($organizationData['name'])) {
-            return;
+            return null;
         }
 
         $organization = new CreateOrganizationAction(
@@ -232,10 +266,18 @@ class EnrichPeopleFromApolloAction
         if (! empty($organizationData['keywords'])) {
             $organization->addTags($organizationData['keywords']);
         }
+
+        return $organization;
     }
 
-    private function updateEmploymentHistory(array $employmentHistory): void
+    /**
+     * @return list<int> organization ids the person CURRENTLY works at (status=1),
+     *                   so the caller can prune the pivot to just those.
+     */
+    private function updateEmploymentHistory(array $employmentHistory): array
     {
+        $currentOrgIds = [];
+
         foreach ($employmentHistory as $employment) {
             if (empty($employment['organization_name'])) {
                 continue;
@@ -251,6 +293,14 @@ class EnrichPeopleFromApolloAction
                 )
             )->execute();
 
+            // Link + remember every current employer (even one without a title) so the
+            // pivot reflects all concurrent roles, not just Apollo's primary organization.
+            if ((int) ($employment['current'] ?? 0) === 1) {
+                $this->people->set('company', $employment['organization_name']);
+                OrganizationPeople::addPeopleToOrganization($organization, $this->people);
+                $currentOrgIds[] = $organization->getId();
+            }
+
             if (empty($employment['title'])) {
                 continue;
             }
@@ -265,12 +315,10 @@ class EnrichPeopleFromApolloAction
                 'organizations_id' => $organization->getId(),
             ]);
 
-            if ((int) $employment['current'] === 1) {
-                $this->people->set('company', $employment['organization_name']);
-            }
-
             $this->assignAudienceSegment($employment['title']);
         }
+
+        return $currentOrgIds;
     }
 
     private function assignAudienceSegment(string $jobTitle): void

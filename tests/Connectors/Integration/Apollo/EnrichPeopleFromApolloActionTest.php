@@ -11,6 +11,8 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\ContactType;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
+use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Tests\TestCase;
 
 /**
@@ -111,6 +113,57 @@ final class EnrichPeopleFromApolloActionTest extends TestCase
         );
     }
 
+    public function test_org_pivot_is_pruned_to_current_employer_only(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(static::$cachedUser->getId())
+            ->create();
+
+        // A stale org link the person already had (e.g. from a prior import) — should be
+        // removed from the pivot once we learn their real current employer.
+        $staleOrg = $this->seedOrganization('Stale Org ' . uniqid());
+        OrganizationPeople::addPeopleToOrganization($staleOrg, $people);
+
+        $suffix = uniqid();
+        $payload = [
+            'organization' => ['name' => "Current Co {$suffix}"],
+            'employment_history' => [
+                ['organization_name' => "Current Co {$suffix}", 'title' => 'CEO', 'current' => 1, 'start_date' => '2022-01-01', 'end_date' => null],
+                ['organization_name' => "Side Gig {$suffix}", 'title' => 'Advisor', 'current' => 1, 'start_date' => '2023-01-01', 'end_date' => null],
+                ['organization_name' => "Old Corp {$suffix}", 'title' => 'Analyst', 'current' => 0, 'start_date' => '2010-01-01', 'end_date' => '2019-12-31'],
+            ],
+        ];
+
+        new EnrichPeopleFromApolloAction($people, $app)->applyEnrichmentData($payload);
+
+        $linkedOrgNames = OrganizationPeople::where('peoples_id', $people->getId())
+            ->get()
+            ->map(fn ($pivot) => $pivot->organization->name)
+            ->all();
+
+        // Both concurrent current roles stay linked; the stale link is gone.
+        $this->assertContains("Current Co {$suffix}", $linkedOrgNames);
+        $this->assertContains("Side Gig {$suffix}", $linkedOrgNames);
+        $this->assertNotContains($staleOrg->name, $linkedOrgNames, 'Stale org link must be pruned from the pivot.');
+
+        // The past employer is NOT a pivot link, but its history + org record survive.
+        $this->assertNotContains("Old Corp {$suffix}", $linkedOrgNames, 'Past (non-current) employer is not a current-org link.');
+        $this->assertTrue(
+            Organization::where('name', "Old Corp {$suffix}")->where('companies_id', $company->getId())->exists(),
+            'Past employer Organization record is preserved (only the pivot relationship is touched).',
+        );
+        $this->assertSame(
+            3,
+            PeopleEmploymentHistory::where('peoples_id', $people->getId())->count(),
+            'All employment history rows are kept.',
+        );
+    }
+
     public function test_does_not_persist_or_clobber_when_apollo_returns_a_bare_match(): void
     {
         $app = app(Apps::class);
@@ -143,5 +196,17 @@ final class EnrichPeopleFromApolloActionTest extends TestCase
             $people->contacts()->where('value', $existingEmail)->exists(),
             'A bare payload must never delete existing contacts.',
         );
+    }
+
+    private function seedOrganization(string $name): Organization
+    {
+        return Organization::create([
+            'apps_id' => app(Apps::class)->getId(),
+            'companies_id' => static::$cachedUser->getCurrentCompany()->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => $name,
+            'address' => '',
+            'total_employees' => 0,
+        ]);
     }
 }
