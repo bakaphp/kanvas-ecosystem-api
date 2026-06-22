@@ -16,6 +16,7 @@ use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
 use Laravel\Ai\Contracts\HasTools;
 use Laravel\Ai\Enums\Lab;
+use Laravel\Ai\Files\File;
 use Laravel\Ai\Messages\Message;
 use Laravel\Ai\Promptable;
 use Laravel\Ai\Responses\AgentResponse;
@@ -118,7 +119,11 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
             ->all();
     }
 
-    public function promptWithConfig(string $message): AgentResponse
+    /**
+     * @param list<File> $attachments Multimodal inputs (images) for THIS turn — passed straight
+     *                                through to laravel-ai's UserMessage so the model can see them.
+     */
+    public function promptWithConfig(string $message, array $attachments = []): AgentResponse
     {
         // Snapshot → override → restore in finally so the per-tenant key only
         // lives in global config for the duration of THIS prompt call. Under
@@ -130,6 +135,7 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
         try {
             return $this->prompt(
                 $message,
+                attachments: $attachments,
                 provider: $this->getProvider(),
                 model: $this->getModel(),
                 timeout: $this->agentRecord?->config['timeout'] ?? 120,

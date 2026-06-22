@@ -15,4 +15,8 @@ enum CaptionTargetEnum: string
 
     // intelligence.agent_conversation_messages — KanvasMessageHistory reads the attachments column
     case CONVERSATION_MESSAGE = 'conversation_message';
+
+    // Kanvas\Intelligence\Agents\Models\AgentHistory — KanvasLaravelAgent::messages() reads input.content,
+    // so the caption is folded straight into that text (no loader transform on the Laravel path)
+    case AGENT_HISTORY = 'agent_history';
 }

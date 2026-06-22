@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentHistory;
 use Kanvas\Intelligence\Agents\Services\ImageCaptionService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
@@ -69,6 +70,7 @@ final class CaptionMessageImagesJob implements ShouldQueue
         match ($this->target) {
             CaptionTargetEnum::SOCIAL_MESSAGE => $this->writeToSocialMessage($captions),
             CaptionTargetEnum::CONVERSATION_MESSAGE => $this->writeToConversationMessage($captions),
+            CaptionTargetEnum::AGENT_HISTORY => $this->writeToAgentHistory($captions),
         };
     }
 
@@ -103,5 +105,37 @@ final class CaptionMessageImagesJob implements ShouldQueue
                 'attachments' => json_encode($attachments),
                 'updated_at' => now(),
             ]);
+    }
+
+    /**
+     * The Laravel path (KanvasLaravelAgent::messages()) rebuilds history straight from
+     * input.content with no marker transform, so fold the caption into that text directly.
+     *
+     * @param list<string> $captions
+     */
+    private function writeToAgentHistory(array $captions): void
+    {
+        try {
+            $history = AgentHistory::getById((int) $this->targetId, $this->app);
+        } catch (Throwable) {
+            return;
+        }
+
+        $marker = implode(
+            ' ',
+            array_map(
+                static fn (string $caption): string => "[Image: {$caption}]",
+                array_values(array_filter($captions)),
+            ),
+        );
+
+        if ($marker === '') {
+            return;
+        }
+
+        $input = $history->input ?? [];
+        $input['content'] = trim((string) ($input['content'] ?? '') . "\n" . $marker);
+        $history->input = $input;
+        $history->saveOrFail();
     }
 }

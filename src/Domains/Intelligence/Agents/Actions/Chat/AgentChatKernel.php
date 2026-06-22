@@ -148,6 +148,7 @@ class AgentChatKernel
                 company: $this->agent->company,
                 user: $this->user,
                 handler: $handler,
+                images: $this->images,
             )->execute();
         }
 
