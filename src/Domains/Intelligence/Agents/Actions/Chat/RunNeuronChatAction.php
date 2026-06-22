@@ -5,18 +5,23 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
 use Baka\Http\SafeUrlFetcher;
+use finfo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\AgentHandler;
 use NeuronAI\Agent\AgentState;
 use NeuronAI\Chat\Enums\SourceType;
+use NeuronAI\Chat\Messages\ContentBlocks\AudioContent;
+use NeuronAI\Chat\Messages\ContentBlocks\ContentBlockInterface;
+use NeuronAI\Chat\Messages\ContentBlocks\FileContent;
 use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\ToolCallMessage;
@@ -27,6 +32,9 @@ use Throwable;
 
 class RunNeuronChatAction
 {
+    /**
+     * @param list<string> $media Attachment URLs (image/audio/PDF) sent natively as content blocks.
+     */
     public function __construct(
         protected readonly Agent $agent,
         protected readonly ?Session $session,
@@ -34,7 +42,7 @@ class RunNeuronChatAction
         protected readonly Apps $app,
         protected readonly Users $user,
         protected readonly mixed $handler,
-        protected readonly array $images = []
+        protected readonly array $media = []
     ) {
     }
 
@@ -43,23 +51,20 @@ class RunNeuronChatAction
         $sessionId = $this->session?->uuid ?? '';
 
         $userMessage = new UserMessage($this->message);
-        foreach ($this->images as $image) {
-            // SSRF guard: remote images go through the validated fetcher (blocks internal
+        foreach ($this->media as $attachment) {
+            // SSRF guard: remote URLs go through the validated fetcher (blocks internal
             // hosts / cloud-metadata); data: URIs and local paths keep the raw read.
-            if (preg_match('#^https?://#i', $image)) {
-                $binary = SafeUrlFetcher::fetch($image);
+            if (preg_match('#^https?://#i', $attachment)) {
+                $binary = SafeUrlFetcher::fetch($attachment);
             } else {
-                $raw = file_get_contents($image);
+                $raw = file_get_contents($attachment);
                 $binary = $raw === false ? '' : $raw;
             }
 
-            $userMessage->addContent(
-                new ImageContent(
-                    content: base64_encode($binary),
-                    sourceType: SourceType::BASE64,
-                    mediaType: 'image/png'
-                )
-            );
+            $block = $this->buildContentBlock($binary);
+            if ($block !== null) {
+                $userMessage->addContent($block);
+            }
         }
 
         $toolCalls = [];
@@ -180,6 +185,29 @@ class RunNeuronChatAction
                 );
             }
         }
+    }
+
+    /**
+     * Wrap a fetched attachment in the matching Neuron content block by sniffing its bytes —
+     * image / audio / PDF are what Gemini accepts inline. Anything else returns null (skipped;
+     * its URL is already folded into the prompt text by AttachmentPromptBuilder upstream).
+     */
+    private function buildContentBlock(string $binary): ?ContentBlockInterface
+    {
+        if ($binary === '') {
+            return null;
+        }
+
+        $mimeType = new finfo(FILEINFO_MIME_TYPE)->buffer($binary);
+        $mimeType = is_string($mimeType) && $mimeType !== '' ? $mimeType : 'application/octet-stream';
+        $base64 = base64_encode($binary);
+
+        return match (AttachmentDescriptionService::nativeKind($mimeType)) {
+            'image' => new ImageContent($base64, SourceType::BASE64, $mimeType),
+            'audio' => new AudioContent($base64, SourceType::BASE64, $mimeType),
+            'pdf' => new FileContent($base64, SourceType::BASE64, $mimeType),
+            default => null,
+        };
     }
 
     /**

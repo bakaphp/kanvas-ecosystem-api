@@ -13,7 +13,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
-use Kanvas\Intelligence\Agents\Jobs\CaptionMessageImagesJob;
+use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Notifications\AgentReplyNotification;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
@@ -42,6 +42,7 @@ class PersistChatTurnToSocialAction
     /**
      * @param list<string> $images
      * @param list<Filesystem> $attachments Freshly uploaded files attached to the user prompt.
+     * @param list<string> $documents Non-image native attachment URLs (audio / PDF) on the prompt.
      */
     public function __construct(
         protected readonly Session $session,
@@ -54,6 +55,7 @@ class PersistChatTurnToSocialAction
         protected readonly array $images = [],
         protected readonly array $attachments = [],
         protected readonly ?Lead $currentLead = null,
+        protected readonly array $documents = [],
     ) {
     }
 
@@ -73,17 +75,19 @@ class PersistChatTurnToSocialAction
             images: $this->images,
         );
 
-        // Caption the prompt's images with the agent's own model so later turns — whose history is
-        // rebuilt from text only — still "remember" what was sent. Async: the current turn already
-        // saw the real bytes, the caption only has to land before the next turn.
-        if ($this->images !== []) {
-            CaptionMessageImagesJob::dispatch(
+        // Describe the prompt's attachments (image/audio/PDF) with the agent's own model so later
+        // turns — whose history is rebuilt from text only — still "remember" what was sent. Async:
+        // the current turn already saw the real bytes, the description only has to land before the
+        // next turn.
+        $nativeMedia = array_values([...$this->images, ...$this->documents]);
+        if ($nativeMedia !== []) {
+            DescribeMessageAttachmentsJob::dispatch(
                 $this->app,
                 $this->agent,
                 $this->user,
                 CaptionTargetEnum::SOCIAL_MESSAGE,
                 (string) $incoming->getId(),
-                array_values($this->images),
+                $nativeMedia,
             );
         }
 
