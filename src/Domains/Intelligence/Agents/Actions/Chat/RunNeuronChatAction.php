@@ -12,6 +12,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -49,6 +50,12 @@ class RunNeuronChatAction
     public function execute(): string
     {
         $sessionId = $this->session?->uuid ?? '';
+
+        // Agents whose chatHistory already records each turn (KanvasMessageHistory) must not also
+        // logTurn here — that writes a second, parallel conversation. SalesAssist-style agents write
+        // their history to Social messages, so they keep logTurn as their only conversation record.
+        $selfRecords = $this->handler instanceof BaseKanvasAgent
+            && $this->handler->persistsTurnsToConversationStore();
 
         $userMessage = new UserMessage($this->message);
         foreach ($this->media as $attachment) {
@@ -109,39 +116,42 @@ class RunNeuronChatAction
                 substr($e->getMessage(), 0, 500),
             );
 
-            new KanvasConversationStore()->logTurn(
-                userId: $this->user->getId(),
-                sessionId: $sessionId,
-                agentClass: get_class($this->handler),
-                userMessage: $this->message,
-                assistantResponse: $fallback,
-                agentId: $this->agent->getId(),
-                usage: ['error' => $e::class, 'message' => $e->getMessage()],
-            );
+            if (! $selfRecords) {
+                new KanvasConversationStore()->logTurn(
+                    userId: $this->user->getId(),
+                    sessionId: $sessionId,
+                    agentClass: get_class($this->handler),
+                    userMessage: $this->message,
+                    assistantResponse: $fallback,
+                    agentId: $this->agent->getId(),
+                    usage: ['error' => $e::class, 'message' => $e->getMessage()],
+                );
+            }
 
             return $fallback;
         }
 
         $content = $responseMessage->getContent() ?? '';
-        $response = ChatHelper::extractTextFromResponse($content);
 
-        // Record the model the agent resolved to so the daily rollup can price the
-        // turn — Neuron doesn't surface the model on the response itself.
-        if (is_object($this->handler) && method_exists($this->handler, 'resolvedModelName')) {
-            $usage['model'] = $this->handler->resolvedModelName();
+        if (! $selfRecords) {
+            // Record the model the agent resolved to so the daily rollup can price the
+            // turn — Neuron doesn't surface the model on the response itself.
+            if (is_object($this->handler) && method_exists($this->handler, 'resolvedModelName')) {
+                $usage['model'] = $this->handler->resolvedModelName();
+            }
+
+            new KanvasConversationStore()->logTurn(
+                userId: $this->user->getId(),
+                sessionId: $sessionId,
+                agentClass: get_class($this->handler),
+                userMessage: $this->message,
+                assistantResponse: ChatHelper::extractTextFromResponse($content),
+                agentId: $this->agent->getId(),
+                toolCalls: $toolCalls,
+                toolResults: $toolResults,
+                usage: $usage,
+            );
         }
-
-        new KanvasConversationStore()->logTurn(
-            userId: $this->user->getId(),
-            sessionId: $sessionId,
-            agentClass: get_class($this->handler),
-            userMessage: $this->message,
-            assistantResponse: $response,
-            agentId: $this->agent->getId(),
-            toolCalls: $toolCalls,
-            toolResults: $toolResults,
-            usage: $usage,
-        );
 
         // Idempotent backfill so SalesAssistKanvasMessageHistory (entity-keyed query)
         // sees every channel message on the next turn.

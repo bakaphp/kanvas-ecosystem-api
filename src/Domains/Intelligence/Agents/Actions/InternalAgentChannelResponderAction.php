@@ -77,7 +77,7 @@ class InternalAgentChannelResponderAction
             agent: $this->agent,
             session: $this->session,
             message: $messageContent,
-            user: $this->message->company->getAiAgentUserOrFail(),
+            user: $this->message->user ?? $this->message->company->getAiAgentUserOrFail(),
             images: $imageUrls,
             currentLead: $entity instanceof Lead ? $entity : null,
             sourceChannel: $this->channel,

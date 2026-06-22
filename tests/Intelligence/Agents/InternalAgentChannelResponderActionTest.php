@@ -21,7 +21,6 @@ use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
-use Ramsey\Uuid\Uuid;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 
@@ -98,20 +97,18 @@ class InternalAgentChannelResponderActionTest extends TestCase
             'A channel must resolve to one durable session, not one per message',
         );
 
-        // Both turns' Neuron conversation rows share the single channel-derived conversation id.
-        // KanvasMessageHistory folds an over-length session-uuid slug into a deterministic UUID
-        // (conversation_id is varchar(36)), so mirror that here.
+        // Exactly ONE conversation for this session, linked to the agent (agent_id set so the usage
+        // rollup counts it) — the memory store owns it and logTurn no longer adds a duplicate.
         $sessionUuid = SessionChannelService::buildChannelSessionUuid($channel, $app, $company);
-        $conversationId = strlen($sessionUuid) <= 36
-            ? $sessionUuid
-            : Uuid::uuid5(Uuid::NAMESPACE_OID, $sessionUuid)->toString();
-
-        $distinct = DB::connection('intelligence')
-            ->table('agent_conversation_messages')
-            ->where('conversation_id', $conversationId)
-            ->distinct()
-            ->count('conversation_id');
-        $this->assertSame(1, $distinct, 'Every turn on the channel must belong to one conversation');
+        $this->assertSame(
+            1,
+            DB::connection('intelligence')
+                ->table('agent_conversations')
+                ->where('title', $sessionUuid)
+                ->where('agent_id', $agent->getId())
+                ->count(),
+            'Both turns must reuse one agent-linked session conversation',
+        );
     }
 
     public function testSkipsMessagesComingFromTheAgentSide(): void

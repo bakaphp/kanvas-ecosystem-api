@@ -34,12 +34,25 @@ class KanvasGenericNeuronAgent extends BaseKanvasAgent
             company: $this->company,
             user: $this->user,
             agentClass: static::class,
-            // Channel path leaves threadId null; fall back to the per-channel session so the channel
-            // keeps ONE conversation instead of "latest conversation for this user".
-            conversationId: $this->threadId ?? $this->session?->uuid,
+            // userChat sets threadId (=session uuid); the channel path leaves it null but carries a
+            // stable session — either way this keys the conversation to one thread per session.
+            sessionId: $this->threadId ?? $this->session?->uuid,
             agent: $this->agent,
             turnMedia: $this->turnMedia,
+            model: $this->resolvedModelName(),
         );
+    }
+
+    /**
+     * KanvasMessageHistory already persists every turn (with usage + agent_id) to the conversation
+     * store, so RunNeuronChatAction must NOT also logTurn — that's what produced a duplicate
+     * conversation per chat. Agents whose history writes elsewhere (SalesAssist → Social messages)
+     * leave this false so logTurn stays their only usage record.
+     */
+    #[Override]
+    public function persistsTurnsToConversationStore(): bool
+    {
+        return true;
     }
 
     /**
