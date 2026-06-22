@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
+use Kanvas\Intelligence\Agents\Jobs\CaptionMessageImagesJob;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Enums\MessageRole;
 use NeuronAI\Chat\History\AbstractChatHistory;
@@ -26,6 +29,10 @@ class KanvasMessageHistory extends AbstractChatHistory
     private const string TABLE_CONVERSATIONS = 'agent_conversations';
     private const string TABLE_MESSAGES = 'agent_conversation_messages';
 
+    /**
+     * @param list<string> $turnImages Current turn's image URLs, captured on the user message so a
+     *                                 later text-only history rebuild can still remember the image.
+     */
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
@@ -33,6 +40,8 @@ class KanvasMessageHistory extends AbstractChatHistory
         private readonly string $agentClass,
         private ?string $conversationId = null,
         int $contextWindow = 50000,
+        private readonly ?Agent $agent = null,
+        private readonly array $turnImages = [],
     ) {
         parent::__construct($contextWindow);
 
@@ -69,10 +78,14 @@ class KanvasMessageHistory extends AbstractChatHistory
             ->get()
             ->map(function ($row): ?Message {
                 $content = (string) ($row->content ?? '');
+                $imageMarker = $this->buildImageMarker($row->attachments ?? null);
 
-                if ($content === '') {
+                // An image-only turn (e.g. a photo with no caption) must not vanish from history.
+                if ($content === '' && $imageMarker === '') {
                     return null;
                 }
+
+                $content = trim($content . ($imageMarker !== '' ? "\n" . $imageMarker : ''));
 
                 return $row->role === MessageRole::ASSISTANT->value
                     ? new AssistantMessage($content)
@@ -157,14 +170,25 @@ class KanvasMessageHistory extends AbstractChatHistory
         $meta = $message->jsonSerialize();
         unset($meta['role'], $meta['content'], $meta['usage'], $meta['tools']);
 
+        // Only the user turn carries the prompt's images; persist a reference so the caption
+        // backfill (and any later rebuild) can recover them — the stored row is text-only.
+        $isUserTurn = $role === MessageRole::USER->value;
+        $turnImages = $isUserTurn ? $this->turnImages : [];
+        $attachments = array_map(
+            static fn (string $url): array => ['url' => $url, 'caption' => ''],
+            array_values($turnImages),
+        );
+
+        $messageId = (string) Str::uuid7();
+
         DB::connection(self::CONNECTION)->table(self::TABLE_MESSAGES)->insert([
-            'id' => (string) Str::uuid7(),
+            'id' => $messageId,
             'conversation_id' => $this->conversationId,
             'user_id' => $this->user->getId(),
             'agent' => $this->agentClass,
             'role' => $role,
             'content' => $content,
-            'attachments' => '[]',
+            'attachments' => json_encode($attachments),
             'tool_calls' => json_encode($toolCalls),
             'tool_results' => json_encode($toolResults),
             'usage' => json_encode($usage),
@@ -172,6 +196,46 @@ class KanvasMessageHistory extends AbstractChatHistory
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        if ($turnImages !== [] && $this->agent !== null) {
+            CaptionMessageImagesJob::dispatch(
+                $this->app,
+                $this->agent,
+                $this->user,
+                CaptionTargetEnum::CONVERSATION_MESSAGE,
+                $messageId,
+                array_values($turnImages),
+            );
+        }
+    }
+
+    /**
+     * Build a "[Image: <caption>]" memory line from the row's stored attachments. Falls back to a
+     * bare "[Image attached]" when an image exists but its caption hasn't been backfilled yet, so
+     * an image turn is never silently dropped from history.
+     */
+    private function buildImageMarker(?string $attachmentsJson): string
+    {
+        if ($attachmentsJson === null || $attachmentsJson === '' || $attachmentsJson === '[]') {
+            return '';
+        }
+
+        $decoded = json_decode($attachmentsJson, true);
+
+        if (! is_array($decoded) || $decoded === []) {
+            return '';
+        }
+
+        $markers = [];
+        foreach ($decoded as $attachment) {
+            if (! is_array($attachment) || ! array_key_exists('url', $attachment)) {
+                continue;
+            }
+            $caption = trim((string) ($attachment['caption'] ?? ''));
+            $markers[] = $caption !== '' ? "[Image: {$caption}]" : '[Image attached]';
+        }
+
+        return implode(' ', $markers);
     }
 
     private function createConversation(string $firstMessage): string

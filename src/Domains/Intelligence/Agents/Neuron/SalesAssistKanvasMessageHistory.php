@@ -14,6 +14,7 @@ use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
+use Kanvas\Social\Messages\Models\Message as SocialMessage;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Enums\MessageRole;
@@ -107,12 +108,17 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
 
                 $text = (string) ($stored['content'] ?? $stored['text'] ?? '');
 
-                if ($text === '') {
-                    return null;
-                }
-
                 $fromIa = (bool) ($stored['from_ia'] ?? false);
                 $fromHuman = (bool) ($stored['from_human'] ?? false);
+
+                // Inbound images live in the message JSON (userChat) or as attached files
+                // (channel). Surface them as a text marker so an image-only turn survives and
+                // the agent "remembers" what was sent on later, text-only history rebuilds.
+                $imageMarker = $fromIa ? '' : $this->buildImageMarker($stored, $socialMessage);
+
+                if ($text === '' && $imageMarker === '') {
+                    return null;
+                }
 
                 $channel = $socialMessage->channels()->first();
                 $isInternal = $channel?->isNoteChannel() || $channel?->isAiAssistChannel();
@@ -126,6 +132,8 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
 
                     return new AssistantMessage($leadPrefix . $clean);
                 }
+
+                $text = trim($text . ($imageMarker !== '' ? "\n" . $imageMarker : ''));
 
                 if ($isInternal) {
                     $prefixed = "[INTERNAL - {$channel->name}] {$text}";
@@ -281,6 +289,39 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
         }
 
         return "[Lead: {$leadTitle}] ";
+    }
+
+    /**
+     * A "[Image: <caption>]" memory line for a turn that carried image(s). Prefers the captions
+     * backfilled by CaptionMessageImagesJob (`image_descriptions`); falls back to the raw `images`
+     * URL list (userChat) and, only when the turn would otherwise vanish, the attached image files
+     * (channel inbound) — the file lookup is gated to avoid an N+1 across the whole history.
+     */
+    private function buildImageMarker(array $stored, SocialMessage $socialMessage): string
+    {
+        $descriptions = array_values(array_filter(
+            (array) ($stored['image_descriptions'] ?? []),
+            static fn (mixed $d): bool => is_string($d) && trim($d) !== '',
+        ));
+
+        if ($descriptions !== []) {
+            return implode(' ', array_map(static fn (string $d): string => "[Image: {$d}]", $descriptions));
+        }
+
+        $images = (array) ($stored['images'] ?? []);
+        $text = (string) ($stored['content'] ?? $stored['text'] ?? '');
+
+        if ($images !== []) {
+            return str_repeat('[Image attached] ', count($images));
+        }
+
+        // Channel inbound stores the image only as a file attachment, and only before its caption
+        // backfills. Probe files just for the would-vanish case (empty text, no JSON image keys).
+        if ($text === '' && $socialMessage->getFiles()->contains(fn ($file): bool => $file->mediaType()->isImage())) {
+            return '[Image attached]';
+        }
+
+        return '';
     }
 
     #[Override]
