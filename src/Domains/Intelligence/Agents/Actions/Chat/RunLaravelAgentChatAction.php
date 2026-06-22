@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
+use Baka\Http\SafeUrlFetcher;
+use finfo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
+use Kanvas\Intelligence\Agents\Jobs\CaptionMessageImagesJob;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
@@ -13,10 +17,15 @@ use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
 use Laravel\Ai\Concerns\RemembersConversations;
+use Laravel\Ai\Files\Image;
 use Laravel\Ai\Responses\StructuredAgentResponse;
+use Throwable;
 
 class RunLaravelAgentChatAction
 {
+    /**
+     * @param list<string> $images Image URLs/paths for this turn's prompt.
+     */
     public function __construct(
         protected readonly Agent $agent,
         protected readonly ?Session $session,
@@ -25,6 +34,7 @@ class RunLaravelAgentChatAction
         protected readonly Companies $company,
         protected readonly Users $user,
         protected readonly KanvasLaravelAgent $handler,
+        protected readonly array $images = [],
     ) {
     }
 
@@ -40,7 +50,7 @@ class RunLaravelAgentChatAction
                 : $this->handler->forUser($this->user);
         }
 
-        $response = $this->handler->promptWithConfig($this->message);
+        $response = $this->handler->promptWithConfig($this->message, $this->buildImageAttachments());
         // Structured-output agents (HasStructuredOutput) return their payload in
         // ->structured; ->text is empty in JSON mode. Surface the JSON as the
         // reply so the recommendations actually reach the caller instead of "".
@@ -49,7 +59,7 @@ class RunLaravelAgentChatAction
             : $response->text;
 
         if ($sessionEntity !== null) {
-            AgentHistory::create([
+            $history = AgentHistory::create([
                 'agent_id' => $this->agent->getId(),
                 'companies_id' => $this->company->getId(),
                 'apps_id' => $this->app->getId(),
@@ -60,6 +70,20 @@ class RunLaravelAgentChatAction
                 'input' => ['role' => 'user', 'content' => $this->message],
                 'output' => ['role' => 'assistant', 'content' => $responseText],
             ]);
+
+            // History rebuild (messages()) re-sends text only, so caption the images with the
+            // agent's own model and fold the description into this row's input.content — that's
+            // how the Laravel agent "remembers" the image on later turns.
+            if ($this->images !== []) {
+                CaptionMessageImagesJob::dispatch(
+                    $this->app,
+                    $this->agent,
+                    $this->user,
+                    CaptionTargetEnum::AGENT_HISTORY,
+                    (string) $history->getId(),
+                    array_values($this->images),
+                );
+            }
         }
 
         if (! $usesMemory) {
@@ -86,5 +110,47 @@ class RunLaravelAgentChatAction
         }
 
         return $responseText;
+    }
+
+    /**
+     * Fetch each image and wrap it as a base64 laravel-ai attachment so the model sees it on this
+     * turn. SSRF guard: remote URLs go through the validated fetcher (blocks internal hosts /
+     * cloud-metadata); local paths keep the raw read. A failed fetch is skipped, not fatal.
+     *
+     * @return list<Image>
+     */
+    private function buildImageAttachments(): array
+    {
+        $attachments = [];
+
+        foreach ($this->images as $image) {
+            try {
+                if (preg_match('#^https?://#i', $image)) {
+                    $binary = SafeUrlFetcher::fetch($image);
+                } else {
+                    $raw = file_get_contents($image);
+                    $binary = $raw === false ? '' : $raw;
+                }
+
+                if ($binary === '') {
+                    continue;
+                }
+
+                $attachments[] = Image::fromBase64(base64_encode($binary), $this->detectMediaType($binary));
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
+
+        return $attachments;
+    }
+
+    private function detectMediaType(string $binary): string
+    {
+        $detected = new finfo(FILEINFO_MIME_TYPE)->buffer($binary);
+
+        return is_string($detected) && str_starts_with($detected, 'image/')
+            ? $detected
+            : 'image/png';
     }
 }

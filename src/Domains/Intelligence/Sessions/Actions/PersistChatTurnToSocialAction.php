@@ -12,6 +12,8 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
+use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
+use Kanvas\Intelligence\Agents\Jobs\CaptionMessageImagesJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Notifications\AgentReplyNotification;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
@@ -70,6 +72,20 @@ class PersistChatTurnToSocialAction
             fromIa: false,
             images: $this->images,
         );
+
+        // Caption the prompt's images with the agent's own model so later turns — whose history is
+        // rebuilt from text only — still "remember" what was sent. Async: the current turn already
+        // saw the real bytes, the caption only has to land before the next turn.
+        if ($this->images !== []) {
+            CaptionMessageImagesJob::dispatch(
+                $this->app,
+                $this->agent,
+                $this->user,
+                CaptionTargetEnum::SOCIAL_MESSAGE,
+                (string) $incoming->getId(),
+                array_values($this->images),
+            );
+        }
 
         // Use a unique tag per upload — AttachFilesystemAction replaces on tag collision, so
         // a shared "attachment" tag would let later uploads silently overwrite earlier ones.

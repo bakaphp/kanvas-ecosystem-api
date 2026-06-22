@@ -35,6 +35,8 @@ class KanvasGenericNeuronAgent extends BaseKanvasAgent
             user: $this->user,
             agentClass: static::class,
             conversationId: $this->threadId,
+            agent: $this->agent,
+            turnImages: $this->turnImages,
         );
     }
 

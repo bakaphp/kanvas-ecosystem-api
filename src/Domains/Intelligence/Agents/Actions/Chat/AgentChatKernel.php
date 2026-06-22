@@ -148,6 +148,7 @@ class AgentChatKernel
                 company: $this->agent->company,
                 user: $this->user,
                 handler: $handler,
+                images: $this->images,
             )->execute();
         }
 
@@ -178,6 +179,9 @@ class AgentChatKernel
             }
             $handler->setSession($this->session);
             $handler->setCurrentLead($this->currentLead);
+            // Plumb the turn's image URLs so the conversation history can persist a reference
+            // for captioning — the handler itself only ever sees the base64 ImageContent.
+            $handler->setTurnImages($this->images);
         }
 
         return new RunNeuronChatAction(

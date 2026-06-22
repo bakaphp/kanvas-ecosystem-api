@@ -31,6 +31,9 @@ class BaseKanvasAgent extends NeuronAIAgent
     protected ?Session $session = null;
     protected ?Lead $currentLead = null;
 
+    /** @var list<string> Image URLs/paths attached to the current turn's user prompt. */
+    protected array $turnImages = [];
+
     public function setConfiguration(
         Agent $agent,
         ?Model $entity = null,
@@ -74,6 +77,26 @@ class BaseKanvasAgent extends NeuronAIAgent
     public function setCurrentLead(?Lead $lead): void
     {
         $this->currentLead = $lead;
+    }
+
+    /**
+     * @param list<string> $images The current turn's image URLs, plumbed from the kernel so the
+     *                             chat history can persist a reference (the handler itself only
+     *                             ever sees the base64 ImageContent built downstream).
+     */
+    public function setTurnImages(array $images): void
+    {
+        $this->turnImages = array_values($images);
+    }
+
+    /**
+     * The provider the agent is currently configured to call. Exposed so the image-caption
+     * path can describe attachments with the SAME model the agent uses (provider() is
+     * protected on the NeuronAI base).
+     */
+    public function captionProvider(): AIProviderInterface
+    {
+        return $this->provider();
     }
 
     // Per-turn lead resolution: the kernel-plumbed currentLead wins; entity-as-Lead
