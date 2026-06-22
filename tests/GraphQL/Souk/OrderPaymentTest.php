@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
+use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Users\Models\Users;
 
 class OrderPaymentTest extends OrderBase
 {
@@ -87,6 +89,65 @@ class OrderPaymentTest extends OrderBase
         $data = $response->json('data.addPaymentToOrder');
         $this->assertEquals('success', $data['status']);
         $this->assertEquals(PaymentStatusEnum::PAID->value, $data['payment']['status']);
+    }
+
+    public function testMakePaymentIntentFromOrderReassignsPendingPaymentToProcessor(): void
+    {
+        $order = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => []],
+        );
+
+        $creator = Users::factory()->create();
+        $payment = $this->makePendingPaymentFor($order, $creator, PaymentStatusEnum::PENDING->value);
+
+        $this->graphQL('
+            mutation makePaymentIntentFromOrder($orderID: ID!) {
+                makePaymentIntentFromOrder(orderID: $orderID) {
+                    message
+                }
+            }
+        ', ['orderID' => $order->id])->assertSuccessful();
+
+        $payment->refresh();
+        $this->assertSame(auth()->user()->getId(), (int) $payment->users_id);
+        $this->assertNotSame($creator->getId(), (int) $payment->users_id);
+    }
+
+    public function testMakePaymentIntentFromOrderDoesNotReassignNonPendingPayment(): void
+    {
+        $order = $this->createOrderFromCart(
+            variantId: $this->variantId,
+            quantity: 1,
+            metadata: ['data' => []],
+        );
+
+        $creator = Users::factory()->create();
+        $payment = $this->makePendingPaymentFor($order, $creator, PaymentStatusEnum::WAITING_DEVICE_DATA->value);
+
+        $this->graphQL('
+            mutation makePaymentIntentFromOrder($orderID: ID!) {
+                makePaymentIntentFromOrder(orderID: $orderID) {
+                    message
+                }
+            }
+        ', ['orderID' => $order->id])->assertSuccessful();
+
+        $payment->refresh();
+        $this->assertSame($creator->getId(), (int) $payment->users_id);
+    }
+
+    private function makePendingPaymentFor(Order $order, Users $creator, string $status): Payments
+    {
+        return $order->payments()->create([
+            'amount' => 100,
+            'payment_date' => date('Y-m-d'),
+            'concept' => 'intent test payment',
+            'users_id' => $creator->getId(),
+            'companies_id' => $order->companies_id,
+            'status' => $status,
+        ]);
     }
 
     public function testAddBankTransferPaymentToOrder(): void
