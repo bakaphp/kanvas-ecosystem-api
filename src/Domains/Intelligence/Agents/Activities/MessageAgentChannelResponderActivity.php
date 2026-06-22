@@ -24,7 +24,7 @@ use Kanvas\Workflow\KanvasActivity;
  * the channel synchronously.
  */
 #[WorkflowAction]
-class InternalAgentChannelResponderActivity extends KanvasActivity
+class MessageAgentChannelResponderActivity extends KanvasActivity
 {
     public function execute(Channel $entity, Apps $app, array $params): array
     {
