@@ -15,6 +15,19 @@ use Tests\TestCase;
 
 class CreateAIAssistChannelActionTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Message is searchable via the dynamic per-tenant engine. The test app points at
+        // Typesense which is unavailable here; drop the tenant engine so indexing falls back
+        // to the null scout driver. ('null' can't be persisted via set() — get() decodes it.)
+        $app = app(Apps::class);
+        $app->del('search_engine');
+        $app->del('messages_search_engine');
+        config(['scout.driver' => 'null']);
+    }
+
     public function testPostsGreetingMessageWhenConfigured(): void
     {
         $app = app(Apps::class);
@@ -26,7 +39,7 @@ class CreateAIAssistChannelActionTest extends TestCase
         $greeting = 'Welcome! This channel lets you chat with our AI assistant about this lead. ' . uniqid();
         $company->set(ConfigurationEnum::AI_ASSIST_GREETING_MSG->value, $greeting);
 
-        $result = $this->run($lead, $app, $agent);
+        $result = $this->runAction($lead, $app, $agent);
 
         $this->assertTrue($result['is_new_channel']);
 
@@ -46,7 +59,7 @@ class CreateAIAssistChannelActionTest extends TestCase
         $company->del(ConfigurationEnum::AI_ASSIST_GREETING_MSG->value);
         $app->del(ConfigurationEnum::AI_ASSIST_GREETING_MSG->value);
 
-        $result = new CreateAIAssistChannelAction($lead, $app, (int) $agent->getId())->execute();
+        $result = $this->runAction($lead, $app, $agent);
 
         $this->assertNull($this->channelGreeting($result['channel']->getId()));
     }
@@ -61,8 +74,8 @@ class CreateAIAssistChannelActionTest extends TestCase
 
         $company->set(ConfigurationEnum::AI_ASSIST_GREETING_MSG->value, 'Hello there ' . uniqid());
 
-        $first = new CreateAIAssistChannelAction($lead, $app, (int) $agent->getId())->execute();
-        $second = new CreateAIAssistChannelAction($lead, $app, (int) $agent->getId())->execute();
+        $first = $this->runAction($lead, $app, $agent);
+        $second = $this->runAction($lead, $app, $agent);
 
         $this->assertTrue($first['is_new_channel']);
         $this->assertFalse($second['is_new_channel']);
@@ -71,6 +84,11 @@ class CreateAIAssistChannelActionTest extends TestCase
             ->whereHas('channels', fn ($q) => $q->where('channels.id', $second['channel']->getId()))
             ->count();
         $this->assertSame(1, $count);
+    }
+
+    private function runAction(Lead $lead, Apps $app, Agent $agent): array
+    {
+        return new CreateAIAssistChannelAction($lead, $app, (int) $agent->getId())->execute();
     }
 
     private function createAgent(Apps $app, $company): Agent
