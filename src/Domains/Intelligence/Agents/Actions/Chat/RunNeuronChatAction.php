@@ -52,18 +52,24 @@ class RunNeuronChatAction
 
         $userMessage = new UserMessage($this->message);
         foreach ($this->media as $attachment) {
-            // SSRF guard: remote URLs go through the validated fetcher (blocks internal
-            // hosts / cloud-metadata); data: URIs and local paths keep the raw read.
-            if (preg_match('#^https?://#i', $attachment)) {
-                $binary = SafeUrlFetcher::fetch($attachment);
-            } else {
-                $raw = file_get_contents($attachment);
-                $binary = $raw === false ? '' : $raw;
-            }
+            // One unreachable/oversized attachment must not sink the whole turn — fetch failures
+            // (SafeUrlFetcher throws on transport/SSRF) are reported and skipped, not propagated.
+            try {
+                // SSRF guard: remote URLs go through the validated fetcher (blocks internal
+                // hosts / cloud-metadata); data: URIs and local paths keep the raw read.
+                if (preg_match('#^https?://#i', $attachment)) {
+                    $binary = SafeUrlFetcher::fetch($attachment);
+                } else {
+                    $raw = file_get_contents($attachment);
+                    $binary = $raw === false ? '' : $raw;
+                }
 
-            $block = $this->buildContentBlock($binary);
-            if ($block !== null) {
-                $userMessage->addContent($block);
+                $block = $this->buildContentBlock($binary);
+                if ($block !== null) {
+                    $userMessage->addContent($block);
+                }
+            } catch (Throwable $e) {
+                report($e);
             }
         }
 

@@ -78,14 +78,23 @@ class AttachmentDescriptionService
      * result stays index-aligned with the input — callers decide whether to keep the empties.
      *
      * @param list<string> $urls
+     * @param list<string> $filenames Optional original filenames, index-aligned with $urls, so the
+     *                                description can say WHICH file it is (the URL is often a hash).
      * @return list<string>
      */
-    public function describeUrls(array $urls): array
+    public function describeUrls(array $urls, array $filenames = []): array
     {
-        return array_map(fn (string $url): string => $this->describeUrl($url), array_values($urls));
+        $urls = array_values($urls);
+        $filenames = array_values($filenames);
+
+        return array_map(
+            fn (string $url, int $i): string => $this->describeUrl($url, $filenames[$i] ?? null),
+            $urls,
+            array_keys($urls),
+        );
     }
 
-    public function describeUrl(string $url): string
+    public function describeUrl(string $url, ?string $filename = null): string
     {
         try {
             $binary = SafeUrlFetcher::fetch($url);
@@ -105,13 +114,34 @@ class AttachmentDescriptionService
             $message->addContent($block);
 
             $response = $this->provider->chat($message);
+            $description = $this->normalize((string) ($response->getContent() ?? ''));
 
-            return $this->normalize((string) ($response->getContent() ?? ''));
+            if ($description === '') {
+                return '';
+            }
+
+            // Lead with the type (and filename when known) so the agent can tell an image from a
+            // PDF and reference "the file you sent" — e.g. `PDF "receipt.pdf": <summary>`.
+            return $this->label($mimeType, $filename) . ': ' . $description;
         } catch (Throwable $e) {
             report($e);
 
             return '';
         }
+    }
+
+    private function label(string $mimeType, ?string $filename): string
+    {
+        $kind = match (self::nativeKind($mimeType)) {
+            'image' => 'Image',
+            'audio' => 'Audio',
+            'pdf' => 'PDF',
+            default => 'File',
+        };
+
+        $name = $filename !== null ? trim($filename) : '';
+
+        return $name !== '' ? "{$kind} \"{$name}\"" : $kind;
     }
 
     private function buildContentBlock(string $binary, string $mimeType): ?ContentBlockInterface

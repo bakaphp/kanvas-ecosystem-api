@@ -93,6 +93,17 @@ class ImageMemoryMarkerTest extends TestCase
         $this->assertSame('', $this->conversationMarker(''));
     }
 
+    public function testDescriptionLeadsWithTypeAndFilename(): void
+    {
+        $service = new ReflectionClass(AttachmentDescriptionService::class)->newInstanceWithoutConstructor();
+        $label = new ReflectionMethod(AttachmentDescriptionService::class, 'label');
+
+        $this->assertSame('PDF "receipt.pdf"', $label->invoke($service, 'application/pdf', 'receipt.pdf'));
+        $this->assertSame('Image', $label->invoke($service, 'image/png', null));
+        $this->assertSame('Image', $label->invoke($service, 'image/png', ''));
+        $this->assertSame('Audio "memo.mp3"', $label->invoke($service, 'audio/mpeg', 'memo.mp3'));
+    }
+
     public function testNativeKindClassifiesImageAudioPdf(): void
     {
         $this->assertSame('image', AttachmentDescriptionService::nativeKind('image/png'));

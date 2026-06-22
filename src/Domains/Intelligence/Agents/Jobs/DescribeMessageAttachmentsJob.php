@@ -36,6 +36,7 @@ final class DescribeMessageAttachmentsJob implements ShouldQueue
 
     /**
      * @param list<string> $attachmentUrls
+     * @param list<string> $filenames Optional original filenames, index-aligned with $attachmentUrls.
      */
     public function __construct(
         public readonly Apps $app,
@@ -44,6 +45,7 @@ final class DescribeMessageAttachmentsJob implements ShouldQueue
         public readonly CaptionTargetEnum $target,
         public readonly string $targetId,
         public readonly array $attachmentUrls,
+        public readonly array $filenames = [],
     ) {
     }
 
@@ -61,7 +63,7 @@ final class DescribeMessageAttachmentsJob implements ShouldQueue
             return;
         }
 
-        $descriptions = $describer->describeUrls($this->attachmentUrls);
+        $descriptions = $describer->describeUrls($this->attachmentUrls, $this->filenames);
 
         if (array_filter($descriptions) === []) {
             return;
