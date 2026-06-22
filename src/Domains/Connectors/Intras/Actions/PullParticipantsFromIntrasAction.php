@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum as ApolloConfigurationEnum;
 use Kanvas\Connectors\Intras\Client;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Intras\Mappers\ParticipantMapper;
@@ -194,6 +195,14 @@ class PullParticipantsFromIntrasAction
     protected function linkToOrganization(People $people, ?int $intrasCompanyId, ?string $position = null): void
     {
         if ($intrasCompanyId === null) {
+            return;
+        }
+
+        // Once Apollo has enriched this person it owns the current-employer relationship
+        // (it prunes the org pivot to where they actually work now). Re-adding the Intras
+        // employer link + status=1 row here would undo that, so we defer to Apollo and
+        // leave already-enriched people untouched.
+        if ($people->get(ApolloConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value)) {
             return;
         }
 

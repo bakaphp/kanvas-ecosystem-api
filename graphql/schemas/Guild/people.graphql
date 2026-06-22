@@ -289,4 +289,21 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleManagementMutation@updatePeoplePhoto"
         )
+    createPeopleEmploymentHistory(
+        input: EmploymentPeopleHistoryInput!
+    ): PeopleEmploymentHistory!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleEmploymentHistoryMutation@create"
+        )
+    updatePeopleEmploymentHistory(
+        id: ID!
+        input: EmploymentPeopleHistoryInput!
+    ): PeopleEmploymentHistory!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleEmploymentHistoryMutation@update"
+        )
+    deletePeopleEmploymentHistory(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleEmploymentHistoryMutation@delete"
+        )
 }

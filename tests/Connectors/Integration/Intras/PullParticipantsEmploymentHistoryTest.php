@@ -7,10 +7,12 @@ namespace Tests\Connectors\Integration\Intras;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum as ApolloConfigurationEnum;
 use Kanvas\Connectors\Intras\Actions\PullParticipantsFromIntrasAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use ReflectionMethod;
 use ReflectionProperty;
 use Tests\TestCase;
@@ -86,6 +88,27 @@ class PullParticipantsEmploymentHistoryTest extends TestCase
         // position is NOT NULL in the schema, so a missing Intras title is stored as ''.
         $this->assertSame('', $rows[0]->position);
         $this->assertNotNull($rows[0]->start_date, 'start_date is anchored to the person record (NOT NULL column).');
+    }
+
+    public function test_skips_relinking_when_person_already_enriched_by_apollo(): void
+    {
+        $org = $this->seedOrganization('Intras Corp ' . uniqid());
+        $people = $this->seedPeople();
+
+        // Apollo has run for this person — it owns the current-employer pivot now.
+        $people->set(ApolloConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value, time());
+
+        $action = new PullParticipantsFromIntrasAction($this->kanvasApp, $this->kanvasCompany, static::$cachedUser);
+        $this->seedOrganizationMap($action, [321 => $org->getId()]);
+
+        $this->linkToOrganization($action, $people, 321, 'Gerente');
+
+        $this->assertSame(
+            0,
+            OrganizationPeople::where('peoples_id', $people->getId())->where('organizations_id', $org->getId())->count(),
+            'Intras must not re-add the org link for an Apollo-enriched person.',
+        );
+        $this->assertCount(0, $this->employmentRows($people, $org), 'Nor write a status=1 row that fights Apollo.');
     }
 
     private function seedOrganizationMap(PullParticipantsFromIntrasAction $action, array $map): void
