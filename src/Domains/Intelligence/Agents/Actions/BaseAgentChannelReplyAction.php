@@ -13,10 +13,8 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
-use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
-use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
+use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
@@ -43,6 +41,8 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
  */
 class BaseAgentChannelReplyAction
 {
+    use DispatchesAttachmentDescriptionTrait;
+
     protected string $messageTypeVerb = 'text';
     protected string $communicationChannel = '';
 
@@ -100,42 +100,9 @@ class BaseAgentChannelReplyAction
             throw new Exception('Message is responded previous');
         }
 
-        $this->dispatchAttachmentDescription();
+        $this->dispatchAttachmentDescription($this->message, $this->agent, $this->channel);
     }
 
-    /**
-     * Inbound channel attachments (image/audio/PDF) arrive as filesystem attachments, not in the
-     * message JSON, so the text-only history loader can't "see" them on later turns. Describe them
-     * async with the agent's own model and stash the text on the message so the agent remembers
-     * what was sent. No-ops for non-Neuron agents (AttachmentDescriptionService::forAgent → null).
-     */
-    protected function dispatchAttachmentDescription(): void
-    {
-        $urls = [];
-        $filenames = [];
-        foreach ($this->message->files as $file) {
-            if ($file->url !== '' && SalesAssistKanvasMessageHistory::isDescribableFile($file)) {
-                $urls[] = $file->url;
-                $filenames[] = (string) $file->name;
-            }
-        }
-
-        if ($urls === []) {
-            return;
-        }
-
-        $user = $this->channel->company->getAiAgentUser() ?? $this->message->user;
-
-        DescribeMessageAttachmentsJob::dispatch(
-            $this->message->app,
-            $this->agent,
-            $user,
-            CaptionTargetEnum::SOCIAL_MESSAGE,
-            (string) $this->message->getId(),
-            $urls,
-            $filenames,
-        );
-    }
 
     protected function createMessage(
         string $text,

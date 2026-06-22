@@ -12,6 +12,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
+use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
@@ -320,23 +321,12 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
         // Channel inbound stores the attachment only as a file, and only before its description
         // backfills. Probe files just for the would-vanish case (empty text, no JSON image keys).
         if ($text === '' && $socialMessage->getFiles()->contains(
-            fn (Filesystem $file): bool => self::isDescribableFile($file)
+            fn (Filesystem $file): bool => AttachmentDescriptionService::isDescribableFile($file)
         )) {
             return '[Attachment]';
         }
 
         return '';
-    }
-
-    /**
-     * The attachment kinds the agent's multimodal model can describe (image / audio / PDF) — the
-     * same set DescribeMessageAttachmentsJob captions and the runners send natively.
-     */
-    public static function isDescribableFile(Filesystem $file): bool
-    {
-        $mediaType = $file->mediaType();
-
-        return $mediaType->isImage() || $mediaType->isAudio() || $mediaType->isDocument();
     }
 
     #[Override]

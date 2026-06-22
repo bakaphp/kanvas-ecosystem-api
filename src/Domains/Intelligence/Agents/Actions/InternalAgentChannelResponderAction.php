@@ -11,6 +11,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
 use Kanvas\Intelligence\Notifications\AgentReplyNotification;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -38,6 +39,8 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
  */
 class InternalAgentChannelResponderAction
 {
+    use DispatchesAttachmentDescriptionTrait;
+
     private const string AGENT_RESPONSE_TYPE_VERB = 'ai-agent-response';
 
     public function __construct(
@@ -58,6 +61,10 @@ class InternalAgentChannelResponderAction
         if (($payload['from_me'] ?? false) === true) {
             return $this->message;
         }
+
+        // Backfill text descriptions onto the inbound Social message so its `attachment_descriptions`
+        // are present for the agent's text-only history on later turns.
+        $this->dispatchAttachmentDescription($this->message, $this->agent, $this->channel);
 
         ['images' => $imageUrls, 'documents' => $documentUrls] = $this->collectAttachmentUrls();
 
