@@ -72,7 +72,7 @@ class EnrichPeopleFromApolloAction
      * Did Apollo return anything worth persisting? The echoed-back email does not
      * count — only fields Apollo actually discovered (job, history, socials, etc.).
      */
-    public function hasMeaningfulEnrichment(array $peopleData): bool
+    public static function hasMeaningfulEnrichment(array $peopleData): bool
     {
         return ! empty($peopleData['employment_history'])
             || ! empty($peopleData['organization']['name'] ?? null)
