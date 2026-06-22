@@ -20,11 +20,12 @@ class AiChatMessagePayload extends Data
 {
     /**
      * @param list<string> $images
-     * @param list<string> $image_descriptions Vision-generated captions, parallel to $images.
-     *                                          Backfilled async by CaptionMessageImagesJob so the
-     *                                          agent's text-only history "remembers" what each image
-     *                                          was (the live turn sees the real bytes; later turns
-     *                                          only have this text).
+     * @param list<string> $attachment_descriptions Model-generated descriptions (image caption /
+     *                                               audio transcript / PDF summary). Backfilled
+     *                                               async by DescribeMessageAttachmentsJob so the
+     *                                               agent's text-only history "remembers" each
+     *                                               attachment (the live turn sees the real bytes;
+     *                                               later turns only have this text).
      */
     public function __construct(
         public readonly ?string $content,
@@ -36,7 +37,7 @@ class AiChatMessagePayload extends Data
         public readonly ?string $message_id = null,
         public readonly ?string $chat_jid = null,
         public readonly array $images = [],
-        public readonly array $image_descriptions = [],
+        public readonly array $attachment_descriptions = [],
     ) {
     }
 
@@ -44,9 +45,9 @@ class AiChatMessagePayload extends Data
      * Drop null fields so stored JSON only carries keys the writer actually populated.
      * `content` is exempt — it's a hard contract for downstream readers, so a null content
      * (image-only MMS, sticker, reaction) is coerced to an empty string rather than stripped.
-     * `image_descriptions` is also dropped when empty: it's never set at write time (the caption
-     * job backfills it later via Message::addMessage), so keeping it would add a dead `[]` to
-     * every message.
+     * `attachment_descriptions` is also dropped when empty: it's never set at write time (the
+     * describe job backfills it later via Message::addMessage), so keeping it would add a dead `[]`
+     * to every message.
      */
     #[Override]
     public function toArray(): array
@@ -58,8 +59,8 @@ class AiChatMessagePayload extends Data
 
         $array['content'] ??= '';
 
-        if (($array['image_descriptions'] ?? null) === []) {
-            unset($array['image_descriptions']);
+        if (($array['attachment_descriptions'] ?? null) === []) {
+            unset($array['attachment_descriptions']);
         }
 
         return $array;

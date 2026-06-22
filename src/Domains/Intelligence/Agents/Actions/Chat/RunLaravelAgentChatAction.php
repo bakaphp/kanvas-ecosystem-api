@@ -9,14 +9,18 @@ use finfo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
-use Kanvas\Intelligence\Agents\Jobs\CaptionMessageImagesJob;
+use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
+use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
 use Laravel\Ai\Concerns\RemembersConversations;
+use Laravel\Ai\Files\Audio;
+use Laravel\Ai\Files\Document;
+use Laravel\Ai\Files\File;
 use Laravel\Ai\Files\Image;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 use Throwable;
@@ -24,7 +28,7 @@ use Throwable;
 class RunLaravelAgentChatAction
 {
     /**
-     * @param list<string> $images Image URLs/paths for this turn's prompt.
+     * @param list<string> $media Attachment URLs/paths (image/audio/PDF) for this turn's prompt.
      */
     public function __construct(
         protected readonly Agent $agent,
@@ -34,7 +38,7 @@ class RunLaravelAgentChatAction
         protected readonly Companies $company,
         protected readonly Users $user,
         protected readonly KanvasLaravelAgent $handler,
-        protected readonly array $images = [],
+        protected readonly array $media = [],
     ) {
     }
 
@@ -50,7 +54,7 @@ class RunLaravelAgentChatAction
                 : $this->handler->forUser($this->user);
         }
 
-        $response = $this->handler->promptWithConfig($this->message, $this->buildImageAttachments());
+        $response = $this->handler->promptWithConfig($this->message, $this->buildAttachments());
         // Structured-output agents (HasStructuredOutput) return their payload in
         // ->structured; ->text is empty in JSON mode. Surface the JSON as the
         // reply so the recommendations actually reach the caller instead of "".
@@ -71,17 +75,17 @@ class RunLaravelAgentChatAction
                 'output' => ['role' => 'assistant', 'content' => $responseText],
             ]);
 
-            // History rebuild (messages()) re-sends text only, so caption the images with the
-            // agent's own model and fold the description into this row's input.content — that's
-            // how the Laravel agent "remembers" the image on later turns.
-            if ($this->images !== []) {
-                CaptionMessageImagesJob::dispatch(
+            // History rebuild (messages()) re-sends text only, so describe the attachments with the
+            // agent's own model and fold the text into this row's input.content — that's how the
+            // Laravel agent "remembers" the attachment on later turns.
+            if ($this->media !== []) {
+                DescribeMessageAttachmentsJob::dispatch(
                     $this->app,
                     $this->agent,
                     $this->user,
                     CaptionTargetEnum::AGENT_HISTORY,
                     (string) $history->getId(),
-                    array_values($this->images),
+                    array_values($this->media),
                 );
             }
         }
@@ -113,22 +117,23 @@ class RunLaravelAgentChatAction
     }
 
     /**
-     * Fetch each image and wrap it as a base64 laravel-ai attachment so the model sees it on this
-     * turn. SSRF guard: remote URLs go through the validated fetcher (blocks internal hosts /
-     * cloud-metadata); local paths keep the raw read. A failed fetch is skipped, not fatal.
+     * Fetch each attachment and wrap it as the matching base64 laravel-ai file (image / audio /
+     * document) so the model sees it on this turn. SSRF guard: remote URLs go through the validated
+     * fetcher (blocks internal hosts / cloud-metadata); local paths keep the raw read. A failed
+     * fetch or a non-native type is skipped, not fatal.
      *
-     * @return list<Image>
+     * @return list<File>
      */
-    private function buildImageAttachments(): array
+    private function buildAttachments(): array
     {
         $attachments = [];
 
-        foreach ($this->images as $image) {
+        foreach ($this->media as $url) {
             try {
-                if (preg_match('#^https?://#i', $image)) {
-                    $binary = SafeUrlFetcher::fetch($image);
+                if (preg_match('#^https?://#i', $url)) {
+                    $binary = SafeUrlFetcher::fetch($url);
                 } else {
-                    $raw = file_get_contents($image);
+                    $raw = file_get_contents($url);
                     $binary = $raw === false ? '' : $raw;
                 }
 
@@ -136,7 +141,10 @@ class RunLaravelAgentChatAction
                     continue;
                 }
 
-                $attachments[] = Image::fromBase64(base64_encode($binary), $this->detectMediaType($binary));
+                $file = $this->wrapAttachment($binary);
+                if ($file !== null) {
+                    $attachments[] = $file;
+                }
             } catch (Throwable $e) {
                 report($e);
             }
@@ -145,12 +153,17 @@ class RunLaravelAgentChatAction
         return $attachments;
     }
 
-    private function detectMediaType(string $binary): string
+    private function wrapAttachment(string $binary): ?File
     {
-        $detected = new finfo(FILEINFO_MIME_TYPE)->buffer($binary);
+        $mimeType = new finfo(FILEINFO_MIME_TYPE)->buffer($binary);
+        $mimeType = is_string($mimeType) && $mimeType !== '' ? $mimeType : 'application/octet-stream';
+        $base64 = base64_encode($binary);
 
-        return is_string($detected) && str_starts_with($detected, 'image/')
-            ? $detected
-            : 'image/png';
+        return match (AttachmentDescriptionService::nativeKind($mimeType)) {
+            'image' => Image::fromBase64($base64, $mimeType),
+            'audio' => Audio::fromBase64($base64, $mimeType),
+            'pdf' => Document::fromBase64($base64, $mimeType),
+            default => null,
+        };
     }
 }

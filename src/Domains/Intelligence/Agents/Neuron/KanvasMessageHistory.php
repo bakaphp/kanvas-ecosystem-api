@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
-use Kanvas\Intelligence\Agents\Jobs\CaptionMessageImagesJob;
+use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Enums\MessageRole;
@@ -30,8 +30,9 @@ class KanvasMessageHistory extends AbstractChatHistory
     private const string TABLE_MESSAGES = 'agent_conversation_messages';
 
     /**
-     * @param list<string> $turnImages Current turn's image URLs, captured on the user message so a
-     *                                 later text-only history rebuild can still remember the image.
+     * @param list<string> $turnMedia Current turn's attachment URLs (image/audio/PDF), captured on
+     *                                the user message so a later text-only history rebuild can still
+     *                                remember the attachment.
      */
     public function __construct(
         private readonly Apps $app,
@@ -41,7 +42,7 @@ class KanvasMessageHistory extends AbstractChatHistory
         private ?string $conversationId = null,
         int $contextWindow = 50000,
         private readonly ?Agent $agent = null,
-        private readonly array $turnImages = [],
+        private readonly array $turnMedia = [],
     ) {
         parent::__construct($contextWindow);
 
@@ -78,14 +79,14 @@ class KanvasMessageHistory extends AbstractChatHistory
             ->get()
             ->map(function ($row): ?Message {
                 $content = (string) ($row->content ?? '');
-                $imageMarker = $this->buildImageMarker($row->attachments ?? null);
+                $attachmentMarker = $this->buildAttachmentMarker($row->attachments ?? null);
 
-                // An image-only turn (e.g. a photo with no caption) must not vanish from history.
-                if ($content === '' && $imageMarker === '') {
+                // An attachment-only turn (e.g. a photo with no caption) must not vanish from history.
+                if ($content === '' && $attachmentMarker === '') {
                     return null;
                 }
 
-                $content = trim($content . ($imageMarker !== '' ? "\n" . $imageMarker : ''));
+                $content = trim($content . ($attachmentMarker !== '' ? "\n" . $attachmentMarker : ''));
 
                 return $row->role === MessageRole::ASSISTANT->value
                     ? new AssistantMessage($content)
@@ -170,13 +171,13 @@ class KanvasMessageHistory extends AbstractChatHistory
         $meta = $message->jsonSerialize();
         unset($meta['role'], $meta['content'], $meta['usage'], $meta['tools']);
 
-        // Only the user turn carries the prompt's images; persist a reference so the caption
+        // Only the user turn carries the prompt's attachments; persist a reference so the describe
         // backfill (and any later rebuild) can recover them — the stored row is text-only.
         $isUserTurn = $role === MessageRole::USER->value;
-        $turnImages = $isUserTurn ? $this->turnImages : [];
+        $turnMedia = $isUserTurn ? $this->turnMedia : [];
         $attachments = array_map(
             static fn (string $url): array => ['url' => $url, 'caption' => ''],
-            array_values($turnImages),
+            array_values($turnMedia),
         );
 
         $messageId = (string) Str::uuid7();
@@ -197,24 +198,24 @@ class KanvasMessageHistory extends AbstractChatHistory
             'updated_at' => now(),
         ]);
 
-        if ($turnImages !== [] && $this->agent !== null) {
-            CaptionMessageImagesJob::dispatch(
+        if ($turnMedia !== [] && $this->agent !== null) {
+            DescribeMessageAttachmentsJob::dispatch(
                 $this->app,
                 $this->agent,
                 $this->user,
                 CaptionTargetEnum::CONVERSATION_MESSAGE,
                 $messageId,
-                array_values($turnImages),
+                array_values($turnMedia),
             );
         }
     }
 
     /**
-     * Build a "[Image: <caption>]" memory line from the row's stored attachments. Falls back to a
-     * bare "[Image attached]" when an image exists but its caption hasn't been backfilled yet, so
-     * an image turn is never silently dropped from history.
+     * Build a "[Attachment: <description>]" memory line from the row's stored attachments. Falls
+     * back to a bare "[Attachment]" when an attachment exists but its description hasn't been
+     * backfilled yet, so an attachment turn is never silently dropped from history.
      */
-    private function buildImageMarker(?string $attachmentsJson): string
+    private function buildAttachmentMarker(?string $attachmentsJson): string
     {
         if ($attachmentsJson === null || $attachmentsJson === '' || $attachmentsJson === '[]') {
             return '';
@@ -232,7 +233,7 @@ class KanvasMessageHistory extends AbstractChatHistory
                 continue;
             }
             $caption = trim((string) ($attachment['caption'] ?? ''));
-            $markers[] = $caption !== '' ? "[Image: {$caption}]" : '[Image attached]';
+            $markers[] = $caption !== '' ? "[Attachment: {$caption}]" : '[Attachment]';
         }
 
         return implode(' ', $markers);
