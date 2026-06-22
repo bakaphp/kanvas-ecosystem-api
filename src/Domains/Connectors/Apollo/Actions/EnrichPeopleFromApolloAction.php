@@ -14,6 +14,7 @@ use Kanvas\Guild\Customers\DataTransferObject\Address as AddressData;
 use Kanvas\Guild\Customers\DataTransferObject\Contact as ContactData;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\ContactType;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
@@ -53,9 +54,32 @@ class EnrichPeopleFromApolloAction
             return $this->response('failed', 'No Apollo match found');
         }
 
+        // A free / credit-exhausted Apollo key still returns a bare match (just the
+        // name + the email we sent), but no title, LinkedIn, employment history,
+        // location or phone. Writing that back gains nothing and — worse — would let
+        // the empty payload clobber existing data. Bail out without touching anything.
+        if (! $this->hasMeaningfulEnrichment($peopleData)) {
+            return $this->response('no_data', 'Apollo matched the person but returned no enrichment data (free/credit-limited key)');
+        }
+
         $this->applyEnrichmentData($peopleData);
 
         return $this->response('success', 'People screened successfully', $peopleData);
+    }
+
+    /**
+     * Did Apollo return anything worth persisting? The echoed-back email does not
+     * count — only fields Apollo actually discovered (job, history, socials, etc.).
+     */
+    public function hasMeaningfulEnrichment(array $peopleData): bool
+    {
+        return ! empty($peopleData['employment_history'])
+            || ! empty($peopleData['organization']['name'] ?? null)
+            || ! empty($peopleData['title'])
+            || ! empty($peopleData['headline'])
+            || ! empty($peopleData['linkedin_url'])
+            || ! empty($peopleData['phone_numbers'])
+            || (! empty($peopleData['city']) && ! empty($peopleData['state']) && ! empty($peopleData['country']));
     }
 
     /**
@@ -64,11 +88,21 @@ class EnrichPeopleFromApolloAction
      */
     public function applyEnrichmentData(array $peopleData): void
     {
-        $contacts = $this->buildContacts($peopleData);
-        $address = $this->buildAddress($peopleData);
-        $peopleDto = $this->buildPeopleDto($peopleData, $contacts, $address);
+        // Only let Apollo set an address when the person has none — its address sync
+        // is destructive (soft-deletes addresses not in the input), so for someone who
+        // already has an address we skip it rather than risk evicting the real one.
+        $address = $this->people->address()->count() === 0
+            ? $this->buildAddress($peopleData)
+            : [];
+
+        // Contacts are merged additively below — never hand them to UpdatePeopleAction,
+        // whose syncContactsForUpdate treats the incoming list as authoritative and
+        // soft-deletes every existing contact Apollo didn't return.
+        $peopleDto = $this->buildPeopleDto($peopleData, $address);
 
         new UpdatePeopleAction($this->people, $peopleDto)->execute();
+
+        $this->attachContacts($peopleData);
 
         if (! empty($peopleData['organization'])) {
             $this->setOrganization($peopleData['organization']);
@@ -78,16 +112,47 @@ class EnrichPeopleFromApolloAction
         $this->updateTodayReport(! empty($peopleData['employment_history']));
     }
 
-    private function buildPeopleDto(array $peopleData, array $contacts, array $address): PeopleData
+    /**
+     * Merge Apollo-discovered contacts onto the person without removing anything.
+     * Mirrors the idempotent upsert used by the Intras importer: keyed on
+     * (person, normalized value, type), so re-runs update weight/opt-out in place
+     * and never delete contacts the enrichment simply didn't return.
+     */
+    private function attachContacts(array $peopleData): void
+    {
+        foreach ($this->buildContacts($peopleData) as $contact) {
+            $value = Contact::normalizeValue($contact['value'], $contact['contacts_types_id']);
+            if ($value === '') {
+                continue;
+            }
+
+            Contact::updateOrCreate(
+                [
+                    'peoples_id' => $this->people->getId(),
+                    'value' => $value,
+                    'contacts_types_id' => $contact['contacts_types_id'],
+                ],
+                [
+                    'weight' => $contact['weight'],
+                    'is_opt_out' => 0,
+                ]
+            );
+        }
+    }
+
+    private function buildPeopleDto(array $peopleData, array $address): PeopleData
     {
         return PeopleData::from([
             'app' => $this->app,
             'branch' => $this->people->company->defaultBranch,
             'user' => $this->people->user,
-            'firstname' => $peopleData['first_name'] ?? $this->people->firstname,
-            'middlename' => $this->people->middlename ?? $this->people->middlename,
-            'lastname' => $peopleData['last_name'] ?? $this->people->lastname,
-            'contacts' => ContactData::collect($contacts, DataCollection::class),
+            // Keep the name we already have — Apollo normalizes/truncates names
+            // (e.g. drops compound surnames), so enrichment must not rename people.
+            // Only fall back to Apollo when our own value is blank.
+            'firstname' => $this->people->firstname ?: ($peopleData['first_name'] ?? ''),
+            'middlename' => $this->people->middlename,
+            'lastname' => $this->people->lastname ?: ($peopleData['last_name'] ?? ''),
+            'contacts' => ContactData::collect([], DataCollection::class),
             'address' => AddressData::collect($address, DataCollection::class),
             'id' => $this->people->getId(),
             'custom_fields' => [
