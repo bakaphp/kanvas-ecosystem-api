@@ -10,10 +10,11 @@ use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunLaravelAgentChatAction;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
-use Kanvas\Intelligence\Agents\Jobs\CaptionMessageImagesJob;
+use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Laravel\Ai\Files\Base64Document;
 use Laravel\Ai\Files\Base64Image;
 use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\Data\Meta;
@@ -114,7 +115,7 @@ class RunLaravelAgentChatActionTest extends TestCase
             company: $company,
             user: $user,
             handler: $handler,
-            images: [$imagePath],
+            media: [$imagePath],
         )->execute();
 
         unlink($imagePath);
@@ -154,16 +155,57 @@ class RunLaravelAgentChatActionTest extends TestCase
             company: $company,
             user: $user,
             handler: $handler,
-            images: [$imagePath],
+            media: [$imagePath],
         )->execute();
 
         unlink($imagePath);
 
         Queue::assertPushed(
-            CaptionMessageImagesJob::class,
-            static fn (CaptionMessageImagesJob $job): bool => $job->target === CaptionTargetEnum::AGENT_HISTORY
-                && $job->imageUrls === [$imagePath],
+            DescribeMessageAttachmentsJob::class,
+            static fn (DescribeMessageAttachmentsJob $job): bool => $job->target === CaptionTargetEnum::AGENT_HISTORY
+                && $job->attachmentUrls === [$imagePath],
         );
+    }
+
+    public function testForwardsPdfToTheModelAsADocumentAttachment(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+
+        $pdfPath = $this->writeTempPdf();
+        $response = new AgentResponse('inv-5', 'I read the PDF.', new Usage(1, 1), new Meta());
+
+        $handler = Mockery::mock(KanvasLaravelAgent::class);
+        $handler->shouldReceive('promptWithConfig')
+            ->once()
+            ->with(
+                'summarize this',
+                Mockery::on(
+                    static fn (array $attachments): bool => count($attachments) === 1 && $attachments[0] instanceof Base64Document,
+                ),
+            )
+            ->andReturn($response);
+
+        new RunLaravelAgentChatAction(
+            agent: $agent,
+            session: null,
+            message: 'summarize this',
+            app: $app,
+            company: $company,
+            user: $user,
+            handler: $handler,
+            media: [$pdfPath],
+        )->execute();
+
+        unlink($pdfPath);
+
+        $this->assertTrue(true);
     }
 
     private function writeTempPng(): string
@@ -173,6 +215,16 @@ class RunLaravelAgentChatActionTest extends TestCase
             'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
         );
         $path = tempnam(sys_get_temp_dir(), 'img') . '.png';
+        file_put_contents($path, $bytes);
+
+        return $path;
+    }
+
+    private function writeTempPdf(): string
+    {
+        // Minimal PDF — the %PDF- header is enough for finfo to report application/pdf.
+        $bytes = "%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF";
+        $path = tempnam(sys_get_temp_dir(), 'doc') . '.pdf';
         file_put_contents($path, $bytes);
 
         return $path;

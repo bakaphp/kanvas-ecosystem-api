@@ -6,16 +6,16 @@ namespace Tests\Intelligence\Agents;
 
 use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
-use Kanvas\Intelligence\Agents\Services\ImageCaptionService;
+use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Social\Messages\Models\Message as SocialMessage;
 use ReflectionClass;
 use ReflectionMethod;
 use Tests\TestCase;
 
 /**
- * Guards the "agent remembers images" fix: both Neuron histories rebuild from text only, so an
- * image turn must be re-materialized as a "[Image: <caption>]" memory line (and never dropped when
- * it has no text). Pure marker logic — no DB or LLM — exercised via reflection.
+ * Guards the "agent remembers attachments" fix: both Neuron histories rebuild from text only, so an
+ * attachment turn (image / audio / PDF) must be re-materialized as a "[Attachment: <desc>]" memory
+ * line (and never dropped when it has no text). Pure marker logic — no DB or LLM — via reflection.
  */
 class ImageMemoryMarkerTest extends TestCase
 {
@@ -23,7 +23,7 @@ class ImageMemoryMarkerTest extends TestCase
     {
         $history = new ReflectionClass(SalesAssistKanvasMessageHistory::class)->newInstanceWithoutConstructor();
 
-        return new ReflectionMethod(SalesAssistKanvasMessageHistory::class, 'buildImageMarker')
+        return new ReflectionMethod(SalesAssistKanvasMessageHistory::class, 'buildAttachmentMarker')
             ->invoke($history, $stored, $message ?? new SocialMessage());
     }
 
@@ -31,59 +31,59 @@ class ImageMemoryMarkerTest extends TestCase
     {
         $history = new ReflectionClass(KanvasMessageHistory::class)->newInstanceWithoutConstructor();
 
-        return new ReflectionMethod(KanvasMessageHistory::class, 'buildImageMarker')
+        return new ReflectionMethod(KanvasMessageHistory::class, 'buildAttachmentMarker')
             ->invoke($history, $attachmentsJson);
     }
 
-    public function testSalesCaptionsBecomeMemoryLines(): void
+    public function testSalesDescriptionsBecomeMemoryLines(): void
     {
         $marker = $this->salesMarker([
             'content' => '',
-            'image_descriptions' => ['a plate of grilled chicken and rice', 'a glass of water'],
+            'attachment_descriptions' => ['a plate of grilled chicken and rice', 'transcript: see you at 5pm'],
         ]);
 
-        $this->assertSame('[Image: a plate of grilled chicken and rice] [Image: a glass of water]', $marker);
+        $this->assertSame('[Attachment: a plate of grilled chicken and rice] [Attachment: transcript: see you at 5pm]', $marker);
     }
 
-    public function testSalesFallsBackToAttachedMarkerWhenNoCaptionYet(): void
+    public function testSalesFallsBackToAttachedMarkerWhenNoDescriptionYet(): void
     {
         $marker = $this->salesMarker([
             'content' => '',
             'images' => ['https://cdn.example/snap-1.jpg', 'https://cdn.example/snap-2.jpg'],
         ]);
 
-        $this->assertSame('[Image attached] [Image attached]', trim($marker));
+        $this->assertSame('[Attachment] [Attachment]', trim($marker));
     }
 
-    public function testSalesReturnsEmptyWhenNoImageAndHasText(): void
+    public function testSalesReturnsEmptyWhenNoAttachmentAndHasText(): void
     {
-        $this->assertSame('', $this->salesMarker(['content' => 'just text, no image']));
+        $this->assertSame('', $this->salesMarker(['content' => 'just text, no attachment']));
     }
 
-    public function testSalesIgnoresBlankCaptions(): void
+    public function testSalesIgnoresBlankDescriptions(): void
     {
         $marker = $this->salesMarker([
             'content' => 'hello',
-            'image_descriptions' => ['', '   '],
+            'attachment_descriptions' => ['', '   '],
         ]);
 
         $this->assertSame('', $marker);
     }
 
-    public function testConversationCaptionsBecomeMemoryLines(): void
+    public function testConversationDescriptionsBecomeMemoryLines(): void
     {
         $json = json_encode([
-            ['url' => 'https://cdn.example/x.jpg', 'caption' => 'a sunset over the ocean'],
+            ['url' => 'https://cdn.example/x.pdf', 'caption' => 'Invoice #42, total $1,200'],
         ]);
 
-        $this->assertSame('[Image: a sunset over the ocean]', $this->conversationMarker($json));
+        $this->assertSame('[Attachment: Invoice #42, total $1,200]', $this->conversationMarker($json));
     }
 
-    public function testConversationFallsBackWhenCaptionMissing(): void
+    public function testConversationFallsBackWhenDescriptionMissing(): void
     {
-        $json = json_encode([['url' => 'https://cdn.example/x.jpg', 'caption' => '']]);
+        $json = json_encode([['url' => 'https://cdn.example/x.mp3', 'caption' => '']]);
 
-        $this->assertSame('[Image attached]', $this->conversationMarker($json));
+        $this->assertSame('[Attachment]', $this->conversationMarker($json));
     }
 
     public function testConversationEmptyAttachmentsReturnEmpty(): void
@@ -93,16 +93,36 @@ class ImageMemoryMarkerTest extends TestCase
         $this->assertSame('', $this->conversationMarker(''));
     }
 
-    public function testCaptionNormalizeCollapsesWhitespaceAndTruncates(): void
+    public function testDescriptionLeadsWithTypeAndFilename(): void
     {
-        $service = new ReflectionClass(ImageCaptionService::class)->newInstanceWithoutConstructor();
-        $normalize = new ReflectionMethod(ImageCaptionService::class, 'normalize');
+        $service = new ReflectionClass(AttachmentDescriptionService::class)->newInstanceWithoutConstructor();
+        $label = new ReflectionMethod(AttachmentDescriptionService::class, 'label');
+
+        $this->assertSame('PDF "receipt.pdf"', $label->invoke($service, 'application/pdf', 'receipt.pdf'));
+        $this->assertSame('Image', $label->invoke($service, 'image/png', null));
+        $this->assertSame('Image', $label->invoke($service, 'image/png', ''));
+        $this->assertSame('Audio "memo.mp3"', $label->invoke($service, 'audio/mpeg', 'memo.mp3'));
+    }
+
+    public function testNativeKindClassifiesImageAudioPdf(): void
+    {
+        $this->assertSame('image', AttachmentDescriptionService::nativeKind('image/png'));
+        $this->assertSame('audio', AttachmentDescriptionService::nativeKind('audio/mpeg'));
+        $this->assertSame('pdf', AttachmentDescriptionService::nativeKind('application/pdf'));
+        $this->assertNull(AttachmentDescriptionService::nativeKind('application/zip'));
+        $this->assertNull(AttachmentDescriptionService::nativeKind('video/mp4'));
+    }
+
+    public function testDescriptionNormalizeCollapsesWhitespaceAndTruncates(): void
+    {
+        $service = new ReflectionClass(AttachmentDescriptionService::class)->newInstanceWithoutConstructor();
+        $normalize = new ReflectionMethod(AttachmentDescriptionService::class, 'normalize');
 
         $this->assertSame('a clean single line', $normalize->invoke($service, "  a clean\n  single   line  "));
 
-        $long = str_repeat('x', 400);
+        $long = str_repeat('x', 800);
         $result = $normalize->invoke($service, $long);
-        $this->assertLessThanOrEqual(280, mb_strlen($result));
+        $this->assertLessThanOrEqual(600, mb_strlen($result));
         $this->assertStringEndsWith('…', $result);
     }
 }

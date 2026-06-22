@@ -163,6 +163,50 @@ class UserAgentChatUploadsTest extends TestCase
         $this->assertSame(1, $docCount, 'one document attachment should be on the user message');
     }
 
+    public function testClientSuppliedUrlFilesAttachToTheUserMessage(): void
+    {
+        // No uploads this turn — the client passes already-hosted CDN URLs. These must still land
+        // on the persisted user message (regression: previously only multipart uploads attached).
+        $response = $this->graphQL(
+            /** @lang GraphQL */
+            '
+                mutation($input: UserChatInput!) {
+                    aiAgentUserChat(input: $input) {
+                        message { id }
+                        channel { id }
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'agent_id' => (string) $this->agent->getId(),
+                    'message' => 'can you understand these 2 files?',
+                    'images' => ['https://cdn.test/photo.png'],
+                    'files' => ['https://cdn.test/brief.pdf'],
+                ],
+            ],
+        );
+
+        $response->assertSuccessful();
+        $this->assertArrayNotHasKey('errors', $response->json(), 'GraphQL errors: ' . $response->getContent());
+
+        $channelId = $response->json('data.aiAgentUserChat.channel.id');
+        $this->assertNotNull($channelId);
+
+        $channelMessages = Message::join('channel_messages', 'channel_messages.messages_id', '=', 'messages.id')
+            ->where('channel_messages.channel_id', $channelId)
+            ->orderBy('messages.id')
+            ->select('messages.*')
+            ->get();
+
+        $userMessage = $channelMessages->first(fn (Message $m): bool => ! ($m->getMessage()['from_ia'] ?? false));
+        $this->assertNotNull($userMessage, 'user prompt message must exist on the channel');
+
+        $urls = $userMessage->getFiles()->map(fn (FilesystemEntities $f): string => (string) $f->filesystem->url)->all();
+        $this->assertContains('https://cdn.test/photo.png', $urls, 'client image URL must attach to the user message');
+        $this->assertContains('https://cdn.test/brief.pdf', $urls, 'client file URL must attach to the user message');
+    }
+
     public function testUserChatWithDocumentUploadClassifiesAsFileNotImage(): void
     {
         $beforeId = (int) (Filesystem::max('id') ?? 0);

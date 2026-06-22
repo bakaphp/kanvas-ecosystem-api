@@ -31,8 +31,8 @@ class BaseKanvasAgent extends NeuronAIAgent
     protected ?Session $session = null;
     protected ?Lead $currentLead = null;
 
-    /** @var list<string> Image URLs/paths attached to the current turn's user prompt. */
-    protected array $turnImages = [];
+    /** @var list<string> Attachment URLs/paths (image/audio/PDF) on the current turn's user prompt. */
+    protected array $turnMedia = [];
 
     public function setConfiguration(
         Agent $agent,
@@ -80,13 +80,13 @@ class BaseKanvasAgent extends NeuronAIAgent
     }
 
     /**
-     * @param list<string> $images The current turn's image URLs, plumbed from the kernel so the
-     *                             chat history can persist a reference (the handler itself only
-     *                             ever sees the base64 ImageContent built downstream).
+     * @param list<string> $media The current turn's attachment URLs (image/audio/PDF), plumbed from
+     *                            the kernel so the chat history can persist a reference (the handler
+     *                            itself only ever sees the base64 content blocks built downstream).
      */
-    public function setTurnImages(array $images): void
+    public function setTurnMedia(array $media): void
     {
-        $this->turnImages = array_values($images);
+        $this->turnMedia = array_values($media);
     }
 
     /**

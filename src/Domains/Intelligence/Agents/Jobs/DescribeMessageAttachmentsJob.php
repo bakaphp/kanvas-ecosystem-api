@@ -15,18 +15,18 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
-use Kanvas\Intelligence\Agents\Services\ImageCaptionService;
+use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
 /**
- * Backfills text captions for the images of a single chat message, using the agent's own model,
- * so the agent's text-only history "remembers" what each image was on later turns. Runs async —
- * the live turn already saw the real bytes, so the caption only has to exist by the NEXT turn,
- * keeping reply latency untouched.
+ * Backfills text descriptions for a chat message's attachments (image caption / audio transcript /
+ * PDF summary), using the agent's own model, so the agent's text-only history "remembers" what each
+ * attachment was on later turns. Runs async — the live turn already saw the real bytes, so the
+ * description only has to exist by the NEXT turn, keeping reply latency untouched.
  */
-final class CaptionMessageImagesJob implements ShouldQueue
+final class DescribeMessageAttachmentsJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -35,7 +35,8 @@ final class CaptionMessageImagesJob implements ShouldQueue
     use SerializesModels;
 
     /**
-     * @param list<string> $imageUrls
+     * @param list<string> $attachmentUrls
+     * @param list<string> $filenames Optional original filenames, index-aligned with $attachmentUrls.
      */
     public function __construct(
         public readonly Apps $app,
@@ -43,7 +44,8 @@ final class CaptionMessageImagesJob implements ShouldQueue
         public readonly Users $user,
         public readonly CaptionTargetEnum $target,
         public readonly string $targetId,
-        public readonly array $imageUrls,
+        public readonly array $attachmentUrls,
+        public readonly array $filenames = [],
     ) {
     }
 
@@ -51,33 +53,33 @@ final class CaptionMessageImagesJob implements ShouldQueue
     {
         $this->overwriteAppService($this->app);
 
-        if ($this->imageUrls === []) {
+        if ($this->attachmentUrls === []) {
             return;
         }
 
-        $captioner = ImageCaptionService::forAgent($this->agent, $this->user);
+        $describer = AttachmentDescriptionService::forAgent($this->agent, $this->user);
 
-        if ($captioner === null) {
+        if ($describer === null) {
             return;
         }
 
-        $captions = $captioner->captionUrls($this->imageUrls);
+        $descriptions = $describer->describeUrls($this->attachmentUrls, $this->filenames);
 
-        if (array_filter($captions) === []) {
+        if (array_filter($descriptions) === []) {
             return;
         }
 
         match ($this->target) {
-            CaptionTargetEnum::SOCIAL_MESSAGE => $this->writeToSocialMessage($captions),
-            CaptionTargetEnum::CONVERSATION_MESSAGE => $this->writeToConversationMessage($captions),
-            CaptionTargetEnum::AGENT_HISTORY => $this->writeToAgentHistory($captions),
+            CaptionTargetEnum::SOCIAL_MESSAGE => $this->writeToSocialMessage($descriptions),
+            CaptionTargetEnum::CONVERSATION_MESSAGE => $this->writeToConversationMessage($descriptions),
+            CaptionTargetEnum::AGENT_HISTORY => $this->writeToAgentHistory($descriptions),
         };
     }
 
     /**
-     * @param list<string> $captions
+     * @param list<string> $descriptions
      */
-    private function writeToSocialMessage(array $captions): void
+    private function writeToSocialMessage(array $descriptions): void
     {
         try {
             $message = Message::getById((int) $this->targetId, $this->app);
@@ -85,17 +87,17 @@ final class CaptionMessageImagesJob implements ShouldQueue
             return;
         }
 
-        $message->addMessage(['image_descriptions' => array_values(array_filter($captions))]);
+        $message->addMessage(['attachment_descriptions' => array_values(array_filter($descriptions))]);
     }
 
     /**
-     * @param list<string> $captions
+     * @param list<string> $descriptions
      */
-    private function writeToConversationMessage(array $captions): void
+    private function writeToConversationMessage(array $descriptions): void
     {
         $attachments = [];
-        foreach ($this->imageUrls as $i => $url) {
-            $attachments[] = ['url' => $url, 'caption' => $captions[$i] ?? ''];
+        foreach ($this->attachmentUrls as $i => $url) {
+            $attachments[] = ['url' => $url, 'caption' => $descriptions[$i] ?? ''];
         }
 
         DB::connection('intelligence')
@@ -109,11 +111,11 @@ final class CaptionMessageImagesJob implements ShouldQueue
 
     /**
      * The Laravel path (KanvasLaravelAgent::messages()) rebuilds history straight from
-     * input.content with no marker transform, so fold the caption into that text directly.
+     * input.content with no marker transform, so fold the description into that text directly.
      *
-     * @param list<string> $captions
+     * @param list<string> $descriptions
      */
-    private function writeToAgentHistory(array $captions): void
+    private function writeToAgentHistory(array $descriptions): void
     {
         try {
             $history = AgentHistory::getById((int) $this->targetId, $this->app);
@@ -124,8 +126,8 @@ final class CaptionMessageImagesJob implements ShouldQueue
         $marker = implode(
             ' ',
             array_map(
-                static fn (string $caption): string => "[Image: {$caption}]",
-                array_values(array_filter($captions)),
+                static fn (string $description): string => "[Attachment: {$description}]",
+                array_values(array_filter($descriptions)),
             ),
         );
 
