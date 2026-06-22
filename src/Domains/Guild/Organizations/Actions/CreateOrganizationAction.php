@@ -24,7 +24,11 @@ class CreateOrganizationAction
      */
     public function execute(): Organization
     {
-        $name = Str::limit(OrganizationNameNormalizerService::normalize($this->organizationData->name), 128, '');
+        $name = Str::limit(
+            OrganizationNameNormalizerService::normalize($this->organizationData->name),
+            128,
+            ''
+        );
 
         return Organization::firstOrCreate([
             'name' => $name,
