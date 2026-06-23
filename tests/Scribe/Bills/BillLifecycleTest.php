@@ -295,7 +295,7 @@ class BillLifecycleTest extends TestCase
         $allocation->companies_id = $received->companies_id;
         $allocation->bill_id = $received->id;
         $allocation->payment_id = null;
-        $allocation->source_type = AllocationSourceTypeEnum::SOUK_PAYMENT->value;
+        $allocation->source_type = AllocationSourceTypeEnum::PAYMENT->value;
         $allocation->status = AllocationStatusEnum::ACTIVE->value;
         $allocation->amount_native = 500.0;
         $allocation->amount_base = 500.0;

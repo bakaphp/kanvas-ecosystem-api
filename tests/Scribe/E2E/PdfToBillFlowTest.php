@@ -117,7 +117,7 @@ class PdfToBillFlowTest extends ScribeTestCase
         $allocation->apps_id = (int) $received->apps_id;
         $allocation->companies_id = (int) $received->companies_id;
         $allocation->bill_id = (int) $received->id;
-        $allocation->source_type = 'souk_payment';
+        $allocation->source_type = 'payment';
         $allocation->status = AllocationStatusEnum::ACTIVE->value;
         $allocation->amount_native = 1080.0;
         $allocation->amount_base = 1080.0;
