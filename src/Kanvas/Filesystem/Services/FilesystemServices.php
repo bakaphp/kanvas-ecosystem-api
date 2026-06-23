@@ -335,7 +335,7 @@ class FilesystemServices
                 ->get($fileUrl);
 
             // Extract extension from URL or Content-Type header
-            $extension = $this->getExtensionFromUrl($fileUrl);
+            $extension = self::getExtensionFromUrl($fileUrl);
 
             if (empty($extension)) {
                 $contentType = $response->header('Content-Type');
@@ -355,11 +355,17 @@ class FilesystemServices
         }
     }
 
-    protected function getExtensionFromUrl(string $fileUrl): string
+    /**
+     * Extract the file extension from a URL, ignoring query strings. Lower-cased.
+     */
+    public static function getExtensionFromUrl(string $fileUrl): string
     {
-        $fileInfo = pathinfo(parse_url($fileUrl, PHP_URL_PATH) ?? '');
+        $path = parse_url($fileUrl, PHP_URL_PATH);
+        if (! is_string($path)) {
+            return '';
+        }
 
-        return $fileInfo['extension'] ?? '';
+        return strtolower(pathinfo($path, PATHINFO_EXTENSION));
     }
 
     /**
