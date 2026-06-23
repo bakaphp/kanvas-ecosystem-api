@@ -9,6 +9,7 @@ use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Exceptions\InvalidInvoiceTransitionException;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Ledger\Services\AbstractDocumentStateMachineService;
+use Override;
 
 /**
  * Gates every document_status transition on Invoice.
@@ -60,16 +61,19 @@ class InvoiceStateMachineService extends AbstractDocumentStateMachineService
         );
     }
 
+    #[Override]
     protected function allowedTransitions(): array
     {
         return self::ALLOWED;
     }
 
+    #[Override]
     protected function entityLabel(): string
     {
         return 'Invoice';
     }
 
+    #[Override]
     protected function transitionExceptionFactory(): Closure
     {
         return fn (string $message) => new InvalidInvoiceTransitionException($message);

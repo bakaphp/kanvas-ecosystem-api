@@ -78,6 +78,12 @@ class UpdateBillAction
                 $bill->vendor_organization_id = null;
             }
 
+            $bill->vendor_display_name = $this->data->vendor_display_name;
+            $bill->vendor_legal_name = $this->data->vendor_legal_name;
+            $bill->vendor_tax_id = $this->data->vendor_tax_id;
+            $bill->vendor_email = $this->data->vendor_email;
+            $bill->vendor_address_snapshot = $this->data->vendor_address_snapshot;
+
             $bill->save();
 
             // Lines + tax lines — replace wholesale

@@ -49,6 +49,12 @@ class Invoice extends Data
         public readonly JournalEntryOriginEnum $origin = JournalEntryOriginEnum::KANVAS,
         /** @var DataCollection<InvoiceTaxLine>|null */
         public readonly ?DataCollection $taxLines = null,
+        public readonly ?string $billable_display_name = null,
+        public readonly ?string $billable_legal_name = null,
+        public readonly ?string $billable_tax_id = null,
+        public readonly ?string $billable_email = null,
+        public readonly ?array $billing_address_snapshot = null,
+        public readonly ?array $shipping_address_snapshot = null,
     ) {
     }
 
@@ -113,6 +119,12 @@ class Invoice extends Data
             regional_compliance: $input['regional_compliance'] ?? null,
             tax_metadata: $input['tax_metadata'] ?? null,
             metadata: $input['metadata'] ?? null,
+            billable_display_name: $input['billable_display_name'] ?? null,
+            billable_legal_name: $input['billable_legal_name'] ?? null,
+            billable_tax_id: $input['billable_tax_id'] ?? null,
+            billable_email: $input['billable_email'] ?? null,
+            billing_address_snapshot: $input['billing_address_snapshot'] ?? null,
+            shipping_address_snapshot: $input['shipping_address_snapshot'] ?? null,
         );
     }
 }

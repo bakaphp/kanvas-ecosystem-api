@@ -21,6 +21,7 @@ use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
+use Override;
 
 /**
  * Scribe.Bill — AP-side document (vendor invoice we owe).
@@ -148,26 +149,31 @@ class Bill extends BaseModel implements PayableInterface
         return $this->belongsTo(Organization::class, 'vendor_organization_id', 'id');
     }
 
+    #[Override]
     public function getPayableTotalNative(): float
     {
         return (float) ($this->total_native ?? 0);
     }
 
+    #[Override]
     public function getPayableBalanceDueNative(): float
     {
         return (float) ($this->balance_due_native ?? 0);
     }
 
+    #[Override]
     public function getPayableCurrency(): string
     {
         return (string) ($this->currency ?? 'USD');
     }
 
+    #[Override]
     public function isPaid(): bool
     {
         return $this->document_status === BillDocumentStatusEnum::PAID;
     }
 
+    #[Override]
     public function markAsPaid(UserInterface $user): void
     {
         new MarkBillPaidAction(bill: $this, user: $user)->execute();

@@ -82,12 +82,18 @@ class UpdateInvoiceAction
             $invoice->parent_invoice_id = $this->data->parent_invoice_id;
             $invoice->metadata = $this->data->metadata;
 
-            // Billable reference — allow swap (or clear) while in draft
             if ($this->data->billable !== null) {
                 $invoice->customer_organization_id = $this->data->billable->getBillableId();
             } else {
                 $invoice->customer_organization_id = null;
             }
+
+            $invoice->billable_display_name = $this->data->billable_display_name;
+            $invoice->billable_legal_name = $this->data->billable_legal_name;
+            $invoice->billable_tax_id = $this->data->billable_tax_id;
+            $invoice->billable_email = $this->data->billable_email;
+            $invoice->billing_address_snapshot = $this->data->billing_address_snapshot;
+            $invoice->shipping_address_snapshot = $this->data->shipping_address_snapshot;
 
             $invoice->save();
 

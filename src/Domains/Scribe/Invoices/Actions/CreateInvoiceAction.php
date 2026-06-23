@@ -78,6 +78,13 @@ class CreateInvoiceAction
             $invoice->external_id = $this->data->external_id;
             $invoice->external_url = $this->data->external_url;
             $invoice->origin = $this->data->origin;
+
+            $invoice->billable_display_name = $this->data->billable_display_name;
+            $invoice->billable_legal_name = $this->data->billable_legal_name;
+            $invoice->billable_tax_id = $this->data->billable_tax_id;
+            $invoice->billable_email = $this->data->billable_email;
+            $invoice->billing_address_snapshot = $this->data->billing_address_snapshot;
+            $invoice->shipping_address_snapshot = $this->data->shipping_address_snapshot;
             $invoice->metadata = $this->data->metadata;
             $invoice->users_id = $this->user?->getId();
 

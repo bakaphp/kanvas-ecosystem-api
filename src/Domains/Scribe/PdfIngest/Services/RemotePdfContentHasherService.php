@@ -7,6 +7,7 @@ namespace Kanvas\Scribe\PdfIngest\Services;
 use Baka\Http\SafeUrlFetcher;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Scribe\PdfIngest\Contracts\PdfContentHasherInterface;
+use Override;
 use Throwable;
 
 /**
@@ -19,6 +20,7 @@ use Throwable;
  */
 class RemotePdfContentHasherService implements PdfContentHasherInterface
 {
+    #[Override]
     public function hash(Filesystem $pdf): string
     {
         try {

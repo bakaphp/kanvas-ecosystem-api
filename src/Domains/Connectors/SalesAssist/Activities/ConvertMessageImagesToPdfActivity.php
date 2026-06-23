@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\SalesAssist\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Filesystem\Services\ImageConversionService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -96,9 +97,17 @@ class ConvertMessageImagesToPdfActivity extends KanvasActivity
 
                 $generate = true;
 
+                // wkhtmltopdf's WebKit can't decode HEIC/HEIF/TIFF/etc — convert to a viewable format first.
+                $viewableUrl = ImageConversionService::getViewableUrl(
+                    $filesystem->url,
+                    $app,
+                    user: $message->user,
+                    company: $message->company,
+                );
+
                 $html .= '
                 <div class="image-container">
-                    <img src="' . $filesystem->url . '" alt="' . ($filesystem->name ?? '') . '">
+                    <img src="' . $viewableUrl . '" alt="' . ($filesystem->name ?? '') . '">
                     <p class="caption">' . ($filesystem->name ?? '') . '</p>
                 </div>
             ';
@@ -109,13 +118,23 @@ class ConvertMessageImagesToPdfActivity extends KanvasActivity
         if (isset($messageData['status']) && $messageData['status'] === 'sent' &&
             ! empty($messageData['data']['file']['url']) &&
             isset($messageData['verb']) && $messageData['verb'] === 'file-sharing') {
-            if (! str_contains($messageData['data']['file']['url'], '.pdf')) {
+            $fileUrl = (string) $messageData['data']['file']['url'];
+            $fileName = (string) ($messageData['data']['file']['name'] ?? '');
+
+            if (FilesystemServices::getExtensionFromUrl($fileUrl) !== 'pdf') {
                 $generate = true;
+
+                $viewableUrl = ImageConversionService::getViewableUrl(
+                    $fileUrl,
+                    $app,
+                    user: $message->user,
+                    company: $message->company,
+                );
 
                 $html .= '
                 <div class="image-container">
-                    <img src="' . $messageData['data']['file']['url'] . '" alt="' . ($messageData['data']['file']['name'] ?? '') . '">
-                    <p class="caption">' . ($messageData['data']['file']['name'] ?? '') . '</p>
+                    <img src="' . $viewableUrl . '" alt="' . $fileName . '">
+                    <p class="caption">' . $fileName . '</p>
                 </div>
             ';
             }
