@@ -154,6 +154,65 @@ class IssueInvoiceActionTest extends TestCase
         $this->assertEquals(180.0, (float) $taxLine->credit_native, 'Tax payable credit = tax amount.');
     }
 
+    public function test_snapshot_override_wins_over_org_default_on_issue(): void
+    {
+        $billable = $this->seedOrganization('ACME Corp');
+
+        $invoice = new CreateInvoiceAction(
+            data: new InvoiceData(
+                app: $this->kanvasApp,
+                company: $this->company,
+                billable: $billable,
+                lines: new DataCollection(InvoiceLineData::class, [
+                    new InvoiceLineData(description: 'Service', quantity: 1, unit_price_native: 500.0),
+                ]),
+                currency: 'USD',
+                fx_rate_to_base: 1.0,
+                issued_date: Carbon::parse('2026-06-15'),
+                billable_display_name: 'ACME Subsidiary LLC (DBA Acme Co.)',
+                billable_legal_name: 'ACME Subsidiary LLC',
+                billable_tax_id: '12-3456789',
+                billable_email: 'ap@acme-sub.test',
+            ),
+            user: static::$cachedUser,
+        )->execute();
+
+        $issued = new IssueInvoiceAction(
+            invoice: $invoice,
+            billable: $billable,
+            user: static::$cachedUser,
+        )->execute();
+
+        $this->assertSame('ACME Subsidiary LLC (DBA Acme Co.)', $issued->billable_display_name);
+        $this->assertSame('ACME Subsidiary LLC', $issued->billable_legal_name);
+        $this->assertSame('12-3456789', $issued->billable_tax_id);
+        $this->assertSame('ap@acme-sub.test', $issued->billable_email);
+        $this->assertEquals((int) $billable->id, (int) $issued->customer_organization_id);
+    }
+
+    public function test_snapshot_falls_back_to_org_when_override_not_set(): void
+    {
+        $billable = $this->seedOrganization('Default Org Name');
+
+        $invoice = new CreateInvoiceAction(
+            data: $this->makeInvoiceData(
+                billable: $billable,
+                lines: [new InvoiceLineData(description: 'Service', quantity: 1, unit_price_native: 100)],
+                issuedDate: Carbon::parse('2026-06-15'),
+            ),
+            user: static::$cachedUser,
+        )->execute();
+
+        $issued = new IssueInvoiceAction(
+            invoice: $invoice,
+            billable: $billable,
+            user: static::$cachedUser,
+        )->execute();
+
+        $this->assertSame('Default Org Name', $issued->billable_display_name);
+        $this->assertSame('Default Org Name', $issued->billable_legal_name);
+    }
+
     public function test_re_issuing_already_issued_invoice_is_idempotent(): void
     {
         $billable = $this->seedOrganization();

@@ -90,10 +90,11 @@ class ReceiveBillAction
     private function freezeVendorSnapshot(Bill $bill, PayeeInterface $vendor): void
     {
         $bill->vendor_organization_id = $vendor->getPayeeId();
-        $bill->vendor_display_name = $vendor->getPayeeDisplayName();
-        $bill->vendor_legal_name = $vendor->getPayeeLegalName();
-        $bill->vendor_tax_id = $vendor->getPayeeTaxId();
-        $bill->vendor_email = $vendor->getPayeeEmail();
+        $bill->vendor_display_name = $bill->vendor_display_name ?? $vendor->getPayeeDisplayName();
+        $bill->vendor_legal_name = $bill->vendor_legal_name ?? $vendor->getPayeeLegalName();
+        $bill->vendor_tax_id = $bill->vendor_tax_id ?? $vendor->getPayeeTaxId();
+        $bill->vendor_email = $bill->vendor_email ?? $vendor->getPayeeEmail();
+        $bill->vendor_address_snapshot = $bill->vendor_address_snapshot ?? $vendor->getPayeeAddressArray();
     }
 
     private function allocateBillNumberIfMissing(Bill $bill): void

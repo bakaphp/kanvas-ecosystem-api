@@ -36,7 +36,7 @@ class CreateBillAction
     {
         return DB::connection('accounting')->transaction(function (): Bill {
             [$totals, $baseTotals] = $this->computeTotals();
-            $fxRate = (float) $this->data->fx_rate_to_base;
+            $fxRate = $this->data->fx_rate_to_base;
 
             $bill = new Bill();
             $bill->apps_id = $this->data->app->getId();
@@ -81,6 +81,12 @@ class CreateBillAction
             if ($this->data->vendor !== null) {
                 $bill->vendor_organization_id = $this->data->vendor->getPayeeId();
             }
+
+            $bill->vendor_display_name = $this->data->vendor_display_name;
+            $bill->vendor_legal_name = $this->data->vendor_legal_name;
+            $bill->vendor_tax_id = $this->data->vendor_tax_id;
+            $bill->vendor_email = $this->data->vendor_email;
+            $bill->vendor_address_snapshot = $this->data->vendor_address_snapshot;
 
             $bill->save();
 
@@ -139,7 +145,7 @@ class CreateBillAction
      */
     private function computeTotals(): array
     {
-        $fxRate = (float) $this->data->fx_rate_to_base;
+        $fxRate = $this->data->fx_rate_to_base;
         $subtotal = 0.0;
         $tax = 0.0;
         $discount = 0.0;

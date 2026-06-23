@@ -48,6 +48,11 @@ class Bill extends Data
         public readonly JournalEntryOriginEnum $origin = JournalEntryOriginEnum::KANVAS,
         /** @var DataCollection<BillTaxLine>|null */
         public readonly ?DataCollection $taxLines = null,
+        public readonly ?string $vendor_display_name = null,
+        public readonly ?string $vendor_legal_name = null,
+        public readonly ?string $vendor_tax_id = null,
+        public readonly ?string $vendor_email = null,
+        public readonly ?array $vendor_address_snapshot = null,
     ) {
     }
 
@@ -111,6 +116,11 @@ class Bill extends Data
             regional_compliance: $input['regional_compliance'] ?? null,
             tax_metadata: $input['tax_metadata'] ?? null,
             metadata: $input['metadata'] ?? null,
+            vendor_display_name: $input['vendor_display_name'] ?? null,
+            vendor_legal_name: $input['vendor_legal_name'] ?? null,
+            vendor_tax_id: $input['vendor_tax_id'] ?? null,
+            vendor_email: $input['vendor_email'] ?? null,
+            vendor_address_snapshot: $input['vendor_address_snapshot'] ?? null,
         );
     }
 }

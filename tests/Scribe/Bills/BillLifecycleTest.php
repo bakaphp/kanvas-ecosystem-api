@@ -72,6 +72,62 @@ class BillLifecycleTest extends TestCase
         ]);
     }
 
+    public function test_snapshot_override_wins_over_org_default_on_receive(): void
+    {
+        $vendor = $this->seedOrganization('Default Vendor Name');
+
+        $bill = new CreateBillAction(
+            data: new BillData(
+                app: $this->kanvasApp,
+                company: $this->company,
+                vendor: $vendor,
+                lines: new DataCollection(BillLineData::class, [
+                    new BillLineData(
+                        description: 'Service',
+                        quantity: 1,
+                        unit_price_native: 500.0,
+                        expense_account_id: $this->accountIdBySubType(AccountSubTypeEnum::CLOUD_HOSTING),
+                    ),
+                ]),
+                currency: 'USD',
+                fx_rate_to_base: 1.0,
+                bill_date: Carbon::parse('2026-06-15'),
+                vendor_display_name: 'Anthropic Subsidiary LLC',
+                vendor_legal_name: 'Anthropic, PBC',
+                vendor_tax_id: '12-3456789',
+                vendor_email: 'billing@anthropic.test',
+            ),
+            user: static::$cachedUser,
+        )->execute();
+
+        $received = new ReceiveBillAction(
+            bill: $bill,
+            vendor: $vendor,
+            user: static::$cachedUser,
+        )->execute();
+
+        $this->assertSame('Anthropic Subsidiary LLC', $received->vendor_display_name);
+        $this->assertSame('Anthropic, PBC', $received->vendor_legal_name);
+        $this->assertSame('12-3456789', $received->vendor_tax_id);
+        $this->assertSame('billing@anthropic.test', $received->vendor_email);
+        $this->assertEquals((int) $vendor->id, (int) $received->vendor_organization_id);
+    }
+
+    public function test_snapshot_falls_back_to_vendor_org_when_override_not_set(): void
+    {
+        $vendor = $this->seedOrganization('Default Vendor Name');
+        $bill = $this->createDraftBill(unitPrice: 100.0, tax: 0.0);
+
+        $received = new ReceiveBillAction(
+            bill: $bill,
+            vendor: $vendor,
+            user: static::$cachedUser,
+        )->execute();
+
+        $this->assertSame('Default Vendor Name', $received->vendor_display_name);
+        $this->assertSame('Default Vendor Name', $received->vendor_legal_name);
+    }
+
     public function test_update_draft_bill_swaps_vendor_and_replaces_lines(): void
     {
         // Primary use case: PDF-ingested drafts arrive without a resolved vendor; operator (or agent)
