@@ -177,7 +177,7 @@ class EchoPayService implements TokenizationProcessorInterface
     public function updateToken(PaymentMethod $paymentMethod, array $request): PaymentMethod
     {
         $card = CardTokenization::fromRequest($request, $this->app, $paymentMethod->user);
-        $cardId = $paymentMethod->metadata['instrumentIdentifierId'] ?? $paymentMethod->instrument_identifier_id;
+        $cardId = $paymentMethod->metadata['paymentInstrumentId'] ?? $paymentMethod->stripe_card_id;
         $tokenizedCard = $this->updateCard($cardId, $card);
 
         return new PaymentMethod(
