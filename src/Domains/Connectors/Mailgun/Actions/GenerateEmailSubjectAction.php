@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Mailgun\Actions;
 
 use Baka\Support\Str;
-
-use function Laravel\Ai\agent;
-
 use Laravel\Ai\Enums\Lab;
 use Throwable;
+
+use function Laravel\Ai\agent;
 
 class GenerateEmailSubjectAction
 {
