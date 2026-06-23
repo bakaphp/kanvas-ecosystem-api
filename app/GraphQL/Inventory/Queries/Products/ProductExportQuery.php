@@ -101,6 +101,15 @@ class ProductExportQuery
             }
         }
 
+        if (isset($args['hasProductsTypes']) && is_array($args['hasProductsTypes'])) {
+            $query->whereHas(
+                'type',
+                function (Builder $q) use ($args): void {
+                    $this->applyWhereConditions($q, $args['hasProductsTypes']);
+                }
+            );
+        }
+
         if (isset($args['orderBy']) && is_array($args['orderBy'])) {
             foreach ($args['orderBy'] as $order) {
                 if (! is_array($order) || ! isset($order['column'])) {
