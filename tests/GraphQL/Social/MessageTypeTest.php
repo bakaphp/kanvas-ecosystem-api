@@ -101,6 +101,61 @@ class MessageTypeTest extends TestCase
         ]);
     }
 
+    public function testUpdateMessageTypeWithHtmlTemplatesPlura()
+    {
+        $language = Languages::factory()->create();
+        $name = fake()->name();
+        $html = '<div><h1>Hello {{name}}</h1><p>You have items</p></div>';
+
+        $response = $this->graphQL(/** @lang GRAPHQL */
+            '
+                mutation createMessageType($input: CreateMessageTypeInput!) {
+                    createMessageType(input: $input) {
+                        id
+                        name
+                    }
+                }
+            ',
+            [
+                'input' => [
+                    'name' => $name,
+                    'languages_id' => $language->id,
+                    'verb' => 'test - ' . $name,
+                    'template' => '<fake>',
+                    'templates_plura' => '<fake>',
+                ],
+            ]
+        );
+
+        $this->graphQL(/** @lang GRAPHQL */
+            '
+                mutation updateMessageType($id: Int!, $input: CreateMessageTypeInput!) {
+                    updateMessageType(id: $id, input: $input) {
+                        id
+                        name
+                        templates_plura
+                    }
+                }
+            ',
+            [
+                'id' => $response->json('data.createMessageType.id'),
+                'input' => [
+                    'name' => $name,
+                    'languages_id' => $language->id,
+                    'verb' => 'test - ' . $name,
+                    'template' => '<fake>',
+                    'templates_plura' => $html,
+                ],
+            ]
+        )->assertJson([
+            'data' => [
+                'updateMessageType' => [
+                    'templates_plura' => $html,
+                ],
+            ],
+        ]);
+    }
+
     public function testGetMessageType()
     {
         $language = Languages::factory()->create();
