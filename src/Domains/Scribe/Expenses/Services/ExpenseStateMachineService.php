@@ -9,6 +9,7 @@ use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Exceptions\InvalidExpenseTransitionException;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Ledger\Services\AbstractDocumentStateMachineService;
+use Override;
 
 /**
  * Gates expense status transitions.
@@ -52,16 +53,19 @@ class ExpenseStateMachineService extends AbstractDocumentStateMachineService
         );
     }
 
+    #[Override]
     protected function allowedTransitions(): array
     {
         return self::ALLOWED;
     }
 
+    #[Override]
     protected function entityLabel(): string
     {
         return 'Expense';
     }
 
+    #[Override]
     protected function transitionExceptionFactory(): Closure
     {
         return fn (string $message) => new InvalidExpenseTransitionException($message);
