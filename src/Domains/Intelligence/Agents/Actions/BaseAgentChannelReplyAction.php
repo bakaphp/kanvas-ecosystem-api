@@ -6,10 +6,8 @@ namespace Kanvas\Intelligence\Agents\Actions;
 
 use Exception;
 use Illuminate\Database\Eloquent\Model;
-use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
-use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
@@ -79,23 +77,9 @@ class BaseAgentChannelReplyAction
             ? $configService->getAiModeKey($lead)
             : 'ai_mode';
 
-        if ($lead instanceof Lead && ! $lead->get(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value) && $configService->isV2Enabled($lead->company)) {
-            try {
-                $isOpen = $lead->company->isWithinWorkingHours(now());
-            } catch (InvalidArgumentException) {
-                $isOpen = true;
-            }
-            $leadType = $lead->type()->first();
-            $defaultKey = $configService->getAiModeDefaultKey($lead, $isOpen);
-            $defaultMode = IntelligenceModeEnum::tryFrom((string) ($leadType?->config[$defaultKey] ?? ''));
-            if ($defaultMode?->isOff()) {
-                throw new Exception('Ai Agent Off for this lead');
-            }
-        } else {
-            $mode = IntelligenceModeEnum::tryFrom((string) $lead->get($aiModeKey));
-            if ($mode?->isOff()) {
-                throw new Exception('Ai Agent Off for this lead');
-            }
+        $mode = IntelligenceModeEnum::tryFrom((string) $lead->get($aiModeKey));
+        if ($mode?->isOff()) {
+            throw new Exception('Ai Agent Off for this lead');
         }
 
         if ($message->is_un_response) {
