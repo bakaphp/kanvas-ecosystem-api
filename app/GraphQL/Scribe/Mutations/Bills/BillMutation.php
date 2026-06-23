@@ -9,6 +9,7 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\MarkBillPaidAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
+use Kanvas\Scribe\Bills\Actions\UpdateBillAction;
 use Kanvas\Scribe\Bills\Actions\VoidBillAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\Models\Bill;
@@ -23,6 +24,22 @@ class BillMutation
         $company = $user->getCurrentCompany();
 
         return new CreateBillAction(
+            data: BillData::from($app, $company, $request['input']),
+            user: $user,
+        )->execute();
+    }
+
+    public function update(mixed $rootValue, array $request): Bill
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        /** @var Bill $bill */
+        $bill = Bill::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+
+        return new UpdateBillAction(
+            bill: $bill,
             data: BillData::from($app, $company, $request['input']),
             user: $user,
         )->execute();

@@ -12,6 +12,7 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\MarkBillPaidAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
+use Kanvas\Scribe\Bills\Actions\UpdateBillAction;
 use Kanvas\Scribe\Bills\Actions\VoidBillAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
@@ -69,6 +70,89 @@ class BillLifecycleTest extends TestCase
             'period_end' => '2026-06-30',
             'status' => FiscalPeriodStatusEnum::OPEN,
         ]);
+    }
+
+    public function test_update_draft_bill_swaps_vendor_and_replaces_lines(): void
+    {
+        // Primary use case: PDF-ingested drafts arrive without a resolved vendor; operator (or agent)
+        // attaches the vendor afterward via update before clicking Receive.
+        $bill = $this->createDraftBill(unitPrice: 1500.0, tax: 0.0);
+        $this->assertNull($bill->vendor_organization_id);
+
+        $vendor = $this->seedOrganization('Anthropic');
+        $expenseAccountId = $this->accountIdBySubType(AccountSubTypeEnum::SOFTWARE_SUBSCRIPTIONS);
+
+        $updated = new UpdateBillAction(
+            bill: $bill,
+            data: new BillData(
+                app: $this->kanvasApp,
+                company: $this->company,
+                vendor: $vendor,
+                lines: new DataCollection(BillLineData::class, [
+                    new BillLineData(
+                        description: 'API credits',
+                        quantity: 1,
+                        unit_price_native: 2000.0,
+                        tax_amount_native: 0.0,
+                        expense_account_id: $expenseAccountId,
+                    ),
+                ]),
+                currency: 'USD',
+                fx_rate_to_base: 1.0,
+                bill_date: Carbon::parse('2026-06-15'),
+                net_terms_days: 15,
+            ),
+            user: static::$cachedUser,
+        )->execute();
+
+        $this->assertSame(BillDocumentStatusEnum::DRAFT, $updated->document_status);
+        $this->assertEquals((int) $vendor->id, (int) $updated->vendor_organization_id);
+        $this->assertEquals(2000.0, (float) $updated->total_native);
+        $this->assertEquals(15, (int) $updated->net_terms_days);
+
+        // Lines fully replaced — old line gone, single new line present.
+        $this->assertCount(1, $updated->lines);
+        $this->assertSame('API credits', $updated->lines->first()->description);
+
+        // No JE posted — drafts don't touch the GL.
+        $this->assertSame(
+            0,
+            JournalEntry::query()->where('source_type', 'bill')->where('source_id', $updated->id)->count(),
+        );
+    }
+
+    public function test_update_received_bill_throws(): void
+    {
+        $vendor = $this->seedOrganization('Vendor');
+        $bill = $this->createDraftBill(unitPrice: 500.0, tax: 0.0);
+        $received = new ReceiveBillAction(
+            bill: $bill,
+            vendor: $vendor,
+            user: static::$cachedUser,
+        )->execute();
+
+        $this->expectException(InvalidBillTransitionException::class);
+
+        new UpdateBillAction(
+            bill: $received,
+            data: new BillData(
+                app: $this->kanvasApp,
+                company: $this->company,
+                vendor: $vendor,
+                lines: new DataCollection(BillLineData::class, [
+                    new BillLineData(
+                        description: 'Should not be allowed',
+                        quantity: 1,
+                        unit_price_native: 999.0,
+                        tax_amount_native: 0.0,
+                        expense_account_id: $this->accountIdBySubType(AccountSubTypeEnum::CLOUD_HOSTING),
+                    ),
+                ]),
+                currency: 'USD',
+                fx_rate_to_base: 1.0,
+            ),
+            user: static::$cachedUser,
+        )->execute();
     }
 
     public function test_receive_bill_posts_balanced_dr_expense_cr_ap_je(): void
