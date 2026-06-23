@@ -16,17 +16,6 @@ use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Models\BillLine;
 use Kanvas\Scribe\Bills\Models\BillTaxLine;
 
-/**
- * Updates a DRAFT bill (header + lines + tax lines + vendor reference).
- *
- * Hard-gated to document_status=DRAFT — once received, header mutations are not allowed (the AP JE
- * has posted and the vendor snapshot is frozen). For post-receive changes the legal paths are:
- *   - Future `AmendBillAction` (mirror of `AmendInvoiceAction`) — not yet built
- *   - `VoidBillAction` + re-create (clean slate)
- *
- * Lines + tax lines are replaced wholesale (delete + re-insert). Draft bills don't have JE history
- * tying line ids to anything, so churning ids is harmless.
- */
 class UpdateBillAction
 {
     public function __construct(
