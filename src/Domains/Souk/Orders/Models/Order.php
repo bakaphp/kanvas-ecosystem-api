@@ -132,6 +132,16 @@ class Order extends BaseModel implements PayableInterface
         'private_metadata' => Json::class,
     ];
 
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(Order::class, 'parent_id', 'id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(Order::class, 'parent_id', 'id');
+    }
+
     public function region(): BelongsTo
     {
         return $this->belongsTo(Regions::class, 'region_id', 'id');
