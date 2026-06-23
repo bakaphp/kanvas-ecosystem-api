@@ -157,5 +157,4 @@ class VideoToGifService
     {
         return (bool) $this->company->get(ConfigurationEnum::ENABLE_VIDEO_GIF_GENERATION->value);
     }
-
 }
