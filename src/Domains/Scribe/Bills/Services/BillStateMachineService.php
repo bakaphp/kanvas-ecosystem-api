@@ -9,6 +9,7 @@ use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Exceptions\InvalidBillTransitionException;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Ledger\Services\AbstractDocumentStateMachineService;
+use Override;
 
 /**
  * Gates Bill document_status transitions.
@@ -49,16 +50,19 @@ class BillStateMachineService extends AbstractDocumentStateMachineService
         );
     }
 
+    #[Override]
     protected function allowedTransitions(): array
     {
         return self::ALLOWED;
     }
 
+    #[Override]
     protected function entityLabel(): string
     {
         return 'Bill';
     }
 
+    #[Override]
     protected function transitionExceptionFactory(): Closure
     {
         return fn (string $message) => new InvalidBillTransitionException($message);

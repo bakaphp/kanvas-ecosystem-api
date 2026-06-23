@@ -15,6 +15,7 @@ use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Exceptions\AiException;
 use Laravel\Ai\Files\Document;
 use Laravel\Ai\Responses\StructuredAgentResponse;
+use Override;
 use RuntimeException;
 use Throwable;
 
@@ -49,6 +50,7 @@ class GeminiPdfClassifierService implements PdfClassifierServiceInterface
     ) {
     }
 
+    #[Override]
     public function classify(Filesystem $pdf, array $hints = []): PdfClassificationResult
     {
         $bytes = $this->fetchPdfBytes($pdf);

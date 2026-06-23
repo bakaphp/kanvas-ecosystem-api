@@ -9,6 +9,7 @@ use Kanvas\Scribe\Ledger\Services\AbstractDocumentStateMachineService;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Kanvas\Scribe\Quotes\Exceptions\InvalidQuoteTransitionException;
 use Kanvas\Scribe\Quotes\Models\Quote;
+use Override;
 
 /**
  * Gates every status transition on Quote (mirrors plan §11.1).
@@ -60,16 +61,19 @@ class QuoteStateMachineService extends AbstractDocumentStateMachineService
         );
     }
 
+    #[Override]
     protected function allowedTransitions(): array
     {
         return self::ALLOWED;
     }
 
+    #[Override]
     protected function entityLabel(): string
     {
         return 'Quote';
     }
 
+    #[Override]
     protected function transitionExceptionFactory(): Closure
     {
         return fn (string $message) => new InvalidQuoteTransitionException($message);

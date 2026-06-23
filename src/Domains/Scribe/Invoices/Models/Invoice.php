@@ -23,6 +23,7 @@ use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
+use Override;
 use Throwable;
 
 /**
@@ -167,31 +168,33 @@ class Invoice extends BaseModel implements PayableInterface
             ->latest();
     }
 
+    #[Override]
     public function getPayableTotalNative(): float
     {
         return (float) ($this->total_native ?? 0);
     }
 
+    #[Override]
     public function getPayableBalanceDueNative(): float
     {
         return (float) ($this->balance_due_native ?? 0);
     }
 
+    #[Override]
     public function getPayableCurrency(): string
     {
         return (string) ($this->currency ?? 'USD');
     }
 
+    #[Override]
     public function isPaid(): bool
     {
         return $this->document_status === InvoiceDocumentStatusEnum::PAID;
     }
 
+    #[Override]
     public function markAsPaid(UserInterface $user): void
     {
-        // The actual state-machine transition (status flip + recompute of paid/balance from allocations)
-        // is delegated to MarkInvoicePaidAction. This method exists to satisfy the PayableInterface contract
-        // that Souk.Payments::markAsPaid() calls into.
         new MarkInvoicePaidAction(invoice: $this, user: $user)->execute();
     }
 
