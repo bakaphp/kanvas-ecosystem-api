@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Products\Exports;
 
 use Baka\Http\SafeUrlFetcher;
+use Carbon\Carbon;
+use Exception;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Kanvas\Inventory\Products\Models\Products;
 use Maatwebsite\Excel\Concerns\FromQuery;
@@ -17,6 +21,11 @@ use Maatwebsite\Excel\Concerns\WithDrawings;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Events\AfterSheet;
+use Maatwebsite\Excel\Events\BeforeSheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ProductExportExcel implements FromQuery, WithMapping, WithDrawings, WithColumnWidths, WithStyles, WithEvents, WithCustomStartCell, ShouldAutoSize, WithChunkReading
@@ -83,11 +92,8 @@ class ProductExportExcel implements FromQuery, WithMapping, WithDrawings, WithCo
                 ->join(' ');
         }
 
-        // Special handling: attribute.{slug} → look up attribute value by slug
         if (Str::startsWith($path, 'attribute.')) {
-            $slug = Str::after($path, 'attribute.');
-
-            return $this->getAttributeValueBySlug($object, $slug);
+            return $this->getAttributeValueBySlug($object, Str::after($path, 'attribute.'));
         }
 
         if (Str::contains($path, '[')) {
@@ -110,7 +116,7 @@ class ProductExportExcel implements FromQuery, WithMapping, WithDrawings, WithCo
                 } elseif (method_exists($value, '__get')) {
                     try {
                         $value = $value->__get($key);
-                    } catch (\Exception $e) {
+                    } catch (Exception) {
                         $value = null;
                     }
                 } else {
@@ -127,7 +133,7 @@ class ProductExportExcel implements FromQuery, WithMapping, WithDrawings, WithCo
             }
         }
 
-        if ($value instanceof \Carbon\Carbon) {
+        if ($value instanceof Carbon) {
             return $this->formatDateWithTimezone($value, $path);
         }
 
@@ -177,7 +183,7 @@ class ProductExportExcel implements FromQuery, WithMapping, WithDrawings, WithCo
                 } elseif (method_exists($value, '__get')) {
                     try {
                         $value = $value->__get($key);
-                    } catch (\Exception $e) {
+                    } catch (Exception) {
                         $value = null;
                     }
                 } else {
@@ -192,7 +198,7 @@ class ProductExportExcel implements FromQuery, WithMapping, WithDrawings, WithCo
             if ($index !== null && $index !== '') {
                 if (is_array($value)) {
                     $value = $value[$index] ?? null;
-                } elseif ($value instanceof \Illuminate\Support\Collection || $value instanceof \Illuminate\Database\Eloquent\Collection) {
+                } elseif ($value instanceof Collection || $value instanceof EloquentCollection) {
                     $value = $value->get($index);
                 } else {
                     return null;
@@ -204,19 +210,18 @@ class ProductExportExcel implements FromQuery, WithMapping, WithDrawings, WithCo
             }
         }
 
-        if ($value instanceof \Carbon\Carbon) {
+        if ($value instanceof Carbon) {
             return $this->formatDateWithTimezone($value, $path);
         }
 
         return $value;
     }
 
-    private function formatDateWithTimezone(\Carbon\Carbon $date, string $fieldPath): string
+    private function formatDateWithTimezone(Carbon $date, string $fieldPath): string
     {
         $dateFields = ['created_at', 'updated_at'];
-        $fieldName = basename($fieldPath);
 
-        if (in_array($fieldName, $dateFields)) {
+        if (in_array(basename($fieldPath), $dateFields)) {
             $date = $date->setTimezone($this->timezone);
         }
 
@@ -238,7 +243,7 @@ class ProductExportExcel implements FromQuery, WithMapping, WithDrawings, WithCo
                         $tempPath = storage_path('app/temp_logo_' . $index . '.png');
                         file_put_contents($tempPath, $imageContent);
 
-                        $drawing = new \PhpOffice\PhpSpreadsheet\Worksheet\Drawing();
+                        $drawing = new Drawing();
                         $drawing->setName('Logo ' . ($index + 1));
                         $drawing->setDescription('Header Logo');
                         $drawing->setPath($tempPath);
@@ -246,12 +251,11 @@ class ProductExportExcel implements FromQuery, WithMapping, WithDrawings, WithCo
 
                         $columnIndex = (int) ($index * $columnsPerLogo);
                         $actualColumnIndex = (int) min($columnIndex, count($this->data['headers']) - 1);
-                        $column = $this->getExcelColumn($actualColumnIndex);
-                        $drawing->setCoordinates($column . '2');
+                        $drawing->setCoordinates($this->getExcelColumn($actualColumnIndex) . '2');
 
                         $drawings[] = $drawing;
                     }
-                } catch (\Exception $e) {
+                } catch (Exception) {
                     continue;
                 }
             }
@@ -264,8 +268,7 @@ class ProductExportExcel implements FromQuery, WithMapping, WithDrawings, WithCo
     {
         $widths = [];
         foreach ($this->data['headers'] as $index => $header) {
-            $column = $this->getExcelColumn((int) $index);
-            $widths[$column] = $this->getColumnWidth($header);
+            $widths[$this->getExcelColumn((int) $index)] = $this->getColumnWidth($header);
         }
 
         return $widths;
@@ -307,10 +310,10 @@ class ProductExportExcel implements FromQuery, WithMapping, WithDrawings, WithCo
     public function registerEvents(): array
     {
         return [
-            \Maatwebsite\Excel\Events\BeforeSheet::class => function (\Maatwebsite\Excel\Events\BeforeSheet $event) {
+            BeforeSheet::class => function (BeforeSheet $event) {
                 $this->insertHeaderRows($event->sheet->getDelegate());
             },
-            \Maatwebsite\Excel\Events\AfterSheet::class => function (\Maatwebsite\Excel\Events\AfterSheet $event) {
+            AfterSheet::class => function (AfterSheet $event) {
                 $this->applyHeaderStyling($event->sheet->getDelegate());
 
                 for ($i = 0; $i < count($this->data['headers']); $i++) {
@@ -366,14 +369,14 @@ class ProductExportExcel implements FromQuery, WithMapping, WithDrawings, WithCo
         $sheet->getStyle('A' . $titleRow . ':' . $lastColumn . $titleRow)
             ->getFont()->setBold(true)->setSize(14);
         $sheet->getStyle('A' . $titleRow . ':' . $lastColumn . $titleRow)
-            ->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->mergeCells('A' . $titleRow . ':' . $lastColumn . $titleRow);
 
         if (! empty($this->data['header_info']['subtitle'])) {
             $sheet->getStyle('A' . $currentRow . ':' . $lastColumn . $currentRow)
                 ->getFont()->setBold(false)->setSize(12);
             $sheet->getStyle('A' . $currentRow . ':' . $lastColumn . $currentRow)
-                ->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+                ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->mergeCells('A' . $currentRow . ':' . $lastColumn . $currentRow);
             $currentRow++;
         }
@@ -381,23 +384,23 @@ class ProductExportExcel implements FromQuery, WithMapping, WithDrawings, WithCo
         $sheet->getStyle('A' . $currentRow . ':' . $lastColumn . $currentRow)
             ->getFont()->setBold(false)->setSize(10);
         $sheet->getStyle('A' . $currentRow . ':' . $lastColumn . $currentRow)
-            ->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->mergeCells('A' . $currentRow . ':' . $lastColumn . $currentRow);
         $currentRow++;
 
         $sheet->getStyle('A' . $currentRow . ':' . $lastColumn . $currentRow)
             ->getFont()->setBold(false)->setSize(10);
         $sheet->getStyle('A' . $currentRow . ':' . $lastColumn . $currentRow)
-            ->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->mergeCells('A' . $currentRow . ':' . $lastColumn . $currentRow);
 
         $sheet->getStyle('A' . $headerRow . ':' . $lastColumn . $headerRow)
             ->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
         $sheet->getStyle('A' . $headerRow . ':' . $lastColumn . $headerRow)
-            ->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getFill()->setFillType(Fill::FILL_SOLID)
             ->getStartColor()->setRGB('5D8A66');
         $sheet->getStyle('A' . $headerRow . ':' . $lastColumn . $headerRow)
-            ->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            ->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         $sheet->getRowDimension(2)->setRowHeight(60);
         $sheet->getRowDimension($headerRow)->setRowHeight(25);

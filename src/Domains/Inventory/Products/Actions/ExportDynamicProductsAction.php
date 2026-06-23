@@ -171,7 +171,7 @@ class ExportDynamicProductsAction
 
     private function formatDate(mixed $value): string
     {
-        if ($value instanceof \Carbon\Carbon) {
+        if ($value instanceof Carbon) {
             return $value->format('Y-m-d H:i:s');
         }
 
