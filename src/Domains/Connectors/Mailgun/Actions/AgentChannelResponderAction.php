@@ -4,21 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mailgun\Actions;
 
-use Illuminate\Support\Facades\Notification;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
-use Kanvas\Notifications\Support\MarkdownEmailRenderer;
-use Kanvas\Notifications\Templates\Blank;
-use Kanvas\Social\Messages\Models\Message;
 use Override;
 
 class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 {
     protected string $messageTypeVerb = 'mailgun-email';
     protected string $communicationChannel = 'email';
+    protected bool $supportsHumanApproval = true;
 
     #[Override]
     public function execute(array $params = []): array
@@ -36,20 +33,6 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
         $channelId = $this->hijackMessagePhone($this->message->message['from_email']);
 
-        // Always reply with a "Re:" prefix so Gmail threads the agent's response
-        // under the existing conversation. Sending the bare title_email_follow_up
-        // (no prefix) reads as a new email on the same topic → new thread.
-        $threadSubject = $entity->get('title_email_follow_up')
-            ?: ($this->message->message['subject'] ?? 'No subject');
-
-        $emailRequest = [
-            'template_name' => 'agent-email-response',
-            'email' => $channelId,
-            'subject' => preg_match('/^\s*re:/i', (string) $threadSubject)
-                ? (string) $threadSubject
-                : 'Re: ' . $threadSubject,
-        ];
-
         $responseContent = new AgentChatKernel(
             agent: $this->agent,
             session: $this->session,
@@ -63,12 +46,6 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
 
-        $emailData = [
-            'content' => $responseText,
-            'lead' => $entity,
-            'company' => $this->message->company,
-        ];
-
         $messageResponse = $this->createMessage(
             $responseText,
             $channelId,
@@ -76,12 +53,14 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             $this->channel
         );
 
+        // Freeze the inbound subject on the outbound so SendAgentEmailAction can thread the reply
+        // (title_email_follow_up first, this as fallback) whether it ships now or after approval.
+        $messageResponse->addMessage([
+            'subject' => $this->message->message['subject'] ?? null,
+        ]);
+
         if (! $messageResponse->is_locked) {
-            $this->sendEmail(
-                $emailRequest,
-                $emailData,
-                $this->message
-            );
+            new SendAgentEmailAction($messageResponse)->execute();
         }
 
         return [
@@ -91,6 +70,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         ];
     }
 
+    #[Override]
     protected function hijackMessagePhone(string $channelId): string
     {
         if ($this->agent->company->get('allow_session_hijack', false)
@@ -107,22 +87,5 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         }
 
         return $channelId;
-    }
-
-    protected function sendEmail(array $request, array $data, Message $message): void
-    {
-        $data['signature'] = true;
-        // Agent replies are Markdown; the mail layout renders raw HTML, so convert here.
-        $data['content'] = MarkdownEmailRenderer::toEmailHtml((string) ($data['content'] ?? ''));
-        $notification = new Blank(
-            $request['template_name'],
-            $data,
-            ['mail'],
-            $message
-        );
-
-        $notification->setFromUser($message->user);
-        $notification->setSubject($request['subject']);
-        Notification::route('mail', $request['email'])->notify($notification);
     }
 }
