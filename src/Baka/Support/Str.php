@@ -91,7 +91,13 @@ class Str extends IlluminateStr
 
     public static function sanitizeEmail(string $email): string
     {
-        return str_replace(['@', '.'], ['-at-', '-dot-'], $email);
+        $email = str_replace(['@', '.'], ['-at-', '-dot-'], $email);
+
+        // The result feeds channel slugs, which become Pusher channel names. Pusher's
+        // validate_channel() only accepts [A-Za-z0-9_=@,.;-]; plus-addressing (jerly+103@)
+        // and other local-part chars (% & ' * etc.) would fail broadcasting. Collapse
+        // anything outside the safe set to '-'.
+        return preg_replace('/[^A-Za-z0-9_-]/', '-', $email);
     }
 
     /**
