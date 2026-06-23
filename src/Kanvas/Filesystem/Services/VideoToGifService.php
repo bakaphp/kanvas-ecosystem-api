@@ -68,7 +68,7 @@ class VideoToGifService
             throw new Exception("Failed to download video from URL: {$videoUrl}");
         }
 
-        $extension = $this->getExtensionFromUrl($videoUrl) ?: 'mp4';
+        $extension = FilesystemServices::getExtensionFromUrl($videoUrl) ?: 'mp4';
         $tempFile = tempnam(sys_get_temp_dir(), 'video_') . '.' . $extension;
         file_put_contents($tempFile, $response->body());
 
@@ -83,7 +83,7 @@ class VideoToGifService
         $finfo = new finfo(FILEINFO_MIME_TYPE);
         $mimeType = $finfo->file($tempVideoPath);
 
-        $extension = $this->getExtensionFromUrl($originalUrl) ?: 'mp4';
+        $extension = FilesystemServices::getExtensionFromUrl($originalUrl) ?: 'mp4';
         $filename = 'video_' . uniqid() . '.' . $extension;
 
         $uploadedFile = new UploadedFile(
@@ -156,16 +156,5 @@ class VideoToGifService
     public function isEnabled(): bool
     {
         return (bool) $this->company->get(ConfigurationEnum::ENABLE_VIDEO_GIF_GENERATION->value);
-    }
-
-    /**
-     * Get file extension from URL.
-     */
-    protected function getExtensionFromUrl(string $url): string
-    {
-        $path = parse_url($url, PHP_URL_PATH) ?? '';
-        $pathInfo = pathinfo($path);
-
-        return $pathInfo['extension'] ?? '';
     }
 }

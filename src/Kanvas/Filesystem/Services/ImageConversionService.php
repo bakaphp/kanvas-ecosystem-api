@@ -246,7 +246,7 @@ class ImageConversionService
         ?Users $user = null,
         ?CompanyInterface $company = null
     ): string {
-        $extension = self::getExtensionFromUrl($imageUrl);
+        $extension = FilesystemServices::getExtensionFromUrl($imageUrl);
 
         if (! self::needsConversion($extension)) {
             return $imageUrl;
@@ -276,19 +276,6 @@ class ImageConversionService
         $extension = strtolower($extension);
 
         return in_array($extension, ['heic', 'heif', 'tiff', 'tif', 'bmp', 'avif'], true);
-    }
-
-    /**
-     * Extract file extension from URL (handles query strings).
-     */
-    protected static function getExtensionFromUrl(string $url): string
-    {
-        $path = parse_url($url, PHP_URL_PATH);
-        if ($path === null || $path === false) {
-            return '';
-        }
-
-        return strtolower(pathinfo($path, PATHINFO_EXTENSION));
     }
 
     protected static function manager(): ImageManager
