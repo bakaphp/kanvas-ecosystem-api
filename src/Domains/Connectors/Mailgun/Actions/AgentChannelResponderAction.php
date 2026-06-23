@@ -31,6 +31,19 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             throw new ValidationException('No entity found');
         }
 
+        // Cold-inbound leads have no outreach anchor (AgentReachOutOnChannelAction never ran).
+        // Persist the incoming subject as the thread anchor — first touch wins — so later
+        // follow-ups thread under it instead of falling back to the company name (new thread).
+        if ($entity instanceof Lead) {
+            $inboundSubject = trim((string) ($this->message->message['subject'] ?? ''));
+            if ($inboundSubject !== '' && ! $entity->get('title_email_follow_up')) {
+                $entity->set(
+                    'title_email_follow_up',
+                    (string) preg_replace('/^\s*re:\s*/i', '', $inboundSubject)
+                );
+            }
+        }
+
         $channelId = $this->hijackMessagePhone($this->message->message['from_email']);
 
         $responseContent = new AgentChatKernel(

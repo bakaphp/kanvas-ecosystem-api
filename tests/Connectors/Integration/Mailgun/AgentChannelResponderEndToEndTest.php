@@ -117,6 +117,46 @@ class AgentChannelResponderEndToEndTest extends TestCase
         );
     }
 
+    // Cold inbound (no prior agent outreach) must persist the incoming subject as the thread
+    // anchor so later follow-ups thread under it instead of starting a fresh thread.
+    public function testColdInboundPersistsThreadAnchorWhenMissing(): void
+    {
+        Notification::fake();
+
+        ['app' => $app, 'channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session, 'lead' => $lead] =
+            $this->seedInboundEmailScenario();
+
+        $this->assertEmpty($lead->get('title_email_follow_up'));
+
+        try {
+            new AgentChannelResponderAction($channel, $inbound, $agent, $session)->execute([]);
+        } catch (Throwable) {
+        }
+
+        $this->assertSame('Inquiry', (string) Lead::getById($lead->getId(), $app)->get('title_email_follow_up'));
+    }
+
+    // First touch wins: an existing anchor (from outreach) must not be clobbered by inbound.
+    public function testInboundDoesNotClobberExistingThreadAnchor(): void
+    {
+        Notification::fake();
+
+        ['app' => $app, 'channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session, 'lead' => $lead] =
+            $this->seedInboundEmailScenario();
+
+        $lead->set('title_email_follow_up', 'Original Outreach Subject');
+
+        try {
+            new AgentChannelResponderAction($channel, $inbound, $agent, $session)->execute([]);
+        } catch (Throwable) {
+        }
+
+        $this->assertSame(
+            'Original Outreach Subject',
+            (string) Lead::getById($lead->getId(), $app)->get('title_email_follow_up'),
+        );
+    }
+
     /**
      * @return array{app: Apps, company: \Kanvas\Companies\Models\Companies, channel: Channel, inbound: Message, agent: Agent, session: \Kanvas\Intelligence\Sessions\Models\Session, lead: Lead}
      */
