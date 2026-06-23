@@ -26,7 +26,7 @@ use Override;
  *  @property string $name
  *  @property string $verb
  *  @property string $template
- *  @property string $templates_plura
+ *  @property mixed $templates_plura
  *  @property ?string $message_schema = null
  */
 class MessageType extends BaseModel
@@ -48,6 +48,7 @@ class MessageType extends BaseModel
     {
         return [
             'template' => Json::class,
+            'templates_plura' => Json::class,
         ];
     }
 
