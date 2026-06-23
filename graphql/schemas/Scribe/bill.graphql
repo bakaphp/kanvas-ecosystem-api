@@ -213,6 +213,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\Bills\\BillMutation@create"
         )
+    updateScribeBill(id: ID!, input: ScribeBillInput!): ScribeBill!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Bills\\BillMutation@update"
+        )
     receiveScribeBill(id: ID!): ScribeBill!
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\Bills\\BillMutation@receive"
