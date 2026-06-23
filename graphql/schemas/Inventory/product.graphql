@@ -352,6 +352,11 @@ extend type Query @guard {
                 ]
             )
         hasAttributeValues: [ProductAttributeFilterInput]
+        hasProductsTypes: _
+            @whereHasConditions(
+                relation: "type"
+                columns: ["id", "name", "slug"]
+            )
         orderBy: _
             @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): OrderExportResult!
