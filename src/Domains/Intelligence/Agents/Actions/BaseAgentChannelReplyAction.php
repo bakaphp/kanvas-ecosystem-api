@@ -16,6 +16,7 @@ use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
@@ -45,6 +46,7 @@ class BaseAgentChannelReplyAction
 
     protected string $messageTypeVerb = 'text';
     protected string $communicationChannel = '';
+    protected bool $supportsHumanApproval = false;
 
     public function __construct(
         protected Channel $channel,
@@ -154,15 +156,12 @@ class BaseAgentChannelReplyAction
             }
         }
 
-        // $isWithinWorkingHours = $message->entity()->company->isWithinWorkingHours(now());
-
-        // $agentSupportMode = $isWithinWorkingHours
-        //     && $this->session->entity()?->get('ai_mode') === IntelligenceModeEnum::SUPPORT->value;
-
-        // if ($agentSupportMode) {
-        //     $newMessage->setLock();
-        //     $newMessage->setPrivate();
-        // }
+        // Company in APPROVAL mode → persist as a locked draft; a human approves before it ships.
+        // Scoped to connectors that implement the approve→send path ($supportsHumanApproval).
+        // is_public stays 1 so the draft remains visible to the reviewer's feed.
+        if ($this->supportsHumanApproval && $this->companyRequiresHumanApproval()) {
+            $newMessage->setLock();
+        }
 
         $newMessage->fireWorkflow(
             WorkflowEnum::CREATED->value,
@@ -204,6 +203,13 @@ class BaseAgentChannelReplyAction
         }
 
         return $newMessage;
+    }
+
+    protected function companyRequiresHumanApproval(): bool
+    {
+        return IntelligenceModeEnum::tryFrom(
+            (string) $this->message->company->get(ConfigurationEnum::AGENT_AI_MODE->value)
+        )?->requiresHumanApproval() ?? false;
     }
 
     protected function hijackMessagePhone(string $channelId): string
