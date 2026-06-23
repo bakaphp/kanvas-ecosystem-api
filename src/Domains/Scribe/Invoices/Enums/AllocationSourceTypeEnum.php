@@ -9,7 +9,7 @@ namespace Kanvas\Scribe\Invoices\Enums;
  */
 enum AllocationSourceTypeEnum: string
 {
-    case SOUK_PAYMENT = 'souk_payment';
+    case PAYMENT = 'payment';
     case CREDIT_NOTE = 'credit_note';
     case PREPAYMENT = 'prepayment';
     case OVERPAYMENT = 'overpayment';

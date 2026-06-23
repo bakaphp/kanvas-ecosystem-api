@@ -18,7 +18,7 @@ use Kanvas\Scribe\Expenses\Enums\ExpenseReimbursementStatusEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
-use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
+use Kanvas\Scribe\Payments\Models\Payment as ScribePayment;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -147,7 +147,7 @@ class Expense extends BaseModel
 
     public function reimbursementPayment(): BelongsTo
     {
-        return $this->belongsTo(SoukPayment::class, 'reimbursement_payment_id', 'id');
+        return $this->belongsTo(ScribePayment::class, 'reimbursement_payment_id', 'id');
     }
 
     protected function sourceDomainForLedger(): string

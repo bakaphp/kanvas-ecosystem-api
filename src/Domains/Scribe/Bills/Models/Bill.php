@@ -10,7 +10,7 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Carbon;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
@@ -20,7 +20,7 @@ use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
-use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
+use Kanvas\Scribe\Payments\Models\Payment;
 use Override;
 
 /**
@@ -137,11 +137,16 @@ class Bill extends BaseModel implements PayableInterface
         return $this->hasMany(BillPaymentAllocation::class, 'bill_id', 'id');
     }
 
-    public function payments(): MorphMany
+    public function payments(): HasManyThrough
     {
-        return $this->morphMany(SoukPayment::class, 'payable')
-            ->where('is_deleted', 0)
-            ->latest();
+        return $this->hasManyThrough(
+            Payment::class,
+            BillPaymentAllocation::class,
+            'bill_id',
+            'id',
+            'id',
+            'payment_id',
+        );
     }
 
     public function vendor(): BelongsTo

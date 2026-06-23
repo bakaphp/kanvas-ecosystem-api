@@ -45,7 +45,7 @@ type ScribeExpense {
     payment_method: PaymentMethod @belongsTo(relation: "paymentMethod")
     bank_account: ScribeBankAccount @belongsTo(relation: "bankAccount")
     reimbursement_status: ScribeExpenseReimbursementStatus!
-    reimbursement_payment: Payment @belongsTo(relation: "reimbursementPayment")
+    reimbursement_payment: ScribePayment @belongsTo(relation: "reimbursementPayment")
     reimbursed_at: DateTime
     currency: String!
     fx_rate_to_base: Float!

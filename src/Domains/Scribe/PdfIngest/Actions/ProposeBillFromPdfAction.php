@@ -20,6 +20,7 @@ use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
 use Kanvas\Scribe\PdfIngest\Traits\ExtractsPdfPayloadValuesTrait;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
@@ -221,8 +222,9 @@ class ProposeBillFromPdfAction
             new AllocateBillPaymentAction(
                 bill: $bill->refresh(),
                 amountNative: (float) $bill->total_native,
+                method: PaymentMethodEnum::PDF_INGEST_AUTO,
                 user: $this->user,
-                source: 'manual',
+                source: 'kanvas',
                 metadata: [
                     'origin' => 'pdf_ingest_auto',
                     'pdf_ingest_log_id' => $this->pdfIngestLogId,

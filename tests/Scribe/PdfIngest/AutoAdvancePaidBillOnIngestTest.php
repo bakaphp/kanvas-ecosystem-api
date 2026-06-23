@@ -79,10 +79,18 @@ class AutoAdvancePaidBillOnIngestTest extends ScribeTestCase
             ->where('status', AllocationStatusEnum::ACTIVE)
             ->firstOrFail();
         $this->assertEquals(100.0, (float) $allocation->amount_native);
-        $this->assertSame(AllocationSourceTypeEnum::MANUAL->value, $allocation->source_type);
-        // Enum-constrained source column ('kanvas'|'adm_cloud'|'manual') — discriminator lives in metadata.
-        $this->assertSame('manual', $allocation->source);
+        // Every allocation now has a backing Scribe.Payment row → source_type is always PAYMENT.
+        $this->assertSame(AllocationSourceTypeEnum::PAYMENT->value, $allocation->source_type);
+        $this->assertSame('kanvas', $allocation->source);
         $this->assertSame('pdf_ingest_auto', $allocation->metadata['origin'] ?? null);
+
+        // Scribe.Payment exists with PDF_INGEST_AUTO method
+        $this->assertNotNull($allocation->payment_id);
+        $payment = $allocation->payment;
+        $this->assertNotNull($payment);
+        $this->assertSame('pdf_ingest_auto', $payment->method->value);
+        $this->assertSame('outbound', $payment->direction->value);
+        $this->assertEquals(100.0, (float) $payment->amount_native);
     }
 
     public function test_low_confidence_paid_pdf_stays_draft(): void

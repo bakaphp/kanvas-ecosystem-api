@@ -6,6 +6,8 @@ namespace Kanvas\Scribe\Ledger\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum as SequenceDocumentTypeEnum;
+use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntry as JournalEntryData;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntryLine as JournalEntryLineData;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryStatusEnum;
@@ -43,6 +45,7 @@ class PostJournalEntryAction
         public readonly ?UserInterface $postedByUser = null,
         protected readonly JournalEntryValidatorService $validator = new JournalEntryValidatorService(),
         protected readonly PeriodCloseService $periodCloseService = new PeriodCloseService(),
+        protected readonly DocumentNumberAllocatorService $numberAllocator = new DocumentNumberAllocatorService(),
     ) {
     }
 
@@ -65,7 +68,12 @@ class PostJournalEntryAction
             $entry = new JournalEntry();
             $entry->apps_id = $appsId;
             $entry->companies_id = $companiesId;
-            $entry->je_number = $this->data->jeNumber;
+            $entry->je_number = $this->data->jeNumber ?? $this->numberAllocator->allocate(
+                $appsId,
+                $companiesId,
+                SequenceDocumentTypeEnum::JOURNAL_ENTRY,
+                defaultPrefix: 'JE-',
+            );
             $entry->posted_at = $this->data->postedAt;
             $entry->fiscal_period_id = $period->id;
             $entry->source_type = $this->data->sourceType;

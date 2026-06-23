@@ -12,7 +12,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Invoices\Enums\AllocationSourceTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
 use Kanvas\Scribe\Invoices\Enums\ReversalReasonCodeEnum;
-use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
+use Kanvas\Scribe\Payments\Models\Payment;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -76,9 +76,9 @@ class InvoicePaymentAllocation extends EloquentModel
         return $this->belongsTo(Invoice::class, 'invoice_id', 'id');
     }
 
-    public function soukPayment(): BelongsTo
+    public function payment(): BelongsTo
     {
-        return $this->belongsTo(SoukPayment::class, 'payment_id', 'id');
+        return $this->belongsTo(Payment::class, 'payment_id', 'id');
     }
 
     public function allocatedBy(): BelongsTo

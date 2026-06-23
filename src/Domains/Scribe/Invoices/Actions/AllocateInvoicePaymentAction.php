@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Scribe\Bills\Actions;
+namespace Kanvas\Scribe\Invoices\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
-use Kanvas\Scribe\Bills\Models\Bill;
-use Kanvas\Scribe\Bills\Models\BillPaymentAllocation;
-use Kanvas\Scribe\Bills\Services\BillJournalEntryComposerService;
 use Kanvas\Scribe\Invoices\Enums\AllocationSourceTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\AllocationStatusEnum;
+use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
+use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
+use Kanvas\Scribe\Invoices\Services\InvoiceJournalEntryComposerService;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Payments\Actions\CreateScribePaymentAction;
@@ -22,17 +22,18 @@ use Kanvas\Scribe\Payments\Models\Payment;
 use RuntimeException;
 
 /**
- * Records an OUTBOUND payment against a RECEIVED Bill. Creates a Scribe.Payment if one isn't
- * passed, the allocation row, posts the Cash JE (DR AP / CR Cash), and recomputes the bill
- * balance — flipping to PAID when fully covered.
+ * Records a payment against an ISSUED/SENT Invoice. Creates a Scribe.Payment if one isn't passed,
+ * the allocation row, posts the Cash JE (DR Cash / CR AR), and recomputes the invoice balance —
+ * flipping to PAID when fully covered.
  *
- * Pass `$payment` when the Payment row was created elsewhere (Mercury reconciliation, ADM Cloud
- * sync). Omit it for ad-hoc operator entries or PDF auto-advance; one will be synthesized.
+ * Pass `$payment` when the Payment row was created elsewhere (Mercury reconciliation, Stripe Billing
+ * webhook, ADM Cloud sync). Omit it for ad-hoc operator entries; one will be synthesized using
+ * the provided method + bank account.
  */
-class AllocateBillPaymentAction
+class AllocateInvoicePaymentAction
 {
     public function __construct(
-        public readonly Bill $bill,
+        public readonly Invoice $invoice,
         public readonly float $amountNative,
         public readonly PaymentMethodEnum $method = PaymentMethodEnum::MANUAL,
         public readonly AccountSubTypeEnum $cashAccountSubType = AccountSubTypeEnum::CASH_CHECKING,
@@ -43,16 +44,19 @@ class AllocateBillPaymentAction
         public readonly string $source = 'kanvas',
         public readonly ?array $metadata = null,
         public readonly ?Carbon $paidAt = null,
-        protected readonly BillJournalEntryComposerService $composer = new BillJournalEntryComposerService(),
+        protected readonly InvoiceJournalEntryComposerService $composer = new InvoiceJournalEntryComposerService(),
     ) {
     }
 
-    public function execute(): BillPaymentAllocation
+    public function execute(): InvoicePaymentAllocation
     {
-        if ($this->bill->document_status !== BillDocumentStatusEnum::RECEIVED) {
+        if (! in_array($this->invoice->document_status, [
+            InvoiceDocumentStatusEnum::ISSUED,
+            InvoiceDocumentStatusEnum::SENT,
+        ], true)) {
             throw new RuntimeException(
-                "Bill {$this->bill->id} must be RECEIVED to allocate a payment "
-                . "(current status: {$this->bill->document_status->value}). Receive it first."
+                "Invoice {$this->invoice->id} must be ISSUED or SENT to allocate a payment "
+                . "(current status: {$this->invoice->document_status->value}). Issue it first."
             );
         }
 
@@ -60,47 +64,47 @@ class AllocateBillPaymentAction
             throw new RuntimeException("Payment allocation amount must be positive (got {$this->amountNative}).");
         }
 
-        if ($this->amountNative > (float) $this->bill->balance_due_native + 0.0001) {
+        if ($this->amountNative > (float) $this->invoice->balance_due_native + 0.0001) {
             throw new RuntimeException(
                 "Payment amount {$this->amountNative} exceeds remaining balance "
-                . "{$this->bill->balance_due_native} on bill {$this->bill->id}. "
+                . "{$this->invoice->balance_due_native} on invoice {$this->invoice->id}. "
                 . 'Overpayments are not supported in v1.'
             );
         }
 
-        return DB::connection('accounting')->transaction(function (): BillPaymentAllocation {
-            $bill = $this->bill;
-            $fxRate = (float) $bill->fx_rate_to_base;
+        return DB::connection('accounting')->transaction(function (): InvoicePaymentAllocation {
+            $invoice = $this->invoice;
+            $fxRate = (float) $invoice->fx_rate_to_base;
 
             $payment = $this->payment ?? new CreateScribePaymentAction(
-                app: $bill->app,
-                company: $bill->company,
+                app: $invoice->app,
+                company: $invoice->company,
                 amountNative: $this->amountNative,
-                currency: $bill->currency,
-                direction: PaymentDirectionEnum::OUTBOUND,
+                currency: $invoice->currency,
+                direction: PaymentDirectionEnum::INBOUND,
                 method: $this->method,
                 user: $this->user,
                 fxRateToBase: $fxRate,
                 paymentDate: $this->paidAt ?? Carbon::today(),
                 bankAccountId: $this->bankAccountId,
                 reference: $this->reference,
-                notes: "Bill {$bill->bill_number} payment",
+                notes: "Invoice {$invoice->invoice_number} payment",
                 source: $this->source,
                 metadata: $this->metadata,
             )->execute();
 
-            $allocation = new BillPaymentAllocation();
-            $allocation->apps_id = (int) $bill->apps_id;
-            $allocation->companies_id = (int) $bill->companies_id;
-            $allocation->bill_id = (int) $bill->id;
+            $allocation = new InvoicePaymentAllocation();
+            $allocation->apps_id = (int) $invoice->apps_id;
+            $allocation->companies_id = (int) $invoice->companies_id;
+            $allocation->invoice_id = (int) $invoice->id;
             $allocation->payment_id = (int) $payment->id;
             $allocation->source_type = AllocationSourceTypeEnum::PAYMENT->value;
             $allocation->status = AllocationStatusEnum::ACTIVE;
             $allocation->amount_native = $this->amountNative;
             $allocation->amount_base = $this->amountNative * $fxRate;
-            $allocation->currency = $bill->currency;
+            $allocation->currency = $invoice->currency;
             $allocation->fx_rate_to_base = $fxRate;
-            $allocation->fx_rate_at = $bill->fx_rate_at ?? Carbon::now();
+            $allocation->fx_rate_at = $invoice->fx_rate_at ?? Carbon::now();
             $allocation->allocated_at = $this->paidAt ?? Carbon::now();
             $allocation->allocated_by_users_id = $this->user?->getId();
             $allocation->source = $this->source;
@@ -108,7 +112,7 @@ class AllocateBillPaymentAction
             $allocation->save();
 
             $jeData = $this->composer->composePayment(
-                bill: $bill,
+                invoice: $invoice,
                 allocation: $allocation,
                 cashAccountSubType: $this->cashAccountSubType,
             );
@@ -117,8 +121,8 @@ class AllocateBillPaymentAction
                 postedByUser: $this->user,
             )->execute();
 
-            new MarkBillPaidAction(
-                bill: $bill,
+            new MarkInvoicePaidAction(
+                invoice: $invoice,
                 user: $this->user,
             )->execute();
 
