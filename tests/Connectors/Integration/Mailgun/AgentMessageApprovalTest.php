@@ -25,6 +25,7 @@ use Kanvas\Social\Messages\Actions\RejectAgentMessageAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
+use Laravel\Ai\AnonymousAgent;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 use Throwable;
@@ -162,6 +163,71 @@ class AgentMessageApprovalTest extends TestCase
         $this->expectExceptionMessage('Approval send is not supported');
 
         new ApproveAgentMessageAction($locked)->execute();
+    }
+
+    public function testApproveGeneratesSubjectWhenNoAnchorOrStoredSubject(): void
+    {
+        Notification::fake();
+        AnonymousAgent::fake(['Quick sync this week']);
+
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $lead = Lead::factory()
+            ->withAppAndCompany($app->getId(), $company->getId())
+            ->create();
+
+        SystemModules::firstOrCreate(
+            ['model_name' => Lead::class],
+            ['name' => 'Leads', 'slug' => 'leads', 'description' => 'Leads system module']
+        );
+
+        $mailgunType = MessageType::firstOrCreate(
+            ['apps_id' => $app->getId(), 'languages_id' => 1, 'verb' => 'mailgun-email'],
+            ['name' => 'Mailgun Email']
+        );
+
+        // Outbound draft with NO subject and NO thread anchor on the lead.
+        $draft = Message::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withMessageType($mailgunType)
+            ->create([
+                'message' => [
+                    'content' => "Hola Claudio,\n\nBorrador de prueba para aprobación. ¿15 min esta semana?\n\n— Sally",
+                    'chat_jid' => 'claudio@megsoft.io',
+                    'from_me' => true,
+                    'from_ia' => true,
+                ],
+                'is_locked' => 1,
+            ]);
+
+        DB::connection('social')->table('app_module_message')->insert([
+            'message_id' => $draft->getId(),
+            'message_types_id' => $mailgunType->getId(),
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'system_modules' => Lead::class,
+            'entity_id' => $lead->getId(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $draft = $draft->fresh();
+
+        new ApproveAgentMessageAction($draft)->execute();
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            function (Blank $notification): bool {
+                $subject = new \ReflectionProperty($notification, 'subject')->getValue($notification);
+
+                // Generated subject, no "Re:" prefix (brand-new thread).
+                return $subject === 'Quick sync this week';
+            },
+        );
+
+        // Anchored on the lead so later follow-ups thread under it.
+        $this->assertSame('Quick sync this week', (string) Lead::getById($lead->getId(), $app)->get('title_email_follow_up'));
     }
 
     private function runResponder(Channel $channel, Message $inbound, Agent $agent, $session): void

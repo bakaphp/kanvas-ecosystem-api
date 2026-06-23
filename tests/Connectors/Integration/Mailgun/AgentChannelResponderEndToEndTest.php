@@ -13,6 +13,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionDto;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
@@ -166,6 +167,9 @@ class AgentChannelResponderEndToEndTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $company->set(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value, $user->getId());
+        // Company settings survive DatabaseTransactions rollback; reset approval mode so a leaked
+        // APPROVAL from the approval test suite doesn't suppress auto-send here.
+        $company->set(IntelligenceConfigurationEnum::AGENT_AI_MODE->value, IntelligenceModeEnum::FULL_ON->value);
 
         $lead = Lead::factory()
             ->withAppAndCompany($app->getId(), $company->getId())
