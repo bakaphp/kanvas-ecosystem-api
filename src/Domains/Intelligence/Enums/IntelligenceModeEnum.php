@@ -8,6 +8,7 @@ enum IntelligenceModeEnum: string
 {
     case FULL_ON = 'FULL_ON';
     case SUPPORT = 'SUPPORT';
+    case APPROVAL = 'APPROVAL';
     case IDLE = 'IDLE';
     /** @deprecated use IDLE */
     case OFF = 'OFF';
@@ -17,5 +18,10 @@ enum IntelligenceModeEnum: string
     public function isOff(): bool
     {
         return $this === self::IDLE || $this === self::OFF;
+    }
+
+    public function requiresHumanApproval(): bool
+    {
+        return $this === self::APPROVAL;
     }
 }
