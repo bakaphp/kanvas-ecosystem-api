@@ -31,7 +31,6 @@ class InventorySetupCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {

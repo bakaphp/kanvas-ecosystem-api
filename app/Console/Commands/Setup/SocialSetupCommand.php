@@ -14,7 +14,7 @@ use Kanvas\Users\Models\Users;
 class SocialSetupCommand extends Command
 {
     use KanvasJobsTrait;
-    
+
     /**
      * The name and signature of the console command.
      *
@@ -31,7 +31,6 @@ class SocialSetupCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {

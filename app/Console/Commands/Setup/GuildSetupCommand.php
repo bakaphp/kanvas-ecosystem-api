@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Setup;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -13,7 +14,7 @@ use Kanvas\Users\Models\Users;
 class GuildSetupCommand extends Command
 {
     use KanvasJobsTrait;
-    
+
     /**
      * The name and signature of the console command.
      *
@@ -26,11 +27,10 @@ class GuildSetupCommand extends Command
      *
      * @var string|null
      */
-    protected $description = 'Initializes the CRM system';
+    protected $description = 'Initializes the Guild system';
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {

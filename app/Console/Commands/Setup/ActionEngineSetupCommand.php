@@ -48,7 +48,7 @@ class ActionEngineSetupCommand extends Command
             : null;
 
         $this->overwriteAppService($app);
-        
+
         new Setup(
             $app,
             $user,

@@ -15,7 +15,7 @@ use Kanvas\Users\Models\Users;
 class EventSetupCommand extends Command
 {
     use KanvasJobsTrait;
-    
+
     /**
      * The name and signature of the console command.
      *
@@ -42,8 +42,7 @@ class EventSetupCommand extends Command
         $type = $this->option('type');
         $setupType = EventSetupTypeEnum::from($type);
 
-                $this->overwriteAppService($app);
-
+        $this->overwriteAppService($app);
 
         new Setup(
             $app,
