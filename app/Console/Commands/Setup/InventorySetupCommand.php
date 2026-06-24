@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Setup;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -12,6 +13,8 @@ use Kanvas\Users\Models\Users;
 
 class InventorySetupCommand extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -36,11 +39,13 @@ class InventorySetupCommand extends Command
         $company = Companies::getById((int) $this->argument('company_id'));
         $user = Users::getById((int) $this->argument('user_id'));
 
-        (new Setup(
+        $this->overwriteAppService($app);
+
+        new Setup(
             $app,
             $user,
             $company
-        ))->run();
+        )->run();
 
         $this->newLine();
         $this->info('Inventory setup for Company ' . $company->name . ' completed successful');
