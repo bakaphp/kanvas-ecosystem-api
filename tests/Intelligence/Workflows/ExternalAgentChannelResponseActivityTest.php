@@ -36,12 +36,13 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
     private const string FROM_PHONE = '+19998887777';
     private const string CUSTOMER_PHONE = '+15551234567';
 
-    public function testRejectsMessageNotFromExternalAi(): void
+    public function testRejectsMessageWithOnlyOneExternalAiFlag(): void
     {
+        // Both from_ia AND from_orchestrator are required for now — a single flag is not enough.
         [$app, $channel, $message] = $this->makeChannelMessage(
             verb: 'sms',
             content: 'Hello there',
-            fromIa: false,
+            fromIa: true,
             fromOrchestrator: false,
         );
 
@@ -77,7 +78,7 @@ class ExternalAgentChannelResponseActivityTest extends TestCase
         [$app, $channel, $message] = $this->makeChannelMessage(
             verb: 'email',
             content: 'Orchestrator email body',
-            fromIa: false,
+            fromIa: true,
             fromOrchestrator: true,
         );
 

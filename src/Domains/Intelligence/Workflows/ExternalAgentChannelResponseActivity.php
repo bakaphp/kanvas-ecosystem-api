@@ -23,8 +23,8 @@ use Kanvas\Workflow\KanvasActivity;
  * Sibling of {@see \Kanvas\Connectors\Twilio\Workflows\HumanAgentChannelResponseActivity}: same
  * channel routing (SMS / email / WhatsApp, picked from the message verb) and same delivery path
  * (SendMessageToLeadAction), but gated on the external-AI flags `from_ia` / `from_orchestrator`
- * (set on `messages.message`) instead of `from_human`. The external orchestrator sends
- * `from_me=true`, `from_ia=true`, `from_orchestrator=true`.
+ * (set on `messages.message`) instead of `from_human` — for now BOTH must be true. The external
+ * orchestrator sends `from_me=true`, `from_ia=true`, `from_orchestrator=true`.
  *
  * Unlike the human variant it does NOT fire HUMAN_TAKEOVER / pause the local AI — the author is
  * another AI, not a person stepping in. It only delivers the message, marks the thread responded,
@@ -63,7 +63,7 @@ class ExternalAgentChannelResponseActivity extends KanvasActivity
         $content = $messageData['content'] ?? [];
         $fromIa = (bool) ($messageData['from_ia'] ?? false);
         $fromOrchestrator = (bool) ($messageData['from_orchestrator'] ?? false);
-        $fromExternalAi = $fromIa || $fromOrchestrator;
+        $fromExternalAi = $fromIa && $fromOrchestrator;
 
         $fromPhone = $params['from'] ?? null;
 
