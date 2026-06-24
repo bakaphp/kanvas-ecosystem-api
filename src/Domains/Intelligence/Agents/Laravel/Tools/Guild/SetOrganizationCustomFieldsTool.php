@@ -58,8 +58,8 @@ class SetOrganizationCustomFieldsTool implements KanvasToolInterface
                 ->description('The ID of the organization to update.')
                 ->required(),
             'fields' => $schema
-                ->string()
-                ->description('JSON-encoded object with key/value pairs to store as custom fields on the organization. Example: {"industry":"Technology","annual_revenue":"5000000"}')
+                ->object()
+                ->description('Object with key/value pairs to store as custom fields on the organization. Values can be strings, numbers, booleans, arrays, or nested objects. Example: {"industry":"Technology","annual_revenue":5000000,"company_profile":{...}}')
                 ->required(),
         ];
     }
