@@ -149,6 +149,10 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     $disableSending = true;
                 }
 
+                if ($lead->hasBeenContacted()) {
+                    $disableSending = true;
+                }
+
                 $totalSentMessages = 0;
                 $stopTheClockIteration = 0;
                 $sentChannels = [];
