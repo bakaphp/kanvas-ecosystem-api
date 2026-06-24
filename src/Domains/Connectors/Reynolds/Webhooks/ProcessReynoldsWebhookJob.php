@@ -4,14 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Reynolds\Webhooks;
 
-use Baka\Traits\KanvasJobsTrait;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Reynolds\Actions\PullLeadAction;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
@@ -21,29 +14,23 @@ use Kanvas\Connectors\Reynolds\Services\XmlParser;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Override;
 use Throwable;
 
-class ProcessReynoldsWebhookJob implements ShouldQueue
+#[WorkflowAction]
+class ProcessReynoldsWebhookJob extends ProcessWebhookJob
 {
-    use Dispatchable;
-    use InteractsWithQueue;
-    use KanvasJobsTrait;
-    use Queueable;
-    use SerializesModels;
-
-    public int $tries = 3;
-
-    public function __construct(
-        public readonly Apps $app,
-        public readonly string $rawXml,
-    ) {
-    }
-
-    public function handle(): array
+    #[Override]
+    public function execute(array $params = []): array
     {
-        $this->overwriteAppService($this->app);
+        $rawXml = (string) ($this->webhookRequest->raw_payload ?? '');
+        if ($rawXml === '') {
+            return ['status' => 'ignored', 'reason' => 'Empty payload'];
+        }
 
-        $payload = XmlParser::extractPayloadFromEnvelope($this->rawXml);
+        $payload = XmlParser::extractPayloadFromEnvelope($rawXml);
         $sender = $payload['ApplicationArea']['Sender'] ?? [];
 
         $task = TransactionCodeEnum::tryFrom((string) ($sender['Task'] ?? ''));
@@ -53,17 +40,26 @@ class ProcessReynoldsWebhookJob implements ShouldQueue
             return ['status' => 'ignored', 'reason' => 'Unknown Task code'];
         }
 
+        // Reynolds publishes every dealer event to a single global URL — the
+        // tenant identity lives inside the envelope's Sender block, not in the
+        // receiver row's companies_id. Resolve the real tenant here and rescope
+        // the service location before dispatching to per-Task handlers.
         $company = TenantResolver::fromSender(
             dealerNumber: (string) ($sender['DealerNumber'] ?? ''),
             storeNumber: (string) ($sender['StoreNumber'] ?? ''),
             areaNumber: (string) ($sender['AreaNumber'] ?? ''),
-            app: $this->app,
+            app: $this->receiver->app,
         );
 
         if ($company === null) {
             Log::warning('Reynolds webhook ignored: no matching company', ['sender' => $sender]);
 
             return ['status' => 'ignored', 'reason' => 'No matching company for Dealer/Store/Area'];
+        }
+
+        $defaultBranch = $company->defaultBranch;
+        if ($defaultBranch !== null) {
+            $this->overwriteAppServiceLocation($defaultBranch);
         }
 
         $user = $this->resolveUser($company);
@@ -91,7 +87,7 @@ class ProcessReynoldsWebhookJob implements ShouldQueue
 
     private function upsertLead(Companies $company, Users $user, array $record, TransactionCodeEnum $task): array
     {
-        $lead = new PullLeadAction($this->app, $company, $user)->execute($record);
+        $lead = new PullLeadAction($this->receiver->app, $company, $user)->execute($record);
 
         return [
             'status' => 'success',
@@ -111,7 +107,7 @@ class ProcessReynoldsWebhookJob implements ShouldQueue
         }
 
         $lead = Lead::query()
-            ->fromApp($this->app)
+            ->fromApp($this->receiver->app)
             ->fromCompany($company)
             ->notDeleted()
             ->whereHas(
@@ -126,7 +122,7 @@ class ProcessReynoldsWebhookJob implements ShouldQueue
         }
 
         $status = LeadStatus::query()
-            ->fromApp($this->app)
+            ->fromApp($this->receiver->app)
             ->fromCompany($company)
             ->notDeleted()
             ->where('name', $newStatusName)

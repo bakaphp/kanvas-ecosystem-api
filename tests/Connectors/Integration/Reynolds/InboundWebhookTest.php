@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Reynolds;
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
@@ -11,6 +13,9 @@ use Kanvas\Connectors\Reynolds\Services\TenantResolver;
 use Kanvas\Connectors\Reynolds\Webhooks\ProcessReynoldsWebhookJob;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
+use Kanvas\Workflow\Models\ReceiverWebhook;
+use Kanvas\Workflow\Models\WorkflowAction;
 use Tests\Connectors\Traits\HasReynoldsConfiguration;
 use Tests\TestCase;
 
@@ -22,6 +27,31 @@ final class InboundWebhookTest extends TestCase
     private const FIXTURE_STORE = '02';
     private const FIXTURE_AREA = '01';
     private const FIXTURE_PROSPECT_ID = '2078900';
+
+    private ReceiverWebhook $receiver;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $action = WorkflowAction::firstOrCreate(
+            ['model_name' => ProcessReynoldsWebhookJob::class],
+            ['name' => 'ProcessReynoldsWebhookJob'],
+        );
+
+        $this->receiver = ReceiverWebhook::factory()
+            ->app($app->getId())
+            ->user($user->getId())
+            ->company($company->getId())
+            ->create([
+                'action_id' => $action->getId(),
+                'configuration' => [],
+            ]);
+    }
 
     public function testTenantResolverMatchesCompanyWhenAllThreeIdentifiersAlign(): void
     {
@@ -80,7 +110,7 @@ final class InboundWebhookTest extends TestCase
         $envelope = file_get_contents(__DIR__ . '/Fixtures/inbound_osl_envelope.xml');
         $this->assertNotFalse($envelope);
 
-        $result = new ProcessReynoldsWebhookJob($app, $envelope)->handle();
+        $result = $this->dispatchWebhookJob($envelope);
 
         $this->assertSame('success', $result['status'] ?? null, 'Job should succeed for a valid OSL envelope matching a known tenant.');
         $this->assertSame('OSL', $result['task'] ?? null);
@@ -112,29 +142,30 @@ final class InboundWebhookTest extends TestCase
         $company->set(ConfigurationEnum::REYNOLDS_AREA_NUMBER->value, '99');
 
         $envelope = file_get_contents(__DIR__ . '/Fixtures/inbound_osl_envelope.xml');
-        $result = new ProcessReynoldsWebhookJob($app, $envelope)->handle();
+        $result = $this->dispatchWebhookJob($envelope);
 
         $this->assertSame('ignored', $result['status'] ?? null);
         $this->assertStringContainsString('No matching company', (string) ($result['reason'] ?? ''));
     }
 
-    public function testControllerReturnsConfirmSuccessXmlForValidEnvelope(): void
+    private function dispatchWebhookJob(string $rawXml): array
     {
-        $envelope = file_get_contents(__DIR__ . '/Fixtures/inbound_osl_envelope.xml');
-
-        $response = $this->call(
+        $request = Request::create(
+            'https://localhost/v1/receiver/' . $this->receiver->uuid,
             'POST',
-            '/v1/webhook/reynolds',
             [],
             [],
             [],
-            ['CONTENT_TYPE' => 'text/xml'],
-            $envelope,
+            ['HTTP_CONTENT_TYPE' => 'text/xml'],
+            $rawXml,
         );
 
-        $response->assertOk();
-        $response->assertHeader('Content-Type', 'text/xml; charset=utf-8');
-        $this->assertStringContainsString('<Status>Success</Status>', $response->getContent());
-        $this->assertStringContainsString('<StatusCode>0</StatusCode>', $response->getContent());
+        $webhookRequest = new ProcessWebhookAttemptAction($this->receiver, $request)->execute();
+
+        Queue::fake();
+
+        $job = new ProcessReynoldsWebhookJob($webhookRequest);
+
+        return $job->handle();
     }
 }
