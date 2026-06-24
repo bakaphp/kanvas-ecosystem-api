@@ -99,9 +99,13 @@ class PullLeadAction
             'title' => $this->buildTitle($entity),
             'pipeline_stage_id' => 0,
             'people' => $entity->customer->toPeopleData(
-                $this->app,
-                $this->company->defaultBranch,
-                $this->user
+                app: $this->app,
+                branch: $this->company->defaultBranch,
+                user: $this->user,
+                // OSL envelopes don't always carry a NameRecId — fall back to a
+                // ProspectId-derived synthetic so People dedup still has a stable
+                // key per Reynolds prospect.
+                fallbackNameRecId: 'prospect:' . $entity->prospectId,
             ),
             'leads_owner_id' => $this->resolveOwnerId($entity) ?? $this->user->getId(),
             'type_id' => $this->resolveTypeId($entity->prospectType),

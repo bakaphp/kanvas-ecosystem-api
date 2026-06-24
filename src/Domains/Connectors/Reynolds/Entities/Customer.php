@@ -131,16 +131,19 @@ class Customer
         AppInterface $app,
         CompaniesBranches $branch,
         UserInterface $user,
-        ?int $existingPeopleId = null
+        ?int $existingPeopleId = null,
+        ?string $fallbackNameRecId = null
     ): PeopleData {
-        if ($this->nameRecId === null) {
+        $nameRecId = $this->nameRecId ?? $fallbackNameRecId;
+
+        if ($nameRecId === null) {
             throw new ReynoldsException(
                 'Customer is missing NameRecId — cannot build PeopleData without an external identifier'
             );
         }
 
         $customFields = [
-            CustomFieldEnum::NAME_REC_ID->value => $this->nameRecId,
+            CustomFieldEnum::NAME_REC_ID->value => $nameRecId,
             CustomFieldEnum::CONTACT_TYPE->value => $this->isBusiness ? 'B' : 'I',
         ];
         $customFields += $this->buildConsentCustomFields();
