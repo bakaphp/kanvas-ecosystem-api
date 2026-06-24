@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Actions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentConfigBackup;
+use Illuminate\Support\Facades\Storage;
 use Kanvas\Intelligence\Agents\Services\AgentConfigBackupService;
 use Throwable;
 
@@ -31,14 +32,13 @@ class CreateAgentConfigBackupAction
 
         try {
             $service = new AgentConfigBackupService();
-            $backupFolder = $service->buildBackupFolder($this->app, $this->agent);
-            $data = $service->serialize($this->agent, $backupFolder);
-            $path = $service->upload($data, $backupFolder);
+            $data = $service->serialize($this->agent);
+            $path = $service->upload($this->agent, $this->app, $data);
 
             $backup->update([
                 'status' => 'completed',
                 'file_path' => $path,
-                'file_size_bytes' => strlen(json_encode($data)),
+                'file_size_bytes' => Storage::size($path),
                 'completed_at' => now(),
             ]);
         } catch (Throwable $e) {

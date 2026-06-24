@@ -11,26 +11,17 @@ use Kanvas\Intelligence\Agents\Models\AgentConfigBackup;
 use Kanvas\NervousSystem\Capability\Models\AgentSkill;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Throwable;
+use ZipArchive;
 
 class AgentConfigBackupService
 {
-    public function buildBackupFolder(Apps $app, Agent $agent): string
-    {
-        return sprintf(
-            'config-backups/%s/%s/%s',
-            $app->uuid,
-            $agent->uuid,
-            now()->format('Y-m-d_H-i-s')
-        );
-    }
-
     /**
-     * Serialize the agent's config, tools, skills, and attached files into an array.
-     * Files are physically copied to $backupFolder/files/ on S3.
+     * Serialize the agent's config, tools, skills, and file metadata into an array.
+     * Each file records its original S3 path so upload() can pull and zip the content.
      */
-    public function serialize(Agent $agent, string $backupFolder): array
+    public function serialize(Agent $agent): array
     {
-        $files = $this->serializeFiles($agent, $backupFolder);
+        $files = $this->serializeFiles($agent);
         $tools = $this->serializeSelectedTools($agent);
         $agentSkills = $this->serializeAgentSkills($agent);
         $agentOwnedTools = $this->serializeAgentOwnedTools($agent);
@@ -63,44 +54,81 @@ class AgentConfigBackupService
     }
 
     /**
-     * Upload the serialized backup manifest to S3 and return the stored file path.
+     * Build a ZIP containing manifest.json + all agent files, then upload to S3.
+     * Returns the S3 path of the uploaded ZIP.
      */
-    public function upload(array $data, string $backupFolder): string
+    public function upload(Agent $agent, Apps $app, array $data): string
     {
-        $manifestPath = "{$backupFolder}/manifest.json";
-        Storage::put($manifestPath, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        $timestamp = now()->format('Y-m-d_H-i-s');
+        $s3Path = "config-backups/{$app->uuid}/{$agent->uuid}/{$timestamp}.zip";
 
-        return $manifestPath;
-    }
+        $tempPath = tempnam(sys_get_temp_dir(), 'agent_backup_') . '.zip';
 
-    /**
-     * Download and decode a backup manifest from S3.
-     */
-    public function download(AgentConfigBackup $backup): array
-    {
-        $content = Storage::get($backup->file_path);
+        try {
+            $zip = new ZipArchive();
+            $zip->open($tempPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
-        return json_decode($content, true);
-    }
+            $zip->addFromString('manifest.json', json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
-    private function serializeFiles(Agent $agent, string $backupFolder): array
-    {
-        return $agent->getFiles()->map(function ($entity) use ($backupFolder) {
-            $fs = $entity->filesystem;
-            $backupPath = null;
-
-            if ($fs->path) {
-                $ext = pathinfo($fs->name, PATHINFO_EXTENSION);
-                $destName = $fs->uuid . ($ext ? '.' . $ext : '');
-                $destPath = "{$backupFolder}/files/{$destName}";
+            foreach ($data['agent']['files'] as $file) {
+                if (empty($file['source_path'])) {
+                    continue;
+                }
 
                 try {
-                    Storage::copy($fs->path, $destPath);
-                    $backupPath = $destPath;
+                    $content = Storage::get($file['source_path']);
+
+                    if ($content !== null) {
+                        $zip->addFromString($file['zip_path'], $content);
+                    }
                 } catch (Throwable $e) {
                     report($e);
                 }
             }
+
+            $zip->close();
+
+            Storage::put($s3Path, file_get_contents($tempPath));
+        } finally {
+            if (file_exists($tempPath)) {
+                unlink($tempPath);
+            }
+        }
+
+        return $s3Path;
+    }
+
+    /**
+     * Download the ZIP from S3, extract manifest.json, and return the decoded payload.
+     */
+    public function download(AgentConfigBackup $backup): array
+    {
+        $zipContent = Storage::get($backup->file_path);
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'agent_restore_') . '.zip';
+
+        try {
+            file_put_contents($tempPath, $zipContent);
+
+            $zip = new ZipArchive();
+            $zip->open($tempPath);
+            $manifest = $zip->getFromName('manifest.json');
+            $zip->close();
+        } finally {
+            if (file_exists($tempPath)) {
+                unlink($tempPath);
+            }
+        }
+
+        return json_decode($manifest, true);
+    }
+
+    private function serializeFiles(Agent $agent): array
+    {
+        return $agent->getFiles()->map(function ($entity) {
+            $fs = $entity->filesystem;
+            $ext = pathinfo($fs->name, PATHINFO_EXTENSION);
+            $zipPath = 'files/' . $fs->uuid . ($ext ? '.' . $ext : '');
 
             return [
                 'uuid' => $fs->uuid,
@@ -108,7 +136,8 @@ class AgentConfigBackupService
                 'url' => $fs->url,
                 'size' => $fs->size,
                 'field_name' => $entity->field_name,
-                'backup_path' => $backupPath,
+                'source_path' => $fs->path,
+                'zip_path' => $zipPath,
             ];
         })->values()->all();
     }
