@@ -54,7 +54,7 @@ class GeneralLedgerInvariantsFlowTest extends ScribeTestCase
         $allocation->apps_id = (int) $invoice->apps_id;
         $allocation->companies_id = (int) $invoice->companies_id;
         $allocation->invoice_id = (int) $invoice->id;
-        $allocation->source_type = 'souk_payment';
+        $allocation->source_type = 'payment';
         $allocation->status = AllocationStatusEnum::ACTIVE->value;
         $allocation->amount_native = 1000.0;
         $allocation->amount_base = 1000.0;

@@ -10,7 +10,7 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Carbon;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
@@ -22,7 +22,7 @@ use Kanvas\Scribe\Invoices\Enums\InvoiceCollectionStateEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
-use Kanvas\Souk\Payments\Models\Payments as SoukPayment;
+use Kanvas\Scribe\Payments\Models\Payment;
 use Override;
 use Throwable;
 
@@ -158,14 +158,16 @@ class Invoice extends BaseModel implements PayableInterface
             ->where('document_type', DocumentTypeEnum::CREDIT_NOTE->value);
     }
 
-    /**
-     * Polymorphic Souk.Payments rows that attach to this invoice via payable_type/payable_id.
-     */
-    public function payments(): MorphMany
+    public function payments(): HasManyThrough
     {
-        return $this->morphMany(SoukPayment::class, 'payable')
-            ->where('is_deleted', 0)
-            ->latest();
+        return $this->hasManyThrough(
+            Payment::class,
+            InvoicePaymentAllocation::class,
+            'invoice_id',
+            'id',
+            'id',
+            'payment_id',
+        );
     }
 
     #[Override]

@@ -7,6 +7,7 @@ namespace App\GraphQL\Scribe\Mutations\Invoices;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Scribe\Invoices\Actions\AllocateInvoicePaymentAction;
 use Kanvas\Scribe\Invoices\Actions\AmendInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\IssueCreditNoteAction;
@@ -17,6 +18,9 @@ use Kanvas\Scribe\Invoices\Actions\VoidInvoiceAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\AmendInvoice as AmendInvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
+use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
+use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
 use RuntimeException;
 
 class InvoiceMutation
@@ -90,6 +94,32 @@ class InvoiceMutation
         return new MarkInvoicePaidAction(
             invoice: $invoice,
             user: $user,
+        )->execute();
+    }
+
+    public function allocatePayment(mixed $rootValue, array $request): InvoicePaymentAllocation
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $input = $request['input'];
+
+        /** @var Invoice $invoice */
+        $invoice = Invoice::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+
+        return new AllocateInvoicePaymentAction(
+            invoice: $invoice,
+            amountNative: (float) $input['amount_native'],
+            method: isset($input['method']) ? PaymentMethodEnum::from((string) $input['method']) : PaymentMethodEnum::MANUAL,
+            cashAccountSubType: isset($input['cash_account_sub_type'])
+                ? AccountSubTypeEnum::from((string) $input['cash_account_sub_type'])
+                : AccountSubTypeEnum::CASH_CHECKING,
+            bankAccountId: isset($input['bank_account_id']) ? (int) $input['bank_account_id'] : null,
+            reference: $input['reference'] ?? null,
+            user: $user,
+            source: $input['source'] ?? 'kanvas',
+            metadata: $input['metadata'] ?? null,
+            paidAt: isset($input['paid_at']) ? Carbon::parse((string) $input['paid_at']) : null,
         )->execute();
     }
 

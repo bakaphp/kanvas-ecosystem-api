@@ -115,7 +115,7 @@ type ScribeInvoiceTaxLine {
 
 type ScribeInvoicePaymentAllocation {
     id: ID!
-    payment: Payment @belongsTo(relation: "soukPayment")
+    payment: ScribePayment @belongsTo(relation: "payment")
     status: String!
     amount_native: Money!
     amount_base: Money!
@@ -247,6 +247,13 @@ extend type Mutation @guard {
     voidScribeInvoice(id: ID!, void_reason_code: String!): ScribeInvoice!
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@void"
+        )
+    allocateScribeInvoicePayment(
+        id: ID!
+        input: ScribeAllocatePaymentInput!
+    ): ScribeInvoicePaymentAllocation!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@allocatePayment"
         )
     markScribeInvoicePaid(
         id: ID!
