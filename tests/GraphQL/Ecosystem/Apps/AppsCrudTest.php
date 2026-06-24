@@ -8,6 +8,7 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Tests\TestCase;
 
 class AppsCrudTest extends TestCase
@@ -86,6 +87,55 @@ class AppsCrudTest extends TestCase
             '
         );
         $this->assertArrayHasKey('data', $response);
+    }
+
+    public function testListedOncePerAppWithPaginatorInfo()
+    {
+        $user = auth()->user();
+        $app = Apps::orderBy('id', 'desc')->first();
+
+        foreach ([0, 999001, 999002, 999003] as $companyId) {
+            UsersAssociatedApps::firstOrCreate([
+                'users_id' => $user->getKey(),
+                'companies_id' => $companyId,
+                'apps_id' => $app->getKey(),
+            ], [
+                'identify_id' => $user->getKey(),
+                'user_active' => StateEnums::ON->getValue(),
+                'user_role' => $user->roles_id,
+                'password' => $user->password,
+            ]);
+        }
+
+        $response = $this->graphQL(
+            /** @lang GraphQL */
+            '
+            query {
+                apps(first: 50) {
+                    data {
+                        id
+                    }
+                    paginatorInfo {
+                        total
+                        currentPage
+                        lastPage
+                    }
+                }
+            }
+            '
+        );
+
+        $ids = array_column($response['data']['apps']['data'], 'id');
+
+        // The user is linked to the app through several users_associated_apps rows
+        // (one per company). Requesting paginatorInfo used to drop or duplicate such
+        // apps because the JOIN + groupBy made the data and count queries disagree.
+        $this->assertSame(
+            1,
+            count(array_keys($ids, (string) $app->getKey())),
+            'App associated through multiple companies must appear exactly once'
+        );
+        $this->assertSame($ids, array_values(array_unique($ids)), 'No app may be listed more than once');
     }
 
     /**

@@ -295,53 +295,26 @@ class Apps extends BaseModel implements AppInterface
     }
 
     /**
-     * Not deleted scope.
+     * Scope apps the current user is associated with.
+     *
+     * Uses a `whereIn` semi-join instead of a JOIN + groupBy: a user can be linked to the
+     * same app through many `users_associated_apps` rows (one per company), so a JOIN
+     * duplicates the app row and forces a groupBy to de-duplicate. That grouped query is handled
+     * inconsistently by Lighthouse `@paginate` — the count query and the data query disagree,
+     * which silently dropped high-cardinality apps when `paginatorInfo` was requested. The
+     * semi-join returns each app exactly once with no duplication, so pagination is stable.
      */
     public function scopeUserAssociated(Builder $query): Builder
     {
         $user = Auth::user();
 
-        return $query->select(
+        return $query->whereIn(
             'apps.id',
-            'apps.name',
-            'apps.description',
-            'apps.url',
-            'apps.domain',
-            'apps.default_apps_plan_id',
-            'apps.is_actived',
-            'apps.key',
-            'apps.payments_active',
-            'apps.ecosystem_auth',
-            'apps.is_public',
-            'apps.domain_based',
-            'apps.created_at',
-            'apps.updated_at'
-        )
-            ->join(
-                'users_associated_apps',
-                'users_associated_apps.apps_id',
-                '=',
-                'apps.id'
-            )
-            ->where('users_associated_apps.users_id', '=', $user->getKey())
-            ->where('users_associated_apps.is_deleted', '=', StateEnums::NO->getValue())
-            ->where('apps.is_deleted', '=', StateEnums::NO->getValue())
-            ->groupBy(
-                'apps.id',
-                'apps.name',
-                'apps.description',
-                'apps.url',
-                'apps.domain',
-                'apps.default_apps_plan_id',
-                'apps.is_actived',
-                'apps.key',
-                'apps.payments_active',
-                'apps.ecosystem_auth',
-                'apps.is_public',
-                'apps.domain_based',
-                'apps.created_at',
-                'apps.updated_at'
-            );
+            UsersAssociatedApps::query()
+                ->select('apps_id')
+                ->where('users_id', $user->getKey())
+                ->where('is_deleted', StateEnums::NO->getValue())
+        );
     }
 
     public function getLogo(): ?FilesystemEntities
