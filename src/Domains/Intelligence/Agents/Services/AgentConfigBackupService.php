@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Services;
 use Illuminate\Support\Facades\Storage;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentBackup;
 use Kanvas\Intelligence\Agents\Models\AgentConfigBackup;
 use Kanvas\NervousSystem\Capability\Models\AgentSkill;
 use Kanvas\NervousSystem\Capability\Models\Tool;
@@ -16,8 +17,7 @@ use ZipArchive;
 class AgentConfigBackupService
 {
     /**
-     * Serialize the agent's config, tools, skills, and file metadata into an array.
-     * Each file records its original S3 path so upload() can pull and zip the content.
+     * Serialize the agent's DB state: config, skills, tools, and file metadata.
      */
     public function serialize(Agent $agent): array
     {
@@ -54,32 +54,60 @@ class AgentConfigBackupService
     }
 
     /**
-     * Build a ZIP containing manifest.json + all agent files, then upload to S3.
-     * Returns the S3 path of the uploaded ZIP.
+     * Find the latest completed workspace backup (tar.gz) for this agent across all deployments.
+     * Returns the AgentBackup model or null if none exists.
      */
-    public function upload(Agent $agent, Apps $app, array $data): string
+    public function findLatestWorkspaceBackup(Agent $agent): ?AgentBackup
+    {
+        $deploymentIds = $agent->deployments()
+            ->where('is_deleted', 0)
+            ->pluck('id');
+
+        if ($deploymentIds->isEmpty()) {
+            return null;
+        }
+
+        return AgentBackup::whereIn('agent_deployment_id', $deploymentIds)
+            ->where('status', 'completed')
+            ->whereNotNull('file_path')
+            ->where('is_deleted', 0)
+            ->latest()
+            ->first();
+    }
+
+    /**
+     * Build a ZIP containing:
+     *   - manifest.json  (DB state from serialize())
+     *   - workspace.tar.gz  (agent container workspace, if available)
+     *
+     * Uploads to S3 and returns the stored path.
+     */
+    public function upload(Agent $agent, Apps $app, array $data, ?AgentBackup $workspaceBackup = null): string
     {
         $timestamp = now()->format('Y-m-d_H-i-s');
         $s3Path = "config-backups/{$app->uuid}/{$agent->uuid}/{$timestamp}.zip";
 
-        $tempPath = tempnam(sys_get_temp_dir(), 'agent_backup_') . '.zip';
+        $tempPath = tempnam(sys_get_temp_dir(), 'agent_config_backup_') . '.zip';
 
         try {
             $zip = new ZipArchive();
             $zip->open($tempPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
 
+            $data['workspace'] = [
+                'included' => $workspaceBackup !== null,
+                'source_backup_id' => $workspaceBackup?->id,
+                'source_backup_uuid' => $workspaceBackup?->uuid,
+                'source_backup_date' => $workspaceBackup?->completed_at?->toIso8601String(),
+            ];
+
             $zip->addFromString('manifest.json', json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
-            foreach ($data['agent']['files'] as $file) {
-                if (empty($file['source_path'])) {
-                    continue;
-                }
-
+            if ($workspaceBackup !== null) {
                 try {
-                    $content = Storage::get($file['source_path']);
+                    $workspaceTarGz = Storage::get($workspaceBackup->file_path);
 
-                    if ($content !== null) {
-                        $zip->addFromString($file['zip_path'], $content);
+                    if ($workspaceTarGz !== null) {
+                        $zip->addFromString('workspace.tar.gz', $workspaceTarGz);
                     }
                 } catch (Throwable $e) {
                     report($e);
@@ -105,7 +133,7 @@ class AgentConfigBackupService
     {
         $zipContent = Storage::get($backup->file_path);
 
-        $tempPath = tempnam(sys_get_temp_dir(), 'agent_restore_') . '.zip';
+        $tempPath = tempnam(sys_get_temp_dir(), 'agent_config_restore_') . '.zip';
 
         try {
             file_put_contents($tempPath, $zipContent);
@@ -127,8 +155,6 @@ class AgentConfigBackupService
     {
         return $agent->getFiles()->map(function ($entity) {
             $fs = $entity->filesystem;
-            $ext = pathinfo($fs->name, PATHINFO_EXTENSION);
-            $zipPath = 'files/' . $fs->uuid . ($ext ? '.' . $ext : '');
 
             return [
                 'uuid' => $fs->uuid,
@@ -137,7 +163,6 @@ class AgentConfigBackupService
                 'size' => $fs->size,
                 'field_name' => $entity->field_name,
                 'source_path' => $fs->path,
-                'zip_path' => $zipPath,
             ];
         })->values()->all();
     }
