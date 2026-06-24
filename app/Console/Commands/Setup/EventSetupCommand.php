@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Setup;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -13,6 +14,8 @@ use Kanvas\Users\Models\Users;
 
 class EventSetupCommand extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -38,6 +41,8 @@ class EventSetupCommand extends Command
         /** @var string $type */
         $type = $this->option('type');
         $setupType = EventSetupTypeEnum::from($type);
+
+        $this->overwriteAppService($app);
 
         new Setup(
             $app,

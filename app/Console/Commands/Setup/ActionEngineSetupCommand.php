@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Setup;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\ActionEngine\Support\Setup;
 use Kanvas\Apps\Models\Apps;
@@ -12,6 +13,8 @@ use Kanvas\Users\Models\Users;
 
 class ActionEngineSetupCommand extends Command
 {
+    use KanvasJobsTrait;
+
     /**
      * The name and signature of the console command.
      *
@@ -43,6 +46,8 @@ class ActionEngineSetupCommand extends Command
         $fromCompany = $fromCompanyId !== null
             ? Companies::getById((int) $fromCompanyId)
             : null;
+
+        $this->overwriteAppService($app);
 
         new Setup(
             $app,
