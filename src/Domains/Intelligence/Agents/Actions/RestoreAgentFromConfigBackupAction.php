@@ -8,6 +8,8 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentConfigBackup;
 use Kanvas\Intelligence\Agents\Services\AgentConfigBackupService;
+use Kanvas\NervousSystem\Capability\Models\AgentSkill;
+use Kanvas\NervousSystem\Capability\Models\Skill;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 
 class RestoreAgentFromConfigBackupAction
@@ -43,7 +45,6 @@ class RestoreAgentFromConfigBackupAction
             'is_active' => $agentData['is_active'],
         ]);
 
-        // Restore selected tools by slug/id
         if (! empty($agentData['selected_tools'])) {
             $toolIds = Tool::whereIn('id', array_column($agentData['selected_tools'], 'id'))
                 ->pluck('id')
@@ -54,6 +55,64 @@ class RestoreAgentFromConfigBackupAction
             }
         }
 
+        if (! empty($agentData['agent_skills'])) {
+            $this->restoreAgentSkills($agent, $agentData['agent_skills']);
+        }
+
+        if (! empty($agentData['agent_owned_tools'])) {
+            $this->restoreAgentOwnedTools($agent, $agentData['agent_owned_tools']);
+        }
+
         return $agent->fresh();
+    }
+
+    private function restoreAgentSkills(Agent $agent, array $agentSkillsData): void
+    {
+        foreach ($agentSkillsData as $skillData) {
+            if (empty($skillData['skill'])) {
+                continue;
+            }
+
+            $skill = Skill::where('uuid', $skillData['skill']['uuid'])->first();
+
+            if ($skill === null) {
+                continue;
+            }
+
+            AgentSkill::updateOrCreate(
+                ['agent_id' => $agent->id, 'skill_id' => $skill->id],
+                [
+                    'apps_id' => $agent->apps_id,
+                    'companies_id' => $agent->companies_id,
+                    'is_active' => $skillData['is_active'] ?? true,
+                    'config' => $skillData['config'] ?? null,
+                    'granted_at' => now(),
+                    'is_deleted' => 0,
+                ]
+            );
+        }
+    }
+
+    private function restoreAgentOwnedTools(Agent $agent, array $toolsData): void
+    {
+        foreach ($toolsData as $toolData) {
+            Tool::updateOrCreate(
+                ['uuid' => $toolData['uuid']],
+                [
+                    'apps_id' => $agent->apps_id,
+                    'agents_id' => $agent->id,
+                    'name' => $toolData['name'],
+                    'description' => $toolData['description'] ?? null,
+                    'tool_type' => $toolData['tool_type'],
+                    'handler' => $toolData['handler'] ?? null,
+                    'input_schema' => $toolData['input_schema'] ?? null,
+                    'output_schema' => $toolData['output_schema'] ?? null,
+                    'frameworks' => $toolData['frameworks'] ?? [],
+                    'version' => $toolData['version'] ?? '1.0',
+                    'is_active' => $toolData['is_active'] ?? true,
+                    'is_deleted' => 0,
+                ]
+            );
+        }
     }
 }

@@ -31,8 +31,9 @@ class CreateAgentConfigBackupAction
 
         try {
             $service = new AgentConfigBackupService();
-            $data = $service->serialize($this->agent);
-            $path = $service->upload($this->agent, $data);
+            $backupFolder = $service->buildBackupFolder($this->app, $this->agent);
+            $data = $service->serialize($this->agent, $backupFolder);
+            $path = $service->upload($data, $backupFolder);
 
             $backup->update([
                 'status' => 'completed',
