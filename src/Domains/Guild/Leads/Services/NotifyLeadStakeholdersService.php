@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Notifications\Notification as NotificationsNotification;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Notifications\Templates\EngagementNotification;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
@@ -136,22 +137,26 @@ class NotifyLeadStakeholdersService
             return ['skipped' => 'no_channels_configured'];
         }
 
-        $notification = new Blank(
+        $notification = new EngagementNotification(
             templateName: 'agent-manager-notification',
             data: [
                 'message' => $message,
                 'company' => $message->company,
                 'app' => $message->app,
                 'user' => $message->user,
+                'lead_name' => $this->lead->people->name,
+                'lead_id' => $this->lead->getId(),
+                'people_id' => $this->lead->people->getId(),
             ],
             via: $channels,
-            entity: $message
+            entity: $this->lead
         );
 
         $peopleName = (string) ($this->lead->people->name ?? '');
         $notification->setSubject($peopleName . ' Engaged with Sally');
         $notification->setPushTemplateName('agent_manager_push_notification');
         $notification->setSmsTemplateName('agent_manager_sms_notification');
+        $notification->setDatabaseTemplateName('agent_manager_sms_notification');
 
         $recipients = $this->collectManagerRecipients($message, $includeOwner);
 
@@ -215,9 +220,12 @@ class NotifyLeadStakeholdersService
                 'app' => $message->app,
                 'user' => $message->user,
                 'is_human' => $isHuman,
+                'lead_name' => $this->lead->people->name,
+                'lead_id' => $this->lead->getId(),
+                'people_id' => $this->lead->people->getId(),
             ],
             via: $channels,
-            entity: $message
+            entity: $this->lead
         );
 
         $peopleName = (string) ($this->lead->people->name ?? '');
@@ -313,9 +321,9 @@ class NotifyLeadStakeholdersService
         $onlyPush = (bool) $this->lead->company->get('ai_manager_notification_only_push');
 
         return match (true) {
-            $onlySms => ['sms'],
+            $onlySms => ['sms', 'database'],
             $onlyMail => ['mail'],
-            $onlyPush => ['push', 'expo'],
+            $onlyPush => ['push', 'expo', 'database'],
             default => ['mail'],
         };
     }

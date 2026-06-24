@@ -8,9 +8,11 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Stripe\Services\StripePlanService;
 use Kanvas\Subscription\Importer\Actions\PlanImporterAction;
 use Kanvas\Subscription\Importer\DataTransferObjects\PlanImporter;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class ImportStripePlanWebhookJob extends ProcessWebhookJob
 {
     public array $data = [];
@@ -20,6 +22,7 @@ class ImportStripePlanWebhookJob extends ProcessWebhookJob
     {
         if (! in_array($this->webhookRequest->payload['type'], ['product.created', 'product.updated'])) {
             Log::error('Webhook type not found', ['type' => $this->webhookRequest->payload['type']]);
+
             return [];
         }
 

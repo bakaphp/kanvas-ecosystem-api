@@ -11,9 +11,11 @@ use Kanvas\Connectors\ScrapingDog\Enums\ConfigEnum;
 use Kanvas\Connectors\ScrapingDog\Repositories\ScrapingDogRepository;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class SearchJob extends ProcessWebhookJob
 {
     use KanvasJobsTrait;
@@ -33,6 +35,7 @@ class SearchJob extends ProcessWebhookJob
 
         return Cache::remember($key, $ttl, function () use ($repository, $search, $page) {
             $results = $repository->getSearch($search, $page);
+
             return ['results' => $results['results'], 'pagination' => $results['pagination'] ?? []];
         });
     }

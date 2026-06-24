@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Orders\Models;
 
 use Baka\Casts\Json;
+use Baka\Contracts\PayableInterface;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -100,7 +101,7 @@ use Spatie\LaravelData\DataCollection;
  * @property Carbon|null $updated_at
  */
 #[ObservedBy(OrderObserver::class)]
-class Order extends BaseModel
+class Order extends BaseModel implements PayableInterface
 {
     use UuidTrait;
     use DynamicSearchableTrait {
@@ -130,6 +131,7 @@ class Order extends BaseModel
         'metadata' => Json::class,
         'private_metadata' => Json::class,
     ];
+
 
     public function region(): BelongsTo
     {
@@ -218,6 +220,15 @@ class Order extends BaseModel
     public function getTotalTaxAmount(): float
     {
         return $this->getTotalAmount() - $this->getSubTotalAmount();
+    }
+
+    /**
+     * Amount the customer must actually pay: the net total after order-level discounts.
+     * Payment processors must charge this, NOT getTotalAmount() (the pre-discount gross).
+     */
+    public function getTotalDueAmount(): float
+    {
+        return (float) $this->total_net_amount;
     }
 
     public function addItems(DataCollection $items): void
@@ -328,6 +339,15 @@ class Order extends BaseModel
             true,
             [
                 'app' => $this->app,
+            ]
+        );
+
+        $this->fireWorkflow(
+            WorkflowEnum::AFTER_PAYMENT_INTENT->value,
+            true,
+            [
+                'app' => $this->app,
+                'company' => $this->company,
             ]
         );
     }

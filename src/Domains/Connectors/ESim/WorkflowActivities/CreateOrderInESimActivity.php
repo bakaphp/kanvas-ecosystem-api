@@ -31,11 +31,13 @@ use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Notifications\NewOrderNotification;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Stripe\StripeClient;
 use Throwable;
 
+#[WorkflowAction]
 class CreateOrderInESimActivity extends KanvasActivity
 {
     //public $tries = 2;

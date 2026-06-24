@@ -32,7 +32,7 @@ class ProductsTest extends TestCase
 
         $data = [
             'name' => fake()->name,
-            'sku' => fake()->time,
+            'sku' => fake()->unique()->uuid(),
             'description' => fake()->text,
         ];
 
@@ -49,7 +49,6 @@ class ProductsTest extends TestCase
         $response->assertJson([
             'data' => ['createProduct' => $data],
         ])->assertOk();
-
 
         $this->graphQL(
             '

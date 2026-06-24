@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Events;
 
+use Baka\Traits\LimitsBroadcastPayload;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
@@ -17,6 +18,7 @@ class AgentChatResponseEvent implements ShouldBroadcastNow
     use SerializesModels;
     use Dispatchable;
     use InteractsWithSockets;
+    use LimitsBroadcastPayload;
 
     public function __construct(
         protected Agent $agent,
@@ -26,14 +28,19 @@ class AgentChatResponseEvent implements ShouldBroadcastNow
     ) {
     }
 
+    public function agent(): Agent
+    {
+        return $this->agent;
+    }
+
     public function broadcastWith(): array
     {
         return [
             'agent_id' => $this->agent->getId(),
             'agent_name' => $this->agent->name,
             'session_id' => $this->sessionId,
-            'message' => $this->message,
-            'response' => $this->response,
+            'message' => $this->limitBroadcastPayload($this->message),
+            'response' => $this->limitBroadcastPayload($this->response),
         ];
     }
 

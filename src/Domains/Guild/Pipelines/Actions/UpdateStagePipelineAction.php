@@ -52,7 +52,6 @@ class UpdateStagePipelineAction
         $this->stage->rotting_days = $this->stageData->rotting_days;
         $this->stage->saveOrFail();
 
-
         return $this->stage;
     }
 }

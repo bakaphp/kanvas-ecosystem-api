@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Actions;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Filesystem\Services\ImageOptimizerService;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
@@ -17,6 +15,7 @@ use Kanvas\Social\Channels\Models\Channel as ModelsChannel;
 use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Services\MessageFileConstrainerService;
 use Kanvas\Social\Messages\Validations\ValidParentMessage;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -117,19 +116,23 @@ class CreateMessageAction
                             ->where('entity_namespace', $this->systemModule->model_name);
                     })
                     ->first();
-
-                new CreateChannelAction(new Channel(
-                    apps: $message->app,
-                    companies: $message->company,
-                    users: $message->user,
-                    //entity_id: $this->entityId ?? $message->getId(),
-                    entity_id: $channel?->entity_id ?? $message->getId(),
-                    //entity_namespace: $this->systemModule?->model_name ?? Message::class,
-                    entity_namespace: $channel?->entity_namespace ?? Message::class,
-                    name: $this->messageInput->channel_slug,
-                    description: $this->messageInput->channel_slug,
-                    slug: $this->messageInput->channel_slug,
-                ))->execute()->addMessage($message, $message->user);
+                if ($channel) {
+                    $channel->addMessage($message, $message->user);
+                } else {
+                    $modelName = $this->systemModule?->model_name;
+                    new CreateChannelAction(new Channel(
+                        apps: $message->app,
+                        companies: $message->company,
+                        users: $message->user,
+                        //entity_id: $this->entityId ?? $message->getId(),
+                        entity_id: $message->getId(),
+                        //entity_namespace: $this->systemModule?->model_name ?? Message::class,
+                        entity_namespace: Message::class,
+                        name: $this->messageInput->channel_slug,
+                        description: $this->messageInput->channel_slug,
+                        slug: $this->messageInput->channel_slug,
+                    ))->execute()->addMessage($message, $message->user);
+                }
             }
 
             if ($this->runWorkflow) {
@@ -146,48 +149,12 @@ class CreateMessageAction
         });
     }
 
-    /**
-     * Constrain image file sizes for message types that have size limits (e.g., SMS/MMS).
-     */
     private function constrainMessageFiles(): void
     {
-        $app = $this->messageInput->app;
-        $maxFileSize = (int) ($app->get('filesystem-message-max-filesize') ?: 0);
-
-        if ($maxFileSize <= 0) {
-            return;
-        }
-
-        $allowedVerbs = (array) $app->get('filesystem-message-constrain-verbs');
-        if (empty($allowedVerbs)) {
-            return;
-        }
-
-        if (! in_array($this->messageInput->type->verb, $allowedVerbs, true)) {
-            return;
-        }
-
-        foreach ($this->messageInput->files as $key => $file) {
-            if (! $file instanceof UploadedFile) {
-                continue;
-            }
-
-            $convertedPath = ImageOptimizerService::constrainFileSize(
-                $file->getRealPath(),
-                $maxFileSize,
-            );
-
-            // constrainFileSize may convert HEIC to JPEG at a new path,
-            // so we need to update the file reference
-            if ($convertedPath !== $file->getRealPath()) {
-                $this->messageInput->files[$key] = new UploadedFile(
-                    $convertedPath,
-                    pathinfo($convertedPath, PATHINFO_BASENAME),
-                    (string) mime_content_type($convertedPath),
-                    $file->getError(),
-                    true
-                );
-            }
-        }
+        $this->messageInput->files = MessageFileConstrainerService::constrain(
+            $this->messageInput->app,
+            $this->messageInput->type->verb,
+            $this->messageInput->files,
+        );
     }
 }

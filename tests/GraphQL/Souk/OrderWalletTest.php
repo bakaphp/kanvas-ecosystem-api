@@ -13,7 +13,12 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Enums\PaymentMethodTypesEnum;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
 use Kanvas\Souk\Payments\Models\PaymentLogs;
+use Kanvas\Souk\Payments\Models\PaymentRefund;
+use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Wallet\Actions\AddFundsToUserWalletAction;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
@@ -1172,5 +1177,224 @@ class OrderWalletTest extends TestCase
         } finally {
             $app->del(WalletConfigurationEnum::USE_VARIANT_CREDIT_INSTEAD_OF_VARIANT_PRICE_SLUG->value);
         }
+    }
+
+    private function placeWalletOrder(float $unitPrice = 100.0, int $quantity = 1): int
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $app->del(WalletConfigurationEnum::USE_USER_WALLET->value);
+
+        $productData = new Product(
+            app: $app,
+            company: $company,
+            user: $user,
+            name: fake()->name(),
+            sku: fake()->unique()->uuid(),
+            warehouses: [[
+                'quantity' => 100,
+                'price' => $unitPrice,
+            ]]
+        );
+        $product = (new CreateProductAction($productData, $user))->execute();
+        $variant = $product->variants()->first();
+        $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
+        $channel = Channels::fromApp($app)->fromCompany($company)->first();
+        $variant->updatePriceInWarehouse($warehouse, $unitPrice);
+        $variant->updatePriceInChannel($channel, $unitPrice);
+
+        $app->del(ConfigurationEnum::SEND_NEW_ORDER_NOTIFICATION->value);
+        $app->del(ConfigurationEnum::SEND_NEW_ORDER_TO_OWNER_NOTIFICATION->value);
+
+        $wallet = $company->createAppWallet($app, ['name' => 'default']);
+        $wallet->deposit(100000, [
+            'description' => 'Deposit for wallet payment row test',
+        ]);
+
+        $response = $this->graphQL('
+            mutation createOrderFromWalletCart($input: OrderCartInput!) {
+                createOrderFromWalletCart(input: $input) {
+                    order {
+                        id
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'cartId' => 'default',
+                'customer' => [
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                ],
+                'items' => [
+                    [
+                        'variant_id' => $variant->getId(),
+                        'quantity' => $quantity,
+                        'price' => $unitPrice,
+                    ],
+                ],
+                'shipping_address' => [
+                    'address' => fake()->address(),
+                    'address_2' => fake()->postcode(),
+                    'city' => fake()->city(),
+                    'state' => fake()->state(),
+                ],
+                'metadata' => [
+                    'user_company_id' => $company->getId(),
+                ],
+            ],
+        ]);
+
+        $response->assertSuccessful();
+
+        return (int) $response->json('data.createOrderFromWalletCart.order.id');
+    }
+
+    public function testWalletPaymentCreatesPaymentRow(): void
+    {
+        $orderId = $this->placeWalletOrder(100.0, 1);
+
+        $payment = Payments::where('payable_id', $orderId)
+            ->where('payable_type', Order::class)
+            ->where('payment_method', PaymentMethodTypesEnum::WALLET->value)
+            ->first();
+
+        $this->assertNotNull($payment, 'Wallet payment should create a row in the payments table');
+        $this->assertEquals(PaymentStatusEnum::PAID->value, $payment->status);
+        $this->assertEquals(PaymentMethodTypesEnum::WALLET->value, $payment->payment_method);
+        $this->assertEquals(PaymentMethodTypesEnum::WALLET->value, $payment->processor);
+        $this->assertGreaterThan(0.0, (float) $payment->amount);
+
+        $log = PaymentLogs::where('payable_id', $orderId)
+            ->where('payable_type', Order::class)
+            ->where('status', 'wallet_payment')
+            ->first();
+
+        $this->assertNotNull($log);
+        $this->assertEquals($payment->getId(), (int) $log->payments_id, 'wallet_payment log must reference the real payment row');
+    }
+
+    public function testWalletPaymentCountsTowardOrderPaidAmount(): void
+    {
+        $orderId = $this->placeWalletOrder(100.0, 1);
+
+        /** @var Order $order */
+        $order = Order::getById($orderId);
+
+        $this->assertTrue($order->isPaid(), 'Order should report paid from the payments table');
+        $this->assertGreaterThan(0.0, $order->getPaidAmount());
+    }
+
+    public function testWalletRefundCreatesPaymentRefundAndReversesPayment(): void
+    {
+        $orderId = $this->placeWalletOrder(100.0, 1);
+
+        $payment = Payments::where('payable_id', $orderId)
+            ->where('payable_type', Order::class)
+            ->where('payment_method', PaymentMethodTypesEnum::WALLET->value)
+            ->firstOrFail();
+
+        $this->graphQL('
+            mutation refundOrderToWallet($input: WalletRefundInput!) {
+                refundOrderToWallet(input: $input) {
+                    balance
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'order_id' => $orderId,
+                'amount' => (float) $payment->amount,
+                'reason' => 'Full wallet refund',
+            ],
+        ], [], $this->getAppKeyHeader())->assertSuccessful();
+
+        $refund = PaymentRefund::where('payments_id', $payment->getId())->first();
+
+        $this->assertNotNull($refund, 'Wallet refund should create a payment_refunds row against the wallet payment');
+        $this->assertEquals(RefundStatusEnum::COMPLETED->value, $refund->status);
+        $this->assertEquals((float) $payment->amount, (float) $refund->amount);
+
+        $payment->refresh();
+        $this->assertEquals(PaymentStatusEnum::REVERSED->value, $payment->status, 'Fully refunded wallet payment must be reversed');
+    }
+
+    public function testPartialWalletRefundKeepsPaymentPaid(): void
+    {
+        $orderId = $this->placeWalletOrder(100.0, 1);
+
+        $payment = Payments::where('payable_id', $orderId)
+            ->where('payable_type', Order::class)
+            ->where('payment_method', PaymentMethodTypesEnum::WALLET->value)
+            ->firstOrFail();
+
+        $partial = round((float) $payment->amount / 2, 2);
+
+        $this->graphQL('
+            mutation refundOrderToWallet($input: WalletRefundInput!) {
+                refundOrderToWallet(input: $input) {
+                    balance
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'order_id' => $orderId,
+                'amount' => $partial,
+                'reason' => 'Partial wallet refund',
+            ],
+        ], [], $this->getAppKeyHeader())->assertSuccessful();
+
+        $refund = PaymentRefund::where('payments_id', $payment->getId())->first();
+
+        $this->assertNotNull($refund);
+        $this->assertEquals($partial, (float) $refund->amount);
+
+        $payment->refresh();
+        $this->assertEquals(PaymentStatusEnum::PAID->value, $payment->status, 'Partially refunded wallet payment stays paid');
+    }
+
+    public function testWalletRefundWithoutPaymentRowUsesMetadataFallback(): void
+    {
+        // createWalletPaidOrder bypasses PayFromWalletAction, so the order has no payments row.
+        $result = $this->createWalletPaidOrder(200.0);
+        $wallet = $result['wallet'];
+        $balanceAfterOrder = (float) $wallet->balanceFloat;
+
+        $this->graphQL('
+            mutation refundOrderToWallet($input: WalletRefundInput!) {
+                refundOrderToWallet(input: $input) {
+                    balance
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'order_id' => $result['order_id'],
+                'amount' => 50.0,
+                'reason' => 'Fallback refund',
+            ],
+        ], [], $this->getAppKeyHeader())->assertSuccessful();
+
+        $this->assertSame(
+            0,
+            PaymentRefund::where('apps_id', app(Apps::class)->getId())
+                ->whereHas(
+                    'payment',
+                    fn ($q) => $q->where('payable_id', $result['order_id'])
+                        ->where('payable_type', Order::class)
+                )
+                ->count(),
+            'Orders without a payments row must not create a PaymentRefund'
+        );
+
+        $wallet->refresh();
+        $this->assertEquals($balanceAfterOrder + 50.0, (float) $wallet->balanceFloat);
+
+        /** @var Order $order */
+        $order = Order::getById((int) $result['order_id']);
+        $this->assertEquals(50.0, $order->get('wallet_refund_total'));
     }
 }

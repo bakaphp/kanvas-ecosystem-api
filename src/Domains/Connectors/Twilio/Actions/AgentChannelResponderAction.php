@@ -8,15 +8,13 @@ use Baka\Support\Str;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Actions\BaseAgentResponderAction;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
+use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
-use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Types\ADKAgent;
-use Kanvas\Social\Messages\Models\Message;
-use NeuronAI\Chat\Messages\UserMessage;
 use Override;
 
-class AgentChannelResponderAction extends BaseAgentResponderAction
+class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 {
     protected string $messageTypeVerb = 'twilio-sms';
     protected string $communicationChannel = 'sms';
@@ -24,7 +22,8 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
     #[Override]
     public function execute(array $params = []): array
     {
-        if ($this->message->entity() === null) {
+        $entity = $this->message->entity();
+        if ($entity === null) {
             throw new ValidationException('No entity found');
         }
 
@@ -43,33 +42,6 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
             Cache::forget($batchKey);
         }
 
-        $currentAgent = new $this->agent->type->handler();
-        //$currentAgent = $this->agent;
-
-        $currentAgent->setConfiguration(
-            $this->agent,
-            $this->message->entity()->people
-        );
-
-        $to = Str::toE164(Str::replace('twilio-', '', $this->channel->slug));
-        $to = $this->hijackMessagePhone($to);
-
-        $client = Client::getInstanceByCompany($this->message->company);
-        $onChunk = function ($text, $data) use ($client, $to, $params): void {
-            $response = $this->createMessage($text, $to, $this->message, $this->channel, $params['from']);
-            // Use the Twilio client to send a message
-
-            if (! $response->is_locked) {
-                $client->messages->create(
-                    $to, // to
-                    [
-                        'from' => $params['from'],
-                        'body' => $text,
-                    ]
-                );
-            }
-        };
-
         $messageConversation = $this->message->message['content'];
         if ($batchKey !== null && $batch !== null) {
             $messageConversation = '';
@@ -78,23 +50,39 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
             }
         }
 
-        $question = $currentAgent instanceof ADKAgent ?
-                $currentAgent->chat(
-                    $this->channel,
-                    $this->message,
-                    $messageConversation,
-                    $onChunk,
-                    $this->session
-                ) : $currentAgent->chat(new UserMessage($messageConversation));
+        $responseContent = new AgentChatKernel(
+            agent: $this->agent,
+            session: $this->session,
+            message: $messageConversation,
+            user: $this->message->company->getAiAgentUserOrFail(),
+            currentLead: $entity instanceof Lead ? $entity : null,
+            sourceChannel: $this->channel,
+            sourceMessage: $this->message,
+            persistConversation: false,
+        )->execute();
 
-        $responseContent = $question->getContent();
-
-        // Extract text from response that might be formatted with markdown code blocks
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
 
-        //if its not an ADKAgent, send the response as a text message
-        if (! ($currentAgent instanceof ADKAgent)) {
-            $onChunk($responseText, []);
+        $to = Str::toE164(Str::replace('twilio-', '', $this->channel->slug));
+        $to = $this->hijackMessagePhone($to);
+
+        $messageResponse = $this->createMessage(
+            $responseText,
+            $to,
+            $this->message,
+            $this->channel,
+            $params['from']
+        );
+
+        if (! $messageResponse->is_locked) {
+            Client::getInstanceByCompany($this->message->company)
+                ->messages->create(
+                    $to,
+                    [
+                        'from' => $params['from'],
+                        'body' => $responseText,
+                    ]
+                );
         }
 
         return [

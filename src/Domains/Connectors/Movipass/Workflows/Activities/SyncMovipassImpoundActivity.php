@@ -11,12 +11,14 @@ use Kanvas\Connectors\Movipass\Jobs\GeneratePdfVoucherJob;
 use Kanvas\Souk\Orders\Actions\CalculateOrderCommissionAction;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
@@ -42,7 +44,7 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
 
                 if ($eventName == WorkflowEnum::CREATED->value) {
                     // lets add the order number to the reference field if the order number is not already set
-                    if ($order->reference && ! str_contains($order->reference, "#" . $order->order_number)) {
+                    if ($order->reference && ! str_contains($order->reference, '#' . $order->order_number)) {
                         $order->reference = $order->reference . ' - #' . $order->order_number;
                     }
 
@@ -61,7 +63,7 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                             'terms_and_conditions' => true,
                             ...$variant ? [
                                 'late-fee-variant-id' => $variant->product?->getAttributeBySlug('late-fee-variant-id')?->value,
-                                'late_fee_grace_start_at' => $graceStartAt->toDateTimeString()
+                                'late_fee_grace_start_at' => $graceStartAt->toDateTimeString(),
                             ] : [],
                         ],
                     ];
@@ -99,7 +101,7 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                         $vehiclePlate = $order->metadata['data']['vehiclePlate'] ?? '';
                         $vehicleBrand = $order->metadata['data']['vehicleBrand'] ?? '';
                         $serviceName = $order->orderType->name ?? '';
-                        $paymentDate = $order->metadata["data"]["payment_date"] ?? "";
+                        $paymentDate = $order->metadata['data']['payment_date'] ?? '';
 
                         $filename = "{$order->order_number}_{$serviceName}_{$vehiclePlate}_{$vehicleBrand}";
 
@@ -128,6 +130,7 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
         if (in_array($dayOfWeek, [5, 6, 7])) {
             $start = $start->next('Monday')->startOfDay();
         }
+
         return $start;
     }
 

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -113,6 +114,42 @@ class CreateLeadsFromReceiverJobTest extends TestCase
         $this->assertNotNull($lead);
         $this->assertEquals($title, $lead->title);
         $this->assertEquals($this->leadReceiver->getId(), $lead->leads_receivers_id);
+    }
+
+    public function testSavePhoneAsCellphoneFlagDuplicatesPhoneContact(): void
+    {
+        $this->receiver->update([
+            'configuration' => array_merge(
+                $this->receiver->configuration,
+                ['save_phone_as_cellphone' => true],
+            ),
+        ]);
+
+        $phone = '8292001222';
+        $payload = [
+            'title' => fake()->title(),
+            'people' => [
+                'firstname' => 'John',
+                'lastname' => 'Doe',
+                'contacts' => [
+                    ['value' => 'jdoe@example.com', 'weight' => 0, 'contacts_types_id' => 1],
+                    ['value' => $phone, 'weight' => 0, 'contacts_types_id' => 2],
+                ],
+            ],
+            'pipeline_stage_id' => 0,
+        ];
+
+        $result = $this->dispatchWebhookJob($payload);
+
+        $lead = Lead::find($result['lead_id']);
+        $this->assertNotNull($lead);
+
+        $contactsByType = $lead->people->contacts
+            ->groupBy('contacts_types_id')
+            ->map(fn ($group) => $group->pluck('value')->all());
+
+        $this->assertContains($phone, $contactsByType[ContactTypeEnum::PHONE->value] ?? []);
+        $this->assertContains($phone, $contactsByType[ContactTypeEnum::CELLPHONE->value] ?? []);
     }
 
     public function testCreateLeadWithRotationAssignsAgent(): void

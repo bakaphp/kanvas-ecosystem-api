@@ -13,10 +13,11 @@ type Plan {
 
 input PlanInput {
     name: String!
-    description: String
+    description: String!
     prices: [PriceInput!]
     free_trial_dates: Int
     is_default: Boolean
+    is_active: Boolean
 }
 
 input PlanUpdateInput {
@@ -27,16 +28,19 @@ input PlanUpdateInput {
     is_default: Boolean
 }
 
-extend type Mutation @guard {
+extend type Mutation @guardByAppKey {
     createPlan(input: PlanInput!): Plan!
+        @requiresStripeConfiguration
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Plans\\PlanMutation@create"
         )
     updatePlan(id: ID!, input: PlanUpdateInput!): Plan!
+        @requiresStripeConfiguration
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Plans\\PlanMutation@update"
         )
     deletePlan(id: ID!): Boolean!
+        @requiresStripeConfiguration
         @field(
             resolver: "App\\GraphQL\\Subscription\\Mutations\\Plans\\PlanMutation@delete"
         )
@@ -47,12 +51,12 @@ extend type Query @guard {
         search: String @search
         where: _
             @whereConditions(
-                columns: ["id", "name", "description", "is_default"]
+                columns: ["id", "name", "description", "is_default", "is_active"]
             )
         hasPrices: _
             @whereHasConditions(
                 relation: "prices"
-                columns: ["id", "stripe_id", "amount", "currency", "interval"]
+                columns: ["id", "stripe_id", "amount", "currency", "interval", "is_active"]
             )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [Plan!]!

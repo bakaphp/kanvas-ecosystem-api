@@ -25,7 +25,14 @@ type AgentAi {
     agent_model_id: ID
     parent_id: ID
     is_active: Boolean!
-    selectedTools: [NervousSystemTool!]! @belongsToMany(relation: "selectedTools")
+    is_sub_agent: Boolean!
+    selectedTools: [NervousSystemTool!]!
+        @belongsToMany(relation: "selectedTools")
+    kanvasModules: [AgentKanvasModule!]! @hasMany(relation: "kanvasModules")
+    awake_state: String
+    last_state_changed_at: DateTime
+    latestDailyCycle: AgentDailyCycle @hasOne(relation: "latestDailyCycle")
+    dailyCycles: [AgentDailyCycle!]! @hasMany(relation: "dailyCycles")
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -37,8 +44,60 @@ type AgentAi {
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
+    monthly_usage: AgentMonthlyUsage!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\AgentUsageQuery@monthlyUsage"
+        )
     created_at: DateTime!
     updated_at: DateTime!
+}
+
+type AgentMonthlyUsage {
+    period_start: Date!
+    tokens: Int!
+    cost_usd: Float!
+}
+
+type AgentKanvasModule {
+    id: ID!
+    is_active: Boolean!
+    config: Mixed
+    module: KanvasModule! @belongsTo(relation: "module")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type AgentDailyCycle {
+    id: ID!
+    cycle_date: Date!
+    awake_started_at: DateTime
+    awake_ended_at: DateTime
+    sleep_started_at: DateTime
+    sleep_ended_at: DateTime
+    awake_duration_minutes: Int!
+    sleep_duration_minutes: Int!
+    proactive_actions_count: Int!
+    events_processed_count: Int!
+    last_action_at: DateTime
+    last_action_label: String
+    morning_briefing: String
+    proposed_actions: Mixed
+    skills_emerged: Mixed
+    self_improvement_score: String!
+    signed_by_text: String
+    phases: [AgentSleepPhase!]! @hasMany(relation: "phases")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type AgentSleepPhase {
+    id: ID!
+    phase: String!
+    started_at: DateTime!
+    ended_at: DateTime!
+    duration_minutes: Int!
+    outcome_summary: String
+    payload: Mixed
 }
 
 type AgentAiModel {
@@ -71,6 +130,7 @@ input AgentAiInput {
     communication_channels: [CommunicationChannelPivot!]
     swarm_ids: [ID!]
     tool_ids: [ID!]
+    is_sub_agent: Boolean
 }
 
 input CommunicationChannelPivot {
@@ -79,10 +139,28 @@ input CommunicationChannelPivot {
     config: String
 }
 
+enum AgentIntegrationConfigKey {
+    GOOGLE
+    JIRA
+}
+
+input AgentIntegrationConfigEntryInput {
+    key: AgentIntegrationConfigKey!
+    value: Mixed
+}
+
+input SetAgentIntegrationConfigInput {
+    agent_id: ID!
+    config: [AgentIntegrationConfigEntryInput!]!
+}
+
 input ChatSimpleInput {
     agent_id: ID!
     session_id: String!
     message: String!
+    images: [String!]
+    files: [String!]
+    uploads: [Upload!]
 }
 
 input AgentSessionInput {
@@ -96,11 +174,24 @@ input UserChatInput {
     message: String!
     session_id: String
     lead_id: ID
+    images: [String!]
+    files: [String!]
+    uploads: [Upload!]
+}
+
+input NeuronChatInput {
+    name: String!
+    system_modules_uuid: String!
+    entity_id: String!
+    thread_id: String!
+    message: String!
 }
 
 type UserChatResponse {
     response: Mixed!
     session_id: String!
+    message: Message!
+    channel: SocialChannel!
 }
 
 extend type Mutation @guard {
@@ -128,13 +219,9 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentChatMutation@userChat"
         )
-    attachToolToAgent(agent_id: ID!, tool_id: ID!): AgentAi!
+    setAgentIntegrationConfig(input: SetAgentIntegrationConfigInput!): AgentAi!
         @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@attachTool"
-        )
-    detachToolFromAgent(agent_id: ID!, tool_id: ID!): Boolean!
-        @field(
-            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@detachTool"
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentIntegrationConfigMutation@set"
         )
 }
 
@@ -155,6 +242,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "uuid"
                     "description"
                     "is_active"
                     "agent_type_id"
@@ -207,5 +295,22 @@ extend type Subscription @guard {
     agentChatResponse(agent_id: ID!, session_id: String!): JSON
         @subscription(
             class: "App\\GraphQL\\Intelligence\\Subscriptions\\AgentChatSubscription"
+        )
+}
+
+# Canonical path is observer-driven; these are app-owner overrides only.
+extend type Mutation @guardByAppKey {
+    setAgentKanvasModule(
+        agent_id: ID!
+        kanvas_module_id: ID!
+        config: Mixed
+        is_active: Boolean
+    ): AgentKanvasModule!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentKanvasModuleMutation@set"
+        )
+    removeAgentKanvasModule(agent_id: ID!, kanvas_module_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentKanvasModuleMutation@remove"
         )
 }

@@ -23,6 +23,10 @@ class RegisterUsersAction extends CreateUserAction
 
         $this->validateEmail();
 
+        if ($this->emailSpamProtection) {
+            $this->validateEmailNotSpam();
+        }
+
         if ($this->extraValidation && $this->app->get('register_user_additional_fields_validation')) {
             $this->validateNames();
             $this->validatePhoneNumber();
@@ -63,12 +67,13 @@ class RegisterUsersAction extends CreateUserAction
         UserNotificationService::sendEmailVerification($this->app, $user);
 
         if ($newUser) {
-            (new SetupService())->onBoarding(
+            new SetupService()->onBoarding(
                 $user,
                 $this->app,
                 $company
             );
         }
+
         if ($this->runWorkflow) {
             $user->fireWorkflow(
                 WorkflowEnum::REGISTERED->value,

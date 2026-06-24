@@ -6,13 +6,19 @@ namespace Kanvas\Connectors\Intras\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use Carbon\Carbon;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum as ApolloConfigurationEnum;
 use Kanvas\Connectors\Intras\Client;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Intras\Mappers\ParticipantMapper;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Models\ContactType;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Models\PeopleType;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
@@ -81,9 +87,13 @@ class PullParticipantsFromIntrasAction
 
         $count = 0;
 
-        $query->orderBy('p.id')->chunk(500, function ($rows) use (&$count, $participantType, $keyContactType) {
+        $query->orderBy('p.id')->chunk(500, function ($rows) use ($client, &$count, $participantType, $keyContactType) {
+            $participantIds = array_map(fn ($r) => (int) $r->id, $rows->all());
+            $contactMap = self::loadParticipantContacts($client, $participantIds);
+
             foreach ($rows as $row) {
-                $mapped = ParticipantMapper::fromIntras($row);
+                $contactRows = $contactMap[(int) $row->id] ?? [];
+                $mapped = ParticipantMapper::fromIntras($row, $contactRows);
 
                 /** @var People $people */
                 $people = People::firstOrCreate([
@@ -112,7 +122,10 @@ class PullParticipantsFromIntrasAction
                     }
                 }
 
-                $this->linkToOrganization($people, $row->companies_id);
+                self::attachContactsToPeople($people, $mapped['contacts']);
+
+                $position = isset($row->position) ? trim((string) $row->position) : null;
+                $this->linkToOrganization($people, $row->companies_id, $position !== '' ? $position : null);
 
                 $count++;
             }
@@ -121,9 +134,75 @@ class PullParticipantsFromIntrasAction
         return $count;
     }
 
-    protected function linkToOrganization(People $people, ?int $intrasCompanyId): void
+    /**
+     * Bulk-load participants_custom_fields for the contact fields we care about,
+     * joined to custom_fields to resolve by name (legacy custom_fields_id values
+     * are install-specific; name is stable).
+     *
+     * @param list<int> $participantIds
+     *
+     * @return array<int, array<string, string>> participant_id => [field_name => value]
+     */
+    public static function loadParticipantContacts(Client $client, array $participantIds): array
+    {
+        if ($participantIds === []) {
+            return [];
+        }
+
+        $rows = $client->table('participants_custom_fields as pcf')
+            ->join('custom_fields as cf', 'cf.id', '=', 'pcf.custom_fields_id')
+            ->whereIn('pcf.participants_id', $participantIds)
+            ->whereIn('cf.name', ParticipantMapper::contactFieldNames())
+            ->whereNotNull('pcf.value')
+            ->where('pcf.value', '!=', '')
+            ->select('pcf.participants_id', 'cf.name', 'pcf.value')
+            ->get();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $map[(int) $row->participants_id][$row->name] = (string) $row->value;
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param list<array{type: ContactTypeEnum, value: string, weight: int}> $contacts
+     */
+    public static function attachContactsToPeople(People $people, array $contacts): void
+    {
+        foreach ($contacts as $contact) {
+            $typeId = ContactType::getByName($contact['type']->getName())->getId();
+            $value = Contact::normalizeValue($contact['value'], $typeId);
+            if ($value === '') {
+                continue;
+            }
+
+            Contact::updateOrCreate(
+                [
+                    'peoples_id' => $people->getId(),
+                    'value' => $value,
+                    'contacts_types_id' => $typeId,
+                ],
+                [
+                    'weight' => $contact['weight'],
+                    'is_opt_out' => 0,
+                ]
+            );
+        }
+    }
+
+    protected function linkToOrganization(People $people, ?int $intrasCompanyId, ?string $position = null): void
     {
         if ($intrasCompanyId === null) {
+            return;
+        }
+
+        // Once Apollo has enriched this person it owns the current-employer relationship
+        // (it prunes the org pivot to where they actually work now). Re-adding the Intras
+        // employer link + status=1 row here would undo that, so we defer to Apollo and
+        // leave already-enriched people untouched.
+        if ($people->get(ApolloConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value)) {
             return;
         }
 
@@ -140,6 +219,32 @@ class PullParticipantsFromIntrasAction
         ], [
             'created_at' => date('Y-m-d H:i:s'),
         ]);
+
+        // Intras only knows the current employer/role (no historical roles), so we
+        // record a single status=1 row keyed on (app, person, org). updateOrCreate
+        // keeps the title in sync with Intras and shares the same table Apollo
+        // enrichment writes its full history into.
+        //
+        // position and start_date are NOT NULL in the schema, but Intras has no role
+        // title for some participants and never a start date. We store '' for a
+        // missing title and anchor start_date to when we first recorded the person
+        // (a stable proxy, so re-syncs don't churn the row).
+        $startDate = $people->created_at
+            ? Carbon::parse($people->created_at)->format('Y-m-d')
+            : date('Y-m-d');
+
+        PeopleEmploymentHistory::updateOrCreate(
+            [
+                'apps_id' => $this->app->getId(),
+                'peoples_id' => $people->getId(),
+                'organizations_id' => $organizationId,
+                'status' => 1,
+            ],
+            [
+                'position' => $position ?? '',
+                'start_date' => $startDate,
+            ]
+        );
     }
 
     /**

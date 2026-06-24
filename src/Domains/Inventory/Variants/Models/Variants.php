@@ -8,6 +8,7 @@ use Awobaz\Compoships\Compoships;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
+use Baka\Support\Arr;
 use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
@@ -123,8 +124,9 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     ];
 
     protected $casts = [
-        'is_published' => 'boolean',
         'is_deleted' => 'boolean',
+        'is_published' => 'boolean',
+        'rating' => 'float',
     ];
 
     protected $guarded = [];
@@ -432,9 +434,9 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     {
         $variant = [
             'objectID' => $this->uuid,
-            'id' => (string)$this->id,
+            'id' => (string) $this->id,
             'products_id' => $this->products_id,
-            'name' => $this->name,
+            'name' => (string) $this->name,
             'files' => $this->getFiles()->take(5)->map(function ($files) {
                 return [
                     'uuid' => $files->uuid,
@@ -450,10 +452,10 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 'name' => $this?->product?->company?->name,
             ],
             'uuid' => $this->uuid,
-            'slug' => $this->slug,
-            'sku' => $this->sku,
-            'ean' => $this->ean,
-            'barcode' => $this->barcode,
+            'slug' => (string) $this->slug,
+            'sku' => (string) $this->sku,
+            'ean' => $this->ean !== null ? (string) $this->ean : null,
+            'barcode' => $this->barcode !== null ? (string) $this->barcode : null,
             'status' => [
                 'id' => $this->status->id ?? null,
                 'name' => $this->status->name ?? null,
@@ -482,6 +484,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             'short_description' => null, //$this->short_description,
             'attributes' => [],
             'apps_id' => $this->apps_id,
+            'rating' => (float) $this->rating,
         ];
         $attributes = $this->searchableAttributes();
         foreach ($attributes as $attribute) {
@@ -493,6 +496,43 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 ? $attribute['value']
                 : (string) $attribute['value'];
         }
+
+        if ($this->isAlgolia()) {
+            $variant = $this->fitWithinAlgoliaRecordLimit($variant);
+        }
+
+        return $variant;
+    }
+
+    /**
+     * Algolia rejects any record over 10,000 bytes (and fails the whole batch),
+     * so trim the heaviest fields ONLY when the payload is actually over budget.
+     * Records that already fit are left untouched (images included). Trimming
+     * runs least-important first: internal warehouse stock breakdown goes first,
+     * then attributes, then images. The dropped detail is re-hydrated from the DB
+     * by the search/recommendation tools anyway.
+     */
+    protected function fitWithinAlgoliaRecordLimit(array $variant): array
+    {
+        $limit = 9500; // headroom under Algolia's 10,000-byte hard limit
+
+        if (Arr::sizeInBytes($variant) <= $limit) {
+            return $variant;
+        }
+
+        // Warehouse breakdown is internal stock detail, never shown in search.
+        $variant['warehouses'] = [];
+        if (Arr::sizeInBytes($variant) <= $limit) {
+            return $variant;
+        }
+
+        $variant['attributes'] = [];
+        if (Arr::sizeInBytes($variant) <= $limit) {
+            return $variant;
+        }
+
+        // Last resort: give up the images.
+        $variant['files'] = [];
 
         return $variant;
     }
@@ -778,6 +818,12 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 ],
                 [
                     'name' => 'weight',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'rating',
                     'type' => 'float',
                     'optional' => true,
                     'sort' => true,

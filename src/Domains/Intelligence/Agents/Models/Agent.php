@@ -22,11 +22,14 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
+use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
 use Override;
 
@@ -48,6 +51,7 @@ use Override;
  * @property array|null $role
  * @property string|null $soul
  * @property string|null $instructions
+ * @property string|null $tool_usage
  * @property string|null $output_format
  * @property array|null $identity
  * @property string|null $user_context
@@ -61,6 +65,7 @@ use Override;
 class Agent extends BaseModel
 {
     use AsTree;
+    use CanUseWorkflow;
     use CascadeSoftDeletes;
     use SlugTrait;
     use UuidTrait;
@@ -70,7 +75,7 @@ class Agent extends BaseModel
     }
     use HasLightHouseCache;
 
-    protected $cascadeDeletes = ['deployments'];
+    protected $cascadeDeletes = ['deployments', 'swarmMemberships'];
 
     protected $fillable = [
         'uuid',
@@ -89,6 +94,7 @@ class Agent extends BaseModel
         'role',
         'soul',
         'instructions',
+        'tool_usage',
         'output_format',
         'identity',
         'user_context',
@@ -96,19 +102,34 @@ class Agent extends BaseModel
         'deployment_status',
         'agent_model_id',
         'is_active',
-    ];
-
-    protected $casts = [
-        'config' => Json::class,
-        'role' => Json::class,
-        'identity' => Json::class,
-        'is_active' => 'boolean',
+        'is_sub_agent',
+        'awake_state',
+        'last_state_changed_at',
     ];
 
     #[Override]
     public function getGraphTypeName(): string
     {
         return 'AgentAi';
+    }
+
+    #[Override]
+    public function getRelations(?string $modelClass = null): array
+    {
+        return func_num_args() > 0 ? [] : $this->relations;
+    }
+
+    #[Override]
+    public function casts(): array
+    {
+        return [
+            'config' => Json::class,
+            'role' => Json::class,
+            'identity' => Json::class,
+            'is_active' => 'boolean',
+            'is_sub_agent' => 'boolean',
+            'last_state_changed_at' => 'datetime',
+        ];
     }
 
     public function type(): BelongsTo
@@ -160,6 +181,11 @@ class Agent extends BaseModel
          ->withTimestamps();
     }
 
+    public function swarmMemberships(): HasMany
+    {
+        return $this->hasMany(AgentSwarmMember::class, 'agent_id');
+    }
+
     public function selectedTools(): BelongsToMany
     {
         return $this->belongsToMany(
@@ -168,6 +194,39 @@ class Agent extends BaseModel
             'agent_id',
             'tool_id'
         );
+    }
+
+    /**
+     * Module subscriptions for this agent. Each row carries a per-agent JSON
+     * `config` (e.g. which inventory integrations / channels / pipelines to
+     * watch). Soft-deleted rows are excluded by default; `is_active=false`
+     * rows are included so the UI can render disabled-but-configured state.
+     */
+    public function kanvasModules(): HasMany
+    {
+        return $this->hasMany(AgentKanvasModule::class, 'agent_id', 'id')
+            ->where('agents_kanvas_modules.is_deleted', 0);
+    }
+
+    public function activeKanvasModules(): HasMany
+    {
+        return $this->hasMany(AgentKanvasModule::class, 'agent_id', 'id')
+            ->where('agents_kanvas_modules.is_deleted', 0)
+            ->where('agents_kanvas_modules.is_active', 1);
+    }
+
+    public function dailyCycles(): HasMany
+    {
+        return $this->hasMany(AgentDailyCycle::class, 'agent_id', 'id')
+            ->where('agent_daily_cycles.is_deleted', 0)
+            ->orderBy('cycle_date', 'desc');
+    }
+
+    public function latestDailyCycle(): HasOne
+    {
+        return $this->hasOne(AgentDailyCycle::class, 'agent_id', 'id')
+            ->where('agent_daily_cycles.is_deleted', 0)
+            ->latestOfMany('cycle_date');
     }
 
     public static function getModel(): Model
@@ -250,6 +309,21 @@ class Agent extends BaseModel
             ->latestOfMany();
     }
 
+    public function isContainerRuntime(): bool
+    {
+        if ($this->activeDeployment instanceof AgentDeployment) {
+            return true;
+        }
+
+        $provider = AgentProviderEnum::tryFrom(strtolower($this->type?->provider ?? ''));
+
+        if ($provider?->isRuntimeProvider() === true) {
+            return true;
+        }
+
+        return $this->type?->handler === OpenClawAgentHandler::class;
+    }
+
     public function searchableAs(): string
     {
         $app = $this->app ?? app(Apps::class);
@@ -261,7 +335,7 @@ class Agent extends BaseModel
     public function toSearchableArray(): array
     {
         return [
-            'id' => $this->id,
+            'id' => (string) $this->id,
             'apps_id' => $this->apps_id,
             'companies_id' => $this->companies_id,
             'name' => $this->name,
@@ -276,6 +350,23 @@ class Agent extends BaseModel
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted();
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                ['name' => 'id', 'type' => 'string'],
+                ['name' => 'apps_id', 'type' => 'int64'],
+                ['name' => 'companies_id', 'type' => 'int64'],
+                ['name' => 'name', 'type' => 'string', 'optional' => true],
+                ['name' => 'slug', 'type' => 'string', 'optional' => true],
+                ['name' => 'description', 'type' => 'string', 'optional' => true],
+                ['name' => 'deployment_status', 'type' => 'string', 'optional' => true],
+                ['name' => 'is_active', 'type' => 'bool', 'optional' => true],
+            ],
+        ];
     }
 
     public static function search($query = '', $callback = null)

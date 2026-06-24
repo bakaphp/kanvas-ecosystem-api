@@ -85,6 +85,37 @@ class ProductsRepository
         return $query->exists();
     }
 
+    public static function existsByAttributeValueInCompanies(
+        AppInterface $app,
+        iterable $companyIds,
+        string $attributeSlug,
+        string $value,
+    ): bool {
+        $companyIds = collect($companyIds)->filter()->unique()->values();
+
+        if ($companyIds->isEmpty()) {
+            return false;
+        }
+
+        return Products::from('products as p')
+            ->withoutGlobalScopes()
+            ->join('products_attributes as pa', 'p.id', '=', 'pa.products_id')
+            ->join('attributes as a', 'pa.attributes_id', '=', 'a.id')
+            ->where('a.slug', '=', $attributeSlug)
+            // Legacy rows store pa.value as a raw string (not JSON-wrapped); JSON_EXTRACT throws on those.
+            ->whereRaw(
+                'CASE WHEN JSON_VALID(pa.value) = 1
+                      THEN JSON_UNQUOTE(JSON_EXTRACT(pa.value, \'$.en\'))
+                      ELSE pa.value
+                 END = ?',
+                [$value]
+            )
+            ->whereIn('p.companies_id', $companyIds)
+            ->where('p.apps_id', '=', $app->getId())
+            ->where('p.is_deleted', '=', 0)
+            ->exists();
+    }
+
     public static function getLowStockProducts(
         AppInterface $app,
         CompanyInterface $company,

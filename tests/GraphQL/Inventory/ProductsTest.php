@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Languages\Models\Languages;
+use Kanvas\Users\Models\Users;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
@@ -22,7 +24,7 @@ class ProductsTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->time,
+            'sku' => fake()->unique()->uuid(),
             'weight' => 1,
             'attributes' => [
                 [
@@ -43,7 +45,7 @@ class ProductsTest extends TestCase
     public function testSortByAttributes(): void
     {
         $attributeName = fake()->name;
-        $sku = fake()->time;
+        $sku = fake()->unique()->uuid();
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
@@ -89,7 +91,7 @@ class ProductsTest extends TestCase
     public function testSortByVariantAttributes(): void
     {
         $attributeName = fake()->name;
-        $sku = fake()->time;
+        $sku = fake()->unique()->uuid();
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
@@ -142,7 +144,7 @@ class ProductsTest extends TestCase
 
     public function testFilterByNearByLocation(): void
     {
-        $sku = fake()->time;
+        $sku = fake()->unique()->uuid();
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
@@ -344,7 +346,7 @@ class ProductsTest extends TestCase
         $productData = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->time,
+            'sku' => fake()->unique()->uuid(),
         ];
         $productResponse = $this->graphQL('
         mutation($data: ProductInput!) {
@@ -459,7 +461,7 @@ class ProductsTest extends TestCase
         $productResponse = $this->createProduct([
             'name' => 'Warehouse Location Test ' . fake()->word(),
             'description' => fake()->text,
-            'sku' => fake()->time,
+            'sku' => fake()->unique()->uuid(),
         ])->json();
 
         $productId = $productResponse['data']['createProduct']['id'];
@@ -524,5 +526,46 @@ class ProductsTest extends TestCase
 
         $matchingIds = collect($response->json('data.products.data'))->pluck('id')->toArray();
         $this->assertContains($productId, $matchingIds);
+    }
+
+    public function testFilterByWithAttributeSlug(): void
+    {
+        /** @var Users $user */
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $taggedProduct = Products::factory()->state([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+        ])->create();
+        $taggedProduct->addAttributes(
+            $user,
+            [['name' => 'tag_number', 'value' => (string) random_int(100000000000, 999999999999)]]
+        );
+
+        $untaggedProduct = Products::factory()->state([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+        ])->create();
+        $untaggedProduct->addAttributes(
+            $user,
+            [['name' => 'color', 'value' => 'red']]
+        );
+
+        $response = $this->graphQL('
+            query($slug: String!) {
+                products(withAttributeSlug: $slug, first: 200) {
+                    paginatorInfo { total }
+                    data { id }
+                }
+            }
+        ', ['slug' => 'tag-number'])->assertSuccessful();
+
+        $ids = collect($response->json('data.products.data'))->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $this->assertContains($taggedProduct->getId(), $ids);
+        $this->assertNotContains($untaggedProduct->getId(), $ids);
     }
 }

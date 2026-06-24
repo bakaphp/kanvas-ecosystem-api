@@ -15,15 +15,27 @@ jobs:
       packages: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
-      - name: Copy folder content recursively to remote VM
-        uses: appleboy/scp-action@v1.0.0
+        uses: actions/checkout@v7
+      # rsync --delete so renames/deletions in git are reflected on the server.
+      # Plain scp is additive and leaves stale files behind, which corrupts the
+      # Lighthouse schema merge whenever a .graphql file moves (see incident
+      # 2026-05-14: duplicate agentCurrentTelemetry → "Failed to load type: _").
+      - name: Sync repo to remote VM (rsync --delete)
+        uses: burnett01/rsync-deployments@9.0.0
         with:
-          host: ${{ secrets.AWS_TEST_EC2_HOST }}
-          username: ${{ secrets.AWS_TEST_EC2_USERNAME }}
-          key: ${{ secrets.AWS_TEST_EC2_PRIVATE_SSH_KEY }}
-          source: .
-          target: ${{ secrets.AWS_TEST_EC2_TARGET_DIR }}
+          switches: >-
+            -avzr --delete
+            --exclude='/.git'
+            --exclude='/.env'
+            --exclude='/storage'
+            --exclude='/bootstrap/cache'
+            --exclude='/node_modules'
+            --exclude='/vendor'
+          path: ./
+          remote_path: ${{ secrets.AWS_TEST_EC2_TARGET_DIR }}
+          remote_host: ${{ secrets.AWS_TEST_EC2_HOST }}
+          remote_user: ${{ secrets.AWS_TEST_EC2_USERNAME }}
+          remote_key: ${{ secrets.AWS_TEST_EC2_PRIVATE_SSH_KEY }}
 
   docker-command:
     runs-on: ubuntu-latest
@@ -45,26 +57,26 @@ jobs:
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:cache
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:clear-cache all
             docker exec -i phpkanvas-ecosystem php artisan config:cache
-            docker restart queue-scrapper
-            docker stop queue-scrapper-worker-{1..4}
-            docker restart queue
-            docker restart queue-imports
-            docker stop queue-notifications
-            docker stop queue-social
-            docker restart laravel-scheduler
-            docker stop queue-sync-shopify-queue
-            docker stop queue-sync-shopify-queue-worker-{1..2}
-            docker restart queue-scout-worker-1
-            docker stop queue-scout-worker-2
-            docker stop queue-scout-worker-3
-            docker restart queue-workflow-{1..2}
-            docker stop queue-workflow-3
-            docker stop batch-logger-queue
-            docker restart openclaw-queue
-            docker stop queue-user-interactions
 
-            if [ "${{ github.ref_name }}" == "1.x" ]; then
-              docker restart queue{,2,3,4,5,6,7,8} queue-imports{2,3,4} queue-workflow-{1..4} queue-scout-worker-{2,3} queue-notifications
-            fi
+            docker stop rediskanvas-ecosystem
+
+            # Restart all queue worker containers so they pick up new code.
+            # Names come from docker-compose — no hand-maintained list to rot
+            # (a stale list is how scribe-pdf-ingest-queue kept running old code
+            # and crashed unserialize() with __PHP_Incomplete_Class).
+            docker ps --format "{{.ID}} {{.Names}}" | awk '$2 ~ /queue/ {print $1}' | xargs -r docker restart
+
+            docker restart laravel-scheduler
+
+            # Queues intentionally NOT run on this secondary host — stop them
+            # again after the blanket restart so they stay down.
+            docker stop \
+              queue-scrapper-worker-{1..4} \
+              queue-social \
+              queue-sync-shopify-queue \
+              queue-sync-shopify-queue-worker-{1..2} \
+              batch-logger-queue \
+              queue-user-interactions \
+              || true
 
             docker exec -i phpkanvas-ecosystem php artisan octane:reload

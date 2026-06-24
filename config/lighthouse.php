@@ -268,6 +268,7 @@ return [
             'App\\GraphQL\\Social\\Queries',
             'App\\GraphQL\\Event\\Queries',
             'App\\GraphQL\\Workflow\\Queries',
+            'App\\GraphQL\\NervousSystem\\Queries',
         ],
         'mutations' => [
             'App\\GraphQL\\Ecosystem\\Mutations',
@@ -278,6 +279,7 @@ return [
             'App\\GraphQL\\Event\\Mutations',
             'App\\GraphQL\\Workflow\\Mutations',
             'App\\GraphQL\\Intelligence\\Mutations',
+            'App\\GraphQL\\NervousSystem\\Mutations',
         ],
         'subscriptions' => [
             // 'App\\GraphQL\\Ecosystem\\Subscriptions',

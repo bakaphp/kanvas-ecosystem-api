@@ -35,8 +35,27 @@ class ProductBuilder
         }
         $query = Products::query();
 
+        if (! empty($args['search'])) {
+            $ids = Products::search($args['search'])->take(10000)->keys()->all();
+            if (empty($ids)) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->whereIn('id', $ids)
+                    ->orderByRaw('FIELD(id, ' . implode(',', $ids) . ')');
+            }
+        }
+
         if (! empty($args['variantAttributeValue'])) {
             $query->filterByVariantAttributeValue($args['variantAttributeValue']);
+        }
+
+        if (! empty($args['withAttributeSlug'])) {
+            $slug = $args['withAttributeSlug'];
+            $query->whereHas(
+                'attributeValues',
+                fn (Builder $q) => $q->where('is_deleted', 0)
+                    ->whereHas('attribute', fn (Builder $a) => $a->where('slug', $slug))
+            );
         }
 
         if (! empty($args['variantAttributeOrderBy'])) {

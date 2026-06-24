@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PromptMine\Services;
 
+use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Str;
 use Exception;
 use FFMpeg\Coordinate\TimeCode;
@@ -274,12 +275,8 @@ class VideoProcessingService
     protected function downloadAndUploadVideo(string $videoUrl): Filesystem
     {
         // Download the video file
-        $videoContent = file_get_contents($videoUrl);
+        $videoContent = SafeUrlFetcher::fetch($videoUrl);
         $filename = 'video_' . uniqid() . '.mp4';
-
-        if ($videoContent === false) {
-            throw new Exception("Failed to download video from URL: {$videoUrl}");
-        }
 
         // Create a temporary file
         $tempFile = tempnam(sys_get_temp_dir(), 'video_');
@@ -439,11 +436,7 @@ PROMPT,
     private function generateThumbnailFromVideo(string $videoUrl): ?Filesystem
     {
         // Download the video file
-        $videoContent = file_get_contents($videoUrl);
-
-        if ($videoContent === false) {
-            throw new Exception("Failed to download video from URL: {$videoUrl}");
-        }
+        $videoContent = SafeUrlFetcher::fetch($videoUrl);
 
         // Create a temporary file
         $tempFile = tempnam(sys_get_temp_dir(), 'video_');

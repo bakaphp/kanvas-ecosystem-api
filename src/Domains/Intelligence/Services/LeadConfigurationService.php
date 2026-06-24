@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Services;
 
-use Kanvas\Apps\Models\Apps;
+use Baka\Contracts\CompanyInterface;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 
 class LeadConfigurationService
@@ -16,108 +16,120 @@ class LeadConfigurationService
     ) {
     }
 
-    public function isV2Enabled(Apps $app): bool
+    public function isV2Enabled(CompanyInterface $company): bool
     {
-        if ((bool) $app->get('intelligence_lead_type_mode_v2')) {
+        if ((bool) $company->get('intelligence_lead_type_mode_v2')) {
             return true;
         }
 
         return $this->isV2;
     }
 
-    private function getTypePrefix(?LeadType $leadType): string
+    public function getStatusSuffix(Lead $lead): string
     {
-        $name = strtolower($leadType?->name ?? '');
-
-        if (str_contains($name, 'showroom')) {
-            return 'showroom';
-        }
-
-        if (str_contains($name, 'phone')) {
-            return 'phone';
-        }
-
-        return 'internet';
-    }
-
-    private function getStatusSuffix(Lead $lead): string
-    {
-        $statusName = strtolower($lead->status()->first()?->name ?? '');
-
-        if (str_contains($statusName, 'not') && str_contains($statusName, 'sold')) {
+        if ($lead->closeNotSold()) {
             return 'closed-not-sold';
         }
 
-        if (str_contains($statusName, 'sold')) {
+        if ($lead->closeSold()) {
             return 'closed-sold';
         }
 
         return '';
     }
 
-    public function getAiModeKey(Lead $lead): string
+    private function findConfigKeyBySuffix(Lead $lead, string $suffix): string
     {
-        if (! $this->isV2Enabled($lead->app)) {
-            return 'ai_mode';
+        $leadTypeConfig = $lead->type()->first()?->config ?? [];
+
+        foreach (array_keys($leadTypeConfig) as $key) {
+            if ($key === $suffix || str_ends_with((string) $key, '_' . $suffix)) {
+                return (string) $key;
+            }
         }
 
-        $prefix = $this->getTypePrefix($lead->type()->first());
+        return $suffix;
+    }
 
-        return match ($prefix) {
-            'showroom' => 'showroom_ai_mode',
-            'phone' => 'phone_ai_mode',
-            default => 'ai_mode',
-        };
+    public function getAiModeKey(Lead $lead): string
+    {
+        return 'ai_mode';
     }
 
     public function getFollowUpModeKey(Lead $lead): string
     {
-        if (! $this->isV2Enabled($lead->app)) {
-            return IntelligenceModeEnum::AI_FOLLOW_UP->value;
-        }
-
-        $prefix = $this->getTypePrefix($lead->type()->first());
-        $statusSuffix = $this->getStatusSuffix($lead);
-
-        if ($statusSuffix !== '') {
-            return "{$prefix}_followup_{$statusSuffix}";
-        }
-
-        return match ($prefix) {
-            'showroom' => 'showroom_follow_up_mode',
-            'phone' => 'phone_follow_up_mode',
-            default => 'internet_follow_up_mode',
-        };
+        return IntelligenceModeEnum::AI_FOLLOW_UP->value;
     }
 
     public function getFirstMessageDefaultKey(Lead $lead): string
     {
-        $prefix = $this->getTypePrefix($lead->type()->first());
-
-        return "{$prefix}_first_fu_active_default";
+        return $this->findConfigKeyBySuffix($lead, 'first_fu_active_default');
     }
 
     public function getAiModeDefaultKey(Lead $lead, bool $isOpen = true): string
     {
-        $prefix = $this->getTypePrefix($lead->type()->first());
-        $state = $isOpen ? 'open' : 'closed';
+        $suffix = $isOpen ? 'ai_mode_open_default' : 'ai_mode_closed_default';
 
-        return "{$prefix}_ai_mode_{$state}_default";
+        return $this->findConfigKeyBySuffix($lead, $suffix);
     }
 
     public function getFollowUpDefaultKey(Lead $lead): string
     {
-        $prefix = $this->getTypePrefix($lead->type()->first());
         $statusSuffix = $this->getStatusSuffix($lead);
 
         if ($statusSuffix === 'closed-not-sold') {
-            return "{$prefix}_con_fu_cns_default";
+            return $this->findConfigKeyBySuffix($lead, 'con_fu_cns_default');
         }
 
         if ($statusSuffix === 'closed-sold') {
-            return "{$prefix}_con_fu_closed-sold_default";
+            return $this->findConfigKeyBySuffix($lead, 'con_fu_closed-sold_default');
         }
 
-        return "{$prefix}_con_fu_active_default";
+        return $this->findConfigKeyBySuffix($lead, 'con_fu_active_default');
+    }
+
+    public function getFollowUpActiveDefaultKey(Lead $lead): string
+    {
+        return $this->findConfigKeyBySuffix($lead, 'con_fu_active_default');
+    }
+
+    public function getFollowUpClosedNotSoldDefaultKey(Lead $lead): string
+    {
+        return $this->findConfigKeyBySuffix($lead, 'con_fu_cns_default');
+    }
+
+    public function getFollowUpClosedSoldDefaultKey(Lead $lead): string
+    {
+        return $this->findConfigKeyBySuffix($lead, 'con_fu_closed-sold_default');
+    }
+
+    public function getAllDefaultKeys(Lead $lead, bool $isOpen = true): array
+    {
+        $leadType = $lead->type()->first();
+        $leadTypeConfig = $leadType?->config ?? [];
+
+        $aiModeKey = $this->getAiModeDefaultKey($lead, $isOpen);
+        $followUpKey = $this->getFollowUpActiveDefaultKey($lead);
+        $firstMessageKey = $this->getFirstMessageDefaultKey($lead);
+
+        $isContacted = (bool) $lead->get(LeadConfigurationEnum::CONTACTED->value);
+        $firstFollowUpActive = (bool) ($leadTypeConfig[$firstMessageKey] ?? false);
+
+        return [
+            'ai_mode' => [
+                'key' => $aiModeKey,
+                'value' => $leadTypeConfig[$aiModeKey] ?? null,
+            ],
+            'follow_up' => [
+                'key' => $followUpKey,
+                'value' => $leadTypeConfig[$followUpKey] ?? null,
+            ],
+            'first_message' => [
+                'key' => $firstMessageKey,
+                'value' => $leadTypeConfig[$firstMessageKey] ?? null,
+            ],
+            'is_contacted' => $isContacted,
+            'should_send_first_followup' => ! $isContacted && $firstFollowUpActive,
+        ];
     }
 }

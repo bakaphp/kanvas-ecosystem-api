@@ -47,7 +47,7 @@ trait InventoryCases
             $data = [
                 'name' => $name,
                 'description' => fake()->text,
-                'sku' => fake()->time,
+                'sku' => fake()->unique()->uuid(),
                 'slug' => Str::slug($name),
                 'weight' => 1,
                 'attributes' => [
@@ -86,7 +86,7 @@ trait InventoryCases
                 'name' => fake()->name,
                 'description' => fake()->text,
                 'products_id' => $productId,
-                'sku' => fake()->time,
+                'sku' => fake()->unique()->uuid(),
                 'ean' => fake()->ean13,
                 'barcode' => fake()->ean13,
                 'weight' => 1,

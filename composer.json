@@ -19,6 +19,7 @@
         "bacon/bacon-qr-code": "^3.0",
         "bavix/laravel-wallet": "^12.0",
         "berkayk/onesignal-laravel": "^2.4",
+        "brick/math": "~0.14.0",
         "doctrine/dbal": "^4.2",
         "durable-workflow/workflow": "^1.0.24",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
@@ -33,10 +34,11 @@
         "kiwilan/php-xml-reader": "^1.1",
         "knplabs/knp-snappy": "^1.5",
         "laravel-notification-channels/expo": "^2.1",
-        "laravel/ai": "^0.6.4",
+        "laravel/ai": "^0.8.0",
         "laravel/cashier": "^16.0",
         "laravel/framework": "^13.0",
         "laravel/octane": "^2.0",
+        "laravel/reverb": "^1.10",
         "laravel/sanctum": "^4.0",
         "laravel/slack-notification-channel": "^3.5",
         "laravel/socialite": "^5.14.0",
@@ -54,7 +56,7 @@
         "neuron-core/neuron-ai": "^3.0",
         "nevadskiy/laravel-tree": "dev-fix/laravel-13-boot-nested-instantiation as 0.6.0",
         "nuwave/lighthouse": "^6.0",
-        "openai-php/client": "^0.19.0",
+        "openai-php/client": "^0.20.0",
         "php-ffmpeg/php-ffmpeg": "*",
         "phpclassic/php-shopify": "^1.2",
         "powersync/authorizenet-sdk-php": "^2.0",
@@ -80,7 +82,9 @@
         "swoole/ide-helper": "*",
         "symfony/expression-language": "^8.0",
         "symfony/http-client": "^8.0",
+        "symfony/http-foundation": "~8.1.0",
         "symfony/mailgun-mailer": "^8.0",
+        "symfony/yaml": "^8.0",
         "thiagoprz/eloquent-composite-key": "^1.0",
         "twilio/sdk": "^8.11",
         "typesense/typesense-php": "^6.0",
@@ -93,10 +97,12 @@
         "brianium/paratest": "^7.10",
         "fakerphp/faker": "^1.9.1",
         "kitloong/laravel-migrations-generator": "^7.0",
+        "laramint/laravel-brain": "^2.0",
         "larastan/larastan": "^3.0",
         "laravel/boost": "^2.0",
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^8.1",
+        "pelmered/fake-car": "^2.1",
         "phpstan/phpstan": "^2.0.1",
         "phpunit/phpunit": "12.5.22"
     },
@@ -117,6 +123,7 @@
             "Kanvas\\ActionEngine\\": "src/Domains/ActionEngine",
             "Kanvas\\Event\\": "src/Domains/Event",
             "Kanvas\\Intelligence\\": "src/Domains/Intelligence",
+            "Kanvas\\Scribe\\": "src/Domains/Scribe",
             "Kanvas\\Analytics\\": "src/Domains/Analytics",
             "Kanvas\\NervousSystem\\": "src/Domains/NervousSystem",
             "Database\\Factories\\": "database/factories/",
@@ -153,7 +160,8 @@
             "php artisan migrate --path database/migrations/Subscription/ --database mysql",
             "php artisan migrate --path database/migrations/Event/ --database event",
             "php artisan migrate --path database/migrations/Workflow/ --database workflow",
-            "php artisan migrate --path database/migrations/Intelligence/ --database intelligence"
+            "php artisan migrate --path database/migrations/Intelligence/ --database intelligence",
+            "php artisan migrate --path database/migrations/Scribe/ --database accounting"
         ],
         "migrate-kanvas": [
             "php artisan migrate"
@@ -187,6 +195,9 @@
         ],
         "migrate-intelligence": [
             "php artisan migrate --path database/migrations/Intelligence/ --database intelligence"
+        ],
+        "migrate-scribe": [
+            "php artisan migrate --path database/migrations/Scribe/ --database accounting"
         ],
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },

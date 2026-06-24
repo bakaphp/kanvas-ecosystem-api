@@ -19,6 +19,8 @@ enum AppSettingsEnums implements EnumsInterface
     case ONBOARDING_INVENTORY_SETUP;
     case ONBOARDING_EVENT_SETUP;
     case ONBOARDING_EVENT_SETUP_TYPE;
+    case ONBOARDING_ACTION_ENGINE_SETUP;
+    case ONBOARDING_ACTION_ENGINE_SETUP_FROM_COMPANY;
     case ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY;
     case GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY;
     case KANVAS_APP_MAIN_COMPANY_ID;
@@ -49,10 +51,10 @@ enum AppSettingsEnums implements EnumsInterface
     case ALLOW_RESET_PASSWORD_WITH_DISPLAYNAME;
     case OPEN_AI_EMBEDDING_KEY;
     case ENABLE_GLOBAL_MERGE_FILESYSTEM;
-
     case DATE_ADK_AGENT_RESPONSES;
     case REGISTRATION_RATE_LIMIT;
     case VALIDATE_EMAIL_DNS;
+    case BLOCKED_EMAIL_DOMAINS;
 
     #[Override]
     public function getValue(): mixed
@@ -68,6 +70,8 @@ enum AppSettingsEnums implements EnumsInterface
             self::ONBOARDING_INVENTORY_SETUP => 'onboarding_inventory_setup',
             self::ONBOARDING_EVENT_SETUP => 'onboarding_event_setup',
             self::ONBOARDING_EVENT_SETUP_TYPE => 'onboarding_event_setup_type',
+            self::ONBOARDING_ACTION_ENGINE_SETUP => 'onboarding_action_engine_setup',
+            self::ONBOARDING_ACTION_ENGINE_SETUP_FROM_COMPANY => 'onboarding_action_engine_setup_from_company',
             self::ADMIN_USER_REGISTRATION_ASSIGN_CURRENT_COMPANY => 'admin_user_registration_assign_current_company',
             self::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY => 'global_user_registration_assign_global_company',
             self::KANVAS_APP_MAIN_COMPANY_ID => 'kanvas_app_main_company_id',
@@ -101,6 +105,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::DATE_ADK_AGENT_RESPONSES => 'date_adk_agent_responses',
             self::REGISTRATION_RATE_LIMIT => 'registration_rate_limit',
             self::VALIDATE_EMAIL_DNS => 'validate_email_dns',
+            self::BLOCKED_EMAIL_DOMAINS => 'blocked_email_domains',
         };
     }
 }

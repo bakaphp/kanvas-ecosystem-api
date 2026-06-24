@@ -1,0 +1,164 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Baka\Traits;
+
+use Illuminate\Support\Carbon;
+use JsonException;
+use Throwable;
+
+/**
+ * Defensive scalar / json coercion helpers for mapping `mixed` payloads from
+ * external sources (sqlite3 -json output, jsonl, third-party APIs) into
+ * typed primitives. Returns null on missing / unusable input rather than
+ * throwing — caller decides whether absence is fatal.
+ */
+trait ScalarCoercionTrait
+{
+    protected function stringOrNull(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $coerced = is_string($value) ? $value : (string) $value;
+
+        return $coerced === '' ? null : $coerced;
+    }
+
+    protected function intOrNull(mixed $value): ?int
+    {
+        return $value === null || $value === '' ? null : (int) $value;
+    }
+
+    protected function floatOrNull(mixed $value): ?float
+    {
+        return $value === null || $value === '' ? null : (float) $value;
+    }
+
+    /**
+     * Numeric Unix epoch (int or float seconds, sub-second via fractional
+     * component) → Carbon. Returns null for missing / non-numeric inputs.
+     */
+    protected function epochOrNull(mixed $value): ?Carbon
+    {
+        if ($value === null || $value === '' || ! is_numeric($value)) {
+            return null;
+        }
+        $epoch = (float) $value;
+
+        return Carbon::createFromTimestampMs((int) round($epoch * 1000.0));
+    }
+
+    /**
+     * ISO-8601 string → Carbon. Distinct from epochOrNull which takes
+     * numeric epochs; this is for ISO strings (e.g. JSONL session indexes).
+     */
+    protected function parseIso(mixed $value): ?Carbon
+    {
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Decode a JSON value into a list. Already-decoded arrays pass through
+     * (reindexed); strings are json_decoded; null/empty/malformed → null.
+     *
+     * @return list<mixed>|null
+     */
+    protected function decodeJsonArray(mixed $value): ?array
+    {
+        if ($value === null || $value === '' || $value === '[]') {
+            return null;
+        }
+        if (! is_string($value)) {
+            return is_array($value) ? array_values($value) : null;
+        }
+
+        try {
+            $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return null;
+        }
+        if (! is_array($decoded) || $decoded === []) {
+            return null;
+        }
+
+        return array_values($decoded);
+    }
+
+    /**
+     * Same as decodeJsonArray but preserves object keys (for JSON objects,
+     * not arrays).
+     *
+     * @return array<array-key, mixed>|null
+     */
+    protected function decodeJsonAssoc(mixed $value): ?array
+    {
+        if ($value === null || $value === '' || $value === '{}') {
+            return null;
+        }
+        if (! is_string($value)) {
+            return is_array($value) ? $value : null;
+        }
+
+        try {
+            $decoded = json_decode($value, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return null;
+        }
+
+        return is_array($decoded) && $decoded !== [] ? $decoded : null;
+    }
+
+    // Static variants for use inside static DTO factories (where $this isn't available).
+    // Unlike stringOrNull/intOrNull these preserve an empty string and only null on a true null.
+
+    protected static function nullableString(mixed $value): ?string
+    {
+        return $value === null ? null : (string) $value;
+    }
+
+    protected static function nullableInt(mixed $value): ?int
+    {
+        return $value === null ? null : (int) $value;
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected static function stringList(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_map(static fn (mixed $item): string => (string) $item, $value));
+    }
+
+    /**
+     * Coerce a truthy / falsy-ish value to the literal 'Y' / 'N'. Many B2B
+     * integrations (Reynolds RCI, ADF, STAR standard, banking flat-files)
+     * carry boolean fields as Yes/No characters. Null / empty input passes
+     * through as null so callers can omit absent fields rather than
+     * defaulting to 'N'.
+     *
+     * Truthy: 'Y', 'y', '1', 'true', 'TRUE' (case-insensitive).
+     * Anything else non-empty → 'N'.
+     */
+    protected static function ynOrNull(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return in_array(strtoupper((string) $value), ['Y', '1', 'TRUE'], true) ? 'Y' : 'N';
+    }
+}

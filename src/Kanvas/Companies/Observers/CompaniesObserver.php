@@ -14,22 +14,18 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\StateEnums;
+use Kanvas\KanvasModules\Actions\ProvisionCompanyKanvasModulesAction;
 use Kanvas\Users\Actions\AssignRoleAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Throwable;
 
 class CompaniesObserver
 {
-    /**
-     * Handle the Apps "saving" event.
-     */
     public function creating(Companies $company): void
     {
         $company->uuid = Str::uuid()->toString();
     }
 
-    /**
-     * Handle the Apps "saving" event.
-     */
     public function created(Companies $company): void
     {
         $app = app(Apps::class);
@@ -77,6 +73,15 @@ class CompaniesObserver
         $assignRole = new AssignRoleAction($user, $company, $app);
         $assignRole->execute(AppEnums::DEFAULT_ROLE_NAME->getValue());
 
+        // Module provisioning must not block company creation — a
+        // missed module row is recoverable via backfill, a missed
+        // company is not.
+        try {
+            new ProvisionCompanyKanvasModulesAction($company, $app)->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
+
         if (! $user->get(Companies::cacheKey())) {
             $user->set(Companies::cacheKey(), $company->id);
         }
@@ -84,6 +89,8 @@ class CompaniesObserver
         if (! $user->get($company->branchCacheKey())) {
             $user->set($company->branchCacheKey(), $branch->id);
         }
+
+        //remember we have a OnBoardingJob , so we will create the default integration in there
 
         $company->fireWorkflow(
             WorkflowEnum::CREATED->value,

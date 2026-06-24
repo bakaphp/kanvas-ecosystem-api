@@ -9,9 +9,11 @@ use Kanvas\Connectors\Shopify\Actions\SyncShopifyOrderAction;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class ProcessShopifyOrderWebhookJob extends ProcessWebhookJob
 {
     #[Override]

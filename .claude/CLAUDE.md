@@ -22,11 +22,25 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
       'photo'
   );
   ```
-- **PHP-CS-Fixer enforced** — config lives at `.php-cs-fixer.php`. **Run it on every save and before every commit/push** so the code matches house style and doesn't bounce back in review:
-  ```bash
-  vendor/bin/php-cs-fixer fix <file-or-dir>
+- **Use PHP 8+ named arguments to skip optional positional `null`s.** When you would otherwise pass `null` for an optional middle parameter just to reach a later one, switch to named arguments instead. The positional `null` is a readability and refactor-safety footgun (rename a parameter or add a new optional in between, every caller silently breaks).
+  ```php
+  // WRONG — null in the middle just to reach $user
+  $handler->setConfiguration(
+      $this->agent,
+      $this->message->entity()->people,
+      null,
+      $this->message->company->getAiAgentUserOrFail(),
+  );
+
+  // CORRECT — named args, skip the optional you don't need
+  $handler->setConfiguration(
+      agent: $this->agent,
+      entity: $this->message->entity()->people,
+      user: $this->message->company->getAiAgentUserOrFail(),
+  );
   ```
-  Apply it to every PHP file you touch (the fixer is idempotent — running it on files you didn't change is a no-op). If the binary isn't installed in the current environment, match the same rules by hand:
+  Apply the same rule to LLM-tool param defaults: prefer `?type $param = null` over `type $param = 'default'` so the LLM can pass explicit `null` without a TypeError (see [no-non-nullable-defaults rule](#)). Normalize the default inside the body: `$param ?? 'default'`.
+- **PHP-CS-Fixer enforced** — config lives at `.php-cs-fixer.php`. A `PostToolUse` hook runs the fixer on every edited `.php` file automatically (see `.claude/settings.json`). **The hook only fires on Edit/Write tool calls.** If you batch-edit via `sed`/`perl -i`/`awk`/any shell script, the hook does NOT run and StyleCI will fail the PR for import ordering, brace placement, etc. After any bash batch edit of `.php` files: run `php-cs-fixer fix <files>` (binary at `/Users/kaioken/Tools/php-cs-fixer/vendor/bin/php-cs-fixer` on host) on every touched file BEFORE finishing the task. Prefer Edit/Write tool calls over batch shell edits when possible. If the binary isn't installed in the current environment, match the rules by hand:
   - Anonymous classes: `new class () extends Foo {` (parentheses + space before brace, brace on same line)
   - Multi-line closures passed as method arguments: place the closure on a new line, e.g. `->whereHas('rel', fn ($q) => ...)` becomes `->whereHas(\n    'rel',\n    fn ($q) => ...\n)`
   - `use` imports: alphabetical order **across the entire use block** (not just within each namespace group) — e.g. `Connectors\Zoho\...` must come after `Connectors\WooCommerce\...`
@@ -35,901 +49,36 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
   - `no_empty_comment`, `single_quote`, `array_syntax: short`, `trailing_comma_in_multiline`, and the other rules in `.php-cs-fixer.php`
 - **Email rendering note**: `KanvasMailable` is HTML-first and uses `resources/views/emails/layout.blade.php`. If a feature needs true plain-text body delivery (for example raw ADF/XML in the body with no escaping/wrapping), use a dedicated plain-text view such as `resources/views/emails/plain.blade.php` instead of routing through the HTML layout.
 
-## Domain CRUD Pattern
+## Skills (load on demand)
 
-### Project Structure
+Big task-shaped recipes have been moved to skills under `.claude/skills/`. They are not pre-loaded; invoke them only when starting work that fits the description.
 
-```
-src/Domains/{DomainName}/{Entity}/
-├── Actions/
-│   ├── Create{Entity}Action.php    # Business logic for creation
-│   └── Update{Entity}Action.php    # Business logic for updates
-├── DataTransferObject/
-│   └── {Entity}.php                # Spatie LaravelData DTO (named after entity, NOT {Entity}Input)
-├── Models/
-│   └── {Entity}.php                # Eloquent model
-└── Enums/                          # Optional enums
+- **`kanvas-crud`** — Build a new domain CRUD (DTO + Create/Update Actions + GraphQL Mutation + schema + tests). Use when scaffolding a new entity under `src/Domains/{Domain}/{Entity}/`.
+- **`kanvas-connector`** — Build a new external-service integration under `src/Domains/Connectors/{ConnectorName}/` (Handler + Client + DTO + Enums + Webhook job + Workflow activity + GraphQL setup mutation + `integrations` row). Use when adding/editing any connector. Includes the Octane "never cache SDK in static" rule and the "AgentRuntime is a primary domain not a connector" foot-guns.
+- **`kanvas-search`** — Add `@search` to a list query with proper multi-tenant `search()` override. Use when adding `search: String @search`, choosing between `DatabaseSearchableTrait` and `DynamicSearchableTrait`, or auditing tenant scoping.
 
-app/GraphQL/{DomainName}/Mutations/{Entity}/
-└── {Entity}Mutation.php            # GraphQL mutation resolver
+Sub-directory `CLAUDE.md` files load additively when work touches their tree:
+- `tests/CLAUDE.md` — Docker test commands, `RefreshDatabase` ban, Bouncer setup, AppKey-guarded test pattern.
+- `src/Domains/Connectors/CLAUDE.md` — connector-tree-specific gotchas (Octane SDK rule, Activities/ folder, AgentRuntime caveat).
+- `graphql/schemas/CLAUDE.md` — directive conventions, FK-id-vs-relation rule, schema folder rule.
+- `src/Domains/Intelligence/FollowUp/CLAUDE.md` — generic-core vs per-entity-executor split for the agent-driven follow-up engine. Recipe for adopting follow-up on a new entity (Deal, Order, etc.).
+- `src/Domains/Inventory/CLAUDE.md` — product search engine (dynamic per-tenant Algolia/Typesense/Meilisearch resolution + precedence), index naming, `shouldBeSearchable` gating, the tenant-aware reindex command, and Typesense Natural Language Search config for the recommendation agent.
 
-graphql/schemas/{DomainName}/
-└── {entity}.graphql                # GraphQL type, input, mutation, query definitions
+### Where to put new conventions (don't bloat this file)
 
-tests/GraphQL/{DomainName}/
-└── {Entity}CrudTest.php            # GraphQL CRUD tests
-```
+Default to writing rules **outside** root CLAUDE.md. The root file should only carry conventions that apply to nearly every PHP edit; everything else has a more specific home.
 
-### 1. Data Transfer Object (DTO)
+| Type of rule | Goes in | Examples |
+|---|---|---|
+| Task-shaped recipe (a scaffold you'd follow start-to-finish) | New skill at `.claude/skills/<name>/SKILL.md` with a `description:` that matches when it should load | Building a new CRUD, scaffolding a connector, wiring `@search` |
+| Tree-specific gotcha (only relevant inside one directory) | Subdir `CLAUDE.md` in that tree | Tests setup, connector Octane rule, schema directive conventions |
+| Cross-cutting convention (every PHP file is subject to it) | Root `.claude/CLAUDE.md` under "Key Conventions" | No inline FQCNs, DTO conventions, no FK ids in GraphQL response types, queued-job Spatie Data rule |
+| Deterministic behavior (formatter, linter, generator) | Hook in `.claude/hooks/` wired up via `.claude/settings.json` | php-cs-fixer auto-run |
+| Personal session notes / project-state pointers | Memory under `~/.claude/projects/.../memory/` (one-line in `MEMORY.md`, detail in topic file) | "Importer migration PR3 ready", "OpenClaw shared image arch" |
 
-Location: `src/Domains/{Domain}/{Entity}/DataTransferObject/{Entity}.php`
+Before adding a new section to this root file, ask: "would this still be relevant if I were editing a totally unrelated domain right now?" If no, it belongs in a skill or subdir CLAUDE.md.
 
-Name the DTO class after the entity (e.g., `Action`, `Pipeline`). When importing in files that also use the model, alias it: `use Kanvas\{Domain}\{Entity}\DataTransferObject\{Entity} as {Entity}Data;`
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace Kanvas\{Domain}\{Entity}\DataTransferObject;
-
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
-use Baka\Users\Contracts\UserInterface;
-use Spatie\LaravelData\Data;
-
-class {Entity} extends Data
-{
-    public function __construct(
-        public readonly AppInterface $app,
-        public readonly CompanyInterface $company,
-        public readonly UserInterface $user,
-        public readonly string $name,
-        public readonly ?string $description = null,
-        // ... other fields
-        // Use model objects for FKs: public readonly RelatedModel $related,
-    ) {
-    }
-}
-```
-
-### 2. Create Action
-
-Location: `src/Domains/{Domain}/{Entity}/Actions/Create{Entity}Action.php`
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace Kanvas\{Domain}\{Entity}\Actions;
-
-use Illuminate\Support\Facades\DB;
-use Kanvas\{Domain}\{Entity}\DataTransferObject\{Entity} as {Entity}Data;
-use Kanvas\{Domain}\{Entity}\Models\{Entity};
-
-class Create{Entity}Action
-{
-    public function __construct(
-        protected readonly {Entity}Data $data,
-    ) {
-    }
-
-    public function execute(): {Entity}
-    {
-        return DB::connection('{db_connection}')->transaction(function () {
-            $entity = new {Entity}();
-            $entity->apps_id = $this->data->app->getId();
-            $entity->companies_id = $this->data->company->getId(); // 0 for global entities
-            $entity->users_id = $this->data->user->getId();
-            $entity->name = $this->data->name;
-            // ... set other fields
-            // For FK relationships: $entity->related_id = $this->data->related->getId();
-            $entity->saveOrFail();
-
-            return $entity;
-        });
-    }
-}
-```
-
-### 3. Update Action
-
-Location: `src/Domains/{Domain}/{Entity}/Actions/Update{Entity}Action.php`
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace Kanvas\{Domain}\{Entity}\Actions;
-
-use Illuminate\Support\Facades\DB;
-use Kanvas\{Domain}\{Entity}\DataTransferObject\{Entity} as {Entity}Data;
-use Kanvas\{Domain}\{Entity}\Models\{Entity};
-
-class Update{Entity}Action
-{
-    public function __construct(
-        protected readonly {Entity} $entity,
-        protected readonly {Entity}Data $data,
-    ) {
-    }
-
-    public function execute(): {Entity}
-    {
-        return DB::connection('{db_connection}')->transaction(function () {
-            $this->entity->name = $this->data->name;
-            // ... update other fields
-            $this->entity->saveOrFail();
-
-            return $this->entity;
-        });
-    }
-}
-```
-
-### 4. GraphQL Mutation Resolver
-
-Location: `app/GraphQL/{Domain}/Mutations/{Entity}/{Entity}Mutation.php`
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace App\GraphQL\{Domain}\Mutations\{Entity};
-
-use Kanvas\{Domain}\{Entity}\Actions\Create{Entity}Action;
-use Kanvas\{Domain}\{Entity}\Actions\Update{Entity}Action;
-use Kanvas\{Domain}\{Entity}\DataTransferObject\{Entity} as {Entity}Data;
-use Kanvas\{Domain}\{Entity}\Models\{Entity};
-use Kanvas\Apps\Models\Apps;
-
-class {Entity}Mutation
-{
-    public function create(mixed $rootValue, array $request): {Entity}
-    {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
-        $input = $request['input'];
-
-        // Look up related models from IDs before constructing DTO
-        // $related = RelatedModel::getByIdFromCompanyApp((int) $input['related_id'], $company, $app);
-
-        return new Create{Entity}Action(
-            new {Entity}Data(
-                app: $app,
-                company: $company,
-                user: $user,
-                name: $input['name'],
-                // related: $related,
-            ),
-        )->execute();
-    }
-
-    public function update(mixed $rootValue, array $request): {Entity}
-    {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
-        $input = $request['input'];
-
-        // For global entities (no company scoping):
-        $entity = {Entity}::getById((int) $request['id'], $app);
-        // For company-scoped entities:
-        // $entity = {Entity}::getByIdFromCompanyApp((int) $request['id'], $company, $app);
-
-        return new Update{Entity}Action(
-            $entity,
-            new {Entity}Data(
-                app: $app,
-                company: $company,
-                user: $user,
-                name: $input['name'] ?? $entity->name,
-            ),
-        )->execute();
-    }
-
-    public function delete(mixed $rootValue, array $request): bool
-    {
-        $app = app(Apps::class);
-        $entity = {Entity}::getById((int) $request['id'], $app);
-
-        return $entity->softDelete();
-    }
-}
-```
-
-### 5. GraphQL Schema
-
-Location: `graphql/schemas/{Domain}/{entity}.graphql`
-
-```graphql
-input {Entity}Input {
-    name: String!
-    description: String
-    # ... other fields
-}
-
-input Update{Entity}Input {
-    name: String
-    description: String
-    # ... other fields (all optional for partial updates)
-}
-
-# Admin-only CUD operations
-extend type Mutation @guardByAdmin {
-    create{Entity}(input: {Entity}Input!): {Entity}!
-        @field(resolver: "App\\GraphQL\\{Domain}\\Mutations\\{Entity}\\{Entity}Mutation@create")
-    update{Entity}(id: ID!, input: Update{Entity}Input!): {Entity}!
-        @field(resolver: "App\\GraphQL\\{Domain}\\Mutations\\{Entity}\\{Entity}Mutation@update")
-    delete{Entity}(id: ID!): Boolean!
-        @field(resolver: "App\\GraphQL\\{Domain}\\Mutations\\{Entity}\\{Entity}Mutation@delete")
-}
-
-# Read access for all authenticated users
-extend type Query @guard {
-    {entityPlural}(
-        search: String @search
-        where: _ @whereConditions(columns: ["id", "name", "slug"])
-        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
-    ): [{Entity}!]!
-        @paginate(
-            model: "Kanvas\\{Domain}\\{Entity}\\Models\\{Entity}"
-            scopes: ["fromApp", "notDeleted"]
-            defaultCount: 25
-        )
-}
-```
-
-### 6. Tests
-
-Location: `tests/GraphQL/{Domain}/{Entity}CrudTest.php`
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace Tests\GraphQL\{Domain};
-
-use Tests\TestCase;
-
-class {Entity}CrudTest extends TestCase
-{
-    public function testCreate{Entity}(): void
-    {
-        $input = ['name' => 'Test ' . fake()->word()];
-
-        $this->graphQL('
-            mutation($input: {Entity}Input!) {
-                create{Entity}(input: $input) {
-                    id
-                    name
-                }
-            }
-        ', ['input' => $input])
-        ->assertSuccessful()
-        ->assertJson(['data' => ['create{Entity}' => ['name' => $input['name']]]]);
-    }
-
-    public function testUpdate{Entity}(): void
-    {
-        $input = ['name' => 'Test ' . fake()->word()];
-        $createResponse = $this->graphQL('
-            mutation($input: {Entity}Input!) {
-                create{Entity}(input: $input) { id name }
-            }
-        ', ['input' => $input])->assertSuccessful();
-        $id = $createResponse->json('data.create{Entity}.id');
-
-        $updateInput = ['name' => 'Updated ' . fake()->word()];
-        $this->graphQL('
-            mutation($id: ID!, $input: Update{Entity}Input!) {
-                update{Entity}(id: $id, input: $input) { id name }
-            }
-        ', ['id' => $id, 'input' => $updateInput])
-        ->assertSuccessful();
-    }
-
-    public function testDelete{Entity}(): void
-    {
-        $input = ['name' => 'Test ' . fake()->word()];
-        $createResponse = $this->graphQL('
-            mutation($input: {Entity}Input!) {
-                create{Entity}(input: $input) { id }
-            }
-        ', ['input' => $input])->assertSuccessful();
-        $id = $createResponse->json('data.create{Entity}.id');
-
-        $this->graphQL('
-            mutation($id: ID!) { delete{Entity}(id: $id) }
-        ', ['id' => $id])
-        ->assertSuccessful()
-        ->assertJson(['data' => ['delete{Entity}' => true]]);
-    }
-
-    public function testList{Entities}(): void
-    {
-        $this->graphQL('query { {entityPlural} { data { id name } } }')
-            ->assertSuccessful()
-            ->assertJsonStructure(['data' => ['{entityPlural}' => ['data' => [['id', 'name']]]]]);
-    }
-}
-```
-
-## Connector Pattern
-
-Connectors integrate Kanvas with external services (Shopify, Stripe, WaSender, etc.). All connectors live under `src/Domains/Connectors/`.
-
-### Project Structure
-
-```
-src/Domains/Connectors/{ConnectorName}/
-├── Handlers/
-│   └── {ConnectorName}Handler.php     # Extends BaseIntegration, implements setup()
-├── Client.php                          # Guzzle HTTP client for external API
-├── DataTransferObject/
-│   └── {ConnectorName}.php             # DTO for configuration/credentials
-├── Enums/
-│   ├── ConfigurationEnum.php           # App/company config keys
-│   └── CustomFieldEnum.php             # Entity custom field names
-├── Actions/                            # Business logic (sync, import, etc.)
-├── Services/                           # Reusable domain services
-├── Webhooks/ or Jobs/                  # ProcessWebhookJob implementations
-└── Workflows/                          # Temporal workflows (optional)
-    └── Activities/                     # Workflow activities
-
-app/GraphQL/Connector/{ConnectorName}/
-└── Mutations/
-    └── {ConnectorName}Mutation.php     # GraphQL setup mutation
-
-graphql/schemas/Connector/
-└── {connector}.graphql                 # GraphQL input/mutation definitions
-
-tests/Connectors/
-├── {ConnectorName}/                    # Integration tests
-└── Traits/
-    └── Has{ConnectorName}Configuration.php  # Test setup trait
-```
-
-### 1. Handler (Required)
-
-Extends `BaseIntegration` — validates credentials and stores configuration.
-
-Location: `src/Domains/Connectors/{ConnectorName}/Handlers/{ConnectorName}Handler.php`
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace Kanvas\Connectors\{ConnectorName}\Handlers;
-
-use Kanvas\Connectors\Contracts\BaseIntegration;
-use Kanvas\Exceptions\ValidationException;
-use Override;
-
-class {ConnectorName}Handler extends BaseIntegration
-{
-    #[Override]
-    public function setup(): bool
-    {
-        $apiKey = $this->data['api_key'] ?? null;
-
-        if (empty($apiKey)) {
-            throw new ValidationException('API key is required');
-        }
-
-        // Store credentials in app or company custom fields
-        $this->app->set(ConfigurationEnum::API_KEY->value, $apiKey);
-
-        // Validate by making a test API call
-        return Client::validateCredentials($apiKey);
-    }
-}
-```
-
-The `BaseIntegration` base class (`src/Domains/Connectors/Contracts/BaseIntegration.php`) provides:
-- `$this->app` — current App
-- `$this->company` — current Company
-- `$this->region` — KanvasRegions instance
-- `$this->data` — array of setup data from the request
-
-### 2. Configuration Enums
-
-```php
-// ConfigurationEnum.php — keys for app/company settings
-enum ConfigurationEnum: string
-{
-    case BASE_URL = '{connector}_base_url';
-    case API_KEY = '{connector}_api_key';
-    case API_SECRET = '{connector}_api_secret';
-}
-
-// CustomFieldEnum.php — keys for entity-level custom fields
-enum CustomFieldEnum: string
-{
-    case EXTERNAL_PRODUCT_ID = '{CONNECTOR}_PRODUCT_ID';
-    case EXTERNAL_CUSTOMER_ID = '{CONNECTOR}_CUSTOMER_ID';
-}
-```
-
-**Storage pattern:**
-- App-level: `$app->set(ConfigurationEnum::KEY->value, $value)`
-- Company-level: `$company->set(ConfigurationEnum::KEY->value, $value)`
-- Entity-level: `$model->set(CustomFieldEnum::KEY->value, $value)`
-
-### 3. Client (for External APIs)
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace Kanvas\Connectors\{ConnectorName};
-
-use Baka\Contracts\AppInterface;
-use GuzzleHttp\Client as GuzzleClient;
-use Kanvas\Exceptions\ValidationException;
-
-class Client
-{
-    protected GuzzleClient $client;
-
-    public function __construct(protected AppInterface $app)
-    {
-        $baseUrl = $this->app->get(ConfigurationEnum::BASE_URL->value);
-        $apiKey = $this->app->get(ConfigurationEnum::API_KEY->value);
-
-        if (empty($baseUrl) || empty($apiKey)) {
-            throw new ValidationException('{ConnectorName} configuration is missing');
-        }
-
-        $this->client = new GuzzleClient([
-            'base_uri' => $baseUrl,
-            'headers' => [
-                'Content-Type' => 'application/json',
-                'Authorization' => 'Bearer ' . $apiKey,
-            ],
-        ]);
-    }
-
-    public function get(string $endpoint): array
-    {
-        $response = $this->client->get($endpoint);
-        return json_decode($response->getBody()->getContents(), true);
-    }
-
-    public function post(string $endpoint, array $data): array
-    {
-        $response = $this->client->post($endpoint, ['json' => $data]);
-        return json_decode($response->getBody()->getContents(), true);
-    }
-}
-```
-
-### 4. DTO
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace Kanvas\Connectors\{ConnectorName}\DataTransferObject;
-
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
-use Kanvas\Inventory\Regions\Models\Regions;
-
-class {ConnectorName}
-{
-    public function __construct(
-        public CompanyInterface $company,
-        public AppInterface $app,
-        public Regions $region,
-        public string $apiKey,
-        public string $apiSecret,
-    ) {
-    }
-
-    public static function viaRequest(array $data, AppInterface $app, CompanyInterface $company): self
-    {
-        return new self(
-            company: $company,
-            app: $app,
-            region: Regions::getById($data['region_id']),
-            apiKey: $data['api_key'],
-            apiSecret: $data['api_secret'],
-        );
-    }
-}
-```
-
-### 5. Webhook Job (if receiving webhooks)
-
-Extend `ProcessWebhookJob` (`src/Domains/Workflow/Jobs/ProcessWebhookJob.php`). The base class handles auth setup, app context, and status tracking.
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace Kanvas\Connectors\{ConnectorName}\Jobs;
-
-use Kanvas\Workflow\Jobs\ProcessWebhookJob;
-use Override;
-
-class Process{ConnectorName}WebhookJob extends ProcessWebhookJob
-{
-    #[Override]
-    public function execute(): array
-    {
-        $payload = $this->webhookRequest->payload;
-        $regionId = $this->receiver->configuration['region_id'];
-
-        // Process the webhook payload
-        $result = new Sync{Entity}Action(
-            $this->receiver->app,
-            $this->receiver->company,
-            Regions::getById($regionId),
-            $payload,
-        )->execute();
-
-        return ['message' => 'Processed successfully', 'id' => $result->getId()];
-    }
-}
-```
-
-The `$this->receiver` (ReceiverWebhook model) provides:
-- `$this->receiver->app` — the App
-- `$this->receiver->company` — the Company
-- `$this->receiver->user` — the User
-- `$this->receiver->configuration` — array of webhook config (region_id, etc.)
-
-### 6. Workflow Activities (for long-running async operations)
-
-Extend `KanvasActivity` which provides `executeIntegration()` for status tracking and history logging.
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace Kanvas\Connectors\{ConnectorName}\Workflows\Activities;
-
-use Kanvas\Workflow\KanvasActivity;
-
-class Sync{Entity}Activity extends KanvasActivity
-{
-    public function execute($entity, Apps $app, array $params): array
-    {
-        return $this->executeIntegration(
-            entity: $entity,
-            app: $app,
-            integration: IntegrationsEnum::{CONNECTOR},
-            additionalParams: $params,
-            integrationOperation: function () use ($entity) {
-                return new Sync{Entity}Action($entity)->execute();
-            },
-            company: $entity->company,
-        );
-    }
-}
-```
-
-**Important:** Always pass `additionalParams: $params` to `executeIntegration()`. Without it, the system cannot retry the activity with the correct parameters.
-
-### 7. GraphQL Setup Mutation
-
-```graphql
-# graphql/schemas/Connector/{connector}.graphql
-input {ConnectorName}SetupInput {
-    api_key: String!
-    api_secret: String!
-    region_id: ID!
-}
-
-extend type Mutation @guard {
-    {connectorName}Setup(input: {ConnectorName}SetupInput!): Boolean
-        @field(
-            resolver: "App\\GraphQL\\Connector\\{ConnectorName}\\Mutations\\{ConnectorName}Mutation@setup"
-        )
-}
-```
-
-```php
-// app/GraphQL/Connector/{ConnectorName}/Mutations/{ConnectorName}Mutation.php
-class {ConnectorName}Mutation
-{
-    public function setup(mixed $root, array $request): bool
-    {
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-        $app = app(Apps::class);
-
-        $dto = {ConnectorName}Dto::viaRequest($request['input'], $app, $company);
-        {ConnectorName}Service::setup($dto);
-
-        return true;
-    }
-}
-```
-
-### 8. Register the Integration
-
-Add to `IntegrationsEnum` (`src/Domains/Workflow/Enums/IntegrationsEnum.php`):
-
-```php
-enum IntegrationsEnum: string
-{
-    // ... existing connectors
-    case {CONNECTOR} = '{connector_name}';
-}
-```
-
-Seed a record in the `integrations` table mapping the name to the handler class.
-
-### Connector Checklist
-
-- [ ] **Enums**: `ConfigurationEnum` + `CustomFieldEnum`
-- [ ] **Handler**: Extends `BaseIntegration` with `setup()` method
-- [ ] **Client**: Guzzle HTTP client (if external API)
-- [ ] **DTO**: Configuration/credentials data object
-- [ ] **Service**: Core service class (optional)
-- [ ] **Actions**: Business logic (sync, import, etc.)
-- [ ] **Webhook Job**: Extends `ProcessWebhookJob` (if receiving webhooks)
-- [ ] **Workflow/Activities**: Temporal workflows (if async operations)
-- [ ] **GraphQL**: Schema + mutation for setup
-- [ ] **Register**: Add to `IntegrationsEnum`, seed `integrations` table
-- [ ] **Tests**: Configuration trait + integration tests in `tests/Connectors/`
-
-### Multi-Tenancy Notes
-
-- **App-level** configs (shared endpoints, base URLs): `$app->set()`
-- **Company-level** configs (API keys, tokens): `$company->set()`
-- **Region-scoped** credentials use composite keys: `CREDENTIAL-{appId}-{companyId}-{regionId}`
-- Integration status tracked per company via `IntegrationsCompany` model (ACTIVE, INACTIVE, FAILED, OFFLINE)
-- Every integration operation logged in `EntityIntegrationHistory` for auditing
-
-### Never Cache SDK Instances in Static Properties (Octane footgun)
-
-Do **not** cache external-SDK clients (Twilio, Shopify, VoiceBridge, etc.) in `private static array $instances = []` keyed by `app_X` / `company_X`. Under Swoole/Octane the worker process is long-lived, so any static state survives across requests on that worker. When a tenant rotates credentials in DB + Redis, workers that already cached the old client keep serving requests with stale keys — manifests as intermittent 4xx/auth errors that hit *some* requests but not others (the ones that landed on a worker that hadn't cached yet).
-
-```php
-// WRONG — stale credentials per worker after key rotation
-final class Client
-{
-    private static array $instances = [];
-
-    public static function getInstance(AppInterface $app): SomeSDK
-    {
-        $key = sprintf('app_%s', $app->getId());
-        return self::$instances[$key] ??= new SomeSDK($app->get('api_key'));
-    }
-}
-
-// CORRECT — thin factory, always reads fresh creds
-final class Client
-{
-    public static function getInstance(AppInterface $app): SomeSDK
-    {
-        return new SomeSDK($app->get('api_key'));
-    }
-}
-```
-
-Building an SDK client is almost always cheap (string assignments, no network handshake) — there's no real perf win to caching it, and the correctness cost is intermittent stale-creds bugs that are painful to reproduce. Same rule applies to any singleton-style `protected static ?SDK $instance = null` pattern. If you genuinely need to cache something heavy, key it on a credential fingerprint (`hash($sid.$token)`), not the app/company id, so rotation invalidates the cache automatically — but prefer just rebuilding.
-
-The same Octane risk applies to **any mutable static state on connector classes** (e.g. `protected static string $environment` mutated via `setEnvironment()`). Those mutations persist across requests on the same worker and cause cross-tenant state bleed. Keep environment/region per-instance, or pass at call time.
-
-## Adding @search to GraphQL Queries
-
-All list queries should support the `@search` directive for text search. This requires two things:
-
-### 1. Add the Trait to the Model
-
-For simple database-only search (most models):
-```php
-use Baka\Traits\DatabaseSearchableTrait;
-use Kanvas\Apps\Models\Apps;
-
-class MyModel extends BaseModel
-{
-    use DatabaseSearchableTrait;
-
-    public function searchableAs(): string
-    {
-        $app = $this->app ?? app(Apps::class);
-        $customIndex = $app->get('app_custom_{model}_index') ?? null;
-
-        return config('scout.prefix') . ($customIndex ?? '{model}_index');
-    }
-
-    public function toSearchableArray(): array
-    {
-        return [
-            'id' => $this->id,
-            'name' => $this->name,
-            // ... other searchable fields
-        ];
-    }
-
-    public function shouldBeSearchable(): bool
-    {
-        return ! $this->isDeleted();
-    }
-}
-```
-
-For models that need Algolia/Typesense indexing (Products, Leads, Messages, etc.):
-```php
-use Baka\Traits\DynamicSearchableTrait;
-
-class MyModel extends BaseModel
-{
-    use DynamicSearchableTrait {
-        search as public traitSearch;
-    }
-
-    public function searchableAs(): string
-    {
-        $model = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
-        $app = $model->app ?? app(Apps::class);
-        $customIndex = $app->get('app_custom_{model}_index') ?? null;
-        return config('scout.prefix') . ($customIndex ?? '{model}_index');
-    }
-
-    public function toSearchableArray(): array
-    {
-        return [
-            'id' => $this->id,
-            'name' => $this->name,
-            // ... other searchable fields
-        ];
-    }
-
-    public function shouldBeSearchable(): bool
-    {
-        return ! $this->isDeleted();
-    }
-}
-```
-
-### 2. Add `search` Parameter to the GraphQL Query
-
-```graphql
-extend type Query @guard {
-    myEntities(
-        search: String @search
-        where: _ @whereConditions(columns: ["id", "name"])
-        orderBy: _ @orderBy(columns: ["id", "created_at", "name"])
-    ): [MyEntity!]!
-        @paginate(
-            model: "Kanvas\\Domain\\Models\\MyModel"
-            scopes: ["fromApp", "notDeleted"]
-            defaultCount: 25
-        )
-}
-```
-
-### Which Trait to Use
-
-| Trait | Use When | Examples |
-|-------|----------|---------|
-| `DatabaseSearchableTrait` | Simple models, no external search engine needed | Categories, Channels, Warehouses, Status, Pipeline, Action |
-| `DynamicSearchableTrait` | Need Algolia/Typesense indexing, full-text search | Products, Leads, Messages, Agents |
-
-### Algolia Index Configuration Requirement
-
-When a model uses `DynamicSearchableTrait` with Algolia and the `search()` method filters by numeric attributes (e.g., `apps_id`, `companies_id`), those attributes **must be configured in the Algolia dashboard** for the index:
-
-1. Go to the Algolia dashboard > select the index (e.g., `dev-prompt_messages`)
-2. Navigate to **Configuration** > **Filtering and Faceting** > **Attributes for faceting**
-3. Add `filterOnly(apps_id)` and `filterOnly(companies_id)`
-4. If the attribute is purely numeric, also check **numericAttributesForFiltering** — by default all numeric attributes are filterable, but if a custom list is set, the attribute must be included
-
-Without this, Algolia returns: `"invalid numeric attribute(apps_id), attribute not specified in numericAttributesForFiltering setting"`
-
-**Note:** Each app can have a custom index name (e.g., `app_custom_message_index`), so this must be configured per-index in the Algolia UI.
-
-### 3. Add Search Scoping to Prevent Data Leaks
-
-**Every model that uses `@search` MUST override the `search()` method** to scope results by `apps_id` and `companies_id`. Without this, search queries can leak data across apps and companies.
-
-Both `DatabaseSearchableTrait` and `DynamicSearchableTrait` alias `search as traitSearch`, so the pattern is the same.
-
-#### Multi-Tenant Search Patterns
-
-**Standard pattern** (most models — Templates, simple entities):
-```php
-use Baka\Users\Contracts\UserInterface;
-use Kanvas\Apps\Models\Apps;
-
-public static function search($query = '', $callback = null)
-{
-    $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
-    $user = auth()->user();
-    if ($user instanceof UserInterface && ! $user->isAppOwner()) {
-        $query->where('companies_id', $user->getCurrentCompany()->getId());
-    }
-
-    return $query;
-}
-```
-
-**Branch-aware pattern** (Lead model — uses `CompaniesBranches` binding when available):
-```php
-use Kanvas\Companies\Models\CompaniesBranches;
-
-public static function search($query = '', $callback = null)
-{
-    $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
-    $user = auth()->user();
-
-    // When CompaniesBranches is bound (request scoped to a branch), use that company
-    if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-        $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
-    } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
-        $query->where('companies_id', $user->getCurrentCompany()->getId());
-    }
-
-    return $query;
-}
-```
-
-**Product pattern** (supports opt-in company-bound search via app config + Algolia callback):
-```php
-public static function search($query = '', $callback = null)
-{
-    $app = app(Apps::class);
-    $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
-    $user = auth()->user();
-
-    if (
-        $user instanceof UserInterface &&
-        (
-            ! $user->isAppOwner() ||
-            (app()->bound(CompaniesBranches::class) && $app->get('enable_company_bound_search', false))
-        )
-    ) {
-        $searchQuery->where('company.id', $user->getCurrentCompany()->getId());
-    }
-
-    return $searchQuery;
-}
-```
-
-**Users pattern** (uses `whereIn` for array-based Algolia/Typesense filters):
-```php
-public static function search($query = '', $callback = null)
-{
-    $query = self::traitSearch($query, $callback)->whereIn('apps', [app(Apps::class)->getId()]);
-    $user = auth()->user();
-    if ($user instanceof UserInterface && ! $user->isAppOwner()) {
-        $query->whereIn('companies', [$user->currentCompanyId()]);
-    }
-
-    return $query;
-}
-```
-
-#### Key rules for `search()`:
-
-- **Always filter by `apps_id`** — no exceptions
-- **Always filter by `companies_id`** for non-app-owners — prevents cross-company data leaks
-- **Use `isAppOwner()`** (not `isAdmin()`) for the company-scoping check — `isAppOwner()` returns `true` only for `@guardByAppKey` requests with Owner role
-- `isAdmin()` returns `true` for any Admin/Owner role regardless of auth method, which would skip company filtering on `@guard` endpoints
-- **Check `CompaniesBranches` binding** when the entity is branch-scoped — this ensures the correct company context when a request targets a specific branch
-- **Filter field names vary by search engine**: Algolia uses nested paths like `company.id`, Typesense/database use flat `companies_id`. Match what's in `toSearchableArray()`
-- **`@search` bypasses `@paginate(builder:)` scoping** — When Lighthouse's `@search` directive is active, it calls `Model::search()` and results come entirely from the search engine. The custom builder specified in `@paginate(builder: ...)` is **NOT applied**. The `search()` method is the **only** place to enforce multi-tenancy during search
-- **When using `search()` in a custom builder** (not via `@search`), call `traitSearch()` directly with explicit filters instead of the model's `search()` method, since `search()` auto-scopes to the logged-in user's company which may not be the target company
-
-**Typesense schema requirement:** Models using `DynamicSearchableTrait` that may use the Typesense engine **MUST implement `typesenseCollectionSchema()`**. Without it, the Typesense engine throws `Parameter 'fields' is required` when creating the collection. The method should define fields matching `toSearchableArray()`.
-
-**Placement:** Place the `search()` method at the **end of the class**, not at the top. Properties (`$table`, `$guarded`, `casts()`) and relationships should come first.
+When you do add a new skill or subdir CLAUDE.md, **also link it from the lists above** so future sessions can discover it.
 
 ## Notifications
 
@@ -1125,6 +274,28 @@ class Plan extends Data
 }
 ```
 
+**Call via Spatie's `::from()` magic, NOT `::fromMultiple()` directly.**
+
+Spatie Data's `BaseData::from(mixed ...$payloads)` is the public factory. When you call `Plan::from($app, $user, $company, $request['input'])`, Spatie's creation pipeline inspects the runtime types of the args and routes to whichever `from*` magic method on the class has a matching signature. Our `fromMultiple` method is one of those magic methods — naming it `fromMultiple` makes it the canonical entry for the "multiple typed-objects + data array" shape.
+
+**Exact routing rules** (verified in `Spatie\LaravelData\Resolvers\DataFromSomethingResolver::createFromCustomCreationMethod` + `Spatie\LaravelData\Support\DataMethod::accepts`):
+
+1. Method must be `public static`, name must start with `from`, return type must be `self` / `static` / the class itself (anything else is skipped as a candidate).
+2. Spatie iterates the candidates and calls `accepts(...$payloads)` on each — that returns true when arg count ≤ required param count AND every runtime arg's type satisfies the declared parameter type (or the parameter has a default).
+3. **First matching method wins** in declaration order. Iteration stops.
+4. The matched method is invoked as `$class::$methodName(...$payloads)`.
+
+So:
+- The name `fromMultiple` carries no special meaning — `fromRequest`, `fromLead`, `fromImport`, etc. all work the same. A DTO can declare several `from*` methods with different signatures and Spatie routes each `::from(...)` call to the right one by parameter types.
+- You only call `Foo::fromMultiple(...)` directly when you specifically want to bypass the Spatie router (which also skips pre-pipeline normalization/casting). For normal use, `Foo::from(...)` is the entry point and the router does the dispatch.
+- Spatie's iteration order = PHP's class method declaration order. If two `from*` methods could both accept the same args, the one declared **earlier** wins — keep their signatures disjoint to avoid silent routing surprises.
+
+**Do NOT try to rename `fromMultiple` to `from`.** PHP will fatal at class load because Spatie's parent signature `from(mixed ...$payloads): static` cannot be narrowed to a fixed typed signature (LSP violation: child can't have more required params than parent, and can't narrow variadic mixed to specific types).
+
+**Do NOT call `Plan::fromMultiple(...)` directly from outside the class** — use `Plan::from(...)`. Spatie's pipeline handles the routing. Direct calls work but bypass any Spatie-side normalization/casting and are non-idiomatic.
+
+`forUpdate` is NOT a Spatie magic method (magic methods are `from*` prefixed, not `for*`). Call it directly: `Plan::forUpdate($existing, $app, $user, $data)`.
+
 **Mutation resolver becomes a 3-liner:**
 
 ```php
@@ -1135,7 +306,7 @@ public function create(mixed $rootValue, array $request): Plan
     $company = $user->getCurrentCompany();
 
     return new CreatePlanAction(
-        PlanData::fromMultiple($app, $user, $company, $request['input']),
+        PlanData::from($app, $user, $company, $request['input']),
     )->execute();
 }
 
@@ -1223,6 +394,62 @@ Key rules:
 - **Action**: Use `->value` to extract the string when assigning to the model (e.g., `$this->data->status->value`)
 - **Nullable enums**: Use `?EnumClass` in DTO, `isset()` check in mutation, `?->value` in action
 
+### Never Queue a Spatie Data DTO that holds Eloquent Models or Model Interfaces
+
+`Spatie\LaravelData\Data` overrides `__serialize` / `__unserialize`. When a `Data` subclass has a property typed as an Eloquent model (`Apps`, `Companies`, ...) or model interface (`AppInterface`, `CompanyInterface`, ...), the serializer flattens the model to a primitive FK form (e.g. property `app` becomes a camelCased `appsId` entry in the serialized payload). On `__unserialize` in the worker, the primitive does **not** restore back into the typed property — it lands as a **dynamic property** (`$appsId`) and the typed `$app` stays uninitialized. The next read of `$dto->app` fatals with `Typed property X must not be accessed before initialization`. The breadcrumb tell is a `Creation of dynamic property ...::$xxxId is deprecated` warning logged from `CallQueuedHandler` right before the crash.
+
+This is not Laravel's `SerializesModels` — that trait handles **direct** model properties on the **job** correctly via `ModelIdentifier`. The bug only appears when the model is **nested inside a Spatie Data DTO** that the job stores as a property.
+
+**Rule:** for any `ShouldQueue` job, do not store a `Spatie\LaravelData\Data` DTO that contains Eloquent models or model interfaces. Take the models and primitives directly on the job, and rebuild the DTO inside `handle()`:
+
+```php
+// WRONG — DTO with AppInterface/CompanyInterface goes through queue, breaks on unserialize
+class AppendToLedgerJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public function __construct(public readonly EventData $data) {}
+
+    public function handle(): void
+    {
+        new AppendEventAction($this->data)->execute(); // $this->data->app uninitialized
+    }
+}
+
+// CORRECT — Eloquent models + primitives on the job; SerializesModels round-trips them
+class AppendToLedgerJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public function __construct(
+        public readonly Apps $app,
+        public readonly ?Companies $company,
+        public readonly string $sourceDomain,
+        public readonly string $eventType,
+        public readonly EventStatusEnum $status,
+        // ... rest as primitives (string, int, ?array, ?string for Carbon-as-ISO, ...)
+    ) {}
+
+    public function handle(): void
+    {
+        $data = new EventData(
+            app: $this->app,
+            company: $this->company,
+            sourceDomain: $this->sourceDomain,
+            // ... rebuild DTO from fields
+        );
+
+        new AppendEventAction($data)->execute();
+    }
+}
+```
+
+Notes:
+- Use concrete Eloquent classes (`Apps`, `Companies`, `Users`) on the job constructor, not the interfaces — `SerializesModels` resolves them via `ModelIdentifier` which needs the class name.
+- Pass `Carbon` instances as ISO-8601 strings (`Carbon::now()->toIso8601String()`) and re-parse with `Carbon::parse()` in `handle()`. Avoids the same Spatie-Data-style serialization quirk if the DTO has Carbon properties.
+- Synchronous emission paths (e.g. trait helpers like `EmitsLedgerEventsForEntity::emitLedgerEvent`) are unaffected — there's no serialization, so passing the Spatie Data DTO directly to the action is still fine there.
+- This isn't unique to the Ledger domain — apply the rule to **every** queued job that has a Spatie Data DTO in scope.
+
 ### Database Connections
 Each domain has its own database connection defined in the domain's BaseModel:
 - `action_engine` - ActionEngine domain
@@ -1238,8 +465,7 @@ Use the correct connection in `DB::connection('{connection}')->transaction()`.
 - **UuidTrait** - auto-generates UUID on creation
 - **SlugTrait** - auto-generates slug from `name` field
 - **AppsIdTrait** - auto-sets `apps_id` from current app context on creation
-- **DatabaseSearchableTrait** - adds `@search` support using database engine (for simple models)
-- **DynamicSearchableTrait** - adds `@search` support with Algolia/Typesense (for indexed models like Products, Leads)
+- **DatabaseSearchableTrait** / **DynamicSearchableTrait** - `@search` support; see skill `kanvas-search`
 
 ### Authorization Directives
 - `@guard` - any authenticated user
@@ -1300,10 +526,46 @@ class BaseModel extends EloquentModel
 
 **Delete call:** Use `$model->delete()` (not `softDelete()`) — `SoftDeletesTrait` makes `delete()` perform a soft delete via `runSoftDelete()`, which triggers the `deleting` event that `CascadeSoftDeletes` listens on.
 
+**Always declare cascades for owned children.** When you add a model that owns child rows via `HasMany` / `HasOne` (and the children have no other parent — i.e. they'd be orphaned and invalid if the parent is gone), wire the cascade at model-creation time. Skipping this leaks orphan rows that break non-null GraphQL relations later — e.g. `AgentSwarmMember.agent: AgentAi!` crashed with `InvariantViolation` because soft-deleted `Agent` rows left dangling membership rows (Sentry KANVAS-ECOSYSTEM-5GS).
+
+Rule of thumb — add the child relation to `$cascadeDeletes` when:
+- The child's FK points only at this parent (no shared ownership / no multi-tenant pivot).
+- A surviving child row without the parent would be semantically invalid (orphan task without plan, sleep phase without daily cycle, agent-skill grant without skill).
+- The GraphQL type for the child exposes a non-null `@belongsTo` back to the parent — orphans will fatal the resolver.
+
+Skip the cascade when:
+- The child is shared (pivot rows where deleting one side shouldn't kill the row; the *other* side's cascade handles it — e.g. `AgentSwarm.members` cascades, so `Agent.swarmMemberships` covers the agent side and the pivot is fully owned by whichever ends first).
+- The child is append-only and intentionally outlives the parent (ledger events, audit logs, daily metric snapshots).
+- The child has its own independent lifecycle (e.g. `Plan.agent` — agent isn't cascade-deleted when a plan is deleted; only the reverse holds for owned children of the agent).
+
+When in doubt, check whether the GraphQL schema marks the back-relation as non-null. If it does, you need the cascade.
+
 ### Scoping Patterns
 - **Global entities** (companies_id = 0): scope queries with `fromApp` + `notDeleted`
 - **Company-scoped entities**: scope queries with `fromCompany` + `fromApp` + `notDeleted`
 - Lookups: `Model::getById($id, $app)` for global, `Model::getByIdFromCompanyApp($id, $company, $app)` for company-scoped
+
+#### Never recreate `forApp` / `forCompany` scopes — `fromApp` / `fromCompany` already exist
+
+`KanvasModelTrait` (via `KanvasAppScopesTrait` + `KanvasCompanyScopesTrait`) provides `fromApp(?$app = null)` and `fromCompany(?$company = null)` on every model that uses it — which is every domain BaseModel. They scope to a **single** `apps_id` / `companies_id` (no `apps_id=0` union), and accept either an `Apps` instance, an id, or `null` (falls back to `app(Apps::class)`). Always pass the resolved app/company in explicitly when you have one — don't rely on the global resolver.
+
+```php
+// CORRECT — use the canonical scopes
+Tool::query()->where('id', $id)->fromApp($app)->firstOrFail();
+Plan::query()->fromApp($app)->fromCompany($company)->notDeleted()->get();
+```
+
+```php
+// WRONG — never add a per-model app/company scope
+public function scopeForApp(Builder $query, mixed $appsId = null): Builder
+{
+    return $query->whereIn('apps_id', [0, /* current */]);
+}
+```
+
+**Don't reach for the `apps_id=0` union unless the entity is actively designed to ship platform-global rows that every tenant sees.** A union scope on a per-tenant entity is how cross-app leaks happen. Today the only models with that pattern are `AgentType` and `ToolCategory`, each via an explicit `scopeFromAppOrGlobal` — copy that name (not `forApp`) if you genuinely need the union, and document *why* the entity ships platform globals in the docblock.
+
+The legacy `Activity::scopeForApp` predates `KanvasModelTrait`; don't model new code on it.
 
 ### JSON/Array Fields
 If a model has JSON columns, cast them with `Baka\Casts\Json::class` — **never** `'array'`. The Baka cast handles edge cases like double-encoded JSON, MariaDB's longtext-without-validity, and round-trip equality, which Laravel's built-in `'array'` cast does not.
@@ -1439,28 +701,10 @@ type NervousSystemTask {
     plan: NervousSystemPlan! @belongsTo(relation: "plan")
     ...
 }
-type NervousSystemPlan {
-    agent_id: Int
-    users_id: Int
-    approved_by_user_id: Int
-    parent_plan_id: Int
-    agent: Agent @belongsTo(relation: "agent")
-    user: User @belongsTo(relation: "user")
-    approver: User @belongsTo(relation: "approver")
-    parent: NervousSystemPlan @belongsTo(relation: "parent")
-    ...
-}
 
 # CORRECT — relations only
 type NervousSystemTask {
     plan: NervousSystemPlan! @belongsTo(relation: "plan")
-    ...
-}
-type NervousSystemPlan {
-    agent: Agent @belongsTo(relation: "agent")
-    user: User @belongsTo(relation: "user")
-    approver: User @belongsTo(relation: "approver")
-    parent: NervousSystemPlan @belongsTo(relation: "parent")
     ...
 }
 ```
@@ -1476,28 +720,8 @@ class Plan extends BaseModel
     use EmitsLedgerEventsForEntity;
     // ...
 }
-```
 
-Actions then emit with one line:
-
-```php
-// Before — ~15 lines per emission
-new AppendEventAction(
-    new EventData(
-        app: $plan->app,
-        company: $plan->company,
-        sourceDomain: 'NervousSystem',
-        eventType: 'plan.created',
-        status: EventStatusEnum::INFO,
-        sourceEntityType: Plan::class,
-        sourceEntityId: $plan->id,
-        actorType: $plan->users_id !== null ? 'User' : 'Agent',
-        actorId: $plan->users_id ?? $plan->agent_id,
-        payload: [...],
-    ),
-)->execute();
-
-// After — one line
+// Then emit in one line:
 $plan->emitLedgerEvent('plan.created', payload: [...]);
 ```
 
@@ -1527,6 +751,44 @@ Same rule for `@belongsTo(relation: "company")`, `@hasOne(relation: "primaryAddr
 
 ### Code Style
 - **No section separator comments** — do not add `// --- SectionName ---`, `# --- SectionName ---`, or similar decorative dividers in code, tests, or schema files. Test methods and code sections are self-documenting by their names. If a file grows too large, split it into separate files instead.
+- **Comment why, not what.** Class/method docblocks and inline comments exist to capture decisions a reader can't recover from the code itself — gotchas, "why this weird approach", invariants, external constraints. Code that's self-evident from the names + body should carry no doc. If you find yourself paraphrasing the signature ("Fetch the X from Y" on a method called `fetchXFromY`), delete the comment and let the names do the work. The first design instinct should be to make the code clear enough not to need a comment; reach for the comment only when the design can't be simplified further.
+  - **Litmus test: if the code is easy to understand or straightforward, do NOT comment it.** Before writing any comment ask "would a future reader be confused without this?" — if no, delete it. A loop guard, a `??=`, a self-evident `collectXUrls()` need no prose. Default to zero comments; let a comment earn its place. (A blunt one Max repeats: "if the shit is easy to understand or straightforward, why do we have comments?")
+  - **Keep** comments that explain: non-obvious ordering ("OpenClaw rows first so OpenClaw wins on tie"), external-system quirks ("Node prints warnings ahead of JSON, strip before decode"), cache TTL rationale, the "why" behind an interface (cross-runtime adoption is on the *target* not the source), schema/input shapes contributors must conform to.
+  - **Delete** comments that restate code: `// Loop over the items`, `// Set the status to running`, `// Fetch logs via SSH`, class docblocks that describe what the class name already says, method docblocks that paraphrase the signature.
+
+### Never Fetch a Remote URL Without the SSRF Guard
+
+Any server-side fetch of a URL that could be influenced by a user (GraphQL input, a DB field set from input, a webhook/message payload, a company logo, an agent image, an attachment) MUST go through the SSRF guard in `Baka\Http`. Never call `file_get_contents($url)`, `Http::get($url)`, `curl_exec`, etc. directly on such a URL.
+
+```php
+use Baka\Http\SafeUrlFetcher;
+
+// Fetches with scheme allow-list + private/reserved-IP block + DNS-rebind pinning
+// + redirect re-validation + timeout + a hard byte cap (config/ssrf.php). Returns the body.
+$bytes = SafeUrlFetcher::fetch($url);
+```
+
+When you can't use the fetcher's transport (you keep Laravel's `Http`/Guzzle, or a `stream_context` Range read), gate it first:
+
+```php
+use Baka\Http\SafeUrl;
+
+SafeUrl::assertSafe($url);          // throws SsrfException on a disallowed scheme / private host
+$response = Http::timeout(30)->get($url);
+```
+
+Why: a raw fetch on a user URL lets an attacker hit `http://169.254.169.254` (cloud-metadata → IAM creds), internal hosts, or `file://` — and unbounded reads are a memory-DoS. The guard rejects loopback/RFC1918/link-local/CGNAT/reserved ranges **and** the IPv6 transition forms that smuggle a private IPv4 (NAT64 `64:ff9b::/96`, 6to4 `2002::/16`, Teredo `2001::/32`, IPv4-compatible `::/96` — the class behind Symfony CVE-2026-48736).
+
+- **Single chokepoint for image downloads:** `FilesystemServices::downloadImageFromUrl()` is already guarded — route new image/file downloads through it (or the `ImageOptimizerService` / `ImageConversionService` helpers that call it) and you inherit the protection.
+- **Enforced by a coverage test:** [`tests/Baka/Unit/NoUnguardedUrlFetchTest.php`](../tests/Baka/Unit/NoUnguardedUrlFetchTest.php) fails CI if a file under `src/`/`app/` introduces a raw `file_get_contents($var)` / `curl_exec` without referencing the guard. A genuinely-local read (local file, hardcoded endpoint, admin-config CLI) goes in that test's allow-list with a one-line justification — never silence it by other means.
+
+### Uploaded Image Handling — Trust Magic Bytes, and the ImageMagick Policy
+
+Two coupled rules for anything that accepts or decodes uploaded images:
+
+1. **Derive an image's stored `file_type` from magic bytes, never the client filename.** `CreateFilesystemAction::resolveFileType()` runs `finfo` on the real upload and, for `image/*`, stores the content-derived extension. This is what stops a file named `evil.heic` but carrying crafted TIFF/MVG bytes from steering the decoder (e.g. `ConvertHeicToJpgActivity` branches on `file_type`). When you validate an **image-only** upload, gate on `$file->extension()` (Symfony's magic-byte guess), not `getClientOriginalExtension()`. Do NOT apply magic-byte validation to the `WORK_FILES` allow-list — `.docx`/`.xlsx` are ZIP containers that finfo reports as `application/zip`, so client-extension validation stays for those.
+
+2. **ImageMagick is hardened by [`docker/imagemagick-policy.xml`](../docker/imagemagick-policy.xml)** (installed into `/etc/ImageMagick-{7,6}/policy.xml` by both Dockerfiles). It disables the RCE/SSRF coders+delegates the app never uses (MSL, MVG, URL/HTTP(S)/FTP, PS/PDF/EPS, the Ghostscript delegate, SVG) and caps resources against decompression bombs. The image coders the app *does* convert (JPEG, PNG, WEBP, GIF, HEIC, HEIF, AVIF, TIFF, BMP) stay enabled. **If you add support for a new image format, whitelist its coder here or conversions will fail with "not authorized by the security policy".** Verify a policy change against the live `imagick` extension (`new Imagick(...)`), not the `convert` CLI — the CLI isn't installed in the image.
 
 ## Queue Workers
 
@@ -1556,6 +818,45 @@ Helm (`helm/templates/`) is currently dormant — don't update it.
 
 **Default to a dedicated service per queue**, not appending to an existing worker's queue list. Any queue handling its own volume class (events, audits, large payloads) will starve or be starved by mixed workloads. Isolating each queue type to its own service gives it its own retry/timeout/replica budget. Reserve the "append to default" shortcut for genuinely low-volume queues (a few jobs/hour) where a dedicated service would be wasteful.
 
+### Every job that operates on a specific app MUST call `overwriteAppService($this->app)` first
+
+Any queued job that has an `Apps` model in its constructor — and any code it runs touches `Role`/`Ability`/Bouncer-scoped models (which includes most channel/agent/permission paths) — MUST start `handle()` with `$this->overwriteAppService($this->app);`. The trait lives in `Baka\Traits\KanvasJobsTrait`.
+
+```php
+use Baka\Traits\KanvasJobsTrait;
+
+final class MyAppScopedJob implements ShouldQueue
+{
+    use Dispatchable;
+    use InteractsWithQueue;
+    use KanvasJobsTrait;    // ← required
+    use Queueable;
+    use SerializesModels;
+
+    public function __construct(public readonly Apps $app, /* ... */) {}
+
+    public function handle(): void
+    {
+        $this->overwriteAppService($this->app);   // ← FIRST LINE of handle()
+        // ... rest of the job
+    }
+}
+```
+
+**Why** — the queue worker is a long-running PHP process. Bouncer's `Scopable` trait auto-appends `WHERE scope = <process-current scope>` to every Role/Ability query. The container-bound `app(Apps::class)` is similarly process-global. Whatever the previous job (or kernel boot) set leaks into the next job. Without `overwriteAppService`, a job for app 141 might query Roles with the previous job's scope (`app_1_company_0`) auto-applied — explicit `where('scope', 'app_141_company_0')` AND the leaked auto-scope combine into an impossible match, throwing `ModelNotFoundException: Role` deep inside `CreateChannelAction` / `RolesRepository::getByNameFromCompany`. The error usually surfaces nowhere near the actual job code because it's inside agent/channel internals.
+
+**Symptoms of the bug** (when you forget this):
+- `ModelNotFoundException: No query results for model [Kanvas\AccessControlList\Models\Role]` inside `CreateChannelAction` or anywhere that calls `RolesRepository::getByNameFromCompany`
+- Random "works on local but fails in production" because dev workers might run one job at a time while prod workers handle many
+- Agent flows returning generic fallback strings (e.g. `RunNeuronChatAction`'s "I ran into a hiccup processing that...") because the actual exception was swallowed and a friendly fallback was substituted
+- Cross-tenant data writes — Bouncer scope from app A bleeding into queries that "should" return app B data
+
+**Same rule applies to commands — and the bar for commands is blunt, no judgment call: EVERY command, anywhere under `app/Console/Commands/` (every domain, no exceptions), that resolves or operates on a specific `Apps` MUST `use Baka\Traits\KanvasJobsTrait` and call `$this->overwriteAppService($app)`** — once after resolving the app (single-app commands), or per-iteration inside the loop (multi-app commands), before doing any work. This is not scoped to NervousSystem/Intelligence; it holds for AccessControl, Souk, Social, Connectors, Ecosystem, and any future domain. Don't reason about "but this one only writes a custom field / only emits a ledger event, so it's probably fine" — if it touches an app, add the call. The cost is one line; the failure mode (silent cross-tenant scope leak that drops 90% of tenants and is invisible until someone notices missing emails weeks later) is not worth the judgment call. The ONLY commands that skip it are ones with no concrete app in scope at all: global `apps_id=0` catalog syncs, row-chunk backfills with no `Apps` model, ledger archive/maintenance, and pure queue dispatchers (the dispatched job rebinds in its own `handle()`).
+
+The trap is that the scoped work that breaks is often **one layer down**, inside an Action/Service the command runs *inline* — a Bouncer-scoped `Role::firstOrFail()` (`RolesRepository::getByNameFromCompany`, `UsersRepository::getCompanyAppUserByRole`, `Bouncer::assign`, `CreateChannelAction`) resolves against the leaked `app_1_company_0` scope, throws `ModelNotFoundException`, and a well-meaning `try/catch` in the Action swallows it into a "no results" return — so the command exits `0` having silently done nothing. Canonical fixed example: [`EnsureAgentReportRoleCommand`](app/Console/Commands/NervousSystem/EnsureAgentReportRoleCommand.php). Real incident: [`SendDailyLearningDigestCommand`](app/Console/Commands/NervousSystem/SendDailyLearningDigestCommand.php) fanned the daily-learning digest over ~90 (app, company) tuples without rebinding scope → every non-app-1 tenant silently got zero emails for weeks while roles, assignments and recipients were all correct. Regression test: `tests/Intelligence/NervousSystem/SendDailyLearningDigestCommandTest.php`. See [`feedback_overwrite_app_service_when_iterating_apps`](.claude/projects/-Users-kaioken-Code-kanvas-kanvas-ecosystem-api/memory/feedback_overwrite_app_service_when_iterating_apps.md). Jobs → `overwriteAppService($this->app)` once at the top of `handle()`.
+
+If your job operates on a Company without an Apps reference, you still need this if it triggers anything that resolves the app via the container or Bouncer scope. Easiest fix: take `Apps` on the constructor.
+
 ### Adding a New Domain Namespace
 When creating a new top-level domain folder (`src/Domains/YourDomain/`):
 
@@ -1570,90 +871,24 @@ Forgetting step 1 → "Trait/Class not found" at runtime even though the file ex
 
 ## Testing
 
-### Running Tests
+For docker test commands, suites, `RefreshDatabase` ban, AppKey-guarded patterns, and Bouncer setup, see `tests/CLAUDE.md` (loads automatically when work touches `tests/`).
 
-Tests **must run inside the Docker container**, never locally:
+### Tests are part of "done"
 
-```bash
-# Run a specific test by name
-docker exec -it phpkanvas-ecosystem bash -c "cd /var/www/html && php vendor/bin/phpunit --filter testCreateAction"
+Code without tests is not done. Code where the relevant test suite has not been run green is not done either. Both are non-negotiable for:
 
-# Run a full test suite
-docker exec -it phpkanvas-ecosystem bash -c "cd /var/www/html && php vendor/bin/paratest --testsuite=ActionEngine"
+- A new Action / Service / Observer / Job
+- A new GraphQL mutation or non-trivial query resolver
+- A new model behavior (scope, computed accessor, lifecycle hook, custom relation)
+- A migration that does any data transformation beyond `ADD COLUMN` (backfills, joins, computed values)
+- A bug fix — write a regression test that fails before the fix and passes after
 
-# Run a specific test file
-docker exec -it phpkanvas-ecosystem bash -c "cd /var/www/html && php vendor/bin/phpunit tests/GraphQL/ActionEngine/ActionCrudTest.php"
-```
+**Workflow:** write the code, write the test in the same change set, run the relevant suite, fix anything broken, *then* declare done. Do not ask "want tests?" — just write them. Smoke-testing in `php artisan tinker` is not a test (no CI, no regression protection, no documented intent).
 
-### Available Test Suites
-Unit, Ecosystem, GraphQL, Inventory, Social, Guild, Connectors, Workflow, Intelligence, Baka, Souk, Event, ActionEngine
+**Exceptions** — work that genuinely needs no tests:
+- Pure migrations that only add/drop a column with no data transform
+- GraphQL schema-only changes (new field that's a direct relation passthrough through `@belongsTo` / `@hasMany`)
+- Doc / copy / typo fixes
+- Work the user has explicitly tagged "spike" or "experimental"
 
-### Key Rules
-
-- **Always run tests after completing work on a module or connector** — run the relevant test suite to verify nothing is broken before moving on, unless explicitly told otherwise
-- **Never use `RefreshDatabase` trait** — it wipes all shared DB tables across connections. Use `DatabaseTransactions` instead
-- Base `TestCase` loads `.env` (not `.env.testing`), no `RefreshDatabase` by default
-- Base `TestCase` provides `$this->graphQL()` via Lighthouse's `MakesGraphQLRequests` trait
-- User is auto-authenticated in `createApplication()` with admin role
-
-### Common Test Patterns
-
-```php
-// GraphQL mutation test
-$this->graphQL('
-    mutation($input: ActionInput!) {
-        createAction(input: $input) { id name }
-    }
-', ['input' => ['name' => 'Test']])
-->assertSuccessful()
-->assertJson(['data' => ['createAction' => ['name' => 'Test']]]);
-
-// GraphQL query with search
-$this->graphQL('
-    query($search: String) {
-        companyActions(search: $search) { data { id name } }
-    }
-', ['search' => 'keyword'])
-->assertSuccessful();
-```
-
-### Setting Up Bouncer Permissions in Tests
-
-When mutations use `@can` directives, the test must set up Bouncer scope, assign the role to the user, and grant abilities to the role:
-
-```php
-use Kanvas\AccessControlList\Enums\RolesEnums;
-use Silber\Bouncer\BouncerFacade as Bouncer;
-
-class {Entity}CrudTest extends TestCase // or extends OrderBase, etc.
-{
-    public function setUp(): void
-    {
-        parent::setUp();
-
-        // 1. Set Bouncer scope (use global: true for companyId 0)
-        $scope = RolesEnums::getScope($this->apps, global: true);
-        Bouncer::scope()->to($scope);
-
-        // 2. Assign role to the test user
-        Bouncer::assign('Admins')->to($this->user);
-
-        // 3. Grant abilities to the role for each model
-        Bouncer::allow('Admins')->to(['create', 'edit', 'delete'], {Entity}::class);
-    }
-}
-```
-
-**Key points:**
-- `RolesEnums::getScope($app, global: true)` returns scope `app_{id}_company_0` (global scope)
-- `Bouncer::assign('Admins')->to($this->user)` is **required** — without it, `@can` checks will return "unauthorized"
-- `Bouncer::allow('Admins')->to([...], Model::class)` grants abilities to the role, abilities must match schema: `create`, `edit`, `delete`
-
-### Common Test Fix Patterns
-
-- **FK constraint errors in factories**: Check if factory hardcodes IDs (e.g., `agent_type_id => 1`) — use `RelatedModel::factory()` instead
-- **Time-dependent tests**: Use `Carbon::setTestNow()` to freeze time
-- **Silent failures via Sentry**: Actions that catch exceptions with `captureException()` — add temporary `echo` in catch block to debug
-- **AI/laravel-ai calls**: Use `StructuredAnonymousAgent::fake([...])` (or `AnonymousAgent::fake([...])` for text) with enough responses for all sessions — array items become structured responses, strings become text responses
-- **Duplicate key violations**: Check if action classes already create related records internally
-- **Mock objects**: Set `$mock->exists = true` when the code checks `$this->model->exists`
+If you ship code that should have tests and don't, the next step in the conversation is to write them — not to move on to a new feature.

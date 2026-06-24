@@ -9,7 +9,9 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Support\IPInfo;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
+use Kanvas\Companies\Models\CompaniesSettings;
 use Kanvas\Connectors\PasoRapido\Client;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\BillingDetail;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\CancelPaymentResponse;
@@ -61,56 +63,93 @@ class PasoRapidoService
 
         $tagAttributeSlug = $this->app->get(ConfigurationEnum::VERIFY_TAG_ATTRIBUTE_SLUG->value);
 
-        if ($tagAttributeSlug && ! ProductsRepository::existsByAttributeValue($this->app, $this->company, $tagAttributeSlug, $tag, $userId)) {
+        if ($tagAttributeSlug && ! $this->userCanAccessTag($user, $tagAttributeSlug, $tag)) {
             $email = $user?->email ?? 'unknown';
             report(new ValidationException("PasoRapido unauthorized tag lookup - user:{$userId} email:{$email} ip:{$clientIp} app:{$appId} tag:{$tag}"));
 
             throw new ValidationException('Tag not associated with your account.');
         }
 
-        $ipMaxUsers = (int) ($this->app->get(ConfigurationEnum::VERIFY_IP_MAX_USERS->value) ?? 5);
-        $ipUsersKey = "paso-rapido-ip-users:{$appId}:{$clientIp}";
-        $ipUsers = Cache::get($ipUsersKey, []);
-
-        if (! in_array($userId, $ipUsers)) {
-            $ipUsers[] = $userId;
-            Cache::put($ipUsersKey, $ipUsers, self::DAILY_WINDOW_SECONDS);
-        }
-
-        if (count($ipUsers) > $ipMaxUsers) {
-            report(new TooManyRequestsHttpException(
-                message: "PasoRapido account farming detected - ip:{$clientIp} users:" . implode(',', $ipUsers) . " app:{$appId}"
-            ));
-
-            throw new TooManyRequestsHttpException(
-                message: 'Suspicious activity detected. Access temporarily restricted.'
-            );
-        }
-
-        $ipMaxDaily = (int) ($this->app->get(ConfigurationEnum::VERIFY_IP_MAX_DAILY->value) ?? 50);
-        $ipDailyKey = "paso-rapido-verify-ip-daily:{$appId}:{$clientIp}";
-
-        if (RateLimiter::tooManyAttempts($ipDailyKey, $ipMaxDaily)) {
-            report(new TooManyRequestsHttpException(
-                message: "PasoRapido IP daily limit exceeded - ip:{$clientIp} app:{$appId}"
-            ));
-
-            throw new TooManyRequestsHttpException(
-                message: 'Too many requests from this network. Please try again later.'
-            );
-        }
-
-        $maxAttempts = (int) ($this->app->get(ConfigurationEnum::VERIFY_MAX_ATTEMPTS->value) ?? 3);
-        $maxDaily = (int) ($this->app->get(ConfigurationEnum::VERIFY_MAX_DAILY->value) ?? 30);
-        $sequentialThreshold = (int) ($this->app->get(ConfigurationEnum::VERIFY_SEQUENTIAL_THRESHOLD->value) ?? 5);
+        $isCorporate = $this->isCorporateContext($user);
 
         $minuteKey = "paso-rapido-verify:{$appId}:{$userId}";
         $dailyKey = "paso-rapido-verify-daily:{$appId}:{$userId}";
         $recentTagsKey = "paso-rapido-verify-tags:{$appId}:{$userId}";
+        $ipDailyKey = "paso-rapido-verify-ip-daily:{$appId}:{$clientIp}";
+
+        if (! $isCorporate) {
+            $ipMaxUsers = (int) ($this->app->get(ConfigurationEnum::VERIFY_IP_MAX_USERS->value) ?? 5);
+            $ipUsersKey = "paso-rapido-ip-users:{$appId}:{$clientIp}";
+            $ipUsers = Cache::get($ipUsersKey, []);
+
+            if (! in_array($userId, $ipUsers)) {
+                $ipUsers[] = $userId;
+                Cache::put($ipUsersKey, $ipUsers, self::DAILY_WINDOW_SECONDS);
+            }
+
+            if (count($ipUsers) > $ipMaxUsers) {
+                report(new TooManyRequestsHttpException(
+                    message: "PasoRapido account farming detected - ip:{$clientIp} users:" . implode(',', $ipUsers) . " app:{$appId}"
+                ));
+
+                throw new TooManyRequestsHttpException(
+                    message: 'Suspicious activity detected. Access temporarily restricted.'
+                );
+            }
+
+            $ipMaxDaily = (int) ($this->app->get(ConfigurationEnum::VERIFY_IP_MAX_DAILY->value) ?? 50);
+
+            if (RateLimiter::tooManyAttempts($ipDailyKey, $ipMaxDaily)) {
+                report(new TooManyRequestsHttpException(
+                    message: "PasoRapido IP daily limit exceeded - ip:{$clientIp} app:{$appId}"
+                ));
+
+                throw new TooManyRequestsHttpException(
+                    message: 'Too many requests from this network. Please try again later.'
+                );
+            }
+
+            $maxDaily = (int) ($this->app->get(ConfigurationEnum::VERIFY_MAX_DAILY->value) ?? 30);
+            $sequentialThreshold = (int) ($this->app->get(ConfigurationEnum::VERIFY_SEQUENTIAL_THRESHOLD->value) ?? 5);
+
+            if (RateLimiter::tooManyAttempts($dailyKey, $maxDaily)) {
+                report(new TooManyRequestsHttpException(
+                    message: "PasoRapido daily limit exceeded - user:{$userId} app:{$appId} max:{$maxDaily}"
+                ));
+
+                throw new TooManyRequestsHttpException(
+                    message: 'Daily tag verification limit reached.'
+                );
+            }
+
+            $recentTags = Cache::get($recentTagsKey, []);
+            $recentTags[] = $tag;
+            $recentTags = array_slice($recentTags, -$sequentialThreshold);
+
+            if (count($recentTags) >= $sequentialThreshold && $this->isSequentialPattern($recentTags)) {
+                report(new TooManyRequestsHttpException(
+                    message: "PasoRapido sequential scan detected - user:{$userId} app:{$appId} tags:" . implode(',', $recentTags)
+                ));
+                RateLimiter::hit($dailyKey, self::DAILY_WINDOW_SECONDS);
+                Cache::forget($recentTagsKey);
+
+                throw new TooManyRequestsHttpException(
+                    message: 'Suspicious activity detected. Access temporarily restricted.'
+                );
+            }
+
+            Cache::put($recentTagsKey, $recentTags, self::RECENT_TAGS_TTL_SECONDS);
+            RateLimiter::hit($dailyKey, self::DAILY_WINDOW_SECONDS);
+            RateLimiter::hit($ipDailyKey, self::DAILY_WINDOW_SECONDS);
+        }
+
+        $maxAttempts = $isCorporate
+            ? (int) ($this->app->get(ConfigurationEnum::VERIFY_MAX_ATTEMPTS_CORPORATE->value) ?? 60)
+            : (int) ($this->app->get(ConfigurationEnum::VERIFY_MAX_ATTEMPTS->value) ?? 3);
 
         if (RateLimiter::tooManyAttempts($minuteKey, $maxAttempts)) {
             report(new TooManyRequestsHttpException(
-                message: "PasoRapido per-minute limit exceeded - user:{$userId} app:{$appId}"
+                message: "PasoRapido per-minute limit exceeded - user:{$userId} app:{$appId} corporate:" . ($isCorporate ? '1' : '0')
             ));
 
             throw new TooManyRequestsHttpException(
@@ -118,36 +157,7 @@ class PasoRapidoService
             );
         }
 
-        if (RateLimiter::tooManyAttempts($dailyKey, $maxDaily)) {
-            report(new TooManyRequestsHttpException(
-                message: "PasoRapido daily limit exceeded - user:{$userId} app:{$appId} max:{$maxDaily}"
-            ));
-
-            throw new TooManyRequestsHttpException(
-                message: 'Daily tag verification limit reached.'
-            );
-        }
-
-        $recentTags = Cache::get($recentTagsKey, []);
-        $recentTags[] = $tag;
-        $recentTags = array_slice($recentTags, -$sequentialThreshold);
-
-        if (count($recentTags) >= $sequentialThreshold && $this->isSequentialPattern($recentTags)) {
-            report(new TooManyRequestsHttpException(
-                message: "PasoRapido sequential scan detected - user:{$userId} app:{$appId} tags:" . implode(',', $recentTags)
-            ));
-            RateLimiter::hit($dailyKey, self::DAILY_WINDOW_SECONDS);
-            Cache::forget($recentTagsKey);
-
-            throw new TooManyRequestsHttpException(
-                message: 'Suspicious activity detected. Access temporarily restricted.'
-            );
-        }
-
-        Cache::put($recentTagsKey, $recentTags, self::RECENT_TAGS_TTL_SECONDS);
         RateLimiter::hit($minuteKey, self::MINUTE_WINDOW_SECONDS);
-        RateLimiter::hit($dailyKey, self::DAILY_WINDOW_SECONDS);
-        RateLimiter::hit($ipDailyKey, self::DAILY_WINDOW_SECONDS);
 
         $this->logTagVerification($user, $tag);
 
@@ -167,12 +177,36 @@ class PasoRapidoService
         ]);
     }
 
+    /**
+     * Internal balance lookup for post-payment sync jobs.
+     * Bypasses the end-user rate limits / fraud heuristics applied by verifyCustomer().
+     */
+    public function fetchTagBalance(string $tag): VerifyCustomerResponse
+    {
+        $response = $this->client->post(ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag, []);
+
+        return VerifyCustomerResponse::from([
+            'username' => $response['nombreUsuario'] ?? '',
+            'lastname' => $response['apellidoUsuario'] ?? '',
+            'device' => $response['dispositivo'],
+            'message' => $response['descripcionMensaje'],
+            'document' => $response['rnc_Cedula'] ?? null,
+            'balance' => $response['balance'],
+            'type' => $response['tipoDeReferencia'],
+            'reference' => $response['referencia'],
+            'account' => $response['cuenta'],
+            'status' => $response['estado'],
+        ]);
+    }
+
     public function confirmPayment(PaymentConfirmData $data): PaymentConfirmResponse
     {
         $response = $this->client->post(ConfigurationEnum::CONFIRM_PAYMENT_PATH->value, [
             'referencia' => $data->reference,
             'transaccionBanco' => $data->bankTransaction,
-            'valorPagado' => $data->amount,
+            // PasoRapido validates valorPagado as .NET Int32. round() avoids losing
+            // a peso on 500.99 → 500; spec works in whole DOP, no cents.
+            'valorPagado' => (int) round($data->amount),
             'creditoFiscal' => $data->fiscalCredit,
             'rnc_Cedula' => $data->dni,
         ]);
@@ -218,6 +252,85 @@ class PasoRapidoService
         $response = $this->client->post(ConfigurationEnum::CANCEL_PAYMENT_PATH->value . '?numeroTransaccion=' . $transactionNumber, []);
 
         return CancelPaymentResponse::from($response);
+    }
+
+    /**
+     * Allow tag access when EITHER the user owns it personally OR the tag belongs
+     * to a corporate company (is_corporate=1) the user is associated with.
+     */
+    private function userCanAccessTag(?UserInterface $user, string $tagAttributeSlug, string $tag): bool
+    {
+        $userId = $user?->getId() ?? 0;
+
+        if (ProductsRepository::existsByAttributeValue($this->app, $this->company, $tagAttributeSlug, $tag, $userId)) {
+            return true;
+        }
+
+        if (! $user) {
+            return false;
+        }
+
+        $corporateCompanyIds = $user->companies()
+            ->whereExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('companies_settings')
+                    ->whereColumn('companies_settings.companies_id', 'companies.id')
+                    ->where('companies_settings.name', 'is_corporate')
+                    ->where('companies_settings.value', '1')
+                    ->where(function ($q) {
+                        $q->where('companies_settings.is_deleted', 0)
+                            ->orWhereNull('companies_settings.is_deleted');
+                    });
+            })
+            ->pluck('companies.id');
+
+        if ($corporateCompanyIds->isEmpty()) {
+            return false;
+        }
+
+        return ProductsRepository::existsByAttributeValueInCompanies(
+            $this->app,
+            $corporateCompanyIds,
+            $tagAttributeSlug,
+            $tag,
+        );
+    }
+
+    private function isCorporateContext(?UserInterface $user): bool
+    {
+        if ($this->companyHasCorporateFlag($this->company->getId())) {
+            return true;
+        }
+
+        if (! $user) {
+            return false;
+        }
+
+        return $user->companies()
+            ->whereExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('companies_settings')
+                    ->whereColumn('companies_settings.companies_id', 'companies.id')
+                    ->where('companies_settings.name', 'is_corporate')
+                    ->where('companies_settings.value', '1')
+                    ->where(function ($q) {
+                        $q->where('companies_settings.is_deleted', 0)
+                            ->orWhereNull('companies_settings.is_deleted');
+                    });
+            })
+            ->exists();
+    }
+
+    private function companyHasCorporateFlag(int $companyId): bool
+    {
+        return CompaniesSettings::query()
+            ->where('companies_id', $companyId)
+            ->where('name', 'is_corporate')
+            ->where('value', '1')
+            ->where(function ($q) {
+                $q->where('is_deleted', 0)->orWhereNull('is_deleted');
+            })
+            ->exists();
     }
 
     private function logTagVerification(UserInterface $user, string $tag): void

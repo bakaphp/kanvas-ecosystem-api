@@ -13,9 +13,11 @@ use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
 {
     #[Override]

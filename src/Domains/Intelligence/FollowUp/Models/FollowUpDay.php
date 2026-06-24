@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\FollowUp\Models;
 
 use Baka\Traits\NoAppRelationshipTrait;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
@@ -12,6 +13,11 @@ use Kanvas\Intelligence\Models\BaseModel;
 
 /**
  * Class FollowUpDay
+ *
+ * @deprecated v1 follow-up engine (stage.config.follow_up + agent-driven loop)
+ *             replaced this. Slated for deletion after the deprecation window —
+ *             see docs/intelligence/follow-up-deprecation-spec.md kill list.
+ *
  * @property int $id
  * @property int $follow_ups_id
  * @property int $pipeline_stages_id
@@ -24,9 +30,13 @@ use Kanvas\Intelligence\Models\BaseModel;
 
 class FollowUpDay extends BaseModel
 {
+    use CascadeSoftDeletes;
     use NoAppRelationshipTrait;
+
     protected $table = 'follow_up_days';
     protected $guarded = [];
+
+    protected $cascadeDeletes = ['templates'];
 
     public function followUp(): BelongsTo
     {

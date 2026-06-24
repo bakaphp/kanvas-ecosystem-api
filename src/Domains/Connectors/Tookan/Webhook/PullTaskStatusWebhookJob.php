@@ -10,9 +10,11 @@ use Kanvas\Souk\Orders\Actions\SendOrderEmailsAction;
 use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Repositories\OrderRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class PullTaskStatusWebhookJob extends ProcessWebhookJob
 {
     #[Override]
@@ -82,6 +84,7 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
                             $parentStatus
                         )->execute();
                     }
+
                     break;
                 case OrderStatusEnum::DELIVERED->value:
                     if ($hasPackaging) {
@@ -102,6 +105,7 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
                             $parentStatus
                         )->execute();
                     }
+
                     break;
                 default:
                     return [
@@ -143,6 +147,7 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
                         $this->receiver->user,
                         $parentStatus
                     )->execute();
+
                     break;
                 case OrderStatusEnum::DELIVERED->value:
                     // Rider delivered to end customer — move main order to delivered
@@ -153,6 +158,7 @@ class PullTaskStatusWebhookJob extends ProcessWebhookJob
                         $this->receiver->user,
                         $parentStatus
                     )->execute();
+
                     break;
                 default:
                     return [

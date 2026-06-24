@@ -42,6 +42,11 @@ jobs:
       DB_INTELLIGENCE_DATABASE: intelligence
       DB_INTELLIGENCE_USERNAME: root
       DB_INTELLIGENCE_PASSWORD: password
+      DB_ACCOUNTING_HOST: 127.0.0.1
+      DB_ACCOUNTING_HOST_READ: 127.0.0.1
+      DB_ACCOUNTING_DATABASE: accounting
+      DB_ACCOUNTING_USERNAME: root
+      DB_ACCOUNTING_PASSWORD: password
       KANVAS_APP_ID: 059ddaaf-89b5-4158-a85a-90cbd69aa34b
       APP_KEY: base64:Wm5KmkE4aWFjdFUzU2o3SElYNGc0QlpLcXNWR0hMME0=
       APP_JWT_TOKEN: Wm5KmkE4aWFjdFUzU2o3SElYNGc0QlpLcXNWR0hMME0=4QZVysw1MIFmwZi0KvEOaHs0leAix3U6zueUZJtQYjYj
@@ -168,7 +173,15 @@ jobs:
           - Baka
           - Event
           - ActionEngine
+          - Scribe
           - Unit
+        include:
+          - testsuite: Inventory
+            processes: 1
+          - testsuite: Intelligence
+            processes: 1
+          - testsuite: Scribe
+            processes: 1
     services:
       mysql:
         image: mysql:8.0
@@ -203,7 +216,7 @@ jobs:
         ports:
           - 7700:7700
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Load Aditional Test Secrets
         run: |
@@ -226,7 +239,7 @@ jobs:
         run: echo "::set-output name=dir::$(composer config cache-files-dir)"
 
       - name: Cache composer dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
@@ -264,6 +277,10 @@ jobs:
         run: |
           mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS intelligence;'
 
+      - name: Setup Accounting DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS accounting;'
+
       - name: Configure MySQL
         run: |
           mysql -uroot -h127.0.0.1 -ppassword -e "SET GLOBAL max_connections = 1000;"
@@ -280,12 +297,15 @@ jobs:
       - name: Setup Kanvas Workflow Actions
         run: php artisan kanvas:workflow-sync-actions
 
+      - name: Setup Kanvas Agent Tools
+        run: php artisan kanvas:nervous-system:sync-tools
+
       - name: create .env file
         run: echo '' > .env
 
       - name: Run Tests
         if: success()
-        run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=4
+        run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=${{ matrix.processes || '4' }}
 
       - name: Run Filesystem Tests (single process)
         if: success() && matrix.testsuite == 'GraphQL-Ecosystem'

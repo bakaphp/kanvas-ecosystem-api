@@ -36,11 +36,16 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\KanvasModules\Enums\CompanyKanvasModuleStatusEnum;
+use Kanvas\KanvasModules\Enums\KanvasModuleEnum;
+use Kanvas\KanvasModules\Models\CompanyKanvasModule;
 use Kanvas\Models\BaseModel;
 use Kanvas\Souk\Wallet\Traits\HasWalletsTrait;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
@@ -58,6 +63,7 @@ use Override;
 /**
  * Companies Model.
  *
+ * @property int $id
  * @property int $users_id
  * @property int $system_modules_id
  * @property int $currency_id
@@ -204,6 +210,54 @@ class Companies extends BaseModel implements CompanyInterface, Customer
     public function systemModule(): BelongsTo
     {
         return $this->belongsTo(SystemModules::class, 'system_modules_id');
+    }
+
+    public function kanvasModules(): HasMany
+    {
+        return $this->hasMany(CompanyKanvasModule::class, 'companies_id', 'id');
+    }
+
+    /**
+     * Excludes platform infrastructure (Workflow engine, Ecosystem, etc).
+     * Always-on, not user-configurable, doesn't belong in consumer UI.
+     */
+    public function consumerKanvasModules(): HasMany
+    {
+        return $this->hasMany(CompanyKanvasModule::class, 'companies_id', 'id')
+            ->where('is_deleted', 0)
+            ->whereHas(
+                'module',
+                fn (Builder $q): Builder => $q->where('is_internal', 0)->where('is_deleted', 0),
+            );
+    }
+
+    public function hasModule(KanvasModuleEnum $module, Apps $app): bool
+    {
+        return $this->kanvasModules()
+            ->where('apps_id', $app->getId())
+            ->where('kanvas_modules_id', $module->value)
+            ->where('is_active', 1)
+            ->where('is_deleted', 0)
+            ->exists();
+    }
+
+    public function grantModule(
+        KanvasModuleEnum $module,
+        Apps $app,
+        CompanyKanvasModuleStatusEnum $status = CompanyKanvasModuleStatusEnum::NOT_CONNECTED,
+    ): CompanyKanvasModule {
+        return CompanyKanvasModule::updateOrCreate(
+            [
+                'apps_id' => $app->getId(),
+                'companies_id' => $this->getId(),
+                'kanvas_modules_id' => $module->value,
+            ],
+            [
+                'is_active' => true,
+                'is_deleted' => false,
+                'status' => $status->value,
+            ],
+        );
     }
 
     /**
@@ -411,6 +465,12 @@ class Companies extends BaseModel implements CompanyInterface, Customer
             $query->whereIn('users', [auth()->user()->getId()]);
         }
 
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'name,email,address,phone,website',
+            ]);
+        }
+
         return $query;
     }
 
@@ -421,12 +481,11 @@ class Companies extends BaseModel implements CompanyInterface, Customer
         $array['users'] = CompaniesRepository::getAllCompanyUsers($this)->pluck('id')->toArray();
         $array = $this->transform($array);
         $array['id'] = (string) $this->getKey();
-        $array['created_at'] = $this->created_at
-            ? ($this->isTypesense() ? $this->created_at->timestamp : $this->created_at->toDateTimeString())
-            : null;
+        $array['created_at'] = $this->created_at?->timestamp ?? 0;
         $array['is_active'] = (bool) $this->is_active;
         $array['is_deleted'] = (bool) $this->is_deleted;
         $array['zipcode'] = (string) ($this->zipcode ?? '');
+        $array['phone'] = (string) ($this->phone ?? '');
 
         return $array;
     }
@@ -452,6 +511,30 @@ class Companies extends BaseModel implements CompanyInterface, Customer
         $agentUserId = $this->get(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
 
         return $agentUserId !== null ? Users::getById((int) $agentUserId) : null;
+    }
+
+    public function getAiAgentUserOrFail(): Users
+    {
+        $user = $this->getAiAgentUser();
+
+        if ($user === null) {
+            throw new ValidationException(sprintf(
+                'No AI agent user configured for company %d (%s). '
+                . 'Set %s in the company configuration.',
+                $this->getId(),
+                $this->name,
+                IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value,
+            ));
+        }
+
+        return $user;
+    }
+
+    public function requiresAgentHumanApproval(): bool
+    {
+        return IntelligenceModeEnum::tryFrom(
+            (string) $this->get(IntelligenceConfigurationEnum::AGENT_AI_MODE->value)
+        )?->requiresHumanApproval() ?? false;
     }
 
     public function hasCompanyPermission(UserInterface $user): void

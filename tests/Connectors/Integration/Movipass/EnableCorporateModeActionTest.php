@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Movipass;
 
+use Bouncer;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\EnableCorporateModeAction;
 use Kanvas\Connectors\Movipass\Jobs\MigrateCorporateUserVariantsJob;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Users\Jobs\OnBoardingJob;
 use Tests\TestCase;
 
 final class EnableCorporateModeActionTest extends TestCase
@@ -30,6 +33,11 @@ final class EnableCorporateModeActionTest extends TestCase
         $user = Auth::user();
         $app = app(Apps::class);
 
+        // Mirror a real GraphQL request: middleware leaves the Bouncer tenant scope on the
+        // user's current company, not the app-global company_0 where roles live. This is the
+        // exact condition that made the admin-role lookup throw "No query results for Role".
+        Bouncer::scope()->to(RolesEnums::getScope($app, $user->getCurrentCompany()));
+
         $company = new EnableCorporateModeAction(
             user: $user,
             app: $app,
@@ -48,6 +56,54 @@ final class EnableCorporateModeActionTest extends TestCase
         $this->assertEquals('Gerente', $user->get('contact_role'));
 
         Bus::assertDispatched(MigrateCorporateUserVariantsJob::class);
+    }
+
+    public function testSwitchesUserDefaultCompanyToTheNewCorporateCompany(): void
+    {
+        Bus::fake();
+
+        $user = Auth::user();
+        $app = app(Apps::class);
+
+        Bouncer::scope()->to(RolesEnums::getScope($app, $user->getCurrentCompany()));
+
+        $previousCompanyId = $user->getCurrentCompany()->getId();
+
+        $company = new EnableCorporateModeAction(
+            user: $user,
+            app: $app,
+            fields: $this->validFields(),
+        )->execute();
+
+        $branch = $company->branch()->firstOrFail();
+
+        $user->refresh();
+        $this->assertNotEquals($previousCompanyId, $company->getId());
+        $this->assertEquals($company->getId(), $user->default_company);
+        $this->assertEquals($branch->getId(), $user->default_company_branch);
+    }
+
+    public function testDispatchesOnboardingForTheCorporateCompany(): void
+    {
+        Bus::fake();
+
+        $user = Auth::user();
+        $app = app(Apps::class);
+
+        Bouncer::scope()->to(RolesEnums::getScope($app, $user->getCurrentCompany()));
+
+        $company = new EnableCorporateModeAction(
+            user: $user,
+            app: $app,
+            fields: $this->validFields(),
+        )->execute();
+
+        // Region + warehouse are provisioned by OnBoardingJob (Inventory Setup), the same
+        // path the user-registration/lead-accept flow runs.
+        Bus::assertDispatched(
+            OnBoardingJob::class,
+            fn (OnBoardingJob $job) => $job->branch->companies_id === $company->getId(),
+        );
     }
 
     public function testRejectsInvalidRnc(): void

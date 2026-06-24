@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Orders\Actions;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Services\FilesystemServices;
@@ -70,9 +71,12 @@ class ExportOrderPaymentsAction
             ->when($start, fn ($q) => $q->where('orders.created_at', '>=', $start))
             ->when($end, fn ($q) => $q->where('orders.created_at', '<=', $end))
             ->when($this->userEmail, fn ($q) => $q->where('orders.user_email', 'LIKE', $this->userEmail))
-            ->when(! empty($this->providerCompanyIds), fn ($q) => $q->whereHas(
-                'providerCompanies',
-                fn ($qq) => $qq->whereIn('companies.id', $this->providerCompanyIds)
+            ->when(! empty($this->providerCompanyIds), fn ($q) => $q->whereIn(
+                'orders.id',
+                DB::connection('commerce')
+                    ->table('order_providers')
+                    ->whereIn('company_id', $this->providerCompanyIds)
+                    ->select('order_id')
             ))
             ->with('user')
             ->orderBy('orders.created_at', 'asc')

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PromptMine\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Str;
 use Exception;
 use finfo;
@@ -30,6 +31,7 @@ use Kanvas\Social\Messages\Actions\DistributeMessagesToUsersAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -39,6 +41,7 @@ use Throwable;
 
 use function Laravel\Ai\agent;
 
+#[WorkflowAction]
 class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     protected ?string $apiUrl = null;
@@ -326,12 +329,8 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     protected function processImageWithOpenAI(string $imageUrl, string $prompt, Model $entity, array $params = []): ?Filesystem
     {
         // Download the image file
-        $imageContents = file_get_contents($imageUrl);
+        $imageContents = SafeUrlFetcher::fetch($imageUrl);
         $filename = basename(parse_url($imageUrl, PHP_URL_PATH));
-
-        if ($imageContents === false) {
-            throw new Exception("Failed to download image from URL: {$imageUrl}");
-        }
 
         // Create a temporary file
         $tempFile = tempnam(sys_get_temp_dir(), 'openai_img_');
@@ -399,7 +398,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
             $errorProcessingImageNotification = new ImageProcessingPushNotification(
                 user: $entity->user,
                 entity: $entity,
-                message: "Your recent creation couldn’t be completed as it didn’t comply with the content provider’s policies.",
+                message: 'Your recent creation couldn’t be completed as it didn’t comply with the content provider’s policies.',
                 title: 'Error processing image',
                 via: $endViaList,
                 templates: [

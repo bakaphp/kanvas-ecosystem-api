@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Enums;
 
+use Kanvas\Filesystem\Models\Filesystem;
+
 enum MediaTypeEnum: string
 {
     case IMAGE = 'image';
@@ -76,6 +78,46 @@ enum MediaTypeEnum: string
             in_array($ext, self::DOCUMENT_EXTENSIONS) => self::DOCUMENT,
             default => self::UNKNOWN,
         };
+    }
+
+    public static function fromFilesystem(Filesystem $file): self
+    {
+        $fileType = strtolower(trim($file->file_type));
+
+        if (str_contains($fileType, '/')) {
+            $byMimePrefix = match (strstr($fileType, '/', true)) {
+                'image' => self::IMAGE,
+                'video' => self::VIDEO,
+                'audio' => self::AUDIO,
+                default => null,
+            };
+
+            if ($byMimePrefix !== null) {
+                return $byMimePrefix;
+            }
+        }
+
+        $path = parse_url($file->url, PHP_URL_PATH);
+
+        $extensionCandidates = [
+            $fileType,
+            pathinfo($file->name, PATHINFO_EXTENSION),
+            is_string($path) ? pathinfo($path, PATHINFO_EXTENSION) : '',
+        ];
+
+        foreach ($extensionCandidates as $candidate) {
+            if ($candidate === '') {
+                continue;
+            }
+
+            $type = self::fromExtension($candidate);
+
+            if ($type !== self::UNKNOWN) {
+                return $type;
+            }
+        }
+
+        return self::UNKNOWN;
     }
 
     public function isImage(): bool

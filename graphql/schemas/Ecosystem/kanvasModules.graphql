@@ -1,10 +1,51 @@
 type KanvasModule {
     id: ID
     name: String
+    description: String
+    is_internal: Boolean
+    is_default: Boolean
     systemModules: [SystemModule!] @belongsTo(relation: "systemModules")
+}
+
+type CompanyKanvasModule {
+    id: ID!
+    is_active: Boolean!
+    status: String!
+    summary: Mixed
+    module: KanvasModule! @belongsTo(relation: "module")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type CompanyKanvasModuleSummary {
+    connected: Int!
+    partial: Int!
+    not_connected: Int!
+    total: Int!
 }
 
 extend type Query @guardByAdmin {
     kanvasModules: [KanvasModule!]!
         @all(model: "Kanvas\\KanvasModules\\Models\\KanvasModule")
+}
+
+extend type Query @guard {
+    companyKanvasModules(
+        where: _
+            @whereConditions(
+                columns: ["status", "is_active", "kanvas_modules_id"]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "status"])
+    ): [CompanyKanvasModule!]!
+        @paginate(
+            model: "Kanvas\\KanvasModules\\Models\\CompanyKanvasModule"
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
+            defaultCount: 50
+        )
+
+    companyKanvasModulesSummary: CompanyKanvasModuleSummary!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\KanvasModules\\CompanyKanvasModuleSummaryQuery@summary"
+        )
 }

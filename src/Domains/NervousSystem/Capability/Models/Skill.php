@@ -6,6 +6,7 @@ namespace Kanvas\NervousSystem\Capability\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
@@ -13,7 +14,8 @@ use Kanvas\NervousSystem\Models\BaseModel;
 use Override;
 
 /**
- * Skill catalog entry. apps_id=0 means a global skill available to all apps.
+ * Skill catalog entry. Strict per-app scoping via `fromApp` —
+ * skills never cross-tenant, even at apps_id=0.
  *
  * @property int $id
  * @property string $uuid
@@ -26,14 +28,18 @@ use Override;
  * @property array $frameworks
  * @property string $version
  * @property bool $is_active
+ * @property int $agents_using_count
  * @property bool $is_deleted
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
 class Skill extends BaseModel
 {
+    use CascadeSoftDeletes;
     use EmitsLedgerEventsForEntity;
     use UuidTrait;
+
+    protected $cascadeDeletes = ['agentGrants'];
 
     protected $table = 'nervous_system_skills';
 
@@ -49,6 +55,7 @@ class Skill extends BaseModel
             'definition' => Json::class,
             'frameworks' => Json::class,
             'is_active' => 'boolean',
+            'agents_using_count' => 'integer',
             'is_deleted' => 'boolean',
         ];
     }
@@ -66,15 +73,5 @@ class Skill extends BaseModel
     public function scopeForFramework(Builder $query, string $framework): Builder
     {
         return $query->whereJsonContains('frameworks', $framework);
-    }
-
-    /**
-     * Skill catalog rows have apps_id but not companies_id (skills are
-     * app-wide, not per-company). Override fromApp to also include
-     * apps_id=0 (global skills available across the platform).
-     */
-    public function scopeForApp(Builder $query, int $appsId): Builder
-    {
-        return $query->whereIn('apps_id', [0, $appsId]);
     }
 }

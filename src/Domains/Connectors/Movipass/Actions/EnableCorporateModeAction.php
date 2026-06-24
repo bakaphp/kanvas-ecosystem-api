@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Actions;
 
 use Baka\Contracts\AppInterface;
-use Bouncer;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
@@ -19,7 +18,9 @@ use Kanvas\Connectors\Movipass\Jobs\MigrateCorporateUserVariantsJob;
 use Kanvas\Connectors\Movipass\Workflows\Activities\AutoApproveCorporateLeadActivity;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Regions\Models\Regions;
+use Kanvas\Services\SetupService;
 use Kanvas\Users\Actions\AssignCompanyAction;
+use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Models\Users;
 
 class EnableCorporateModeAction
@@ -51,6 +52,10 @@ class EnableCorporateModeAction
             $this->setCompanyFields($company);
             $this->setUserFields();
             $this->associateUserAsAdmin($company, $appsModel);
+            // Same onboarding the registration/lead-accept path runs — provisions the
+            // company's default inventory (region + warehouse) via OnBoardingJob.
+            new SetupService()->onBoarding($this->user, $appsModel, $company);
+            $this->switchToCorporateCompany($company);
 
             dispatch(new MigrateCorporateUserVariantsJob(
                 userId: $this->user->getId(),
@@ -121,11 +126,22 @@ class EnableCorporateModeAction
     private function associateUserAsAdmin(Companies $company, Apps $app): void
     {
         $branch = $company->branch()->firstOrFail();
+        $adminRole = RolesRepository::getByNameFromApp(RolesEnums::ADMIN->value, $app);
 
-        new AssignCompanyAction($this->user, $branch)->execute();
+        new AssignCompanyAction(
+            user: $this->user,
+            branch: $branch,
+            role: $adminRole,
+            app: $app,
+        )->execute();
 
-        Bouncer::scope()->to(RolesEnums::getScope($app, $company));
-        $adminRole = RolesRepository::getByMixedParamFromCompany(RolesEnums::ADMIN->value, $company, $app);
         new AssignRoleAction($this->user, $adminRole)->execute();
+    }
+
+    private function switchToCorporateCompany(Companies $company): void
+    {
+        $branch = $company->branch()->firstOrFail();
+
+        new SwitchCompanyBranchAction($this->user, $branch->getId())->execute();
     }
 }

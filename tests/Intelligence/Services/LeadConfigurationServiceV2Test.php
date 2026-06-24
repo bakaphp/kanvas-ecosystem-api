@@ -19,7 +19,7 @@ class LeadConfigurationServiceV2Test extends TestCase
         $app->set('search_engine', 'database');
     }
 
-    private function createLead(string $leadTypeName = ''): Lead
+    private function createLead(string $leadTypeName = '', array $config = []): Lead
     {
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -40,8 +40,14 @@ class LeadConfigurationServiceV2Test extends TestCase
                 ['description' => $leadTypeName . ' Lead', 'is_active' => 1]
             );
 
+            if ($config !== []) {
+                $leadType->config = $config;
+                $leadType->saveOrFail();
+            }
+
             $lead->leads_types_id = $leadType->getId();
             $lead->saveOrFail();
+            $lead->refresh();
         }
 
         return $lead;
@@ -49,132 +55,230 @@ class LeadConfigurationServiceV2Test extends TestCase
 
     public function testIsV2EnabledReturnsTrueWhenFlagSet(): void
     {
-        $this->assertTrue(new LeadConfigurationService(true)->isV2Enabled(app(Apps::class)));
+        $this->assertTrue(new LeadConfigurationService(true)->isV2Enabled(auth()->user()->getCurrentCompany()));
     }
 
-    public function testGetAiModeKeyReturnsShowroomKeyForShowroomLeadType(): void
+    public function testGetAiModeKeyReturnsGenericAiModeForEveryLeadType(): void
     {
-        $lead = $this->createLead('Showroom');
+        $service = new LeadConfigurationService(true);
 
-        $this->assertEquals('showroom_ai_mode', new LeadConfigurationService(true)->getAiModeKey($lead));
+        foreach (['Internet', 'Showroom', 'Phone'] as $typeName) {
+            $lead = $this->createLead($typeName);
+
+            $this->assertEquals(
+                'ai_mode',
+                $service->getAiModeKey($lead),
+                "Lead key must be the generic 'ai_mode' regardless of lead type ({$typeName})"
+            );
+        }
     }
 
-    public function testGetAiModeKeyReturnsPhoneKeyForPhoneLeadType(): void
+    public function testGetFollowUpModeKeyReturnsGenericAiFollowUpForEveryLeadType(): void
     {
-        $lead = $this->createLead('Phone');
+        $service = new LeadConfigurationService(true);
 
-        $this->assertEquals('phone_ai_mode', new LeadConfigurationService(true)->getAiModeKey($lead));
-    }
+        foreach (['Internet', 'Showroom', 'Phone'] as $typeName) {
+            $lead = $this->createLead($typeName);
 
-    public function testGetAiModeKeyReturnsGenericKeyForInternetLeadType(): void
-    {
-        $lead = $this->createLead('Internet');
-
-        $this->assertEquals('ai_mode', new LeadConfigurationService(true)->getAiModeKey($lead));
-    }
-
-    public function testGetFollowUpModeKeyReturnsInternetFollowUpKeyForInternetType(): void
-    {
-        $lead = $this->createLead('Internet');
-
-        $this->assertEquals('internet_follow_up_mode', new LeadConfigurationService(true)->getFollowUpModeKey($lead));
-    }
-
-    public function testGetFollowUpModeKeyReturnsShowroomFollowUpKeyForShowroomType(): void
-    {
-        $lead = $this->createLead('Showroom');
-
-        $this->assertEquals('showroom_follow_up_mode', new LeadConfigurationService(true)->getFollowUpModeKey($lead));
-    }
-
-    public function testGetFollowUpModeKeyReturnsPhoneFollowUpKeyForPhoneType(): void
-    {
-        $lead = $this->createLead('Phone');
-
-        $this->assertEquals('phone_follow_up_mode', new LeadConfigurationService(true)->getFollowUpModeKey($lead));
+            $this->assertEquals(
+                'ai_follow_up',
+                $service->getFollowUpModeKey($lead),
+                "Lead key must be the generic 'ai_follow_up' regardless of lead type ({$typeName})"
+            );
+        }
     }
 
     public function testGetAiModeDefaultKeyReturnsOpenKeyWhenOpen(): void
     {
-        $lead = $this->createLead('Internet');
+        $lead = $this->createLead('Internet', ['internet_ai_mode_open_default' => 'FULL_ON']);
 
         $this->assertEquals('internet_ai_mode_open_default', new LeadConfigurationService(true)->getAiModeDefaultKey($lead, true));
     }
 
     public function testGetAiModeDefaultKeyReturnsClosedKeyWhenClosed(): void
     {
-        $lead = $this->createLead('Internet');
+        $lead = $this->createLead('Internet', ['internet_ai_mode_closed_default' => 'SUPPORT']);
 
         $this->assertEquals('internet_ai_mode_closed_default', new LeadConfigurationService(true)->getAiModeDefaultKey($lead, false));
     }
 
-    public function testGetAiModeDefaultKeyUsesCorrectPrefixPerType(): void
+    public function testGetAiModeDefaultKeyResolvesPrefixFromConfigKeys(): void
     {
         $cases = [
-            'Internet' => 'internet_ai_mode_open_default',
-            'Showroom' => 'showroom_ai_mode_open_default',
-            'Phone' => 'phone_ai_mode_open_default',
+            'internet' => 'internet_ai_mode_open_default',
+            'showroom' => 'showroom_ai_mode_open_default',
+            'phone' => 'phone_ai_mode_open_default',
+            'custom-channel' => 'custom-channel_ai_mode_open_default',
         ];
 
         $service = new LeadConfigurationService(true);
 
-        foreach ($cases as $typeName => $expectedKey) {
-            $lead = $this->createLead($typeName);
+        foreach ($cases as $prefix => $expectedKey) {
+            $lead = $this->createLead('Type-' . $prefix, [$expectedKey => 'FULL_ON']);
 
             $this->assertEquals(
                 $expectedKey,
                 $service->getAiModeDefaultKey($lead, true),
-                "{$typeName} lead should use key {$expectedKey}"
+                "Lead with config key {$expectedKey} should resolve to {$expectedKey}"
             );
         }
+    }
+
+    public function testGetAiModeDefaultKeyFallsBackToBareSuffixWhenConfigHasNoMatch(): void
+    {
+        $lead = $this->createLead('Internet');
+
+        $this->assertEquals(
+            'ai_mode_open_default',
+            new LeadConfigurationService(true)->getAiModeDefaultKey($lead, true)
+        );
     }
 
     public function testGetFollowUpDefaultKeyReturnsActiveKeyForActiveStatus(): void
     {
-        $lead = $this->createLead('Internet');
+        $lead = $this->createLead('Internet', ['internet_con_fu_active_default' => 1]);
 
         $this->assertEquals('internet_con_fu_active_default', new LeadConfigurationService(true)->getFollowUpDefaultKey($lead));
     }
 
-    public function testGetFollowUpDefaultKeyUsesCorrectPrefixPerType(): void
+    public function testGetFollowUpDefaultKeyResolvesPrefixFromConfigKeys(): void
     {
         $cases = [
-            'Internet' => 'internet_con_fu_active_default',
-            'Showroom' => 'showroom_con_fu_active_default',
-            'Phone' => 'phone_con_fu_active_default',
+            'internet' => 'internet_con_fu_active_default',
+            'showroom' => 'showroom_con_fu_active_default',
+            'phone' => 'phone_con_fu_active_default',
         ];
 
         $service = new LeadConfigurationService(true);
 
-        foreach ($cases as $typeName => $expectedKey) {
-            $lead = $this->createLead($typeName);
+        foreach ($cases as $prefix => $expectedKey) {
+            $lead = $this->createLead('Type-' . $prefix, [$expectedKey => 1]);
 
             $this->assertEquals(
                 $expectedKey,
                 $service->getFollowUpDefaultKey($lead),
-                "{$typeName} lead should use key {$expectedKey}"
+                "Lead with config key {$expectedKey} should resolve to {$expectedKey}"
             );
         }
     }
 
-    public function testGetFirstMessageDefaultKeyUsesCorrectPrefix(): void
+    public function testGetFirstMessageDefaultKeyResolvesPrefixFromConfigKeys(): void
     {
         $cases = [
-            'Internet' => 'internet_first_fu_active_default',
-            'Showroom' => 'showroom_first_fu_active_default',
-            'Phone' => 'phone_first_fu_active_default',
+            'internet' => 'internet_first_fu_active_default',
+            'showroom' => 'showroom_first_fu_active_default',
+            'phone' => 'phone_first_fu_active_default',
         ];
 
         $service = new LeadConfigurationService(true);
 
-        foreach ($cases as $typeName => $expectedKey) {
-            $lead = $this->createLead($typeName);
+        foreach ($cases as $prefix => $expectedKey) {
+            $lead = $this->createLead('Type-' . $prefix, [$expectedKey => true]);
 
             $this->assertEquals(
                 $expectedKey,
                 $service->getFirstMessageDefaultKey($lead),
-                "{$typeName} lead should use key {$expectedKey}"
+                "Lead with config key {$expectedKey} should resolve to {$expectedKey}"
             );
         }
+    }
+
+    public function testGetFollowUpActiveDefaultKeyResolvesPrefixFromConfigKeys(): void
+    {
+        $cases = [
+            'internet' => 'internet_con_fu_active_default',
+            'showroom' => 'showroom_con_fu_active_default',
+            'phone' => 'phone_con_fu_active_default',
+        ];
+
+        $service = new LeadConfigurationService(true);
+
+        foreach ($cases as $prefix => $expectedKey) {
+            $lead = $this->createLead('Type-' . $prefix, [$expectedKey => 1]);
+
+            $this->assertEquals(
+                $expectedKey,
+                $service->getFollowUpActiveDefaultKey($lead),
+                "Lead with config key {$expectedKey} should resolve to {$expectedKey}"
+            );
+        }
+    }
+
+    public function testGetFollowUpClosedNotSoldDefaultKeyResolvesPrefixFromConfigKeys(): void
+    {
+        $cases = [
+            'internet' => 'internet_con_fu_cns_default',
+            'showroom' => 'showroom_con_fu_cns_default',
+            'phone' => 'phone_con_fu_cns_default',
+        ];
+
+        $service = new LeadConfigurationService(true);
+
+        foreach ($cases as $prefix => $expectedKey) {
+            $lead = $this->createLead('Type-' . $prefix, [$expectedKey => 0]);
+
+            $this->assertEquals(
+                $expectedKey,
+                $service->getFollowUpClosedNotSoldDefaultKey($lead),
+                "Lead with config key {$expectedKey} should resolve to {$expectedKey}"
+            );
+        }
+    }
+
+    public function testGetFollowUpClosedSoldDefaultKeyResolvesPrefixFromConfigKeys(): void
+    {
+        $cases = [
+            'internet' => 'internet_con_fu_closed-sold_default',
+            'showroom' => 'showroom_con_fu_closed-sold_default',
+            'phone' => 'phone_con_fu_closed-sold_default',
+        ];
+
+        $service = new LeadConfigurationService(true);
+
+        foreach ($cases as $prefix => $expectedKey) {
+            $lead = $this->createLead('Type-' . $prefix, [$expectedKey => 0]);
+
+            $this->assertEquals(
+                $expectedKey,
+                $service->getFollowUpClosedSoldDefaultKey($lead),
+                "Lead with config key {$expectedKey} should resolve to {$expectedKey}"
+            );
+        }
+    }
+
+    public function testGetAllDefaultKeysReturnsKeysAndResolvedValues(): void
+    {
+        $lead = $this->createLead('Internet', [
+            'internet_ai_mode_open_default' => 'full_on',
+            'internet_con_fu_active_default' => 'on',
+            'internet_first_fu_active_default' => true,
+        ]);
+
+        $result = new LeadConfigurationService(true)->getAllDefaultKeys($lead, true);
+
+        $this->assertEquals('internet_ai_mode_open_default', $result['ai_mode']['key']);
+        $this->assertEquals('full_on', $result['ai_mode']['value']);
+        $this->assertEquals('internet_con_fu_active_default', $result['follow_up']['key']);
+        $this->assertEquals('on', $result['follow_up']['value']);
+        $this->assertEquals('internet_first_fu_active_default', $result['first_message']['key']);
+        $this->assertTrue($result['first_message']['value']);
+    }
+
+    public function testGetAllDefaultKeysUsesClosedAiModeWhenIsOpenIsFalse(): void
+    {
+        $lead = $this->createLead('Internet', ['internet_ai_mode_closed_default' => 'SUPPORT']);
+
+        $result = new LeadConfigurationService(true)->getAllDefaultKeys($lead, false);
+
+        $this->assertEquals('internet_ai_mode_closed_default', $result['ai_mode']['key']);
+    }
+
+    public function testGetAllDefaultKeysForcesActiveFollowUpRegardlessOfStatus(): void
+    {
+        $lead = $this->createLead('Internet', ['internet_con_fu_active_default' => 1]);
+
+        $result = new LeadConfigurationService(true)->getAllDefaultKeys($lead);
+
+        $this->assertEquals('internet_con_fu_active_default', $result['follow_up']['key']);
     }
 }

@@ -184,6 +184,11 @@ class Channel extends BaseModel
         return $this->name === ChannelNameEnum::NOTES->value;
     }
 
+    public function isAiAssistChannel(): bool
+    {
+        return $this->name == ChannelNameEnum::AI_ASSIST->value;
+    }
+
     public function isDefaultChannel(): bool
     {
         return $this->name === ChannelNameEnum::DEFAULT->value;

@@ -15,7 +15,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
 use Kanvas\Notifications\Channels\TwilioSmsChannel;
-use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Notifications\Templates\EngagementNotification;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Repositories\UsersRepository;
 use NotificationChannels\Expo\ExpoChannel;
@@ -113,7 +113,7 @@ class AddOutBoundPhoneCallActivityToLeadAction
             return;
         }
 
-        $notification = new Blank(
+        $notification = new EngagementNotification(
             templateName: 'agent-manager-notification',
             data: [
                 //'message' => $message,
@@ -123,14 +123,18 @@ class AddOutBoundPhoneCallActivityToLeadAction
                 'content' => 'Sally just stopped the clock for lead ' . $this->lead->people->name,
                 'title' => 'Sally Stopped the Clock',
                 'message' => $this->message,
+                'lead_name' => $this->lead->people->name,
+                'lead_id' => $this->lead->getId(),
+                'people_id' => $this->lead->people->getId(),
             ],
-            via: ['sms', 'push', 'expo', 'mail'],
+            via: ['sms', 'push', 'expo', 'mail', 'database'],
             entity: $this->lead
         );
 
         $notification->setSubject('Sally stop the clock for lead ' . $this->lead->people->name);
         $notification->setPushTemplateName('agent_manager_push_notification');
         $notification->setSmsTemplateName('agent_manager_sms_notification');
+        $notification->setDatabaseTemplateName('agent_manager_sms_notification');
 
         $this->configureNotificationChannels($notification);
 
@@ -144,7 +148,7 @@ class AddOutBoundPhoneCallActivityToLeadAction
         Notification::send($managers, $notification);
     }
 
-    protected function configureNotificationChannels(Blank $notification): void
+    protected function configureNotificationChannels(EngagementNotification $notification): void
     {
         $onlySms = (bool) $this->lead->company->get('ai_stop_clock_notification_only_sms');
         $onlyMail = (bool) $this->lead->company->get('ai_stop_clock_notification_only_mail');

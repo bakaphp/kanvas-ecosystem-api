@@ -13,13 +13,12 @@ use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\FollowUp\Actions\WriteLeadStageChangeThreadMessageAction;
 use Kanvas\Intelligence\Sessions\Actions\DeleteSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\UpdateLeadSessionsAction;
-use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 
 class LeadObserver
@@ -44,7 +43,7 @@ class LeadObserver
 
         // set the default status if not specified
         if (! $lead->leads_status_id) {
-            $lead->leads_status_id = LeadStatus::getDefault($lead->app)->getId();
+            $lead->leads_status_id = LeadStatus::getDefault($lead->app, $lead->company)->getId();
         }
 
         // if no pipeline assign one
@@ -68,6 +67,31 @@ class LeadObserver
                 ->first();
 
             $lead->leads_receivers_id = $receiver ? $receiver->id : 0;
+        }
+    }
+
+    // Stage changes can originate from many call sites (UI, deal-won actions,
+    // workflows, FollowUpLeadAction's auto-advance). Centralizing the reaction
+    // here means every path triggers the same audit + state reset.
+    public function updating(Lead $lead): void
+    {
+        if ($lead->isDirty('pipeline_stage_id')) {
+            $fromStageId = $lead->getOriginal('pipeline_stage_id');
+            $toStageId = $lead->pipeline_stage_id;
+
+            $lead->resetFollowUpState();
+            $lead->emitLedgerEvent('lead.stage.changed', payload: [
+                'from_stage_id' => $fromStageId,
+                'to_stage_id' => $toStageId,
+            ]);
+
+            // Social-side failures are swallowed by the action — Ledger event
+            // above is the audit truth; never block the Lead update.
+            new WriteLeadStageChangeThreadMessageAction(
+                lead: $lead,
+                fromStageId: $fromStageId !== null ? (int) $fromStageId : null,
+                toStageId: (int) $toStageId,
+            )->execute();
         }
     }
 
@@ -124,29 +148,8 @@ class LeadObserver
         LeadUpdateEvent::dispatch($lead);
         LeadCompanyUpdateEvent::dispatch($lead);
 
-        if ($lead->get(ConfigurationEnum::AI_ENABLE->value)) {
+        if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
             new UpdateLeadSessionsAction($lead)->execute();
-        }
-
-        if ($lead->wasChanged('leads_status_id')) {
-            $leadStatus = $lead->status()->first();
-            if (strtolower($leadStatus->name) === 'sold') {
-                $lead->fireWorkflow(
-                    WorkflowEnum::TRIGGER_AI->value,
-                    true,
-                    [
-                        'trigger_type' => TriggersEnum::SOLD_LEAD->value,
-                    ]
-                );
-            } elseif (strtolower($leadStatus->name) === 'close') {
-                $lead->fireWorkflow(
-                    WorkflowEnum::TRIGGER_AI->value,
-                    true,
-                    [
-                        'trigger_type' => TriggersEnum::CLOSE_LEAD->value,
-                    ]
-                );
-            }
         }
         //$lead->clearLightHouseCacheJob();
     }
@@ -160,9 +163,7 @@ class LeadObserver
             $channel->delete();
         }
 
-        if ($lead->get(ConfigurationEnum::AI_ENABLE->value)) {
-            new DeleteSessionAction($lead)->execute();
-        }
+        new DeleteSessionAction($lead)->execute();
     }
 
     public function softDeleted(Lead $lead): void
@@ -173,8 +174,6 @@ class LeadObserver
             'updated_at' => now(),
         ]);
 
-        if ($lead->get(ConfigurationEnum::AI_ENABLE->value)) {
-            new DeleteSessionAction($lead)->execute();
-        }
+        new DeleteSessionAction($lead)->execute();
     }
 }

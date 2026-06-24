@@ -5,12 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Plan\Activities;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
+use Kanvas\Intelligence\Agents\Models\AgentDeployment;
+use Kanvas\NervousSystem\Plan\Jobs\PushCommentToKanbanJob;
 use Kanvas\NervousSystem\Plan\Jobs\WakeAgentForPlanJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class ReplyToPlanCommentActivity extends KanvasActivity
 {
     public $tries = 1;
@@ -55,6 +60,24 @@ class ReplyToPlanCommentActivity extends KanvasActivity
                 $content = is_array($message->message) ? (string) ($message->message['content'] ?? '') : $message->message;
                 if ($content === '') {
                     return ['message' => 'Empty message body', 'entity' => null];
+                }
+
+                // Kanban-driven runtime agents (Hermes) are steered by comments on the board, not
+                // chat turns. Route the human's comment to the card (+ unblock if escalated) instead
+                // of waking via chat — the worker replays the thread on its next spawn.
+                $deployment = $plan->agent?->activeDeployment;
+                if ($deployment instanceof AgentDeployment
+                    && $deployment->isRunning()
+                    && AgentProviderEnum::forDeployment($deployment)->isHermes()
+                ) {
+                    PushCommentToKanbanJob::dispatch($plan, $content, (int) $message->users_id);
+
+                    return [
+                        'message' => 'Comment pushed to kanban board',
+                        'entity' => $plan,
+                        'plan_id' => $plan->id,
+                        'plan_uuid' => $plan->uuid,
+                    ];
                 }
 
                 $plan->emitLedgerEvent(

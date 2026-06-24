@@ -7,9 +7,12 @@ namespace Kanvas\Intelligence\Tools;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\Enums\ConfigurationEnum;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Override;
 use Yasumi\Yasumi;
+
+use function Illuminate\Log\log;
 
 class CompanyWorkHoursTool implements ContextToolInterface
 {
@@ -19,17 +22,27 @@ class CompanyWorkHoursTool implements ContextToolInterface
     protected ?array $workingDays = null;
     protected array $companyObservedHolidays = [];
 
+    /**
+     * Accepts either a Companies row directly, or any Eloquent model with a
+     * `->company` relation (Lead, Deal, etc.). The follow-up dispatcher calls
+     * with Companies; legacy agent-tool callers pass entities-with-company.
+     */
     public function __construct(
         protected Model $entity
     ) {
-        $tz = $this->entity->company->timezone ?? 'UTC';
+        $company = $this->entity instanceof Companies
+            ? $this->entity
+            : $this->entity->company;
+
+        $tz = $company->timezone ?? 'UTC';
+        //log($tz);
         $this->now = Carbon::now($tz);
 
-        $this->simpleHours = $this->entity->company->get(ConfigurationEnum::WORKING_HOURS->value) ?? null;
+        $this->simpleHours = $company->get(ConfigurationEnum::WORKING_HOURS->value) ?? null;
         $this->workingDays = $this->normalizeDays(
-            $this->entity->company->get(ConfigurationEnum::WORKING_DAYS->value) ?? []
+            $company->get(ConfigurationEnum::WORKING_DAYS->value) ?? []
         );
-        $this->companyObservedHolidays = $this->entity->company->get(ConfigurationEnum::WORKING_HOLIDAY_DAYS->value) ?? [];
+        $this->companyObservedHolidays = $company->get(ConfigurationEnum::WORKING_HOLIDAY_DAYS->value) ?? [];
 
         if ($this->looksLikeWeeklyMap($this->simpleHours ?? [])) {
             $this->weeklyHours = $this->simpleHours;
@@ -48,7 +61,7 @@ class CompanyWorkHoursTool implements ContextToolInterface
 
         return [
             'status' => $status,
-            'weekday' => $this->now->dayName,
+            'weekday' => $this->now->englishDayOfWeek,
             'opens_at_local' => $opensAt?->format('H:i') ?? '',
             'closes_at_local' => $closesAt?->format('H:i') ?? '',
             'next_open_iso' => $nextOpen->toIso8601String(),
@@ -66,14 +79,20 @@ class CompanyWorkHoursTool implements ContextToolInterface
         array $holidayInfo
     ): string {
         if ($holidayInfo['is_observed_holiday']) {
+            log('holyday');
+
             return 'after_hours';
         }
 
         if (! $this->isWorkingDay($now)) {
+            log('working day');
+
             return 'after_hours';
         }
 
         if (! $opensAt || ! $closesAt) {
+            log('open ast');
+
             return 'after_hours';
         }
 
@@ -116,7 +135,7 @@ class CompanyWorkHoursTool implements ContextToolInterface
         }
 
         if ($this->weeklyHours) {
-            return $this->getOpenCloseForDayName($ref->dayName, $ref);
+            return $this->getOpenCloseForDayName($ref->englishDayOfWeek, $ref);
         }
 
         return [null, null];
@@ -126,7 +145,6 @@ class CompanyWorkHoursTool implements ContextToolInterface
     {
         $key = $this->normalizeDayName($dayName);
         $hours = $this->weeklyHours[$key] ?? null;
-
         if (! $hours || trim($hours) === '' || stripos($hours, '-') === false) {
             return [null, null];
         }
@@ -145,7 +163,7 @@ class CompanyWorkHoursTool implements ContextToolInterface
         for ($i = 0; $i < 14; $i++) {
             $holidayInfo = $this->getHolidayInfo($cursor);
             if (! $holidayInfo['is_observed_holiday'] && $this->isWorkingDay($cursor)) {
-                [$open, $close] = $this->getOpenCloseForDayName($cursor->dayName, $cursor);
+                [$open, $close] = $this->getOpenCloseForDayName($cursor->englishDayOfWeek, $cursor);
                 if ($open && $close) {
                     return $open->copy();
                 }
@@ -161,7 +179,7 @@ class CompanyWorkHoursTool implements ContextToolInterface
         if (empty($this->workingDays)) {
             return true;
         }
-        $name = $this->normalizeDayName($date->dayName);
+        $name = $this->normalizeDayName($date->englishDayOfWeek);
 
         return in_array($name, $this->workingDays, true);
     }

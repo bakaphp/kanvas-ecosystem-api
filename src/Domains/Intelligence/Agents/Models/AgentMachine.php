@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Models;
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
@@ -34,9 +35,12 @@ use Kanvas\Intelligence\Models\BaseModel;
  */
 class AgentMachine extends BaseModel
 {
+    use CascadeSoftDeletes;
     use DatabaseSearchableTrait;
-    use UuidTrait;
     use SlugTrait;
+    use UuidTrait;
+
+    protected $cascadeDeletes = ['deployments'];
 
     protected $table = 'agent_machines';
 
@@ -77,7 +81,15 @@ class AgentMachine extends BaseModel
 
     public function hasCapacity(): bool
     {
-        return $this->activeDeployments()->count() < $this->max_agents;
+        $machineIds = self::query()
+            ->where('host', $this->host)
+            ->where('is_deleted', 0)
+            ->pluck('id');
+
+        return AgentDeployment::whereIn('agent_machine_id', $machineIds)
+            ->where('status', 'running')
+            ->where('is_deleted', 0)
+            ->count() < $this->max_agents;
     }
 
     /**
@@ -87,12 +99,17 @@ class AgentMachine extends BaseModel
      */
     public function allocatePortPair(): array
     {
-        $usedPorts = AgentDeployment::where('agent_machine_id', $this->id)
+        $machineIds = self::query()
+            ->where('host', $this->host)
+            ->where('is_deleted', 0)
+            ->pluck('id');
+
+        $usedPorts = AgentDeployment::whereIn('agent_machine_id', $machineIds)
             ->whereNotIn('status', ['terminated'])
             ->where('is_deleted', 0)
             ->pluck('gateway_port')
             ->merge(
-                AgentDeployment::where('agent_machine_id', $this->id)
+                AgentDeployment::whereIn('agent_machine_id', $machineIds)
                     ->whereNotIn('status', ['terminated'])
                     ->where('is_deleted', 0)
                     ->pluck('proxy_port')

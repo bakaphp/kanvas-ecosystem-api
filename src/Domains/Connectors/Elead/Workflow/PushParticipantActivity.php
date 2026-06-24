@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\Elead\Workflow;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class PushParticipantActivity extends KanvasActivity
 {
     public $tries = 3;

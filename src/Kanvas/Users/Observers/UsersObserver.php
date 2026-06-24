@@ -20,7 +20,6 @@ class UsersObserver
 {
     /**
      * Handle the Apps "saving" event.
-     *
      */
     public function creating(Users $user): void
     {
@@ -69,6 +68,7 @@ class UsersObserver
             $userRegisterInApp = new RegisterUsersAppAction($user, $app);
             $appUser = $userRegisterInApp->execute($user->password);
         }
+
         $appUser->update([
             'firstname' => $user->firstname,
             'lastname' => $user->lastname,
@@ -79,7 +79,26 @@ class UsersObserver
         $user->fireWorkflow(
             WorkflowEnum::UPDATED->value,
             true,
-            ['company' => $user->getCurrentCompany()]
+            [
+                'company' => $user->getCurrentCompany(),
+            ]
         );
+
+        $passOnboarding = $user->wasChanged('welcome')
+                && (int) $user->getOriginal('welcome') === 0
+                && (int) $user->welcome === 1;
+
+        if ($passOnboarding) {
+            $user->fireWorkflow(
+                WorkflowEnum::AFTER_ONBOARDING->value,
+                true,
+                [
+                    'company' => $user->getCurrentCompany(),
+                    'welcome_changed' => true,
+                    'welcome_previous' => $user->getOriginal('welcome'),
+                    'welcome_current' => $user->welcome,
+                ]
+            );
+        }
     }
 }

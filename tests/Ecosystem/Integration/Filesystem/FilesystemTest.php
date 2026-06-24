@@ -6,6 +6,7 @@ namespace Tests\Ecosystem\Integration\Filesystem;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -101,8 +102,14 @@ final class FilesystemTest extends TestCase
 
     public function testUploadFileFromUrlWithoutExtension()
     {
-        // URL without clear file extension
+        // URL without a clear file extension — the extension must be derived from the
+        // downloaded content's MIME type, not the URL path. Fake the download so the
+        // test doesn't depend on a flaky external image service.
         $url = 'https://picsum.photos/200/300';
+
+        Http::fake([
+            $url => Http::response($this->fakeJpegBytes(), 200, ['Content-Type' => 'image/jpeg']),
+        ]);
 
         $filesystemService = new FilesystemServices(app(Apps::class));
         $user = Auth::user();
@@ -115,6 +122,20 @@ final class FilesystemTest extends TestCase
 
         // Clean up
         $filesystemService->delete($filesystem);
+    }
+
+    private function fakeJpegBytes(): string
+    {
+        $img = imagecreatetruecolor(200, 300);
+        $color = imagecolorallocate($img, 120, 180, 90);
+        imagefill($img, 0, 0, $color);
+
+        ob_start();
+        imagejpeg($img);
+        $bytes = (string) ob_get_clean();
+        imagedestroy($img);
+
+        return $bytes;
     }
 
     public function testUploadFileFromUrlInvalidUrl()

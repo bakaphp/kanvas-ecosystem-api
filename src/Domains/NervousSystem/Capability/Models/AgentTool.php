@@ -6,9 +6,11 @@ namespace Kanvas\NervousSystem\Capability\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\NervousSystem\Capability\Observers\AgentToolObserver;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
 use Kanvas\Users\Models\Users;
@@ -32,6 +34,7 @@ use Override;
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
+#[ObservedBy([AgentToolObserver::class])]
 class AgentTool extends BaseModel
 {
     use EmitsLedgerEventsForEntity;

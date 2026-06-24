@@ -29,12 +29,11 @@ use Kanvas\Intelligence\Agents\Models\AgentMachine;
  */
 class ChatWithAgentAction
 {
-    private const string DEFAULT_MODEL = 'gpt-5.4';
-
     public function __construct(
         protected Agent $agent,
         protected string $message,
         protected ?string $sessionKey = null,
+        protected array $images = [],
     ) {
     }
 
@@ -100,8 +99,8 @@ class ChatWithAgentAction
     private function sendRequest(AgentDeployment $deployment, string $token, string $sessionKey): string
     {
         $payload = json_encode([
-            'model' => self::DEFAULT_MODEL,
-            'input' => $this->message,
+            'model' => 'openclaw/' . $this->agent->slug,
+            'input' => $this->buildInput(),
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         if ($payload === false) {
@@ -127,6 +126,32 @@ class ChatWithAgentAction
         }
 
         return $this->parseResponse($response);
+    }
+
+    protected function buildInput(): string|array
+    {
+        if ($this->images === []) {
+            return $this->message;
+        }
+
+        $content = [['type' => 'input_text', 'text' => $this->message]];
+
+        foreach ($this->images as $imageUrl) {
+            // OpenClaw's /v1/responses documents `input_image` with a `source` object —
+            // a flat `image_url` key was the old shape and is no longer recognized after
+            // the gateway's input_image bug fix. See
+            // https://docs.openclaw.ai/gateway/openresponses-http-api#images-input_image
+            $content[] = [
+                'type' => 'input_image',
+                'source' => ['type' => 'url', 'url' => $imageUrl],
+            ];
+        }
+
+        // Items in the `input` array carry an explicit `type`. The role-only shorthand
+        // some OpenAI Responses examples show is rejected by OpenClaw's stricter validator
+        // with `input: Invalid input` — every item must declare its kind. See:
+        // https://docs.openclaw.ai/gateway/openresponses-http-api#items-input
+        return [['type' => 'message', 'role' => 'user', 'content' => $content]];
     }
 
     private function parseResponse(string $response): string

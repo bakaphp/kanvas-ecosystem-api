@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenClaw\Actions;
 
-use Kanvas\Connectors\OpenClaw\Services\WorkspaceFileBuilder;
 use Kanvas\Connectors\OpenClaw\SshClient;
+use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilderService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 
@@ -32,7 +32,7 @@ class SyncAgentWorkspaceAction
             $workspaceDir = $this->deployment->home_directory . '/.openclaw/workspace';
             $systemUser = $this->deployment->system_user;
 
-            $files = WorkspaceFileBuilder::buildAll($this->agent);
+            $files = WorkspaceFileBuilderService::buildAll($this->agent);
 
             foreach ($files as $filename => $content) {
                 $client->writeFileAsUser(

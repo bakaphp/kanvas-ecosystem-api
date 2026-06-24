@@ -18,10 +18,17 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Tools\VehicleInterestTool;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+/**
+ * @deprecated v1 follow-up engine no longer dispatches via workflow activities —
+ *             the hourly cron + per-lead job chain replaces this prompt path.
+ *             See docs/intelligence/follow-up-deprecation-spec.md kill list.
+ */
+#[WorkflowAction]
 class FollowUpPromptActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

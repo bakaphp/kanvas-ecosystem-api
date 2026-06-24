@@ -11,6 +11,7 @@ use Kanvas\Connectors\Shopify\Services\ShopifyConfigurationService;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\CreateIntegrationCompanyAction;
 use Kanvas\Workflow\Integrations\DataTransferObject\IntegrationsCompany;
@@ -43,7 +44,9 @@ trait HasShopifyConfiguration
             'shop_url' => env('TEST_SHOPIFY_SHOP_URL'),
         ];
 
-        $integration = Integrations::first();
+        // Resolve Shopify explicitly by name — IntegrationsSeeder now seeds other integrations
+        // ahead of it, so Integrations::first() is no longer guaranteed to be Shopify.
+        $integration = Integrations::where('name', IntegrationsEnum::SHOPIFY->value)->firstOrFail();
 
         $integrationDto = new IntegrationsCompany(
             integration: $integration,

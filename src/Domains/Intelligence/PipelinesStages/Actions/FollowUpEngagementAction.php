@@ -28,7 +28,12 @@ use Kanvas\Social\Channels\Models\Channel;
 
 use function Sentry\captureException;
 
-class FollowUpEngagementAction
+/**
+ * @deprecated v1 follow-up engine replaced this. Use FollowUpLeadAction in
+ *             Kanvas\Intelligence\FollowUp\Actions\ — see
+ *             docs/intelligence/follow-up-deprecation-spec.md kill list.
+ */
+final class FollowUpEngagementAction
 {
     protected ?FollowUp $followUp = null;
     protected ?FollowUpLog $log = null;
@@ -40,7 +45,13 @@ class FollowUpEngagementAction
         bool $isV2 = false,
     ) {
         $this->log = $log;
-        $followUpKey = new LeadConfigurationService($isV2)->getFollowUpModeKey($lead);
+        $configService = new LeadConfigurationService($isV2);
+
+        if ($configService->isV2Enabled($lead->company) && ! $lead->isAiFollowUpEnabled()) {
+            throw new FollowUpException('ai_follow_up is not enabled for this lead (v2 mode)');
+        }
+
+        $followUpKey = $configService->getFollowUpModeKey($lead);
         $followUpValue = $lead->get($followUpKey);
 
         if ($followUpValue == FollowUpValueEnum::OFF()->value) {
@@ -97,7 +108,9 @@ class FollowUpEngagementAction
         $processedChannels = [];
         foreach ($sessions as $session) {
             $messageTemplateChannel = $session->getChannel();
-
+            if (! $messageTemplateChannel) {
+                continue;
+            }
             // Skip if this channel has already been processed
             if (in_array($messageTemplateChannel, $processedChannels)) {
                 continue;

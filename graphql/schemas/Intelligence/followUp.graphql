@@ -1,0 +1,267 @@
+type FollowUp {
+    id: ID!
+    pipeline: LeadPipeline! @belongsTo(relation: "pipeline")
+    days: [FollowUpDay!]! @hasMany(relation: "days")
+    name: String!
+    follow_up_type: Int!
+    config: Mixed
+    is_deleted: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type FollowUpDay {
+    id: ID!
+    followUp: FollowUp! @belongsTo(relation: "followUp")
+    pipelineStage: LeadPipelineStage! @belongsTo(relation: "pipelineStage")
+    templates: [FollowUpTemplate!]! @hasMany(relation: "templates")
+    name: String!
+    time_value: Int!
+    time_unit: String
+    weight: Int!
+    calendar_day: Boolean!
+    move_to_stage_id: Int
+    send_message: Boolean!
+    is_deleted: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type FollowUpTemplate {
+    id: ID!
+    followUpDay: FollowUpDay! @belongsTo(relation: "followUpDay")
+    communication_channel: String!
+    name: String!
+    template: String!
+    is_deleted: Boolean!
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+input FollowUpInput {
+    pipeline_id: ID!
+    name: String!
+    follow_up_type: Int!
+    config: Mixed
+}
+
+input UpdateFollowUpInput {
+    pipeline_id: ID
+    name: String
+    follow_up_type: Int
+    config: Mixed
+}
+
+input FollowUpDayInput {
+    follow_up_id: ID!
+    pipeline_stage_id: ID!
+    name: String!
+    time_value: Int!
+    time_unit: String
+    weight: Int!
+    calendar_day: Boolean
+    move_to_stage_id: Int
+    send_message: Boolean
+}
+
+input UpdateFollowUpDayInput {
+    pipeline_stage_id: ID
+    name: String
+    time_value: Int
+    time_unit: String
+    weight: Int
+    calendar_day: Boolean
+    move_to_stage_id: Int
+    send_message: Boolean
+}
+
+input FollowUpTemplateInput {
+    follow_up_day_id: ID!
+    communication_channel: String!
+    name: String!
+    template: String!
+}
+
+input UpdateFollowUpTemplateInput {
+    communication_channel: String
+    name: String
+    template: String
+}
+
+"Discrete outcome kinds for a followUpLead trigger. Mirrors FollowUpOutcomeKindEnum."
+enum FollowUpLeadOutcomeKind {
+    SENT @enum(value: "sent")
+    SKIPPED @enum(value: "skipped")
+    EXHAUSTED @enum(value: "exhausted")
+    COMPLETED @enum(value: "completed")
+    ERROR @enum(value: "error")
+}
+
+"Outcome of a manual followUpLead trigger. Mirrors the FollowUpOutcome DTO."
+type FollowUpLeadOutcome {
+    kind: FollowUpLeadOutcomeKind!
+    reason: String
+    message: String
+}
+
+extend type Mutation @guard {
+    createFollowUp(input: FollowUpInput!): FollowUp!
+        @deprecated(
+            reason: "Replaced by stage.config.follow_up — see docs/intelligence/follow-up-v1-spec.md."
+        )
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpMutation@create"
+        )
+    updateFollowUp(id: ID!, input: UpdateFollowUpInput!): FollowUp!
+        @deprecated(
+            reason: "Replaced by stage.config.follow_up — see docs/intelligence/follow-up-v1-spec.md."
+        )
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpMutation@update"
+        )
+    deleteFollowUp(id: ID!): Boolean!
+        @deprecated(
+            reason: "Replaced by stage.config.follow_up — see docs/intelligence/follow-up-v1-spec.md."
+        )
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpMutation@delete"
+        )
+
+    createFollowUpDay(input: FollowUpDayInput!): FollowUpDay!
+        @deprecated(
+            reason: "Replaced by stage.config.follow_up.time_based — see docs/intelligence/follow-up-v1-spec.md."
+        )
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpDayMutation@create"
+        )
+    updateFollowUpDay(id: ID!, input: UpdateFollowUpDayInput!): FollowUpDay!
+        @deprecated(
+            reason: "Replaced by stage.config.follow_up.time_based — see docs/intelligence/follow-up-v1-spec.md."
+        )
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpDayMutation@update"
+        )
+    deleteFollowUpDay(id: ID!): Boolean!
+        @deprecated(
+            reason: "Replaced by stage.config.follow_up.time_based — see docs/intelligence/follow-up-v1-spec.md."
+        )
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpDayMutation@delete"
+        )
+
+    createFollowUpTemplate(input: FollowUpTemplateInput!): FollowUpTemplate!
+        @deprecated(
+            reason: "Replaced by Templates row referenced from stage.config.follow_up.channels[].template_name — see docs/intelligence/follow-up-v1-spec.md."
+        )
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpTemplateMutation@create"
+        )
+    updateFollowUpTemplate(
+        id: ID!
+        input: UpdateFollowUpTemplateInput!
+    ): FollowUpTemplate!
+        @deprecated(
+            reason: "Replaced by Templates row referenced from stage.config.follow_up.channels[].template_name — see docs/intelligence/follow-up-v1-spec.md."
+        )
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpTemplateMutation@update"
+        )
+    deleteFollowUpTemplate(id: ID!): Boolean!
+        @deprecated(
+            reason: "Replaced by Templates row referenced from stage.config.follow_up.channels[].template_name — see docs/intelligence/follow-up-v1-spec.md."
+        )
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpTemplateMutation@delete"
+        )
+}
+
+# Manual trigger for the v1 follow-up engine. Bypasses the 'too_soon' silence
+# gate (force=true) but honors all other gates. Runs INLINE in the GraphQL
+# request — does not enqueue. See docs/intelligence/follow-up-v1-spec.md.
+extend type Mutation @guardByAdmin {
+    """
+    Trigger an immediate follow-up for the given lead. Returns the outcome
+    of the run so callers can render success/skipped/exhausted/completed.
+    """
+    followUpLead(leadId: ID!): FollowUpLeadOutcome!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpLeadMutation@execute"
+        )
+
+    """
+    Full reset of the lead's follow_up_state custom field. Clears count,
+    channels_used, last_at, last_template, exhausted_at, exhausted_reason —
+    and resets stage_entered_at = now. Use when a lead is stuck after a
+    bug or for operator-driven recovery.
+    """
+    resetLeadFollowUp(leadId: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpLeadMutation@reset"
+        )
+
+    """
+    Surgical reset: clears exhausted_at/reason + count + last_at, preserves
+    other state keys (like stage_entered_at). Mirrors the inbound-reply
+    re-engagement hook — use for "treat as if customer just replied".
+    """
+    resumeLeadFollowUp(leadId: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\FollowUp\\FollowUpLeadMutation@resume"
+        )
+}
+
+extend type Query @guard {
+    followUps(
+        where: _
+            @whereConditions(
+                columns: ["id", "name", "follow_up_type", "pipelines_id"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [FollowUp!]!
+        @deprecated(
+            reason: "Replaced by stage.config.follow_up — see docs/intelligence/follow-up-v1-spec.md."
+        )
+        @paginate(
+            model: "Kanvas\\Intelligence\\FollowUp\\Models\\FollowUp"
+            scopes: ["fromCompany", "fromApp", "notDeleted"]
+            defaultCount: 25
+        )
+
+    followUpDays(
+        where: _
+            @whereConditions(
+                columns: ["id", "name", "follow_ups_id", "pipeline_stages_id"]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "weight"])
+    ): [FollowUpDay!]!
+        @deprecated(
+            reason: "Replaced by stage.config.follow_up.time_based — see docs/intelligence/follow-up-v1-spec.md."
+        )
+        @paginate(
+            model: "Kanvas\\Intelligence\\FollowUp\\Models\\FollowUpDay"
+            scopes: ["notDeleted"]
+            defaultCount: 25
+        )
+
+    followUpTemplates(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "follow_up_days_id"
+                    "communication_channel"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at"])
+    ): [FollowUpTemplate!]!
+        @deprecated(
+            reason: "Replaced by Templates row referenced from stage.config.follow_up.channels[].template_name — see docs/intelligence/follow-up-v1-spec.md."
+        )
+        @paginate(
+            model: "Kanvas\\Intelligence\\FollowUp\\Models\\FollowUpTemplate"
+            scopes: ["notDeleted"]
+            defaultCount: 25
+        )
+}

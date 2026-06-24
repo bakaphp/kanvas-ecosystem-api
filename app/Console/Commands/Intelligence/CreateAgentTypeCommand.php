@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Intelligence;
 
 use Baka\Support\Str;
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -23,6 +24,8 @@ use function Laravel\Prompts\multiselect;
 
 class CreateAgentTypeCommand extends Command
 {
+    use KanvasJobsTrait;
+
     protected $signature = 'agent-type:create';
 
     protected $description = 'Wizard to create a new agent type (and optionally an agent record)';
@@ -41,8 +44,10 @@ class CreateAgentTypeCommand extends Command
             $appsId = (int) $this->ask('App ID', 1);
 
             try {
+                /** @var Apps $app */
                 $app = Apps::getById($appsId);
                 $this->line("App: <fg=green>{$app->name}</>");
+                $this->overwriteAppService($app);
             } catch (Throwable) {
                 $this->error("App with ID {$appsId} not found.");
 
@@ -124,7 +129,9 @@ class CreateAgentTypeCommand extends Command
             $agentAppId = (int) $this->ask('App ID for the agent');
 
             try {
+                /** @var Apps $app */
                 $app = Apps::getById($agentAppId);
+                $this->overwriteAppService($app);
             } catch (Throwable) {
                 $this->error("App with ID {$agentAppId} not found.");
 
@@ -238,23 +245,25 @@ class CreateAgentTypeCommand extends Command
         $this->newLine();
         $this->info('=== Assign Tools ===');
 
-        $resolvedApp = $app ?? app(Apps::class);
+        $query = Tool::query()->active()->forFramework($provider)->orderBy('id');
 
-        $tools = Tool::query()
-            ->forApp($resolvedApp->getId())
-            ->active()
-            ->forFramework($provider)
-            ->orderBy('id')
-            ->get();
+        if ($agentType->apps_id === 0) {
+            $query->where('apps_id', 0);
+        } else {
+            $resolvedApp = $app ?? app(Apps::class);
+            $query->fromApp($resolvedApp);
+        }
+
+        $tools = $query->get();
 
         if ($tools->isEmpty()) {
-            $this->warn("No active {$provider} tools found for this app (or global). Create tools first with nervous-system:tool-setup.");
+            $this->warn("No active {$provider} tools found for this app. Create tools first with nervous-system:tool-setup.");
 
             return;
         }
 
         $options = $tools->mapWithKeys(fn (Tool $t) => [
-            $t->getId() => "[{$t->getId()}] {$t->name} ({$t->tool_type})" . ($t->apps_id === 0 ? ' [global]' : ''),
+            $t->getId() => "[{$t->getId()}] {$t->name} ({$t->tool_type})",
         ])->all();
 
         $selected = multiselect(

@@ -10,9 +10,11 @@ use Kanvas\Connectors\Elead\Actions\SyncPeopleAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Support\EleadDebounce;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class PushPeopleActivity extends KanvasActivity
 {
     public $tries = 3;

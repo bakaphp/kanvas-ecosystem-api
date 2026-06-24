@@ -10,9 +10,9 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Apollo\Actions\EnrichPeopleFromApolloAction;
 use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class SyncAllPeopleInCompanyCommand extends Command
 {
@@ -22,14 +22,14 @@ class SyncAllPeopleInCompanyCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:guild-apollo-people-sync {app_id} {company_id} {total=150} {perPage=50}';
+    protected $signature = 'kanvas:guild-apollo-people-sync {app_id} {company_id} {total=150} {perPage=50} {--order=desc : Sort people by id (asc|desc)}';
 
     /**
      * The console command description.
      *
      * @var string|null
      */
-    protected $description = 'Download all leads from Zoho to this branch';
+    protected $description = 'Enrich all people in a company directly from Apollo (no workflow/integration setup required)';
 
     /**
      * Execute the console command.
@@ -42,6 +42,8 @@ class SyncAllPeopleInCompanyCommand extends Command
         $total = (int) $this->argument('total');
         $this->overwriteAppService($app);
         $company = Companies::getById((int) $this->argument('company_id'));
+
+        $order = strtolower((string) $this->option('order')) === 'asc' ? 'ASC' : 'DESC';
 
         $hourlyRateLimit = 400;
         $dailyRateLimit = 2000;
@@ -68,14 +70,14 @@ class SyncAllPeopleInCompanyCommand extends Command
         $currentHourlyCount = Cache::get($hourlyCacheKey, 0);
         $currentDailyCount = Cache::get($dailyCacheKey, 0);
 
-        $this->line("Syncing people for company {$company->name} from app {$app->name}, total {$total}, per page {$perPage}");
+        $this->line("Syncing people for company {$company->name} from app {$app->name}, total {$total}, per page {$perPage}, order {$order}");
 
         People::fromApp($app)
             ->fromCompany($company)
             ->notDeleted(0)
-            ->orderBy('peoples.id', 'DESC')
+            ->orderBy('peoples.id', $order)
             ->limit($total)
-            ->chunk($perPage, function ($peoples) use (&$currentHourlyCount, &$currentDailyCount, $hourlyRateLimit, $dailyRateLimit, $hourlyCacheKey, $dailyCacheKey, $resetHourlyKey, $resetDailyKey, $hourlyTimeWindow, $dailyTimeWindow) {
+            ->chunk($perPage, function ($peoples) use ($app, &$currentHourlyCount, &$currentDailyCount, $hourlyRateLimit, $dailyRateLimit, $hourlyCacheKey, $dailyCacheKey, $resetHourlyKey, $resetDailyKey, $hourlyTimeWindow, $dailyTimeWindow) {
                 foreach ($peoples as $people) {
                     $hasCustomField = $people->get(ConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value);
                     if ($hasCustomField) {
@@ -100,11 +102,12 @@ class SyncAllPeopleInCompanyCommand extends Command
 
                     $this->line("Syncing people {$people->id}: {$people->firstname} {$people->lastname}");
 
-                    $people->fireWorkflow(
-                        WorkflowEnum::UPDATED->value,
-                        true,
-                        ['app' => $people->app]
-                    );
+                    // Enrich directly (same path as kanvas:guild-apollo-enrich-person) instead of
+                    // firing the UPDATED workflow — the workflow route goes through executeIntegration
+                    // which silently no-ops unless the company has the Apollo integration + a region
+                    // configured. This backfill runs without any of that setup.
+                    $result = new EnrichPeopleFromApolloAction($people, $app)->execute();
+                    $this->line("  [{$result['status']}] {$result['message']}");
 
                     $currentHourlyCount++;
                     $currentDailyCount++;

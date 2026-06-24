@@ -7,6 +7,8 @@ namespace Tests\Intelligence\NervousSystem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
+use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentData;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\NervousSystem\Capability\Actions\AttachToolToAgentTypeAction;
@@ -160,6 +162,105 @@ class AgentToolSelectionTest extends TestCase
 
         $this->assertContains($toolA->id, $ids);
         $this->assertContains($toolB->id, $ids);
+    }
+
+    public function testCreateAgentInheritsToolsFromAgentType(): void
+    {
+        $type = $this->makeAgentType('laravel');
+        $toolA = $this->makeTool(['laravel']);
+        $toolB = $this->makeTool(['laravel']);
+
+        new AttachToolToAgentTypeAction($toolA, $type)->execute();
+        new AttachToolToAgentTypeAction($toolB, $type)->execute();
+
+        $agent = new CreateAgentAction($this->makeAgentData($type))->execute();
+
+        $toolIds = $agent->selectedTools()->pluck('id')->all();
+
+        $this->assertContains($toolA->id, $toolIds);
+        $this->assertContains($toolB->id, $toolIds);
+    }
+
+    public function testCreateAgentWithToollessTypeSelectsNoTools(): void
+    {
+        $type = $this->makeAgentType('laravel');
+
+        $agent = new CreateAgentAction($this->makeAgentData($type))->execute();
+
+        $this->assertCount(0, $agent->selectedTools()->get());
+    }
+
+    public function testCreateAgentWithExplicitToolsSkipsTypeInheritance(): void
+    {
+        $type = $this->makeAgentType('laravel');
+        $typeTool = $this->makeTool(['laravel']);
+        new AttachToolToAgentTypeAction($typeTool, $type)->execute();
+
+        $explicitTool = $this->makeTool(['laravel']);
+
+        $agent = new CreateAgentAction(
+            $this->makeAgentData($type, [$explicitTool]),
+        )->execute();
+
+        $toolIds = $agent->selectedTools()->pluck('id')->all();
+
+        $this->assertContains($explicitTool->id, $toolIds);
+        $this->assertNotContains($typeTool->id, $toolIds, 'Explicit tools must win over type inheritance');
+    }
+
+    public function testCreateAgentWithEmptyToolsInheritsFromType(): void
+    {
+        $type = $this->makeAgentType('laravel');
+        $typeTool = $this->makeTool(['laravel']);
+        new AttachToolToAgentTypeAction($typeTool, $type)->execute();
+
+        $agent = new CreateAgentAction(
+            $this->makeAgentData($type, []),
+        )->execute();
+
+        $toolIds = $agent->selectedTools()->pluck('id')->all();
+        $this->assertContains(
+            $typeTool->id,
+            $toolIds,
+            'Empty tool_ids on create falls back to the agent type tools (the form sends [] when none picked)',
+        );
+    }
+
+    public function testCreateAgentDoesNotOverrideExistingSelectionOnReCreate(): void
+    {
+        $type = $this->makeAgentType('laravel');
+        $typeTool = $this->makeTool(['laravel']);
+        new AttachToolToAgentTypeAction($typeTool, $type)->execute();
+
+        $dto = $this->makeAgentData($type);
+        $agent = new CreateAgentAction($dto)->execute();
+
+        $explicitTool = $this->makeTool(['laravel']);
+        $agent->selectedTools()->sync([$explicitTool->getId()]);
+
+        $agentAgain = new CreateAgentAction($dto)->execute();
+
+        $this->assertSame($agent->id, $agentAgain->id);
+
+        $toolIds = $agentAgain->selectedTools()->pluck('id')->all();
+        $this->assertContains($explicitTool->id, $toolIds);
+        $this->assertNotContains($typeTool->id, $toolIds);
+    }
+
+    private function makeAgentData(AgentType $type, ?array $tools = null): AgentData
+    {
+        $user = $this->user();
+
+        return new AgentData(
+            app: $this->app(),
+            company: $user->getCurrentCompany(),
+            user: $user,
+            agentType: $type,
+            name: 'Agent-' . uniqid(),
+            role: [],
+            is_active: true,
+            tools: $tools,
+        );
     }
 
     private function app(): Apps

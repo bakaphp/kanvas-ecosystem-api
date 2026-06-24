@@ -12,14 +12,23 @@ use Tests\TestCase;
 
 final class CustomerTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Stripe integration tests are skipped in CI');
+        }
+    }
+
     public function testUserCustomerCreation()
     {
+        $stripeKey = $this->requireStripeTestKey();
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $app->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
-        $stripe = new StripeClient($app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
+        $app->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, $stripeKey);
+        $stripe = new StripeClient($stripeKey);
 
         $customer = new PushUserToStripeCustomerAction(
             $user,

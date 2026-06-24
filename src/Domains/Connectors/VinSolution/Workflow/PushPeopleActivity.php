@@ -8,9 +8,11 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\Actions\PushPeopleAction;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class PushPeopleActivity extends KanvasActivity
 {
     public $tries = 3;

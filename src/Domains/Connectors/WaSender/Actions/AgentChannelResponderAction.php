@@ -5,20 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\WaSender\Actions;
 
 use Baka\Support\Str;
-use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Actions\BaseAgentResponderAction;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
+use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
-use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Types\ADKAgent;
-use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use NeuronAI\Chat\Messages\UserMessage;
 use Override;
 
-class AgentChannelResponderAction extends BaseAgentResponderAction
+class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 {
     protected string $messageTypeVerb = 'whatsapp';
     protected string $communicationChannel = 'whatsapp';
@@ -26,105 +23,61 @@ class AgentChannelResponderAction extends BaseAgentResponderAction
     #[Override]
     public function execute(array $params = []): array
     {
-        //$messageConversation = $this->message->message['raw_data']['message']['conversation'] ?? null;
-        $messageConversation = $this->message->message['raw_data']['message']['conversation'] ??
-                       $this->message->message['raw_data']['message']['extendedTextMessage']['text'] ?? null;
+        $messageConversation = $this->message->message['raw_data']['message']['conversation']
+            ?? $this->message->message['raw_data']['message']['extendedTextMessage']['text']
+            ?? null;
 
         $channelId = Str::replace('@s.whatsapp.net', '', $this->hijackMessagePhone($this->message->message['chat_jid']));
 
-        $isImageText = (bool) ($params['process_document'] ?? false); //MessageTypeEnum::isDocumentType($this->message->messageType->verb);
+        $isImageText = (bool) ($params['process_document'] ?? false);
 
         if ($isImageText && $params['lastMessageParentDocument'] instanceof Message) {
             $lastMessage = $params['lastMessageParentDocument'];
 
             $lastMessage->fireWorkflow(WorkflowEnum::DURING_WORKFLOW->value, true, [
-                  'app' => $this->message->app,
-                  'company' => $this->message->company,
-               ]);
-            /*
-                        $downloadMessageFileAction = new DownloadMessageFileAction(
-                            $this->channel,
-                            $this->message,
-                            $this->agent,
-                        )->execute(); */
+                'app' => $this->message->app,
+                'company' => $this->message->company,
+            ]);
 
-            /*  $previousMessage = $this->channel->getPreviousMessage($this->message);
-
-             if ($previousMessage && MessageTypeEnum::isDocumentType($previousMessage->messageType->verb) && $previousMessage->id !== $this->message->id) {
-                 //$this->message->associate($previousMessage);
-                 $previousMessage = $previousMessage->parent ?? $previousMessage;
-                 $this->message->parent_id = $previousMessage->id;
-                 $this->message->disableWorkflows();
-                 $this->message->save();
-                 $this->message->enableWorkflows();
-                 $this->message->fireWorkflow(WorkflowEnum::DURING_WORKFLOW->value, true, [
-                     'app' => $this->message->app,
-                     'company' => $this->message->company,
-                 ]);
-             } */
-
-            /* if ($this->message->parent_id === null || $this->message->parent_id === 0) {
-                $this->message->fireWorkflow(WorkflowEnum::DURING_WORKFLOW->value, true, [
-                   'app' => $this->message->app,
-                   'company' => $this->message->company,
-                ]);
-            } */
-
-            $messageConversation = 'Keep record we just processed files under the parent message 
-                    .' . $lastMessage->id . ' so we can reference it to process 
-                    later and return the msg id so the I know about it';
+            $messageConversation = 'Keep record we just processed files under the parent message '
+                . $lastMessage->id . ' so we can reference it to process '
+                . 'later and return the msg id so the I know about it';
         }
 
         if ($messageConversation === null) {
             throw new ValidationException('No conversation found');
         }
 
-        //entity is a lead
-        if ($this->message->entity() === null) {
+        $entity = $this->message->entity();
+        if ($entity === null) {
             throw new ValidationException('No entity found');
         }
 
-        $currentAgent = new $this->agent->type->handler();
-        //$currentAgent = $this->agent;
+        $responseContent = new AgentChatKernel(
+            agent: $this->agent,
+            session: $this->session,
+            message: $messageConversation,
+            user: $this->message->company->getAiAgentUserOrFail(),
+            currentLead: $entity instanceof Lead ? $entity : null,
+            sourceChannel: $this->channel,
+            sourceMessage: $this->message,
+            persistConversation: false,
+        )->execute();
 
-        $currentAgent->setConfiguration(
-            $this->agent,
-            $this->message->entity()->people
-        );
-
-        $whatsAppMessageService = new MessageService(
-            $this->message->app,
-            $this->message->company
-        );
-
-        // Define the callback to send each chunk in real time
-        $onChunk = function ($text, $data) use ($whatsAppMessageService, $channelId): void {
-            $response = $this->createMessage($text, $channelId, $this->message, $this->channel);
-            if (! $response->is_locked) {
-                $whatsAppMessageService->sendTextMessage($channelId, $text);
-            }
-        };
-
-        $question = $currentAgent instanceof ADKAgent ?
-        $currentAgent->chat(
-            $this->channel,
-            $this->message,
-            $messageConversation,
-            $onChunk,
-            $this->session
-        ) : $currentAgent->chat(new UserMessage($messageConversation));
-
-        $responseContent = $question->getContent();
-
-        // Extract text from response that might be formatted with markdown code blocks
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
 
-        //if its not an ADKAgent, send the response as a text message
-        if (! ($currentAgent instanceof ADKAgent)) {
-            $responseText = $whatsAppMessageService->sendTextMessage(
-                $channelId,
-                $responseText
-            );
+        $messageResponse = $this->createMessage(
+            $responseText,
+            $channelId,
+            $this->message,
+            $this->channel
+        );
+
+        if (! $messageResponse->is_locked) {
+            new MessageService(
+                $this->message->app,
+                $this->message->company
+            )->sendTextMessage($channelId, $responseText);
         }
 
         return [

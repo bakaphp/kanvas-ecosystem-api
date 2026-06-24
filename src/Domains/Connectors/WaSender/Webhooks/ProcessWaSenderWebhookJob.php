@@ -33,6 +33,7 @@ use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
@@ -43,11 +44,13 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
+#[WorkflowAction]
 class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 {
     protected int $timeThresholdInSeconds = 8;
@@ -232,19 +235,19 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                     )
                 )->execute();
 
-                // Create the message using the action
                 $messageInput = new MessageInput(
                     app: $this->receiver->app,
                     company: $this->receiver->company,
                     user: $this->receiver->user,
                     type: $messageTypeModel,
-                    message: [
+                    message: AiChatMessagePayload::from([
                         'content' => $text !== null && $text !== '' ? $text : $messageBody,
+                        'from_me' => $isFromMe,
+                        'from_ia' => false,
                         'raw_data' => $messageData,
                         'message_id' => $messageId,
                         'chat_jid' => $chatJid,
-                        'from_me' => $isFromMe,
-                    ],
+                    ])->toArray(),
                     is_public: 1,
                     slug: $messageSlug,
                     tags: [$chatJid]
@@ -596,19 +599,21 @@ class ProcessWaSenderWebhookJob extends ProcessWebhookJob
                     ->firstOrFail();
             }
 
-            // Create new message using the action
             $messageInput = new MessageInput(
                 app: $this->receiver->app,
                 company: $this->receiver->company,
                 user: $this->receiver->user,
                 type: $messageTypeModel,
                 message: [
-                    'content' => $text,
-                    'raw_data' => $data,
-                    'message_id' => $messageId,
-                    'chat_jid' => $chatJid,
+                    ...AiChatMessagePayload::from([
+                        'content' => $text,
+                        'from_me' => true,
+                        'from_ia' => false,
+                        'raw_data' => $data,
+                        'message_id' => $messageId,
+                        'chat_jid' => $chatJid,
+                    ])->toArray(),
                     'status' => $status,
-                    'from_me' => true,
                 ],
                 is_public: 1,
                 slug: $messageSlug,

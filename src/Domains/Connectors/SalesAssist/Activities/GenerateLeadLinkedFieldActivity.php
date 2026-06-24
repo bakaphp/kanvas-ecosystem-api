@@ -8,10 +8,12 @@ use Baka\Contracts\AppInterface;
 use Exception;
 use GuzzleHttp\Client as GuzzleClient;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Spatie\Activitylog\Models\Activity;
 
+#[WorkflowAction]
 class GenerateLeadLinkedFieldActivity extends KanvasActivity
 {
     public function execute(Lead $lead, AppInterface $app, array $params): array

@@ -20,6 +20,8 @@ package.json
 /storage/framework/sessions/*
 /storage/app/*
 /storage/logs/*
+/storage/hermes-backup-agent/
+/storage/hermes-fixtures/
 package-lock.json
 .php-cs-fixer.cache
 service-account.json
@@ -40,6 +42,9 @@ app/Console/Commands/Intelligence/FirstMessageCommand.php
 ansible/inventory.gcp.yaml
 .planning
 compose.local.yml
-src/Baka/Search/
 .ai-workflow-template/
 docs/
+.claude/skills/Intelligence/
+app/Console/Commands/Inventory/SeedVehicleProductsCommand.php
+app/Console/Commands/local/
+src/Baka/Search/KanvasDatabaseEngine.php

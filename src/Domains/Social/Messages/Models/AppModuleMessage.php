@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Models;
 
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Social\Messages\Observers\AppModuleMessageObserver;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\Models\BaseModel;
+use Override;
 
 /**
  * class AppModuleMessage
@@ -22,6 +25,7 @@ use Kanvas\Social\Models\BaseModel;
  * @property string $updated_at
  * @property int $is_deleted
  */
+#[ObservedBy([AppModuleMessageObserver::class])]
 class AppModuleMessage extends BaseModel
 {
     protected $table = 'app_module_message';
@@ -33,11 +37,13 @@ class AppModuleMessage extends BaseModel
         return $this->belongsTo(MessageType::class, 'message_types_id');
     }
 
+    #[Override]
     public function app(): BelongsTo
     {
         return $this->belongsTo(Apps::class, 'apps_id');
     }
 
+    #[Override]
     public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');

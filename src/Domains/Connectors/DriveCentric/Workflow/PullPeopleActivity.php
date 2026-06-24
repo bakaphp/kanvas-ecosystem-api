@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\DriveCentric\Workflow;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\DriveCentric\Actions\PullPeopleAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class PullPeopleActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -34,7 +36,7 @@ class PullPeopleActivity extends KanvasActivity
 
                 return [
                     'message' => 'People pulled successfully',
-                    'entity' => $people->toArray()
+                    'entity' => $people->toArray(),
                 ];
             },
             company: $model->company,

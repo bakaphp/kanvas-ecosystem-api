@@ -19,8 +19,17 @@ use Tests\TestCase;
 
 final class UpdateSubscriptionTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Stripe integration tests are skipped in CI');
+        }
+    }
+
     public function testUpdateSubscription()
     {
+        $stripeKey = $this->requireStripeTestKey();
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -31,8 +40,8 @@ final class UpdateSubscriptionTest extends TestCase
             ->has(Contact::factory()->count(1), 'contacts')
             ->create();
 
-        $app->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
-        $stripe = new StripeClient($app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
+        $app->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, $stripeKey);
+        $stripe = new StripeClient($stripeKey);
         $customer = $stripe->customers->create([
             'email' => $people->getEmails()[0]->value,
             'name' => $people->getName(),
@@ -56,11 +65,24 @@ final class UpdateSubscriptionTest extends TestCase
             ['invoice_settings' => ['default_payment_method' => $paymentMethod->id]]
         );
 
-        $prices = $stripe->prices->all();
+        // Create a dedicated active product + price for this test. Using
+        // $stripe->prices->all()->data[0] is flaky because the Stripe sandbox
+        // accumulates archived products from prior runs (delete-plan tests
+        // archive their products), and Stripe rejects subscription creation
+        // against any price whose product is inactive.
+        $product = $stripe->products->create([
+            'name' => 'Test product ' . uniqid('upd-sub-', true),
+        ]);
+        $price = $stripe->prices->create([
+            'product' => $product->id,
+            'unit_amount' => 1000,
+            'currency' => 'usd',
+            'recurring' => ['interval' => 'month'],
+        ]);
         $stripe->subscriptions->create([
             'customer' => $customer->id,
             'items' => [
-                ['price' => $prices->data[0]->id],
+                ['price' => $price->id],
             ],
         ]);
         $payload = [

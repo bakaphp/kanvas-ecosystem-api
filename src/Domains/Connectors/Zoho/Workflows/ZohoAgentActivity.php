@@ -16,11 +16,13 @@ use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\LeadRotation;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     //public $tries = 10;
@@ -112,10 +114,11 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
                     'zohoId' => $zohoId,
                     'users_id' => $user->getId(),
                     'companies_id' => $company->getId(),
-                    'newAgentRecord' => $newAgentRecord ? [
+                    'newAgentRecord' => is_array($newAgentRecord) ? [
                         'agent' => $newAgentRecord['agent']?->toArray(),
                         'member_id' => $newAgentRecord['member_id'] ?? null,
                         'zohoAgent' => $newAgentRecord['zohoAgent']?->getData(),
+                        'zohoAgentRequest' => $newAgentRecord['zohoAgentRequest'] ?? null,
                         'agentOwner' => $newAgentRecord['agentOwner']?->toArray(),
                     ] : [],
                     'agentUpdateData' => $agentUpdateData ?? [],
@@ -185,6 +188,7 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
                 $ownerMemberNumber = $agentOwner->member_id;
                 $ownerId = $agentOwner->users_linked_source_id;
             } catch (Exception $e) {
+                report($e);
             }
         }
 
@@ -195,6 +199,7 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
                 $ownerId = $agentOwner->owner_linked_source_id;
                 $ownerInfo = $zohoService->getAgentByMemberNumber((string) $agentOwner->member_id);
             } catch (Exception $e) {
+                report($e);
             }
         }
 
@@ -225,6 +230,7 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
 
         //create in zoho
         $zohoAgent = $zohoService->createAgent($user, $agent, $ownerInfo);
+        $zohoAgentRequest = $zohoService->getLastCreateAgentRequest();
 
         $agent->users_linked_source_id = $zohoAgent->id;
         $agent->saveOrFail();
@@ -233,6 +239,7 @@ class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterf
             'agent' => $agent,
             'member_id' => $agent->member_id,
             'zohoAgent' => $zohoAgent,
+            'zohoAgentRequest' => $zohoAgentRequest,
             'agentOwner' => $ownerInfo,
         ];
     }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Jobs;
 
-use Exception;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Carbon;
 use Kanvas\Event\Events\Models\ScheduleException;
@@ -20,6 +19,23 @@ class GenerateTimeSlots implements ShouldQueue
         public Carbon $windowFrom,
         public Carbon $windowTo,
     ) {
+    }
+
+    /**
+     * Resolve the [from, to] generation window for a rule: never backfill the past, and bound
+     * the upper end by end_at when set (otherwise a year out). Shared by both schedule mutations
+     * so they behave identically.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    public static function resolveWindow(?Carbon $startAt, ?Carbon $endAt): array
+    {
+        $now = Carbon::now();
+
+        $windowFrom = $startAt && $startAt->greaterThan($now) ? $startAt->clone() : $now;
+        $windowTo = $endAt?->clone() ?? $now->clone()->addYear();
+
+        return [$windowFrom, $windowTo];
     }
 
     public function handle()
@@ -63,32 +79,41 @@ class GenerateTimeSlots implements ShouldQueue
     ): void {
         $base = Carbon::instance($dayOccurrence)->setTimezone($tz);
 
-        // Use the TIME part of DTSTART as the daily open window; FREQ=MINUTELY with a
-        // date-only DTSTART would otherwise start at midnight and fill the whole day.
+        // Use the TIME part of DTSTART as the daily open window; a date-only DTSTART would
+        // otherwise start at midnight and fill the whole day.
         preg_match('/DTSTART[^:]*:(\d{8})T(\d{2})(\d{2})(\d{2})/', $rule->day_rrule, $dsm);
         $dayStart = $dsm
             ? $base->copy()->setTime((int) $dsm[2], (int) $dsm[3], (int) $dsm[4])
             : $base->copy()->startOfDay();
 
         // Use the TIME part of UNTIL as the daily close; without this the window runs
-        // to end-of-day because UNTIL is a series terminator, not a per-day boundary.
+        // to end-of-day and BYHOUR (if any) bounds it instead.
         preg_match('/UNTIL=(\d{8})T(\d{2})(\d{2})(\d{2})Z?/', $rule->day_rrule, $um);
         $dayEnd = $um
             ? $base->copy()->setTime((int) $um[2], (int) $um[3], (int) $um[4])
             : $base->copy()->endOfDay();
 
-        try {
-            $dayRRule = RRule::createFromRfcString($rule->day_rrule, $dayStart);
-            $slotOccurrences = $dayRRule->getOccurrencesBetween($dayStart, $dayEnd);
+        // Slot cadence comes from INTERVAL, falling back to the slot length.
+        preg_match('/INTERVAL=(\d+)/', $rule->day_rrule, $im);
+        $stepMinutes = isset($im[1]) ? max(1, (int) $im[1]) : max(1, $rule->slot_duration_min);
 
-            foreach ($slotOccurrences as $slotStart) {
-                $localStart = Carbon::instance($slotStart)->setTimezone($tz);
-                $localEnd = $localStart->copy()->addMinutes($rule->slot_duration_min);
+        // Optional hour allow-list used to carve gaps (e.g. lunch) out of a day. We step the
+        // window directly instead of expanding the RRULE: php-rrule's BYHOUR handling truncates
+        // any sub-daily series mid-day in this version, silently dropping all afternoon slots.
+        $allowedHours = null;
+        if (preg_match('/BYHOUR=([\d,]+)/', $rule->day_rrule, $hm)) {
+            $allowedHours = array_map('intval', explode(',', $hm[1]));
+        }
 
-                $this->createTimeSlot($rule, $resource, $localStart, $localEnd, $tz);
+        for ($cursor = $dayStart->copy(); $cursor->lt($dayEnd); $cursor->addMinutes($stepMinutes)) {
+            if ($allowedHours !== null && ! in_array((int) $cursor->format('G'), $allowedHours, true)) {
+                continue;
             }
-        } catch (Exception $e) {
-            return;
+
+            $localStart = $cursor->copy();
+            $localEnd = $localStart->copy()->addMinutes($rule->slot_duration_min);
+
+            $this->createTimeSlot($rule, $resource, $localStart, $localEnd, $tz);
         }
     }
 
@@ -119,6 +144,7 @@ class GenerateTimeSlots implements ShouldQueue
           'apps_id'             => $rule->apps_id,
           'companies_id'        => $rule->companies_id,
           'end_at'              => $localEnd->clone()->setTimezone('UTC'),
+          'capacity'            => $capacity,
           'initial_capacity'    => $capacity,
           'price_snapshot'      => $price,
           'currency'            => 'USD',

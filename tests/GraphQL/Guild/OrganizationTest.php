@@ -6,7 +6,9 @@ namespace Tests\GraphQL\Guild;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Models\OrganizationType;
 use Tests\TestCase;
 
 class OrganizationTest extends TestCase
@@ -299,5 +301,259 @@ class OrganizationTest extends TestCase
                     'restoreOrganization' => true,
                 ],
             ]);
+    }
+
+    protected function createOrganizationTypeAndGetId(): string
+    {
+        $response = $this->graphQL('
+            mutation($input: OrganizationTypeInput!) {
+                createOrganizationType(input: $input) {
+                    id
+                    name
+                    slug
+                    is_active
+                }
+            }
+        ', [
+            'input' => [
+                'name' => fake()->word() . '-' . fake()->numberBetween(1, 9999),
+                'description' => fake()->sentence(),
+                'is_active' => true,
+                'is_default' => false,
+            ],
+        ]);
+
+        $response->assertSuccessful();
+
+        return $response->json('data.createOrganizationType.id');
+    }
+
+    public function testCreateOrganizationType(): void
+    {
+        $name = fake()->word() . '-' . fake()->numberBetween(1, 9999);
+
+        $this->graphQL('
+            mutation($input: OrganizationTypeInput!) {
+                createOrganizationType(input: $input) {
+                    id
+                    name
+                    slug
+                    is_active
+                    is_default
+                }
+            }
+        ', [
+            'input' => [
+                'name' => $name,
+                'description' => fake()->sentence(),
+                'is_active' => true,
+                'is_default' => false,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJsonPath('data.createOrganizationType.name', $name)
+        ->assertJsonPath('data.createOrganizationType.is_active', true);
+    }
+
+    public function testUpdateOrganizationType(): void
+    {
+        $id = $this->createOrganizationTypeAndGetId();
+        $newName = fake()->word() . '-updated-' . fake()->numberBetween(1, 9999);
+
+        $this->graphQL('
+            mutation($id: ID!, $input: UpdateOrganizationTypeInput!) {
+                updateOrganizationType(id: $id, input: $input) {
+                    id
+                    name
+                    is_active
+                }
+            }
+        ', [
+            'id' => $id,
+            'input' => [
+                'name' => $newName,
+                'is_active' => false,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJsonPath('data.updateOrganizationType.id', $id)
+        ->assertJsonPath('data.updateOrganizationType.name', $newName)
+        ->assertJsonPath('data.updateOrganizationType.is_active', false);
+    }
+
+    public function testDeleteOrganizationType(): void
+    {
+        $id = $this->createOrganizationTypeAndGetId();
+
+        $this->graphQL('
+            mutation($id: ID!) {
+                deleteOrganizationType(id: $id)
+            }
+        ', ['id' => $id])
+        ->assertSuccessful()
+        ->assertJson(['data' => ['deleteOrganizationType' => true]]);
+
+        $this->assertSame(1, OrganizationType::find((int) $id)->is_deleted);
+    }
+
+    public function testListOrganizationTypes(): void
+    {
+        $this->createOrganizationTypeAndGetId();
+
+        $this->graphQL('
+            query {
+                organizationTypes {
+                    data {
+                        id
+                        name
+                        slug
+                        is_active
+                    }
+                }
+            }
+        ')
+        ->assertSuccessful()
+        ->assertJsonStructure([
+            'data' => [
+                'organizationTypes' => [
+                    'data' => [['id', 'name', 'slug', 'is_active']],
+                ],
+            ],
+        ]);
+    }
+
+    public function testCreateOrganizationWithType(): void
+    {
+        $typeId = $this->createOrganizationTypeAndGetId();
+        $name = fake()->company();
+
+        $this->graphQL('
+            mutation($input: OrganizationInput!) {
+                createOrganization(input: $input) {
+                    id
+                    name
+                    organization_type {
+                        id
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'name' => $name,
+                'organization_type_id' => $typeId,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJsonPath('data.createOrganization.name', $name)
+        ->assertJsonPath('data.createOrganization.organization_type.id', $typeId);
+    }
+
+    public function testUpdateOrganizationAssignsType(): void
+    {
+        $response = $this->createOrganizationAndGetResponse();
+        $organizationId = $response['data']['createOrganization']['id'];
+        $typeId = $this->createOrganizationTypeAndGetId();
+
+        $this->graphQL('
+            mutation($id: ID!, $input: OrganizationInput!) {
+                updateOrganization(id: $id, input: $input) {
+                    id
+                    organization_type {
+                        id
+                    }
+                }
+            }
+        ', [
+            'id' => $organizationId,
+            'input' => [
+                'name' => fake()->company(),
+                'organization_type_id' => $typeId,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJsonPath('data.updateOrganization.organization_type.id', $typeId);
+    }
+
+    public function testFilterOrganizationsByType(): void
+    {
+        $typeId = $this->createOrganizationTypeAndGetId();
+        $name = fake()->company();
+
+        $this->createOrganizationAndGetResponse([
+            'name' => $name,
+            'organization_type_id' => $typeId,
+        ]);
+
+        $this->graphQL('
+            query($where: QueryOrganizationsWhereWhereConditions) {
+                organizations(where: $where) {
+                    data {
+                        id
+                        organization_type {
+                            id
+                        }
+                    }
+                }
+            }
+        ', [
+            'where' => [
+                'column' => 'ORGANIZATION_TYPE_ID',
+                'operator' => 'EQ',
+                'value' => (int) $typeId,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJsonPath('data.organizations.data.0.organization_type.id', $typeId);
+    }
+
+    public function testOrganizationLeadsRelation(): void
+    {
+        $response = $this->createOrganizationAndGetResponse();
+        $organizationId = (int) $response['data']['createOrganization']['id'];
+
+        $branch = auth()->user()->getCurrentBranch();
+
+        $leadResponse = $this->graphQL('
+            mutation($input: LeadInput!) {
+                createLead(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => [
+                'branch_id' => $branch->getId(),
+                'title' => fake()->sentence(),
+                'pipeline_stage_id' => 0,
+                'people' => [
+                    'firstname' => fake()->firstName(),
+                    'lastname' => fake()->lastName(),
+                    'contacts' => [
+                        ['value' => fake()->email(), 'contacts_types_id' => 1, 'weight' => 0],
+                    ],
+                    'address' => [],
+                ],
+                'custom_fields' => [],
+            ],
+        ]);
+
+        $leadResponse->assertSuccessful();
+        $leadId = (int) $leadResponse->json('data.createLead.id');
+
+        Lead::find($leadId)->update(['organization_id' => $organizationId]);
+
+        $this->graphQL('
+            query($id: Mixed!) {
+                organizations(where: { column: ID, operator: EQ, value: $id }) {
+                    data {
+                        id
+                        leads {
+                            data { id }
+                        }
+                    }
+                }
+            }
+        ', ['id' => $organizationId])
+        ->assertSuccessful()
+        ->assertJsonPath('data.organizations.data.0.leads.data.0.id', (string) $leadId);
     }
 }

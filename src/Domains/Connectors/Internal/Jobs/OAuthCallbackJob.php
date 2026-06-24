@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Internal\Jobs;
 
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
+#[WorkflowAction]
 class OAuthCallbackJob extends ProcessWebhookJob
 {
     #[Override]

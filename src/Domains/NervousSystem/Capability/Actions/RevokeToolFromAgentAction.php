@@ -19,6 +19,13 @@ class RevokeToolFromAgentAction
     public function execute(): AgentTool
     {
         return DB::connection('intelligence')->transaction(function (): AgentTool {
+            // Sibling cleanup: the (agent_id, tool_id, is_deleted) unique key would otherwise reject this flip if a soft-deleted ghost exists.
+            AgentTool::withTrashed()
+                ->where('agent_id', $this->grant->agent_id)
+                ->where('tool_id', $this->grant->tool_id)
+                ->where('id', '!=', $this->grant->getKey())
+                ->forceDelete();
+
             $this->grant->is_active = false;
             $this->grant->is_deleted = true;
             $this->grant->saveOrFail();

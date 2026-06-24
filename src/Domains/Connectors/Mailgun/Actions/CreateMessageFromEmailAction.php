@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mailgun\Actions;
 
-use Baka\Support\Str;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
+use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
@@ -52,18 +52,21 @@ class CreateMessageFromEmailAction
             company: $this->webhookRequest->receiverWebhook->company,
             user: $user,
             type: $messageTypeModel,
+            // DTO supplies the canonical baseline; from_email/subject are Mailgun-specific
+            // and ride alongside via array spread rather than polluting the shared DTO.
             message: [
+                ...AiChatMessagePayload::from([
                     'content' => $text,
+                    'from_me' => false,
+                    'from_ia' => false,
                     'raw_data' => $text,
                     'message_id' => '--',
                     'chat_jid' => SessionChannelService::createChannelSlug('email', $from),
-                    'from_email' => $from,
-                    'subject' => $this->webhookRequest->payload['subject'] ?? null,
-                    'from_me' => false,
+                ])->toArray(),
+                'from_email' => $from,
+                'subject' => $this->webhookRequest->payload['subject'] ?? null,
             ],
             is_public: 1,
-            //tags: [$to],
-            //slug: Str::slug($text) . '-' . microtime()
         );
 
         if ($this->lead !== null) {
@@ -80,7 +83,8 @@ class CreateMessageFromEmailAction
                           $this->lead->email
                       ),
                   ]);
-            $channel = (new CreateChannelAction($channel))->execute();
+
+            $channel = new CreateChannelAction($channel)->execute();
             $leadSystemModule = SystemModulesRepository::getByModelName(get_class($this->lead), $this->lead->app);
             $newMessage = new CreateMessageAction(
                 $messageInput,
@@ -96,6 +100,11 @@ class CreateMessageFromEmailAction
         //$newMessage->addEntity($lead);
 
         if ($channel !== null) {
+            // Polymorphic People attach so People-keyed history loaders (Neuron's
+            // SalesAssistKanvasMessageHistory) find this turn. Harmless for ADK.
+            if ($this->lead?->people !== null) {
+                $newMessage->addEntity($this->lead->people);
+            }
             $channel->addMessage($newMessage);
             $newMessage->addTag('engagement');
 

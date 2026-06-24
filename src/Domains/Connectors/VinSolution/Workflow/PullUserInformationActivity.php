@@ -9,8 +9,10 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\VinSolution\Dealers\Dealer;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class PullUserInformationActivity extends KanvasActivity
 {
     public $tries = 3;

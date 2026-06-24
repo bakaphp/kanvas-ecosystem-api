@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\Microsoft\Actions;
 
 use Kanvas\Connectors\Microsoft\Client as MicrosoftClient;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Actions\BaseAgentResponderAction;
+use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Social\Messages\Models\Message;
@@ -32,7 +32,7 @@ use Override;
  * @see \Kanvas\Connectors\Mailgun\Actions\AgentChannelResponderAction
  * @see \Kanvas\Connectors\Microsoft\Workflows\Activities\MicrosoftAgentChannelResponderActivity
  */
-class MicrosoftAgentChannelResponderAction extends BaseAgentResponderAction
+class MicrosoftAgentChannelResponderAction extends BaseAgentChannelReplyAction
 {
     protected string $messageTypeVerb = 'microsoft-email';
     protected string $communicationChannel = 'email';
@@ -87,7 +87,11 @@ class MicrosoftAgentChannelResponderAction extends BaseAgentResponderAction
     private function generateAgentResponse(): string
     {
         $currentAgent = new $this->agent->type->handler();
-        $currentAgent->setConfiguration($this->agent, $this->message->entity()->people);
+        $currentAgent->setConfiguration(
+            agent: $this->agent,
+            entity: $this->message->entity()->people,
+            user: $this->message->company->getAiAgentUserOrFail(),
+        );
 
         $messageConversation = $this->message->message['content'];
 

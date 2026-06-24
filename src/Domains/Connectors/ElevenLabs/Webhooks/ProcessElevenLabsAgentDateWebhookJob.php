@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\ElevenLabs\Webhooks;
 
 use Illuminate\Support\Carbon;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Override;
 
+#[WorkflowAction]
 class ProcessElevenLabsAgentDateWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]

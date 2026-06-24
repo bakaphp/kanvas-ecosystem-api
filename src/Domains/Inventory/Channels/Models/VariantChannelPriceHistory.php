@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Channels\Models;
 
+use Awobaz\Compoships\Compoships;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,8 +12,6 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
 /**
- * Class Variants Price Channel History.
- *
  * @property int $channel_id
  * @property int $products_variants_id
  * @property int $product_variants_warehouse_id
@@ -24,6 +23,7 @@ use Kanvas\Users\Models\Users;
  */
 class VariantChannelPriceHistory extends BaseModel
 {
+    use Compoships;
     use NoAppRelationshipTrait;
     use NoCompanyRelationshipTrait;
 

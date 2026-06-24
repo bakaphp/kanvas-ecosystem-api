@@ -7,6 +7,7 @@ namespace Tests\GraphQL\Subscription;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Subscription\Plans\Models\Plan;
 use Tests\TestCase;
 
@@ -21,14 +22,16 @@ final class SubscriptionPlansTest extends TestCase
         $this->company = auth()->user()->getCurrentCompany();
         $this->appModel = app(Apps::class);
 
-        if (empty($this->appModel->get(ConfigurationEnum::STRIPE_SECRET_KEY->value))) {
-            $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, getenv('TEST_STRIPE_SECRET_KEY'));
-        }
+        $this->appModel->set(ConfigurationEnum::STRIPE_SECRET_KEY->value, $this->requireStripeTestKey());
     }
 
-    /**
-     * TestCreatePlan.
-     */
+    private function appKeyHeader(): array
+    {
+        return [
+            AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $this->appModel->keys()->first()->client_secret_id,
+        ];
+    }
+
     public function testCreatePlan()
     {
         $response = $this->graphQL('
@@ -60,7 +63,7 @@ final class SubscriptionPlansTest extends TestCase
                     }
                 }
             }
-        ');
+        ', [], [], $this->appKeyHeader());
 
         $response->assertJson([
             'data' => [
@@ -86,9 +89,6 @@ final class SubscriptionPlansTest extends TestCase
         ]);
     }
 
-    /**
-     * TestUpdatePlan.
-     */
     public function testUpdatePlan()
     {
         $planId = Plan::firstOrFail()->id;
@@ -111,7 +111,7 @@ final class SubscriptionPlansTest extends TestCase
                     is_default
                 }
             }
-        ');
+        ', [], [], $this->appKeyHeader());
 
         $response->assertJson([
             'data' => [
@@ -133,28 +133,27 @@ final class SubscriptionPlansTest extends TestCase
         ]);
     }
 
-    /**
-     * TestDeletePlan.
-     */
-    public function testDeletePlan(): void
+    public function testDeletePlanWithPricesArchivesOnStripeAndSoftDeletesLocally(): void
     {
+        // Plan WITH a price — covers the production case where Stripe refuses
+        // hard-delete on products that have prices. Mutation must archive
+        // (active: false) on Stripe and soft-delete locally regardless.
         $response = $this->graphQL('
             mutation {
                 createPlan(input: {
-                    name: "Test plan to delete",
-                    description: "Plan to delete",
-                    free_trial_dates: 15,
-                    is_default: true,
-                    prices: []
+                    name: "Plan with price to delete",
+                    description: "must archive on Stripe, soft-delete locally",
+                    free_trial_dates: 0,
+                    is_default: false,
+                    prices: [
+                        { amount: 12.00, currency: "USD", interval: "month" }
+                    ]
                 }) {
                     id
-                    name
                     stripe_id
-                    free_trial_dates
-                    is_default
                 }
             }
-        ');
+        ', [], [], $this->appKeyHeader());
 
         $planId = $response->json('data.createPlan.id');
 
@@ -162,7 +161,7 @@ final class SubscriptionPlansTest extends TestCase
             mutation {
                 deletePlan(id: ' . $planId . ')
             }
-        ');
+        ', [], [], $this->appKeyHeader());
 
         $deleteResponse->assertJson([
             'data' => [
@@ -176,9 +175,6 @@ final class SubscriptionPlansTest extends TestCase
         ]);
     }
 
-    /**
-     * TestListPlans.
-     */
     public function testListPlans(): void
     {
         $response = $this->graphQL(
@@ -221,5 +217,101 @@ final class SubscriptionPlansTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    public function testArchivePlanWithIsActiveOnlyDoesNotWipeOtherFields(): void
+    {
+        $createResponse = $this->graphQL('
+            mutation {
+                createPlan(input: {
+                    name: "Plan To Archive",
+                    description: "preserve me on archive",
+                    free_trial_dates: 21,
+                    is_default: false,
+                    prices: []
+                }) {
+                    id
+                    name
+                    description
+                    free_trial_dates
+                }
+            }
+        ', [], [], $this->appKeyHeader());
+
+        $planId = $createResponse->json('data.createPlan.id');
+
+        $response = $this->graphQL('
+            mutation {
+                updatePlan(id: ' . $planId . ', input: { is_active: false }) {
+                    id
+                    name
+                    description
+                    free_trial_dates
+                    is_active
+                }
+            }
+        ', [], [], $this->appKeyHeader());
+
+        $response->assertJson([
+            'data' => [
+                'updatePlan' => [
+                    'name' => 'Plan To Archive',
+                    'description' => 'preserve me on archive',
+                    'free_trial_dates' => 21,
+                    'is_active' => false,
+                ],
+            ],
+        ]);
+    }
+
+    public function testCreatePlanWithEmptyDescriptionDoesNotPassEmptyStringToStripe(): void
+    {
+        // Sentry KANVAS-ECOSYSTEM-5P6: Stripe rejects empty-string description
+        // with "cannot be unset". GraphQL `description: String!` keeps null out,
+        // but `""` is still valid String!, so the resolver must omit it from the
+        // Stripe payload rather than forward the empty string.
+        $response = $this->graphQL('
+            mutation {
+                createPlan(input: {
+                    name: "Empty desc plan",
+                    description: "",
+                    free_trial_dates: 0,
+                    is_default: false,
+                    prices: []
+                }) {
+                    id
+                    name
+                    stripe_id
+                }
+            }
+        ', [], [], $this->appKeyHeader());
+
+        $response->assertJson([
+            'data' => [
+                'createPlan' => [
+                    'name' => 'Empty desc plan',
+                ],
+            ],
+        ]);
+        $this->assertNotEmpty($response->json('data.createPlan.stripe_id'));
+        $this->assertNull($response->json('errors'));
+    }
+
+    public function testCreatePlanRejectedWithoutAppKey(): void
+    {
+        $response = $this->graphQL('
+            mutation {
+                createPlan(input: {
+                    name: "Unauthorized plan",
+                    description: "should fail",
+                    free_trial_dates: 0,
+                    is_default: false,
+                    prices: []
+                }) { id }
+            }
+        ');
+
+        $this->assertNotEmpty($response->json('errors'));
+        $this->assertNull($response->json('data.createPlan'));
     }
 }

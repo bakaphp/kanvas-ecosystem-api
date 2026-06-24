@@ -9,9 +9,11 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Wallet\Actions\AddFundsToUserWalletAction;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
 use Kanvas\Souk\Wallet\Enums\TransactionSourceEnum;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class AddFundsToUserWalletActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -59,6 +61,7 @@ class AddFundsToUserWalletActivity extends KanvasActivity
 
                 $transaction = new AddFundsToUserWalletAction(
                     order: $order,
+                    useOrderTotal: (bool) $app->get(ConfigurationEnum::WALLET_USE_ORDER_TOTAL->value),
                     source: TransactionSourceEnum::RECHARGE_MANUAL,
                 )->execute($params['processTransactionsByWalletType'] ?? false);
 

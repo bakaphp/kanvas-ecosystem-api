@@ -141,6 +141,49 @@ final class PasoRapidoTest extends TestCase
         $this->assertInstanceOf(PaymentConfirmResponse::class, $confirmedPayment);
     }
 
+    public function testConfirmPaymentSendsValorPagadoAsIntegerOnTheWire(): void
+    {
+        // PasoRapido validates valorPagado as .NET Int32 — sending a float (e.g. 500.5)
+        // makes the API reject with "The JSON value could not be converted to System.Int32".
+        $captured = [];
+
+        $mockClient = Mockery::mock(Client::class);
+        $mockClient->shouldReceive('post')
+            ->once()
+            ->withArgs(function (string $endpoint, array $body) use (&$captured) {
+                $captured = $body;
+
+                return true;
+            })
+            ->andReturn([
+                'descripcionMensaje' => 'ok',
+                'montoAcreditado' => 500,
+                'orden' => 'ord-1',
+                'tag' => '941001',
+                'cuenta' => '1234',
+                'fechaCredito' => '2026-06-01',
+                'detallesFactura' => [],
+            ]);
+
+        $pasoRapidoService = new PasoRapidoService(
+            app: app(Apps::class),
+            company: Companies::first(),
+            config: $this->getPasoRapidoConfig(),
+            client: $mockClient,
+        );
+
+        $pasoRapidoService->confirmPayment(PaymentConfirmData::from([
+            'reference' => '941001',
+            'amount' => 500.99, // fractional on purpose — must arrive as int 501
+            'fiscalCredit' => false,
+            'bankTransaction' => 'BR0123456789AB',
+            'dni' => '13112345',
+        ]));
+
+        $this->assertIsInt($captured['valorPagado'] ?? null);
+        $this->assertSame(501, $captured['valorPagado']);
+    }
+
     public function testTokenIsCachedAndReused()
     {
         $app = app(Apps::class);

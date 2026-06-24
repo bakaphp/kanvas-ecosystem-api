@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan as PlanModel;
 use Kanvas\Users\Models\Users;
@@ -33,15 +34,15 @@ class Plan extends Data
         public readonly ?array $output = null,
         public readonly ?float $confidenceScore = null,
         public readonly bool $requiresHumanApproval = false,
+        public readonly ?AgentSwarm $swarm = null,
+        public readonly bool $isSwarmMission = false,
+        public readonly ?string $impactSummary = null,
+        public readonly ?string $statusPill = null,
         /** @var array<int, array<string, mixed>> */
         public readonly array $files = [],
     ) {
     }
 
-    /**
-     * Defaults `user` to the requesting user when no `users_id` is in the
-     * input — matches "plan owned by whoever created it" semantics.
-     */
     public static function fromMultiple(
         AppInterface $app,
         Users $requestingUser,
@@ -56,6 +57,11 @@ class Plan extends Data
         /** @var PlanModel|null $parentPlan */
         $parentPlan = isset($data['parent_plan_id'])
             ? PlanModel::getByIdFromCompanyApp((int) $data['parent_plan_id'], $company, $app)
+            : null;
+
+        /** @var AgentSwarm|null $swarm */
+        $swarm = isset($data['swarm_id'])
+            ? AgentSwarm::getByIdFromCompanyApp((int) $data['swarm_id'], $company, $app)
             : null;
 
         return new self(
@@ -78,21 +84,29 @@ class Plan extends Data
             output: $data['output'] ?? null,
             confidenceScore: isset($data['confidence_score']) ? (float) $data['confidence_score'] : null,
             requiresHumanApproval: (bool) ($data['requires_human_approval'] ?? false),
+            swarm: $swarm,
+            isSwarmMission: (bool) ($data['is_swarm_mission'] ?? false),
+            impactSummary: $data['impact_summary'] ?? null,
+            statusPill: $data['status_pill'] ?? null,
             files: (array) ($data['files'] ?? []),
         );
     }
 
-    /**
-     * Identity columns (`plan_type`, `agent`, `user`, `parent_plan`,
-     * `entity_*`) are intentionally preserved from the existing plan and
-     * not editable through update.
-     */
     public static function forUpdate(
         PlanModel $plan,
         AppInterface $app,
         CompanyInterface $company,
         array $data,
     ): self {
+        /** @var AgentSwarm|null $swarm */
+        $swarm = array_key_exists('swarm_id', $data)
+            ? ($data['swarm_id'] !== null
+                ? AgentSwarm::getByIdFromCompanyApp((int) $data['swarm_id'], $company, $app)
+                : null)
+            : ($plan->swarm_id !== null
+                ? AgentSwarm::getByIdFromCompanyApp((int) $plan->swarm_id, $company, $app)
+                : null);
+
         return new self(
             app: $app,
             company: $company,
@@ -119,6 +133,16 @@ class Plan extends Data
             requiresHumanApproval: array_key_exists('requires_human_approval', $data)
                 ? (bool) $data['requires_human_approval']
                 : (bool) $plan->requires_human_approval,
+            swarm: $swarm,
+            isSwarmMission: array_key_exists('is_swarm_mission', $data)
+                ? (bool) $data['is_swarm_mission']
+                : (bool) $plan->is_swarm_mission,
+            impactSummary: array_key_exists('impact_summary', $data)
+                ? $data['impact_summary']
+                : $plan->impact_summary,
+            statusPill: array_key_exists('status_pill', $data)
+                ? $data['status_pill']
+                : $plan->getRawOriginal('status_pill'),
             files: (array) ($data['files'] ?? []),
         );
     }

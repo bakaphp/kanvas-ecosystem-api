@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\OpenClaw\Actions;
 
 use Baka\Contracts\AppInterface;
-use Kanvas\Connectors\OpenClaw\Services\DockerComposeBuilder;
+use Kanvas\Connectors\OpenClaw\Services\DockerComposeBuilderService;
 use Kanvas\Connectors\OpenClaw\SshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
@@ -24,22 +24,23 @@ class RebuildSharedImageAction
 
     public function execute(): void
     {
+        $builder = new DockerComposeBuilderService();
         $client = SshClient::fromMachine($this->machine);
-        $imageName = DockerComposeBuilder::getSharedImageName($this->app);
-        $imageDir = DockerComposeBuilder::getSharedImageDir($this->app);
+        $imageName = $builder->getSharedImageName($this->app);
+        $imageDir = $builder->getSharedImageDir($this->app);
 
         try {
             $client->exec('sudo mkdir -p ' . escapeshellarg($imageDir));
 
             $client->writeFileAsUser(
                 $imageDir . '/Dockerfile',
-                DockerComposeBuilder::buildDockerfile($this->app),
+                $builder->buildDockerfile($this->app),
                 'root',
             );
 
             $client->writeFileAsUser(
                 $imageDir . '/entrypoint.sh',
-                DockerComposeBuilder::buildEntrypoint(),
+                $builder->buildEntrypoint(),
                 'root',
             );
             $client->exec('sudo chmod +x ' . escapeshellarg($imageDir . '/entrypoint.sh'));

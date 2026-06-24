@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
+use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
@@ -37,12 +38,9 @@ class Setup
         protected AppInterface $app,
         protected UserInterface $user,
         protected CompanyInterface $company,
-        protected array $actions
+        protected array $actions = [],
+        protected ?CompanyInterface $fromCompany = null
     ) {
-        if (empty($actions)) {
-            throw new RuntimeException('Actions array cannot be empty');
-        }
-
         $this->company = $company;
 
         // Ensure company has a default branch
@@ -70,19 +68,18 @@ class Setup
     public function run(): bool
     {
         return DB::transaction(function () {
-            // Create system modules
             $this->createSystemModules();
 
-            // Import industry actions
-            $actions = $this->importIndustryActions();
+            if ($this->fromCompany !== null) {
+                // Clone an existing company's action config into the new company
+                $this->cloneFromCompany();
+            } else {
+                // Import industry actions (passed-in templates, or built-in defaults)
+                $actions = $this->importIndustryActions();
+                $this->createCompanyActionsAndPipelines($actions);
+                $this->createMessageTypes($actions);
+            }
 
-            // Create company actions and pipelines
-            $this->createCompanyActionsAndPipelines($actions);
-
-            // Create message types for each action
-            $this->createMessageTypes($actions);
-
-            // Add dummy engagements for each company action
             $this->addDummyEngagements();
 
             return true;
@@ -294,10 +291,135 @@ class Setup
 
     /**
      * Get industry actions template.
+     *
+     * Falls back to the built-in defaults when no templates are passed in.
      */
     protected function getIndustryActionsTemplate(): array
     {
-        return $this->actions;
+        return ! empty($this->actions)
+            ? $this->actions
+            : $this->getDefaultActionsTemplate();
+    }
+
+    /**
+     * Built-in default actions used when no templates are passed and we are not
+     * cloning from another company: Share Vehicles + Get Docs.
+     */
+    protected function getDefaultActionsTemplate(): array
+    {
+        return [
+            [
+                'name' => ActionEnum::VIEW_PRODUCT->value,
+                'title' => 'Share Vehicles',
+                'description' => 'Share Vehicles',
+                'form_fields' => '',
+                'form_config' => '',
+                'enable' => true,
+            ],
+            [
+                'name' => ActionEnum::GET_DOCS->value,
+                'title' => 'Get Docs',
+                'description' => 'Get Docs',
+                'form_fields' => '{"1":{"type":"object","required":1},"2":{"type":"object","required":1},"3":{"type":"object","required":1},"4":{"type":"object","required":1},"5":{"type":"object","required":1},"6":{"type":"object","required":1},"7":{"type":"object","required":1},"8":{"type":"object","required":1},"9":{"type":"object","required":1},"10":{"type":"object","required":1}}',
+                'form_config' => '[{"id":1,"name":"Social Security Card","help_text":"A blue card with your nine-digit Social Security number that is used to accurately identify you","description":"Please upload your Social Security card"},{"id":2,"name":"Trade-in Title","help_text":"A car title is a document that formally makes you the owner of your vehicle. You receive a title whether you buy a new or used vehicle from a dealer or a private citizen. The information on a car title varies slightly according to the state in which the title is obtained, but it will always include the 17-character VIN.","description":"Please upload the title of your trade-in vehicle"},{"id":3,"name":"Drivers License","help_text":"A driver\'s license is a legal authorization, or the official document confirming such an authorization, for you to operate one or more types of motorized vehicles (such as motorcycles, cars, trucks, or buses) on a public road.","description":"Please upload your current driver\'s license"},{"id":8,"name":"Second Valid ID","help_text":"Identity documents in the United States are typically the regional state-issued driver\'s license or identity card, and the United States Passport Card may serve as national identification.","description":"Please upload a second valid ID"},{"id":4,"name":"Employment Letter","help_text":"An employment verification letter is a letter from your employer that includes your dates of employment, job title, and salary. It\'s also often called a \"letter of employment\", a \"job verification letter\", or a \"proof of employment letter\".","description":"Please upload an employment verification letter of your current employment."},{"id":5,"name":"W-2","help_text":"A W-2 tax form is used by your employer to report the salary, wage, or other compensation part the employment relationship and the taxes withheld from them.","description":"Please upload your most recent W-2"},{"id":6,"name":"Recent Pay Stubs","help_text":"Pay stubs are written pay statements that show your paycheck details for each pay period. If your receive physical paychecks, typically, the it\'s attached or included with the check. If you receive direct deposit, you may have to access it via an online portal.","description":"Please upload your last two (2) pay stubs"},{"id":7,"name":"Proof of Residence","help_text":"A proof of residence is a document confirming where you live, and must have both your full name and your address printed on it. Examples of accepted documents include; Utility bill, Credit card statement, Bank statement, Mortgage statement, Letter issued by a public authority (e.g. a courthouse), Car registration, etc.","description":"Please upload a proof of residence"},{"id":9,"name":"Bank Statements","help_text":"A bank statement is a document prepared by your financial institution each month. With a bank statement, you can see all of the income and spending activity related to your account. It details all of the transactions made with your account in a month.","description":"Please upload your last bank statement"},{"id":10,"name":"Insurance card","help_text":"An insurance card will vary by state but generally the policy number, policy effective dates, vehicles and policyholders are shown.","description":"Please upload your insurance card"},{"id":11,"name":"Total Loss","help_text":"","description":"Please upload your total loss statement"},{"id":12,"name":"Draft Check","help_text":"","description":"Please upload your draft check"},{"id":13,"name":"Proof of Pension","help_text":"","description":"Please upload your proof of pension"},{"id":14,"name":"Awards Letter","help_text":"","description":"Please upload your awards letter"},{"id":15,"name":"Trade-in Registration","help_text":"","description":"Please upload your trade-in registration"}]',
+                'enable' => true,
+            ],
+        ];
+    }
+
+    /**
+     * Copy an existing company's action config (company actions + pipelines +
+     * stages + stage messages) into the new company. Reuses the same global
+     * actions_id; only the per-company rows are recreated.
+     */
+    protected function cloneFromCompany(): void
+    {
+        /** @var CompanyInterface $fromCompany */
+        $fromCompany = $this->fromCompany;
+
+        $sourceActions = CompanyAction::query()
+            ->where('companies_id', $fromCompany->getId())
+            ->where('apps_id', $this->app->getId())
+            ->where('is_deleted', 0)
+            ->get();
+
+        foreach ($sourceActions as $source) {
+            /** @var CompanyAction $companyAction */
+            $companyAction = CompanyAction::firstOrCreate(
+                [
+                    'actions_id' => $source->actions_id,
+                    'companies_id' => $this->company->getId(),
+                    'is_deleted' => 0,
+                ],
+                [
+                    'apps_id' => $this->app->getId(),
+                    'companies_id' => $this->company->getId(),
+                    'companies_branches_id' => $this->branch->getId(),
+                    'users_id' => $this->user->getId(),
+                    'pipelines_id' => 0,
+                    'name' => $source->name,
+                    'description' => $source->description,
+                    'form_config' => $source->form_config,
+                    'is_active' => $source->is_active,
+                    'is_published' => $source->is_published,
+                ]
+            );
+
+            $sourcePipeline = $source->pipeline;
+            if ($sourcePipeline instanceof Pipeline) {
+                $pipeline = $this->clonePipeline($sourcePipeline);
+                $companyAction->pipelines_id = $pipeline->getId();
+                $companyAction->saveOrFail();
+            }
+        }
+    }
+
+    /**
+     * Clone a source pipeline (with its stages and stage messages) for the new company.
+     */
+    protected function clonePipeline(Pipeline $source): Pipeline
+    {
+        $pipeline = Pipeline::firstOrCreate(
+            [
+                'companies_id' => $this->company->getId(),
+                'apps_id' => $this->app->getId(),
+                'slug' => $source->slug,
+            ],
+            [
+                'users_id' => $this->user->getId(),
+                'name' => $source->name,
+                'weight' => $source->weight,
+            ]
+        );
+
+        foreach ($source->stages()->get() as $sourceStage) {
+            $stage = PipelineStage::firstOrCreate(
+                [
+                    'pipelines_id' => $pipeline->getId(),
+                    'slug' => $sourceStage->slug,
+                ],
+                [
+                    'name' => $sourceStage->name,
+                    'weight' => $sourceStage->weight,
+                    'has_rotting_days' => $sourceStage->has_rotting_days,
+                    'rotting_days' => $sourceStage->rotting_days,
+                ]
+            );
+
+            foreach ($sourceStage->messages()->get() as $sourceMessage) {
+                PipelineStageMessage::updateOrCreate(
+                    [
+                        'pipelines_stages_id' => $stage->getId(),
+                    ],
+                    [
+                        'message' => $sourceMessage->message,
+                        'message_notification' => $sourceMessage->message_notification,
+                    ]
+                );
+            }
+        }
+
+        return $pipeline;
     }
 
     /**

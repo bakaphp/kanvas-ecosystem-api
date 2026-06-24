@@ -28,6 +28,7 @@ enum IntegrationsEnum: string
     case WASENDER = 'wa_sender';
     case DRIVE_CENTRIC = 'drive_centric';
     case PASO_RAPIDO = 'paso_rapido';
+    case PAYWAY = 'payway';
     case PLATE_RECOGNIZER = 'plate_recognizer';
     case MINDEE = 'mindee';
     case SALESASSIST = 'salesassist';
@@ -50,8 +51,11 @@ enum IntegrationsEnum: string
     case CARDNET = 'cardnet';
     case CONTACT_CHECKER = 'contact_checker';
     case OPENCLAW = 'openclaw';
+    case HERMES = 'hermes';
     case MICROSOFT = 'microsoft';
     case INTRAS = 'intras';
     case LICENSE_PLATE_EXTRACTOR = 'license_plate_extractor';
     case LENDFLOW = 'lendflow';
+    case PRODUCT_ENRICHMENT = 'product_enrichment';
+    case REYNOLDS = 'reynolds';
 }

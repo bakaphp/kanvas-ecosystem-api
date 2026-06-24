@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Customers\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Override;
 
@@ -20,6 +21,8 @@ class PeopleFactory extends Factory
             'lastname' => fake()->lastName,
             'name' => fake()->name,
             'users_id' => 1,
+            'apps_id' => fn (): int => app(Apps::class)->getId(),
+            'companies_id' => 0,
         ];
     }
 
@@ -71,7 +74,7 @@ class PeopleFactory extends Factory
                     'contacts_types_id' => 3,
                     'value' => $canUseFakeInfo ? fake()->phoneNumber : $phone,
                     'weight' => 0,
-                ]
+                ],
             ]);
         });
     }

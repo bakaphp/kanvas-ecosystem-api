@@ -99,6 +99,8 @@ class SyncNetSuiteProductsAction
                 $variantWarehouse->quantity = $product["quantity_available"];
                 $variantWarehouse->price = $warehouseOptions['price'] ?? 0;
 
+                // Link NetSuite MAP PRICE (custitem40) to the warehouse's UMAP Price (cost) column
+                $variantWarehouse->cost = (float) $product['map_price'];
                 $variantWarehouse->config = $config;
                 $variantWarehouse->saveOrFail();
 

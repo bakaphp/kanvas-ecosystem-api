@@ -10,9 +10,11 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeV1Action;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+#[WorkflowAction]
 class TriggerIntelligenceActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -32,12 +34,13 @@ class TriggerIntelligenceActivity extends KanvasActivity
                 }
 
                 $configService = new LeadConfigurationService();
-                $actionClass = $configService->isV2Enabled($app)
+                $actionClass = $configService->isV2Enabled($lead->company)
                     ? ApplyLeadAiModeAction::class
                     : ApplyLeadAiModeV1Action::class;
                 $result = new $actionClass($lead, $triggerType)->execute();
-
-                $this->sendDataToOrchestration($lead, $lead->get($configService->getAiModeKey($lead)));
+                if ($aiMode = $lead->get($configService->getAiModeKey($lead))) {
+                    $this->sendDataToOrchestration($lead, $aiMode);
+                }
 
                 return array_merge(['Trigger IA executed'], $result);
             }
@@ -49,7 +52,11 @@ class TriggerIntelligenceActivity extends KanvasActivity
         $data = ['stateDelta' => ['mode' => $aiMode]];
         foreach ($lead->aiSession as $session) {
             $handle = new $session->agent->type->handler();
-            $handle->setConfiguration($session->agent, $session->entity());
+            $handle->setConfiguration(
+                agent: $session->agent,
+                entity: $session->entity(),
+                user: $lead->company->getAiAgentUserOrFail(),
+            );
 
             try {
                 $handle->sendDataToAgent($session->uuid, $data);

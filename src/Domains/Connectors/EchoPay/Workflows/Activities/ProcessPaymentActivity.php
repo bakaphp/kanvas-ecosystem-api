@@ -7,11 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Movipass\Actions\ProcessPaymentAction;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class ProcessPaymentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
@@ -54,7 +56,7 @@ class ProcessPaymentActivity extends KanvasActivity implements WorkflowActivityI
                 $enrollmentResult = $paymentProcessor->completeDeviceData($payment);
 
                 if ($enrollmentResult['status'] === PaymentStatusEnum::PENDING_AUTHORIZATION->value) {
-                    $order->set("authorization_data", json_encode($enrollmentResult['data']));
+                    $order->set('authorization_data', json_encode($enrollmentResult['data']));
 
                     return [
                         'status' => $enrollmentResult['status'],

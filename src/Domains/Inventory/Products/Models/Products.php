@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Products\Models;
 
 use Awobaz\Compoships\Compoships;
+use Baka\Support\Arr;
 use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
@@ -112,6 +113,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     protected $casts = [
         'is_published' => 'boolean',
         'is_deleted' => 'boolean',
+        'rating' => 'float',
     ];
 
     public $translatable = ['name', 'description', 'short_description', 'html_description', 'warranty_terms'];
@@ -483,8 +485,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     #[Override]
     public function shouldBeSearchable(): bool
     {
-        //has to have a price and be published
-        if ($this->company->get('index_product_must_have_price')) {
+        if ($this->company?->get('index_product_must_have_price')) {
             foreach ($this->variants as $variant) {
                 try {
                     if ($channelInfo = $variant->getPriceInfoFromDefaultChannel()) {
@@ -520,7 +521,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             }),
             'company' => [
                 'id' => $this->companies_id,
-                'name' => $this->company->name,
+                'name' => $this->company?->name,
             ],
             'user' => [
                 'id' => $this->user?->getId(),
@@ -549,6 +550,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'product_type_slug' => $this->productsType?->slug ?? null,
             'attributes' => [],
             'weight' => (int) ($this->weight ?? 0),
+            'rating' => (float) ($this->rating ?? 0),
             'translations' => [
                 'name' => $this->getAllTranslationsAsString('name'),
                 'description' => $this->getAllTranslationsAsString('description'),
@@ -563,52 +565,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             $product['custom_fields'] = [];
 
             if ($this->app->get(EnumsConfigurationEnum::B2B_GLOBAL_COMPANY->value)) {
-                // Initialize prices array
-                $product['prices'] = [];
-
-                // Temporary array to collect all prices
-                $allPrices = [];
-
-                // Loop through each variant
-                $this->variants->each(function ($variant) use (&$allPrices) {
-                    // Each variant has its own channels, so get them
-                    if ($variant->channels && $variant->channels->count() > 0) {
-                        $variant->channels->each(function ($channel) use (&$allPrices) {
-                            // Get company by slug
-                            try {
-                                $company = Companies::getByUuid($channel->slug);
-
-                                if ($company) {
-                                    // Store price with company ID for later sorting
-                                    $allPrices[] = [
-                                        'company_id' => $company->getId(),
-                                        'price' => (float) $channel->price,
-                                    ];
-                                }
-                            } catch (Exception $e) {
-                                // Do nothing
-                            }
-                        });
-                    }
-                });
-
-                // Create an associative array to track highest price per company_id
-                $highestPrices = [];
-
-                // Loop through all prices just once
-                foreach ($allPrices as $priceData) {
-                    $companyId = $priceData['company_id'];
-
-                    // Only store if this company isn't tracked yet or if this price is higher
-                    if (! isset($highestPrices[$companyId]) || $priceData['price'] > $highestPrices[$companyId]) {
-                        $highestPrices[$companyId] = $priceData['price'];
-                    }
-                }
-
-                // Add the highest prices to the product
-                foreach ($highestPrices as $companyId => $price) {
-                    $product['prices']['price_b2b_' . $companyId] = $price;
-                }
+                $product['prices'] = $this->buildB2bGlobalPrices();
             }
         }
 
@@ -626,7 +583,78 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 : (string) $value;
         }
 
+        if ($this->isAlgolia()) {
+            $product = $this->fitWithinAlgoliaRecordLimit($product);
+        }
+
         return $product;
+    }
+
+    /**
+     * Algolia rejects any record over 10,000 bytes (and fails the whole batch),
+     * so trim the heaviest fields ONLY when the payload is actually over budget.
+     * Records that already fit are left untouched (variant images included).
+     * Trimming runs least-important first; variant files (images) and product
+     * images are sacrificed last so they survive whenever the record fits. The
+     * dropped detail is re-hydrated from the DB by the search/recommendation
+     * tools anyway.
+     */
+    protected function fitWithinAlgoliaRecordLimit(array $product): array
+    {
+        $limit = 9500; // headroom under Algolia's 10,000-byte hard limit
+
+        if (Arr::sizeInBytes($product) <= $limit) {
+            return $product;
+        }
+
+        $product['custom_fields'] = [];
+        if (Arr::sizeInBytes($product) <= $limit) {
+            return $product;
+        }
+
+        unset($product['translations']);
+        if (Arr::sizeInBytes($product) <= $limit) {
+            return $product;
+        }
+
+        // Warehouse breakdown is internal stock detail, never shown in search.
+        $product['variants'] = $this->stripFromVariants($product['variants'], ['warehouses']);
+        if (Arr::sizeInBytes($product) <= $limit) {
+            return $product;
+        }
+
+        $product['description'] = Str::limit((string) ($product['description'] ?? ''), 500, '');
+        $product['short_description'] = Str::limit((string) ($product['short_description'] ?? ''), 200, '');
+        if (Arr::sizeInBytes($product) <= $limit) {
+            return $product;
+        }
+
+        // Last resort before dropping whole variants: give up variant images.
+        $product['variants'] = $this->stripFromVariants($product['variants'], ['files']);
+        if (Arr::sizeInBytes($product) <= $limit) {
+            return $product;
+        }
+
+        while (! empty($product['variants']) && Arr::sizeInBytes($product) > $limit) {
+            array_pop($product['variants']);
+        }
+
+        return $product;
+    }
+
+    protected function stripFromVariants(mixed $variants, array $keys): array
+    {
+        return collect($variants)
+            ->map(function ($variant) use ($keys) {
+                $variant = (array) $variant;
+                foreach ($keys as $key) {
+                    unset($variant[$key]);
+                }
+
+                return $variant;
+            })
+            ->values()
+            ->all();
     }
 
     public function getAllTranslationsAsString(string $key): string
@@ -796,6 +824,46 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         $this->save();
     }
 
+    /**
+     * Build the price_b2b_{companyId} map for the B2B_GLOBAL_COMPANY index path.
+     *
+     * Aggregates MAX(pivot.price) per channel slug in one SQL pass and bulk-resolves
+     * the matching companies — replaces a per-variant lazy load + per-channel
+     * Companies::getByUuid() loop that OOM'd on products with hundreds of variants.
+     */
+    protected function buildB2bGlobalPrices(): array
+    {
+        $rows = DB::connection($this->getConnectionName())
+            ->table('products_variants_channels as pvc')
+            ->join('channels as c', 'c.id', '=', 'pvc.channels_id')
+            ->join('products_variants as v', 'v.id', '=', 'pvc.products_variants_id')
+            ->where('v.products_id', $this->getId())
+            ->groupBy('c.slug')
+            ->selectRaw('c.slug as slug, MAX(pvc.price) as max_price')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        /** @var array<string, int> $companiesBySlug */
+        $companiesBySlug = Companies::whereIn('uuid', $rows->pluck('slug')->all())
+            ->notDeleted()
+            ->pluck('id', 'uuid')
+            ->all();
+
+        $prices = [];
+        foreach ($rows as $row) {
+            $companyId = $companiesBySlug[$row->slug] ?? null;
+            if ($companyId === null) {
+                continue;
+            }
+            $prices['price_b2b_' . $companyId] = (float) $row->max_price;
+        }
+
+        return $prices;
+    }
+
     protected function getVariantsData(): Collection
     {
         $limit = $this->app->get(ConfigurationEnum::PRODUCT_VARIANTS_SEARCH_LIMIT->value) ?? 200;
@@ -804,11 +872,38 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             ->where('is_deleted', 0)
             ->where('is_published', 1);
 
-        $variantCount = $query->count();
+        $useSummary = $query->count() > $limit;
 
-        return $variantCount > $limit
-            ? $query->limit($limit)->get()->map(fn ($variant) => $variant->toSearchableArraySummary())
-            : $query->get()->map(fn ($variant) => $variant->toSearchableArray());
+        // Eager load the relations each variant->toSearchableArray() touches so we don't fan out
+        // into N+1 channel/warehouse/status reads while building the search payload. Summary path
+        // only renders channels.
+        $eagerLoad = $useSummary
+            ? ['channels']
+            : ['channels', 'variantWarehouses.warehouse', 'variantWarehouses.status', 'status'];
+
+        // Bound peak memory by streaming the variants in small batches instead of materialising
+        // up to PRODUCT_VARIANTS_SEARCH_LIMIT models at once — the Scout indexer was OOMing at
+        // 512MB because the outer chunk of products + every variant + every relation lived in
+        // memory simultaneously.
+        $items = [];
+        $query
+            ->with($eagerLoad)
+            ->orderBy('id')
+            ->chunkById(50, function (Collection $variants) use (&$items, $useSummary, $limit): bool {
+                foreach ($variants as $variant) {
+                    if ($useSummary && count($items) >= $limit) {
+                        return false;
+                    }
+
+                    $items[] = $useSummary
+                        ? $variant->toSearchableArraySummary()
+                        : $variant->toSearchableArray();
+                }
+
+                return true;
+            });
+
+        return collect($items);
     }
 
     public function getTotalVariants(): int
@@ -913,6 +1008,12 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 ],
                 [
                     'name' => 'weight',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'rating',
                     'type' => 'float',
                     'optional' => true,
                     'sort' => true,

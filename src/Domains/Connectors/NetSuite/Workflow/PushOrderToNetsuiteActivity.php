@@ -10,6 +10,7 @@ use Kanvas\Connectors\NetSuite\Actions\PushOrderToNetSuiteQuoteAction;
 use Kanvas\Connectors\NetSuite\Enums\CustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Actions\SendUserNotificationAction;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -17,6 +18,7 @@ use Override;
 use RuntimeException;
 use Throwable;
 
+#[WorkflowAction]
 class PushOrderToNetsuiteActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

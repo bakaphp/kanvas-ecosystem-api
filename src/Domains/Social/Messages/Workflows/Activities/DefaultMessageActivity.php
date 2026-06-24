@@ -13,10 +13,12 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
+use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
+#[WorkflowAction]
 class DefaultMessageActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

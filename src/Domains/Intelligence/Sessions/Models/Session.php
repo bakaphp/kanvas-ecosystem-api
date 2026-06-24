@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Sessions\Models;
 
 use Baka\Casts\Json;
-use Exception ;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\Social\Channels\Models\Channel;
@@ -63,7 +63,25 @@ class Session extends BaseModel
         return $legacyClassMap::getById($this->entity_id);
     }
 
-    public function getChannel(): string
+    public function people(): ?People
+    {
+        return $this->entity_namespace === People::class
+            ? $this->entity()
+            : null;
+    }
+
+    /**
+     * Returns the channel this session's history lives on (derived from the
+     * uuid marker — sessions are created per-channel by the connector layer).
+     *
+     * @deprecated for outbound channel selection — use
+     *             `Kanvas\Intelligence\FollowUp\Services\LeadOutboundChannelResolver`
+     *             which decides outbound channel from the Lead's contacts +
+     *             stage config + opt-outs, not from session history. This
+     *             method remains valid for "what channel did this conversation
+     *             happen on?" inspection.
+     */
+    public function getChannel(): ?string
     {
         if (str_contains($this->uuid, 'email')) {
             return 'email';
@@ -74,7 +92,7 @@ class Session extends BaseModel
         } elseif (str_contains($this->uuid, 'wa-chat')) {
             return 'whatsapp';
         } else {
-            throw new Exception('Channel unrecognized');
+            return null;
         }
     }
 }

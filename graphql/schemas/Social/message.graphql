@@ -22,7 +22,22 @@ type Message {
     total_purchase: Int
     parent: Message @cacheRedis
     user: User!
-    children: [Message!] @hasMany(type: PAGINATOR)
+    children(
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "updated_at"
+                    "id"
+                    "total_view"
+                    "total_liked"
+                    "total_shared"
+                    "total_saved"
+                    "total_children"
+                    "total_disliked"
+                ]
+            )
+    ): [Message!] @hasMany(relation: "children", type: PAGINATOR)
     messageType: MessageType! @cacheRedis
     appModuleMessage: AppModuleMessage @cacheRedis
     myInteraction: myInteraction @method(name: "getMyInteraction")
@@ -178,6 +193,14 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageManagementMutation@attachFileToMessage"
         )
+    approveAgentMessage(id: ID!, message: String): Message!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageApprovalMutation@approve"
+        )
+    rejectAgentMessage(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageApprovalMutation@reject"
+        )
 }
 
 extend type Query @guard {
@@ -203,6 +226,7 @@ extend type Query @guard {
                     "total_view"
                     "total_shared"
                     "is_public"
+                    "is_locked"
                 ]
             )
         hasUser: _

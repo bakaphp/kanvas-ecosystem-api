@@ -9,6 +9,7 @@ use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\Actions\UpdateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization as DataTransferObjectOrganization;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Models\OrganizationType;
 
 class OrganizationManagementMutation
 {
@@ -20,18 +21,20 @@ class OrganizationManagementMutation
         $user = auth()->user();
         $data = $req['input'];
         $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
 
         $organizationData = new DataTransferObjectOrganization(
-            $user->getCurrentCompany(),
+            $company,
             $user,
             $app,
             $data['name'],
-            $data['address'] ?? null
+            address: $data['address'] ?? null,
+            organizationType: isset($data['organization_type_id'])
+                ? OrganizationType::getByIdFromCompanyApp((int) $data['organization_type_id'], $company, $app)
+                : null,
         );
 
-        $createOrganization = new CreateOrganizationAction($organizationData);
-
-        return $createOrganization->execute();
+        return new CreateOrganizationAction($organizationData)->execute();
     }
 
     public function update(mixed $root, array $req): Organization
@@ -39,20 +42,29 @@ class OrganizationManagementMutation
         $user = auth()->user();
         $data = $req['input'];
         $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
 
-        $organization = Organization::getByIdFromCompanyApp((int) $req['id'], $user->getCurrentCompany(), $app);
+        $organization = Organization::getByIdFromCompanyApp((int) $req['id'], $company, $app);
+
+        $organizationType = array_key_exists('organization_type_id', $data)
+            ? ($data['organization_type_id'] !== null
+                ? OrganizationType::getByIdFromCompanyApp((int) $data['organization_type_id'], $company, $app)
+                : null)
+            : $organization->organizationType;
 
         $organizationData = new DataTransferObjectOrganization(
-            $user->getCurrentCompany(),
+            $company,
             $user,
             $app,
             $data['name'],
-            $data['address'] ?? null
+            address: $data['address'] ?? null,
+            organizationType: $organizationType,
         );
 
-        $createOrganization = new UpdateOrganizationAction($organization, $organizationData);
-
-        return $createOrganization->execute();
+        return new UpdateOrganizationAction(
+            $organization,
+            $organizationData
+        )->execute();
     }
 
     public function delete(mixed $root, array $req): bool

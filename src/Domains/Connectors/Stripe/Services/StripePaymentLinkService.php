@@ -21,8 +21,15 @@ class StripePaymentLinkService
 
     public function __construct(
         protected AppInterface $app,
-        protected ?Companies $company = null
+        protected ?Companies $company = null,
+        ?StripeClient $stripe = null
     ) {
+        if ($stripe !== null) {
+            $this->stripe = $stripe;
+
+            return;
+        }
+
         $stripeKey = $company ? $company->get(ConfigurationEnum::STRIPE_SECRET_KEY->value) : null;
         $this->stripe = new StripeClient($stripeKey ?? $this->app->get(ConfigurationEnum::STRIPE_SECRET_KEY->value));
     }
@@ -93,6 +100,13 @@ class StripePaymentLinkService
         // Add custom fields if provided
         if (isset($options['custom_fields'])) {
             $paymentLinkData['custom_fields'] = $options['custom_fields'];
+        }
+
+        // Line items are built from item gross prices, so the order-level discount
+        // (stored in order_discounts, reflected in discount_amount) is not yet applied.
+        // Attach it as a Stripe coupon so the customer is charged the net total.
+        if ($couponId = $this->createDiscountCoupon($order)) {
+            $paymentLinkData['discounts'] = [['coupon' => $couponId]];
         }
 
         // Create the payment link
@@ -226,6 +240,34 @@ class StripePaymentLinkService
         $orderItem->addMetadata($priceKey, $price->id);
 
         return $price->id;
+    }
+
+    /**
+     * Create a one-time Stripe coupon for the order-level discount.
+     *
+     * Returns null when the order has no discount. The coupon's amount_off carries the
+     * discount in the order's currency so Stripe subtracts it from the gross line items.
+     */
+    protected function createDiscountCoupon(Order $order): ?string
+    {
+        $discountAmount = (float) $order->discount_amount;
+
+        if ($discountAmount <= 0) {
+            return null;
+        }
+
+        $coupon = $this->stripe->coupons->create([
+            'amount_off' => $this->convertToStripeAmount($discountAmount, $order->currency),
+            'currency' => strtolower($order->currency ?? 'usd'),
+            'duration' => 'once',
+            'name' => $order->translated_discount_name ?? $order->discount_name ?? 'Discount',
+            'metadata' => [
+                'order_id' => $order->id,
+                'voucher_id' => $order->voucher_id,
+            ],
+        ]);
+
+        return $coupon->id;
     }
 
     /**

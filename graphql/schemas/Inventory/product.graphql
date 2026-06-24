@@ -105,6 +105,11 @@ input ProductAttributesInput {
     value: Mixed
 }
 
+input ProductAttributeFilterInput {
+    slug: String!
+    value: Mixed
+}
+
 input ProductInputUpdate {
     products_types_id: Int
     name: String
@@ -228,6 +233,7 @@ extend type Query @guard {
     products(
         search: String @search
         variantAttributeValue: String
+        withAttributeSlug: String
         variantAttributeOrderBy: ProductAttributeOrderBy
         attributeOrderBy: ProductAttributeOrderBy
         nearByLocation: NearByLocationInput
@@ -255,6 +261,11 @@ extend type Query @guard {
         hasCategories: _
             @whereHasConditions(
                 relation: "categories"
+                columns: ["id", "name", "slug"]
+            )
+        hasProductsTypes: _
+            @whereHasConditions(
+                relation: "type"
                 columns: ["id", "name", "slug"]
             )
         hasWarehouses: _
@@ -317,5 +328,40 @@ extend type Query @guard {
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             builder: "App\\GraphQL\\Inventory\\Builders\\Products\\ProductBuilder@getProductRecommendations"
             defaultCount: 25
+        )
+    exportProducts(
+        format: ExportFormat!
+        search: String
+        field_mapper: Mixed
+        metadata: ExportMetadataInput
+        timezone: String
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "companies_id"
+                    "users_id"
+                    "name"
+                    "slug"
+                    "description"
+                    "products_types_id"
+                    "is_published"
+                    "status_id"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+        hasAttributeValues: [ProductAttributeFilterInput]
+        hasProductsTypes: _
+            @whereHasConditions(
+                relation: "type"
+                columns: ["id", "name", "slug"]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): OrderExportResult!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Queries\\Products\\ProductExportQuery@export"
         )
 }
