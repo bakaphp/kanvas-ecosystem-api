@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Outreach;
 
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\RespondIO\Enums\MessageTypeEnum as RespondIoMessageTypeEnum;
 use Kanvas\Connectors\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
@@ -38,6 +39,7 @@ class AgentReachOutOnChannelAction
 
     public function execute(): Message
     {
+        /** @var Companies $company */
         $company = $this->lead->company;
         $aiAgentUser = $company->getAiAgentUserOrFail();
 
@@ -132,22 +134,33 @@ class AgentReachOutOnChannelAction
             $aiAgentUser,
         );
 
+        // Company in APPROVAL
+        if (
+            $this->channelType === ChannelCategoryEnum::EMAIL->value
+            && $company->requiresAgentHumanApproval()
+        ) {
+            $outbound->setLock();
+        }
+
         $outbound->fireWorkflow(
             WorkflowEnum::CREATED->value,
             true,
             ['app' => $this->lead->app],
         );
 
-        // Deliver via the canonical Lead-level dispatcher (SMS/email/WhatsApp/voice).
-        new SendMessageToLeadAction($this->lead)->execute(
-            channel: $this->channelType,
-            message: $responseText,
-            from: null,
-            title: $emailSubject,
-            signature: false,
-            files: null,
-            to: $this->recipient,
-        );
+        // Deliver via the canonical Lead-level dispatcher (SMS/email/WhatsApp/voice),
+        // unless the draft is held for human approval.
+        if (! $outbound->isLocked()) {
+            new SendMessageToLeadAction($this->lead)->execute(
+                channel: $this->channelType,
+                message: $responseText,
+                from: null,
+                title: $emailSubject,
+                signature: false,
+                files: null,
+                to: $this->recipient,
+            );
+        }
 
         return $outbound;
     }

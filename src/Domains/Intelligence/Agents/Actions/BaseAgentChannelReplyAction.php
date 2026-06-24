@@ -14,7 +14,6 @@ use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
@@ -191,9 +190,7 @@ class BaseAgentChannelReplyAction
 
     protected function companyRequiresHumanApproval(): bool
     {
-        return IntelligenceModeEnum::tryFrom(
-            (string) $this->message->company->get(ConfigurationEnum::AGENT_AI_MODE->value)
-        )?->requiresHumanApproval() ?? false;
+        return $this->message->company->requiresAgentHumanApproval();
     }
 
     protected function hijackMessagePhone(string $channelId): string
