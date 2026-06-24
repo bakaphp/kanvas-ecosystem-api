@@ -223,6 +223,14 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentIntegrationConfigMutation@set"
         )
+    createAgentConfigBackup(agent_id: ID!, notes: String): AgentConfigBackupType!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentConfigBackupMutation@create"
+        )
+    restoreAgentFromConfigBackup(backup_id: ID!): AgentAi!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentConfigBackupMutation@restore"
+        )
 }
 
 extend type Query @guard {
@@ -280,6 +288,35 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Analytics\\Queries\\AgentAnalyticsQuery"
         )
+    agentConfigBackups(
+        agent_id: ID!
+        where: _
+            @whereConditions(
+                columns: ["id", "status", "created_at"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at"])
+    ): [AgentConfigBackupType!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentConfigBackup"
+            defaultCount: 25
+            builder: "App\\GraphQL\\Intelligence\\Builders\\AgentConfigBackupBuilder@build"
+        )
+}
+
+type AgentConfigBackupType {
+    id: ID!
+    uuid: String!
+    agents_id: ID!
+    status: String!
+    file_path: String
+    file_size_bytes: Int
+    notes: String
+    error_message: String
+    completed_at: DateTime
+    created_at: DateTime!
+    updated_at: DateTime!
+    agent: AgentAi @belongsTo(relation: "agent")
+    download_url: String
 }
 
 type AgentAnalytics {

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Observers;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Actions\ReconcileAgentKanvasModulesAction;
+use Kanvas\Intelligence\Agents\Jobs\CreateAgentConfigBackupJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Throwable;
@@ -44,6 +46,17 @@ class AgentObserver
 
         if (! $agent->wasChanged($workspaceFields)) {
             return;
+        }
+
+        // Dispatch a config backup whenever meaningful workspace fields change.
+        try {
+            $app = Apps::find($agent->apps_id);
+
+            if ($app !== null) {
+                CreateAgentConfigBackupJob::dispatch($agent, $app, 'auto-save');
+            }
+        } catch (Throwable $e) {
+            report($e);
         }
 
         $deployments = $agent->deployments()

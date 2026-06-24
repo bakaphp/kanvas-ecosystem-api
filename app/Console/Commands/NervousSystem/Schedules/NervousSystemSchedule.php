@@ -6,6 +6,7 @@ namespace App\Console\Commands\NervousSystem\Schedules;
 
 use App\Console\Commands\Intelligence\CollectAgentDeploymentUsageCommand;
 use App\Console\Commands\Intelligence\CollectAgentSessionTranscriptsCommand;
+use App\Console\Commands\Intelligence\DailyAgentConfigBackupCommand;
 use App\Console\Commands\Intelligence\RollupLocalAgentUsageCommand;
 use App\Console\Commands\NervousSystem\ArchiveOldLedgerEventsCommand;
 use App\Console\Commands\NervousSystem\CheckAgentRuntimeHealthCommand;
@@ -149,6 +150,14 @@ final class NervousSystemSchedule
         // before RecordAgentDailyCycles (06:04) consumes the day's usage.
         $schedule->command(RollupLocalAgentUsageCommand::class)
             ->dailyAt('03:00')
+            ->timezone('America/New_York')
+            ->withoutOverlapping()
+            ->onOneServer();
+
+        // End-of-day config backup — dispatches a backup job per active agent.
+        // Runs at 23:00 NY so it captures the full day's work before midnight rollover.
+        $schedule->command(DailyAgentConfigBackupCommand::class)
+            ->dailyAt('23:00')
             ->timezone('America/New_York')
             ->withoutOverlapping()
             ->onOneServer();
