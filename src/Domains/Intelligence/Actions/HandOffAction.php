@@ -165,6 +165,7 @@ class HandOffAction
                 'company' => $this->lead->company,
                 'app' => $this->lead->app,
                 'user' => $leadOwner,
+                'handoff_type' => $handOffType->value,
                 'lead_name' => $this->lead->people->name,
                 'lead_id' => $this->lead->getId(),
                 'people_id' => $this->lead->people->getId(),
