@@ -19,7 +19,7 @@
         "bacon/bacon-qr-code": "^3.0",
         "bavix/laravel-wallet": "^12.0",
         "berkayk/onesignal-laravel": "^2.4",
-        "brick/math": "^0.14.2",
+        "brick/math": "^0.18.0",
         "doctrine/dbal": "^4.2",
         "durable-workflow/workflow": "^1.0.24",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
