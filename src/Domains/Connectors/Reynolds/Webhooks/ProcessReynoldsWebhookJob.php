@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Reynolds\Webhooks;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Reynolds\Actions\PullLeadAction;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
