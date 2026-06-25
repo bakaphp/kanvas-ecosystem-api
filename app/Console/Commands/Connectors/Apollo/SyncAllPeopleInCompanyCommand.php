@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Apollo\Actions\EnrichPeopleFromApolloAction;
-use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Apollo\Services\ApolloRateLimitService;
 use Kanvas\Guild\Customers\Models\People;
 
 class SyncAllPeopleInCompanyCommand extends Command
@@ -22,7 +22,7 @@ class SyncAllPeopleInCompanyCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:guild-apollo-people-sync {app_id} {company_id} {total=150} {perPage=50} {--order=desc : Sort people by id (asc|desc)} {--cooldown=3 : Days to wait before retrying a person Apollo had no data for} {--force : Ignore the no-data cooldown and retry everyone not yet enriched}';
+    protected $signature = 'kanvas:guild-apollo-people-sync {app_id} {company_id} {total=150} {perPage=50} {--order=desc : Sort people by id (asc|desc)} {--cooldown=3 : Days to wait before retrying a person Apollo had no data for} {--force : Ignore the revalidation window and no-data cooldown; re-enrich everyone}';
 
     /**
      * The console command description.
@@ -33,7 +33,6 @@ class SyncAllPeopleInCompanyCommand extends Command
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {
@@ -47,30 +46,23 @@ class SyncAllPeopleInCompanyCommand extends Command
         $force = (bool) $this->option('force');
         $cooldownDays = max(0, (int) $this->option('cooldown'));
 
+        $rateLimit = new ApolloRateLimitService();
+
+        // Hourly pacing is the command's own concern — a bulk loop must not hammer Apollo
+        // even while we're under the daily cap. The daily cap itself lives in the shared
+        // service (counted from the company report), so it agrees with the workflow path.
         $hourlyRateLimit = 400;
-        $dailyRateLimit = 2000;
-        $batchSize = 100;
         $hourlyCacheKey = 'api_hourly_rate_limit_' . $app->getId();
-        $dailyCacheKey = 'api_daily_rate_limit_' . $app->getId();
         $resetHourlyKey = 'api_hourly_rate_limit_reset_' . $app->getId();
-        $resetDailyKey = 'api_daily_rate_limit_reset_' . $app->getId();
         $hourlyTimeWindow = 60 * 60;
-        $dailyTimeWindow = 24 * 60 * 60;
 
         $resetHourlyTimestamp = Cache::get($resetHourlyKey, 0) instanceof Carbon ? Cache::get($resetHourlyKey, 0)->timestamp : 0;
-        $resetDailyTimestamp = Cache::get($resetDailyKey, 0) instanceof Carbon ? Cache::get($resetDailyKey, 0)->timestamp : 0;
 
-        // Reset hourly/daily counters if time window has expired
         if (now()->timestamp >= $resetHourlyTimestamp) {
             Cache::put($hourlyCacheKey, 0, $hourlyTimeWindow);
         }
 
-        if (now()->timestamp >= $resetDailyTimestamp) {
-            Cache::put($dailyCacheKey, 0, $dailyTimeWindow);
-        }
-
         $currentHourlyCount = Cache::get($hourlyCacheKey, 0);
-        $currentDailyCount = Cache::get($dailyCacheKey, 0);
 
         $this->line("Syncing people for company {$company->name} from app {$app->name}, total {$total}, per page {$perPage}, order {$order}");
 
@@ -79,10 +71,20 @@ class SyncAllPeopleInCompanyCommand extends Command
             ->notDeleted(0)
             ->orderBy('peoples.id', $order)
             ->limit($total)
-            ->chunk($perPage, function ($peoples) use ($app, $force, $cooldownDays, &$currentHourlyCount, &$currentDailyCount, $hourlyRateLimit, $dailyRateLimit, $hourlyCacheKey, $dailyCacheKey, $resetHourlyKey, $resetDailyKey, $hourlyTimeWindow, $dailyTimeWindow) {
+            ->chunk($perPage, function ($peoples) use ($app, $company, $rateLimit, $force, $cooldownDays, &$currentHourlyCount, $hourlyRateLimit, $hourlyCacheKey, $resetHourlyKey, $hourlyTimeWindow) {
                 foreach ($peoples as $people) {
-                    $hasCustomField = $people->get(ConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value);
-                    if ($hasCustomField) {
+                    // Shared daily cap — once today's company total is reached, stop the run
+                    // entirely (returning false halts further chunks).
+                    if ($rateLimit->hasReachedDailyLimit($company)) {
+                        $this->line('Daily Apollo enrichment limit reached. Stopping.');
+
+                        return false;
+                    }
+
+                    // Already enriched inside the revalidation window — same gate the workflow uses.
+                    if (! $force && $rateLimit->hasBeenScreenedRecently($people)) {
+                        $this->line("Skipping people {$people->id}: enriched recently, within revalidation window");
+
                         continue;
                     }
 
@@ -102,14 +104,6 @@ class SyncAllPeopleInCompanyCommand extends Command
                         continue;
                     }
 
-                    if ($currentDailyCount >= $dailyRateLimit) {
-                        Cache::put($resetDailyKey, now()->addSeconds($dailyTimeWindow), $dailyTimeWindow);
-                        $this->line('Daily rate limit reached. Waiting for reset...');
-                        sleep($dailyTimeWindow);
-
-                        continue;
-                    }
-
                     $this->line("Syncing people {$people->id}: {$people->firstname} {$people->lastname}");
 
                     // Enrich directly (same path as kanvas:guild-apollo-enrich-person) instead of
@@ -120,10 +114,7 @@ class SyncAllPeopleInCompanyCommand extends Command
                     $this->line("  [{$result['status']}] {$result['message']}");
 
                     $currentHourlyCount++;
-                    $currentDailyCount++;
-
                     Cache::put($hourlyCacheKey, $currentHourlyCount, $hourlyTimeWindow);
-                    Cache::put($dailyCacheKey, $currentDailyCount, $dailyTimeWindow);
 
                     // Dynamic delay based on remaining rate limit
                     $delay = $this->calculateDelay($currentHourlyCount, $hourlyRateLimit);
