@@ -36,8 +36,13 @@ class Lead
         $desired = $record['DesiredVehicle'] ?? [];
         $trade = $record['PotentialTrade'] ?? [];
 
+        // The LDU spec example puts ProspectId under <Identifier>, but real OSL
+        // envelopes from R&R inline it under <Prospect>. Fall back so both
+        // shapes resolve to the same field.
+        $prospectId = $identifier['ProspectId'] ?? $prospect['ProspectId'] ?? null;
+
         return new self(
-            prospectId: $identifier['ProspectId'] ?? null,
+            prospectId: $prospectId,
             prospectType: $prospect['ProspectType'] ?? null,
             prospectStatus: $prospect['ProspectStatus'] ?? null,
             prospectStatusType: $prospect['ProspectStatusType'] ?? null,
