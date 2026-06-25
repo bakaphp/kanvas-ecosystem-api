@@ -22,7 +22,7 @@ class SyncAllPeopleInCompanyCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:guild-apollo-people-sync {app_id} {company_id} {total=150} {perPage=50} {--order=desc : Sort people by id (asc|desc)}';
+    protected $signature = 'kanvas:guild-apollo-people-sync {app_id} {company_id} {total=150} {perPage=50} {--order=desc : Sort people by id (asc|desc)} {--cooldown=3 : Days to wait before retrying a person Apollo had no data for} {--force : Ignore the no-data cooldown and retry everyone not yet enriched}';
 
     /**
      * The console command description.
@@ -44,6 +44,8 @@ class SyncAllPeopleInCompanyCommand extends Command
         $company = Companies::getById((int) $this->argument('company_id'));
 
         $order = strtolower((string) $this->option('order')) === 'asc' ? 'ASC' : 'DESC';
+        $force = (bool) $this->option('force');
+        $cooldownDays = max(0, (int) $this->option('cooldown'));
 
         $hourlyRateLimit = 400;
         $dailyRateLimit = 2000;
@@ -77,10 +79,18 @@ class SyncAllPeopleInCompanyCommand extends Command
             ->notDeleted(0)
             ->orderBy('peoples.id', $order)
             ->limit($total)
-            ->chunk($perPage, function ($peoples) use ($app, &$currentHourlyCount, &$currentDailyCount, $hourlyRateLimit, $dailyRateLimit, $hourlyCacheKey, $dailyCacheKey, $resetHourlyKey, $resetDailyKey, $hourlyTimeWindow, $dailyTimeWindow) {
+            ->chunk($perPage, function ($peoples) use ($app, $force, $cooldownDays, &$currentHourlyCount, &$currentDailyCount, $hourlyRateLimit, $dailyRateLimit, $hourlyCacheKey, $dailyCacheKey, $resetHourlyKey, $resetDailyKey, $hourlyTimeWindow, $dailyTimeWindow) {
                 foreach ($peoples as $people) {
                     $hasCustomField = $people->get(ConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value);
                     if ($hasCustomField) {
+                        continue;
+                    }
+
+                    // Apollo had no data on the last try — don't burn another credit until
+                    // the cooldown lapses, unless --force overrides it.
+                    if (! $force && EnrichPeopleFromApolloAction::isWithinNoDataCooldown($people, $cooldownDays)) {
+                        $this->line("Skipping people {$people->id}: no Apollo data on last try, within {$cooldownDays}-day cooldown");
+
                         continue;
                     }
 
