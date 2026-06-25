@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Reynolds\Services\TenantResolver;
 use Kanvas\Connectors\Reynolds\Webhooks\ProcessReynoldsWebhookJob;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -53,59 +52,13 @@ final class InboundWebhookTest extends TestCase
             ]);
     }
 
-    public function testTenantResolverMatchesCompanyWhenAllThreeIdentifiersAlign(): void
-    {
-        $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
-
-        $this->setupReynoldsConfiguration($app, $company);
-        $company->set(ConfigurationEnum::REYNOLDS_DEALER_NUMBER->value, self::FIXTURE_DEALER);
-        $company->set(ConfigurationEnum::REYNOLDS_STORE_NUMBER->value, self::FIXTURE_STORE);
-        $company->set(ConfigurationEnum::REYNOLDS_AREA_NUMBER->value, self::FIXTURE_AREA);
-
-        $resolved = TenantResolver::fromSender(
-            dealerNumber: self::FIXTURE_DEALER,
-            storeNumber: self::FIXTURE_STORE,
-            areaNumber: self::FIXTURE_AREA,
-            app: $app,
-        );
-
-        $this->assertNotNull($resolved, 'TenantResolver must find the company when all three identifiers match.');
-        $this->assertSame($company->getId(), $resolved->getId());
-    }
-
-    public function testTenantResolverReturnsNullWhenStoreOrAreaDoesNotMatch(): void
-    {
-        $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
-
-        $this->setupReynoldsConfiguration($app, $company);
-        $company->set(ConfigurationEnum::REYNOLDS_DEALER_NUMBER->value, self::FIXTURE_DEALER);
-        $company->set(ConfigurationEnum::REYNOLDS_STORE_NUMBER->value, self::FIXTURE_STORE);
-        $company->set(ConfigurationEnum::REYNOLDS_AREA_NUMBER->value, self::FIXTURE_AREA);
-
-        $resolved = TenantResolver::fromSender(
-            dealerNumber: self::FIXTURE_DEALER,
-            storeNumber: '99',
-            areaNumber: self::FIXTURE_AREA,
-            app: $app,
-        );
-
-        $this->assertNull(
-            $resolved,
-            'Wrong StoreNumber must not match — all three identifiers form the tenant key.'
-        );
-    }
-
     public function testWebhookJobUpsertsLeadFromRealOslEnvelope(): void
     {
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
 
         $this->setupReynoldsConfiguration($app, $company);
-        $company->set(ConfigurationEnum::REYNOLDS_DEALER_NUMBER->value, self::FIXTURE_DEALER);
-        $company->set(ConfigurationEnum::REYNOLDS_STORE_NUMBER->value, self::FIXTURE_STORE);
-        $company->set(ConfigurationEnum::REYNOLDS_AREA_NUMBER->value, self::FIXTURE_AREA);
+        $this->bindDealerLocationKey($company, self::FIXTURE_DEALER, self::FIXTURE_STORE, self::FIXTURE_AREA);
 
         $envelope = file_get_contents(__DIR__ . '/Fixtures/inbound_osl_envelope.xml');
         $this->assertNotFalse($envelope);
@@ -135,17 +88,26 @@ final class InboundWebhookTest extends TestCase
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
 
-        // Configure with values that DO NOT match the fixture.
+        // Configure with a composite location key that does NOT match the fixture.
         $this->setupReynoldsConfiguration($app, $company);
-        $company->set(ConfigurationEnum::REYNOLDS_DEALER_NUMBER->value, 'SOMETHING_ELSE');
-        $company->set(ConfigurationEnum::REYNOLDS_STORE_NUMBER->value, '99');
-        $company->set(ConfigurationEnum::REYNOLDS_AREA_NUMBER->value, '99');
+        $this->bindDealerLocationKey($company, 'SOMETHING_ELSE', '99', '99');
 
         $envelope = file_get_contents(__DIR__ . '/Fixtures/inbound_osl_envelope.xml');
         $result = $this->dispatchWebhookJob($envelope);
 
         $this->assertSame('ignored', $result['status'] ?? null);
         $this->assertStringContainsString('No matching company', (string) ($result['reason'] ?? ''));
+    }
+
+    private function bindDealerLocationKey($company, string $dealer, string $store, string $area): void
+    {
+        $company->set(ConfigurationEnum::REYNOLDS_DEALER_NUMBER->value, $dealer);
+        $company->set(ConfigurationEnum::REYNOLDS_STORE_NUMBER->value, $store);
+        $company->set(ConfigurationEnum::REYNOLDS_AREA_NUMBER->value, $area);
+        $company->set(
+            ConfigurationEnum::REYNOLDS_DEALER_LOCATION_KEY->value,
+            ConfigurationEnum::buildDealerLocationKey($dealer, $store, $area),
+        );
     }
 
     private function dispatchWebhookJob(string $rawXml): array

@@ -6,10 +6,11 @@ namespace Kanvas\Connectors\Reynolds\Webhooks;
 
 use Illuminate\Support\Facades\Log;
 use Kanvas\Companies\Models\Companies;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Reynolds\Actions\PullLeadAction;
+use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Reynolds\Enums\TransactionCodeEnum;
-use Kanvas\Connectors\Reynolds\Services\TenantResolver;
 use Kanvas\Connectors\Reynolds\Services\XmlParser;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
@@ -42,14 +43,24 @@ class ProcessReynoldsWebhookJob extends ProcessWebhookJob
 
         // Reynolds publishes every dealer event to a single global URL — the
         // tenant identity lives inside the envelope's Sender block, not in the
-        // receiver row's companies_id. Resolve the real tenant here and rescope
-        // the service location before dispatching to per-Task handlers.
-        $company = TenantResolver::fromSender(
-            dealerNumber: (string) ($sender['DealerNumber'] ?? ''),
-            storeNumber: (string) ($sender['StoreNumber'] ?? ''),
-            areaNumber: (string) ($sender['AreaNumber'] ?? ''),
-            app: $this->receiver->app,
+        // receiver row's companies_id. ReynoldsHandler::setup() precomputes a
+        // (Dealer|Store|Area) composite key into REYNOLDS_DEALER_LOCATION_KEY
+        // so we resolve the Company with a single companies_settings lookup.
+        $locationKey = ConfigurationEnum::buildDealerLocationKey(
+            (string) ($sender['DealerNumber'] ?? ''),
+            (string) ($sender['StoreNumber'] ?? ''),
+            (string) ($sender['AreaNumber'] ?? ''),
         );
+
+        $companyId = DB::table('companies_settings')
+            ->where('name', ConfigurationEnum::REYNOLDS_DEALER_LOCATION_KEY->value)
+            ->where('value', $locationKey)
+            ->where(function ($q) {
+                $q->where('is_deleted', 0)->orWhereNull('is_deleted');
+            })
+            ->value('companies_id');
+
+        $company = $companyId ? Companies::find($companyId) : null;
 
         if ($company === null) {
             Log::warning('Reynolds webhook ignored: no matching company', ['sender' => $sender]);
