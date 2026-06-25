@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\Apollo;
 
 use Baka\Traits\KanvasJobsTrait;
-use Carbon\Carbon;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Apollo\Actions\EnrichPeopleFromApolloAction;
@@ -36,6 +34,7 @@ class SyncAllPeopleInCompanyCommand extends Command
      */
     public function handle()
     {
+        /** @var Apps $app */
         $app = Apps::getById((int) $this->argument('app_id'));
         $perPage = (int) $this->argument('perPage');
         $total = (int) $this->argument('total');
@@ -48,22 +47,6 @@ class SyncAllPeopleInCompanyCommand extends Command
 
         $rateLimit = new ApolloRateLimitService();
 
-        // Hourly pacing is the command's own concern — a bulk loop must not hammer Apollo
-        // even while we're under the daily cap. The daily cap itself lives in the shared
-        // service (counted from the company report), so it agrees with the workflow path.
-        $hourlyRateLimit = 400;
-        $hourlyCacheKey = 'api_hourly_rate_limit_' . $app->getId();
-        $resetHourlyKey = 'api_hourly_rate_limit_reset_' . $app->getId();
-        $hourlyTimeWindow = 60 * 60;
-
-        $resetHourlyTimestamp = Cache::get($resetHourlyKey, 0) instanceof Carbon ? Cache::get($resetHourlyKey, 0)->timestamp : 0;
-
-        if (now()->timestamp >= $resetHourlyTimestamp) {
-            Cache::put($hourlyCacheKey, 0, $hourlyTimeWindow);
-        }
-
-        $currentHourlyCount = Cache::get($hourlyCacheKey, 0);
-
         $this->line("Syncing people for company {$company->name} from app {$app->name}, total {$total}, per page {$perPage}, order {$order}");
 
         People::fromApp($app)
@@ -71,7 +54,7 @@ class SyncAllPeopleInCompanyCommand extends Command
             ->notDeleted(0)
             ->orderBy('peoples.id', $order)
             ->limit($total)
-            ->chunk($perPage, function ($peoples) use ($app, $company, $rateLimit, $force, $cooldownDays, &$currentHourlyCount, $hourlyRateLimit, $hourlyCacheKey, $resetHourlyKey, $hourlyTimeWindow) {
+            ->chunk($perPage, function ($peoples) use ($app, $company, $rateLimit, $force, $cooldownDays) {
                 foreach ($peoples as $people) {
                     // Shared daily cap — once today's company total is reached, stop the run
                     // entirely (returning false halts further chunks).
@@ -96,10 +79,9 @@ class SyncAllPeopleInCompanyCommand extends Command
                         continue;
                     }
 
-                    if ($currentHourlyCount >= $hourlyRateLimit) {
-                        Cache::put($resetHourlyKey, now()->addSeconds($hourlyTimeWindow), $hourlyTimeWindow);
+                    if ($rateLimit->hasReachedHourlyLimit($app)) {
                         $this->line('Hourly rate limit reached. Waiting for reset...');
-                        sleep($hourlyTimeWindow);
+                        sleep(ApolloRateLimitService::HOURLY_WINDOW);
 
                         continue;
                     }
@@ -113,24 +95,10 @@ class SyncAllPeopleInCompanyCommand extends Command
                     $result = new EnrichPeopleFromApolloAction($people, $app)->execute();
                     $this->line("  [{$result['status']}] {$result['message']}");
 
-                    $currentHourlyCount++;
-                    Cache::put($hourlyCacheKey, $currentHourlyCount, $hourlyTimeWindow);
-
-                    // Dynamic delay based on remaining rate limit
-                    $delay = $this->calculateDelay($currentHourlyCount, $hourlyRateLimit);
-                    sleep($delay);
+                    sleep($rateLimit->pacingDelay($rateLimit->recordHourlyHit($app)));
                 }
             });
 
         $this->line("All people for company {$company->name} from app {$app->name} synced");
-    }
-
-    private function calculateDelay(int $currentCount, int $rateLimit): int
-    {
-        // Adjust delay dynamically to distribute requests evenly
-        $remainingRequests = $rateLimit - $currentCount;
-        $remainingTime = 60 * 60; // 1 hour in seconds
-
-        return $remainingRequests > 0 ? intdiv($remainingTime, $remainingRequests) : 2;
     }
 }
