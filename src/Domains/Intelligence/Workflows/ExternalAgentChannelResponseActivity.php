@@ -66,7 +66,7 @@ class ExternalAgentChannelResponseActivity extends KanvasActivity
         $fromOrchestrator = (bool) ($messageData['from_orchestrator'] ?? false);
         $fromExternalAi = $fromIa && $fromOrchestrator;
 
-        $fromPhone = $params['from'] ?? $company->get(ConfigurationEnum::TWILIO_PHONE_NUMBER) ?? null;
+        $fromPhone = $params['from'] ?? $company->get(ConfigurationEnum::TWILIO_PHONE_NUMBER->value) ?? null;
 
         $messageContext = $channelContext + [
             'message_id' => $message->getId(),
