@@ -86,9 +86,8 @@ class SyncAllPeopleInCompanyCommand extends Command
                         continue;
                     }
 
-                    // Apollo previously matched this person but had no enrichment data
-                    // (free/credit-limited key). Don't burn another credit re-asking
-                    // until the cooldown lapses — unless --force overrides it.
+                    // Apollo had no data on the last try — don't burn another credit until
+                    // the cooldown lapses, unless --force overrides it.
                     if (! $force && EnrichPeopleFromApolloAction::isWithinNoDataCooldown($people, $cooldownDays)) {
                         $this->line("Skipping people {$people->id}: no Apollo data on last try, within {$cooldownDays}-day cooldown");
 
