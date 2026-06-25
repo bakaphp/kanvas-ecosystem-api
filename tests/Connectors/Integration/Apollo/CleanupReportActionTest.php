@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Apollo;
 
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Apollo\Actions\CleanupReportAction;
 use Kanvas\Guild\Customers\Enums\ContactValidationStatusEnum;
