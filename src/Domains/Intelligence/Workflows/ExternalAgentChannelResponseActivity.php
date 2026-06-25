@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Workflows;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -39,7 +40,7 @@ class ExternalAgentChannelResponseActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
         $message = $params['message'] ?? null;
-
+        $company = $channel->company;
         $channelContext = [
             'channel_id' => $channel->getId(),
             'channel_uuid' => $channel->uuid ?? null,
@@ -65,7 +66,7 @@ class ExternalAgentChannelResponseActivity extends KanvasActivity
         $fromOrchestrator = (bool) ($messageData['from_orchestrator'] ?? false);
         $fromExternalAi = $fromIa && $fromOrchestrator;
 
-        $fromPhone = $params['from'] ?? null;
+        $fromPhone = $params['from'] ?? $company->get(ConfigurationEnum::TWILIO_PHONE_NUMBER) ?? null;
 
         $messageContext = $channelContext + [
             'message_id' => $message->getId(),
