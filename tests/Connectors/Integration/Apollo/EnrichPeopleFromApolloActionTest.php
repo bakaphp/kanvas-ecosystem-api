@@ -7,6 +7,7 @@ namespace Tests\Connectors\Integration\Apollo;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Apollo\Actions\EnrichPeopleFromApolloAction;
+use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\ContactType;
 use Kanvas\Guild\Customers\Models\People;
@@ -195,6 +196,41 @@ final class EnrichPeopleFromApolloActionTest extends TestCase
         $this->assertTrue(
             $people->contacts()->where('value', $existingEmail)->exists(),
             'A bare payload must never delete existing contacts.',
+        );
+    }
+
+    public function test_no_data_attempt_marks_and_gates_retries_within_cooldown(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(static::$cachedUser->getId())
+            ->create();
+
+        $this->assertFalse(
+            EnrichPeopleFromApolloAction::isWithinNoDataCooldown($people, 3),
+            'A person never attempted is not in cooldown.',
+        );
+
+        EnrichPeopleFromApolloAction::recordNoDataAttempt($people);
+
+        $this->assertTrue(
+            EnrichPeopleFromApolloAction::isWithinNoDataCooldown($people, 3),
+            'A just-recorded no-data miss is within a 3-day cooldown.',
+        );
+        $this->assertFalse(
+            EnrichPeopleFromApolloAction::isWithinNoDataCooldown($people, 0),
+            'A cooldown of 0 days disables the gate — always retry.',
+        );
+
+        // An attempt older than the window must fall through and be retried.
+        $people->set(ConfigurationEnum::APOLLO_LAST_ATTEMPT_AT->value, strtotime('-10 days'));
+        $this->assertFalse(
+            EnrichPeopleFromApolloAction::isWithinNoDataCooldown($people, 3),
+            'A 10-day-old miss is past a 3-day cooldown and may be retried.',
         );
     }
 
