@@ -14,6 +14,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
+use Kanvas\NervousSystem\Ledger\Models\Event;
 use Tests\TestCase;
 
 /**
@@ -25,7 +26,7 @@ final class EnrichPeopleFromApolloActionTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'crm'];
+    protected array $connectionsToTransact = ['mysql', 'crm', 'intelligence'];
 
     public function test_applies_apollo_payload_to_people_record(): void
     {
@@ -196,6 +197,120 @@ final class EnrichPeopleFromApolloActionTest extends TestCase
         $this->assertTrue(
             $people->contacts()->where('value', $existingEmail)->exists(),
             'A bare payload must never delete existing contacts.',
+        );
+    }
+
+    public function test_emits_enrichment_ledger_event_with_what_changed(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(static::$cachedUser->getId())
+            ->create();
+
+        $suffix = uniqid();
+        $payload = [
+            'title' => 'Chief Marketing Officer',
+            'headline' => "CMO at Acme {$suffix}",
+            'email' => "audit+{$suffix}@acme.test",
+            'organization' => ['name' => "Acme {$suffix}"],
+            'employment_history' => [
+                ['organization_name' => "Acme {$suffix}", 'title' => 'CMO', 'current' => 1, 'start_date' => '2024-01-01', 'end_date' => null],
+            ],
+        ];
+
+        new EnrichPeopleFromApolloAction($people, $app)->applyEnrichmentData($payload);
+
+        $event = Event::where('source_entity_type', People::class)
+            ->where('source_entity_id', $people->getId())
+            ->where('event_type', 'people.enriched')
+            ->orderByDesc('id')
+            ->first();
+
+        $this->assertNotNull($event, 'A people.enriched ledger event is appended.');
+
+        $payloadOut = (array) $event->payload;
+        $this->assertSame('apollo', $payloadOut['source'], 'The event records HOW the change happened.');
+
+        $changedFields = $payloadOut['changed_fields'] ?? [];
+        $this->assertContains('title', $changedFields);
+        $this->assertContains('current_employer', $changedFields);
+        $this->assertContains('contacts_added', $changedFields);
+
+        $this->assertSame('Chief Marketing Officer', $payloadOut['changes']['title']['to']);
+        $this->assertSame("Acme {$suffix}", $payloadOut['changes']['current_employer']['to']);
+    }
+
+    public function test_records_job_change_when_current_employer_changes(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(static::$cachedUser->getId())
+            ->create();
+
+        $suffix = uniqid();
+        $oldOrg = $this->seedOrganization("Old Co {$suffix}");
+        OrganizationPeople::addPeopleToOrganization($oldOrg, $people);
+        $people->set('company', $oldOrg->name);
+        $people->set('title', 'Junior Dev');
+
+        $payload = [
+            'organization' => ['name' => "New Co {$suffix}"],
+            'employment_history' => [
+                ['organization_name' => "New Co {$suffix}", 'title' => 'Senior Dev', 'current' => 1, 'start_date' => '2024-01-01', 'end_date' => null],
+            ],
+        ];
+
+        new EnrichPeopleFromApolloAction($people, $app)->applyEnrichmentData($payload);
+
+        $this->assertNotEmpty(
+            $people->get(ConfigurationEnum::APOLLO_JOB_CHANGED_AT->value),
+            'A new current employer stamps the job-changed marker.',
+        );
+
+        $change = $people->get(ConfigurationEnum::APOLLO_LAST_JOB_CHANGE->value);
+        $this->assertSame($oldOrg->name, $change['from_company']);
+        $this->assertSame('Junior Dev', $change['from_title']);
+        $this->assertSame("New Co {$suffix}", $change['to_company']);
+        $this->assertSame('Senior Dev', $change['to_title']);
+    }
+
+    public function test_does_not_record_job_change_when_employer_is_unchanged(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(static::$cachedUser->getId())
+            ->create();
+
+        $suffix = uniqid();
+        $sameOrg = $this->seedOrganization("Same Co {$suffix}");
+        OrganizationPeople::addPeopleToOrganization($sameOrg, $people);
+        $people->set('company', $sameOrg->name);
+
+        // Apollo re-confirms the same current employer (possibly a fresher title).
+        $payload = [
+            'organization' => ['name' => "Same Co {$suffix}"],
+            'employment_history' => [
+                ['organization_name' => "Same Co {$suffix}", 'title' => 'Manager', 'current' => 1, 'start_date' => '2024-01-01', 'end_date' => null],
+            ],
+        ];
+
+        new EnrichPeopleFromApolloAction($people, $app)->applyEnrichmentData($payload);
+
+        $this->assertEmpty(
+            $people->get(ConfigurationEnum::APOLLO_JOB_CHANGED_AT->value),
+            'Re-confirming the same employer must not be reported as a job change.',
         );
     }
 
