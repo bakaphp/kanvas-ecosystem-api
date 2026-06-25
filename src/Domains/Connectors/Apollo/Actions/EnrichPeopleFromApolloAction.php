@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Apollo\Actions;
 use Baka\Support\Str;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
@@ -24,7 +25,11 @@ use Kanvas\Guild\Organizations\Models\Organization as OrganizationModel;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Locations\Models\States;
+use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
+use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as LedgerEventData;
+use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Spatie\LaravelData\DataCollection;
+use Throwable;
 
 /**
  * Fetches a person's Apollo match and writes the enrichment back to the People
@@ -83,10 +88,6 @@ class EnrichPeopleFromApolloAction
         $people->set(ConfigurationEnum::APOLLO_LAST_ATTEMPT_AT->value, time());
     }
 
-    /**
-     * Was this person attempted within the cooldown window? `$cooldownDays <= 0`
-     * disables the gate (always retry).
-     */
     public static function isWithinNoDataCooldown(People $people, int $cooldownDays): bool
     {
         if ($cooldownDays <= 0) {
@@ -119,6 +120,12 @@ class EnrichPeopleFromApolloAction
      */
     public function applyEnrichmentData(array $peopleData): void
     {
+        // Snapshot BEFORE any write below — UpdatePeopleAction overwrites the title and
+        // setOrganization() links the new employer, so the diff must read the old state first.
+        $previousJob = $this->describeCurrentJob();
+        $previousEmployerOrgIds = $this->currentEmployerOrgIds();
+        $before = $this->snapshotEnrichmentProfile();
+
         // Only let Apollo set an address when the person has none — its address sync
         // is destructive (soft-deletes addresses not in the input), so for someone who
         // already has an address we skip it rather than risk evicting the real one.
@@ -144,13 +151,112 @@ class EnrichPeopleFromApolloAction
             }
         }
 
-        foreach ($this->updateEmploymentHistory($peopleData['employment_history'] ?? []) as $currentOrgId) {
+        foreach ($this->updateEmploymentHistory($peopleData['employment_history'] ?? [], $previousJob, $previousEmployerOrgIds) as $currentOrgId) {
             $currentOrgIds[$currentOrgId] = $currentOrgId;
         }
 
         $this->syncCurrentOrganizationLinks(array_values($currentOrgIds));
 
         $this->updateTodayReport(! empty($peopleData['employment_history']));
+
+        $this->emitEnrichmentEvent(
+            $this->buildEnrichmentDiff(
+                $before,
+                $this->snapshotEnrichmentProfile()
+            )
+        );
+    }
+
+    /**
+     * @return array{title: string, headline: string, company: string, address_count: int, contacts: string[]}
+     */
+    private function snapshotEnrichmentProfile(): array
+    {
+        return [
+            'title' => (string) ($this->people->get('title') ?? ''),
+            'headline' => (string) ($this->people->get('headline') ?? ''),
+            'company' => (string) ($this->people->get('company') ?? ''),
+            'address_count' => (int) $this->people->address()->count(),
+            'contacts' => $this->contactSignatures(),
+        ];
+    }
+
+    /**
+     * @return string[] one "typeId:value" entry per contact, for set-diffing additions
+     */
+    private function contactSignatures(): array
+    {
+        $signatures = [];
+        foreach ($this->people->contacts()->get() as $contact) {
+            $signatures[] = (int) $contact->contacts_types_id . ':' . (string) $contact->value;
+        }
+
+        return $signatures;
+    }
+
+    /**
+     * @param array{title: string, headline: string, company: string, address_count: int, contacts: string[]} $before
+     * @param array{title: string, headline: string, company: string, address_count: int, contacts: string[]} $after
+     *
+     * @return array<string, mixed> only the fields Apollo actually changed this run
+     */
+    private function buildEnrichmentDiff(array $before, array $after): array
+    {
+        $diff = [];
+
+        if ($before['title'] !== $after['title'] && $after['title'] !== '') {
+            $diff['title'] = ['from' => $before['title'], 'to' => $after['title']];
+        }
+
+        if ($before['headline'] !== $after['headline'] && $after['headline'] !== '') {
+            $diff['headline'] = ['from' => $before['headline'], 'to' => $after['headline']];
+        }
+
+        if ($before['company'] !== $after['company'] && $after['company'] !== '') {
+            $diff['current_employer'] = ['from' => $before['company'], 'to' => $after['company']];
+        }
+
+        $addedContacts = array_values(array_diff($after['contacts'], $before['contacts']));
+        if ($addedContacts !== []) {
+            $diff['contacts_added'] = $addedContacts;
+        }
+
+        if ($before['address_count'] === 0 && $after['address_count'] > 0) {
+            $diff['location_added'] = true;
+        }
+
+        return $diff;
+    }
+
+    /**
+     * Best-effort: a ledger outage must never fail an enrichment that already succeeded.
+     *
+     * @param array<string, mixed> $diff
+     */
+    private function emitEnrichmentEvent(array $diff): void
+    {
+        try {
+            new AppendEventAction(
+                new LedgerEventData(
+                    app: $this->app,
+                    company: $this->people->company,
+                    sourceDomain: 'Guild',
+                    eventType: 'people.enriched',
+                    status: EventStatusEnum::INFO,
+                    sourceEntityType: People::class,
+                    sourceEntityId: (int) $this->people->getId(),
+                    actorType: 'System',
+                    payload: [
+                        'source' => 'apollo',
+                        'changed_fields' => array_keys($diff),
+                        'changes' => $diff,
+                    ],
+                    occurredAt: Carbon::now(),
+                ),
+            )->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**
@@ -301,12 +407,19 @@ class EnrichPeopleFromApolloAction
     }
 
     /**
+     * @param array{company: string, title: string} $previousJob            the job on file before this run
+     * @param int[]                                  $previousEmployerOrgIds employer org ids linked before this run
+     *
      * @return list<int> organization ids the person CURRENTLY works at (status=1),
      *                   so the caller can prune the pivot to just those.
      */
-    private function updateEmploymentHistory(array $employmentHistory): array
-    {
+    private function updateEmploymentHistory(
+        array $employmentHistory,
+        array $previousJob,
+        array $previousEmployerOrgIds
+    ): array {
         $currentOrgIds = [];
+        $newEmployer = null;
 
         foreach ($employmentHistory as $employment) {
             if (empty($employment['organization_name'])) {
@@ -326,6 +439,13 @@ class EnrichPeopleFromApolloAction
             // Link + remember every current employer (even one without a title) so the
             // pivot reflects all concurrent roles, not just Apollo's primary organization.
             if ((int) ($employment['current'] ?? 0) === 1) {
+                if ($newEmployer === null && ! in_array($organization->getId(), $previousEmployerOrgIds, true)) {
+                    $newEmployer = [
+                        'company' => (string) $employment['organization_name'],
+                        'title' => (string) ($employment['title'] ?? ''),
+                    ];
+                }
+
                 $this->people->set('company', $employment['organization_name']);
                 OrganizationPeople::addPeopleToOrganization($organization, $this->people);
                 $currentOrgIds[] = $organization->getId();
@@ -348,7 +468,56 @@ class EnrichPeopleFromApolloAction
             $this->assignAudienceSegment($employment['title']);
         }
 
+        // Same company (a title-only refresh or re-confirmed role) is not a job change.
+        if ($newEmployer !== null && strcasecmp($newEmployer['company'], $previousJob['company']) !== 0) {
+            $this->recordJobChange($previousJob, $newEmployer);
+        }
+
         return $currentOrgIds;
+    }
+
+    /**
+     * The job we currently have on file, read before this run overwrites it.
+     *
+     * @return array{company: string, title: string}
+     */
+    private function describeCurrentJob(): array
+    {
+        return [
+            'company' => (string) ($this->people->get('company') ?? ''),
+            'title' => (string) ($this->people->get('title') ?? ''),
+        ];
+    }
+
+    /**
+     * Organization ids the person is currently linked to (their current employers
+     * before this run) — the pivot is kept pruned to current roles elsewhere.
+     *
+     * @return int[]
+     */
+    private function currentEmployerOrgIds(): array
+    {
+        return OrganizationPeople::query()
+            ->where('peoples_id', $this->people->getId())
+            ->pluck('organizations_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /**
+     * @param array{company: string, title: string} $previousJob
+     * @param array{company: string, title: string} $newJob
+     */
+    private function recordJobChange(array $previousJob, array $newJob): void
+    {
+        $this->people->set(ConfigurationEnum::APOLLO_JOB_CHANGED_AT->value, time());
+        $this->people->set(ConfigurationEnum::APOLLO_LAST_JOB_CHANGE->value, [
+            'changed_at' => date('c'),
+            'from_company' => $previousJob['company'],
+            'from_title' => $previousJob['title'],
+            'to_company' => $newJob['company'],
+            'to_title' => $newJob['title'],
+        ]);
     }
 
     private function assignAudienceSegment(string $jobTitle): void
