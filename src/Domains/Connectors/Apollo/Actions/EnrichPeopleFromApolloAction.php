@@ -62,9 +62,17 @@ class EnrichPeopleFromApolloAction
     }
 
     /**
-     * Apollo seniority levels that count as a decision-maker (→ "ascendió a decisor").
+     * Apollo seniority levels that count as a decision-maker
      */
-    private const array DECISION_MAKER_SENIORITY = ['owner', 'founder', 'c_suite', 'partner', 'vp', 'head', 'director'];
+    private const array DECISION_MAKER_SENIORITY = [
+        'owner',
+        'founder',
+        'c_suite',
+        'partner',
+        'vp',
+        'head',
+        'director',
+    ];
 
     public function execute(): array
     {
