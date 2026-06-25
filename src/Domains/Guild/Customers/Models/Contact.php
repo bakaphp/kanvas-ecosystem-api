@@ -8,8 +8,11 @@ use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Baka\Traits\SoftDeletesTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Enums\ContactValidationStatusEnum;
 use Kanvas\Guild\Customers\Factories\ContactFactory;
 use Kanvas\Guild\Customers\Observers\ContactObserver;
 use Kanvas\Guild\Models\BaseModel;
@@ -19,12 +22,14 @@ use Override;
 /**
  * Class Contacts.
  *
- * @property int $id
- * @property int $contacts_types_id
- * @property int $peoples_id
- * @property string $value
- * @property int $is_opt_out
- * @property int $weight
+ * @property int                          $id
+ * @property int                          $contacts_types_id
+ * @property int                          $peoples_id
+ * @property string                       $value
+ * @property int                          $is_opt_out
+ * @property int                          $weight
+ * @property ContactValidationStatusEnum  $validation_status
+ * @property Carbon|null                  $bounced_at
  */
 #[ObservedBy(ContactObserver::class)]
 class Contact extends BaseModel
@@ -58,7 +63,56 @@ class Contact extends BaseModel
             'is_opt_out' => 'integer',
             'weight' => 'integer',
             'is_deleted' => 'boolean',
+            'validation_status' => ContactValidationStatusEnum::class,
+            'bounced_at' => 'datetime',
         ];
+    }
+
+    /** Not opted out and not a permanent failure — soft bounces stay deliverable. */
+    public function scopeDeliverable(Builder $query): Builder
+    {
+        return $query->where('is_opt_out', 0)
+            ->whereNotIn('validation_status', [
+                ContactValidationStatusEnum::HARD_BOUNCE->value,
+                ContactValidationStatusEnum::INVALID->value,
+            ]);
+    }
+
+    public function markBounce(bool $permanent): bool
+    {
+        $this->validation_status = $permanent
+            ? ContactValidationStatusEnum::HARD_BOUNCE
+            : ContactValidationStatusEnum::SOFT_BOUNCE;
+        $this->bounced_at = Carbon::now();
+
+        return $this->saveOrFail();
+    }
+
+    public function markInvalid(): bool
+    {
+        $this->validation_status = ContactValidationStatusEnum::INVALID;
+        $this->bounced_at = Carbon::now();
+
+        return $this->saveOrFail();
+    }
+
+    /** Reset to deliverable, e.g. after Apollo replaces a hard-bounced email. */
+    public function markValid(): bool
+    {
+        $this->validation_status = ContactValidationStatusEnum::VALID;
+        $this->bounced_at = null;
+
+        return $this->saveOrFail();
+    }
+
+    public function isDeliverable(): bool
+    {
+        return ! $this->isOptedOut() && ! $this->validation_status->isPermanentFailure();
+    }
+
+    public function validationStatusValue(): string
+    {
+        return $this->validation_status->value;
     }
 
     public function people(): BelongsTo

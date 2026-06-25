@@ -244,6 +244,58 @@ final class EnrichPeopleFromApolloActionTest extends TestCase
         $this->assertSame("Acme {$suffix}", $payloadOut['changes']['current_employer']['to']);
     }
 
+    public function test_emits_seniority_promotion_new_account_and_email_change(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(static::$cachedUser->getId())
+            ->create();
+
+        // Prior state: non-decision-maker seniority, an existing email, an existing employer.
+        $people->set('seniority', 'senior');
+        $oldEmail = 'old-' . uniqid() . '@intras.test';
+        $people->addEmail($oldEmail, 0, 0);
+        $oldOrg = $this->seedOrganization('Prev Co ' . uniqid());
+        OrganizationPeople::addPeopleToOrganization($oldOrg, $people);
+        $people->set('company', $oldOrg->name);
+
+        $suffix = uniqid();
+        $newEmail = "new+{$suffix}@bpd.test";
+        $payload = [
+            'seniority' => 'director',                 // promotion to decision-maker
+            'email' => $newEmail,                      // replaced email
+            'organization' => ['name' => "New Co {$suffix}"],
+            'employment_history' => [
+                ['organization_name' => "New Co {$suffix}", 'title' => 'Director', 'current' => 1, 'start_date' => '2024-01-01', 'end_date' => null],
+            ],
+        ];
+
+        new EnrichPeopleFromApolloAction($people, $app)->applyEnrichmentData($payload);
+
+        $event = Event::where('source_entity_type', People::class)
+            ->where('source_entity_id', $people->getId())
+            ->where('event_type', 'people.enriched')
+            ->orderByDesc('id')
+            ->first();
+
+        $payloadOut = (array) $event->payload;
+        $changed = $payloadOut['changed_fields'] ?? [];
+
+        $this->assertContains('seniority_promoted', $changed);
+        $this->assertContains('new_account', $changed);
+        $this->assertContains('email_changed', $changed);
+        $this->assertContains('current_employer', $changed);
+
+        $this->assertSame('director', $payloadOut['changes']['seniority_promoted']['to']);
+        $this->assertTrue($payloadOut['changes']['new_account']);
+        $this->assertSame($newEmail, $payloadOut['changes']['email_changed']['to']);
+        $this->assertSame("New Co {$suffix}", $payloadOut['company'], 'Current employer is stamped on the event for per-company grouping.');
+    }
+
     public function test_records_job_change_when_current_employer_changes(): void
     {
         $app = app(Apps::class);

@@ -1,0 +1,32 @@
+type ApolloCleanupReport {
+    from: String
+    to: String
+    verifiedLeads: Int!
+    totalLeads: Int!
+    verifiedPct: Float!
+    changedCompany: Int!
+    changedTitle: Int!
+    changedEmail: Int!
+    promotedToDecisionMaker: Int!
+    newAccounts: Int!
+    bouncingLeads: Int!
+    byCompany: [ApolloCompanyFreshness!]!
+}
+
+type ApolloCompanyFreshness {
+    companyName: String!
+    total: Int!
+    upToDate: Int!
+    outdated: Int!
+}
+
+extend type Query @guard {
+    apolloCleanupReport(
+        from: String
+        to: String
+        topCompanies: Int = 5
+    ): ApolloCleanupReport!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Apollo\\Queries\\CleanupReportQuery@report"
+        )
+}
