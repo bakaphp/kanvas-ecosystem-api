@@ -7,6 +7,7 @@ namespace App\Console\Commands\Intelligence;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Jobs\CreateAgentConfigBackupJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Throwable;
@@ -19,7 +20,7 @@ class DailyAgentConfigBackupCommand extends Command
         {--agent= : Restrict to a single agent id}
         {--app= : Restrict to a single app id}';
 
-    protected $description = 'Dispatch end-of-day config backups for all active agents to S3.';
+    protected $description = 'Dispatch end-of-day config backups for active agents whose company local time is 23:xx.';
 
     public function handle(): int
     {
@@ -40,11 +41,19 @@ class DailyAgentConfigBackupCommand extends Command
 
         $query->chunkById(50, function ($agents) use (&$dispatched, &$failed): void {
             foreach ($agents as $agent) {
-                /** @var Apps $app */
                 try {
                     $app = Apps::find($agent->apps_id);
 
                     if ($app === null) {
+                        continue;
+                    }
+
+                    // Only dispatch when it is 23:xx in the company's local timezone.
+                    // The command runs hourly so each company gets its backup at its own EOD.
+                    $company = Companies::find($agent->companies_id);
+                    $timezone = $company?->timezone ?? 'UTC';
+
+                    if (now()->setTimezone($timezone)->hour !== 23) {
                         continue;
                     }
 
