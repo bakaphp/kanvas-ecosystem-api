@@ -52,6 +52,8 @@ class EnrichPeopleFromApolloAction
         }
 
         if (empty($peopleData)) {
+            self::recordNoDataAttempt($this->people);
+
             return $this->response('failed', 'No Apollo match found');
         }
 
@@ -60,12 +62,40 @@ class EnrichPeopleFromApolloAction
         // location or phone. Writing that back gains nothing and — worse — would let
         // the empty payload clobber existing data. Bail out without touching anything.
         if (! $this->hasMeaningfulEnrichment($peopleData)) {
+            self::recordNoDataAttempt($this->people);
+
             return $this->response('no_data', 'Apollo matched the person but returned no enrichment data (free/credit-limited key)');
         }
 
         $this->applyEnrichmentData($peopleData);
 
         return $this->response('success', 'People screened successfully', $peopleData);
+    }
+
+    /**
+     * Stamp "we tried and Apollo had nothing for this person". Only genuine misses
+     * (no match / credit-limited bare match) land here — a transient API/Guzzle
+     * error is never recorded, so it stays freely retryable. The bulk sync reads
+     * this to keep a few-day cooldown instead of burning a credit every run.
+     */
+    public static function recordNoDataAttempt(People $people): void
+    {
+        $people->set(ConfigurationEnum::APOLLO_LAST_ATTEMPT_AT->value, time());
+    }
+
+    /**
+     * Was this person attempted within the cooldown window? `$cooldownDays <= 0`
+     * disables the gate (always retry).
+     */
+    public static function isWithinNoDataCooldown(People $people, int $cooldownDays): bool
+    {
+        if ($cooldownDays <= 0) {
+            return false;
+        }
+
+        $lastAttempt = $people->get(ConfigurationEnum::APOLLO_LAST_ATTEMPT_AT->value);
+
+        return ! empty($lastAttempt) && (int) $lastAttempt > strtotime("-{$cooldownDays} days");
     }
 
     /**
