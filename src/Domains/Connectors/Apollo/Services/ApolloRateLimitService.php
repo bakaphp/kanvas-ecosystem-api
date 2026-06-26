@@ -27,7 +27,7 @@ class ApolloRateLimitService
         $report = (array) ($company->get(ConfigurationEnum::APOLLO_COMPANY_REPORTS->value) ?? []);
         $today = $report[date('Y-m-d')] ?? [];
 
-        return (int) ((is_array($today) ? $today['total'] : null) ?? 0);
+        return (int) (is_array($today) ? ($today['total'] ?? 0) : 0);
     }
 
     public function hasBeenScreenedRecently(People $people): bool
