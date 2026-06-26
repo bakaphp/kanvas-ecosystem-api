@@ -133,6 +133,8 @@ class InvoiceToPaymentFlowTest extends ScribeTestCase
         $this->assertEqualsWithDelta(1620.0, (float) $paid->paid_native, 0.005);
         $this->assertEqualsWithDelta(0.0, (float) $paid->balance_due_native, 0.005);
         $this->assertNull($paid->collection_state, 'collection_state clears when an invoice is paid.');
+        $this->assertNotNull($paid->paid_at, 'paid_at must be set on PAID transition.');
+        $this->assertSame('2026-06-20', $paid->paid_at->toDateString(), 'paid_at must equal the allocation date.');
 
         // ── Cross-cutting: GL invariants ──
         // The Issue JE has source_type='invoice'; the Payment JE has source_type='payment'
@@ -245,6 +247,56 @@ class InvoiceToPaymentFlowTest extends ScribeTestCase
         );
         $this->assertEqualsWithDelta(400.0, (float) $result->paid_native, 0.005);
         $this->assertEqualsWithDelta(600.0, (float) $result->balance_due_native, 0.005);
+        $this->assertNull($result->paid_at, 'paid_at stays NULL until full payment clears the balance.');
+    }
+
+    public function test_multi_allocation_paid_at_uses_final_allocation_date(): void
+    {
+        $billable = $this->seedTestOrganization();
+        $invoice = $this->issueTestInvoice($billable, subtotal: 1000.0);
+
+        // First partial: $400 on June 10 — status stays ISSUED, paid_at stays NULL.
+        $a1 = new InvoicePaymentAllocation();
+        $a1->apps_id = (int) $invoice->apps_id;
+        $a1->companies_id = (int) $invoice->companies_id;
+        $a1->invoice_id = (int) $invoice->id;
+        $a1->source_type = 'payment';
+        $a1->status = AllocationStatusEnum::ACTIVE->value;
+        $a1->amount_native = 400.0;
+        $a1->amount_base = 400.0;
+        $a1->currency = 'USD';
+        $a1->fx_rate_to_base = 1.0;
+        $a1->allocated_at = Carbon::parse('2026-06-10');
+        $a1->source = 'kanvas';
+        $a1->save();
+
+        new MarkInvoicePaidAction(invoice: $invoice)->execute();
+        $this->assertNull($invoice->refresh()->paid_at, 'No paid_at after partial.');
+
+        // Final allocation: $600 on June 25 — clears balance, triggers PAID, paid_at = MAX.
+        $a2 = new InvoicePaymentAllocation();
+        $a2->apps_id = (int) $invoice->apps_id;
+        $a2->companies_id = (int) $invoice->companies_id;
+        $a2->invoice_id = (int) $invoice->id;
+        $a2->source_type = 'payment';
+        $a2->status = AllocationStatusEnum::ACTIVE->value;
+        $a2->amount_native = 600.0;
+        $a2->amount_base = 600.0;
+        $a2->currency = 'USD';
+        $a2->fx_rate_to_base = 1.0;
+        $a2->allocated_at = Carbon::parse('2026-06-25');
+        $a2->source = 'kanvas';
+        $a2->save();
+
+        $result = new MarkInvoicePaidAction(invoice: $invoice)->execute();
+
+        $this->assertSame(InvoiceDocumentStatusEnum::PAID, $result->document_status);
+        $this->assertNotNull($result->paid_at);
+        $this->assertSame(
+            '2026-06-25',
+            $result->paid_at->toDateString(),
+            'paid_at must be MAX(allocations.allocated_at) — the final payment that cleared the balance.',
+        );
     }
 
     private function latestPostedJeFor(string $sourceType, int $sourceId): ?JournalEntry

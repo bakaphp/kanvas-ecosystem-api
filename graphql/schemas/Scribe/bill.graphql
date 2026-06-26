@@ -55,6 +55,7 @@ type ScribeBill {
     total_base: Money!
     paid_base: Money!
     balance_due_base: Money!
+    paid_at: DateTime
     tax_metadata: Mixed
     regional_compliance: Mixed
     notes: String
@@ -190,6 +191,7 @@ extend type Query @guard {
                     "vendor_organization_id"
                     "bill_date"
                     "due_date"
+                    "paid_at"
                     "source"
                     "external_id"
                 ]
@@ -201,6 +203,7 @@ extend type Query @guard {
                     "bill_number"
                     "bill_date"
                     "due_date"
+                    "paid_at"
                     "total_base"
                     "balance_due_base"
                     "created_at"

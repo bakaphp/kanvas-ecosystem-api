@@ -59,6 +59,7 @@ type ScribeInvoice {
     total_base: Money!
     paid_base: Money!
     balance_due_base: Money!
+    paid_at: DateTime
     tax_metadata: Mixed
     regional_compliance: Mixed
     notes: String
@@ -207,6 +208,7 @@ extend type Query @guard {
                     "customer_organization_id"
                     "issued_date"
                     "due_date"
+                    "paid_at"
                     "source"
                     "external_id"
                 ]
@@ -218,6 +220,7 @@ extend type Query @guard {
                     "invoice_number"
                     "issued_date"
                     "due_date"
+                    "paid_at"
                     "total_base"
                     "balance_due_base"
                     "created_at"

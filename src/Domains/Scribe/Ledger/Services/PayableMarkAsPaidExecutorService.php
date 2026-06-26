@@ -88,6 +88,10 @@ class PayableMarkAsPaidExecutorService
                 if ($canTransitionToPaid($entity->document_status)) {
                     $entity->document_status = $paidStatusEnum;
                     $entity->collection_state = null;
+                    $entity->paid_at = $allocationModelClass::query()
+                        ->where($allocationFkColumn, $entity->id)
+                        ->where('status', 'active')
+                        ->max('allocated_at');
                 }
             }
 
