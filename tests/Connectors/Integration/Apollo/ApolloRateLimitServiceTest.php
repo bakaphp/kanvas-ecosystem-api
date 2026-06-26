@@ -43,7 +43,7 @@ final class ApolloRateLimitServiceTest extends TestCase
         $this->assertFalse($service->hasReachedDailyLimit($company));
         $this->assertSame(5, $service->dailyTotal($company));
 
-        $company->set(ConfigurationEnum::APOLLO_COMPANY_REPORTS->value, [$today => ['total' => 2000, 'success' => 2000, 'processed' => 2000, 'failed' => 0]]);
+        $company->set(ConfigurationEnum::APOLLO_COMPANY_REPORTS->value, [$today => ['total' => 50000, 'success' => 50000, 'processed' => 50000, 'failed' => 0]]);
         $this->assertTrue($service->hasReachedDailyLimit($company));
 
         // A lower explicit cap trips earlier.
@@ -83,29 +83,29 @@ final class ApolloRateLimitServiceTest extends TestCase
         $this->assertTrue($service->hasBeenScreenedRecently($people));
     }
 
-    public function test_hourly_counter_increments_and_trips_the_limit(): void
+    public function test_per_minute_counter_increments_and_trips_the_limit(): void
     {
         $app = app(Apps::class);
         $service = new ApolloRateLimitService();
 
-        $this->assertSame(0, $service->hourlyCount($app));
-        $this->assertFalse($service->hasReachedHourlyLimit($app));
+        $this->assertSame(0, $service->minuteCount($app));
+        $this->assertFalse($service->hasReachedMinuteLimit($app));
 
-        $this->assertSame(1, $service->recordHourlyHit($app));
-        $this->assertSame(2, $service->recordHourlyHit($app));
-        $this->assertSame(2, $service->hourlyCount($app));
+        $this->assertSame(1, $service->recordMinuteHit($app));
+        $this->assertSame(2, $service->recordMinuteHit($app));
+        $this->assertSame(2, $service->minuteCount($app));
 
         // Two hits is at the limit when the cap is 2.
-        $this->assertTrue($service->hasReachedHourlyLimit($app, hourlyLimit: 2));
-        $this->assertFalse($service->hasReachedHourlyLimit($app, hourlyLimit: 3));
+        $this->assertTrue($service->hasReachedMinuteLimit($app, minuteLimit: 2));
+        $this->assertFalse($service->hasReachedMinuteLimit($app, minuteLimit: 3));
     }
 
     public function test_pacing_delay_spreads_the_remaining_budget(): void
     {
         $service = new ApolloRateLimitService();
 
-        // 1 of 10 used → spread 9 remaining over the hour.
-        $this->assertSame(intdiv(ApolloRateLimitService::HOURLY_WINDOW, 9), $service->pacingDelay(1, 10));
+        // 1 of 10 used → spread 9 remaining over the minute.
+        $this->assertSame(intdiv(ApolloRateLimitService::MINUTE_WINDOW, 9), $service->pacingDelay(1, 10));
 
         // At/over the cap → minimal floor delay.
         $this->assertSame(2, $service->pacingDelay(10, 10));
