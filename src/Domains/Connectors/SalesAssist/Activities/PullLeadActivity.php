@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -167,26 +168,23 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
 
     private function extractPhone(mixed $phone): ?string
     {
-        if ($phone === null) {
+        $raw = match (true) {
+            $phone === null => null,
+            is_string($phone) => $phone,
+            is_array($phone) => match (true) {
+                isset($phone['cell']) => (string) $phone['cell'],
+                isset($phone['home']) => (string) $phone['home'],
+                default => ($first = reset($phone)) !== false ? (string) $first : null,
+            },
+            default => (string) $phone,
+        };
+
+        if ($raw === null) {
             return null;
         }
 
-        if (is_string($phone)) {
-            return $phone;
-        }
+        $sanitized = Str::sanitizePhoneNumber($raw);
 
-        if (is_array($phone)) {
-            if (isset($phone['cell'])) {
-                return (string) $phone['cell'];
-            }
-            if (isset($phone['home'])) {
-                return (string) $phone['home'];
-            }
-            $first = reset($phone);
-
-            return $first !== false ? (string) $first : null;
-        }
-
-        return (string) $phone;
+        return $sanitized === '' ? null : $sanitized;
     }
 }
