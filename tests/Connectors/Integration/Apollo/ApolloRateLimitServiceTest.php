@@ -48,6 +48,11 @@ final class ApolloRateLimitServiceTest extends TestCase
 
         // A lower explicit cap trips earlier.
         $this->assertTrue($service->hasReachedDailyLimit($company, dailyLimit: 3));
+
+        // A malformed report row (today present but no 'total' key) must not error.
+        $company->set(ConfigurationEnum::APOLLO_COMPANY_REPORTS->value, [$today => ['success' => 4]]);
+        $this->assertSame(0, $service->dailyTotal($company));
+        $this->assertFalse($service->hasReachedDailyLimit($company));
     }
 
     public function test_recently_screened_respects_the_revalidation_window(): void
