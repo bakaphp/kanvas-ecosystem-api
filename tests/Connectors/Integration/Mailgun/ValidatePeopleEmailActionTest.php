@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Mailgun\Actions\ValidatePeopleEmailAction;
 use Kanvas\Connectors\Mailgun\DataTransferObject\EmailValidationResult;
+use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Mailgun\Services\EmailValidationService;
 use Kanvas\Guild\Customers\Enums\ContactValidationStatusEnum;
 use Kanvas\Guild\Customers\Models\People;
@@ -95,6 +96,34 @@ final class ValidatePeopleEmailActionTest extends TestCase
         $contact = $people->contacts()->where('value', $email)->firstOrFail();
         $this->assertSame(ContactValidationStatusEnum::VALID, $contact->validation_status);
         $this->assertNull($contact->bounced_at);
+    }
+
+    public function test_records_validation_attempt_and_respects_the_cooldown(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(static::$cachedUser->getId())
+            ->create();
+
+        $people->addEmail('cooldown-' . uniqid() . '@intras.test', 0, 0);
+
+        // Never validated → eligible.
+        $this->assertFalse(ValidatePeopleEmailAction::isWithinValidationCooldown($people, 0));
+
+        new ValidatePeopleEmailAction($people, $app, $this->fakeValidator('deliverable'))->execute();
+
+        // cooldown 0 = validate once; cooldown 30 = still inside the fresh window → both skip.
+        $this->assertTrue(ValidatePeopleEmailAction::isWithinValidationCooldown($people, 0));
+        $this->assertTrue(ValidatePeopleEmailAction::isWithinValidationCooldown($people, 30));
+
+        // A validation 60 days old is stale for a 30-day window, but still "once" for cooldown 0.
+        $people->set(ConfigurationEnum::LAST_VALIDATED_AT->value, strtotime('-60 days'));
+        $this->assertFalse(ValidatePeopleEmailAction::isWithinValidationCooldown($people, 30));
+        $this->assertTrue(ValidatePeopleEmailAction::isWithinValidationCooldown($people, 0));
     }
 
     private function fakeValidator(string $result): EmailValidationService

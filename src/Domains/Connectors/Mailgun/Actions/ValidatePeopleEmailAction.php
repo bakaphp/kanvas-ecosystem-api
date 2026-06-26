@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Mailgun\Actions;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Mailgun\Services\EmailValidationService;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactValidationStatusEnum;
@@ -62,10 +63,36 @@ class ValidatePeopleEmailAction
             $this->emitLedgerEvent($validated);
         }
 
+        self::recordValidationAttempt($this->people);
+
         return [
             'people_id' => $this->people->getId(),
             'validated' => $validated,
         ];
+    }
+
+    public static function recordValidationAttempt(People $people): void
+    {
+        $people->set(ConfigurationEnum::LAST_VALIDATED_AT->value, time());
+    }
+
+    /**
+     * Have we validated this person's emails already? With cooldownDays = 0 a person
+     * is validated once and never again; a positive value re-validates only after the
+     * window lapses, so periodic runs can refresh stale addresses.
+     */
+    public static function isWithinValidationCooldown(People $people, int $cooldownDays): bool
+    {
+        $lastValidatedAt = $people->get(ConfigurationEnum::LAST_VALIDATED_AT->value);
+        if (empty($lastValidatedAt)) {
+            return false;
+        }
+
+        if ($cooldownDays <= 0) {
+            return true;
+        }
+
+        return (int) $lastValidatedAt > strtotime("-{$cooldownDays} days");
     }
 
     /**
