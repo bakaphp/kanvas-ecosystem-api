@@ -412,4 +412,26 @@ final class EnrichPeopleFromApolloActionTest extends TestCase
             'total_employees' => 0,
         ]);
     }
+
+    public function test_apollo_touched_email_only_triggers_on_a_changed_or_added_email(): void
+    {
+        $changed = ['email_changed' => ['from' => 'a@x.do', 'to' => 'b@y.do']];
+        $this->assertTrue(EnrichPeopleFromApolloAction::apolloTouchedEmail($changed));
+
+        $addedEmail = ['contacts_added' => [ContactTypeEnum::EMAIL->value . ':new@y.do']];
+        $this->assertTrue(EnrichPeopleFromApolloAction::apolloTouchedEmail($addedEmail));
+
+        $addedPrimaryEmail = ['contacts_added' => [ContactTypeEnum::PRIMARY_EMAIL->value . ':primary@y.do']];
+        $this->assertTrue(EnrichPeopleFromApolloAction::apolloTouchedEmail($addedPrimaryEmail));
+
+        // A non-email contact (e.g. phone) added does not trigger validation.
+        $addedPhone = ['contacts_added' => [ContactTypeEnum::PHONE->value . ':+18095550100']];
+        $this->assertFalse(EnrichPeopleFromApolloAction::apolloTouchedEmail($addedPhone));
+
+        // A title-only refresh does not trigger validation.
+        $titleOnly = ['title' => ['from' => 'Dev', 'to' => 'Lead']];
+        $this->assertFalse(EnrichPeopleFromApolloAction::apolloTouchedEmail($titleOnly));
+
+        $this->assertFalse(EnrichPeopleFromApolloAction::apolloTouchedEmail([]));
+    }
 }
