@@ -10,6 +10,8 @@ use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Mailgun\Actions\ValidatePeopleEmailAction;
+use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum as MailgunConfigurationEnum;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address as AddressData;
 use Kanvas\Guild\Customers\DataTransferObject\Contact as ContactData;
@@ -84,6 +86,7 @@ class EnrichPeopleFromApolloAction
 
         if (empty($peopleData)) {
             self::recordNoDataAttempt($this->people);
+            $this->validateEmailsFallback();
 
             return $this->response('failed', 'No Apollo match found');
         }
@@ -94,6 +97,7 @@ class EnrichPeopleFromApolloAction
         // the empty payload clobber existing data. Bail out without touching anything.
         if (! $this->hasMeaningfulEnrichment($peopleData)) {
             self::recordNoDataAttempt($this->people);
+            $this->validateEmailsFallback();
 
             return $this->response('no_data', 'Apollo matched the person but returned no enrichment data (free/credit-limited key)');
         }
@@ -112,6 +116,22 @@ class EnrichPeopleFromApolloAction
     public static function recordNoDataAttempt(People $people): void
     {
         $people->set(ConfigurationEnum::APOLLO_LAST_ATTEMPT_AT->value, time());
+    }
+
+    /** Best-effort, config-gated: a missing Mailgun key or a validation outage never fails the enrichment. */
+    private function validateEmailsFallback(): void
+    {
+        $hasMailgunKey = ! empty($this->app->get(MailgunConfigurationEnum::API_KEY->value));
+
+        if (! $hasMailgunKey) {
+            return;
+        }
+
+        try {
+            new ValidatePeopleEmailAction($this->people, $this->app)->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     public static function isWithinNoDataCooldown(People $people, int $cooldownDays): bool
