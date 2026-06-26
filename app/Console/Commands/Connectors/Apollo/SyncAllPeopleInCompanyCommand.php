@@ -23,7 +23,7 @@ class SyncAllPeopleInCompanyCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:guild-apollo-people-sync {app_id} {company_id} {total=150} {perPage=50} {--order=desc : Sort people by id (asc|desc)} {--cooldown=3 : Days to wait before retrying a person Apollo had no data for} {--force : Ignore the revalidation window and no-data cooldown; re-enrich everyone} {--validate-emails : Still run Mailgun email validation on people skipped by the cooldown/revalidation gates (backfill leads enriched before validation existed)}';
+    protected $signature = 'kanvas:guild-apollo-people-sync {app_id} {company_id} {total=150} {perPage=50} {--order=desc : Sort people by id (asc|desc)} {--cooldown=3 : Days to wait before retrying a person Apollo had no data for} {--force : Ignore the revalidation window and no-data cooldown; re-enrich everyone} {--validate-emails : Still run Mailgun email validation on people skipped by the cooldown/revalidation gates (backfill leads enriched before validation existed)} {--daily-limit= : Max Apollo enrichments per day (default 2000); raise it to blast a large backfill} {--hourly-limit= : Max Apollo enrichments per hour (default 400)}';
 
     /**
      * The console command description.
@@ -49,6 +49,10 @@ class SyncAllPeopleInCompanyCommand extends Command
         $cooldownDays = max(0, (int) $this->option('cooldown'));
         $validateEmails = (bool) $this->option('validate-emails');
         $mailgunReady = $validateEmails && (string) $app->get(MailgunConfigurationEnum::API_KEY->value) !== '';
+        $dailyLimitOption = (string) $this->option('daily-limit');
+        $hourlyLimitOption = (string) $this->option('hourly-limit');
+        $dailyLimit = $dailyLimitOption !== '' ? max(1, (int) $dailyLimitOption) : ApolloRateLimitService::DEFAULT_DAILY_LIMIT;
+        $hourlyLimit = $hourlyLimitOption !== '' ? max(1, (int) $hourlyLimitOption) : ApolloRateLimitService::DEFAULT_HOURLY_LIMIT;
 
         if ($validateEmails && ! $mailgunReady) {
             $this->warn('--validate-emails set but no MAILGUN_API_KEY configured for this app; emails will not be validated.');
@@ -63,10 +67,10 @@ class SyncAllPeopleInCompanyCommand extends Command
             ->notDeleted(0)
             ->orderBy('peoples.id', $order)
             ->limit($total)
-            ->chunk($perPage, function ($peoples) use ($app, $company, $rateLimit, $force, $cooldownDays, $validateEmails, $mailgunReady) {
+            ->chunk($perPage, function ($peoples) use ($app, $company, $rateLimit, $force, $cooldownDays, $validateEmails, $mailgunReady, $dailyLimit, $hourlyLimit) {
                 foreach ($peoples as $people) {
                     // Returning false from the chunk closure halts the remaining chunks.
-                    if ($rateLimit->hasReachedDailyLimit($company)) {
+                    if ($rateLimit->hasReachedDailyLimit($company, $dailyLimit)) {
                         $this->line('Daily Apollo enrichment limit reached. Stopping.');
 
                         return false;
@@ -86,7 +90,7 @@ class SyncAllPeopleInCompanyCommand extends Command
                         continue;
                     }
 
-                    if ($rateLimit->hasReachedHourlyLimit($app)) {
+                    if ($rateLimit->hasReachedHourlyLimit($app, $hourlyLimit)) {
                         $this->line('Hourly rate limit reached. Waiting for reset...');
                         sleep(ApolloRateLimitService::HOURLY_WINDOW);
 
@@ -102,7 +106,7 @@ class SyncAllPeopleInCompanyCommand extends Command
                     $result = new EnrichPeopleFromApolloAction($people, $app)->execute();
                     $this->line("  [{$result['status']}] {$result['message']}");
 
-                    sleep($rateLimit->pacingDelay($rateLimit->recordHourlyHit($app)));
+                    sleep($rateLimit->pacingDelay($rateLimit->recordHourlyHit($app), $hourlyLimit));
                 }
             });
 
