@@ -31,7 +31,7 @@ class ValidateAllPeopleEmailsCommand extends Command
      */
     protected $description = 'Validate the email addresses of all people in a company with Mailgun, flagging hard bounces / invalid addresses';
 
-    public function handle()
+    public function handle(): int
     {
         /** @var Apps $app */
         $app = Apps::getById((int) $this->argument('app_id'));
