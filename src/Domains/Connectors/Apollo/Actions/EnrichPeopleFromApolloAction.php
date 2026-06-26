@@ -10,6 +10,8 @@ use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Mailgun\Actions\ValidatePeopleEmailAction;
+use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum as MailgunConfigurationEnum;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address as AddressData;
 use Kanvas\Guild\Customers\DataTransferObject\Contact as ContactData;
@@ -31,15 +33,6 @@ use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
-/**
- * Fetches a person's Apollo match and writes the enrichment back to the People
- * record (job, employment history, LinkedIn, email, location, organization).
- *
- * This is the runtime-agnostic core of the enrichment. ScreeningPeopleActivity
- * keeps the rate-limit / recently-screened gating and delegates the actual
- * fetch + write here, so the same logic can run directly from a command without
- * a workflow/activity in the loop.
- */
 class EnrichPeopleFromApolloAction
 {
     /** Set during updateEmploymentHistory when the new current employer didn't exist in the CRM yet. */
@@ -61,9 +54,6 @@ class EnrichPeopleFromApolloAction
     ) {
     }
 
-    /**
-     * Apollo seniority levels that count as a decision-maker
-     */
     private const array DECISION_MAKER_SENIORITY = [
         'owner',
         'founder',
@@ -84,6 +74,7 @@ class EnrichPeopleFromApolloAction
 
         if (empty($peopleData)) {
             self::recordNoDataAttempt($this->people);
+            $this->validatePeopleEmails();
 
             return $this->response('failed', 'No Apollo match found');
         }
@@ -94,6 +85,7 @@ class EnrichPeopleFromApolloAction
         // the empty payload clobber existing data. Bail out without touching anything.
         if (! $this->hasMeaningfulEnrichment($peopleData)) {
             self::recordNoDataAttempt($this->people);
+            $this->validatePeopleEmails();
 
             return $this->response('no_data', 'Apollo matched the person but returned no enrichment data (free/credit-limited key)');
         }
@@ -112,6 +104,22 @@ class EnrichPeopleFromApolloAction
     public static function recordNoDataAttempt(People $people): void
     {
         $people->set(ConfigurationEnum::APOLLO_LAST_ATTEMPT_AT->value, time());
+    }
+
+    /** Best-effort, config-gated: a missing Mailgun key or a validation outage never fails the enrichment. */
+    private function validatePeopleEmails(): void
+    {
+        $hasMailgunKey = ! empty($this->app->get(MailgunConfigurationEnum::API_KEY->value));
+
+        if (! $hasMailgunKey) {
+            return;
+        }
+
+        try {
+            new ValidatePeopleEmailAction($this->people, $this->app)->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     public static function isWithinNoDataCooldown(People $people, int $cooldownDays): bool
@@ -189,7 +197,39 @@ class EnrichPeopleFromApolloAction
 
         $after = $this->snapshotEnrichmentProfile();
 
-        $this->emitEnrichmentEvent($this->buildEnrichmentDiff($before, $after, $peopleData), $after['company']);
+        $diff = $this->buildEnrichmentDiff($before, $after, $peopleData);
+        $this->emitEnrichmentEvent($diff, $after['company']);
+
+        if (self::apolloTouchedEmail($diff)) {
+            $this->validatePeopleEmails();
+        }
+    }
+
+    /**
+     * We only re-validate when Apollo handed us a fresh address — not on every success.
+     *
+     * @param array<string, mixed> $diff
+     */
+    public static function apolloTouchedEmail(array $diff): bool
+    {
+        if (isset($diff['email_changed'])) {
+            return true;
+        }
+
+        $emailTypes = [
+            ContactTypeEnum::EMAIL->value,
+            ContactTypeEnum::PRIMARY_EMAIL->value,
+            ContactTypeEnum::SECONDARY_EMAIL->value,
+        ];
+
+        foreach ($diff['contacts_added'] ?? [] as $signature) {
+            $typeId = (int) explode(':', (string) $signature, 2)[0];
+            if (in_array($typeId, $emailTypes, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

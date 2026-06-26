@@ -56,15 +56,13 @@ class SyncAllPeopleInCompanyCommand extends Command
             ->limit($total)
             ->chunk($perPage, function ($peoples) use ($app, $company, $rateLimit, $force, $cooldownDays) {
                 foreach ($peoples as $people) {
-                    // Shared daily cap — once today's company total is reached, stop the run
-                    // entirely (returning false halts further chunks).
+                    // Returning false from the chunk closure halts the remaining chunks.
                     if ($rateLimit->hasReachedDailyLimit($company)) {
                         $this->line('Daily Apollo enrichment limit reached. Stopping.');
 
                         return false;
                     }
 
-                    // Already enriched inside the revalidation window — same gate the workflow uses.
                     if (! $force && $rateLimit->hasBeenScreenedRecently($people)) {
                         $this->line("Skipping people {$people->id}: enriched recently, within revalidation window");
 
