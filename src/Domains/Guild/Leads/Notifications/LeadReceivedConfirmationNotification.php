@@ -21,6 +21,7 @@ class LeadReceivedConfirmationNotification extends Notification
         $this->reference = (string) ($data['reference'] ?? '');
         $this->setType(EnumsEmailTemplateEnum::BLANK->value);
         $this->setTemplateName(EmailTemplateEnum::LEAD_RECEIVED_CONFIRMATION->value);
+        $this->setSmsTemplateName(EmailTemplateEnum::LEAD_RECEIVED_CONFIRMATION_SMS->value);
         $this->setData($data);
         $this->channels = ['mail'];
     }

@@ -10,12 +10,14 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Enums\EmailTemplateEnum;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverWithConfirmationJob;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Notifications\LeadReceivedConfirmationNotification;
 use Kanvas\Guild\LeadSources\Models\LeadSource;
+use Kanvas\Templates\Models\Templates;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
@@ -154,6 +156,58 @@ class CreateLeadsFromReceiverWithConfirmationJobTest extends TestCase
 
         $this->assertArrayHasKey('lead_id', $result);
         Notification::assertNothingSent();
+    }
+
+    public function testRendersDedicatedTemplatesPerChannel(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        Templates::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'name' => EmailTemplateEnum::LEAD_RECEIVED_CONFIRMATION->value,
+            'subject' => 'Lead received',
+            'template' => '<p>Thanks! Your reference is <strong>{{ $reference }}</strong></p>',
+        ]);
+
+        Templates::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'name' => EmailTemplateEnum::LEAD_RECEIVED_CONFIRMATION_SMS->value,
+            'template' => 'Your reference is {{ $reference }}',
+        ]);
+
+        Notification::fake();
+        $result = $this->dispatchWebhookJob($this->payloadWithEmail('render@example.com'));
+        $lead = Lead::find($result['lead_id']);
+
+        $reference = 'ZX98QW';
+        $notification = new LeadReceivedConfirmationNotification(
+            $lead,
+            [
+                'app' => $lead->app,
+                'company' => $lead->company,
+                'lead' => $lead,
+                'reference' => $reference,
+            ],
+        );
+
+        $emailBody = $notification->getEmailContent();
+        $this->assertStringContainsString($reference, $emailBody);
+        $this->assertStringContainsString('<strong>', $emailBody);
+
+        $smsNotifiable = new AnonymousNotifiable();
+        $smsNotifiable->route('sms', '8290000000');
+        $smsBody = $notification->toSms($smsNotifiable)['content'];
+
+        $this->assertStringContainsString($reference, $smsBody);
+        // the SMS must render the dedicated plain-text template, never the HTML email body
+        $this->assertStringNotContainsString('<strong>', $smsBody);
+        $this->assertStringNotContainsString('<p>', $smsBody);
     }
 
     private function payloadWithEmail(string $email, string $phone = '8292001222'): array
