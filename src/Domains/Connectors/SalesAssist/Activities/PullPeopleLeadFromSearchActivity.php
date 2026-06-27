@@ -16,6 +16,7 @@ use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\KanvasActivity;
@@ -75,7 +76,18 @@ class PullPeopleLeadFromSearchActivity extends KanvasActivity
      */
     protected function searchVinSolutionLeads(string $searchText, UserInterface $user): array
     {
-        $vinCompany = Dealer::getById($this->company->get(EnumsCustomFieldEnum::COMPANY->value), $this->app);
+        $dealerId = $this->company->get(EnumsCustomFieldEnum::COMPANY->value);
+        if (empty($dealerId)) {
+            return [];
+        }
+
+        try {
+            $vinCompany = Dealer::getById((int) $dealerId, $this->app);
+        } catch (ModelNotFoundException $e) {
+            // Company points at a dealer this app key can't see — nothing to search.
+            return [];
+        }
+
         $vinUserId = $user->get(ConfigurationEnum::getUserKey($this->company, $user));
 
         if (! $vinUserId) {
