@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\VinSolution\Dealers;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\VinSolution\Client;
+use Kanvas\Exceptions\ModelNotFoundException;
 
 class Dealer
 {
@@ -36,19 +37,22 @@ class Dealer
         $dealers = [];
         if (count($response)) {
             foreach ($response['Items'] as $item) {
-                $dealers[$item['DealerId']] = new Dealer($item['DealerId'], $item['Name'], $item['City'], $item['State']);
+                $dealers[$item['DealerId']] = new Dealer(
+                    $item['DealerId'],
+                    $item['Name'],
+                    $item['City'],
+                    $item['State']
+                );
             }
         }
 
         return $dealers;
     }
 
-    /**
-     * Get a dealer by its ID.
-     */
     public static function getById(int $id, AppInterface $app): Dealer
     {
-        return self::getAll($app)[$id];
+        return self::getAll($app)[$id]
+            ?? throw new ModelNotFoundException("VinSolution dealer {$id} not found or not accessible for app {$app->getId()}");
     }
 
     /**
