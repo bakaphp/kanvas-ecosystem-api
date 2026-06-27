@@ -244,8 +244,10 @@ class AgentChatKernel
             'agent_id' => $this->agent->getId(),
             'agent_name' => $this->agent->name,
             'session_id' => $sessionId,
-            'message' => $this->message,
-            'response' => $this->limitBroadcastPayload($response),
+            ...$this->limitBroadcastPayloadSet([
+                'message' => $this->message,
+                'response' => $response,
+            ]),
         ]);
     }
 }
