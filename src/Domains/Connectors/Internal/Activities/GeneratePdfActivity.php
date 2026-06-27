@@ -38,6 +38,7 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
+            additionalParams: $params,
             integrationOperation: function ($buyerCompany, $app, $integrationCompany, $additionalParams) use ($pdfTemplate, $pdfFileName, $entity, $params): array {
                 $errorMessage = null;
 

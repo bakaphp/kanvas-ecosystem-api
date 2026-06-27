@@ -310,6 +310,12 @@ class BillLifecycleTest extends TestCase
         $this->assertSame(BillDocumentStatusEnum::PAID, $paid->document_status);
         $this->assertEquals(500.0, (float) $paid->paid_native);
         $this->assertEquals(0.0, (float) $paid->balance_due_native);
+        $this->assertNotNull($paid->paid_at, 'paid_at must be set on PAID transition.');
+        $this->assertEquals(
+            $allocation->allocated_at->toDateTimeString(),
+            $paid->paid_at->toDateTimeString(),
+            'paid_at must equal the allocation date that cleared the balance.',
+        );
     }
 
     public function test_void_received_bill_posts_mirror_reversal(): void

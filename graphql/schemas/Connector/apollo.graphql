@@ -1,15 +1,15 @@
 type ApolloCleanupReport {
     from: String
     to: String
-    verifiedLeads: Int!
-    totalLeads: Int!
+    verifiedPeople: Int!
+    totalPeople: Int!
     verifiedPct: Float!
     changedCompany: Int!
     changedTitle: Int!
     changedEmail: Int!
     promotedToDecisionMaker: Int!
     newAccounts: Int!
-    bouncingLeads: Int!
+    bouncingPeople: Int!
     byCompany: [ApolloCompanyFreshness!]!
 }
 

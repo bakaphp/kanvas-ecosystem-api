@@ -15,4 +15,10 @@ enum ConfigurationEnum: string
     case REYNOLDS_AREA_NUMBER = 'REYNOLDS_AREA_NUMBER';
     case REYNOLDS_BUSINESS_UNIT_NAME = 'REYNOLDS_BUSINESS_UNIT_NAME';
     case REYNOLDS_DEV_MODE = 'REYNOLDS_DEV_MODE';
+    case REYNOLDS_DEALER_LOCATION_KEY = 'REYNOLDS_DEALER_LOCATION_KEY';
+
+    public static function buildDealerLocationKey(string $dealer, string $store, string $area): string
+    {
+        return $dealer . '|' . $store . '|' . $area;
+    }
 }
