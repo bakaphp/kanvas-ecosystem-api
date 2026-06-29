@@ -11,5 +11,5 @@ enum ConfigurationEnum: string
     case CLIENT_SECRET = 'universal_seguros_client_secret';
     case SCOPES = 'universal_seguros_scopes';
 
-    public const DEFAULT_SCOPES ='unit.serviceplattform.externos unit.serviceplattform.cotizaciones unit.serviceplattform.polizas unit.serviceplattform.emitir.paratusegurodeley unit.serviceplattform.emitir.paratuauto unit.serviceplattform.emitir.porloqueconduces';
+    public const DEFAULT_SCOPES = 'unit.serviceplattform.externos unit.serviceplattform.cotizaciones unit.serviceplattform.polizas unit.serviceplattform.emitir.paratusegurodeley unit.serviceplattform.emitir.paratuauto unit.serviceplattform.emitir.porloqueconduces';
 }
