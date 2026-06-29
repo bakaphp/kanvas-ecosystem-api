@@ -20,6 +20,7 @@ use Kanvas\Connectors\OpenClaw\Actions\GetAgentContainerStatusAction;
 use Kanvas\Connectors\OpenClaw\Actions\GetDeploymentConfigAction;
 use Kanvas\Connectors\OpenClaw\Actions\PushDailyLearningContextAction;
 use Kanvas\Connectors\OpenClaw\Actions\UpdateDeploymentConfigAction;
+use Kanvas\Connectors\OpenClaw\Actions\BackupAgentWorkspaceAction;
 use Kanvas\Connectors\OpenClaw\Jobs\BackupAgentWorkspaceJob;
 use Kanvas\Connectors\OpenClaw\Jobs\MigrateAgentWorkspaceJob;
 use Kanvas\Connectors\OpenClaw\Jobs\RestartAgentContainerJob;
@@ -171,6 +172,12 @@ class OpenClawProvider extends AbstractAgentRuntimeProvider
     public function dispatchBackup(AgentDeployment $deployment, AgentBackup $backup, bool $includeWorkspace): void
     {
         BackupAgentWorkspaceJob::dispatch($deployment, $backup, $includeWorkspace);
+    }
+
+    #[Override]
+    public function createWorkspaceBackupNow(AgentDeployment $deployment, AgentBackup $backup): AgentBackup
+    {
+        return (new BackupAgentWorkspaceAction($deployment, $backup, includeWorkspace: true))->execute();
     }
 
     #[Override]

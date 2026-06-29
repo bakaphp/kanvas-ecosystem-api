@@ -19,6 +19,7 @@ use Kanvas\Connectors\Hermes\Actions\GetAgentContainerStatusAction;
 use Kanvas\Connectors\Hermes\Actions\GetDeploymentConfigAction;
 use Kanvas\Connectors\Hermes\Actions\PushDailyLearningContextAction;
 use Kanvas\Connectors\Hermes\Actions\UpdateDeploymentConfigAction;
+use Kanvas\Connectors\Hermes\Actions\BackupAgentWorkspaceAction;
 use Kanvas\Connectors\Hermes\Jobs\BackupAgentWorkspaceJob;
 use Kanvas\Connectors\Hermes\Jobs\MigrateAgentWorkspaceJob;
 use Kanvas\Connectors\Hermes\Jobs\MigrateFromOpenClawJob;
@@ -173,6 +174,12 @@ class HermesProvider extends AbstractAgentRuntimeProvider
     public function dispatchBackup(AgentDeployment $deployment, AgentBackup $backup, bool $includeWorkspace): void
     {
         BackupAgentWorkspaceJob::dispatch($deployment, $backup, $includeWorkspace);
+    }
+
+    #[Override]
+    public function createWorkspaceBackupNow(AgentDeployment $deployment, AgentBackup $backup): AgentBackup
+    {
+        return (new BackupAgentWorkspaceAction($deployment, $backup, includeWorkspace: true))->execute();
     }
 
     #[Override]

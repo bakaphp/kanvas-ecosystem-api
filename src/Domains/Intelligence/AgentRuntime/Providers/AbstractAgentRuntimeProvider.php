@@ -110,6 +110,12 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
     }
 
     #[Override]
+    public function createWorkspaceBackupNow(AgentDeployment $deployment, AgentBackup $backup): AgentBackup
+    {
+        throw $this->unsupported('synchronous workspace backup');
+    }
+
+    #[Override]
     public function dispatchMigrateWorkspace(
         AgentDeployment $sourceDeployment,
         AgentMachine $destinationMachine,

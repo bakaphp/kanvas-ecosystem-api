@@ -65,6 +65,8 @@ interface AgentRuntimeProvider
 
     public function dispatchBackup(AgentDeployment $deployment, AgentBackup $backup, bool $includeWorkspace): void;
 
+    public function createWorkspaceBackupNow(AgentDeployment $deployment, AgentBackup $backup): AgentBackup;
+
     public function dispatchMigrateWorkspace(
         AgentDeployment $sourceDeployment,
         AgentMachine $destinationMachine,
