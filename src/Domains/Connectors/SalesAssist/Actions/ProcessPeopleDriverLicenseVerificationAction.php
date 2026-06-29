@@ -14,6 +14,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Repositories\UsersRepository;
 
 class ProcessPeopleDriverLicenseVerificationAction
@@ -21,6 +22,7 @@ class ProcessPeopleDriverLicenseVerificationAction
     protected ?array $idVerificationReport = null;
     protected ?array $intellicheckResponse = null;
     protected ?DriverLicenseVerificationService $service = null;
+    protected ?Message $engagementMessage = null;
 
     public function __construct(
         protected People $people,
@@ -92,6 +94,13 @@ class ProcessPeopleDriverLicenseVerificationAction
 
             if ($this->intellicheckResponse !== null && $this->idVerificationReport !== null) {
                 $this->sendVerificationNotification();
+                $this->getService()->generateIdVerificationPdf(
+                    $lead,
+                    $this->people,
+                    $this->idVerificationReport,
+                    $this->intellicheckResponse,
+                    $this->engagementMessage
+                );
             }
 
             $this->cleanupTemporaryData();
@@ -144,6 +153,7 @@ class ProcessPeopleDriverLicenseVerificationAction
 
         $engagement = $this->getService()->createEngagement($lead, $this->people);
         $message = $engagement->message;
+        $this->engagementMessage = $message;
 
         $isExpired = $this->validateExpirationDate($this->people, $driverLicenseData, $idVerificationData);
         $this->getService()->processDriverLicenseImages($message, $driverLicenseImage, $isIdValid, $isExpired);
