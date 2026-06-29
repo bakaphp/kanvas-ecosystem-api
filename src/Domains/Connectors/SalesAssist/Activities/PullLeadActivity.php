@@ -98,7 +98,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
 
             $pullLead = $leadModel ? [$leadModel->toArray()] : [];
         } elseif ($isReynolds) {
-            $pullLead = $entity->toArray();
+            $pullLead = Lead::getById($leadId)?->toArray();
         }
 
         $resolvedLead = match (true) {
