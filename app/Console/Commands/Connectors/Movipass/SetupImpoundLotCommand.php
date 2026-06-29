@@ -34,6 +34,21 @@ class SetupImpoundLotCommand extends Command
             ['is_default' => false, 'companies_id' => 0]
         );
 
+        $orderType->config = array_merge((array) $orderType->config, [
+            'validate_metadata_duplicated_field' => 'data.vehiclePlate',
+            'validate_metadata_duplicated_exclude_statuses' => implode(',', [
+                MovipassOrderStatusEnum::CANCELLED->value,
+                MovipassOrderStatusEnum::RELEASED->value,
+            ]),
+            'validate_metadata_duplicated_blocking_statuses' => implode(',', [
+                MovipassOrderStatusEnum::IN_TRANSIT->value,
+                MovipassOrderStatusEnum::AWAITING_DELIVERY_CONFIRMATION->value,
+                MovipassOrderStatusEnum::DELIVERED->value,
+                MovipassOrderStatusEnum::PAID->value,
+            ]),
+        ]);
+        $orderType->save();
+
         $statusDefs = [
             MovipassOrderStatusEnum::IN_TRANSIT->value => ['name' => 'En Traslado', 'is_default' => true, 'is_final' => false, 'sequence' => 1],
             MovipassOrderStatusEnum::AWAITING_DELIVERY_CONFIRMATION->value => ['name' => 'Validar Traslado', 'is_default' => false, 'is_final' => false, 'sequence' => 2],

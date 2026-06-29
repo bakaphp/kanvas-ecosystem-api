@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\Corrections\AddObservationsAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\AdjustOrderItemAmountAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\CorrectVehiclePlateAction;
+use Kanvas\Connectors\Movipass\Actions\Corrections\MarkOrderAsDuplicateAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 
@@ -53,6 +54,17 @@ class OrderCorrectionMutation
                 $order,
                 $user,
                 (float) ($data['new_amount'] ?? throw new ValidationException('data.new_amount is required for adjust-amount')),
+                $reason,
+                $evidenceUrls,
+            )->execute(),
+            'mark-duplicate' => new MarkOrderAsDuplicateAction(
+                $order,
+                $user,
+                Order::getByIdFromCompanyApp(
+                    (int) ($data['original_order_id'] ?? throw new ValidationException('data.original_order_id is required for mark-duplicate')),
+                    $company,
+                    $app,
+                ),
                 $reason,
                 $evidenceUrls,
             )->execute(),
