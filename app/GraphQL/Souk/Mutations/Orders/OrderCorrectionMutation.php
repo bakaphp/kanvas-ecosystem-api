@@ -7,6 +7,7 @@ namespace App\GraphQL\Souk\Mutations\Orders;
 use Illuminate\Support\Facades\Gate;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\Corrections\AddObservationsAction;
+use Kanvas\Connectors\Movipass\Actions\Corrections\AdjustOrderItemAmountAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\CorrectVehiclePlateAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
@@ -45,6 +46,13 @@ class OrderCorrectionMutation
                 $order,
                 $user,
                 (string) ($data['observations'] ?? throw new ValidationException('data.observations is required for add-observations')),
+                $reason,
+                $evidenceUrls,
+            )->execute(),
+            'adjust-amount' => new AdjustOrderItemAmountAction(
+                $order,
+                $user,
+                (float) ($data['new_amount'] ?? throw new ValidationException('data.new_amount is required for adjust-amount')),
                 $reason,
                 $evidenceUrls,
             )->execute(),
