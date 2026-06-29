@@ -17,6 +17,7 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
+use Kanvas\Intelligence\Triggers\Actions\ApplyLeadClosingStatusAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -157,6 +158,8 @@ class DownloadAllLeadsCommand extends Command
                                             'trigger_type' => TriggersEnum::NEW_LEAD->value,
                                         ]
                                     );
+
+                                    new ApplyLeadClosingStatusAction($newLead)->execute();
                                     $successCount++;
                                 }
                             });

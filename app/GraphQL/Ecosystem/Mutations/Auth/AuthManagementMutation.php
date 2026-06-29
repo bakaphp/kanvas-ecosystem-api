@@ -143,6 +143,7 @@ class AuthManagementMutation
         $data = RegisterInput::fromArray($request['data'], $branch);
         $user = new RegisterUsersAction($data, $app);
         $user->enableExtraValidation();
+        $user->enableEmailSpamProtection();
         $request = request();
 
         $registeredUser = $user->execute();
@@ -173,9 +174,10 @@ class AuthManagementMutation
      */
     public function switchCompanyBranch(mixed $root, array $req): bool
     {
-        $action = new SwitchCompanyBranchAction(auth()->user(), $req['company_branch_id']);
-
-        return $action->execute();
+        return new SwitchCompanyBranchAction(
+            auth()->user(),
+            $req['company_branch_id']
+        )->execute();
     }
 
     /**

@@ -41,6 +41,7 @@ use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\KanvasModules\Enums\CompanyKanvasModuleStatusEnum;
 use Kanvas\KanvasModules\Enums\KanvasModuleEnum;
@@ -527,6 +528,13 @@ class Companies extends BaseModel implements CompanyInterface, Customer
         }
 
         return $user;
+    }
+
+    public function requiresAgentHumanApproval(): bool
+    {
+        return IntelligenceModeEnum::tryFrom(
+            (string) $this->get(IntelligenceConfigurationEnum::AGENT_AI_MODE->value)
+        )?->requiresHumanApproval() ?? false;
     }
 
     public function hasCompanyPermission(UserInterface $user): void

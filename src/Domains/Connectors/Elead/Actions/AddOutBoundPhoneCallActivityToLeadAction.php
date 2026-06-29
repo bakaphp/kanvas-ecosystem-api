@@ -123,11 +123,9 @@ class AddOutBoundPhoneCallActivityToLeadAction
                 'content' => 'Sally just stopped the clock for lead ' . $this->lead->people->name,
                 'title' => 'Sally Stopped the Clock',
                 'message' => $this->message,
-                'lead_info' => [
-                    'lead_name' => $this->lead->people->name,
-                    'lead_id' => $this->lead->getId(),
-                    'people_id' => $this->lead->people->getId(),
-                ],
+                'lead_name' => $this->lead->people->name,
+                'lead_id' => $this->lead->getId(),
+                'people_id' => $this->lead->people->getId(),
             ],
             via: ['sms', 'push', 'expo', 'mail', 'database'],
             entity: $this->lead

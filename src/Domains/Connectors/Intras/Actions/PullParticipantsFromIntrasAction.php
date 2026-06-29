@@ -6,9 +6,11 @@ namespace Kanvas\Connectors\Intras\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use Carbon\Carbon;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum as ApolloConfigurationEnum;
 use Kanvas\Connectors\Intras\Client;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Intras\Mappers\ParticipantMapper;
@@ -16,6 +18,7 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\ContactType;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Models\PeopleType;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
@@ -121,7 +124,8 @@ class PullParticipantsFromIntrasAction
 
                 self::attachContactsToPeople($people, $mapped['contacts']);
 
-                $this->linkToOrganization($people, $row->companies_id);
+                $position = isset($row->position) ? trim((string) $row->position) : null;
+                $this->linkToOrganization($people, $row->companies_id, $position !== '' ? $position : null);
 
                 $count++;
             }
@@ -188,9 +192,17 @@ class PullParticipantsFromIntrasAction
         }
     }
 
-    protected function linkToOrganization(People $people, ?int $intrasCompanyId): void
+    protected function linkToOrganization(People $people, ?int $intrasCompanyId, ?string $position = null): void
     {
         if ($intrasCompanyId === null) {
+            return;
+        }
+
+        // Once Apollo has enriched this person it owns the current-employer relationship
+        // (it prunes the org pivot to where they actually work now). Re-adding the Intras
+        // employer link + status=1 row here would undo that, so we defer to Apollo and
+        // leave already-enriched people untouched.
+        if ($people->get(ApolloConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value)) {
             return;
         }
 
@@ -207,6 +219,32 @@ class PullParticipantsFromIntrasAction
         ], [
             'created_at' => date('Y-m-d H:i:s'),
         ]);
+
+        // Intras only knows the current employer/role (no historical roles), so we
+        // record a single status=1 row keyed on (app, person, org). updateOrCreate
+        // keeps the title in sync with Intras and shares the same table Apollo
+        // enrichment writes its full history into.
+        //
+        // position and start_date are NOT NULL in the schema, but Intras has no role
+        // title for some participants and never a start date. We store '' for a
+        // missing title and anchor start_date to when we first recorded the person
+        // (a stable proxy, so re-syncs don't churn the row).
+        $startDate = $people->created_at
+            ? Carbon::parse($people->created_at)->format('Y-m-d')
+            : date('Y-m-d');
+
+        PeopleEmploymentHistory::updateOrCreate(
+            [
+                'apps_id' => $this->app->getId(),
+                'peoples_id' => $people->getId(),
+                'organizations_id' => $organizationId,
+                'status' => 1,
+            ],
+            [
+                'position' => $position ?? '',
+                'start_date' => $startDate,
+            ]
+        );
     }
 
     /**

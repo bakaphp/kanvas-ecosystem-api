@@ -24,7 +24,7 @@ class UpdateLeadRotationAction
             'apps_id' => $this->leadRotationDto->app->getId(),
             'name' => $this->leadRotationDto->name,
             'leads_rotations_email' => $this->leadRotationDto->leadsRotationsEmail,
-            'hits' => $this->leadRotationDto->hits
+            'hits' => $this->leadRotationDto->hits,
         ]);
         if ($this->leadRotationDto->agents) {
             $this->leadRotation->agents()->delete();

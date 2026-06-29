@@ -11,4 +11,5 @@ enum TransactionCodeEnum: string
     case LEAD_UPDATE = 'LDU';
     case DISPOSITION = 'DSP';
     case COMPLETED_ACTIVITY = 'ACT';
+    case OUTBOUND_SALES_LEAD = 'OSL';
 }

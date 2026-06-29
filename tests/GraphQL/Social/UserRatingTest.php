@@ -102,7 +102,7 @@ class UserRatingTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->time,
+            'sku' => fake()->unique()->uuid(),
             'attributes' => [
                 [
                     'name' => fake()->name,
@@ -174,7 +174,7 @@ class UserRatingTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->time,
+            'sku' => fake()->unique()->uuid(),
             'attributes' => [
                 [
                     'name' => fake()->name,

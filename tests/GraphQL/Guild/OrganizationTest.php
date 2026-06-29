@@ -448,6 +448,64 @@ class OrganizationTest extends TestCase
         ->assertJsonPath('data.createOrganization.organization_type.id', $typeId);
     }
 
+    public function testUpdateOrganizationAssignsType(): void
+    {
+        $response = $this->createOrganizationAndGetResponse();
+        $organizationId = $response['data']['createOrganization']['id'];
+        $typeId = $this->createOrganizationTypeAndGetId();
+
+        $this->graphQL('
+            mutation($id: ID!, $input: OrganizationInput!) {
+                updateOrganization(id: $id, input: $input) {
+                    id
+                    organization_type {
+                        id
+                    }
+                }
+            }
+        ', [
+            'id' => $organizationId,
+            'input' => [
+                'name' => fake()->company(),
+                'organization_type_id' => $typeId,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJsonPath('data.updateOrganization.organization_type.id', $typeId);
+    }
+
+    public function testFilterOrganizationsByType(): void
+    {
+        $typeId = $this->createOrganizationTypeAndGetId();
+        $name = fake()->company();
+
+        $this->createOrganizationAndGetResponse([
+            'name' => $name,
+            'organization_type_id' => $typeId,
+        ]);
+
+        $this->graphQL('
+            query($where: QueryOrganizationsWhereWhereConditions) {
+                organizations(where: $where) {
+                    data {
+                        id
+                        organization_type {
+                            id
+                        }
+                    }
+                }
+            }
+        ', [
+            'where' => [
+                'column' => 'ORGANIZATION_TYPE_ID',
+                'operator' => 'EQ',
+                'value' => (int) $typeId,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJsonPath('data.organizations.data.0.organization_type.id', $typeId);
+    }
+
     public function testOrganizationLeadsRelation(): void
     {
         $response = $this->createOrganizationAndGetResponse();

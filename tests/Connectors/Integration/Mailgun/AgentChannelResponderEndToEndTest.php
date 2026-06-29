@@ -13,6 +13,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionDto;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
@@ -117,6 +118,46 @@ class AgentChannelResponderEndToEndTest extends TestCase
         );
     }
 
+    // Cold inbound (no prior agent outreach) must persist the incoming subject as the thread
+    // anchor so later follow-ups thread under it instead of starting a fresh thread.
+    public function testColdInboundPersistsThreadAnchorWhenMissing(): void
+    {
+        Notification::fake();
+
+        ['app' => $app, 'channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session, 'lead' => $lead] =
+            $this->seedInboundEmailScenario();
+
+        $this->assertEmpty($lead->get('title_email_follow_up'));
+
+        try {
+            new AgentChannelResponderAction($channel, $inbound, $agent, $session)->execute([]);
+        } catch (Throwable) {
+        }
+
+        $this->assertSame('Inquiry', (string) Lead::getById($lead->getId(), $app)->get('title_email_follow_up'));
+    }
+
+    // First touch wins: an existing anchor (from outreach) must not be clobbered by inbound.
+    public function testInboundDoesNotClobberExistingThreadAnchor(): void
+    {
+        Notification::fake();
+
+        ['app' => $app, 'channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session, 'lead' => $lead] =
+            $this->seedInboundEmailScenario();
+
+        $lead->set('title_email_follow_up', 'Original Outreach Subject');
+
+        try {
+            new AgentChannelResponderAction($channel, $inbound, $agent, $session)->execute([]);
+        } catch (Throwable) {
+        }
+
+        $this->assertSame(
+            'Original Outreach Subject',
+            (string) Lead::getById($lead->getId(), $app)->get('title_email_follow_up'),
+        );
+    }
+
     /**
      * @return array{app: Apps, company: \Kanvas\Companies\Models\Companies, channel: Channel, inbound: Message, agent: Agent, session: \Kanvas\Intelligence\Sessions\Models\Session, lead: Lead}
      */
@@ -126,6 +167,9 @@ class AgentChannelResponderEndToEndTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $company->set(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value, $user->getId());
+        // Company settings survive DatabaseTransactions rollback; reset approval mode so a leaked
+        // APPROVAL from the approval test suite doesn't suppress auto-send here.
+        $company->set(IntelligenceConfigurationEnum::AGENT_AI_MODE->value, IntelligenceModeEnum::FULL_ON->value);
 
         $lead = Lead::factory()
             ->withAppAndCompany($app->getId(), $company->getId())

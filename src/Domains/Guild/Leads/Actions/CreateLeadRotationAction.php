@@ -23,7 +23,7 @@ class CreateLeadRotationAction
             'apps_id' => $this->leadRotationDto->app->getId(),
             'name' => $this->leadRotationDto->name,
             'leads_rotations_email' => $this->leadRotationDto->leadsRotationsEmail,
-            'hits' => $this->leadRotationDto->hits
+            'hits' => $this->leadRotationDto->hits,
         ]);
         if (! empty($this->leadRotationDto->agents)) {
             foreach ($this->leadRotationDto->agents as $agent) {
@@ -38,6 +38,7 @@ class CreateLeadRotationAction
                 $leadRotation->save();
             }
         }
+
         return $leadRotation;
     }
 }

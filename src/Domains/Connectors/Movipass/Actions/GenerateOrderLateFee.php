@@ -108,7 +108,7 @@ class GenerateOrderLateFee
                     $shouldCalculateTotal = true;
                 }
             } else {
-                $orderItem = OrderItem::viaRequest($this->apps, $completeOrder->company, $completeOrder->region, [
+                $orderItem = OrderItem::from($this->apps, $completeOrder->company, $completeOrder->region, [
                     'variant_id' => $lateFee->id,
                     'quantity' => $feeCount,
                     'price' => $lateFeePrice,

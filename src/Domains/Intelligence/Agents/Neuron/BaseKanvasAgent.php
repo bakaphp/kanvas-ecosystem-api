@@ -31,6 +31,9 @@ class BaseKanvasAgent extends NeuronAIAgent
     protected ?Session $session = null;
     protected ?Lead $currentLead = null;
 
+    /** @var list<string> Attachment URLs/paths (image/audio/PDF) on the current turn's user prompt. */
+    protected array $turnMedia = [];
+
     public function setConfiguration(
         Agent $agent,
         ?Model $entity = null,
@@ -67,6 +70,17 @@ class BaseKanvasAgent extends NeuronAIAgent
     }
 
     /**
+     * Whether this agent's chatHistory already writes each turn to the agent_conversation_messages
+     * store. When true, RunNeuronChatAction skips its own logTurn to avoid a duplicate conversation.
+     * Default false — SalesAssist-style histories write to Social messages, so logTurn is their only
+     * conversation-store record.
+     */
+    public function persistsTurnsToConversationStore(): bool
+    {
+        return false;
+    }
+
+    /**
      * Per-turn "which deal is the conversation about right now" — independent
      * of the session entity (People-keyed). Sourced from the request's lead_id
      * by AgentChatKernel every turn.
@@ -74,6 +88,26 @@ class BaseKanvasAgent extends NeuronAIAgent
     public function setCurrentLead(?Lead $lead): void
     {
         $this->currentLead = $lead;
+    }
+
+    /**
+     * @param list<string> $media The current turn's attachment URLs (image/audio/PDF), plumbed from
+     *                            the kernel so the chat history can persist a reference (the handler
+     *                            itself only ever sees the base64 content blocks built downstream).
+     */
+    public function setTurnMedia(array $media): void
+    {
+        $this->turnMedia = array_values($media);
+    }
+
+    /**
+     * The provider the agent is currently configured to call. Exposed so the image-caption
+     * path can describe attachments with the SAME model the agent uses (provider() is
+     * protected on the NeuronAI base).
+     */
+    public function captionProvider(): AIProviderInterface
+    {
+        return $this->provider();
     }
 
     // Per-turn lead resolution: the kernel-plumbed currentLead wins; entity-as-Lead

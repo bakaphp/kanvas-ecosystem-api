@@ -159,7 +159,7 @@ class PaymentMethodMutation
         }
 
         return new UpdatePaymentMethodAction(
-            $paymentMethod->id,
+            $paymentMethod,
             $paymentMethodUpdateData
         )->execute();
     }

@@ -43,6 +43,18 @@ input OrganizationPeopleInput {
     peoples_id: [ID!]
 }
 
+"One cluster of likely-duplicate Organizations the duplicate-finder grouped together."
+type GuildOrganizationDuplicateGroup {
+    "Recommended merge target — oldest id in the group."
+    canonical_id: Int!
+    "All member organization ids, including canonical_id, ascending."
+    member_ids: [Int!]!
+    "Which dimension flagged this cluster: exact_name | email_match | tax_id_match"
+    reason: String!
+    "A representative `name` from the group (for display)."
+    sample_name: String!
+}
+
 extend type Mutation @guard {
     createOrganization(input: OrganizationInput!): Organization
         @field(
@@ -68,13 +80,27 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\PeopleOrganizationMutation@remove"
         )
+
+    "Merge `source` Organization into `target` — rewrites Scribe + Guild FKs then soft-deletes source. Used to clean up duplicates created by the auto-resolve-vendor PDF-ingest flow."
+    mergeGuildOrganizations(source_id: Int!, target_id: Int!): Organization!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMergeMutation@merge"
+        )
 }
 
 extend type Query @guard {
     organizations(
         search: String @search
         where: _
-            @whereConditions(columns: ["id", "name", "uuid", "total_employees"])
+            @whereConditions(
+                columns: [
+                    "id"
+                    "name"
+                    "uuid"
+                    "total_employees"
+                    "organization_type_id"
+                ]
+            )
         orderBy: _
             @orderBy(
                 columns: [
@@ -90,5 +116,13 @@ extend type Query @guard {
             model: "Kanvas\\Guild\\Organizations\\Models\\Organization"
             scopes: ["fromCompany", "fromApp", "notDeleted"]
             defaultCount: 25
+        )
+
+    "List clusters of likely-duplicate Organizations for review + bulk merge."
+    findGuildOrganizationDuplicates(
+        max_groups: Int
+    ): [GuildOrganizationDuplicateGroup!]!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMergeMutation@findDuplicates"
         )
 }

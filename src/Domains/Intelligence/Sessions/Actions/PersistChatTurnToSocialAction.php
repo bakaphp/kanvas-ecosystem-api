@@ -12,6 +12,8 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
+use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
+use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Notifications\AgentReplyNotification;
 use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
@@ -40,6 +42,7 @@ class PersistChatTurnToSocialAction
     /**
      * @param list<string> $images
      * @param list<Filesystem> $attachments Freshly uploaded files attached to the user prompt.
+     * @param list<string> $documents Non-image native attachment URLs (audio / PDF) on the prompt.
      */
     public function __construct(
         protected readonly Session $session,
@@ -52,6 +55,7 @@ class PersistChatTurnToSocialAction
         protected readonly array $images = [],
         protected readonly array $attachments = [],
         protected readonly ?Lead $currentLead = null,
+        protected readonly array $documents = [],
     ) {
     }
 
@@ -73,9 +77,44 @@ class PersistChatTurnToSocialAction
 
         // Use a unique tag per upload — AttachFilesystemAction replaces on tag collision, so
         // a shared "attachment" tag would let later uploads silently overwrite earlier ones.
+        $uploadedNamesByUrl = [];
         foreach ($this->attachments as $filesystem) {
             $tag = $filesystem->name !== '' ? $filesystem->name : 'attachment-' . (string) $filesystem->getId();
             $incoming->addFile($filesystem, $tag);
+            $uploadedNamesByUrl[(string) $filesystem->url] = (string) $filesystem->name;
+        }
+
+        // Client-provided URL media (already hosted on the CDN, not uploaded this turn) isn't in
+        // $this->attachments, so it never lands on the message — attach it too so the file shows on
+        // the message and feeds the cross-channel file rollup. addFileFromUrl only records the URL
+        // reference (no re-download). Reuse the existing Filesystem's real name (set when the file
+        // was first uploaded) for the attachment tag so filesystem_entities mirrors the file's
+        // actual name instead of the hashed URL basename.
+        $nativeMedia = array_values([...$this->images, ...$this->documents]);
+        $filenames = [];
+        foreach ($nativeMedia as $url) {
+            $name = $uploadedNamesByUrl[$url] ?? $this->resolveFileName($url);
+            $filenames[] = $name;
+
+            if (! isset($uploadedNamesByUrl[$url])) {
+                $incoming->addFileFromUrl($url, $name !== '' ? $name : $this->fileTagFromUrl($url), $this->app);
+            }
+        }
+
+        // Describe the prompt's attachments (image/audio/PDF) with the agent's own model so later
+        // turns — whose history is rebuilt from text only — still "remember" what was sent. Async:
+        // the current turn already saw the real bytes, the description only has to land before the
+        // next turn. The real filename lets the description name the file ("PDF \"invoice.pdf\": …").
+        if ($nativeMedia !== []) {
+            DescribeMessageAttachmentsJob::dispatch(
+                $this->app,
+                $this->agent,
+                $this->user,
+                CaptionTargetEnum::SOCIAL_MESSAGE,
+                (string) $incoming->getId(),
+                $nativeMedia,
+                $filenames,
+            );
         }
 
         $reply = $this->createMessage(
@@ -171,6 +210,29 @@ class PersistChatTurnToSocialAction
         $this->session->saveOrFail();
 
         return $channel;
+    }
+
+    /**
+     * The real name of the file behind a URL — the Filesystem row created when it was uploaded
+     * carries the original name (e.g. "invoice.pdf") even though the URL is a hash. Empty string
+     * when the URL was never uploaded through us (a raw external link).
+     */
+    private function resolveFileName(string $url): string
+    {
+        $filesystem = Filesystem::fromApp($this->app)
+            ->fromCompany($this->company)
+            ->where('url', $url)
+            ->first();
+
+        return $filesystem !== null ? (string) $filesystem->name : '';
+    }
+
+    private function fileTagFromUrl(string $url): string
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+        $basename = is_string($path) && $path !== '' ? basename($path) : '';
+
+        return $basename !== '' ? $basename : 'attachment-' . md5($url);
     }
 
     /**

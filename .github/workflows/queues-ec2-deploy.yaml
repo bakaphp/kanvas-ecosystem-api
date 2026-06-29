@@ -15,13 +15,13 @@ jobs:
       packages: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       # rsync --delete so renames/deletions in git are reflected on the server.
       # Plain scp is additive and leaves stale files behind, which corrupts the
       # Lighthouse schema merge whenever a .graphql file moves (see incident
       # 2026-05-14: duplicate agentCurrentTelemetry → "Failed to load type: _").
       - name: Sync repo to remote VM (rsync --delete)
-        uses: burnett01/rsync-deployments@8.0.5
+        uses: burnett01/rsync-deployments@9.0.0
         with:
           switches: >-
             -avzr --delete

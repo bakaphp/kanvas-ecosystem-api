@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace App\Console\Commands\Connectors\Apollo;
 
 use Baka\Traits\KanvasJobsTrait;
-use Carbon\Carbon;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Apollo\Actions\EnrichPeopleFromApolloAction;
+use Kanvas\Connectors\Apollo\Services\ApolloRateLimitService;
+use Kanvas\Connectors\Mailgun\Actions\ValidatePeopleEmailAction;
+use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum as MailgunConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Workflow\Enums\WorkflowEnum;
+use Throwable;
 
 class SyncAllPeopleInCompanyCommand extends Command
 {
@@ -22,111 +23,116 @@ class SyncAllPeopleInCompanyCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:guild-apollo-people-sync {app_id} {company_id} {total=150} {perPage=50}';
+    protected $signature = 'kanvas:guild-apollo-people-sync {app_id} {company_id} {total=150} {perPage=50} {--order=desc : Sort people by id (asc|desc)} {--cooldown=3 : Days to wait before retrying a person Apollo had no data for} {--force : Ignore the revalidation window and no-data cooldown; re-enrich everyone} {--validate-emails : Still run Mailgun email validation on people skipped by the cooldown/revalidation gates (backfill leads enriched before validation existed)} {--daily-limit= : Max Apollo enrichments per day (default 50000); raise it to blast a large backfill} {--per-minute-limit= : Max Apollo enrichments per minute (default 100, matching Apollo\'s API cap)}';
 
     /**
      * The console command description.
      *
      * @var string|null
      */
-    protected $description = 'Download all leads from Zoho to this branch';
+    protected $description = 'Enrich all people in a company directly from Apollo (no workflow/integration setup required)';
 
     /**
      * Execute the console command.
-     *
      */
     public function handle()
     {
+        /** @var Apps $app */
         $app = Apps::getById((int) $this->argument('app_id'));
         $perPage = (int) $this->argument('perPage');
         $total = (int) $this->argument('total');
         $this->overwriteAppService($app);
         $company = Companies::getById((int) $this->argument('company_id'));
 
-        $hourlyRateLimit = 400;
-        $dailyRateLimit = 2000;
-        $batchSize = 100;
-        $hourlyCacheKey = 'api_hourly_rate_limit_' . $app->getId();
-        $dailyCacheKey = 'api_daily_rate_limit_' . $app->getId();
-        $resetHourlyKey = 'api_hourly_rate_limit_reset_' . $app->getId();
-        $resetDailyKey = 'api_daily_rate_limit_reset_' . $app->getId();
-        $hourlyTimeWindow = 60 * 60;
-        $dailyTimeWindow = 24 * 60 * 60;
+        $order = strtolower((string) $this->option('order')) === 'asc' ? 'ASC' : 'DESC';
+        $force = (bool) $this->option('force');
+        $cooldownDays = max(0, (int) $this->option('cooldown'));
+        $validateEmails = (bool) $this->option('validate-emails');
+        $mailgunReady = $validateEmails && (string) $app->get(MailgunConfigurationEnum::API_KEY->value) !== '';
+        $dailyLimitOption = (string) $this->option('daily-limit');
+        $perMinuteLimitOption = (string) $this->option('per-minute-limit');
+        $dailyLimit = $dailyLimitOption !== '' ? max(1, (int) $dailyLimitOption) : ApolloRateLimitService::DEFAULT_DAILY_LIMIT;
+        $perMinuteLimit = $perMinuteLimitOption !== '' ? max(1, (int) $perMinuteLimitOption) : ApolloRateLimitService::DEFAULT_PER_MINUTE_LIMIT;
 
-        $resetHourlyTimestamp = Cache::get($resetHourlyKey, 0) instanceof Carbon ? Cache::get($resetHourlyKey, 0)->timestamp : 0;
-        $resetDailyTimestamp = Cache::get($resetDailyKey, 0) instanceof Carbon ? Cache::get($resetDailyKey, 0)->timestamp : 0;
-
-        // Reset hourly/daily counters if time window has expired
-        if (now()->timestamp >= $resetHourlyTimestamp) {
-            Cache::put($hourlyCacheKey, 0, $hourlyTimeWindow);
+        if ($validateEmails && ! $mailgunReady) {
+            $this->warn('--validate-emails set but no MAILGUN_API_KEY configured for this app; emails will not be validated.');
         }
 
-        if (now()->timestamp >= $resetDailyTimestamp) {
-            Cache::put($dailyCacheKey, 0, $dailyTimeWindow);
-        }
+        $rateLimit = new ApolloRateLimitService();
 
-        $currentHourlyCount = Cache::get($hourlyCacheKey, 0);
-        $currentDailyCount = Cache::get($dailyCacheKey, 0);
-
-        $this->line("Syncing people for company {$company->name} from app {$app->name}, total {$total}, per page {$perPage}");
+        $this->line("Syncing people for company {$company->name} from app {$app->name}, total {$total}, per page {$perPage}, order {$order}");
 
         People::fromApp($app)
             ->fromCompany($company)
             ->notDeleted(0)
-            ->orderBy('peoples.id', 'DESC')
+            ->orderBy('peoples.id', $order)
             ->limit($total)
-            ->chunk($perPage, function ($peoples) use (&$currentHourlyCount, &$currentDailyCount, $hourlyRateLimit, $dailyRateLimit, $hourlyCacheKey, $dailyCacheKey, $resetHourlyKey, $resetDailyKey, $hourlyTimeWindow, $dailyTimeWindow) {
+            ->chunk($perPage, function ($peoples) use ($app, $company, $rateLimit, $force, $cooldownDays, $validateEmails, $mailgunReady, $dailyLimit, $perMinuteLimit) {
                 foreach ($peoples as $people) {
-                    $hasCustomField = $people->get(ConfigurationEnum::APOLLO_DATA_ENRICHMENT_CUSTOM_FIELDS->value);
-                    if ($hasCustomField) {
+                    // Returning false from the chunk closure halts the remaining chunks.
+                    if ($rateLimit->hasReachedDailyLimit($company, $dailyLimit)) {
+                        $this->line('Daily Apollo enrichment limit reached. Stopping.');
+
+                        return false;
+                    }
+
+                    if (! $force && $rateLimit->hasBeenScreenedRecently($people)) {
+                        $this->skipOrValidateEmail($people, $app, 'enriched recently, within revalidation window', $validateEmails, $mailgunReady);
+
                         continue;
                     }
 
-                    if ($currentHourlyCount >= $hourlyRateLimit) {
-                        Cache::put($resetHourlyKey, now()->addSeconds($hourlyTimeWindow), $hourlyTimeWindow);
-                        $this->line('Hourly rate limit reached. Waiting for reset...');
-                        sleep($hourlyTimeWindow);
+                    // Apollo had no data on the last try — don't burn another credit until
+                    // the cooldown lapses, unless --force overrides it.
+                    if (! $force && EnrichPeopleFromApolloAction::isWithinNoDataCooldown($people, $cooldownDays)) {
+                        $this->skipOrValidateEmail($people, $app, "no Apollo data on last try, within {$cooldownDays}-day cooldown", $validateEmails, $mailgunReady);
 
                         continue;
                     }
 
-                    if ($currentDailyCount >= $dailyRateLimit) {
-                        Cache::put($resetDailyKey, now()->addSeconds($dailyTimeWindow), $dailyTimeWindow);
-                        $this->line('Daily rate limit reached. Waiting for reset...');
-                        sleep($dailyTimeWindow);
+                    if ($rateLimit->hasReachedMinuteLimit($app, $perMinuteLimit)) {
+                        $this->line('Per-minute rate limit reached. Waiting for reset...');
+                        sleep(ApolloRateLimitService::MINUTE_WINDOW);
 
                         continue;
                     }
 
                     $this->line("Syncing people {$people->id}: {$people->firstname} {$people->lastname}");
 
-                    $people->fireWorkflow(
-                        WorkflowEnum::UPDATED->value,
-                        true,
-                        ['app' => $people->app]
-                    );
+                    // Enrich directly (same path as kanvas:guild-apollo-enrich-person) instead of
+                    // firing the UPDATED workflow — the workflow route goes through executeIntegration
+                    // which silently no-ops unless the company has the Apollo integration + a region
+                    // configured. This backfill runs without any of that setup.
+                    $result = new EnrichPeopleFromApolloAction($people, $app)->execute();
+                    $this->line("  [{$result['status']}] {$result['message']}");
 
-                    $currentHourlyCount++;
-                    $currentDailyCount++;
-
-                    Cache::put($hourlyCacheKey, $currentHourlyCount, $hourlyTimeWindow);
-                    Cache::put($dailyCacheKey, $currentDailyCount, $dailyTimeWindow);
-
-                    // Dynamic delay based on remaining rate limit
-                    $delay = $this->calculateDelay($currentHourlyCount, $hourlyRateLimit);
-                    sleep($delay);
+                    sleep($rateLimit->pacingDelay($rateLimit->recordMinuteHit($app), $perMinuteLimit));
                 }
             });
 
         $this->line("All people for company {$company->name} from app {$app->name} synced");
     }
 
-    private function calculateDelay(int $currentCount, int $rateLimit): int
+    /**
+     * The cooldown/revalidation gates skip people Apollo already saw — but those
+     * enriched before email validation existed never had their emails checked.
+     * With --validate-emails we still run the Mailgun check on them (a one-time
+     * backfill), spending a Mailgun credit but no Apollo credit.
+     */
+    private function skipOrValidateEmail(People $people, Apps $app, string $reason, bool $validateEmails, bool $mailgunReady): void
     {
-        // Adjust delay dynamically to distribute requests evenly
-        $remainingRequests = $rateLimit - $currentCount;
-        $remainingTime = 60 * 60; // 1 hour in seconds
+        if (! $validateEmails || ! $mailgunReady) {
+            $this->line("Skipping people {$people->id}: {$reason}");
 
-        return $remainingRequests > 0 ? intdiv($remainingTime, $remainingRequests) : 2;
+            return;
+        }
+
+        try {
+            $result = new ValidatePeopleEmailAction($people, $app)->execute();
+            $this->line("Validating email of people {$people->id} ({$reason}): " . count($result['validated']) . ' contact(s)');
+        } catch (Throwable $e) {
+            report($e);
+            $this->line("Skipping people {$people->id}: {$reason} (email validation failed)");
+        }
     }
 }

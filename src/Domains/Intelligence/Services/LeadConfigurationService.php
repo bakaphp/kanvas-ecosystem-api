@@ -25,15 +25,13 @@ class LeadConfigurationService
         return $this->isV2;
     }
 
-    private function getStatusSuffix(Lead $lead): string
+    public function getStatusSuffix(Lead $lead): string
     {
-        $statusName = strtolower($lead->status()->first()?->name ?? '');
-
-        if (str_contains($statusName, 'not') && str_contains($statusName, 'sold')) {
+        if ($lead->closeNotSold()) {
             return 'closed-not-sold';
         }
 
-        if (str_contains($statusName, 'sold')) {
+        if ($lead->closeSold()) {
             return 'closed-sold';
         }
 

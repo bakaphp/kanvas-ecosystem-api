@@ -52,6 +52,9 @@
         <testsuite name="Intelligence">
             <directory suffix="Test.php">./tests/Intelligence</directory>
         </testsuite>
+        <testsuite name="Scribe">
+            <directory suffix="Test.php">./tests/Scribe</directory>
+        </testsuite>
         <testsuite name="Baka">
             <directory suffix="Test.php">./tests/Baka</directory>
         </testsuite>

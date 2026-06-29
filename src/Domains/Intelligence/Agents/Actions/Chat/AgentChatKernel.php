@@ -39,7 +39,13 @@ class AgentChatKernel
 
     protected ?Message $persistedReply = null;
 
-    /** @param list<Filesystem> $attachments Freshly uploaded files to attach to the persisted user Message. */
+    /**
+     * @param list<string> $images Image URLs the model can take natively on every backend.
+     * @param list<string> $documents Non-image native attachment URLs (audio / PDF) — sent natively
+     *                                only to the in-process backends (Neuron, Laravel); the runtime
+     *                                backend keeps them URL-in-prompt (it rejects non-image uploads).
+     * @param list<Filesystem> $attachments Freshly uploaded files to attach to the persisted user Message.
+     */
     public function __construct(
         protected readonly Agent $agent,
         protected readonly ?Session $session,
@@ -51,7 +57,19 @@ class AgentChatKernel
         protected readonly ?Channel $sourceChannel = null,
         protected readonly ?Message $sourceMessage = null,
         protected readonly bool $persistConversation = true,
+        protected readonly array $documents = [],
     ) {
+    }
+
+    /**
+     * Every attachment the in-process backends (Neuron, Laravel) can send natively: images plus the
+     * audio/PDF documents. The runtime backend deliberately gets only $images.
+     *
+     * @return list<string>
+     */
+    protected function nativeMedia(): array
+    {
+        return array_values([...$this->images, ...$this->documents]);
     }
 
     public function persistedReply(): ?Message
@@ -103,6 +121,7 @@ class AgentChatKernel
             images: array_values($this->images),
             attachments: $this->attachments,
             currentLead: $this->currentLead,
+            documents: array_values($this->documents),
         )->execute();
     }
 
@@ -148,6 +167,7 @@ class AgentChatKernel
                 company: $this->agent->company,
                 user: $this->user,
                 handler: $handler,
+                media: $this->nativeMedia(),
             )->execute();
         }
 
@@ -178,6 +198,9 @@ class AgentChatKernel
             }
             $handler->setSession($this->session);
             $handler->setCurrentLead($this->currentLead);
+            // Plumb the turn's attachment URLs so the conversation history can persist a reference
+            // for describing — the handler itself only ever sees the base64 content blocks.
+            $handler->setTurnMedia($this->nativeMedia());
         }
 
         return new RunNeuronChatAction(
@@ -187,7 +210,7 @@ class AgentChatKernel
             app: $this->agent->app,
             user: $this->user,
             handler: $handler,
-            images: $this->images
+            media: $this->nativeMedia()
         )->execute();
     }
 
@@ -221,8 +244,10 @@ class AgentChatKernel
             'agent_id' => $this->agent->getId(),
             'agent_name' => $this->agent->name,
             'session_id' => $sessionId,
-            'message' => $this->message,
-            'response' => $this->limitBroadcastPayload($response),
+            ...$this->limitBroadcastPayloadSet([
+                'message' => $this->message,
+                'response' => $response,
+            ]),
         ]);
     }
 }

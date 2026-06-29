@@ -17,6 +17,7 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
+use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Exceptions\FollowUpException;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
@@ -24,6 +25,7 @@ use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementV1Action;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
+use Kanvas\Intelligence\Triggers\Actions\ApplyLeadClosingStatusAction;
 use Kanvas\Services\DailyReportService;
 
 /**
@@ -81,6 +83,7 @@ class FollowUpEngagementCommand extends Command
                 $this->overwriteAppService($lead->app);
                 // $this->reSyncLead($lead);
                 $lead->refresh();
+                new ApplyLeadClosingStatusAction($lead)->execute();
 
                 $this->info('Processing lead ID ' . $lead->id . ' - ' . $lead->people->name);
 
@@ -96,129 +99,136 @@ class FollowUpEngagementCommand extends Command
                     ],
                 ]);
 
-                //$noAgentChannel = $lead->get(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value) === null;
-                $muteAiAgent = $lead->isAiMuted();
-                $ignoreFirstMessage = (bool) $this->option('ignore-first-message');
-                $noFirstMessage = ! $ignoreFirstMessage && $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null;
-                $notActive = $lead->isActive() === false;
-                $followUpOnIsContacted = (bool) $lead->company->get(CompanyConfigurationEnum::FOLLOW_UP_ON_IS_CONTACTED->value);
-                $hasBeenContacted = ! $followUpOnIsContacted && $lead->hasBeenContacted();
-                $leadTypes = $lead->company->get(ConfigurationEnum::FOLLOW_UP_LEAD_TYPE->value) ?? ['internet'];
-                $notInternet = ! in_array(strtolower($lead->type?->name ?? ''), $leadTypes);
+                $configService = new LeadConfigurationService();
+                $isV2 = $configService->isV2Enabled($lead->company);
 
-                /*      $this->line('  - No Agent Channel: ' . ($noAgentChannel ? 'true' : 'false'));
-                     $this->line('  - Mute AI Agent: ' . ($muteAiAgent ? 'true' : 'false'));
-                     $this->line('  - No First Message: ' . ($noFirstMessage ? 'true' : 'false'));
-                     $this->line('  - Not Active: ' . ($notActive ? 'true' : 'false'));
-                     $this->line('  - Has Been Contacted: ' . ($hasBeenContacted ? 'true' : 'false'));
-                     $this->line("  - Not INTERNET type ({$lead->type?->name}): " . ($notInternet ? 'true' : 'false')); */
+                if ($isV2) {
+                    if (! $lead->isAiFollowUpEnabled()) {
+                        $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' because ai_follow_up is not enabled (v2 mode).');
 
-                $shouldSkip = $muteAiAgent || $noFirstMessage || $notActive || $hasBeenContacted || $notInternet;
+                        DailyReportService::track(
+                            $lead->app,
+                            $lead->company,
+                            'ai_follow_up_engagement_skipped'
+                        );
+                        DailyReportService::track(
+                            $lead->app,
+                            $lead->company,
+                            'ai_follow_up_engagement_skip_reason_ai_follow_up_not_enabled'
+                        );
 
-                $haveCompanyFollowUp = $lead->company->get(CompanyConfigurationEnum::HAVE_FOLLOW_UP->value);
+                        $log->update([
+                            'metadata' => array_merge(
+                                $log->metadata ?? [],
+                                [
+                                    'skipped' => true,
+                                    'skip_reason' => 'ai_follow_up_not_enabled',
+                                    'v2_enabled' => true,
+                                    'ai_follow_up_value' => $lead->get(IntelligenceModeEnum::AI_FOLLOW_UP->value),
+                                ]
+                            ),
+                        ]);
 
-                $ignoreFollowUp = (bool)$this->option('ignore-have-follow-up');
+                        continue;
+                    }
+                } else {
+                    $muteAiAgent = $lead->isAiMuted();
+                    $ignoreFirstMessage = (bool) $this->option('ignore-first-message');
+                    $noFirstMessage = ! $ignoreFirstMessage && $lead->get(ConfigurationEnum::FIRST_MESSAGE->value) === null;
+                    $notActive = $lead->isActive() === false;
+                    $followUpOnIsContacted = (bool) $lead->company->get(CompanyConfigurationEnum::FOLLOW_UP_ON_IS_CONTACTED->value);
+                    $hasBeenContacted = ! $followUpOnIsContacted && $lead->hasBeenContacted();
+                    $leadTypes = $lead->company->get(ConfigurationEnum::FOLLOW_UP_LEAD_TYPE->value) ?? ['internet'];
+                    $notInternet = ! in_array(strtolower($lead->type?->name ?? ''), $leadTypes);
 
-                if ($shouldSkip) {
-                    $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' due to skip conditions.');
-                    DailyReportService::track(
-                        $lead->app,
-                        $lead->company,
-                        'ai_follow_up_engagement_skipped'
-                    );
+                    $shouldSkip = $muteAiAgent || $noFirstMessage || $notActive || $hasBeenContacted || $notInternet;
 
-                    $key = match (true) {
-                        $muteAiAgent => 'mute_ai_agent',
-                        $noFirstMessage => 'no_first_message',
-                        $notActive => 'not_active',
-                        $hasBeenContacted => 'has_been_contacted',
-                        default => 'not_internet_type',
-                    };
-                    DailyReportService::track(
-                        $lead->app,
-                        $lead->company,
-                        'ai_follow_up_engagement_skip_reason_' . $key
-                    );
-                    $this->line('  - Skip Reason: ' . $key);
+                    $haveCompanyFollowUp = $lead->company->get(CompanyConfigurationEnum::HAVE_FOLLOW_UP->value);
+                    $ignoreFollowUp = (bool) $this->option('ignore-have-follow-up');
 
-                    // Log skip reason
-                    $log->update([
-                        'metadata' => array_merge(
-                            $log->metadata ?? [],
-                            [
-                                'skipped' => true,
-                                'skip_reason' => $key,
-                                'conditions' => [
-                                    'mute_ai_agent' => $muteAiAgent,
-                                    'no_first_message' => $noFirstMessage,
-                                    'not_active' => $notActive,
-                                    'has_been_contacted' => $hasBeenContacted,
-                                    'not_internet_type' => $notInternet,
-                                ],
-                            ]
-                        ),
-                    ]);
+                    if ($shouldSkip) {
+                        $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' due to skip conditions.');
+                        DailyReportService::track(
+                            $lead->app,
+                            $lead->company,
+                            'ai_follow_up_engagement_skipped'
+                        );
 
-                    continue;
-                } elseif ($haveCompanyFollowUp && ! $ignoreFollowUp) {
-                    $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' because company has follow up enabled.');
+                        $key = match (true) {
+                            $muteAiAgent => 'mute_ai_agent',
+                            $noFirstMessage => 'no_first_message',
+                            $notActive => 'not_active',
+                            $hasBeenContacted => 'has_been_contacted',
+                            default => 'not_internet_type',
+                        };
+                        DailyReportService::track(
+                            $lead->app,
+                            $lead->company,
+                            'ai_follow_up_engagement_skip_reason_' . $key
+                        );
+                        $this->line('  - Skip Reason: ' . $key);
 
-                    // Log skip reason
-                    $log->update([
-                        'metadata' => array_merge(
-                            $log->metadata ?? [],
-                            [
-                                'skipped' => true,
-                                'skip_reason' => 'company_has_follow_up',
-                            ]
-                        ),
-                    ]);
+                        $log->update([
+                            'metadata' => array_merge(
+                                $log->metadata ?? [],
+                                [
+                                    'skipped' => true,
+                                    'skip_reason' => $key,
+                                    'conditions' => [
+                                        'mute_ai_agent' => $muteAiAgent,
+                                        'no_first_message' => $noFirstMessage,
+                                        'not_active' => $notActive,
+                                        'has_been_contacted' => $hasBeenContacted,
+                                        'not_internet_type' => $notInternet,
+                                    ],
+                                ]
+                            ),
+                        ]);
 
-                    continue;
-                } elseif ($haveCompanyFollowUp && ! $ignoreFollowUp) {
-                    $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' because company has follow up enabled.');
+                        continue;
+                    } elseif ($haveCompanyFollowUp && ! $ignoreFollowUp) {
+                        $this->info('Skipping lead ID ' . $lead->id . ' - ' . $lead->people->name . ' because company has follow up enabled.');
 
-                    // Log skip reason
-                    $log->update([
-                        'metadata' => array_merge(
-                            $log->metadata ?? [],
-                            [
-                                'skipped' => true,
-                                'skip_reason' => 'company_has_follow_up',
-                            ]
-                        ),
-                    ]);
+                        $log->update([
+                            'metadata' => array_merge(
+                                $log->metadata ?? [],
+                                [
+                                    'skipped' => true,
+                                    'skip_reason' => 'company_has_follow_up',
+                                ]
+                            ),
+                        ]);
 
-                    break;
-                }
+                        continue;
+                    }
 
-                $hoursTool = new CompanyWorkHoursTool($lead)->execute();
-                if ($hoursTool['status'] !== 'work_hours') {
-                    $this->info('Skipping lead ID ' . $lead->id . ' ' . $lead->people->name . '  - outside work hours');
-                    $this->line('  Status: ' . $hoursTool['status']);
-                    $this->line('  Day: ' . $hoursTool['weekday']);
-                    $this->line('  Hours: ' . $hoursTool['opens_at_local'] . ' - ' . $hoursTool['closes_at_local']);
-                    $this->line('  Next open: ' . $hoursTool['next_open_human']);
+                    $hoursTool = new CompanyWorkHoursTool($lead)->execute();
+                    if ($hoursTool['status'] !== 'work_hours') {
+                        $this->info('Skipping lead ID ' . $lead->id . ' ' . $lead->people->name . '  - outside work hours');
+                        $this->line('  Status: ' . $hoursTool['status']);
+                        $this->line('  Day: ' . $hoursTool['weekday']);
+                        $this->line('  Hours: ' . $hoursTool['opens_at_local'] . ' - ' . $hoursTool['closes_at_local']);
+                        $this->line('  Next open: ' . $hoursTool['next_open_human']);
 
-                    // Log outside work hours
-                    $log->update([
-                        'metadata' => array_merge(
-                            $log->metadata ?? [],
-                            [
-                                'skipped' => true,
-                                'skip_reason' => 'outside_work_hours',
-                                'work_hours_status' => $hoursTool,
-                            ]
-                        ),
-                    ]);
+                        $log->update([
+                            'metadata' => array_merge(
+                                $log->metadata ?? [],
+                                [
+                                    'skipped' => true,
+                                    'skip_reason' => 'outside_work_hours',
+                                    'work_hours_status' => $hoursTool,
+                                ]
+                            ),
+                        ]);
 
-                    continue;
+                        continue;
+                    }
                 }
 
                 //how do we avoid sending notifications for leads that haven'b been contacted
                 try {
                     $this->info('Executing FollowUpEngagementAction for lead ID ' . $lead->id . ' - ' . $lead->people->name);
-                    $followUpClass = (new LeadConfigurationService())->isV2Enabled($lead->company)
+                    $followUpClass = $isV2
                         ? FollowUpEngagementAction::class
                         : FollowUpEngagementV1Action::class;
                     $result = new $followUpClass($lead, $log)->execute();

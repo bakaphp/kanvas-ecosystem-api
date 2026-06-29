@@ -185,6 +185,31 @@ class IntegrationTest extends TestCase
         ]);
     }
 
+    public function testIntegrationsSearch(): void
+    {
+        $needle = IntegrationsEnum::SHOPIFY->value;
+
+        $response = $this->graphQL('
+            query($search: String) {
+                integrations(search: $search) {
+                    data {
+                        id
+                        name
+                    }
+                }
+            }
+        ', ['search' => $needle])->assertSuccessful();
+
+        $data = $response->json()['data']['integrations']['data'];
+
+        $this->assertNotEmpty($data, 'Searching integrations by name must return the matching catalog row');
+        $this->assertContains(
+            $needle,
+            array_column($data, 'name'),
+            'Search results must include the integration matched by name'
+        );
+    }
+
     public function testGetIntegrationsWorkflowHistory(): void
     {
         $this->createProduct();

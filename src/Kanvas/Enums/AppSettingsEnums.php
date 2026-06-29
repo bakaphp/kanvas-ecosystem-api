@@ -51,10 +51,10 @@ enum AppSettingsEnums implements EnumsInterface
     case ALLOW_RESET_PASSWORD_WITH_DISPLAYNAME;
     case OPEN_AI_EMBEDDING_KEY;
     case ENABLE_GLOBAL_MERGE_FILESYSTEM;
-
     case DATE_ADK_AGENT_RESPONSES;
     case REGISTRATION_RATE_LIMIT;
     case VALIDATE_EMAIL_DNS;
+    case BLOCKED_EMAIL_DOMAINS;
 
     #[Override]
     public function getValue(): mixed
@@ -105,6 +105,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::DATE_ADK_AGENT_RESPONSES => 'date_adk_agent_responses',
             self::REGISTRATION_RATE_LIMIT => 'registration_rate_limit',
             self::VALIDATE_EMAIL_DNS => 'validate_email_dns',
+            self::BLOCKED_EMAIL_DOMAINS => 'blocked_email_domains',
         };
     }
 }

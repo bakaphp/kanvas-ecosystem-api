@@ -13,7 +13,7 @@ use Spatie\LaravelData\Data;
  *  @property string $name
  *  @property string $verb
  *  @property string $template
- *  @property string $templates_plura
+ *  @property mixed $templates_plura
  */
 class MessageTypeInput extends Data
 {
@@ -23,7 +23,7 @@ class MessageTypeInput extends Data
         public string $name = '',
         public string $verb = '',
         public ?string $template = null,
-        public ?string $templates_plura = null,
+        public mixed $templates_plura = null,
     ) {
     }
 }

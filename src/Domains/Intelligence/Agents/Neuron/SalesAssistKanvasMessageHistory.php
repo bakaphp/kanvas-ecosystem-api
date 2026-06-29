@@ -7,13 +7,16 @@ namespace Kanvas\Intelligence\Agents\Neuron;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
+use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
+use Kanvas\Social\Messages\Models\Message as SocialMessage;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Enums\MessageRole;
@@ -107,12 +110,17 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
 
                 $text = (string) ($stored['content'] ?? $stored['text'] ?? '');
 
-                if ($text === '') {
-                    return null;
-                }
-
                 $fromIa = (bool) ($stored['from_ia'] ?? false);
                 $fromHuman = (bool) ($stored['from_human'] ?? false);
+
+                // Inbound attachments live in the message JSON (userChat) or as attached files
+                // (channel). Surface them as a text marker so an attachment-only turn survives and
+                // the agent "remembers" what was sent on later, text-only history rebuilds.
+                $attachmentMarker = $fromIa ? '' : $this->buildAttachmentMarker($stored, $socialMessage);
+
+                if ($text === '' && $attachmentMarker === '') {
+                    return null;
+                }
 
                 $channel = $socialMessage->channels()->first();
                 $isInternal = $channel?->isNoteChannel() || $channel?->isAiAssistChannel();
@@ -126,6 +134,8 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
 
                     return new AssistantMessage($leadPrefix . $clean);
                 }
+
+                $text = trim($text . ($attachmentMarker !== '' ? "\n" . $attachmentMarker : ''));
 
                 if ($isInternal) {
                     $prefixed = "[INTERNAL - {$channel->name}] {$text}";
@@ -281,6 +291,42 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
         }
 
         return "[Lead: {$leadTitle}] ";
+    }
+
+    /**
+     * A "[Attachment: <description>]" memory line for a turn that carried attachment(s). Prefers the
+     * descriptions backfilled by DescribeMessageAttachmentsJob (`attachment_descriptions`); falls
+     * back to the raw `images` URL list (userChat) and, only when the turn would otherwise vanish,
+     * the attached files (channel inbound) — the file lookup is gated to avoid an N+1 across the
+     * whole history.
+     */
+    private function buildAttachmentMarker(array $stored, SocialMessage $socialMessage): string
+    {
+        $descriptions = array_values(array_filter(
+            (array) ($stored['attachment_descriptions'] ?? []),
+            static fn (mixed $d): bool => is_string($d) && trim($d) !== '',
+        ));
+
+        if ($descriptions !== []) {
+            return implode(' ', array_map(static fn (string $d): string => "[Attachment: {$d}]", $descriptions));
+        }
+
+        $images = (array) ($stored['images'] ?? []);
+        $text = (string) ($stored['content'] ?? $stored['text'] ?? '');
+
+        if ($images !== []) {
+            return trim(str_repeat('[Attachment] ', count($images)));
+        }
+
+        // Channel inbound stores the attachment only as a file, and only before its description
+        // backfills. Probe files just for the would-vanish case (empty text, no JSON image keys).
+        if ($text === '' && $socialMessage->getFiles()->contains(
+            fn (Filesystem $file): bool => AttachmentDescriptionService::isDescribableFile($file)
+        )) {
+            return '[Attachment]';
+        }
+
+        return '';
     }
 
     #[Override]

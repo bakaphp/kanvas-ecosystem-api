@@ -26,6 +26,7 @@ class UpdateOrganizationAction
         $this->organization->update([
             'name' => $this->organizationData->name,
             'address' => $this->organizationData->address,
+            'organization_type_id' => $this->organizationData->organizationType?->getId(),
         ]);
 
         return $this->organization;

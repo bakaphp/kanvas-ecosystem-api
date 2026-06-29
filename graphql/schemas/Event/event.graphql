@@ -346,20 +346,6 @@ type ResourceHoldResult {
     message: String!
 }
 
-input ConfirmBookingInput {
-    event_version_id: ID!
-    payment_intent_id: String!
-    amount: Float
-}
-
-type ConfirmBookingResult {
-    success: Boolean!
-    message: String!
-    event_version: EventVersion!
-    payment: Mixed!
-    order: Mixed!
-}
-
 extend type Mutation @guard {
     createEvent(input: EventInput!): Event!
         @field(
@@ -456,10 +442,6 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\ResourceBookingMutation@delete"
         )
 
-    confirmBooking(input: ConfirmBookingInput!): ConfirmBookingResult!
-        @field(
-            resolver: "App\\GraphQL\\Event\\Mutations\\Booking\\EventPaymentMutation@confirmBooking"
-        )
 }
 
 extend type Query @guard {

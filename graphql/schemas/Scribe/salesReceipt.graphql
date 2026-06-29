@@ -1,0 +1,141 @@
+"Scribe.SalesReceipts — cash sale (DR Cash / CR Revenue, no AR intermediate)."
+enum ScribeSalesReceiptStatus {
+    RECORDED @enum(value: "recorded")
+    VOIDED @enum(value: "voided")
+}
+
+type ScribeSalesReceipt {
+    id: ID!
+    uuid: String!
+    receipt_number: String
+    customer: Organization @belongsTo(relation: "customer")
+    billable_display_name: String
+    billable_email: String
+    status: ScribeSalesReceiptStatus!
+    receipt_date: Date!
+    voided_at: DateTime
+    void_reason_code: String
+    currency: String!
+    fx_rate_to_base: Float!
+    subtotal_native: Money!
+    tax_native: Money!
+    discount_native: Money!
+    total_native: Money!
+    subtotal_base: Money!
+    tax_base: Money!
+    discount_base: Money!
+    total_base: Money!
+    tax_metadata: Mixed
+    regional_compliance: Mixed
+    notes: String
+    internal_notes: String
+    source: String!
+    external_id: String
+    origin: ScribeJournalEntryOrigin!
+    metadata: Mixed
+    company: Company! @belongsTo(relation: "company")
+    user: User @belongsTo(relation: "user")
+    lines: [ScribeSalesReceiptLine!]! @hasMany(relation: "lines")
+    bank_account: ScribeBankAccount @belongsTo(relation: "bankAccount")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type ScribeSalesReceiptLine {
+    id: ID!
+    sort_order: Int!
+    item: ScribeItem @belongsTo(relation: "item")
+    description: String
+    quantity: Float!
+    unit_price_native: Money!
+    discount_amount_native: Money!
+    tax_amount_native: Money!
+    line_total_native: Money!
+    unit_price_base: Money!
+    discount_amount_base: Money!
+    tax_amount_base: Money!
+    line_total_base: Money!
+    discount_rate: Float
+    tax_rate: Float
+    revenue_account: ScribeAccount @belongsTo(relation: "incomeAccount")
+    class_id: Int
+    department_id: Int
+    metadata: Mixed
+}
+
+input ScribeSalesReceiptLineInput {
+    description: String
+    quantity: Float
+    unit_price_native: Money!
+    discount_amount_native: Money
+    discount_rate: Float
+    tax_amount_native: Money
+    tax_rate: Float
+    item_id: Int
+    class_id: Int
+    department_id: Int
+    sort_order: Int
+    metadata: Mixed
+}
+
+input ScribeSalesReceiptInput {
+    customer_organization_id: Int
+    receipt_date: Date
+    currency: String!
+    fx_rate_to_base: Float
+    receipt_number: String
+    bank_account_id: Int
+    notes: String
+    internal_notes: String
+    regional_compliance: Mixed
+    tax_metadata: Mixed
+    metadata: Mixed
+    lines: [ScribeSalesReceiptLineInput!]!
+}
+
+extend type Query @guard {
+    scribeSalesReceipts(
+        where: _
+            @whereConditions(
+                columns: [
+                    "receipt_number"
+                    "status"
+                    "currency"
+                    "customer_organization_id"
+                    "receipt_date"
+                    "source"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "receipt_number"
+                    "receipt_date"
+                    "total_base"
+                    "created_at"
+                ]
+            )
+    ): [ScribeSalesReceipt!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\SalesReceipts\\Models\\SalesReceipt"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 50
+        )
+}
+
+extend type Mutation @guard {
+    createScribeSalesReceipt(
+        input: ScribeSalesReceiptInput!
+    ): ScribeSalesReceipt!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesReceipts\\SalesReceiptMutation@create"
+        )
+    voidScribeSalesReceipt(
+        id: ID!
+        void_reason_code: String!
+    ): ScribeSalesReceipt!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\SalesReceipts\\SalesReceiptMutation@void"
+        )
+}

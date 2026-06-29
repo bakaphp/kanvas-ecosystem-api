@@ -62,6 +62,7 @@ class AgentChatMutation
             user: $user,
             images: $mergedImages,
             attachments: $attachments,
+            documents: $mergedFiles,
         )->execute();
     }
 
@@ -159,6 +160,7 @@ class AgentChatMutation
             images: $mergedImages,
             attachments: $attachments,
             currentLead: $currentLead,
+            documents: $mergedFiles,
         );
 
         $response = $processor->execute();

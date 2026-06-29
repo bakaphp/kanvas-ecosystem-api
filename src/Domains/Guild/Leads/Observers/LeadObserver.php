@@ -16,11 +16,9 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Actions\WriteLeadStageChangeThreadMessageAction;
 use Kanvas\Intelligence\Sessions\Actions\DeleteSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\UpdateLeadSessionsAction;
-use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
-use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 
 class LeadObserver
@@ -152,26 +150,6 @@ class LeadObserver
 
         if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
             new UpdateLeadSessionsAction($lead)->execute();
-        }
-
-        if ($lead->wasChanged('leads_status_id')) {
-            if ($lead->closeSold()) {
-                $lead->fireWorkflow(
-                    WorkflowEnum::TRIGGER_AI->value,
-                    true,
-                    [
-                        'trigger_type' => TriggersEnum::SOLD_LEAD->value,
-                    ]
-                );
-            } elseif ($lead->closeNotSold()) {
-                $lead->fireWorkflow(
-                    WorkflowEnum::TRIGGER_AI->value,
-                    true,
-                    [
-                        'trigger_type' => TriggersEnum::CLOSE_LEAD->value,
-                    ]
-                );
-            }
         }
         //$lead->clearLightHouseCacheJob();
     }

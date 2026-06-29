@@ -13,7 +13,6 @@ class VariantAttributeTest extends TestCase
 
     /**
      * testAddAttributeToVariant.
-     *
      */
     public function testAddAttributeToVariant(): void
     {
@@ -59,7 +58,7 @@ class VariantAttributeTest extends TestCase
                     is_published
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createWarehouse' => $data]
+            'data' => ['createWarehouse' => $data],
         ]);
         $warehouseData = [
             'id' => $response->json()['data']['createWarehouse']['id'],
@@ -67,7 +66,7 @@ class VariantAttributeTest extends TestCase
 
         $data = [
             'name' => fake()->name,
-            'sku' => fake()->time,
+            'sku' => fake()->unique()->uuid(),
             'description' => fake()->text,
         ];
         $response = $this->graphQL('
@@ -88,9 +87,9 @@ class VariantAttributeTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->time,
+            'sku' => fake()->unique()->uuid(),
             'products_id' => $productId,
-            'warehouses' => [$warehouseData]
+            'warehouses' => [$warehouseData],
         ];
         $response = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -134,14 +133,13 @@ class VariantAttributeTest extends TestCase
             'input' => [
                 'value' => fake()->name,
                 'name' => fake()->name,
-            ]
+            ],
         ]);
         $this->assertArrayHasKey('data', $response->json());
     }
 
     /**
      * testRemoveAttributeFromVariant.
-     *
      */
     public function testRemoveAttributeFromVariant(): void
     {
@@ -187,14 +185,14 @@ class VariantAttributeTest extends TestCase
                     is_published
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createWarehouse' => $data]
+            'data' => ['createWarehouse' => $data],
         ]);
         $warehouseData = [
             'id' => $response->json()['data']['createWarehouse']['id'],
         ];
         $data = [
             'name' => fake()->name,
-            'sku' => fake()->time,
+            'sku' => fake()->unique()->uuid(),
             'description' => fake()->text,
         ];
         $response = $this->graphQL('
@@ -215,9 +213,9 @@ class VariantAttributeTest extends TestCase
         $data = [
             'name' => fake()->name,
             'description' => fake()->text,
-            'sku' => fake()->time,
+            'sku' => fake()->unique()->uuid(),
             'products_id' => $productId,
-            'warehouses' => [$warehouseData]
+            'warehouses' => [$warehouseData],
         ];
         $response = $this->graphQL('
         mutation($data: VariantsInput!) {
@@ -233,7 +231,7 @@ class VariantAttributeTest extends TestCase
         $variantId = $response->json()['data']['createVariant']['id'];
 
         $dataAtribute = [
-            'name' => fake()->name
+            'name' => fake()->name,
         ];
         $response = $this->graphQL('
         mutation($data: AttributeInput!) {
@@ -274,7 +272,7 @@ class VariantAttributeTest extends TestCase
             'input' => [
                 'value' => fake()->name,
                 'name' => fake()->name,
-            ]
+            ],
         ]);
         $this->assertArrayHasKey('data', $response->json());
         $response = $this->graphQL('
@@ -350,7 +348,7 @@ class VariantAttributeTest extends TestCase
             'input' => [
                 'value' => fake()->name,
                 'name' => fake()->name,
-            ]
+            ],
         ]);
 
         $this->assertArrayHasKey('data', $response->json());
