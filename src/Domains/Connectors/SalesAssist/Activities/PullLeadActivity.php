@@ -116,7 +116,8 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
         $resolvedLead = match (true) {
             $isDriveCentric => $leadModel ?? null,
             $isDealerSocket => isset($people) ? LeadsRepository::getPeopleActiveLead($people) : null,
-            $isReynolds => $entity
+            $isReynolds => $entity,
+            default => null
         };
 
         try {
