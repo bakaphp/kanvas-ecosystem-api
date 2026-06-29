@@ -382,6 +382,23 @@ class Order extends BaseModel implements PayableInterface
         return $query->where('status', 'draft');
     }
 
+    public function scopeDuplicate(Builder $query): Builder
+    {
+        return $query->whereNotNull('metadata->data->duplicate_of_order_id');
+    }
+
+    public function isDuplicate(): bool
+    {
+        return ! empty($this->metadata['data']['duplicate_of_order_id'] ?? null);
+    }
+
+    public function getDuplicateOfOrderNumber(): ?string
+    {
+        $value = $this->metadata['data']['duplicate_of_order_number'] ?? null;
+
+        return $value !== null ? (string) $value : null;
+    }
+
     public function isFulfilled(): bool
     {
         return $this->fulfillment_status === OrderFulfillmentStatusEnum::COMPLETED->value;

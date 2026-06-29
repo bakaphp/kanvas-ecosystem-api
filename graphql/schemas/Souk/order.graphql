@@ -68,6 +68,8 @@ type Order {
     metadata: Mixed
     reference: String
     private_metadata: Mixed
+    is_duplicate: Boolean! @method(name: "isDuplicate")
+    duplicate_of_order_number: String @method(name: "getDuplicateOfOrderNumber")
     is_deleted: Boolean!
     created_at: String!
     updated_at: String

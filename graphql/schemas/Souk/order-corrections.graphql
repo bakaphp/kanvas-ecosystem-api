@@ -1,3 +1,15 @@
+extend type Query @guard {
+    duplicateOrders(
+        where: _ @whereConditions(columns: ["order_types_id", "companies_id", "created_at"])
+        orderBy: _ @orderBy(columns: ["created_at", "order_number"])
+    ): [Order!]!
+        @paginate(
+            model: "Kanvas\\Souk\\Orders\\Models\\Order"
+            scopes: ["fromApp", "fromCompany", "notDeleted", "duplicate"]
+            defaultCount: 25
+        )
+}
+
 extend type Mutation @guard {
     correctOrder(
         order_id: ID!
