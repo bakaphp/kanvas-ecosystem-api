@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Actions\Corrections;
 
+use Kanvas\Souk\Orders\Actions\Corrections\BaseOrderCorrectionAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
 
-class CorrectVehiclePlateAction extends BaseImpoundCorrectionAction
+class CorrectVehiclePlateAction extends BaseOrderCorrectionAction
 {
     public function __construct(
         Order $order,
@@ -22,7 +23,7 @@ class CorrectVehiclePlateAction extends BaseImpoundCorrectionAction
     public function execute(): Order
     {
         return $this->transact(function () {
-            $this->guardNotFinal();
+            $this->guardNotFinalStatus();
 
             $metadata = is_array($this->order->metadata) ? $this->order->metadata : [];
             $oldPlate = $metadata['data']['vehiclePlate'] ?? '';

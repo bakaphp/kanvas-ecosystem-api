@@ -2,16 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Movipass\Actions\Corrections;
+namespace Kanvas\Souk\Orders\Actions\Corrections;
 
 use Closure;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
 
-abstract class BaseImpoundCorrectionAction
+abstract class BaseOrderCorrectionAction
 {
     public function __construct(
         protected Order $order,
@@ -32,12 +31,12 @@ abstract class BaseImpoundCorrectionAction
         });
     }
 
-    protected function guardNotFinal(): void
+    protected function guardNotFinalStatus(): void
     {
-        $slug = $this->order->orderStatus?->slug ?? '';
+        if ($this->order->orderStatus?->is_final) {
+            $slug = $this->order->orderStatus->slug;
 
-        if (in_array($slug, [MovipassOrderStatusEnum::RELEASED->value, MovipassOrderStatusEnum::CANCELLED->value], true)) {
-            throw new ValidationException("Cannot correct an impound lot order in final status: {$slug}");
+            throw new ValidationException("Cannot correct an order in a final status: {$slug}");
         }
     }
 
