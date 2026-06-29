@@ -15,9 +15,11 @@ use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\PullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum as ReynoldsConfigurationEnum;
+use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum as ReynoldsCustomFieldEnum;
 use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelsAfterPullAction;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -98,7 +100,16 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
 
             $pullLead = $leadModel ? [$leadModel->toArray()] : [];
         } elseif ($isReynolds) {
-            $pullLead = Lead::getById($leadId)?->toArray();
+            $lead = $leadId !== null
+                ? Lead::getByCustomField(ReynoldsCustomFieldEnum::PROSPECT_ID->value, $leadId, $company)
+                : null;
+
+            if ($lead === null) {
+                $people = PeoplesRepository::getByPhoneNumber($app, $company, [$phone])->first();
+                $lead = $people ? LeadsRepository::getPeopleActiveLeads($people)->first() : null;
+            }
+
+            $pullLead = $lead ? $lead->toArray() : [];
         }
 
         $resolvedLead = match (true) {
