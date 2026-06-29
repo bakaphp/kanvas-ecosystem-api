@@ -34,6 +34,7 @@ class LeadSearchTool implements KanvasToolInterface
         $onlyPublished = $request->boolean('only_published', true);
         $exactField = $request->string('exact_field') ? (string) $request->string('exact_field') : null;
         $exactValue = $request->string('exact_value') ? (string) $request->string('exact_value') : null;
+        $customFields = array_filter((array) ($request->input('custom_fields') ?? []));
 
         $leads = Lead::query()
             ->fromApp($this->app)
@@ -59,20 +60,23 @@ class LeadSearchTool implements KanvasToolInterface
             ->get(['id', 'title', 'description', 'firstname', 'lastname', 'created_at', 'is_published']);
 
         return json_encode([
-            'leads' => $leads->map(fn (Lead $lead) => [
-                'id' => $lead->getId(),
-                'title' => $lead->title,
-                'description' => $lead->description,
-                'firstname' => $lead->firstname,
-                'lastname' => $lead->lastname,
-                'created_at' => $lead->created_at?->toIso8601String(),
-                'event_type' => $lead->get('event_type'),
-                'event_sub_type' => $lead->get('event_sub_type'),
-                'severity_score' => $lead->get('severity_score'),
-                'event_distress_score' => $lead->get('event_distress_score'),
-                'realized_impact' => $lead->get('realized_impact') ?? 'unknown',
-                'is_published' => (bool) $lead->is_published,
-            ])->values()->all(),
+            'leads' => $leads->map(function (Lead $lead) use ($customFields) {
+                $data = [
+                    'id' => $lead->getId(),
+                    'title' => $lead->title,
+                    'description' => $lead->description,
+                    'firstname' => $lead->firstname,
+                    'lastname' => $lead->lastname,
+                    'created_at' => $lead->created_at?->toIso8601String(),
+                    'is_published' => (bool) $lead->is_published,
+                ];
+
+                foreach ($customFields as $field) {
+                    $data[$field] = $lead->get((string) $field);
+                }
+
+                return $data;
+            })->values()->all(),
         ], JSON_PRETTY_PRINT);
     }
 
@@ -102,6 +106,9 @@ class LeadSearchTool implements KanvasToolInterface
             'exact_value' => $schema
                 ->string()
                 ->description('Exact value to match against exact_field. Pass the complete field content (e.g. the full event description). Must be used together with exact_field.'),
+            'custom_fields' => $schema
+                ->array()
+                ->description('Optional list of custom field names to include in each lead result (e.g. ["event_distress_score", "event_type", "severity_score"]). Only the fields you name are fetched — omit this parameter to get base fields only.'),
         ];
     }
 }
