@@ -7,22 +7,16 @@ namespace Kanvas\Connectors\SalesAssist\Actions;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Notification;
-use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
-use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
-use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Services\DriverLicenseVerificationService;
-use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
-use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
-use Throwable;
 
 class ProcessLeadDriverLicenseVerificationAction
 {
@@ -114,7 +108,12 @@ class ProcessLeadDriverLicenseVerificationAction
             // independent of having driver-license images on the lead.
             if ($this->intellicheckResponse !== null && $this->idVerificationReport !== null) {
                 $this->sendVerificationNotification($this->lead, $this->lead->people);
-                $this->generatePdfReport($this->lead);
+                $this->getService()->generateIdVerificationPdf(
+                    $this->lead,
+                    $this->lead->people,
+                    $this->idVerificationReport,
+                    $this->intellicheckResponse
+                );
             }
 
             $this->cleanupTemporaryData($this->lead);
@@ -276,8 +275,8 @@ class ProcessLeadDriverLicenseVerificationAction
                     'scandit' => $idVerificationReport['status'] == 'green' || $idVerificationReport['status'] == 'flag' ? true : false,
                     'expired' => $idVerificationReport['status'] == 'flag' ? true : false,
                     'ocMatch' => $idVerificationReport['ocMatch'] ?? false,
-                    'intellicheck_workflow_response' => $this->idVerificationReport['status'] === 'green' ? 'passed' : $this->idVerificationReport['status'],
-                    'intellicheckResponse' => $this->idVerificationReport['status'] === 'green' ? 'passed' : $this->idVerificationReport['status'],
+                    'intellicheck_workflow_response' => $idVerificationReport['status'] === 'green' ? 'passed' : $idVerificationReport['status'],
+                    'intellicheckResponse' => $idVerificationReport['status'] === 'green' ? 'passed' : $idVerificationReport['status'],
                 ];
             }
 
@@ -294,6 +293,16 @@ class ProcessLeadDriverLicenseVerificationAction
             $message = $engagement->message;
 
             $this->getService()->processDriverLicenseImages($message, $participant['driver_license_images'], $isIdValid, $isExpired);
+
+            if (! empty($idVerificationReport) && isset($participant['intellicheckResponse'])) {
+                $this->getService()->generateIdVerificationPdf(
+                    $lead,
+                    $people,
+                    $idVerificationReport,
+                    $participant['intellicheckResponse'],
+                    $message
+                );
+            }
 
             $results[] = [
                 'people_id' => $people->id,
@@ -374,45 +383,6 @@ class ProcessLeadDriverLicenseVerificationAction
 
         $notification->setSubject($people->name . ' - ID Verification Report');
         Notification::send($usersToNotify, $notification);
-    }
-
-    protected function generatePdfReport(Lead $lead): ?ModelsFilesystem
-    {
-        try {
-            $pdfReport = PdfService::generatePdfFromTemplate(
-                $lead->app,
-                $lead->user,
-                'id-verification-report',
-                $lead,
-                [
-                    'message' => $this->idVerificationReport['message'],
-                    'status' => $this->idVerificationReport['status'],
-                    'flags' => $this->idVerificationReport['flags'],
-                    'failures' => $this->idVerificationReport['failures'],
-                    'results' => $this->idVerificationReport['results'],
-                    'isShowRoom' => true,
-                    'verificationData' => $this->intellicheckResponse,
-                ]
-            );
-
-            $engagement = EngagementRepository::findEngagementForLead(
-                $lead,
-                ConfigurationEnum::ID_VERIFICATION->value,
-                ActionStatusEnum::SUBMITTED->value,
-            );
-
-            if ($engagement) {
-                $engagement->message?->addFile($pdfReport, 'id-verification');
-            } else {
-                $lead->addFile($pdfReport, 'id-verification');
-            }
-
-            return $pdfReport;
-        } catch (Throwable $e) {
-            report($e);
-        }
-
-        return null;
     }
 
     protected function cleanupTemporaryData(Lead $lead): void
