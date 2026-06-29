@@ -24,7 +24,9 @@ abstract class BaseImpoundCorrectionAction
     protected function transact(Closure $callback): mixed
     {
         return DB::connection('commerce')->transaction(function () use ($callback) {
-            $this->order = $this->order->lockForUpdate()->fresh();
+            $this->order = $this->order->newQuery()
+                ->lockForUpdate()
+                ->findOrFail($this->order->id);
 
             return $callback();
         });
