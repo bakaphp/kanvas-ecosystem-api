@@ -64,7 +64,11 @@ class BackfillJobChangeEventsCommand extends Command
         $this->line("Found {$people->count()} people with a recorded job change for company {$company->name}");
 
         $emitted = 0;
-        $skipped = 0;
+        $skips = [
+            BackfillJobChangeEventAction::SKIPPED_NO_CHANGE => 0,
+            BackfillJobChangeEventAction::SKIPPED_DUPLICATE => 0,
+            BackfillJobChangeEventAction::SKIPPED_PAST_EMPLOYER => 0,
+        ];
 
         foreach ($people as $person) {
             $result = new BackfillJobChangeEventAction($person, $app, $company)->execute($dryRun);
@@ -76,11 +80,17 @@ class BackfillJobChangeEventsCommand extends Command
                 continue;
             }
 
-            $skipped++;
+            $skips[$result] = ($skips[$result] ?? 0) + 1;
         }
 
         $verb = $dryRun ? 'would emit' : 'emitted';
-        $this->line("Done: {$verb} {$emitted}, skipped {$skipped}");
+        $skipped = array_sum($skips);
+        $this->line(
+            "Done: {$verb} {$emitted}, skipped {$skipped} "
+            . "(no_change {$skips[BackfillJobChangeEventAction::SKIPPED_NO_CHANGE]}, "
+            . "already_in_ledger {$skips[BackfillJobChangeEventAction::SKIPPED_DUPLICATE]}, "
+            . "past_employer {$skips[BackfillJobChangeEventAction::SKIPPED_PAST_EMPLOYER]})"
+        );
 
         return self::SUCCESS;
     }

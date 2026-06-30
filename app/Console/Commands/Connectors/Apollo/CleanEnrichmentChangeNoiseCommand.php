@@ -10,10 +10,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Apollo\Actions\EnrichPeopleFromApolloAction;
+use Kanvas\Connectors\Apollo\Services\PersonCurrentEmployerService;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
-use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Guild\Organizations\Services\OrganizationNameNormalizerService;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 
 /**
@@ -52,8 +50,16 @@ class CleanEnrichmentChangeNoiseCommand extends Command
 
     private const array TRANSITION_KEYS = ['current_employer', 'title', 'headline'];
 
-    /** @var array<int, string[]> memoized normalized current-employer names per person */
-    private array $currentEmployersCache = [];
+    /** How many current_employer rows were dropped specifically by the past-employer rule. */
+    private int $pastEmployerStripped = 0;
+
+    private PersonCurrentEmployerService $employerResolver;
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->employerResolver = new PersonCurrentEmployerService();
+    }
 
     public function handle(): int
     {
@@ -67,7 +73,8 @@ class CleanEnrichmentChangeNoiseCommand extends Command
         $apply = (bool) $this->option('force');
         $pruneEmpty = (bool) $this->option('prune-empty');
 
-        $repaired = 0;
+        $emptied = 0;
+        $partial = 0;
         $pruned = 0;
         $scanned = 0;
 
@@ -77,7 +84,7 @@ class CleanEnrichmentChangeNoiseCommand extends Command
             ->where('source_entity_type', People::class)
             ->when($company !== null, fn (Builder $q): Builder => $q->where('companies_id', $company->getId()))
             ->orderBy('id')
-            ->chunkById(500, function ($events) use ($apply, $pruneEmpty, &$repaired, &$pruned, &$scanned): void {
+            ->chunkById(500, function ($events) use ($apply, $pruneEmpty, &$emptied, &$partial, &$pruned, &$scanned): void {
                 foreach ($events as $event) {
                     $scanned++;
 
@@ -90,7 +97,10 @@ class CleanEnrichmentChangeNoiseCommand extends Command
                         continue;
                     }
 
-                    if ($cleaned === [] && $pruneEmpty) {
+                    $becameEmpty = $cleaned === [];
+                    $becameEmpty ? $emptied++ : $partial++;
+
+                    if ($becameEmpty && $pruneEmpty) {
                         $pruned++;
                         if ($apply) {
                             $event->delete();
@@ -99,7 +109,6 @@ class CleanEnrichmentChangeNoiseCommand extends Command
                         continue;
                     }
 
-                    $repaired++;
                     if ($apply) {
                         $payload['changes'] = $cleaned;
                         $payload['changed_fields'] = array_keys($cleaned);
@@ -110,7 +119,8 @@ class CleanEnrichmentChangeNoiseCommand extends Command
             });
 
         $mode = $apply ? 'APPLIED' : 'DRY-RUN';
-        $this->line("[{$mode}] scanned {$scanned}, repaired {$repaired}" . ($pruneEmpty ? ", pruned {$pruned}" : ''));
+        $repaired = $emptied + $partial;
+        $this->line("[{$mode}] scanned {$scanned}, repaired {$repaired} (emptied {$emptied}, kept-partial {$partial}); of those, {$this->pastEmployerStripped} past-employer false-moves" . ($pruneEmpty ? ", pruned {$pruned}" : ''));
 
         if (! $apply) {
             $this->line('Re-run with --force to write these changes.');
@@ -149,67 +159,12 @@ class CleanEnrichmentChangeNoiseCommand extends Command
 
             // A current_employer move is only true when `to` is the person's genuine current
             // employer. Otherwise it's a job they already left — a false move to a past role.
-            if ($key === 'current_employer' && is_string($to) && ! $this->isGenuineCurrentEmployer($peopleId, $to)) {
+            if ($key === 'current_employer' && is_string($to) && ! $this->employerResolver->isGenuineCurrentEmployer($peopleId, $to)) {
                 unset($changes[$key]);
+                $this->pastEmployerStripped++;
             }
         }
 
         return $changes;
-    }
-
-    /**
-     * Is `$toCompany` one of the person's current (status=1) employers? When we have no
-     * employment history on file we can't disprove it, so we keep the row rather than risk
-     * destroying a genuine move.
-     */
-    private function isGenuineCurrentEmployer(int $peopleId, string $toCompany): bool
-    {
-        $current = $this->currentEmployersFor($peopleId);
-
-        if ($current === []) {
-            return true;
-        }
-
-        return in_array($this->normalizeName($toCompany), $current, true);
-    }
-
-    /**
-     * Normalized names of the person's current (status=1) employers, memoized per person.
-     *
-     * @return string[]
-     */
-    private function currentEmployersFor(int $peopleId): array
-    {
-        if (array_key_exists($peopleId, $this->currentEmployersCache)) {
-            return $this->currentEmployersCache[$peopleId];
-        }
-
-        $orgIds = PeopleEmploymentHistory::query()
-            ->where('peoples_id', $peopleId)
-            ->where('status', 1)
-            ->where('is_deleted', 0)
-            ->pluck('organizations_id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
-
-        $names = $orgIds === []
-            ? []
-            : Organization::query()->whereIn('id', $orgIds)->pluck('name')->all();
-
-        $normalized = array_values(array_unique(array_filter(array_map(
-            fn ($name) => $this->normalizeName((string) $name),
-            $names,
-        ))));
-
-        return $this->currentEmployersCache[$peopleId] = $normalized;
-    }
-
-    /**
-     * Strip legal suffixes (SRL, S.A., …) and lowercase so "Baninter" matches a stored
-     * "BANINTER SRL" — the same normalizer the org create-path uses.
-     */
-    private function normalizeName(string $name): string
-    {
-        return mb_strtolower(trim(OrganizationNameNormalizerService::normalize($name)));
     }
 }

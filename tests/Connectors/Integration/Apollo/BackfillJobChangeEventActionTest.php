@@ -11,6 +11,8 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Apollo\Actions\BackfillJobChangeEventAction;
 use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Tests\TestCase;
 
@@ -96,6 +98,33 @@ final class BackfillJobChangeEventActionTest extends TestCase
         $this->assertSame(0, $this->ledgerEventQuery($app, $person)->count());
     }
 
+    public function test_skips_a_move_to_a_past_employer(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+        $suffix = uniqid();
+
+        $person = $this->personWithJobChange($app, $company, [
+            'changed_at' => '2026-05-01T09:00:00+00:00',
+            'from_company' => "Alpha {$suffix}",
+            'from_title' => 'Gerente',
+            'to_company' => "Baninter {$suffix}",
+            'to_title' => 'Gerente',
+        ]);
+
+        // Her real current employer is Alpha; Baninter is a past role — the stored blob's
+        // "move to Baninter" is the corrupt false move that must NOT be re-emitted.
+        $alpha = $this->seedOrg($app, $company, "Alpha {$suffix}");
+        $baninter = $this->seedOrg($app, $company, "Baninter {$suffix}");
+        $this->seedEmployment($app, $person, $alpha, status: 1, endDate: null);
+        $this->seedEmployment($app, $person, $baninter, status: 0, endDate: '2001-08-01');
+
+        $result = new BackfillJobChangeEventAction($person, $app, $person->company)->execute();
+
+        $this->assertSame(BackfillJobChangeEventAction::SKIPPED_PAST_EMPLOYER, $result);
+        $this->assertSame(0, $this->ledgerEventQuery($app, $person)->count(), 'A false move to a past employer is never backfilled.');
+    }
+
     public function test_dry_run_does_not_write(): void
     {
         $app = app(Apps::class);
@@ -131,6 +160,32 @@ final class BackfillJobChangeEventActionTest extends TestCase
         $person->set(ConfigurationEnum::APOLLO_LAST_JOB_CHANGE->value, $change);
 
         return $person;
+    }
+
+    private function seedOrg(Apps $app, Companies $company, string $name): Organization
+    {
+        return Organization::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => $name,
+            'address' => '',
+            'total_employees' => 0,
+        ]);
+    }
+
+    private function seedEmployment(Apps $app, People $person, Organization $org, int $status, ?string $endDate): void
+    {
+        PeopleEmploymentHistory::create([
+            'apps_id' => $app->getId(),
+            'peoples_id' => $person->getId(),
+            'organizations_id' => $org->getId(),
+            'position' => 'Role',
+            'start_date' => '2017-01-01',
+            'end_date' => $endDate,
+            'status' => $status,
+            'is_deleted' => 0,
+        ]);
     }
 
     private function ledgerEventQuery(Apps $app, People $person): Builder
