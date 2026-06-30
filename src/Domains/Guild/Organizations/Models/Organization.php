@@ -43,6 +43,7 @@ use Override;
  * @property string $name
  * @property ?string $address = null
  * @property int $total_employees
+ * @property int|null $merged_into_organization_id
  */
 #[ObservedBy([OrganizationObserver::class])]
 class Organization extends BaseModel implements BillableInterface, PayeeInterface

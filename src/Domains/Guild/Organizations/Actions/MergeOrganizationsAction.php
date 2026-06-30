@@ -8,7 +8,11 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
+use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
+use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as LedgerEventData;
+use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use RuntimeException;
+use Throwable;
 
 /**
  * Merges two Guild Organization rows: rewrites every FK from `source` to `target`, then
@@ -26,6 +30,7 @@ use RuntimeException;
  *   Guild (crm DB):
  *     - leads.organization_id
  *     - deals.organization_id  (if present in this app)
+ *     - peoples_employment_history.organizations_id
  *     - organizations_peoples  (merge, dedup on (organization_id, peoples_id))
  *
  * Source Organization is soft-deleted at the end (is_deleted=1). NOT hard-deleted — preserves
@@ -109,6 +114,15 @@ class MergeOrganizationsAction
                 ->update(['organization_id' => $targetId]);
         }
 
+        // Employment history points each person's role at an org — rebind so a merged-away
+        // duplicate doesn't leave roles hanging off a soft-deleted org (the genuine-current-
+        // employer check reads these).
+        if ($crmSchema->hasTable('peoples_employment_history') && $crmSchema->hasColumn('peoples_employment_history', 'organizations_id')) {
+            $guildRewrittenCount += DB::connection('crm')->table('peoples_employment_history')
+                ->where('organizations_id', $sourceId)
+                ->update(['organizations_id' => $targetId]);
+        }
+
         // organizations_peoples — dedup on collision: if (target, peoples_id) already exists,
         // delete the source row outright rather than violating the unique constraint.
         $organizationsPeoplesRebound = $this->rebindOrganizationPeoples($sourceId, $targetId);
@@ -120,23 +134,50 @@ class MergeOrganizationsAction
         }
         $this->source->save();
 
-        // ── Emit ledger event so the audit log has a single source-of-truth ──
-        if (method_exists($this->target, 'emitLedgerEvent')) {
-            $this->target->emitLedgerEvent(
-                eventType: 'guild.organization.merged',
-                payload: [
-                    'source_organization_id' => $sourceId,
-                    'source_name' => (string) $this->source->name,
-                    'target_organization_id' => $targetId,
-                    'target_name' => (string) $this->target->name,
-                    'scribe_rows_rewritten' => $scribeRewrittenCount,
-                    'guild_rows_rewritten' => $guildRewrittenCount,
-                    'organizations_peoples_rebound' => $organizationsPeoplesRebound,
-                ],
-            );
-        }
+        $this->recordMergeEvent($sourceId, $targetId, $scribeRewrittenCount, $guildRewrittenCount, $organizationsPeoplesRebound);
 
         return $this->target->refresh();
+    }
+
+    /**
+     * Append the merge to the ledger so there's a durable, queryable audit trail of what merged
+     * into what. Best-effort: the FK rewrites + soft-delete already committed, so a ledger outage
+     * must not fail an otherwise-successful merge (the `merged_into_organization_id` pointer on the
+     * row is the second, on-record trail).
+     */
+    private function recordMergeEvent(
+        int $sourceId,
+        int $targetId,
+        int $scribeRewrittenCount,
+        int $guildRewrittenCount,
+        int $organizationsPeoplesRebound,
+    ): void {
+        try {
+            new AppendEventAction(
+                new LedgerEventData(
+                    app: $this->target->app,
+                    company: $this->target->company,
+                    sourceDomain: 'Guild',
+                    eventType: 'guild.organization.merged',
+                    status: EventStatusEnum::INFO,
+                    sourceEntityType: Organization::class,
+                    sourceEntityId: $targetId,
+                    actorType: $this->user !== null ? 'User' : 'System',
+                    actorId: $this->user?->getId(),
+                    payload: [
+                        'source_organization_id' => $sourceId,
+                        'source_name' => $this->source->name,
+                        'target_organization_id' => $targetId,
+                        'target_name' => $this->target->name,
+                        'scribe_rows_rewritten' => $scribeRewrittenCount,
+                        'guild_rows_rewritten' => $guildRewrittenCount,
+                        'organizations_peoples_rebound' => $organizationsPeoplesRebound,
+                    ],
+                ),
+            )->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**

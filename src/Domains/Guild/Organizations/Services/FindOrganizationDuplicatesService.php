@@ -29,6 +29,13 @@ use Kanvas\Guild\Organizations\DataTransferObject\OrganizationDuplicateGroup;
  */
 class FindOrganizationDuplicatesService
 {
+    /**
+     * Trailing legal-entity suffixes stripped before grouping. POSIX/ICU regex for MySQL 8's
+     * REGEXP_REPLACE — `i` match-type makes it case-insensitive; the column's accent-insensitive
+     * collation folds accents on top.
+     */
+    private const string LEGAL_SUFFIX_PATTERN = '[[:space:],]+(s\\.?\\s?a\\.?|srl|sas|eirl|llc|inc\\.?|corp\\.?)\\.?\\s*$';
+
     public function generate(
         AppInterface $app,
         CompanyInterface $company,
@@ -59,6 +66,49 @@ class FindOrganizationDuplicatesService
         }
 
         return array_slice(array_values($deduped), 0, $maxGroups);
+    }
+
+    /**
+     * Groups by name that is identical AFTER stripping legal suffixes + casing + accents — so
+     * "Leaderville" / "LEADERVILLE SRL" collapse to one group. Conservative on purpose: only
+     * post-normalization-identical names group (no fuzzy/prefix matching, so "Alpha Industries"
+     * and "Alpha Consulting" stay apart). This subsumes the exact-name dimension.
+     *
+     * @return list<OrganizationDuplicateGroup>
+     */
+    public function generateByNormalizedName(
+        AppInterface $app,
+        CompanyInterface $company,
+        int $maxGroups = 5000,
+    ): array {
+        return array_slice(
+            $this->groupsByNormalizedName($app->getId(), $company->getId()),
+            0,
+            $maxGroups,
+        );
+    }
+
+    /**
+     * @return list<OrganizationDuplicateGroup>
+     */
+    private function groupsByNormalizedName(int $appId, int $companyId): array
+    {
+        $rows = DB::connection('crm')
+            ->table('organizations')
+            ->selectRaw(
+                "LOWER(TRIM(REGEXP_REPLACE(name, ?, '', 1, 0, 'i'))) as norm_name, GROUP_CONCAT(id ORDER BY id ASC) as ids, MIN(name) as sample_name",
+                [self::LEGAL_SUFFIX_PATTERN],
+            )
+            ->where('apps_id', $appId)
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', false)
+            ->whereNotNull('name')
+            ->where('name', '!=', '')
+            ->groupBy('norm_name')
+            ->havingRaw('COUNT(*) > 1')
+            ->get();
+
+        return $this->mapRowsToGroups($rows, 'normalized_name');
     }
 
     /**
