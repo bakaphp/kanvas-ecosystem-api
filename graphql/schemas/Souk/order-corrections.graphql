@@ -1,0 +1,12 @@
+extend type Mutation @guard {
+    correctOrder(
+        order_id: ID!
+        correction_type: String!
+        reason: String!
+        evidence_urls: [String!]
+        data: Mixed
+    ): Order!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderCorrectionMutation@correct"
+        )
+}

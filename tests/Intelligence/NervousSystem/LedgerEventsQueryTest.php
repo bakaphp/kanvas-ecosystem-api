@@ -67,6 +67,64 @@ class LedgerEventsQueryTest extends TestCase
         $this->assertSame(['marker' => 'visible'], $events[0]['payload']);
     }
 
+    public function testChangeCountFilterReturnsOnlyChangeBearingEvents(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $tag = 'changecount-' . uniqid();
+
+        // One real change-bearing event...
+        new AppendEventAction(
+            new EventData(
+                app: $app,
+                company: $company,
+                sourceDomain: 'TestDomain',
+                eventType: $tag,
+                status: EventStatusEnum::INFO,
+                payload: ['changed_fields' => ['title', 'email_changed'], 'changes' => ['title' => ['from' => 'a', 'to' => 'b']]],
+            ),
+        )->execute();
+
+        // ...and one empty event under the same tag — the feed must not return it.
+        new AppendEventAction(
+            new EventData(
+                app: $app,
+                company: $company,
+                sourceDomain: 'TestDomain',
+                eventType: $tag,
+                status: EventStatusEnum::INFO,
+                payload: ['changed_fields' => [], 'changes' => []],
+            ),
+        )->execute();
+
+        $response = $this->graphQL(
+            '
+            query LedgerEvents($where: QueryLedgerEventsWhereWhereConditions) {
+                ledgerEvents(first: 50, where: $where) {
+                    data { event_type change_count }
+                    paginatorInfo { total }
+                }
+            }
+            ',
+            [
+                'where' => [
+                    'AND' => [
+                        ['column' => 'EVENT_TYPE', 'operator' => 'EQ', 'value' => $tag],
+                        ['column' => 'CHANGE_COUNT', 'operator' => 'GT', 'value' => 0],
+                    ],
+                ],
+            ],
+        );
+
+        $response->assertSuccessful();
+
+        $events = $response->json('data.ledgerEvents.data');
+        $this->assertCount(1, $events, 'Only the change-bearing event passes the change_count filter.');
+        $this->assertSame(2, $events[0]['change_count']);
+    }
+
     public function testLedgerEventsQueryDoesNotLeakAcrossApps(): void
     {
         $app = app(Apps::class);
