@@ -70,8 +70,8 @@ class CreateLeadFirstEngagementMessageAction
         $data['leadOwnerName'] = $this->lead->owner?->firstname . ' ' . $this->lead->owner?->lastname;
         $data['voice_enabled'] = ! empty($this->lead->app->get(VoiceBridgeConfigurationEnum::API_KEY->value));
         $data['available_channels'] = $this->resolveAvailableChannels();
-
-        $prompt = Blade::render(implode(' ', $this->agent->role['steps']), $data['additional_context_information']);
+        $steps = is_array($this->agent->role['steps']) ? implode(' ', $this->agent->role['steps']) : $this->agent->role['steps'];
+        $prompt = Blade::render($steps, $data['additional_context_information']);
 
         try {
             $response = $this->callAi($prompt);
