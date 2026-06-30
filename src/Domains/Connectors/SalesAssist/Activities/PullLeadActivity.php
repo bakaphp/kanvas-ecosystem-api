@@ -15,13 +15,12 @@ use Kanvas\Connectors\DriveCentric\Actions\PullPeopleLeadAction;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\PullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Reynolds\Actions\PullLeadAction as ReynoldsPullLeadAction;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum as ReynoldsConfigurationEnum;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum as ReynoldsCustomFieldEnum;
-use Kanvas\Connectors\Reynolds\Services\XmlParser as ReynoldsXmlParser;
 use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelsAfterPullAction;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -102,43 +101,26 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
 
             $pullLead = $leadModel ? [$leadModel->toArray()] : [];
         } elseif ($isReynolds) {
-            // Reynolds is push-only — no GET-prospect endpoint exists in the
-            // SalesAssist specs. We can only refresh the lead when an inbound
-            // Publish Lead Update payload was previously parsed by the webhook
-            // job and handed to us via $params['record'] (or the raw envelope
-            // via $params['xml']). Otherwise this is a no-op and we just echo
-            // back whatever Reynolds state the lead already carries locally.
-            $record = match (true) {
-                isset($params['record']) && is_array($params['record']) => $params['record'],
-                isset($params['xml']) && is_string($params['xml']) && $params['xml'] !== ''
-                    => ReynoldsXmlParser::extractPayloadFromEnvelope($params['xml'])['Record'] ?? null,
-                default => null,
-            };
+            $lead = $leadId !== null
+                ? Lead::getByCustomField(ReynoldsCustomFieldEnum::PROSPECT_ID->value, $leadId, $company)
+                : null;
 
-            if (is_array($record)) {
-                $refreshed = new ReynoldsPullLeadAction($app, $company, $user)->execute($record);
-                $pullLead = [[
-                    'id' => $refreshed->getId(),
-                    'prospect_id' => $refreshed->get(ReynoldsCustomFieldEnum::PROSPECT_ID->value),
-                ]];
-            } else {
-                $pullLead = [
-                    'message' => 'No Reynolds LDU payload supplied; nothing to pull',
-                    'lead_id' => $entity->id ?: null,
-                    'prospect_id' => ($entity instanceof Lead && $entity->id > 0)
-                        ? $entity->get(ReynoldsCustomFieldEnum::PROSPECT_ID->value)
-                        : null,
-                ];
+            if ($lead === null) {
+                $people = PeoplesRepository::getByPhoneNumber($app, $company, [$phone])->first();
+                $lead = $people ? LeadsRepository::getPeopleActiveLeads($people)->first() : null;
             }
+
+            $pullLead = $lead ? [$lead->toArray()] : [];
         }
 
         $resolvedLead = match (true) {
             $isDriveCentric => $leadModel ?? null,
             $isDealerSocket => isset($people) ? LeadsRepository::getPeopleActiveLead($people) : null,
-            $isReynolds && isset($refreshed) => $refreshed,
-            ! empty($pullLead[0]['id']) => Lead::getById((int) $pullLead[0]['id'], $app),
-            $entity instanceof Lead && $entity->id > 0 => $entity,
-            default => null,
+            $isReynolds => $entity,
+            $isVinSolutions, $isElead => isset($pullLead[0]['id'])
+                ? Lead::getByIdFromCompanyApp((int) $pullLead[0]['id'], $company, $app)
+                : null,
+            default => null
         };
 
         try {
