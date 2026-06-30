@@ -8,6 +8,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Apollo\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Apollo\Services\PersonCurrentEmployerService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as LedgerEventData;
@@ -28,6 +29,7 @@ class BackfillJobChangeEventAction
     public const string WOULD_EMIT = 'would_emit';
     public const string SKIPPED_NO_CHANGE = 'skipped_no_change';
     public const string SKIPPED_DUPLICATE = 'skipped_duplicate';
+    public const string SKIPPED_PAST_EMPLOYER = 'skipped_past_employer';
 
     public function __construct(
         protected readonly People $person,
@@ -37,18 +39,27 @@ class BackfillJobChangeEventAction
     }
 
     /**
-     * @return self::EMITTED|self::WOULD_EMIT|self::SKIPPED_NO_CHANGE|self::SKIPPED_DUPLICATE
+     * @return self::EMITTED|self::WOULD_EMIT|self::SKIPPED_NO_CHANGE|self::SKIPPED_DUPLICATE|self::SKIPPED_PAST_EMPLOYER
      */
     public function execute(bool $dryRun = false): string
     {
         $change = (array) ($this->person->get(ConfigurationEnum::APOLLO_LAST_JOB_CHANGE->value) ?? []);
 
-        $diff = $this->buildDiff($change);
+        $fromCompany = trim((string) ($change['from_company'] ?? ''));
+        $toCompany = trim((string) ($change['to_company'] ?? ''));
+        $employerMove = EnrichPeopleFromApolloAction::isRealTransition($fromCompany, $toCompany);
+
+        // The stored blob was written by the same buggy enrichment that mislabeled a PAST
+        // job as the current employer (Alpha → Baninter). Never re-emit such a move — guard
+        // on the same genuine-current-employer rule the cleanup uses.
+        if ($employerMove && ! new PersonCurrentEmployerService()->isGenuineCurrentEmployer((int) $this->person->getId(), $toCompany)) {
+            return self::SKIPPED_PAST_EMPLOYER;
+        }
+
+        $diff = $this->buildDiff($change, $employerMove);
         if ($diff === []) {
             return self::SKIPPED_NO_CHANGE;
         }
-
-        $toCompany = trim((string) ($change['to_company'] ?? ''));
 
         if ($this->alreadyInLedger($toCompany)) {
             return self::SKIPPED_DUPLICATE;
@@ -64,22 +75,21 @@ class BackfillJobChangeEventAction
     }
 
     /**
-     * Mirror the live emitter's diff shape (keys `current_employer` / `title`, each
-     * `{from, to}`). Only genuine transitions land — a recorded job change always carries
-     * a real employer move, and the title rides along only when it actually changed.
+     * Mirror the live emitter's diff shape so backfilled rows read identically to live ones.
      *
      * @param array<string, mixed> $change
      *
      * @return array<string, array{from: string, to: string}>
      */
-    private function buildDiff(array $change): array
+    private function buildDiff(array $change, bool $employerMove): array
     {
         $diff = [];
 
-        $fromCompany = trim((string) ($change['from_company'] ?? ''));
-        $toCompany = trim((string) ($change['to_company'] ?? ''));
-        if (EnrichPeopleFromApolloAction::isRealTransition($fromCompany, $toCompany)) {
-            $diff['current_employer'] = ['from' => $fromCompany, 'to' => $toCompany];
+        if ($employerMove) {
+            $diff['current_employer'] = [
+                'from' => trim((string) ($change['from_company'] ?? '')),
+                'to' => trim((string) ($change['to_company'] ?? '')),
+            ];
         }
 
         $fromTitle = trim((string) ($change['from_title'] ?? ''));
