@@ -155,6 +155,7 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
         ];
     }
 
+    #[Override]
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted();

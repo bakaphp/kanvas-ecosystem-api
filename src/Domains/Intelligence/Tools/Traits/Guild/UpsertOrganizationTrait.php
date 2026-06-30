@@ -49,8 +49,20 @@ trait UpsertOrganizationTrait
                 $organization = new UpdateOrganizationAction($organization, $orgData)->execute();
                 $action = 'updated';
             } else {
-                $organization = new CreateOrganizationAction($orgData)->execute();
-                $action = 'created';
+                $existing = Organization::query()
+                    ->fromApp($app)
+                    ->fromCompany($company)
+                    ->notDeleted()
+                    ->where('name', $name)
+                    ->first();
+
+                if ($existing !== null) {
+                    $organization = new UpdateOrganizationAction($existing, $orgData)->execute();
+                    $action = 'found';
+                } else {
+                    $organization = new CreateOrganizationAction($orgData)->execute();
+                    $action = 'created';
+                }
 
                 if ($organizationTypeId !== null) {
                     $organizationType = OrganizationType::getByIdFromCompanyApp($organizationTypeId, $company, $app);
