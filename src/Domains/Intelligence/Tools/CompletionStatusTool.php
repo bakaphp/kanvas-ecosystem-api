@@ -38,6 +38,7 @@ class CompletionStatusTool implements ContextToolInterface
             'additional_context_information' => $this->entity->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
         ];
         $background = is_array($this->agent->role['background']) ? implode(' ', $this->agent->role['background']) : $this->agent->role['background'];
+        $steps = is_array($this->agent->role['steps']) ? implode(' ', $this->agent->role['steps']) : $this->agent->role['steps'];
         /** @var StructuredAgentResponse $response */
         $response = agent(
             instructions: Blade::render($background, $data),
@@ -52,7 +53,7 @@ class CompletionStatusTool implements ContextToolInterface
                 'internal_notes' => $schema->string()->description('One concise CRM note; no PII beyond artifacts')->required(),
             ],
         )->prompt(
-            Blade::render(implode('\n', $this->agent->role['steps']), $data),
+            Blade::render($steps, $data),
             provider: Lab::Gemini,
             model: 'gemini-2.5-pro',
             timeout: 220,
