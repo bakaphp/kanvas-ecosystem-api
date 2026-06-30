@@ -440,6 +440,11 @@ class Lead extends BaseModel implements EventResourceInterface
         $this->save();
     }
 
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
     public function toSearchableArray(): array
     {
         $lead = [
