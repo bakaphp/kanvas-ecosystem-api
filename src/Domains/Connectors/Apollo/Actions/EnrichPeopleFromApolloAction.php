@@ -281,21 +281,27 @@ class EnrichPeopleFromApolloAction
     {
         $diff = [];
 
-        if ($before['title'] !== $after['title'] && $after['title'] !== '') {
+        // title / headline / current_employer are "Before → After" rows in the change
+        // feed — only record them as a real transition (prior value present AND different).
+        // A first-time fill (empty `from`) is NOT a change; it would render as "X" with no
+        // real before, which reads as a false move.
+        if (self::isRealTransition($before['title'], $after['title'])) {
             $diff['title'] = ['from' => $before['title'], 'to' => $after['title']];
         }
 
-        if ($before['headline'] !== $after['headline'] && $after['headline'] !== '') {
+        if (self::isRealTransition($before['headline'], $after['headline'])) {
             $diff['headline'] = ['from' => $before['headline'], 'to' => $after['headline']];
         }
 
-        if ($before['company'] !== $after['company'] && $after['company'] !== '') {
+        if (self::isRealTransition($before['company'], $after['company'])) {
             $diff['current_employer'] = ['from' => $before['company'], 'to' => $after['company']];
+        }
 
-            // A brand-new employer that didn't exist in the CRM is a net-new account.
-            if ($this->newEmployerIsNewAccount) {
-                $diff['new_account'] = true;
-            }
+        // A brand-new employer the CRM didn't have. Tracked independently of the move so a
+        // first-time employer fill still surfaces as a net-new account without faking a
+        // "X → X" current_employer row.
+        if ($this->newEmployerIsNewAccount && $after['company'] !== '') {
+            $diff['new_account'] = true;
         }
 
         // Promotion = the person crossed into a decision-maker seniority they weren't at before.
@@ -324,6 +330,21 @@ class EnrichPeopleFromApolloAction
     private function isDecisionMaker(string $seniority): bool
     {
         return $seniority !== '' && in_array($seniority, self::DECISION_MAKER_SENIORITY, true);
+    }
+
+    /**
+     * A genuine field transition for the change feed: both sides present and different
+     * (case-insensitively, so "Leaderville" → "leaderville" is not a fake move). First
+     * fills (empty `from`) and no-ops are NOT transitions — surfacing them as
+     * "Before → After" is the noise this suppresses. Shared with the backfill and
+     * cleanup commands so all three agree on what counts as a real change.
+     */
+    public static function isRealTransition(?string $from, ?string $to): bool
+    {
+        $from = trim((string) $from);
+        $to = trim((string) $to);
+
+        return $from !== '' && $to !== '' && strcasecmp($from, $to) !== 0;
     }
 
     private function trackOrgIfCreated(OrganizationModel $organization): void
@@ -531,7 +552,7 @@ class EnrichPeopleFromApolloAction
         array $previousEmployerOrgIds
     ): array {
         $currentOrgIds = [];
-        $newEmployer = null;
+        $orgIdByName = [];
 
         foreach ($employmentHistory as $employment) {
             if (empty($employment['organization_name'])) {
@@ -549,21 +570,13 @@ class EnrichPeopleFromApolloAction
             )->execute();
 
             $this->trackOrgIfCreated($organization);
+            $orgIdByName[mb_strtolower(trim((string) $employment['organization_name']))] = (int) $organization->getId();
 
-            // Link + remember every current employer (even one without a title) so the
-            // pivot reflects all concurrent roles, not just Apollo's primary organization.
+            // Link every current employer (even one without a title) so the pivot reflects
+            // all concurrent roles, not just Apollo's primary organization.
             if ((int) ($employment['current'] ?? 0) === 1) {
-                if ($newEmployer === null && ! in_array($organization->getId(), $previousEmployerOrgIds, true)) {
-                    $newEmployer = [
-                        'company' => (string) $employment['organization_name'],
-                        'title' => (string) ($employment['title'] ?? ''),
-                    ];
-                    $this->newEmployerIsNewAccount = in_array($organization->getId(), $this->orgsCreatedThisRun, true);
-                }
-
-                $this->people->set('company', $employment['organization_name']);
                 OrganizationPeople::addPeopleToOrganization($organization, $this->people);
-                $currentOrgIds[] = $organization->getId();
+                $currentOrgIds[] = (int) $organization->getId();
             }
 
             if (empty($employment['title'])) {
@@ -583,12 +596,95 @@ class EnrichPeopleFromApolloAction
             $this->assignAudienceSegment($employment['title']);
         }
 
-        // Same company (a title-only refresh or re-confirmed role) is not a job change.
-        if ($newEmployer !== null && strcasecmp($newEmployer['company'], $previousJob['company']) !== 0) {
-            $this->recordJobChange($previousJob, $newEmployer);
-        }
+        $this->applyCurrentEmployer($employmentHistory, $previousJob, $previousEmployerOrgIds, $orgIdByName);
 
         return $currentOrgIds;
+    }
+
+    /**
+     * Anchor the person's current employer to their genuine most-recent ONGOING role, then
+     * decide whether that's a real job change. Apollo returns the full history — including
+     * roles ended decades ago — and its loop order / top-level `organization` can put a
+     * PAST employer in the company field. Picking "current=1 + no end_date + latest start"
+     * stops a job left in (say) 2001 from being written as the current employer or surfaced
+     * as a false "Antes → Después" move.
+     *
+     * @param array<int, array<string, mixed>>       $employmentHistory
+     * @param array{company: string, title: string}  $previousJob
+     * @param int[]                                   $previousEmployerOrgIds
+     * @param array<string, int>                      $orgIdByName            lower(name) => org id, from this run
+     */
+    private function applyCurrentEmployer(
+        array $employmentHistory,
+        array $previousJob,
+        array $previousEmployerOrgIds,
+        array $orgIdByName
+    ): void {
+        $current = $this->resolveCurrentEmployer($employmentHistory);
+        if ($current === null) {
+            return;
+        }
+
+        // Authoritative for the company field — overrides whatever setOrganization() wrote
+        // from Apollo's (possibly past) primary org.
+        $this->people->set('company', $current['company']);
+
+        $orgId = $orgIdByName[mb_strtolower($current['company'])] ?? null;
+
+        // A real move only when the current employer actually changed AND it's an org we
+        // didn't already have on file. Re-confirming the same employer, or Apollo merely
+        // backfilling old roles, is not a job change.
+        $changedEmployer = strcasecmp($current['company'], $previousJob['company']) !== 0;
+        $isNewEmployer = $orgId !== null && ! in_array($orgId, $previousEmployerOrgIds, true);
+
+        if ($changedEmployer && $isNewEmployer) {
+            $this->newEmployerIsNewAccount = in_array($orgId, $this->orgsCreatedThisRun, true);
+            $this->recordJobChange($previousJob, ['company' => $current['company'], 'title' => $current['title']]);
+        }
+    }
+
+    /**
+     * The person's genuine current employer from Apollo's history: the role they are STILL
+     * in (current=1, no end_date), most recent by start_date. Returns null when Apollo
+     * reports no ongoing role, leaving the company field as setOrganization() left it.
+     *
+     * @param array<int, array<string, mixed>> $employmentHistory
+     *
+     * @return array{company: string, title: string, start_date: string}|null
+     */
+    private function resolveCurrentEmployer(array $employmentHistory): ?array
+    {
+        $best = null;
+
+        foreach ($employmentHistory as $employment) {
+            if ((int) ($employment['current'] ?? 0) !== 1) {
+                continue;
+            }
+
+            // An end_date means the role is over — Apollo sometimes leaves a long-past job
+            // flagged current=1, so the date is the real signal that it's still ongoing.
+            if (! empty($employment['end_date'])) {
+                continue;
+            }
+
+            $company = trim((string) ($employment['organization_name'] ?? ''));
+            if ($company === '') {
+                continue;
+            }
+
+            $start = (string) ($employment['start_date'] ?? '');
+
+            // ISO Y-m-d sorts chronologically as a string; the latest start wins.
+            if ($best === null || strcmp($start, $best['start_date']) > 0) {
+                $best = [
+                    'company' => $company,
+                    'title' => (string) ($employment['title'] ?? ''),
+                    'start_date' => $start,
+                ];
+            }
+        }
+
+        return $best;
     }
 
     /**
