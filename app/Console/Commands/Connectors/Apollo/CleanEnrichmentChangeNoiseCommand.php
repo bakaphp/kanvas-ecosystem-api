@@ -48,7 +48,11 @@ class CleanEnrichmentChangeNoiseCommand extends Command
      */
     protected $description = 'Strip fake (empty/equal/past-employer) before→after changes from historical people.enriched ledger events';
 
-    private const array TRANSITION_KEYS = ['current_employer', 'title', 'headline'];
+    /** Before → After rows: kept only when a real transition. */
+    private const array TRANSITION_KEYS = ['current_employer', 'title', 'seniority_promoted'];
+
+    /** Not "changes" at all — dropped from the feed regardless of content. */
+    private const array ALWAYS_STRIP_KEYS = ['contacts_added', 'headline'];
 
     private int $pastEmployerStripped = 0;
 
@@ -123,8 +127,8 @@ class CleanEnrichmentChangeNoiseCommand extends Command
     }
 
     /**
-     * Only TRANSITION_KEYS are touched — every other signal (new_account, email_changed,
-     * contacts_added, …) is left intact.
+     * Strip the always-drop keys and any non-real transition; leaves the genuine change
+     * signals (new_account, email_changed, real moves/promotions) intact.
      *
      * @param array<string, mixed> $changes
      *
@@ -132,6 +136,10 @@ class CleanEnrichmentChangeNoiseCommand extends Command
      */
     private function cleanChanges(array $changes, int $peopleId, PersonCurrentEmployerService $employerResolver): array
     {
+        foreach (self::ALWAYS_STRIP_KEYS as $key) {
+            unset($changes[$key]);
+        }
+
         foreach (self::TRANSITION_KEYS as $key) {
             if (! isset($changes[$key]) || ! is_array($changes[$key])) {
                 continue;

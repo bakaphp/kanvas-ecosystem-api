@@ -242,7 +242,9 @@ final class EnrichPeopleFromApolloActionTest extends TestCase
         $changedFields = $payloadOut['changed_fields'] ?? [];
         $this->assertContains('title', $changedFields);
         $this->assertContains('current_employer', $changedFields);
-        $this->assertContains('contacts_added', $changedFields);
+        // contacts_added + headline are not change-feed rows — never persisted on the event.
+        $this->assertNotContains('contacts_added', $changedFields);
+        $this->assertNotContains('headline', $changedFields);
 
         $this->assertSame('Marketing Analyst', $payloadOut['changes']['title']['from'], 'The real prior title is captured as Antes.');
         $this->assertSame('Chief Marketing Officer', $payloadOut['changes']['title']['to']);
@@ -289,6 +291,43 @@ final class EnrichPeopleFromApolloActionTest extends TestCase
 
         // ...but a genuinely-new employer still surfaces as a net-new account.
         $this->assertContains('new_account', $changedFields, 'A brand-new employer is still flagged as a new account.');
+    }
+
+    public function test_first_fill_seniority_is_not_a_promotion(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+
+        // Brand-new person: no prior seniority on file.
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(static::$cachedUser->getId())
+            ->create();
+
+        $suffix = uniqid();
+        $payload = [
+            'seniority' => 'director',
+            'organization' => ['name' => "Co {$suffix}"],
+            'employment_history' => [
+                ['organization_name' => "Co {$suffix}", 'title' => 'Director', 'current' => 1, 'start_date' => '2024-01-01', 'end_date' => null],
+            ],
+        ];
+
+        new EnrichPeopleFromApolloAction($people, $app)->applyEnrichmentData($payload);
+
+        $event = Event::where('source_entity_type', People::class)
+            ->where('source_entity_id', $people->getId())
+            ->where('event_type', 'people.enriched')
+            ->orderByDesc('id')
+            ->first();
+
+        $changed = (array) ($event->payload['changed_fields'] ?? []);
+        $this->assertNotContains(
+            'seniority_promoted',
+            $changed,
+            'Learning a seniority for the first time is detection, not a promotion.',
+        );
     }
 
     public function test_emits_seniority_promotion_new_account_and_email_change(): void
