@@ -28,14 +28,13 @@ final class CleanEnrichmentChangeNoiseCommandTest extends TestCase
         $entityId = random_int(800000, 899999);
 
         $event = $this->seedEvent($app, $entityId, [
-            // fake: empty from
-            'current_employer' => ['from' => '', 'to' => 'Before Boarding'],
-            // fake: from == to (case-insensitive)
-            'title' => ['from' => 'analyst', 'to' => 'Analyst'],
-            // real: keep
-            'headline' => ['from' => 'Old headline', 'to' => 'New headline'],
-            // non-transition signal: keep untouched
-            'new_account' => true,
+            'current_employer' => ['from' => '', 'to' => 'Before Boarding'],   // fake: empty from
+            'title' => ['from' => 'analyst', 'to' => 'Analyst'],               // fake: from == to
+            'seniority_promoted' => ['from' => '', 'to' => 'director'],        // fake: first-fill promotion
+            'headline' => ['from' => 'Old headline', 'to' => 'New headline'],  // always-strip (not a feed row)
+            'contacts_added' => ['5:http://www.linkedin.com/in/x'],            // always-strip (not a change)
+            'email_changed' => ['from' => 'a@x.do', 'to' => 'b@y.do'],         // real: keep
+            'new_account' => true,                                             // signal: keep
         ]);
 
         $this->artisan(self::COMMAND, ['app_id' => $app->getId(), '--force' => true])
@@ -46,9 +45,28 @@ final class CleanEnrichmentChangeNoiseCommandTest extends TestCase
 
         $this->assertArrayNotHasKey('current_employer', $changes, 'Empty-from move is stripped.');
         $this->assertArrayNotHasKey('title', $changes, 'Same-value title is stripped.');
-        $this->assertArrayHasKey('headline', $changes, 'A real transition is kept.');
+        $this->assertArrayNotHasKey('seniority_promoted', $changes, 'First-fill promotion is stripped.');
+        $this->assertArrayNotHasKey('headline', $changes, 'Headline is not a feed row.');
+        $this->assertArrayNotHasKey('contacts_added', $changes, 'contacts_added is not a feed row.');
+        $this->assertArrayHasKey('email_changed', $changes, 'A real change is kept.');
         $this->assertTrue($changes['new_account'], 'Non-transition signals are kept.');
-        $this->assertEqualsCanonicalizing(['headline', 'new_account'], $event->payload['changed_fields']);
+        $this->assertEqualsCanonicalizing(['email_changed', 'new_account'], $event->payload['changed_fields']);
+    }
+
+    public function test_keeps_a_real_seniority_promotion(): void
+    {
+        $app = app(Apps::class);
+        $entityId = random_int(800000, 899999);
+
+        $event = $this->seedEvent($app, $entityId, [
+            'seniority_promoted' => ['from' => 'senior', 'to' => 'director'],
+        ]);
+
+        $this->artisan(self::COMMAND, ['app_id' => $app->getId(), '--force' => true])
+            ->assertSuccessful();
+
+        $event->refresh();
+        $this->assertArrayHasKey('seniority_promoted', (array) $event->payload['changes'], 'A real promotion (known prior seniority) is kept.');
     }
 
     public function test_dry_run_does_not_write(): void

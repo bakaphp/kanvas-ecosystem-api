@@ -281,14 +281,10 @@ class EnrichPeopleFromApolloAction
     {
         $diff = [];
 
-        // title / headline / current_employer render as "Before → After" rows — only a real
-        // transition counts; a first-time fill (empty `from`) would read as a false move.
+        // title / current_employer render as "Before → After" rows — only a real transition
+        // counts; a first-time fill (empty `from`) would read as a false move.
         if (self::isRealTransition($before['title'], $after['title'])) {
             $diff['title'] = ['from' => $before['title'], 'to' => $after['title']];
-        }
-
-        if (self::isRealTransition($before['headline'], $after['headline'])) {
-            $diff['headline'] = ['from' => $before['headline'], 'to' => $after['headline']];
         }
 
         if (self::isRealTransition($before['company'], $after['company'])) {
@@ -302,8 +298,9 @@ class EnrichPeopleFromApolloAction
             $diff['new_account'] = true;
         }
 
-        // Promotion = the person crossed into a decision-maker seniority they weren't at before.
-        if ($this->isDecisionMaker($after['seniority']) && ! $this->isDecisionMaker($before['seniority'])) {
+        // Promotion = crossed INTO a decision-maker seniority from a KNOWN lower one. A blank
+        // prior seniority means we just learned their level — that's detection, not a promotion.
+        if ($before['seniority'] !== '' && $this->isDecisionMaker($after['seniority']) && ! $this->isDecisionMaker($before['seniority'])) {
             $diff['seniority_promoted'] = ['from' => $before['seniority'], 'to' => $after['seniority']];
         }
 
@@ -359,6 +356,12 @@ class EnrichPeopleFromApolloAction
      */
     private function emitEnrichmentEvent(array $diff, string $currentCompany): void
     {
+        // `contacts_added` stays in the in-memory diff (apolloTouchedEmail reads it to decide
+        // email re-validation) but is NOT a "Before → After" change — keep it out of the
+        // persisted event so it never renders as a row in the change feed.
+        $changes = $diff;
+        unset($changes['contacts_added']);
+
         try {
             new AppendEventAction(
                 new LedgerEventData(
@@ -375,8 +378,8 @@ class EnrichPeopleFromApolloAction
                         // Current employer at enrichment time — lets the cleanup report group
                         // leads by company entirely within the ledger (no People→Org join).
                         'company' => $currentCompany,
-                        'changed_fields' => array_keys($diff),
-                        'changes' => $diff,
+                        'changed_fields' => array_keys($changes),
+                        'changes' => $changes,
                     ],
                     occurredAt: Carbon::now(),
                 ),

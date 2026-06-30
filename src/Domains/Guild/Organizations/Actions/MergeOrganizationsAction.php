@@ -134,7 +134,13 @@ class MergeOrganizationsAction
         }
         $this->source->save();
 
-        $this->recordMergeEvent($sourceId, $targetId, $scribeRewrittenCount, $guildRewrittenCount, $organizationsPeoplesRebound);
+        $this->recordMergeEvent(
+            $sourceId,
+            $targetId,
+            $scribeRewrittenCount,
+            $guildRewrittenCount,
+            $organizationsPeoplesRebound
+        );
 
         return $this->target->refresh();
     }
