@@ -34,7 +34,7 @@ class LeadSearchTool implements KanvasToolInterface
         $onlyPublished = $request->boolean('only_published', true);
         $exactField = $request->string('exact_field') ? (string) $request->string('exact_field') : null;
         $exactValue = $request->string('exact_value') ? (string) $request->string('exact_value') : null;
-        $customFields = array_filter((array) ($request->input('custom_fields') ?? []));
+        $customFields = array_filter((array) ($request['custom_fields'] ?? []));
 
         $leads = Lead::query()
             ->fromApp($this->app)
