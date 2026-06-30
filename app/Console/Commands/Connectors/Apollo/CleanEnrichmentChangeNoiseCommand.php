@@ -110,6 +110,9 @@ class CleanEnrichmentChangeNoiseCommand extends Command
                         $payload['changes'] = $cleaned;
                         $payload['changed_fields'] = array_keys($cleaned);
                         $event->payload = $payload;
+                        // save() is an update, so the creating hook won't recompute this — keep
+                        // change_count in sync with the stripped payload so the feed filter stays correct.
+                        $event->change_count = count($cleaned);
                         $event->save();
                     }
                 }

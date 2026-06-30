@@ -27,6 +27,7 @@ use Override;
  * @property string $status
  * @property array|null $payload
  * @property int $payload_schema_version
+ * @property int $change_count
  * @property array|null $result
  * @property array|null $error
  * @property int|null $duration_ms
@@ -58,6 +59,11 @@ class Event extends ImmutableBaseModel
                 (string) $event->event_type,
                 (string) $event->status,
             )?->value);
+
+            // Materialize how many changes the payload carries so the change feed can filter
+            // and paginate on a real column instead of scanning JSON per row.
+            $changedFields = $event->payload['changed_fields'] ?? null;
+            $event->setAttribute('change_count', is_array($changedFields) ? count($changedFields) : 0);
         });
     }
 
@@ -72,6 +78,7 @@ class Event extends ImmutableBaseModel
             'duration_ms' => 'integer',
             'payload' => Json::class,
             'payload_schema_version' => 'integer',
+            'change_count' => 'integer',
             'result' => Json::class,
             'error' => Json::class,
             'occurred_at' => 'datetime',
