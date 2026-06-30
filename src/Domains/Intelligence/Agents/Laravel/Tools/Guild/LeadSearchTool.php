@@ -34,7 +34,7 @@ class LeadSearchTool implements KanvasToolInterface
         $onlyPublished = $request->boolean('only_published', true);
         $exactField = $request->string('exact_field') ? (string) $request->string('exact_field') : null;
         $exactValue = $request->string('exact_value') ? (string) $request->string('exact_value') : null;
-        $customFields = array_filter($request->array('custom_fields'));
+        $customFields = array_filter((array) ($request['custom_fields'] ?? []));
 
         $leads = Lead::query()
             ->fromApp($this->app)
@@ -108,6 +108,7 @@ class LeadSearchTool implements KanvasToolInterface
                 ->description('Exact value to match against exact_field. Pass the complete field content (e.g. the full event description). Must be used together with exact_field.'),
             'custom_fields' => $schema
                 ->array()
+                ->items($schema->string())
                 ->description('Optional list of custom field names to include in each lead result (e.g. ["event_distress_score", "event_type", "severity_score"]). Only the fields you name are fetched — omit this parameter to get base fields only.'),
         ];
     }
