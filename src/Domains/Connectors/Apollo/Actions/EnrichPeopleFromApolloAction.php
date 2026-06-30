@@ -273,7 +273,7 @@ class EnrichPeopleFromApolloAction
     /**
      * @param array{title: string, headline: string, company: string, seniority: string, email: string, address_count: int, contacts: string[]} $before
      * @param array{title: string, headline: string, company: string, seniority: string, email: string, address_count: int, contacts: string[]} $after
-     * @param array<string, mixed>                                                                                                              $peopleData raw Apollo payload (for the email Apollo returned)
+     * @param array<string, mixed>   $peopleData raw Apollo payload (for the email Apollo returned)
      *
      * @return array<string, mixed> only the fields Apollo actually changed this run
      */
@@ -281,10 +281,8 @@ class EnrichPeopleFromApolloAction
     {
         $diff = [];
 
-        // title / headline / current_employer are "Before → After" rows in the change
-        // feed — only record them as a real transition (prior value present AND different).
-        // A first-time fill (empty `from`) is NOT a change; it would render as "X" with no
-        // real before, which reads as a false move.
+        // title / headline / current_employer render as "Before → After" rows — only a real
+        // transition counts; a first-time fill (empty `from`) would read as a false move.
         if (self::isRealTransition($before['title'], $after['title'])) {
             $diff['title'] = ['from' => $before['title'], 'to' => $after['title']];
         }
