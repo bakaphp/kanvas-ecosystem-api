@@ -102,14 +102,14 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
             $pullLead = $leadModel ? [$leadModel->toArray()] : [];
         } elseif ($isReynolds) {
             $lead = $leadId !== null
-                ? Lead::getByCustomField(ReynoldsCustomFieldEnum::PROSPECT_ID->value, $leadId, $company)
+                ? Lead::getByCustomField(ReynoldsCustomFieldEnum::CLIENT_ID->value, $leadId, $company)
                 : null;
 
             if ($lead === null) {
                 $people = PeoplesRepository::getByPhoneNumber($app, $company, [$phone])->first();
                 $lead = $people ? LeadsRepository::getPeopleActiveLeads($people)->first() : null;
+                $lead?->set(ReynoldsCustomFieldEnum::CLIENT_ID->value, $leadId);
             }
-
             $pullLead = $lead ? [$lead->toArray()] : [];
         }
 
