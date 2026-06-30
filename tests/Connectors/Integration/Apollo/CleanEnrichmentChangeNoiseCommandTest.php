@@ -51,6 +51,7 @@ final class CleanEnrichmentChangeNoiseCommandTest extends TestCase
         $this->assertArrayHasKey('email_changed', $changes, 'A real change is kept.');
         $this->assertTrue($changes['new_account'], 'Non-transition signals are kept.');
         $this->assertEqualsCanonicalizing(['email_changed', 'new_account'], $event->payload['changed_fields']);
+        $this->assertSame(2, (int) $event->change_count, 'change_count is recomputed from the stripped payload.');
     }
 
     public function test_keeps_a_real_seniority_promotion(): void
