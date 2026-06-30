@@ -75,10 +75,7 @@ class BackfillJobChangeEventAction
     }
 
     /**
-     * Mirror the live emitter's diff shape (keys `current_employer` / `title`, each
-     * `{from, to}`). The employer move is included only when it's a genuine transition to
-     * the person's real current employer (decided by the caller); the title rides along
-     * only when it actually changed.
+     * Mirror the live emitter's diff shape so backfilled rows read identically to live ones.
      *
      * @param array<string, mixed> $change
      *

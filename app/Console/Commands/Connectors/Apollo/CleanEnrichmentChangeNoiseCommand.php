@@ -50,19 +50,12 @@ class CleanEnrichmentChangeNoiseCommand extends Command
 
     private const array TRANSITION_KEYS = ['current_employer', 'title', 'headline'];
 
-    /** How many current_employer rows were dropped specifically by the past-employer rule. */
     private int $pastEmployerStripped = 0;
-
-    private PersonCurrentEmployerService $employerResolver;
-
-    public function __construct()
-    {
-        parent::__construct();
-        $this->employerResolver = new PersonCurrentEmployerService();
-    }
 
     public function handle(): int
     {
+        $employerResolver = new PersonCurrentEmployerService();
+
         /** @var Apps $app */
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
@@ -84,14 +77,14 @@ class CleanEnrichmentChangeNoiseCommand extends Command
             ->where('source_entity_type', People::class)
             ->when($company !== null, fn (Builder $q): Builder => $q->where('companies_id', $company->getId()))
             ->orderBy('id')
-            ->chunkById(500, function ($events) use ($apply, $pruneEmpty, &$emptied, &$partial, &$pruned, &$scanned): void {
+            ->chunkById(500, function ($events) use ($apply, $pruneEmpty, $employerResolver, &$emptied, &$partial, &$pruned, &$scanned): void {
                 foreach ($events as $event) {
                     $scanned++;
 
                     $payload = (array) ($event->payload ?? []);
                     $changes = (array) ($payload['changes'] ?? []);
 
-                    $cleaned = $this->cleanChanges($changes, (int) $event->source_entity_id);
+                    $cleaned = $this->cleanChanges($changes, (int) $event->source_entity_id, $employerResolver);
 
                     if ($cleaned === $changes) {
                         continue;
@@ -130,15 +123,14 @@ class CleanEnrichmentChangeNoiseCommand extends Command
     }
 
     /**
-     * Drop the transition keys that aren't a true move; leave every other signal
-     * (new_account, seniority_promoted, email_changed, contacts_added, location_added)
-     * untouched.
+     * Only TRANSITION_KEYS are touched — every other signal (new_account, email_changed,
+     * contacts_added, …) is left intact.
      *
      * @param array<string, mixed> $changes
      *
      * @return array<string, mixed>
      */
-    private function cleanChanges(array $changes, int $peopleId): array
+    private function cleanChanges(array $changes, int $peopleId, PersonCurrentEmployerService $employerResolver): array
     {
         foreach (self::TRANSITION_KEYS as $key) {
             if (! isset($changes[$key]) || ! is_array($changes[$key])) {
@@ -157,9 +149,7 @@ class CleanEnrichmentChangeNoiseCommand extends Command
                 continue;
             }
 
-            // A current_employer move is only true when `to` is the person's genuine current
-            // employer. Otherwise it's a job they already left — a false move to a past role.
-            if ($key === 'current_employer' && is_string($to) && ! $this->employerResolver->isGenuineCurrentEmployer($peopleId, $to)) {
+            if ($key === 'current_employer' && is_string($to) && ! $employerResolver->isGenuineCurrentEmployer($peopleId, $to)) {
                 unset($changes[$key]);
                 $this->pastEmployerStripped++;
             }
