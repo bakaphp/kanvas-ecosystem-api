@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Inventory\Regions\Services;
+namespace Kanvas\Regions\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\IPInfo;
@@ -109,18 +109,9 @@ class RegionResolutionService
 
     protected function getRegionCountryMap(): array
     {
-        $mapJson = $this->app->get(ConfigurationEnum::REGION_COUNTRY_MAP->value);
-        if (empty($mapJson)) {
-            return [];
-        }
+        $map = $this->app->get(ConfigurationEnum::REGION_COUNTRY_MAP->value);
 
-        if (is_array($mapJson)) {
-            return $mapJson;
-        }
-
-        $decoded = json_decode($mapJson, true);
-
-        return is_array($decoded) ? $decoded : [];
+        return is_array($map) ? $map : [];
     }
 
     protected function isPrivateIp(string $ip): bool

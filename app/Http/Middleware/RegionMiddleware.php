@@ -10,7 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Inventory\Regions\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
-use Kanvas\Inventory\Regions\Services\RegionResolutionService;
+use Kanvas\Regions\Services\RegionResolutionService;
 
 class RegionMiddleware
 {

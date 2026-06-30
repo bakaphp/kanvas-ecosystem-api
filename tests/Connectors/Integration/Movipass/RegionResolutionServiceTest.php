@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Regions\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Regions\Enums\CustomFieldEnum;
-use Kanvas\Inventory\Regions\Services\RegionResolutionService;
 use Kanvas\Regions\Models\Regions as KanvasRegions;
+use Kanvas\Regions\Services\RegionResolutionService;
 use Tests\TestCase;
 
 final class RegionResolutionServiceTest extends TestCase
