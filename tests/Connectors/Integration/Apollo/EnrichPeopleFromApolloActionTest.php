@@ -246,6 +246,10 @@ final class EnrichPeopleFromApolloActionTest extends TestCase
         $this->assertNotContains('contacts_added', $changedFields);
         $this->assertNotContains('headline', $changedFields);
 
+        // change_count is materialized so the feed can filter/paginate on a real column.
+        $this->assertSame(count($changedFields), (int) $event->change_count);
+        $this->assertGreaterThan(0, (int) $event->change_count);
+
         $this->assertSame('Marketing Analyst', $payloadOut['changes']['title']['from'], 'The real prior title is captured as Antes.');
         $this->assertSame('Chief Marketing Officer', $payloadOut['changes']['title']['to']);
         $this->assertSame("Acme {$suffix}", $payloadOut['changes']['current_employer']['to']);
