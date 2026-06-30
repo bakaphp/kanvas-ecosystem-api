@@ -110,7 +110,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 $lead = $people ? LeadsRepository::getPeopleActiveLeads($people)->first() : null;
             }
 
-            $pullLead = $lead ? $lead->toArray() : [];
+            $pullLead = $lead ? [$lead->toArray()] : [];
         }
 
         $resolvedLead = match (true) {
