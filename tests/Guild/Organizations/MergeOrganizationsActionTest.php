@@ -13,6 +13,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Organizations\Actions\MergeOrganizationsAction;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
+use Kanvas\NervousSystem\Ledger\Models\Event;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -122,6 +123,68 @@ class MergeOrganizationsActionTest extends TestCase
             OrganizationPeople::query()->where('organizations_id', $target->id)->count(),
             'target should have both peoples (one pre-existing, one rebound from source).',
         );
+    }
+
+    public function test_rebinds_employment_history_to_target(): void
+    {
+        $source = $this->seedOrganization('ACME Source');
+        $target = $this->seedOrganization('ACME Target');
+
+        $ehId = DB::connection('crm')->table('peoples_employment_history')->insertGetId([
+            'apps_id' => $this->kanvasApp->getId(),
+            'peoples_id' => 4242,
+            'organizations_id' => $source->id,
+            'position' => 'Engineer',
+            'start_date' => '2020-01-01',
+            'end_date' => null,
+            'status' => 1,
+            'is_deleted' => 0,
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
+        ]);
+
+        new MergeOrganizationsAction(
+            source: $source,
+            target: $target,
+            user: static::$cachedUser,
+        )->execute();
+
+        $this->assertSame(
+            (int) $target->id,
+            (int) DB::connection('crm')->table('peoples_employment_history')->where('id', $ehId)->value('organizations_id'),
+            'employment history should follow the merge to the target org.',
+        );
+    }
+
+    public function test_records_audit_trail_on_merge(): void
+    {
+        $source = $this->seedOrganization('ACME Source');
+        $target = $this->seedOrganization('ACME Target');
+
+        new MergeOrganizationsAction(
+            source: $source,
+            target: $target,
+            user: static::$cachedUser,
+        )->execute();
+
+        $source->refresh();
+        $this->assertSame(
+            (int) $target->id,
+            (int) $source->merged_into_organization_id,
+            'the merged-away org records which survivor it became.',
+        );
+
+        $event = Event::query()
+            ->where('event_type', 'guild.organization.merged')
+            ->where('source_entity_type', Organization::class)
+            ->where('source_entity_id', (int) $target->id)
+            ->orderByDesc('id')
+            ->first();
+
+        $this->assertNotNull($event, 'a ledger event records the merge.');
+        $payload = (array) $event->payload;
+        $this->assertSame((int) $source->id, $payload['source_organization_id']);
+        $this->assertSame((int) $target->id, $payload['target_organization_id']);
     }
 
     public function test_rejects_cross_tenant_merge(): void
