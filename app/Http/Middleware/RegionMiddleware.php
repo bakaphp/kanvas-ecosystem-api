@@ -6,8 +6,10 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\Regions\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Regions\Services\RegionResolutionService;
@@ -19,10 +21,17 @@ class RegionMiddleware
         $app = app(Apps::class);
         $regionHeaderKey = AppEnums::KANVAS_APP_REGION_HEADER->getValue();
 
-        // Layer 1: X-Kanvas-Region header (existing behavior)
+        // Layer 1: X-Kanvas-Region header. A bad/foreign uuid is a client hint error, not a
+        // server fault — swallow it and let the fallback chain resolve instead of escalating to 503.
         if ($request->hasHeader($regionHeaderKey)) {
-            $region = Regions::getByUuid($request->header($regionHeaderKey), $app);
-            app()->scoped(Regions::class, fn () => $region);
+            try {
+                $region = Regions::getByUuid($request->header($regionHeaderKey), $app);
+                app()->scoped(Regions::class, fn () => $region);
+            } catch (ModelNotFoundException) {
+                Log::debug('RegionMiddleware: invalid region header, ignoring', [
+                    'uuid' => $request->header($regionHeaderKey),
+                ]);
+            }
         }
 
         // Layers 2-4: Fallback chain (only if header didn't bind and app has region config)
