@@ -297,9 +297,8 @@ extend type Query @guard {
         orderBy: _ @orderBy(columns: ["id", "created_at"])
     ): [AgentConfigBackupType!]!
         @paginate(
-            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentConfigBackup"
-            defaultCount: 25
             builder: "App\\GraphQL\\Intelligence\\Builders\\AgentConfigBackupBuilder@build"
+            defaultCount: 25
         )
 }
 
