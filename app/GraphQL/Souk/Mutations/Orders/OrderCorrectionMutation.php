@@ -15,7 +15,7 @@ use Kanvas\Souk\Orders\Models\Order;
 
 class OrderCorrectionMutation
 {
-    public function correct(mixed $rootValue, array $request): Order
+    public function amend(mixed $rootValue, array $request): Order
     {
         $app = app(Apps::class);
         $user = auth()->user();

@@ -11,7 +11,7 @@ extend type Query @guard {
 }
 
 extend type Mutation @guard {
-    correctOrder(
+    amendOrder(
         order_id: ID!
         correction_type: String!
         reason: String!
@@ -19,6 +19,6 @@ extend type Mutation @guard {
         data: Mixed
     ): Order!
         @field(
-            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderCorrectionMutation@correct"
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Orders\\OrderCorrectionMutation@amend"
         )
 }
