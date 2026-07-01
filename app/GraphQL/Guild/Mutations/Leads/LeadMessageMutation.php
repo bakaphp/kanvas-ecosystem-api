@@ -16,9 +16,6 @@ use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 
 class LeadMessageMutation
 {
-    /**
-     * Add a message to the lead's default channel (slug === lead uuid, created by LeadObserver).
-     */
     public function addToDefaultChannel(mixed $root, array $request): Message
     {
         $app = app(Apps::class);
