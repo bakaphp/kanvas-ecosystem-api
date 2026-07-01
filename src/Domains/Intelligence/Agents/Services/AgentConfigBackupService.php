@@ -17,6 +17,13 @@ use ZipArchive;
 class AgentConfigBackupService
 {
     /**
+     * Config backups can live in their own S3 bucket (AGENT_CONFIG_BACKUP_AWS_BUCKET),
+     * separate from the main app bucket used for everything else — see the
+     * `agent-config-backups` disk in config/filesystems.php.
+     */
+    private const string DISK = 'agent-config-backups';
+
+    /**
      * Serialize the agent's DB state: config, skills, tools, and file metadata.
      */
     public function serialize(Agent $agent): array
@@ -104,6 +111,9 @@ class AgentConfigBackupService
 
             if ($workspaceBackup !== null) {
                 try {
+                    // The workspace snapshot (AgentBackup) is a separate feature that always
+                    // lives on the default disk — only the config-backup ZIP itself moves to
+                    // the dedicated bucket below.
                     $workspaceTarGz = Storage::get($workspaceBackup->file_path);
 
                     if ($workspaceTarGz !== null) {
@@ -116,7 +126,7 @@ class AgentConfigBackupService
 
             $zip->close();
 
-            Storage::put($s3Path, file_get_contents($tempPath));
+            Storage::disk(self::DISK)->put($s3Path, file_get_contents($tempPath));
         } finally {
             if (file_exists($tempPath)) {
                 unlink($tempPath);
@@ -131,7 +141,7 @@ class AgentConfigBackupService
      */
     public function download(AgentConfigBackup $backup): array
     {
-        $zipContent = Storage::get($backup->file_path);
+        $zipContent = Storage::disk(self::DISK)->get($backup->file_path);
 
         $tempPath = tempnam(sys_get_temp_dir(), 'agent_config_restore_') . '.zip';
 

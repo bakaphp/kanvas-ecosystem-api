@@ -62,6 +62,6 @@ class AgentConfigBackup extends BaseModel
             return null;
         }
 
-        return Storage::temporaryUrl($this->file_path, now()->addHours(1));
+        return Storage::disk('agent-config-backups')->temporaryUrl($this->file_path, now()->addHours(1));
     }
 }

@@ -41,7 +41,7 @@ class CreateAgentConfigBackupAction
             $backup->update([
                 'status' => 'completed',
                 'file_path' => $path,
-                'file_size_bytes' => Storage::size($path),
+                'file_size_bytes' => Storage::disk('agent-config-backups')->size($path),
                 'completed_at' => now(),
             ]);
         } catch (Throwable $e) {
