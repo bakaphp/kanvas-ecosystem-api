@@ -8,10 +8,12 @@ use Illuminate\Support\Facades\Gate;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\Corrections\AddObservationsAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\AdjustOrderItemAmountAction;
+use Kanvas\Connectors\Movipass\Actions\Corrections\AssociatePaymentToOrderAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\CorrectVehiclePlateAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\MarkOrderAsDuplicateAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Models\Payments;
 
 class OrderCorrectionMutation
 {
@@ -65,6 +67,15 @@ class OrderCorrectionMutation
                     $company,
                     $app,
                 ),
+                $reason,
+                $evidenceUrls,
+            )->execute(),
+            'associate-payment' => new AssociatePaymentToOrderAction(
+                $order,
+                $user,
+                Payments::fromApp($app)->fromCompany($company)
+                    ->where('uuid', (string) ($data['payment_uuid'] ?? throw new ValidationException('data.payment_uuid is required for associate-payment')))
+                    ->firstOrFail(),
                 $reason,
                 $evidenceUrls,
             )->execute(),
