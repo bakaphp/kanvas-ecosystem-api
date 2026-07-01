@@ -43,7 +43,7 @@ input UpdateAgentSwarmInput {
     agent_ids: [ID!]
 }
 
-extend type Mutation @guardByAdmin {
+extend type Mutation @guard {
     createAgentSwarm(input: AgentSwarmInput!): AgentSwarm!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentSwarm\\AgentSwarmMutation@create"
