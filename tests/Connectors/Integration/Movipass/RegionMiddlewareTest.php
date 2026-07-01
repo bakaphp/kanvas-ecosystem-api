@@ -46,7 +46,7 @@ final class RegionMiddlewareTest extends TestCase
 
         $request = Request::create('/test');
         $request->headers->set(
-            (string) \Kanvas\Enums\AppEnums::KANVAS_APP_REGION_HEADER->getValue(),
+            (string) AppEnums::KANVAS_APP_REGION_HEADER->getValue(),
             'non-existent-region-uuid-0000'
         );
 
@@ -67,7 +67,7 @@ final class RegionMiddlewareTest extends TestCase
 
         $request = Request::create('/test');
         $request->headers->set(
-            (string) \Kanvas\Enums\AppEnums::KANVAS_APP_REGION_HEADER->getValue(),
+            (string) AppEnums::KANVAS_APP_REGION_HEADER->getValue(),
             'non-existent-region-uuid-0000'
         );
 
