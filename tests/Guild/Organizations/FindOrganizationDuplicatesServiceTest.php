@@ -116,6 +116,32 @@ class FindOrganizationDuplicatesServiceTest extends TestCase
         $this->assertSame(0, $appearances, 'A non-duplicate org should never appear in any group.');
     }
 
+    public function test_normalized_grouping_merges_suffix_and_casing_variants_only(): void
+    {
+        $tok = strtoupper('z' . uniqid());
+        $a = $this->seedOrganization("Zeta {$tok}");
+        $b = $this->seedOrganization("ZETA {$tok}, S. A.");
+        $c = $this->seedOrganization("zeta {$tok} srl");
+
+        // Same prefix, genuinely different companies — must NOT auto-group.
+        $industries = $this->seedOrganization("Zeta {$tok} Industries");
+        $consulting = $this->seedOrganization("Zeta {$tok} Consulting");
+
+        $groups = new FindOrganizationDuplicatesService()->generateByNormalizedName(
+            app: $this->kanvasApp,
+            company: $this->company,
+        );
+
+        $group = $this->findGroupContaining($groups, (int) $a->id);
+        $this->assertNotNull($group, 'suffix/casing variants should collapse to one normalized group.');
+        $this->assertSame('normalized_name', $group->reason);
+        $this->assertEqualsCanonicalizing([(int) $a->id, (int) $b->id, (int) $c->id], $group->member_ids);
+        $this->assertSame((int) $a->id, $group->canonical_id, 'oldest id is the survivor.');
+
+        $this->assertNull($this->findGroupContaining($groups, (int) $industries->id), 'prefix-sharing distinct names must not auto-group.');
+        $this->assertNull($this->findGroupContaining($groups, (int) $consulting->id));
+    }
+
     private function seedOrganization(string $name, ?string $email = null): Organization
     {
         return Organization::create([

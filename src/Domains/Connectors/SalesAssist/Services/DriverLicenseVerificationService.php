@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
+use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Actions\ChangeTaskEngagementItemStatusAction;
 use Kanvas\ActionEngine\Tasks\Enums\TaskStatusEnum;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
@@ -19,6 +21,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\DataTransferObject\Contact as DataTransferObjectContact;
@@ -34,6 +37,7 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\DataCollection;
+use Throwable;
 
 class DriverLicenseVerificationService
 {
@@ -295,5 +299,53 @@ class DriverLicenseVerificationService
         }
 
         return $engagement;
+    }
+
+    public function generateIdVerificationPdf(
+        Lead $lead,
+        People $people,
+        array $idVerificationReport,
+        array $intellicheckResponse,
+        ?Message $targetMessage = null
+    ): ?ModelsFilesystem {
+        try {
+            $pdfReport = PdfService::generatePdfFromTemplate(
+                $lead->app,
+                $lead->user,
+                'id-verification-report',
+                $lead,
+                [
+                    'message' => $idVerificationReport['message'],
+                    'status' => $idVerificationReport['status'],
+                    'flags' => $idVerificationReport['flags'],
+                    'failures' => $idVerificationReport['failures'],
+                    'results' => $idVerificationReport['results'],
+                    'isShowRoom' => true,
+                    'verificationData' => $intellicheckResponse,
+                    'people' => $people,
+                ]
+            );
+
+            // Attach to the passed engagement message (a participant's own, or the
+            // main lead's); fall back to the lead's submitted ID-verification
+            // engagement, then to the lead itself.
+            $message = $targetMessage ?? EngagementRepository::findEngagementForLead(
+                $lead,
+                ConfigurationEnum::ID_VERIFICATION->value,
+                ActionStatusEnum::SUBMITTED->value,
+            )?->message;
+
+            if ($message instanceof Message) {
+                $message->addFile($pdfReport, 'id-verification');
+            } else {
+                $lead->addFile($pdfReport, 'id-verification');
+            }
+
+            return $pdfReport;
+        } catch (Throwable $e) {
+            report($e);
+        }
+
+        return null;
     }
 }

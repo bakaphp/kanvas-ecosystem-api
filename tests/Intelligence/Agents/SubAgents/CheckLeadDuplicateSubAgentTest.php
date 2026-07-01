@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Agents\SubAgents;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Laravel\SubAgents\CheckLeadDuplicateSubAgent;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\CreateLeadTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\LeadSearchTool;
@@ -233,5 +234,58 @@ class CheckLeadDuplicateSubAgentTest extends TestCase
 
         $this->assertStringContainsString('exact_field', $instructions);
         $this->assertStringContainsString('exact_value', $instructions);
+    }
+
+    public function testLeadSearchToolReturnsCustomFieldsWhenRequested(): void
+    {
+        $uniqueCompany = 'CustomFieldCorp' . uniqid();
+
+        $createTool = $this->makeCreateLeadTool();
+        $createResponse = json_decode((string) $createTool->handle($this->makeRequest([
+            'title' => "{$uniqueCompany} Chapter 11",
+            'firstname' => $uniqueCompany,
+            'description' => "{$uniqueCompany} filed for Chapter 11 bankruptcy.",
+        ])), true);
+
+        $leadId = $createResponse['lead_id'];
+        $lead = Lead::find($leadId);
+        $lead->set('event_type', 'Liquidity');
+
+        $searchTool = $this->makeLeadSearchTool();
+        $result = json_decode((string) $searchTool->handle($this->makeRequest([
+            'query' => $uniqueCompany,
+            'custom_fields' => ['event_type'],
+        ])), true);
+
+        $this->assertNotEmpty($result['leads']);
+        $found = collect($result['leads'])->firstWhere('id', $leadId);
+        $this->assertNotNull($found);
+        $this->assertArrayHasKey('event_type', $found);
+        $this->assertSame('Liquidity', $found['event_type']);
+    }
+
+    public function testLeadSearchToolBaseFieldsOnlyWhenCustomFieldsOmitted(): void
+    {
+        $uniqueCompany = 'BaseFieldsCorp' . uniqid();
+
+        $createTool = $this->makeCreateLeadTool();
+        $createResponse = json_decode((string) $createTool->handle($this->makeRequest([
+            'title' => "{$uniqueCompany} Layoffs",
+            'firstname' => $uniqueCompany,
+        ])), true);
+
+        $leadId = $createResponse['lead_id'];
+
+        $searchTool = $this->makeLeadSearchTool();
+        $result = json_decode((string) $searchTool->handle($this->makeRequest([
+            'query' => $uniqueCompany,
+        ])), true);
+
+        $found = collect($result['leads'])->firstWhere('id', $leadId);
+        $this->assertNotNull($found);
+
+        $baseKeys = ['id', 'title', 'description', 'firstname', 'lastname', 'created_at', 'is_published'];
+        $extraKeys = array_diff(array_keys($found), $baseKeys);
+        $this->assertEmpty($extraKeys, 'No extra fields should be present when custom_fields is omitted.');
     }
 }

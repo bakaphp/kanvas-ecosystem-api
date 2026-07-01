@@ -5,6 +5,9 @@ type Contact {
     value: String
     is_opt_out: Boolean!
     weight: Int!
+    validation_status: String! @method(name: "validationStatusValue")
+    bounced_at: String
+    is_deliverable: Boolean! @method(name: "isDeliverable")
 }
 
 type ContactType {

@@ -65,6 +65,18 @@ class ReynoldsHandler extends BaseIntegration
             $this->data['business_unit_name'] ?? $this->company->name
         );
 
+        // Precompute the composite (Dealer|Store|Area) tenant key so the inbound
+        // webhook job can resolve the Company with a single companies_settings
+        // lookup instead of joining 3 settings rows.
+        $this->company->set(
+            ConfigurationEnum::REYNOLDS_DEALER_LOCATION_KEY->value,
+            ConfigurationEnum::buildDealerLocationKey(
+                (string) $this->data['dealer_number'],
+                (string) $this->data['store_number'],
+                (string) $this->data['area_number'],
+            ),
+        );
+
         $this->seedCatalogs();
 
         return true;

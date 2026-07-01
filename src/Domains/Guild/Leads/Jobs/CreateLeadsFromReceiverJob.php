@@ -46,6 +46,12 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             $attempt
         );
 
+        $this->afterLeadCreated(
+            $lead,
+            $leadReceiver,
+            $payload
+        );
+
         $sentEmail = $this->sendEmails(
             $lead,
             $leadReceiver,
@@ -339,5 +345,16 @@ class CreateLeadsFromReceiverJob extends ProcessWebhookJob
             'sent_email' => $sentEmail,
             'custom_fields' => $showCustomFields ? $lead->getAll() : [],
         ];
+    }
+
+    /**
+    * Extension point invoked right after the lead is created, before owner/rotation emails.
+    * No-op on the base receiver; subclasses (e.g. the confirmation receiver) override it.
+    */
+    protected function afterLeadCreated(
+        Lead $lead,
+        LeadReceiver $leadReceiver,
+        array $payload
+    ): void {
     }
 }
