@@ -52,6 +52,11 @@ class Lead extends Data
 
     /**
      * Build the Prospect XML section.
+     *
+     * ProspectId is intentionally NOT included here — USL puts it in a
+     * separate `<Identifier>` sibling block inside Record (mirrors the
+     * shape LDU inbound envelopes use and what the USL Note sub-flow
+     * already does). ISL leaves it blank so R&R generates the id.
      */
     public function toProspect(): array
     {
