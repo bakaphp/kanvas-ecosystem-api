@@ -1093,4 +1093,41 @@ class LeadTest extends TestCase
             'Message was not attached to the lead default channel',
         );
     }
+
+    public function testAddMessageToLeadChannelWithExplicitChannel(): void
+    {
+        $lead = $this->createLeadAndGetResponse();
+        $leadId = (int) $lead['data']['createLead']['id'];
+        $leadModel = Lead::getById($leadId, app(Apps::class));
+        $channel = $leadModel->systemNotes;
+        $message = fake()->sentence();
+
+        $response = $this->graphQL('
+            mutation($input: LeadMessageInput!) {
+                addMessageToLeadChannel(input: $input) {
+                    id
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'channel_id' => $channel->getId(),
+                'message' => $message,
+            ],
+        ])->assertJson([
+            'data' => [
+                'addMessageToLeadChannel' => [
+                    'message' => $message,
+                ],
+            ],
+        ])->json();
+
+        $messageId = (int) $response['data']['addMessageToLeadChannel']['id'];
+
+        $this->assertTrue(
+            $channel->messages()->where('messages.id', $messageId)->exists(),
+            'Message was not attached to the specified channel',
+        );
+    }
 }

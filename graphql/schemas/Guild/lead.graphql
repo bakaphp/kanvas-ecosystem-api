@@ -191,6 +191,7 @@ input LeadMessageInput {
     lead_id: ID!
     message: Mixed!
     message_verb: String
+    channel_id: ID
 }
 
 extend type Mutation @guard {
