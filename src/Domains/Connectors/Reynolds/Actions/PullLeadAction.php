@@ -131,16 +131,11 @@ class PullLeadAction
     private function resolveExistingPeopleId(LeadEntity $entity): ?int
     {
         // 1. Same Reynolds prospect already synced → reuse its People.
-        $existingLead = LeadModel::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->whereHas(
-                'customFields',
-                fn ($q) => $q->where('name', CustomFieldEnum::PROSPECT_ID->value)
-                    ->where('value', (string) $entity->prospectId)
-            )
-            ->first();
+        $existingLead = LeadModel::getByCustomField(
+            CustomFieldEnum::PROSPECT_ID->value,
+            (string) $entity->prospectId,
+            $this->company,
+        );
 
         if ($existingLead?->people_id) {
             return (int) $existingLead->people_id;
