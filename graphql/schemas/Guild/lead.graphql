@@ -187,6 +187,12 @@ enum LeadStatusEnum {
     Close
 }
 
+input LeadMessageInput {
+    lead_id: ID!
+    message: Mixed!
+    message_verb: String
+}
+
 extend type Mutation @guard {
     createLead(input: LeadInput!): Lead!
         @field(
@@ -231,6 +237,10 @@ extend type Mutation @guard {
     leadWonOrLost(id: ID!, status: LeadStatusEnum!, reason_lost: String): Lead!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadManagementMutation@wonOrLost"
+        )
+    addMessageToLeadChannel(input: LeadMessageInput!): Message!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Leads\\LeadMessageMutation@addToDefaultChannel"
         )
 }
 

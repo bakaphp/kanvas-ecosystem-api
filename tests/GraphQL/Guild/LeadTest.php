@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Guild;
 
 use Illuminate\Http\UploadedFile;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Enums\FlagEnum;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
 
@@ -1055,5 +1057,40 @@ class LeadTest extends TestCase
         $response = $this->createLeadAndGetResponse($input);
 
         $this->assertTrue($response['data']['createLead']['status']['name'] === 'Duplicate');
+    }
+
+    public function testAddMessageToLeadChannel(): void
+    {
+        $lead = $this->createLeadAndGetResponse();
+        $leadId = (int) $lead['data']['createLead']['id'];
+        $message = fake()->sentence();
+
+        $response = $this->graphQL('
+            mutation($input: LeadMessageInput!) {
+                addMessageToLeadChannel(input: $input) {
+                    id
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'message' => $message,
+            ],
+        ])->assertJson([
+            'data' => [
+                'addMessageToLeadChannel' => [
+                    'message' => $message,
+                ],
+            ],
+        ])->json();
+
+        $messageId = (int) $response['data']['addMessageToLeadChannel']['id'];
+        $leadModel = Lead::getById($leadId, app(Apps::class));
+
+        $this->assertTrue(
+            $leadModel->systemNotes->messages()->where('messages.id', $messageId)->exists(),
+            'Message was not attached to the lead default channel',
+        );
     }
 }
