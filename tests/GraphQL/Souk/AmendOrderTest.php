@@ -264,18 +264,19 @@ final class AmendOrderTest extends TestCase
         $this->assertSame('unpaid', $wrongOrder->payment_status);
     }
 
-    public function testAmendOrderAssociatePaymentRollsBackPaidOrderStatus(): void
+    public function testAmendOrderAssociatePaymentRollsBackStatusAndFulfillmentWhenOrderPastPaid(): void
     {
-        $paidStatus = OrderStatus::where('slug', 'paid')->first();
-        if (! $paidStatus) {
-            $this->markTestSkipped('No paid OrderStatus found in test DB');
-        }
-
-        $previousStatus = OrderStatus::where('order_types_id', $paidStatus->order_types_id)
-            ->where('id', '!=', $paidStatus->id)
+        // Simulate order that went awaiting_payment → paid → active (currently at active)
+        $prePaymentStatus = OrderStatus::where('slug', 'awaiting_payment')->first();
+        $paidStatus = OrderStatus::where('slug', 'paid')
+            ->when($prePaymentStatus, fn ($q) => $q->where('order_types_id', $prePaymentStatus->order_types_id))
             ->first();
-        if (! $previousStatus) {
-            $this->markTestSkipped('No previous OrderStatus found');
+        $postPaidStatus = OrderStatus::where('slug', 'active')
+            ->when($paidStatus, fn ($q) => $q->where('order_types_id', $paidStatus->order_types_id))
+            ->first();
+
+        if (! $prePaymentStatus || ! $paidStatus || ! $postPaidStatus) {
+            $this->markTestSkipped('Required order statuses (awaiting_payment/paid/active) not found in test DB');
         }
 
         $company = $this->kanvasUser->getCurrentCompany();
@@ -288,6 +289,7 @@ final class AmendOrderTest extends TestCase
                 ->create()
         );
 
+        // Wrong order is currently at 'active' (past paid), with fulfillment already set to 'fulfilled'
         $wrongOrder = Order::withoutSyncingToSearch(
             fn () => Order::factory()
                 ->withAppId($this->kanvasApp->getId())
@@ -296,16 +298,35 @@ final class AmendOrderTest extends TestCase
                 ->create(['region_id' => $region->getId(), 'people_id' => $person->id, 'order_number' => 99906])
         );
 
-        $wrongOrder->updateQuietly(['order_status_id' => $paidStatus->id]);
+        $wrongOrder->updateQuietly([
+            'order_status_id' => $postPaidStatus->id,
+            'fulfillment_status' => 'fulfilled',
+        ]);
 
+        // History: awaiting_payment → paid (old, not current)
         OrderTransitionHistory::create([
             'apps_id' => $this->kanvasApp->getId(),
             'companies_id' => $company->getId(),
             'order_id' => $wrongOrder->id,
             'transition_id' => null,
-            'from_status_id' => $previousStatus->id,
+            'from_status_id' => $prePaymentStatus->id,
             'to_status_id' => $paidStatus->id,
             'description' => 'transitioned to paid',
+            'metadata' => [],
+            'is_current' => false,
+            'changed_at' => now(),
+            'changed_by' => $this->kanvasUser->getId(),
+        ]);
+
+        // History: paid → active (current)
+        OrderTransitionHistory::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $company->getId(),
+            'order_id' => $wrongOrder->id,
+            'transition_id' => null,
+            'from_status_id' => $paidStatus->id,
+            'to_status_id' => $postPaidStatus->id,
+            'description' => 'transitioned to active',
             'metadata' => [],
             'is_current' => true,
             'changed_at' => now(),
@@ -354,13 +375,19 @@ final class AmendOrderTest extends TestCase
         }
 
         $wrongOrder->refresh();
-        $this->assertSame($previousStatus->id, (int) $wrongOrder->order_status_id);
 
+        // order_status rolls back to the status BEFORE the paid transition
+        $this->assertSame($prePaymentStatus->id, (int) $wrongOrder->order_status_id);
+
+        // fulfillment_status resets to pending
+        $this->assertSame('pending', $wrongOrder->fulfillment_status);
+
+        // New is_current history row goes from current (active) back to pre-payment (awaiting_payment)
         $newHistory = OrderTransitionHistory::where('order_id', $wrongOrder->id)
             ->where('is_current', true)
             ->first();
         $this->assertNotNull($newHistory);
-        $this->assertSame($paidStatus->id, (int) $newHistory->from_status_id);
-        $this->assertSame($previousStatus->id, (int) $newHistory->to_status_id);
+        $this->assertSame($postPaidStatus->id, (int) $newHistory->from_status_id);
+        $this->assertSame($prePaymentStatus->id, (int) $newHistory->to_status_id);
     }
 }

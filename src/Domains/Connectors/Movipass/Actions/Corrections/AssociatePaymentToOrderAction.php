@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Actions\Corrections;
 
 use Kanvas\Souk\Orders\Actions\Corrections\BaseOrderCorrectionAction;
+use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
@@ -85,45 +86,50 @@ class AssociatePaymentToOrderAction extends BaseOrderCorrectionAction
             new SyncPayablePaymentStatusAction($sourceOrder)->execute();
         }
 
-        if ($sourceOrder->orderStatus?->slug === 'paid') {
-            $this->rollbackOrderStatusFromPaid($sourceOrder);
+        // Find the most recent transition that moved this order to 'paid' status.
+        // This catches orders currently at any post-paid step (active, completed, etc.)
+        // not just those where order_status.slug === 'paid'.
+        $paidTransition = $sourceOrder->orderTransitionHistory()
+            ->whereHas('toStatus', fn ($q) => $q->where('slug', 'paid'))
+            ->orderByDesc('id')
+            ->first();
+
+        if ($paidTransition?->from_status_id) {
+            $this->rollbackFromPaidTransition($sourceOrder, $paidTransition);
         }
     }
 
-    private function rollbackOrderStatusFromPaid(Order $sourceOrder): void
+    private function rollbackFromPaidTransition(Order $sourceOrder, OrderTransitionHistory $paidTransition): void
     {
-        $currentHistory = OrderTransitionHistory::where('order_id', $sourceOrder->id)
-            ->where('is_current', true)
-            ->first();
-
-        if (! $currentHistory?->from_status_id) {
-            return;
-        }
-
-        $previousStatus = OrderStatus::find($currentHistory->from_status_id);
+        $previousStatus = OrderStatus::find($paidTransition->from_status_id);
 
         if (! $previousStatus) {
             return;
         }
 
-        $paidStatus = $sourceOrder->orderStatus;
+        $currentTransition = $sourceOrder->getCurrentTransition();
 
-        $currentHistory->updateQuietly([
-            'is_current' => false,
-            'ended_at' => now(),
-            'ended_by' => $this->user->getId(),
+        if ($currentTransition) {
+            $currentTransition->updateQuietly([
+                'is_current' => false,
+                'ended_at' => now(),
+                'ended_by' => $this->user->getId(),
+            ]);
+        }
+
+        $sourceOrder->updateQuietly([
+            'order_status_id' => $previousStatus->id,
+            'fulfillment_status' => OrderFulfillmentStatusEnum::PENDING->value,
         ]);
-
-        $sourceOrder->updateQuietly(['order_status_id' => $previousStatus->id]);
 
         OrderTransitionHistory::create([
             'apps_id' => $sourceOrder->apps_id,
             'companies_id' => $sourceOrder->companies_id,
             'order_id' => $sourceOrder->id,
             'transition_id' => null,
-            'from_status_id' => $paidStatus->id,
+            'from_status_id' => $currentTransition?->to_status_id ?? $sourceOrder->order_status_id,
             'to_status_id' => $previousStatus->id,
-            'description' => 'Order status reverted from ' . $paidStatus->slug . ' to ' . $previousStatus->slug . ' due to payment transfer',
+            'description' => 'Order reverted to pre-payment status due to payment transfer',
             'metadata' => is_array($sourceOrder->metadata) ? $sourceOrder->metadata : [],
             'is_current' => true,
             'changed_at' => now(),
