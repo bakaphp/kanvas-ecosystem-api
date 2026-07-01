@@ -250,6 +250,11 @@ final class EnrichPeopleFromApolloActionTest extends TestCase
         $this->assertSame(count($changedFields), (int) $event->change_count);
         $this->assertGreaterThan(0, (int) $event->change_count);
 
+        // material_change_count = only the real before/after rows (excludes flags like new_account).
+        $this->assertSame(Event::countMaterialChanges($payloadOut['changes']), (int) $event->material_change_count);
+        $this->assertGreaterThan(0, (int) $event->material_change_count);
+        $this->assertLessThanOrEqual((int) $event->change_count, (int) $event->material_change_count);
+
         $this->assertSame('Marketing Analyst', $payloadOut['changes']['title']['from'], 'The real prior title is captured as Antes.');
         $this->assertSame('Chief Marketing Officer', $payloadOut['changes']['title']['to']);
         $this->assertSame("Acme {$suffix}", $payloadOut['changes']['current_employer']['to']);
