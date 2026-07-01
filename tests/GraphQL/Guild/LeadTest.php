@@ -6,8 +6,11 @@ namespace Tests\GraphQL\Guild;
 
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Locations\Models\Cities;
+use Kanvas\Locations\Models\States;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
 
@@ -153,6 +156,74 @@ class LeadTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    /**
+     * A lead's address arrives with `state_id` as a string (the shape the FE sends) and no country.
+     * `Address::fromArray` must coerce the id, derive `countries_id` from the state, and resolve the
+     * `city_id` scoped to that state — the resolved values must land on the persisted address row.
+     */
+    public function testCreateLeadResolvesAddressStateCityAndCountry(): void
+    {
+        $state = States::where('name', 'California')->firstOrFail();
+        $city = Cities::where('states_id', $state->id)->firstOrFail();
+
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $title = fake()->name();
+
+        $input = [
+            'branch_id' => $branch->getId(),
+            'title' => $title,
+            'pipeline_stage_id' => 0,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->unique()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                ],
+                'address' => [
+                    [
+                        'address' => '44210 31ST ST WEST',
+                        'city' => $city->name,
+                        'state_id' => (string) $state->id,
+                        'zip' => '935360000',
+                    ],
+                ],
+                'custom_fields' => [],
+            ],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->graphQL('
+            mutation($input: LeadInput!) {
+                createLead(input: $input) {
+                    people { id }
+                }
+            }
+        ', [
+            'input' => $input,
+        ])->assertJson([
+            'data' => [
+                'createLead' => [
+                    'people' => [],
+                ],
+            ],
+        ])->json();
+
+        $peopleId = (int) $response['data']['createLead']['people']['id'];
+        $people = People::getByIdFromCompanyApp($peopleId, $branch->company, app(Apps::class));
+        $address = $people->address()->firstOrFail();
+
+        $this->assertSame('44210 31ST ST WEST', $address->address);
+        $this->assertSame($state->id, (int) $address->state_id);
+        $this->assertSame((int) $state->countries_id, (int) $address->countries_id);
+        $this->assertSame($city->id, (int) $address->city_id);
+        $this->assertSame('935360000', $address->zip);
     }
 
     public function testCreateLeadWithoutPeopleContacts(): void
