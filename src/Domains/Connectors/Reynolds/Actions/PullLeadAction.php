@@ -10,6 +10,7 @@ use Kanvas\Connectors\Reynolds\Entities\Customer as CustomerEntity;
 use Kanvas\Connectors\Reynolds\Entities\Lead as LeadEntity;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Reynolds\Exceptions\ReynoldsException;
+use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadData;
@@ -168,7 +169,10 @@ class PullLeadAction
         }
 
         foreach ($customer->phones as $phone) {
-            $normalized = preg_replace('/\D+/', '', (string) ($phone['num'] ?? ''));
+            // Contact::cleanPhone is the canonical normalizer used by the
+            // ContactObserver on write, so the value we match against in
+            // peoples_contacts is comparable byte-for-byte.
+            $normalized = Contact::cleanPhone((string) ($phone['num'] ?? ''));
             if ($normalized !== '') {
                 return $normalized;
             }
