@@ -28,6 +28,7 @@ use Override;
  * @property array|null $payload
  * @property int $payload_schema_version
  * @property int $change_count
+ * @property int $material_change_count
  * @property array|null $result
  * @property array|null $error
  * @property int|null $duration_ms
@@ -64,7 +65,29 @@ class Event extends ImmutableBaseModel
             // and paginate on a real column instead of scanning JSON per row.
             $changedFields = $event->payload['changed_fields'] ?? null;
             $event->setAttribute('change_count', is_array($changedFields) ? count($changedFields) : 0);
+            $event->setAttribute('material_change_count', self::countMaterialChanges($event->payload['changes'] ?? null));
         });
+    }
+
+    /**
+     * Count real before/after transitions — `changes` entries whose value is a `{ from, to }` object.
+     * Flags (booleans) and additions (arrays) don't count. Structural so new change types need no
+     * list; equals the number of rows the change feed renders.
+     */
+    public static function countMaterialChanges(mixed $changes): int
+    {
+        if (! is_array($changes)) {
+            return 0;
+        }
+
+        $count = 0;
+        foreach ($changes as $value) {
+            if (is_array($value) && array_key_exists('from', $value) && array_key_exists('to', $value)) {
+                $count++;
+            }
+        }
+
+        return $count;
     }
 
     #[Override]
@@ -79,6 +102,7 @@ class Event extends ImmutableBaseModel
             'payload' => Json::class,
             'payload_schema_version' => 'integer',
             'change_count' => 'integer',
+            'material_change_count' => 'integer',
             'result' => Json::class,
             'error' => Json::class,
             'occurred_at' => 'datetime',

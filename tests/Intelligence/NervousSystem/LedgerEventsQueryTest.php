@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\NervousSystem\Ledger\Models\Event;
 use Tests\TestCase;
 
 class LedgerEventsQueryTest extends TestCase
@@ -123,6 +124,81 @@ class LedgerEventsQueryTest extends TestCase
         $events = $response->json('data.ledgerEvents.data');
         $this->assertCount(1, $events, 'Only the change-bearing event passes the change_count filter.');
         $this->assertSame(2, $events[0]['change_count']);
+    }
+
+    public function testCountMaterialChangesOnlyCountsBeforeAfterEntries(): void
+    {
+        $this->assertSame(0, Event::countMaterialChanges(['new_account' => true, 'location_added' => true]));
+        $this->assertSame(0, Event::countMaterialChanges(['contacts_added' => ['5:http://x']]));
+        $this->assertSame(0, Event::countMaterialChanges(null));
+        $this->assertSame(0, Event::countMaterialChanges([]));
+        $this->assertSame(1, Event::countMaterialChanges(['title' => ['from' => 'a', 'to' => 'b'], 'new_account' => true]));
+        $this->assertSame(2, Event::countMaterialChanges([
+            'title' => ['from' => 'a', 'to' => 'b'],
+            'current_employer' => ['from' => 'x', 'to' => 'y'],
+            'new_account' => true,
+        ]));
+    }
+
+    public function testMaterialChangeCountFilterExcludesFlagOnlyEvents(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $tag = 'material-' . uniqid();
+
+        // Flag-only event (change_count 1, material 0) — must not pass the material filter.
+        new AppendEventAction(
+            new EventData(
+                app: $app,
+                company: $company,
+                sourceDomain: 'TestDomain',
+                eventType: $tag,
+                status: EventStatusEnum::INFO,
+                payload: ['changed_fields' => ['new_account'], 'changes' => ['new_account' => true]],
+            ),
+        )->execute();
+
+        new AppendEventAction(
+            new EventData(
+                app: $app,
+                company: $company,
+                sourceDomain: 'TestDomain',
+                eventType: $tag,
+                status: EventStatusEnum::INFO,
+                payload: [
+                    'changed_fields' => ['title', 'new_account'],
+                    'changes' => ['title' => ['from' => 'a', 'to' => 'b'], 'new_account' => true],
+                ],
+            ),
+        )->execute();
+
+        $response = $this->graphQL(
+            '
+            query LedgerEvents($where: QueryLedgerEventsWhereWhereConditions) {
+                ledgerEvents(first: 50, where: $where) {
+                    data { change_count material_change_count }
+                    paginatorInfo { total }
+                }
+            }
+            ',
+            [
+                'where' => [
+                    'AND' => [
+                        ['column' => 'EVENT_TYPE', 'operator' => 'EQ', 'value' => $tag],
+                        ['column' => 'MATERIAL_CHANGE_COUNT', 'operator' => 'GT', 'value' => 0],
+                    ],
+                ],
+            ],
+        );
+
+        $response->assertSuccessful();
+
+        $events = $response->json('data.ledgerEvents.data');
+        $this->assertCount(1, $events, 'Flag-only event is excluded; only the real before/after event passes.');
+        $this->assertSame(1, $events[0]['material_change_count']);
+        $this->assertSame(2, $events[0]['change_count'], 'change_count still counts the flag; material does not.');
     }
 
     public function testLedgerEventsQueryDoesNotLeakAcrossApps(): void
