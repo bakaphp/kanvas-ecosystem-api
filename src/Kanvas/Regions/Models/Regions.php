@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Regions\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
@@ -26,7 +27,9 @@ use Kanvas\Traits\DefaultTrait;
  * @property string $name
  * @property string $slug
  * @property string $short_slug
- * @property ?string settings = null
+ * @property ?array $settings
+ * @property float|null $lat
+ * @property float|null $lng
  * @property int $is_default
  * @property int $is_deleted
  * @property string $created_at
@@ -41,6 +44,13 @@ class Regions extends BaseModel
 
     protected $table = 'regions';
     protected $guarded = [];
+
+    protected function casts(): array
+    {
+        return [
+            'settings' => Json::class,
+        ];
+    }
 
     public function currencies(): BelongsTo
     {
