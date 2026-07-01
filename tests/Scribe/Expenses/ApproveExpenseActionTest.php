@@ -46,6 +46,10 @@ class ApproveExpenseActionTest extends TestCase
     {
         parent::setUp();
 
+        // JE posting dates default to Carbon::now(); freeze "now" inside the June 2026 fiscal period
+        // so postings land in the open window regardless of the real wall-clock.
+        Carbon::setTestNow(Carbon::parse('2026-06-15 12:00:00'));
+
         $this->kanvasApp = app(Apps::class);
         $this->company = static::$cachedUser->getCurrentCompany();
 
@@ -58,6 +62,13 @@ class ApproveExpenseActionTest extends TestCase
             'period_end' => '2026-06-30',
             'status' => FiscalPeriodStatusEnum::OPEN,
         ]);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     public function test_employee_paid_expense_posts_due_to_employees_credit(): void

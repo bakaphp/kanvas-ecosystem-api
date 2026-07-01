@@ -55,6 +55,11 @@ abstract class ScribeTestCase extends TestCase
     {
         parent::setUp();
 
+        // Freeze "now" inside the open fiscal period. JE posting dates default to the transaction's
+        // approval/issue timestamp (Carbon::now()), so tests must run as if the wall-clock sits inside
+        // the seeded period — otherwise postings fall outside it once real time advances past the window.
+        Carbon::setTestNow(Carbon::parse($this->fiscalPeriodStart() . ' 12:00:00'));
+
         $this->kanvasApp = app(Apps::class);
         $this->company = static::$cachedUser->getCurrentCompany();
 
@@ -62,6 +67,13 @@ abstract class ScribeTestCase extends TestCase
 
         $this->ensureFiscalPeriod();
         $this->afterScribeSetUp();
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     /**
@@ -101,7 +113,7 @@ abstract class ScribeTestCase extends TestCase
         $filesystem->apps_id = $appsId ?? $this->kanvasApp->getId();
         $filesystem->companies_id = $this->company->getId();
         $filesystem->users_id = static::$cachedUser->getId();
-        $filesystem->name = 'test-' . Carbon::now()->format('YmdHisu') . '.' . $extension;
+        $filesystem->name = 'test-' . uniqid('', true) . '.' . $extension;
         $filesystem->path = 'inbound/' . $filesystem->name;
         $filesystem->url = 'https://example.test/' . $filesystem->path;
         $filesystem->size = '12345';
