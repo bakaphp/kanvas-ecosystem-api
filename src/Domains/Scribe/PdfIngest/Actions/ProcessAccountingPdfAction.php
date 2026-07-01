@@ -22,8 +22,8 @@ use Throwable;
 /**
  * The orchestrator. One inbound PDF → one PdfIngestLog row → optionally one Scribe entity.
  *
- * Idempotent on (apps_id, message_id) — re-running with the same message_id returns the existing log
- * row instead of double-processing. Mailgun sometimes redelivers, so this matters.
+ * Idempotent on (apps_id, message_id, filesystem_id) — re-running the same stored attachment returns
+ * the existing log row instead of double-processing. Mailgun sometimes redelivers, so this matters.
  *
  * Routing matrix (per the PR 9 design call — Option C):
  *
@@ -116,6 +116,11 @@ class ProcessAccountingPdfAction
         });
     }
 
+    /**
+     * Scoped by filesystem_id, not message_id alone: one email with N attachments shares ONE
+     * Message-Id, so message_id alone would collapse every attachment after the first into the
+     * first's log. Whole-email redelivery gets new Filesystem rows and is caught by Path 2.
+     */
     private function findExistingByMessageId(): ?PdfIngestLog
     {
         if ($this->input->messageId === null || $this->input->messageId === '') {
@@ -126,6 +131,7 @@ class ProcessAccountingPdfAction
             ->where('apps_id', $this->input->app->getId())
             ->where('companies_id', $this->input->company->getId())
             ->where('message_id', $this->input->messageId)
+            ->where('filesystem_id', (int) $this->input->pdf->getKey())
             ->first();
     }
 
