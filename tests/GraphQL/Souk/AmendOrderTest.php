@@ -9,8 +9,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderItem;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
 use Kanvas\Souk\Payments\Models\Payments;
@@ -389,5 +391,85 @@ final class AmendOrderTest extends TestCase
         $this->assertNotNull($newHistory);
         $this->assertSame($postPaidStatus->id, (int) $newHistory->from_status_id);
         $this->assertSame($prePaymentStatus->id, (int) $newHistory->to_status_id);
+    }
+
+    public function testAmendOrderRelocateVehicleSwapsVariantAndUpdatesMetadata(): void
+    {
+        $impoundLotVariants = Variants::whereHas(
+            'product.productType',
+            fn ($q) => $q->where('slug', 'impound_lot')
+        )->take(2)->get();
+
+        if ($impoundLotVariants->count() < 2) {
+            $this->markTestSkipped('Need at least 2 impound_lot variants in test DB');
+        }
+
+        $oldVariant = $impoundLotVariants->first();
+        $newVariant = $impoundLotVariants->last();
+
+        $order = $this->createTestOrder([
+            'order_number' => 99910,
+            'metadata' => ['data' => ['carDeposit' => ['name' => 'Centro Viejo', 'address' => 'Av. Antigua']]],
+        ]);
+
+        $orderItem = new OrderItem();
+        $orderItem->apps_id = $this->kanvasApp->getId();
+        $orderItem->order_id = $order->id;
+        $orderItem->variant_id = $oldVariant->id;
+        $orderItem->variant_name = $oldVariant->name;
+        $orderItem->product_name = $oldVariant->product->name;
+        $orderItem->product_sku = $oldVariant->sku ?? 'LOC-001';
+        $orderItem->quantity = 1;
+        $orderItem->unit_price_net_amount = 0;
+        $orderItem->unit_price_gross_amount = 0;
+        $orderItem->quantity_fulfilled = 0;
+        $orderItem->currency = 'DOP';
+        $orderItem->save();
+
+        $response = $this->graphQL('
+            mutation($order_id: ID!, $data: Mixed) {
+                amendOrder(
+                    order_id: $order_id
+                    correction_type: "relocate"
+                    reason: "Vehículo trasladado a otro centro"
+                    data: $data
+                ) {
+                    id
+                    metadata
+                    activityLogs {
+                        data {
+                            description
+                            properties
+                        }
+                    }
+                }
+            }
+        ', [
+            'order_id' => $order->id,
+            'data' => [
+                'variant_id' => $newVariant->id,
+                'car_deposit' => ['name' => 'Centro Nuevo', 'address' => 'Av. X'],
+            ],
+        ]);
+
+        $response->assertSuccessful();
+        if ($response->json('errors')) {
+            $this->fail('GraphQL errors: ' . json_encode($response->json('errors')));
+        }
+
+        $result = $response->json('data.amendOrder');
+
+        $this->assertSame('Centro Nuevo', $result['metadata']['data']['carDeposit']['name']);
+
+        $logs = $result['activityLogs']['data'];
+        $relocateLog = collect($logs)->firstWhere('description', 'relocate');
+        $this->assertNotNull($relocateLog);
+        $this->assertSame($newVariant->name, $relocateLog['properties']['changes']['center']['new']['variant_name']);
+
+        $this->assertTrue(
+            OrderItem::where('order_id', $order->id)
+                ->where('variant_id', $newVariant->id)
+                ->exists()
+        );
     }
 }
