@@ -59,6 +59,7 @@ class OrderCorrectionMutation
                 (float) ($data['new_amount'] ?? throw new ValidationException('data.new_amount is required for adjust-amount')),
                 $reason,
                 $evidenceUrls,
+                isset($data['variant_id']) ? (int) $data['variant_id'] : null,
             )->execute(),
             'mark-duplicate' => new MarkOrderAsDuplicateAction(
                 $order,
@@ -87,6 +88,7 @@ class OrderCorrectionMutation
                 (array) ($data['car_deposit'] ?? throw new ValidationException('data.car_deposit is required for relocate')),
                 $reason,
                 $evidenceUrls,
+                isset($data['current_variant_id']) ? (int) $data['current_variant_id'] : null,
             )->execute(),
             default => throw new ValidationException("Unknown correction type: {$correctionType}"),
         };
