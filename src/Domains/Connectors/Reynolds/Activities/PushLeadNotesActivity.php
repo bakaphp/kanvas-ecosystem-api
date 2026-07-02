@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Reynolds\Activities;
 
+use Baka\Support\Url;
 use Exception;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
+use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Reynolds\Actions\AddNoteToLeadAction;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\Services\MessageNoteService;
+use Kanvas\Connectors\SalesAssist\Services\MessageNotificationTextService;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -22,15 +26,19 @@ use Throwable;
 /**
  * Reynolds counterpart of VinSolution's PushLeadNotesActivity.
  *
- * If the message's ActionEngine verb matches one of the known cases, a
- * formatted summary is pushed as a USL Note (SalesAssist has no structured
- * sub-flows for co-buyer, credit-app, VOI, purchase or trade so those
- * always degrade to text). ID verification and esign clean-up are Kanvas-
- * local and never round-trip.
+ * Note text is built the same way every SalesAssist-family connector
+ * builds it: MessageNotificationTextService renders the stage's card
+ * template (with sendingUser / contact / messageData / etc. bindings),
+ * MessageNoteService appends file links or previews. That keeps notes
+ * consistent across Elead / VinSolution / DealerSocket / Reynolds and
+ * lets the dealer / admin edit the templates without touching code.
  *
- * If the verb doesn't match any known case, the raw message content is
- * pushed as-is. That covers plain agent notes and any future verb we
- * haven't wired yet, so nothing gets silently swallowed.
+ * When the engagement lookup fails (no stage template configured, or
+ * plain agent notes that never went through ActionEngine), the raw
+ * message content is pushed as-is so nothing gets silently dropped.
+ *
+ * ID verification and esign clean-up are Kanvas-local and never reach
+ * R&R — same shape as VinSolution.
  */
 #[WorkflowAction]
 class PushLeadNotesActivity extends KanvasActivity
@@ -90,73 +98,75 @@ class PushLeadNotesActivity extends KanvasActivity
         $verb = (string) ($messageData['verb'] ?? '');
         $status = (string) ($messageData['status'] ?? '');
 
-        switch ($verb) {
-            case ActionEnum::TRADE_WALK->value:
-            case ActionEnum::PAYOFF_FORM->value:
-            case ActionEnum::ADD_TRADE->value:
-                if ($status === ActionStatusEnum::SUBMITTED->value) {
-                    return $this->pushNote($lead, $this->buildTradeSummary($verb, $messageData), $verb);
-                }
+        // Kanvas-local ops — don't round-trip to R&R.
+        if ($verb === ActionEnum::ID_VERIFICATION->value
+            && $status === ActionStatusEnum::OPEN->value
+            && ! empty($messageData['data']['address']['address'])) {
+            $updated = $this->idVerificationUpdatePeople($lead->people, $messageData);
+            $lead->set('dont-run-id-verification-manual', 1);
 
-                break;
-            case ActionEnum::CO_SIGNER->value:
-                if ($status === ActionStatusEnum::SUBMITTED->value) {
-                    // SalesAssist has no co-buyer / second-customer field on
-                    // either ISL or USL — see CoBuyerParticipantTest. The best
-                    // we can offer is an unstructured Note describing the
-                    // co-signer so a human on the R&R side can see it.
-                    return $this->pushNote($lead, $this->buildCoBuyerSummary($messageData), $verb);
-                }
-
-                break;
-            case ActionEnum::CREDIT_APP->value:
-                if ($status === ActionStatusEnum::SUBMITTED->value) {
-                    return $this->pushNote(
-                        $lead,
-                        'Credit application submitted via Kanvas — see attached credit form on our side.',
-                        $verb,
-                    );
-                }
-
-                break;
-            case ActionEnum::ID_VERIFICATION->value:
-                if ($status === ActionStatusEnum::OPEN->value && ! empty($messageData['data']['address']['address'])) {
-                    $updated = $this->idVerificationUpdatePeople($lead->people, $messageData);
-                    $lead->set('dont-run-id-verification-manual', 1);
-
-                    return ['verb' => $verb, 'local' => true, 'idVerification' => $updated];
-                }
-
-                break;
-            case ActionEnum::VIEW_PRODUCT->value:
-                if ($status === ActionStatusEnum::SUBMITTED->value) {
-                    // See PushVoiToExistingLeadTest — USL has no Vehicle sub-flow,
-                    // so VOI updates on an existing prospect can only land as an
-                    // unstructured Note.
-                    return $this->pushNote($lead, $this->buildVehicleInterestSummary($messageData), $verb);
-                }
-
-                break;
-            case ActionEnum::PURCHASE_VEHICLE->value:
-                if ($status === ActionStatusEnum::SUBMITTED->value) {
-                    return $this->pushNote($lead, $this->buildPurchaseSummary($messageData), $verb);
-                }
-
-                break;
-            case ActionEnum::ESIGN_DOCS->value:
-                if ($status === ActionStatusEnum::SUBMITTED->value) {
-                    $this->cleanEsignature($lead);
-
-                    return ['verb' => $verb, 'local' => true, 'esignCleaned' => true];
-                }
-
-                break;
+            return ['verb' => $verb, 'local' => true, 'idVerification' => $updated];
         }
 
-        // No structured verb matched (or matched but status wasn't ready) —
-        // fall back to pushing the raw message content so nothing gets
-        // silently dropped.
-        return $this->pushNote($lead, $this->extractNoteContent($message), $verb !== '' ? $verb : 'raw');
+        if ($verb === ActionEnum::ESIGN_DOCS->value
+            && $status === ActionStatusEnum::SUBMITTED->value) {
+            $this->cleanEsignature($lead);
+
+            return ['verb' => $verb, 'local' => true, 'esignCleaned' => true];
+        }
+
+        // Everything else — build a note the SalesAssist way: engagement
+        // template rendered via MessageNotificationTextService + file
+        // links from MessageNoteService. Falls back to the raw content of
+        // the message when there's no engagement template to render (plain
+        // agent notes, unwired verbs).
+        $note = $this->buildStructuredNote($message, $lead) ?? $this->extractNoteContent($message);
+
+        return $this->pushNote($lead, $note, $verb !== '' ? $verb : 'raw');
+    }
+
+    private function buildStructuredNote(Message $message, Lead $lead): ?string
+    {
+        $messageData = $message->getMessage();
+
+        try {
+            $linkPreview = Url::getShortUrl($messageData['link'] ?? '', $lead->app);
+        } catch (Throwable $e) {
+            $linkPreview = $messageData['link'] ?? null;
+        }
+
+        try {
+            if ($newLink = new MessageNoteService($message)->generateFileLinks()) {
+                $linkPreview = $newLink;
+            }
+        } catch (Throwable $e) {
+            // Files are optional context — keep whatever link preview we already have.
+        }
+
+        try {
+            $parentEngagement = $message->getEngagement();
+            $currentEngagement = EngagementRepository::findEngagementForLeadAndEntity(
+                $lead,
+                $messageData['verb'] ?? null,
+                $messageData['status'] ?? null,
+                $parentEngagement->entity_uuid,
+            );
+        } catch (Throwable $e) {
+            return null;
+        }
+
+        try {
+            $engagementText = new MessageNotificationTextService($currentEngagement ?: $parentEngagement)->cardText();
+        } catch (Throwable $e) {
+            return null;
+        }
+
+        $engagementText = trim((string) $engagementText);
+        if ($engagementText === '' && empty($linkPreview)) {
+            return null;
+        }
+
+        return trim($engagementText . ' ' . (string) ($linkPreview ?? ''));
     }
 
     private function pushNote(Lead $lead, string $note, string $verb): array
@@ -201,82 +211,5 @@ class PushLeadNotesActivity extends KanvasActivity
         $content = $message->message['content'] ?? '';
 
         return is_string($content) ? trim($content) : '';
-    }
-
-    private function buildTradeSummary(string $verb, array $messageData): string
-    {
-        $trade = $messageData['data']['trade'] ?? $messageData['data'] ?? [];
-        $summary = array_filter([
-            'year' => $trade['year'] ?? null,
-            'make' => $trade['make'] ?? null,
-            'model' => $trade['model'] ?? null,
-            'vin' => $trade['vin'] ?? null,
-            'odometer' => $trade['odometer'] ?? null,
-        ], fn ($v) => $v !== null && $v !== '');
-
-        $label = match ($verb) {
-            ActionEnum::PAYOFF_FORM->value => 'Payoff form submitted',
-            ActionEnum::ADD_TRADE->value => 'Trade-in added',
-            default => 'Trade walk submitted',
-        };
-
-        return empty($summary)
-            ? $label . '.'
-            : $label . ': ' . $this->joinSummary($summary);
-    }
-
-    private function buildCoBuyerSummary(array $messageData): string
-    {
-        $co = $messageData['data']['co_signer'] ?? $messageData['data'] ?? [];
-        $parts = array_filter([
-            $co['firstname'] ?? null,
-            $co['lastname'] ?? null,
-            isset($co['phone']) ? 'phone ' . $co['phone'] : null,
-            isset($co['email']) ? 'email ' . $co['email'] : null,
-        ]);
-
-        return 'Co-signer submitted via Kanvas'
-            . (empty($parts) ? '' : ': ' . implode(' | ', $parts));
-    }
-
-    private function buildVehicleInterestSummary(array $messageData): string
-    {
-        $vehicle = $messageData['data']['vehicle'] ?? $messageData['data'] ?? [];
-        $summary = array_filter([
-            'stock_type' => $vehicle['stock_type'] ?? null,
-            'vin' => $vehicle['vin'] ?? null,
-            'year' => $vehicle['year'] ?? null,
-            'make' => $vehicle['make'] ?? null,
-            'model' => $vehicle['model'] ?? null,
-        ], fn ($v) => $v !== null && $v !== '');
-
-        return empty($summary)
-            ? 'Vehicle interest updated via Kanvas.'
-            : 'Vehicle interest updated: ' . $this->joinSummary($summary);
-    }
-
-    private function buildPurchaseSummary(array $messageData): string
-    {
-        $vehicle = $messageData['data']['vehicle'] ?? $messageData['data'] ?? [];
-        $summary = array_filter([
-            'vin' => $vehicle['vin'] ?? null,
-            'year' => $vehicle['year'] ?? null,
-            'make' => $vehicle['make'] ?? null,
-            'model' => $vehicle['model'] ?? null,
-            'price' => $vehicle['price'] ?? null,
-        ], fn ($v) => $v !== null && $v !== '');
-
-        return empty($summary)
-            ? 'Purchase agreement submitted via Kanvas.'
-            : 'Purchase agreement submitted: ' . $this->joinSummary($summary);
-    }
-
-    private function joinSummary(array $summary): string
-    {
-        return implode(' | ', array_map(
-            fn ($k, $v) => ucfirst((string) str_replace('_', ' ', (string) $k)) . '=' . (string) $v,
-            array_keys($summary),
-            $summary,
-        ));
     }
 }
