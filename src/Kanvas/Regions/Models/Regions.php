@@ -52,6 +52,13 @@ class Regions extends BaseModel
         ];
     }
 
+    // Backward-compat: clients queried Region.settings as a raw JSON string before
+    // it was typed as RegionSettings. Expose the encoded string so old apps don't break.
+    public function getSettingsStringAttribute(): ?string
+    {
+        return $this->settings !== null ? json_encode($this->settings) : null;
+    }
+
     public function currencies(): BelongsTo
     {
         return $this->belongsTo(Currencies::class, 'currency_id');
