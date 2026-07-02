@@ -4352,16 +4352,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v13.18.0",
+            "version": "v13.18.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "138e5806ed7e4e21591948b661119d3810f052cf"
+                "reference": "7d66044819e269f05924793a6800022dc181d850"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/138e5806ed7e4e21591948b661119d3810f052cf",
-                "reference": "138e5806ed7e4e21591948b661119d3810f052cf",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/7d66044819e269f05924793a6800022dc181d850",
+                "reference": "7d66044819e269f05924793a6800022dc181d850",
                 "shasum": ""
             },
             "require": {
@@ -4572,7 +4572,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2026-06-30T12:54:13+00:00"
+            "time": "2026-07-02T18:35:20+00:00"
         },
         {
             "name": "laravel/octane",
@@ -6604,16 +6604,16 @@
         },
         {
             "name": "mike-bronner/laravel-model-caching",
-            "version": "13.1.4",
+            "version": "13.1.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mike-bronner/laravel-model-caching.git",
-                "reference": "51c30d696816b5fae682702adf19704d8d40f504"
+                "reference": "2b81426e076ca5c9a0896ba9ed830bf55d44fa8f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/51c30d696816b5fae682702adf19704d8d40f504",
-                "reference": "51c30d696816b5fae682702adf19704d8d40f504",
+                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/2b81426e076ca5c9a0896ba9ed830bf55d44fa8f",
+                "reference": "2b81426e076ca5c9a0896ba9ed830bf55d44fa8f",
                 "shasum": ""
             },
             "require": {
@@ -6677,9 +6677,9 @@
             "description": "Automatic caching for Eloquent models.",
             "support": {
                 "issues": "https://github.com/mike-bronner/laravel-model-caching/issues",
-                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.4"
+                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.5"
             },
-            "time": "2026-06-07T17:15:54+00:00"
+            "time": "2026-07-02T15:43:49+00:00"
         },
         {
             "name": "mikebronner/laravel-pivot-events",
