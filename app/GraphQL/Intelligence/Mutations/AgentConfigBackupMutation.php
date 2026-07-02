@@ -19,11 +19,11 @@ class AgentConfigBackupMutation
             ->fromCompany(auth()->user()->getCurrentCompany())
             ->findOrFail((int) $request['agent_id']);
 
-        return (new CreateAgentConfigBackupAction(
+        return new CreateAgentConfigBackupAction(
             agent: $agent,
             app: $app,
             notes: $request['notes'] ?? null,
-        ))->execute();
+        )->execute();
     }
 
     public function restore(mixed $root, array $request): Agent
@@ -32,6 +32,6 @@ class AgentConfigBackupMutation
             ->where('apps_id', app(Apps::class)->getId())
             ->firstOrFail();
 
-        return (new RestoreAgentFromConfigBackupAction($backup))->execute();
+        return new RestoreAgentFromConfigBackupAction($backup)->execute();
     }
 }

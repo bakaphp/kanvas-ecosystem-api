@@ -6,8 +6,6 @@ namespace App\Console\Commands\Intelligence;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Jobs\CreateAgentConfigBackupJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Throwable;
@@ -25,6 +23,7 @@ class DailyAgentConfigBackupCommand extends Command
     public function handle(): int
     {
         $query = Agent::query()
+            ->with(['app', 'company'])
             ->where('is_active', 1)
             ->where('is_deleted', 0);
 
@@ -42,16 +41,20 @@ class DailyAgentConfigBackupCommand extends Command
         $query->chunkById(50, function ($agents) use (&$dispatched, &$failed): void {
             foreach ($agents as $agent) {
                 try {
-                    $app = Apps::find($agent->apps_id);
+                    $app = $agent->app;
 
                     if ($app === null) {
                         continue;
                     }
 
+                    // Rebinds Apps::class (and Bouncer's tenant scope) to this agent's app —
+                    // this loop crosses multiple apps in a single run, so each iteration must
+                    // re-scope the container before touching any tenant-aware code.
+                    $this->overwriteAppService($app);
+
                     // Only dispatch when it is 23:xx in the company's local timezone.
                     // The command runs hourly so each company gets its backup at its own EOD.
-                    $company = Companies::find($agent->companies_id);
-                    $timezone = $company?->timezone ?? 'UTC';
+                    $timezone = $agent->company?->timezone ?? 'UTC';
 
                     if (now()->setTimezone($timezone)->hour !== 23) {
                         continue;
