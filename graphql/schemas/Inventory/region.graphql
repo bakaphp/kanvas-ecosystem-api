@@ -16,7 +16,8 @@ type Region {
     name: String!
     slug: String!
     short_slug: String!
-    settings: RegionSettings
+    settings: String @rename(attribute: "settings_string")
+    settingsData: RegionSettings @rename(attribute: "settings")
     is_default: Boolean!
     lat: Float
     lng: Float
