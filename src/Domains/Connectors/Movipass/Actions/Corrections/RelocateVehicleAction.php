@@ -19,6 +19,7 @@ class RelocateVehicleAction extends BaseOrderCorrectionAction
         protected array $carDeposit,
         protected string $reason,
         protected array $evidenceUrls = [],
+        protected ?int $currentVariantId = null,
     ) {
         parent::__construct($order, $user);
     }
@@ -28,26 +29,30 @@ class RelocateVehicleAction extends BaseOrderCorrectionAction
         return $this->transact(function () {
             $this->guardNotFinalStatus();
 
-            $locationItem = $this->order
-                ->allItems()
-                ->with('variant.product.productType')
-                ->get()
-                ->first(fn ($item) => $item->variant?->product?->productType?->slug === 'impound_lot');
+            $items = $this->order->allItems()->get();
+
+            if ($this->currentVariantId !== null) {
+                $locationItem = $items->first(fn ($item) => (int) $item->variant_id === $this->currentVariantId);
+            } else {
+                $impoundLotIds = $this->resolveImpoundLotVariantIds($items->pluck('variant_id')->filter()->values()->all());
+                $locationItem = $items->first(fn ($item) => in_array($item->variant_id, $impoundLotIds));
+            }
 
             if (! $locationItem) {
                 throw new ValidationException('No location item found on this order');
             }
 
-            $newVariant = Variants::with('product.productType')
-                ->findOrFail($this->newVariantId);
+            $newVariant = Variants::findOrFail($this->newVariantId);
 
-            if ($newVariant->product?->productType?->slug !== 'impound_lot') {
+            if (! in_array($newVariant->id, $this->resolveImpoundLotVariantIds([$newVariant->id]))) {
                 throw new ValidationException('New variant must be a location (impound_lot) variant');
             }
 
             $oldVariantName = $locationItem->variant_name;
             $metadata = is_array($this->order->metadata) ? $this->order->metadata : [];
             $oldCarDeposit = $metadata['data']['carDeposit'] ?? [];
+
+            $newVariant->load('product');
 
             $locationItem->variant_id = $newVariant->id;
             $locationItem->variant_name = $newVariant->name;
@@ -75,5 +80,18 @@ class RelocateVehicleAction extends BaseOrderCorrectionAction
 
             return $this->order;
         });
+    }
+
+    private function resolveImpoundLotVariantIds(array $variantIds): array
+    {
+        if (empty($variantIds)) {
+            return [];
+        }
+
+        return Variants::query()
+            ->whereIn('id', $variantIds)
+            ->whereHas('product.productType', fn ($q) => $q->where('slug', 'impound_lot'))
+            ->pluck('id')
+            ->toArray();
     }
 }

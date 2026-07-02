@@ -19,6 +19,10 @@ class RegionRepository
 
     public static function getDefault(CompanyInterface $company): RegionModel
     {
-        return self::getModel()->where('is_default', 1)->fromCompany($company)->firstOrFail();
+        return self::getModel()
+            ->where('is_default', 1)
+            ->fromCompanyOrGlobal($company)
+            ->orderByRaw('CASE WHEN companies_id = 0 THEN 1 ELSE 0 END ASC')
+            ->firstOrFail();
     }
 }
