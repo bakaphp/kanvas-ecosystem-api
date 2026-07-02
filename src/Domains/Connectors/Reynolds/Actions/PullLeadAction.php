@@ -119,7 +119,11 @@ class PullLeadAction
             ),
             'leads_owner_id' => $this->resolveOwnerId($entity) ?? $this->user->getId(),
             'type_id' => $this->resolveTypeId($entity->prospectType),
-            'status_id' => $this->resolveStatusId($entity->prospectStatus),
+            // Real R&R envelopes carry <ProspectStatusType> (e.g. "Open",
+            // "Closed", "Sold"), and the LDU spec's <ProspectStatus> field
+            // hardly ever shows up in production. Prefer the status type,
+            // fall back to prospectStatus for spec-shaped payloads.
+            'status_id' => $this->resolveStatusId($entity->prospectStatusType ?? $entity->prospectStatus),
             'source_id' => $this->resolveSourceId($entity->providerName),
             'receiver_id' => 0,
             'description' => $entity->prospectNote,
@@ -198,9 +202,16 @@ class PullLeadAction
             return null;
         }
 
-        $parts = explode(' ', trim($entity->primarySalesPerson), 2);
-        $firstname = $parts[0] ?? null;
-        $lastname = $parts[1] ?? null;
+        // R&R publishes PrimarySalesPerson as "LastName, FirstName" (comma-
+        // separated) — e.g. "Thomas, Erick". Some legacy dealer configs send
+        // "FirstName LastName" (space-separated) instead. Try comma first,
+        // fall back to whitespace for the legacy shape.
+        $raw = trim($entity->primarySalesPerson);
+        if (str_contains($raw, ',')) {
+            [$lastname, $firstname] = array_pad(array_map('trim', explode(',', $raw, 2)), 2, null);
+        } else {
+            [$firstname, $lastname] = array_pad(array_map('trim', explode(' ', $raw, 2)), 2, null);
+        }
 
         if (! $firstname || ! $lastname) {
             return null;
