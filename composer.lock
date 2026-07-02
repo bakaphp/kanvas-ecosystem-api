@@ -1759,16 +1759,16 @@
         },
         {
             "name": "durable-workflow/workflow",
-            "version": "1.0.76",
+            "version": "1.0.77",
             "source": {
                 "type": "git",
                 "url": "https://github.com/durable-workflow/workflow.git",
-                "reference": "2fa4d3f1fffc8d870e6caef574f99579ab9ce401"
+                "reference": "c3f5312e8094bf3415fe519f47ef6b1bf34d4132"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/2fa4d3f1fffc8d870e6caef574f99579ab9ce401",
-                "reference": "2fa4d3f1fffc8d870e6caef574f99579ab9ce401",
+                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/c3f5312e8094bf3415fe519f47ef6b1bf34d4132",
+                "reference": "c3f5312e8094bf3415fe519f47ef6b1bf34d4132",
                 "shasum": ""
             },
             "require": {
@@ -1813,9 +1813,9 @@
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/durable-workflow/workflow/issues",
-                "source": "https://github.com/durable-workflow/workflow/tree/1.0.76"
+                "source": "https://github.com/durable-workflow/workflow/tree/1.0.77"
             },
-            "time": "2026-04-24T15:24:01+00:00"
+            "time": "2026-07-01T00:19:23+00:00"
         },
         {
             "name": "dyrynda/laravel-cascade-soft-deletes",
@@ -4352,16 +4352,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v13.17.0",
+            "version": "v13.18.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "0802b7a81f3252d78200b8037ac183a686a529f0"
+                "reference": "138e5806ed7e4e21591948b661119d3810f052cf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/0802b7a81f3252d78200b8037ac183a686a529f0",
-                "reference": "0802b7a81f3252d78200b8037ac183a686a529f0",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/138e5806ed7e4e21591948b661119d3810f052cf",
+                "reference": "138e5806ed7e4e21591948b661119d3810f052cf",
                 "shasum": ""
             },
             "require": {
@@ -4572,7 +4572,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2026-06-23T19:42:45+00:00"
+            "time": "2026-06-30T12:54:13+00:00"
         },
         {
             "name": "laravel/octane",
@@ -7436,16 +7436,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.15.18",
+            "version": "3.15.19",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "4ecb13a363f1debd763abeea4a602e2ee5abb665"
+                "reference": "19cf5a2e72b5320bef1527589e799b75bdb377af"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/4ecb13a363f1debd763abeea4a602e2ee5abb665",
-                "reference": "4ecb13a363f1debd763abeea4a602e2ee5abb665",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/19cf5a2e72b5320bef1527589e799b75bdb377af",
+                "reference": "19cf5a2e72b5320bef1527589e799b75bdb377af",
                 "shasum": ""
             },
             "require": {
@@ -7496,7 +7496,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.15.18"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.15.19"
             },
             "funding": [
                 {
@@ -7504,7 +7504,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-29T09:28:10+00:00"
+            "time": "2026-07-01T13:08:57+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
@@ -18220,16 +18220,16 @@
         },
         {
             "name": "laravel/boost",
-            "version": "v2.4.10",
+            "version": "v2.4.11",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/boost.git",
-                "reference": "080189f51c8d27c0792a03483a70adc7770f6eeb"
+                "reference": "c98fc9d151de97a1864b51fc7c710fc03023ba17"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/boost/zipball/080189f51c8d27c0792a03483a70adc7770f6eeb",
-                "reference": "080189f51c8d27c0792a03483a70adc7770f6eeb",
+                "url": "https://api.github.com/repos/laravel/boost/zipball/c98fc9d151de97a1864b51fc7c710fc03023ba17",
+                "reference": "c98fc9d151de97a1864b51fc7c710fc03023ba17",
                 "shasum": ""
             },
             "require": {
@@ -18282,7 +18282,7 @@
                 "issues": "https://github.com/laravel/boost/issues",
                 "source": "https://github.com/laravel/boost"
             },
-            "time": "2026-06-09T10:21:08+00:00"
+            "time": "2026-06-26T08:21:49+00:00"
         },
         {
             "name": "laravel/mcp",
@@ -18844,11 +18844,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.2.2",
+            "version": "2.2.3",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/e5cc34d491a90e79c216d824f60fe21fd4d93bd6",
-                "reference": "e5cc34d491a90e79c216d824f60fe21fd4d93bd6",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/4048833dd47b377287818841877fb3087289509c",
+                "reference": "4048833dd47b377287818841877fb3087289509c",
                 "shasum": ""
             },
             "require": {
@@ -18904,7 +18904,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-05T09:00:01+00:00"
+            "time": "2026-06-30T21:15:26+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",

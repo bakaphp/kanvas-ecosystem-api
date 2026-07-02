@@ -20,14 +20,16 @@ abstract class BaseOrderCorrectionAction
 
     abstract public function execute(): Order;
 
-    protected function transact(Closure $callback): mixed
+    protected function transact(Closure $callback): Order
     {
         return DB::connection('commerce')->transaction(function () use ($callback) {
             $this->order = $this->order->newQuery()
                 ->lockForUpdate()
                 ->findOrFail($this->order->id);
 
-            return $callback();
+            $callback();
+
+            return $this->order->refresh();
         });
     }
 

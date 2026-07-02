@@ -29,6 +29,8 @@ class Region extends Data
         public ?string $settings = null,
         public int $is_default = 0,
         public ?string $slug = null,
+        public ?float $lat = null,
+        public ?float $lng = null,
     ) {
     }
 
@@ -46,7 +48,9 @@ class Region extends Data
             $data['short_slug'] ?? '',
             $data['settings'] ?? null,
             $data['is_default'],
-            $data['slug'] ?? null
+            $data['slug'] ?? null,
+            isset($data['lat']) ? (float) $data['lat'] : null,
+            isset($data['lng']) ? (float) $data['lng'] : null,
         );
     }
 }

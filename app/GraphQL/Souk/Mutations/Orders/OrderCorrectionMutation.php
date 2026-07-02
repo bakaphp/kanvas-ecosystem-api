@@ -8,14 +8,17 @@ use Illuminate\Support\Facades\Gate;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\Corrections\AddObservationsAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\AdjustOrderItemAmountAction;
+use Kanvas\Connectors\Movipass\Actions\Corrections\AssociatePaymentToOrderAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\CorrectVehiclePlateAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\MarkOrderAsDuplicateAction;
+use Kanvas\Connectors\Movipass\Actions\Corrections\RelocateVehicleAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Models\Payments;
 
 class OrderCorrectionMutation
 {
-    public function correct(mixed $rootValue, array $request): Order
+    public function amend(mixed $rootValue, array $request): Order
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -56,6 +59,7 @@ class OrderCorrectionMutation
                 (float) ($data['new_amount'] ?? throw new ValidationException('data.new_amount is required for adjust-amount')),
                 $reason,
                 $evidenceUrls,
+                isset($data['variant_id']) ? (int) $data['variant_id'] : null,
             )->execute(),
             'mark-duplicate' => new MarkOrderAsDuplicateAction(
                 $order,
@@ -67,6 +71,24 @@ class OrderCorrectionMutation
                 ),
                 $reason,
                 $evidenceUrls,
+            )->execute(),
+            'associate-payment' => new AssociatePaymentToOrderAction(
+                $order,
+                $user,
+                Payments::fromApp($app)->fromCompany($company)
+                    ->where('uuid', (string) ($data['payment_uuid'] ?? throw new ValidationException('data.payment_uuid is required for associate-payment')))
+                    ->firstOrFail(),
+                $reason,
+                $evidenceUrls,
+            )->execute(),
+            'relocate' => new RelocateVehicleAction(
+                $order,
+                $user,
+                (int) ($data['variant_id'] ?? throw new ValidationException('data.variant_id is required for relocate')),
+                (array) ($data['car_deposit'] ?? throw new ValidationException('data.car_deposit is required for relocate')),
+                $reason,
+                $evidenceUrls,
+                isset($data['current_variant_id']) ? (int) $data['current_variant_id'] : null,
             )->execute(),
             default => throw new ValidationException("Unknown correction type: {$correctionType}"),
         };
