@@ -6,9 +6,12 @@ namespace Kanvas\Connectors\Reynolds\Actions;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Reynolds\Entities\Customer as CustomerEntity;
 use Kanvas\Connectors\Reynolds\Entities\Lead as LeadEntity;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Reynolds\Exceptions\ReynoldsException;
+use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadData;
 use Kanvas\Guild\Leads\Models\Lead as LeadModel;
@@ -47,6 +50,12 @@ class PullLeadAction
         if ($entity->prospectId === null || $entity->customer === null) {
             throw new ReynoldsException('Lead Update payload missing ProspectId or Customer');
         }
+
+        // Anchor the People sync so consecutive envelopes (e.g. OSL without a
+        // NameRecId immediately followed by an LDU that carries the real one)
+        // update the same People row instead of creating a duplicate. Lookup
+        // order: existing Lead by ProspectId → People matched by email/phone.
+        $existingPeopleId = $this->resolveExistingPeopleId($entity);
 
         $customFields = [
             CustomFieldEnum::PROSPECT_ID->value => $entity->prospectId,
@@ -102,9 +111,10 @@ class PullLeadAction
                 app: $this->app,
                 branch: $this->company->defaultBranch,
                 user: $this->user,
+                existingPeopleId: $existingPeopleId,
                 // OSL envelopes don't always carry a NameRecId — fall back to a
                 // ProspectId-derived synthetic so People dedup still has a stable
-                // key per Reynolds prospect.
+                // key per Reynolds prospect when the anchor lookups miss too.
                 fallbackNameRecId: 'prospect:' . $entity->prospectId,
             ),
             'leads_owner_id' => $this->resolveOwnerId($entity) ?? $this->user->getId(),
@@ -117,6 +127,58 @@ class PullLeadAction
         ]);
 
         return new SyncLeadByThirdPartyCustomFieldAction($leadData)->execute();
+    }
+
+    private function resolveExistingPeopleId(LeadEntity $entity): ?int
+    {
+        // 1. Same Reynolds prospect already synced → reuse its People.
+        $existingLead = LeadModel::getByCustomField(
+            CustomFieldEnum::PROSPECT_ID->value,
+            (string) $entity->prospectId,
+            $this->company,
+        );
+
+        if ($existingLead?->people_id) {
+            return (int) $existingLead->people_id;
+        }
+
+        // 2. First time we see this prospect — try to match an existing
+        // customer by email or phone so we don't fork Peoples that Kanvas
+        // already created from other sources (walk-ins, other CRMs, web forms).
+        $email = $entity->customer?->email;
+        $phone = $this->firstUsablePhone($entity->customer);
+
+        if (empty($email) && empty($phone)) {
+            return null;
+        }
+
+        $existing = PeoplesRepository::getMatchingEmailPhone(
+            app: $this->app,
+            company: $this->company,
+            email: $email !== null ? strtolower((string) $email) : null,
+            phone: $phone,
+        );
+
+        return $existing?->getId();
+    }
+
+    private function firstUsablePhone(?CustomerEntity $customer): ?string
+    {
+        if ($customer === null) {
+            return null;
+        }
+
+        foreach ($customer->phones as $phone) {
+            // Contact::cleanPhone is the canonical normalizer used by the
+            // ContactObserver on write, so the value we match against in
+            // peoples_contacts is comparable byte-for-byte.
+            $normalized = Contact::cleanPhone((string) ($phone['num'] ?? ''));
+            if ($normalized !== '') {
+                return $normalized;
+            }
+        }
+
+        return null;
     }
 
     private function buildTitle(LeadEntity $entity): string
