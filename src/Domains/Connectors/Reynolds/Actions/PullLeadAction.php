@@ -220,37 +220,48 @@ class PullLeadAction
             return 0;
         }
 
-        $type = LeadType::fromApp($this->app)
-            ->fromCompany($this->company)
-            ->where('name', $name)
-            ->first();
+        $type = LeadType::firstOrCreate(
+            [
+                'apps_id' => $this->app->getId(),
+                'companies_id' => $this->company->getId(),
+                'name' => $name,
+            ],
+            [
+                'description' => "Reynolds ProspectType: {$name}",
+                'is_active' => 1,
+            ],
+        );
 
-        return $type?->getId() ?? 0;
+        return $type->getId();
     }
 
     private function resolveStatusId(?string $name): int
     {
-        if ($name !== null) {
-            $status = LeadStatus::fromApp($this->app)
-                ->fromCompany($this->company)
-                ->where('name', $name)
-                ->first();
-
-            if ($status !== null) {
-                return $status->getId();
-            }
-        }
-
         // Reynolds Publish Lead Update does not include ProspectStatus, so most LDU
         // payloads land here. Fall back to the first available LeadStatus visible to
         // this app (including globally-seeded rows with apps_id=0) — leaving
         // leads_status_id = 0 breaks the LeadObserver which calls
         // status()->firstOrFail() on save.
-        $default = LeadStatus::query()
-            ->whereIn('apps_id', [0, $this->app->getId()])
-            ->first();
+        if ($name === null) {
+            $default = LeadStatus::query()
+                ->whereIn('apps_id', [0, $this->app->getId()])
+                ->first();
 
-        return $default?->getId() ?? 0;
+            return $default?->getId() ?? 0;
+        }
+
+        $status = LeadStatus::firstOrCreate(
+            [
+                'apps_id' => $this->app->getId(),
+                'companies_id' => $this->company->getId(),
+                'name' => $name,
+            ],
+            [
+                'is_default' => 0,
+            ],
+        );
+
+        return $status->getId();
     }
 
     private function resolveSourceId(?string $name): int
@@ -259,11 +270,18 @@ class PullLeadAction
             return 0;
         }
 
-        $source = LeadSource::fromApp($this->app)
-            ->fromCompany($this->company)
-            ->where('name', $name)
-            ->first();
+        $source = LeadSource::firstOrCreate(
+            [
+                'apps_id' => $this->app->getId(),
+                'companies_id' => $this->company->getId(),
+                'name' => $name,
+            ],
+            [
+                'description' => "Reynolds ProviderName: {$name}",
+                'is_active' => 1,
+            ],
+        );
 
-        return $source?->getId() ?? 0;
+        return $source->getId();
     }
 }
