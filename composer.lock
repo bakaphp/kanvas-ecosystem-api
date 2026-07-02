@@ -1759,16 +1759,16 @@
         },
         {
             "name": "durable-workflow/workflow",
-            "version": "1.0.76",
+            "version": "1.0.77",
             "source": {
                 "type": "git",
                 "url": "https://github.com/durable-workflow/workflow.git",
-                "reference": "2fa4d3f1fffc8d870e6caef574f99579ab9ce401"
+                "reference": "c3f5312e8094bf3415fe519f47ef6b1bf34d4132"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/2fa4d3f1fffc8d870e6caef574f99579ab9ce401",
-                "reference": "2fa4d3f1fffc8d870e6caef574f99579ab9ce401",
+                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/c3f5312e8094bf3415fe519f47ef6b1bf34d4132",
+                "reference": "c3f5312e8094bf3415fe519f47ef6b1bf34d4132",
                 "shasum": ""
             },
             "require": {
@@ -1813,9 +1813,9 @@
             "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
             "support": {
                 "issues": "https://github.com/durable-workflow/workflow/issues",
-                "source": "https://github.com/durable-workflow/workflow/tree/1.0.76"
+                "source": "https://github.com/durable-workflow/workflow/tree/1.0.77"
             },
-            "time": "2026-04-24T15:24:01+00:00"
+            "time": "2026-07-01T00:19:23+00:00"
         },
         {
             "name": "dyrynda/laravel-cascade-soft-deletes",
