@@ -119,7 +119,11 @@ class PullLeadAction
             ),
             'leads_owner_id' => $this->resolveOwnerId($entity) ?? $this->user->getId(),
             'type_id' => $this->resolveTypeId($entity->prospectType),
-            'status_id' => $this->resolveStatusId($entity->prospectStatus),
+            // Real R&R envelopes carry <ProspectStatusType> (e.g. "Open",
+            // "Closed", "Sold"), and the LDU spec's <ProspectStatus> field
+            // hardly ever shows up in production. Prefer the status type,
+            // fall back to prospectStatus for spec-shaped payloads.
+            'status_id' => $this->resolveStatusId($entity->prospectStatusType ?? $entity->prospectStatus),
             'source_id' => $this->resolveSourceId($entity->providerName),
             'receiver_id' => 0,
             'description' => $entity->prospectNote,
@@ -198,9 +202,16 @@ class PullLeadAction
             return null;
         }
 
-        $parts = explode(' ', trim($entity->primarySalesPerson), 2);
-        $firstname = $parts[0] ?? null;
-        $lastname = $parts[1] ?? null;
+        // R&R publishes PrimarySalesPerson as "LastName, FirstName" (comma-
+        // separated) — e.g. "Thomas, Erick". Some legacy dealer configs send
+        // "FirstName LastName" (space-separated) instead. Try comma first,
+        // fall back to whitespace for the legacy shape.
+        $raw = trim($entity->primarySalesPerson);
+        if (str_contains($raw, ',')) {
+            [$lastname, $firstname] = array_pad(array_map('trim', explode(',', $raw, 2)), 2, null);
+        } else {
+            [$firstname, $lastname] = array_pad(array_map('trim', explode(' ', $raw, 2)), 2, null);
+        }
 
         if (! $firstname || ! $lastname) {
             return null;
@@ -220,37 +231,48 @@ class PullLeadAction
             return 0;
         }
 
-        $type = LeadType::fromApp($this->app)
-            ->fromCompany($this->company)
-            ->where('name', $name)
-            ->first();
+        $type = LeadType::firstOrCreate(
+            [
+                'apps_id' => $this->app->getId(),
+                'companies_id' => $this->company->getId(),
+                'name' => $name,
+            ],
+            [
+                'description' => "Reynolds ProspectType: {$name}",
+                'is_active' => 1,
+            ],
+        );
 
-        return $type?->getId() ?? 0;
+        return $type->getId();
     }
 
     private function resolveStatusId(?string $name): int
     {
-        if ($name !== null) {
-            $status = LeadStatus::fromApp($this->app)
-                ->fromCompany($this->company)
-                ->where('name', $name)
-                ->first();
-
-            if ($status !== null) {
-                return $status->getId();
-            }
-        }
-
         // Reynolds Publish Lead Update does not include ProspectStatus, so most LDU
         // payloads land here. Fall back to the first available LeadStatus visible to
         // this app (including globally-seeded rows with apps_id=0) — leaving
         // leads_status_id = 0 breaks the LeadObserver which calls
         // status()->firstOrFail() on save.
-        $default = LeadStatus::query()
-            ->whereIn('apps_id', [0, $this->app->getId()])
-            ->first();
+        if ($name === null) {
+            $default = LeadStatus::query()
+                ->whereIn('apps_id', [0, $this->app->getId()])
+                ->first();
 
-        return $default?->getId() ?? 0;
+            return $default?->getId() ?? 0;
+        }
+
+        $status = LeadStatus::firstOrCreate(
+            [
+                'apps_id' => $this->app->getId(),
+                'companies_id' => $this->company->getId(),
+                'name' => $name,
+            ],
+            [
+                'is_default' => 0,
+            ],
+        );
+
+        return $status->getId();
     }
 
     private function resolveSourceId(?string $name): int
@@ -259,11 +281,18 @@ class PullLeadAction
             return 0;
         }
 
-        $source = LeadSource::fromApp($this->app)
-            ->fromCompany($this->company)
-            ->where('name', $name)
-            ->first();
+        $source = LeadSource::firstOrCreate(
+            [
+                'apps_id' => $this->app->getId(),
+                'companies_id' => $this->company->getId(),
+                'name' => $name,
+            ],
+            [
+                'description' => "Reynolds ProviderName: {$name}",
+                'is_active' => 1,
+            ],
+        );
 
-        return $source?->getId() ?? 0;
+        return $source->getId();
     }
 }
