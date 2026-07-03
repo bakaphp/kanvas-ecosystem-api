@@ -51,11 +51,17 @@ class PullLeadAction
             throw new ReynoldsException('Lead Update payload missing ProspectId or Customer');
         }
 
+        // R&R LDU envelopes only carry the fields that changed — the second
+        // envelope for a prospect can arrive with just <IsAiGenerated> under
+        // <Prospect> and nothing else, so we have to preserve whatever the
+        // existing Lead already has for anything the envelope doesn't repeat.
+        $existingLead = $this->findExistingLead((string) $entity->prospectId);
+
         // Anchor the People sync so consecutive envelopes (e.g. OSL without a
         // NameRecId immediately followed by an LDU that carries the real one)
         // update the same People row instead of creating a duplicate. Lookup
         // order: existing Lead by ProspectId → People matched by email/phone.
-        $existingPeopleId = $this->resolveExistingPeopleId($entity);
+        $existingPeopleId = $this->resolveExistingPeopleId($entity, $existingLead);
 
         $customFields = [
             CustomFieldEnum::PROSPECT_ID->value => $entity->prospectId,
@@ -105,7 +111,9 @@ class PullLeadAction
             'app' => $this->app,
             'branch' => $this->company->defaultBranch,
             'user' => $this->user,
-            'title' => $this->buildTitle($entity),
+            // Keep the title the dealer/agent might have hand-edited when we're
+            // updating an existing lead; only compute a fresh one on first sync.
+            'title' => $existingLead?->title ?? $this->buildTitle($entity),
             'pipeline_stage_id' => 0,
             'people' => $entity->customer->toPeopleData(
                 app: $this->app,
@@ -117,31 +125,55 @@ class PullLeadAction
                 // key per Reynolds prospect when the anchor lookups miss too.
                 fallbackNameRecId: 'prospect:' . $entity->prospectId,
             ),
-            'leads_owner_id' => $this->resolveOwnerId($entity) ?? $this->user->getId(),
-            'type_id' => $this->resolveTypeId($entity->prospectType),
+            // Every scalar below preserves the existing Lead's value when the
+            // envelope doesn't carry a fresh one — R&R only ships changed
+            // fields on LDU, so overwriting with null would wipe what OSL set.
+            'leads_owner_id' => $this->resolveOwnerId($entity)
+                ?? $existingLead?->leads_owner_id
+                ?? $this->user->getId(),
+            'type_id' => $this->resolveTypeId(
+                $entity->prospectType,
+                $existingLead?->leads_types_id,
+            ),
             // Real R&R envelopes carry <ProspectStatusType> (e.g. "Open",
             // "Closed", "Sold"), and the LDU spec's <ProspectStatus> field
             // hardly ever shows up in production. Prefer the status type,
             // fall back to prospectStatus for spec-shaped payloads.
-            'status_id' => $this->resolveStatusId($entity->prospectStatusType ?? $entity->prospectStatus),
-            'source_id' => $this->resolveSourceId($entity->providerName),
+            'status_id' => $this->resolveStatusId(
+                $entity->prospectStatusType ?? $entity->prospectStatus,
+                $existingLead?->leads_status_id,
+            ),
+            'source_id' => $this->resolveSourceId(
+                $entity->providerName,
+                $existingLead?->leads_sources_id,
+            ),
             'receiver_id' => 0,
-            'description' => $entity->prospectNote,
+            'description' => $entity->prospectNote ?? $existingLead?->description,
             'custom_fields' => $customFields,
         ]);
 
         return new SyncLeadByThirdPartyCustomFieldAction($leadData)->execute();
     }
 
-    private function resolveExistingPeopleId(LeadEntity $entity): ?int
+    private function findExistingLead(string $prospectId): ?LeadModel
     {
-        // 1. Same Reynolds prospect already synced → reuse its People.
-        $existingLead = LeadModel::getByCustomField(
+        if ($prospectId === '') {
+            return null;
+        }
+
+        /** @var LeadModel|null $lead */
+        $lead = LeadModel::getByCustomField(
             CustomFieldEnum::PROSPECT_ID->value,
-            (string) $entity->prospectId,
+            $prospectId,
             $this->company,
         );
 
+        return $lead;
+    }
+
+    private function resolveExistingPeopleId(LeadEntity $entity, ?LeadModel $existingLead): ?int
+    {
+        // 1. Same Reynolds prospect already synced → reuse its People.
         if ($existingLead?->people_id) {
             return (int) $existingLead->people_id;
         }
@@ -225,10 +257,10 @@ class PullLeadAction
         return $user?->getId();
     }
 
-    private function resolveTypeId(?string $name): int
+    private function resolveTypeId(?string $name, ?int $currentId = null): int
     {
         if ($name === null) {
-            return 0;
+            return (int) ($currentId ?? 0);
         }
 
         $type = LeadType::firstOrCreate(
@@ -246,14 +278,19 @@ class PullLeadAction
         return $type->getId();
     }
 
-    private function resolveStatusId(?string $name): int
+    private function resolveStatusId(?string $name, ?int $currentId = null): int
     {
         // Reynolds Publish Lead Update does not include ProspectStatus, so most LDU
-        // payloads land here. Fall back to the first available LeadStatus visible to
-        // this app (including globally-seeded rows with apps_id=0) — leaving
-        // leads_status_id = 0 breaks the LeadObserver which calls
+        // payloads land here. Prefer the existing Lead's status (LDU is only
+        // shipping deltas), then fall back to the first available LeadStatus
+        // visible to this app (including globally-seeded rows with apps_id=0) —
+        // leaving leads_status_id = 0 breaks the LeadObserver which calls
         // status()->firstOrFail() on save.
         if ($name === null) {
+            if ($currentId !== null) {
+                return $currentId;
+            }
+
             $default = LeadStatus::query()
                 ->whereIn('apps_id', [0, $this->app->getId()])
                 ->first();
@@ -275,10 +312,10 @@ class PullLeadAction
         return $status->getId();
     }
 
-    private function resolveSourceId(?string $name): int
+    private function resolveSourceId(?string $name, ?int $currentId = null): int
     {
         if ($name === null) {
-            return 0;
+            return (int) ($currentId ?? 0);
         }
 
         $source = LeadSource::firstOrCreate(
