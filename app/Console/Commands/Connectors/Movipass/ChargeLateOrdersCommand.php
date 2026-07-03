@@ -39,7 +39,7 @@ class ChargeLateOrdersCommand extends Command
             $appsIds = Settings::where([
                 'name' => ConfigurationEnum::GRACE_PERIOD_DAYS->value,
                 'value' => '1',
-            ])->select('apps_id')->get()->pluck('apps_id');
+            ])->select('apps_id')->get()->pluck('apps_id')->unique()->values();
             $this->info('Checking ' . $appsIds->count() . ' apps');
             foreach ($appsIds as $appsId) {
                 $this->checkApps($appsId);
