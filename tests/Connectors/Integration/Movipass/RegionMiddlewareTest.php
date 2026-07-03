@@ -33,8 +33,11 @@ final class RegionMiddlewareTest extends TestCase
     protected function tearDown(): void
     {
         app()->forgetInstance(Regions::class);
-        $this->appInstance->del(ConfigurationEnum::REGION_COUNTRY_MAP->value);
-        $this->appInstance->del(ConfigurationEnum::DEFAULT_REGION_UUID->value);
+
+        if (isset($this->appInstance)) {
+            $this->appInstance->del(ConfigurationEnum::REGION_COUNTRY_MAP->value);
+            $this->appInstance->del(ConfigurationEnum::DEFAULT_REGION_UUID->value);
+        }
 
         parent::tearDown();
     }
