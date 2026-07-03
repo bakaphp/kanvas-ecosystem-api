@@ -27,9 +27,12 @@ class CheckApiHealthAction extends BaseCheckHealthAction
             return HealthCheckResultEnum::FAILED;
         }
 
-        $client = SshClient::fromMachine($machine);
+        // fromMachine() throws on an unreachable sshd — keep it inside the try so a dead machine
+        // returns FAILED instead of escaping to the command's report() every tick.
+        $client = null;
 
         try {
+            $client = SshClient::fromMachine($machine);
             $command = sprintf(
                 'docker exec %s curl -s -o /dev/null -m 3 -w "%%{http_code}" -H %s http://127.0.0.1:8642/health',
                 escapeshellarg($this->deployment->container_name),
@@ -39,7 +42,7 @@ class CheckApiHealthAction extends BaseCheckHealthAction
         } catch (Throwable) {
             return HealthCheckResultEnum::FAILED;
         } finally {
-            $client->disconnect();
+            $client?->disconnect();
         }
 
         return $code === '200' ? HealthCheckResultEnum::OK : HealthCheckResultEnum::FAILED;

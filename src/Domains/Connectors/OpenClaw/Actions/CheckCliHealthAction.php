@@ -22,14 +22,17 @@ class CheckCliHealthAction extends BaseCheckHealthAction
             return HealthCheckResultEnum::FAILED;
         }
 
-        $client = SshClient::fromMachine($machine);
+        // fromMachine() throws on an unreachable sshd — keep it inside the try so a dead machine
+        // returns FAILED instead of escaping to the command's report() every tick.
+        $client = null;
 
         try {
+            $client = SshClient::fromMachine($machine);
             $output = $client->getHealthForContainer($this->deployment->container_name);
         } catch (Throwable) {
             return HealthCheckResultEnum::FAILED;
         } finally {
-            $client->disconnect();
+            $client?->disconnect();
         }
 
         return $this->isHealthy($output)
