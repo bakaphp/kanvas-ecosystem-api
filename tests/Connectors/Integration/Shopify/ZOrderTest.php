@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Shopify;
 
 use Baka\Support\Str;
+use Illuminate\Http\Request;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Actions\CreateShopifyDraftOrderAction;
 use Kanvas\Connectors\Shopify\Actions\SyncShopifyOrderAction;
+use Kanvas\Connectors\Shopify\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Shopify\Enums\StatusEnum;
+use Kanvas\Connectors\Shopify\Jobs\ProcessShopifyOrderWebhookJob;
 use Kanvas\Connectors\Shopify\Services\ShopifyInventoryService;
 use Kanvas\Connectors\Shopify\Services\ShopifyOrderService;
 use Kanvas\Guild\Customers\Models\People;
@@ -19,6 +22,8 @@ use Kanvas\Souk\Orders\DataTransferObject\Order as DataTransferObjectOrder;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
+use Kanvas\Workflow\Models\ReceiverWebhook;
 use Tests\Connectors\Traits\HasShopifyConfiguration;
 use Tests\TestCase;
 
@@ -64,6 +69,92 @@ final class ZOrderTest extends TestCase
         //$this->assertEquals($order->items->count(), count($shopifyOrderData['line_items']));
         $this->assertEqualsIgnoringCase($order->getTotalAmount(), (float) $shopifyOrderData['current_total_price']);
         $this->assertEquals($order->getShopifyId($warehouse->region), $shopifyOrderData['id']);
+    }
+
+    public function testPosOrderWebhookCreatesAndReusesDummyCustomer()
+    {
+        $app = app(Apps::class);
+        $product = Products::first();
+        $variant = $product->variants()->first();
+        $warehouse = $variant->warehouses()->first();
+        $this->setupShopifyConfiguration($product, $warehouse);
+        $region = $warehouse->region;
+        $company = $product->company;
+
+        $receiver = ReceiverWebhook::factory()
+            ->app($app->getId())
+            ->user($company->user->getId())
+            ->company($company->getId())
+            ->create(['configuration' => ['region_id' => $region->getId(), 'is_b2b_order' => false]]);
+
+        $runPosOrder = function (int $orderId) use ($receiver): void {
+            $payload = $this->posOrderPayload($orderId);
+            $request = Request::create('https://localhost/shopify/pos', 'POST', [], [], [], ['CONTENT_TYPE' => 'application/json'], json_encode($payload));
+            $webhookRequest = (new ProcessWebhookAttemptAction($receiver, $request))->execute();
+            (new ProcessShopifyOrderWebhookJob($webhookRequest))->handle();
+        };
+
+        $runPosOrder(9000000000001);
+
+        $posCustomer = People::getByCustomField(
+            CustomFieldEnum::SHOPIFY_CUSTOMER_ID->value,
+            'pos-customer-' . $company->getId(),
+            $company
+        );
+
+        $this->assertInstanceOf(People::class, $posCustomer);
+        $this->assertEquals('POS', $posCustomer->firstname);
+
+        // a second POS order must reuse the same dummy customer, not create a duplicate
+        $runPosOrder(9000000000002);
+
+        $reused = People::getByCustomField(
+            CustomFieldEnum::SHOPIFY_CUSTOMER_ID->value,
+            'pos-customer-' . $company->getId(),
+            $company
+        );
+
+        $this->assertEquals($posCustomer->getId(), $reused->getId());
+    }
+
+    private function posOrderPayload(int $orderId): array
+    {
+        return [
+            'id' => $orderId,
+            'name' => '#' . $orderId,
+            'order_number' => $orderId,
+            'token' => 'pos-token-' . $orderId,
+            'source_name' => 'pos',
+            'customer' => null,
+            'contact_email' => null,
+            'phone' => null,
+            'currency' => 'USD',
+            'customer_locale' => 'en',
+            'cancelled_at' => null,
+            'fulfillment_status' => 'fulfilled',
+            'total_weight' => 42,
+            'total_discounts' => '0.00',
+            'current_total_price' => '885.95',
+            'current_total_tax' => '0.00',
+            'shipping_address' => null,
+            'billing_address' => null,
+            'shipping_lines' => [],
+            'payment_gateway_names' => ['shopify_payments'],
+            'total_shipping_price_set' => ['shop_money' => ['amount' => '0.00', 'currency_code' => 'USD']],
+            'line_items' => [
+                [
+                    'id' => 111,
+                    'name' => 'The Videographer Snowboard',
+                    'sku' => 'POS-SKU',
+                    'price' => '885.95',
+                    'quantity' => 1,
+                    'product_id' => 9313716535612,
+                    'variant_id' => 49121760117052,
+                    'total_discount' => '0.00',
+                    'price_set' => ['shop_money' => ['amount' => '885.95', 'currency_code' => 'USD']],
+                ],
+            ],
+        ];
     }
 
     public function testCreateDraftOrder()
