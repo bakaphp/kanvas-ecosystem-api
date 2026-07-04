@@ -384,16 +384,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.386.1",
+            "version": "3.387.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "e36bc0e97e82d68acc92b9e06f5dc544913d819a"
+                "reference": "dac6a19ffc71e6d100f06098e7df58f2e27103f9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/e36bc0e97e82d68acc92b9e06f5dc544913d819a",
-                "reference": "e36bc0e97e82d68acc92b9e06f5dc544913d819a",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/dac6a19ffc71e6d100f06098e7df58f2e27103f9",
+                "reference": "dac6a19ffc71e6d100f06098e7df58f2e27103f9",
                 "shasum": ""
             },
             "require": {
@@ -475,9 +475,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.386.1"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.387.2"
             },
-            "time": "2026-06-23T01:24:07+00:00"
+            "time": "2026-07-02T18:06:18+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -2836,16 +2836,16 @@
         },
         {
             "name": "grpc/grpc",
-            "version": "1.81.0",
+            "version": "1.82.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/grpc/grpc-php.git",
-                "reference": "47046d6b2a6cc7e68806a287d6a1fee57e0c40da"
+                "reference": "be984cb608f21e96453b3cfe54c748cc7b192250"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/grpc/grpc-php/zipball/47046d6b2a6cc7e68806a287d6a1fee57e0c40da",
-                "reference": "47046d6b2a6cc7e68806a287d6a1fee57e0c40da",
+                "url": "https://api.github.com/repos/grpc/grpc-php/zipball/be984cb608f21e96453b3cfe54c748cc7b192250",
+                "reference": "be984cb608f21e96453b3cfe54c748cc7b192250",
                 "shasum": ""
             },
             "require": {
@@ -2874,9 +2874,9 @@
                 "rpc"
             ],
             "support": {
-                "source": "https://github.com/grpc/grpc-php/tree/v1.81.0"
+                "source": "https://github.com/grpc/grpc-php/tree/v1.82.0"
             },
-            "time": "2026-05-20T09:30:50+00:00"
+            "time": "2026-07-03T09:39:53+00:00"
         },
         {
             "name": "guzzlehttp/guzzle",
@@ -6253,12 +6253,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/SpartnerNL/Laravel-Excel.git",
-                "reference": "a31cc13f5ef07fda91893ad3820d1e54d09cb99d"
+                "reference": "58d8e067596c4ca3a0817c9fa1b7492931341849"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/SpartnerNL/Laravel-Excel/zipball/a31cc13f5ef07fda91893ad3820d1e54d09cb99d",
-                "reference": "a31cc13f5ef07fda91893ad3820d1e54d09cb99d",
+                "url": "https://api.github.com/repos/SpartnerNL/Laravel-Excel/zipball/58d8e067596c4ca3a0817c9fa1b7492931341849",
+                "reference": "58d8e067596c4ca3a0817c9fa1b7492931341849",
                 "shasum": ""
             },
             "require": {
@@ -6277,7 +6277,7 @@
                 "laravel/scout": "^10.0 || ^11.0",
                 "orchestra/testbench": "^10.0 || ^11.0",
                 "phpstan/extension-installer": "^1.4",
-                "phpstan/phpstan": "^2.1.55",
+                "phpstan/phpstan": "^2.2.2",
                 "phpstan/phpstan-mockery": "^2.0",
                 "phpunit/phpunit": "^12.5.3 || ^13.0.0",
                 "predis/predis": "^1.1",
@@ -6335,7 +6335,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-01T17:23:34+00:00"
+            "time": "2026-07-01T14:47:09+00:00"
         },
         {
             "name": "maennchen/zipstream-php",
@@ -9683,16 +9683,16 @@
         },
         {
             "name": "psy/psysh",
-            "version": "v0.12.23",
+            "version": "v0.12.24",
             "source": {
                 "type": "git",
                 "url": "https://github.com/bobthecow/psysh.git",
-                "reference": "4dcc0f08047d52bbde475eda481146fd8e27e1a4"
+                "reference": "ca0fdcf8a7617afa3adfdf1b5fef573dffb69ca1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/bobthecow/psysh/zipball/4dcc0f08047d52bbde475eda481146fd8e27e1a4",
-                "reference": "4dcc0f08047d52bbde475eda481146fd8e27e1a4",
+                "url": "https://api.github.com/repos/bobthecow/psysh/zipball/ca0fdcf8a7617afa3adfdf1b5fef573dffb69ca1",
+                "reference": "ca0fdcf8a7617afa3adfdf1b5fef573dffb69ca1",
                 "shasum": ""
             },
             "require": {
@@ -9756,9 +9756,9 @@
             ],
             "support": {
                 "issues": "https://github.com/bobthecow/psysh/issues",
-                "source": "https://github.com/bobthecow/psysh/tree/v0.12.23"
+                "source": "https://github.com/bobthecow/psysh/tree/v0.12.24"
             },
-            "time": "2026-05-23T13:41:31+00:00"
+            "time": "2026-06-29T15:41:09+00:00"
         },
         {
             "name": "pusher/pusher-php-server",
@@ -10939,16 +10939,16 @@
         },
         {
             "name": "sentry/sentry",
-            "version": "4.28.0",
+            "version": "4.29.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/getsentry/sentry-php.git",
-                "reference": "662cb7a01a342a7f33780fc955ff4a028d8b785a"
+                "reference": "d732a4da195f231cedb2a2a78ae16dd73082afa3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/662cb7a01a342a7f33780fc955ff4a028d8b785a",
-                "reference": "662cb7a01a342a7f33780fc955ff4a028d8b785a",
+                "url": "https://api.github.com/repos/getsentry/sentry-php/zipball/d732a4da195f231cedb2a2a78ae16dd73082afa3",
+                "reference": "d732a4da195f231cedb2a2a78ae16dd73082afa3",
                 "shasum": ""
             },
             "require": {
@@ -10973,6 +10973,7 @@
                 "open-telemetry/api": "^1.0",
                 "open-telemetry/exporter-otlp": "^1.0",
                 "open-telemetry/sdk": "^1.0",
+                "open-telemetry/sem-conv": "^1.27",
                 "phpstan/phpstan": "^1.3",
                 "phpunit/phpunit": "^8.5.52|^9.6.34",
                 "spiral/roadrunner-http": "^3.6",
@@ -11016,7 +11017,7 @@
             ],
             "support": {
                 "issues": "https://github.com/getsentry/sentry-php/issues",
-                "source": "https://github.com/getsentry/sentry-php/tree/4.28.0"
+                "source": "https://github.com/getsentry/sentry-php/tree/4.29.0"
             },
             "funding": [
                 {
@@ -11028,7 +11029,7 @@
                     "type": "custom"
                 }
             ],
-            "time": "2026-06-11T12:22:38+00:00"
+            "time": "2026-06-29T14:47:44+00:00"
         },
         {
             "name": "sentry/sentry-laravel",
