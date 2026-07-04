@@ -28,11 +28,15 @@ class SyncShopifyCustomerAction
 
     public function execute(): People
     {
-        $customer = People::getByCustomField(
-            CustomFieldEnum::SHOPIFY_CUSTOMER_ID->value,
-            $this->customerData['id'],
-            $this->company
-        );
+        $shopifyCustomerId = $this->customerData['id'] ?? null;
+
+        $customer = $shopifyCustomerId !== null
+            ? People::getByCustomField(
+                CustomFieldEnum::SHOPIFY_CUSTOMER_ID->value,
+                $shopifyCustomerId,
+                $this->company
+            )
+            : null;
 
         $contact = [];
         if (! empty($this->customerData['email'])) {
@@ -76,9 +80,9 @@ class SyncShopifyCustomerAction
             firstname: $this->customerData['first_name'] ?? '', //shopify does not require first name
             contacts: Contact::collect($contact, DataCollection::class),
             address: Address::collect($address, DataCollection::class),
-            lastname: $this->customerData['last_name'],
+            lastname: $this->customerData['last_name'] ?? '',
             custom_fields: [
-                CustomFieldEnum::SHOPIFY_CUSTOMER_ID->value => $this->customerData['id'],
+                CustomFieldEnum::SHOPIFY_CUSTOMER_ID->value => $shopifyCustomerId,
             ]
         );
 

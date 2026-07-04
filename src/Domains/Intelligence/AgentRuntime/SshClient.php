@@ -6,12 +6,13 @@ namespace Kanvas\Intelligence\AgentRuntime;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
+use Kanvas\Intelligence\AgentRuntime\Exceptions\AgentRuntimeUnreachableException;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use phpseclib3\Crypt\Common\PrivateKey;
 use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Net\SFTP;
+use Throwable;
 
 /**
  * Abstract SSH client for managing agent deployments on remote machines.
@@ -62,8 +63,16 @@ abstract class SshClient
         /** @var PrivateKey $key */
         $key = PublicKeyLoader::load($machine->ssh_private_key);
 
-        if (! $instance->sftp->login($machine->ssh_user, $key)) {
-            throw new ValidationException('SSH authentication failed for machine: ' . $machine->name);
+        // A dead sshd surfaces as a phpseclib connect exception; wrap it (and an auth rejection)
+        // into the unreachable signal so callers flag the deployment instead of paging Sentry.
+        try {
+            $authenticated = $instance->sftp->login($machine->ssh_user, $key);
+        } catch (Throwable $e) {
+            throw new AgentRuntimeUnreachableException('Cannot reach machine ' . $machine->name . ': ' . $e->getMessage());
+        }
+
+        if (! $authenticated) {
+            throw new AgentRuntimeUnreachableException('SSH authentication failed for machine: ' . $machine->name);
         }
 
         $config = $instance->providerConfig;

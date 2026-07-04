@@ -4352,16 +4352,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v13.18.0",
+            "version": "v13.18.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "138e5806ed7e4e21591948b661119d3810f052cf"
+                "reference": "7d66044819e269f05924793a6800022dc181d850"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/138e5806ed7e4e21591948b661119d3810f052cf",
-                "reference": "138e5806ed7e4e21591948b661119d3810f052cf",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/7d66044819e269f05924793a6800022dc181d850",
+                "reference": "7d66044819e269f05924793a6800022dc181d850",
                 "shasum": ""
             },
             "require": {
@@ -4572,7 +4572,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2026-06-30T12:54:13+00:00"
+            "time": "2026-07-02T18:35:20+00:00"
         },
         {
             "name": "laravel/octane",
@@ -6604,16 +6604,16 @@
         },
         {
             "name": "mike-bronner/laravel-model-caching",
-            "version": "13.1.4",
+            "version": "13.1.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mike-bronner/laravel-model-caching.git",
-                "reference": "51c30d696816b5fae682702adf19704d8d40f504"
+                "reference": "2b81426e076ca5c9a0896ba9ed830bf55d44fa8f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/51c30d696816b5fae682702adf19704d8d40f504",
-                "reference": "51c30d696816b5fae682702adf19704d8d40f504",
+                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/2b81426e076ca5c9a0896ba9ed830bf55d44fa8f",
+                "reference": "2b81426e076ca5c9a0896ba9ed830bf55d44fa8f",
                 "shasum": ""
             },
             "require": {
@@ -6677,9 +6677,9 @@
             "description": "Automatic caching for Eloquent models.",
             "support": {
                 "issues": "https://github.com/mike-bronner/laravel-model-caching/issues",
-                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.4"
+                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.5"
             },
-            "time": "2026-06-07T17:15:54+00:00"
+            "time": "2026-07-02T15:43:49+00:00"
         },
         {
             "name": "mikebronner/laravel-pivot-events",
@@ -7436,16 +7436,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.15.19",
+            "version": "3.15.22",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "19cf5a2e72b5320bef1527589e799b75bdb377af"
+                "reference": "ca03548594fe4db144d50bde8977cc4d10389019"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/19cf5a2e72b5320bef1527589e799b75bdb377af",
-                "reference": "19cf5a2e72b5320bef1527589e799b75bdb377af",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/ca03548594fe4db144d50bde8977cc4d10389019",
+                "reference": "ca03548594fe4db144d50bde8977cc4d10389019",
                 "shasum": ""
             },
             "require": {
@@ -7496,7 +7496,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.15.19"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.15.22"
             },
             "funding": [
                 {
@@ -7504,7 +7504,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-07-01T13:08:57+00:00"
+            "time": "2026-07-03T17:25:45+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
@@ -7721,16 +7721,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.67.0",
+            "version": "v6.68.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "49ad62035379ba0139f1b6d3778711603838b014"
+                "reference": "a29ff8eba68f79b80f7206b83ee570d95b28e3d8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/49ad62035379ba0139f1b6d3778711603838b014",
-                "reference": "49ad62035379ba0139f1b6d3778711603838b014",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/a29ff8eba68f79b80f7206b83ee570d95b28e3d8",
+                "reference": "a29ff8eba68f79b80f7206b83ee570d95b28e3d8",
                 "shasum": ""
             },
             "require": {
@@ -7847,7 +7847,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2026-06-07T09:00:40+00:00"
+            "time": "2026-07-02T09:45:18+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -18844,11 +18844,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.2.3",
+            "version": "2.2.4",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/4048833dd47b377287818841877fb3087289509c",
-                "reference": "4048833dd47b377287818841877fb3087289509c",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/f0fe3fb03bb53ce68cc2416785b260e62226ec27",
+                "reference": "f0fe3fb03bb53ce68cc2416785b260e62226ec27",
                 "shasum": ""
             },
             "require": {
@@ -18904,7 +18904,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-30T21:15:26+00:00"
+            "time": "2026-07-03T07:00:23+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",

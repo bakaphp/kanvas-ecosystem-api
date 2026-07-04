@@ -10,6 +10,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Locations\Models\Cities;
+use Kanvas\Locations\Models\Countries;
 use Kanvas\Locations\Models\States;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
@@ -165,8 +166,26 @@ class LeadTest extends TestCase
      */
     public function testCreateLeadResolvesAddressStateCityAndCountry(): void
     {
-        $state = States::where('name', 'California')->firstOrFail();
-        $city = Cities::where('states_id', $state->id)->firstOrFail();
+        // Self-seed the exact country/state/city the resolver will look up. Relying on the
+        // seeded location dataset is fragile — CI seeds only a subset and may have no state
+        // with both a country and cities.
+        $country = Countries::create([
+            'name' => fake()->unique()->country(),
+            'code' => strtolower(fake()->unique()->lexify('??')),
+            'flag' => '',
+        ]);
+
+        $state = States::create([
+            'countries_id' => $country->id,
+            'name' => fake()->unique()->state(),
+            'code' => strtoupper(fake()->unique()->lexify('??')),
+        ]);
+
+        $city = Cities::create([
+            'countries_id' => $country->id,
+            'states_id' => $state->id,
+            'name' => fake()->unique()->city(),
+        ]);
 
         $user = auth()->user();
         $branch = $user->getCurrentBranch();

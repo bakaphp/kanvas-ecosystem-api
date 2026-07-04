@@ -15,6 +15,7 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Models\BaseModel;
 use Kanvas\Traits\DefaultTrait;
+use Override;
 
 /**
  * Class Regions.
@@ -45,6 +46,7 @@ class Regions extends BaseModel
     protected $table = 'regions';
     protected $guarded = [];
 
+    #[Override]
     protected function casts(): array
     {
         return [
@@ -56,7 +58,7 @@ class Regions extends BaseModel
     // it was typed as RegionSettings. Expose the encoded string so old apps don't break.
     public function getSettingsStringAttribute(): ?string
     {
-        return $this->settings !== null ? json_encode($this->settings) : null;
+        return $this->settings !== null ? json_encode($this->settings, JSON_THROW_ON_ERROR) : null;
     }
 
     public function currencies(): BelongsTo

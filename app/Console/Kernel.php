@@ -45,7 +45,7 @@ class Kernel extends ConsoleKernel
         $schedule->command(SocialUserCounterResetCommand::class, ['13'])->dailyAt('00:00');
         $schedule->command(OrderFinishExpiredCommand::class)->everyMinute();
         $schedule->command(CheckExpiringOrdersCommand::class)->everyMinute();
-        $schedule->command(ChargeLateOrdersCommand::class)->hourly();
+        $schedule->command(ChargeLateOrdersCommand::class)->hourly()->withoutOverlapping();
         $schedule->command(CancelStalePaymentsCommand::class)->everyFiveMinutes();
 
         // Nervous System — agent lifecycle, ledger maintenance, pulse + dashboard
