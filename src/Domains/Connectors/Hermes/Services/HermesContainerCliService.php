@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Hermes\Services;
 
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\AgentRuntime\Exceptions\AgentRuntimeUnreachableException;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
 
 /**
@@ -60,6 +61,12 @@ final class HermesContainerCliService
     private function decode(string $raw): array
     {
         $trimmed = trim($raw);
+
+        // A reaped container makes `docker exec` print "Error response from daemon: No such
+        // container" here — an expected dead-deployment signal, not malformed output.
+        if (str_contains($trimmed, 'No such container') || str_contains($trimmed, 'Error response from daemon')) {
+            throw new AgentRuntimeUnreachableException('Hermes container unavailable: ' . $this->snippet($trimmed));
+        }
 
         $starts = array_filter(
             [strpos($trimmed, '{'), strpos($trimmed, '[')],
