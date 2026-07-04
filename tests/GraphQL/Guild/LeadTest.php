@@ -165,8 +165,17 @@ class LeadTest extends TestCase
      */
     public function testCreateLeadResolvesAddressStateCityAndCountry(): void
     {
-        $state = States::where('name', 'California')->firstOrFail();
-        $city = Cities::where('states_id', $state->id)->firstOrFail();
+        // Pick any state with a country and cities — hardcoding one (e.g. California) is fragile
+        // because CI seeds only a subset of the location dataset.
+        $state = States::query()
+            ->where('countries_id', '>', 0)
+            ->whereHas('cities')
+            ->firstOrFail();
+
+        // Mirror Address::fromArray, which resolves city_id by (name, states_id)->first(), so the
+        // expected id matches exactly what the resolver persists even when the name repeats.
+        $cityName = $state->cities()->firstOrFail()->name;
+        $city = Cities::where('name', $cityName)->where('states_id', $state->id)->firstOrFail();
 
         $user = auth()->user();
         $branch = $user->getCurrentBranch();

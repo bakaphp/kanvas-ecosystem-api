@@ -28,6 +28,7 @@ use Override;
  * @property Carbon|null $launched_at
  * @property Carbon|null $terminated_at
  * @property Carbon|null $last_health_check
+ * @property int $health_check_failures
  * @property string|null $error_message
  * @property bool $is_deleted
  */
@@ -54,6 +55,7 @@ class AgentDeployment extends BaseModel
         'launched_at',
         'terminated_at',
         'last_health_check',
+        'health_check_failures',
         'error_message',
     ];
 
