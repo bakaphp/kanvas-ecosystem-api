@@ -10,6 +10,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Locations\Models\Cities;
+use Kanvas\Locations\Models\Countries;
 use Kanvas\Locations\Models\States;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
@@ -165,17 +166,26 @@ class LeadTest extends TestCase
      */
     public function testCreateLeadResolvesAddressStateCityAndCountry(): void
     {
-        // Pick any state with a country and cities — hardcoding one (e.g. California) is fragile
-        // because CI seeds only a subset of the location dataset.
-        $state = States::query()
-            ->where('countries_id', '>', 0)
-            ->whereHas('cities')
-            ->firstOrFail();
+        // Self-seed the exact country/state/city the resolver will look up. Relying on the
+        // seeded location dataset is fragile — CI seeds only a subset and may have no state
+        // with both a country and cities.
+        $country = Countries::create([
+            'name' => fake()->unique()->country(),
+            'code' => strtolower(fake()->unique()->lexify('??')),
+            'flag' => '',
+        ]);
 
-        // Mirror Address::fromArray, which resolves city_id by (name, states_id)->first(), so the
-        // expected id matches exactly what the resolver persists even when the name repeats.
-        $cityName = $state->cities()->firstOrFail()->name;
-        $city = Cities::where('name', $cityName)->where('states_id', $state->id)->firstOrFail();
+        $state = States::create([
+            'countries_id' => $country->id,
+            'name' => fake()->unique()->state(),
+            'code' => strtoupper(fake()->unique()->lexify('??')),
+        ]);
+
+        $city = Cities::create([
+            'countries_id' => $country->id,
+            'states_id' => $state->id,
+            'name' => fake()->unique()->city(),
+        ]);
 
         $user = auth()->user();
         $branch = $user->getCurrentBranch();
