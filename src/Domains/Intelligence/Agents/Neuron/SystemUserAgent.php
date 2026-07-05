@@ -1,0 +1,215 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Intelligence\Agents\Neuron;
+
+use Illuminate\Database\Eloquent\Model;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadEntityContextTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadMyLedgerTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\WhoIsUserTool;
+use Kanvas\Intelligence\Agents\Services\EntityContextBriefService;
+use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
+use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
+use Kanvas\Users\Models\Users;
+use NeuronAI\Chat\History\AbstractChatHistory;
+use NeuronAI\Chat\History\InMemoryChatHistory;
+use Override;
+
+/**
+ * A domain "system agent" that IS a Kanvas user and talks to people like a teammate.
+ *
+ * Memory is assembled per turn from where the conversation is happening, not from a
+ * single chat store:
+ *  - Dropped onto a CRM entity (Lead/People) → the entity's cross-channel rollup, so
+ *    the agent reads the whole prior thread before it replies.
+ *  - Talking directly to a person (entity is a Users) or running a company-scoped
+ *    command (no entity) → a per-session store keyed on the session, like a DM.
+ *
+ * Domain memory ("what have I done") comes from the ledger via tools (PR3), not from
+ * this conversation store — the two are kept separate on purpose.
+ */
+#[AgentTypeDefinition(
+    name: 'System User Agent',
+    description: 'A domain system agent that is a Kanvas user — reachable by any channel, droppable onto any entity, powered by its registered tool set.',
+    provider: 'neuron',
+    soul: 'You are a capable Kanvas system agent acting as a member of the team. You act through your tools and are accountable for what you do.',
+    outputFormat: 'Plain text. Short paragraphs; lists only when enumerating distinct items.',
+)]
+class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
+{
+    use MergesRegisteredTools;
+
+    #[Override]
+    protected function chatHistory(): AbstractChatHistory
+    {
+        $app = $this->app;
+        $company = $this->company;
+        $user = $this->user;
+
+        if ($app === null || $company === null || $user === null) {
+            return new InMemoryChatHistory();
+        }
+
+        if ($this->usesEntityRollup() && $this->entity !== null) {
+            // Mentioned on a CRM entity: load THAT entity's full cross-channel timeline
+            // (emails, SMS, prior agent replies, internal notes) so the agent sees the
+            // conversation that happened there before it responds.
+            return new SalesAssistKanvasMessageHistory(
+                app: $app,
+                company: $company,
+                user: $user,
+                entity: $this->entity,
+                includeInternal: true,
+                currentLead: $this->currentLead,
+            );
+        }
+
+        // Direct DM with a person, or a company-scoped command: per-session store,
+        // keyed on the session (threadId falls back to the session uuid).
+        return new KanvasMessageHistory(
+            app: $app,
+            company: $company,
+            user: $user,
+            agentClass: static::class,
+            sessionId: $this->threadId ?? $this->session?->uuid,
+            agent: $this->agent,
+            turnMedia: $this->turnMedia,
+            model: $this->resolvedModelName(),
+        );
+    }
+
+    /**
+     * KanvasMessageHistory self-persists each turn, so RunNeuronChatAction must skip
+     * logTurn there. The SalesAssist rollup writes to Social and leaves logTurn as its
+     * usage record — mirror that per branch.
+     */
+    #[Override]
+    public function persistsTurnsToConversationStore(): bool
+    {
+        return $this->app !== null
+            && $this->company !== null
+            && $this->user !== null
+            && ! $this->usesEntityRollup();
+    }
+
+    /**
+     * Prepend the agent's own identity (it IS a Kanvas user) and ground it on the
+     * record it was dropped onto. Both are deterministic — true even for facts never
+     * said in the thread — so the agent never has to guess who it is or who it's helping.
+     */
+    #[Override]
+    public function instructions(): string
+    {
+        $instructions = $this->selfIdentityBlock() . parent::instructions();
+
+        $subject = $this->subjectEntity();
+        if ($subject !== null) {
+            $instructions .= "\n\n## Who you're helping with right now\n"
+                . new EntityContextBriefService()->renderText($subject);
+        }
+
+        return $instructions;
+    }
+
+    private function selfIdentityBlock(): string
+    {
+        $agent = $this->agent;
+        if ($agent === null) {
+            return '';
+        }
+
+        $lines = [
+            '## Who you are',
+            sprintf(
+                'You are "%s", a Kanvas system agent — a real member of the team%s, built into Kanvas (not a generic external assistant).',
+                $agent->name,
+                $this->company !== null ? ' at ' . $this->company->name : '',
+            ),
+        ];
+
+        $user = $agent->user;
+        if ($user !== null) {
+            $displayName = trim($user->firstname . ' ' . $user->lastname);
+
+            $lines[] = sprintf(
+                'You ARE a Kanvas user: %s (email %s, user id %d). You act as this user — every record and ledger '
+                . 'event you create is stamped under this identity. When asked which user you are, this is the answer.',
+                $displayName !== '' ? $displayName : (string) $user->displayname,
+                (string) $user->email,
+                $user->getId(),
+            );
+        }
+
+        return implode("\n", $lines) . "\n\n";
+    }
+
+    /**
+     * @return list<object>
+     */
+    #[Override]
+    protected function tools(): array
+    {
+        $app = $this->app;
+        $company = $this->company;
+        $agent = $this->agent;
+
+        if ($app === null || $company === null || $agent === null) {
+            return [];
+        }
+
+        $core = [
+            new ReadMyLedgerTool($app, $company, $agent),
+            new WhoIsUserTool($app, $company, $this->entity instanceof Users ? $this->entity : null),
+        ];
+
+        $subject = $this->subjectEntity();
+        if ($subject !== null) {
+            $core[] = new ReadEntityContextTool($subject);
+        }
+
+        return $this->mergeRegisteredTools(
+            $core,
+            $agent,
+            CapabilityFrameworkEnum::NEURON
+        );
+    }
+
+    /**
+     * A system agent acts as ITSELF — a registry tool's Users dependency resolves to the
+     * agent's own dedicated user (via BaseKanvasAgent's type-based tool DI), so records it
+     * creates are stamped under the agent's identity rather than the human it's talking to.
+     */
+    #[Override]
+    protected function actingUser(): ?Users
+    {
+        return $this->agent?->user ?? $this->user;
+    }
+
+    private function usesEntityRollup(): bool
+    {
+        return $this->entity instanceof Lead || $this->entity instanceof People;
+    }
+
+    /**
+     * The record the agent is acting on — the per-turn lead in context wins (internal DM
+     * about a lead), otherwise any non-Users session entity (dropped onto a record). Null
+     * in a plain DM or a company-scoped command. Distinct from the human it's talking to.
+     */
+    private function subjectEntity(): ?Model
+    {
+        if ($this->currentLead !== null) {
+            return $this->currentLead;
+        }
+
+        if ($this->entity === null || $this->entity instanceof Users) {
+            return null;
+        }
+
+        return $this->entity;
+    }
+}

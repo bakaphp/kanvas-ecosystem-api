@@ -15,12 +15,14 @@ use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateUserSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Intelligence\Sessions\Services\UserAgentChannelService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 
@@ -200,6 +202,21 @@ class AgentChatMutation
             if ($session !== null) {
                 return $session;
             }
+        }
+
+        // System user-agents (ConversesWithUser) are INTERNAL: the staffer talks to them
+        // in a durable user↔agent DM, keyed on the user — never on the lead. A lead in
+        // scope is passed as per-turn context (currentLead → brief + read tools), so the
+        // agent reads the lead but its chat never posts into the customer-facing lead
+        // timeline. (Customer-facing posting is the connector path, persistConversation=false.)
+        if ($agent->conversesWithUser()) {
+            return new UserAgentChannelService()->resolveSession(
+                human: $user,
+                agent: $agent,
+                app: $app,
+                company: $company,
+                entity: $user,
+            );
         }
 
         if ($currentLead !== null) {

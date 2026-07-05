@@ -12,6 +12,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -136,14 +137,19 @@ class PersistChatTurnToSocialAction
         $channel->addMessage($incoming, $this->user);
         $channel->addMessage($reply, $aiUser);
 
-        // Falls back to the People's active Lead so mid-turn create_lead
-        // (request started lead-less, tool fired) still hits the Lead channel.
-        $resolvedLead = $this->currentLead
-            ?? match (true) {
-                $entity instanceof Lead => $entity,
-                $entity instanceof People => LeadsRepository::getPeopleActiveLead($entity),
-                default => null,
-            };
+        // Internal system agents (ConversesWithUser) chat with a staffer privately — their
+        // turns must NOT post into the customer-facing lead timeline even when a lead is in
+        // context. They read the lead via tools/brief; the conversation stays on the
+        // user↔agent channel only. Every other agent keeps the lead-channel behaviour, and
+        // falls back to the People's active Lead so a mid-turn create_lead still lands there.
+        $resolvedLead = $this->isInternalUserAgent()
+            ? null
+            : ($this->currentLead
+                ?? match (true) {
+                    $entity instanceof Lead => $entity,
+                    $entity instanceof People => LeadsRepository::getPeopleActiveLead($entity),
+                    default => null,
+                });
 
         if ($resolvedLead !== null && ! ($entity instanceof Lead)) {
             $leadChannelService = new LeadChannelService();
@@ -164,10 +170,19 @@ class PersistChatTurnToSocialAction
         }
 
         if ($resolvedLead !== null) {
-            new MarkLeadMessagesAsRespondedAction($resolvedLead, $reply)->execute();
+            new MarkLeadMessagesAsRespondedAction(
+                $resolvedLead,
+                $reply
+            )->execute();
         }
 
-        $this->user->notify(new AgentReplyNotification($reply, $this->agent, $aiUser));
+        $this->user->notify(
+            new AgentReplyNotification(
+                $reply,
+                $this->agent,
+                $aiUser
+            )
+        );
 
         return $reply;
     }
@@ -179,6 +194,21 @@ class PersistChatTurnToSocialAction
         } catch (Throwable) {
             return null;
         }
+    }
+
+    /**
+     * A system agent that talks to a user privately (its handler implements
+     * ConversesWithUser) — its turns stay on the user↔agent channel and never
+     * post into a customer-facing lead timeline.
+     */
+    protected function isInternalUserAgent(): bool
+    {
+        $handler = $this->agent->type?->handler;
+
+        return $handler !== null
+            && $handler !== ''
+            && class_exists($handler)
+            && is_subclass_of($handler, ConversesWithUser::class);
     }
 
     protected function resolveChannel(?Model $entity): Channel

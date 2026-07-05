@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Traits;
 
+use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\NervousSystem\Capability\Services\CapabilityProvider;
 use ReflectionClass;
+use ReflectionNamedType;
+use ReflectionParameter;
 
 /**
  * Loop the agent's registered tools and turn them into runtime instances.
@@ -93,14 +96,54 @@ trait MergesRegisteredTools
         }
 
         $ctor = new ReflectionClass($tool->handler)->getConstructor();
-        if ($ctor !== null) {
-            foreach ($ctor->getParameters() as $param) {
-                if (! $param->isOptional()) {
-                    return null;
-                }
+        if ($ctor === null || $ctor->getNumberOfParameters() === 0) {
+            return new $tool->handler();
+        }
+
+        // A tool with constructor params: inject them by type from the host's
+        // dependency context (Apps/Companies/Users/Session/Agent/entity). Hosts that
+        // don't provide context resolve only tools whose params are all optional —
+        // the historical behaviour.
+        $candidates = $this instanceof ProvidesToolDependencies
+            ? $this->toolDependencyCandidates()
+            : [];
+
+        $args = [];
+        foreach ($ctor->getParameters() as $param) {
+            $dependency = $this->matchToolDependency($param, $candidates);
+
+            if ($dependency !== null) {
+                $args[$param->getName()] = $dependency;
+
+                continue;
+            }
+
+            if (! $param->isOptional()) {
+                // A required dependency we can't satisfy — skip rather than fatal.
+                return null;
             }
         }
 
-        return new $tool->handler();
+        return new $tool->handler(...$args);
+    }
+
+    /**
+     * @param list<object> $candidates
+     */
+    private function matchToolDependency(ReflectionParameter $param, array $candidates): ?object
+    {
+        $type = $param->getType();
+        if (! $type instanceof ReflectionNamedType || $type->isBuiltin()) {
+            return null;
+        }
+
+        $expected = $type->getName();
+        foreach ($candidates as $candidate) {
+            if ($candidate instanceof $expected) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 }

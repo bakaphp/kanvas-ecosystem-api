@@ -22,6 +22,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
@@ -322,6 +323,21 @@ class Agent extends BaseModel
         }
 
         return $this->type?->handler === OpenClawAgentHandler::class;
+    }
+
+    /**
+     * Whether this agent talks to a user privately — its handler implements
+     * ConversesWithUser. An internal system agent whose conversation stays on the
+     * user↔agent channel and never posts into a customer-facing lead timeline.
+     */
+    public function conversesWithUser(): bool
+    {
+        $handler = $this->type?->handler;
+
+        return $handler !== null
+            && $handler !== ''
+            && class_exists($handler)
+            && is_subclass_of($handler, ConversesWithUser::class);
     }
 
     public function searchableAs(): string
