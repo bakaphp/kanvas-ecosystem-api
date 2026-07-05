@@ -31,9 +31,9 @@ class ChannelMessageHistory extends AbstractChatHistory
     }
 
     /**
-     * Merge consecutive same-role turns so the incoming mention (added by the runner)
-     * folds into the channel's trailing user turn instead of breaking user/assistant
-     * alternation, which providers reject.
+     * Merge consecutive same-role turns so the incoming mention (added by the runner) folds
+     * into the channel's trailing turn instead of breaking user/assistant alternation, which
+     * providers reject. This is the one place coalescing happens — load() feeds through here too.
      */
     #[Override]
     public function addMessage(Message $message): ChatHistoryInterface
@@ -52,44 +52,33 @@ class ChannelMessageHistory extends AbstractChatHistory
 
     private function load(): void
     {
-        /** @var list<Message> $messages */
-        $messages = $this->channel->messages()
+        $this->channel->messages()
             ->orderBy('messages.id', 'asc')
             ->get()
-            ->map(function (SocialMessage $message): ?Message {
-                $content = trim($message->contentText());
+            ->each(function (SocialMessage $message): void {
+                $turn = $this->toNeuronMessage($message);
 
-                if ($content === '') {
-                    return null;
+                if ($turn !== null) {
+                    $this->addMessage($turn);
                 }
-
-                return (bool) ($message->getMessage()['from_ia'] ?? false)
-                    ? new AssistantMessage($content)
-                    : new UserMessage($content);
-            })
-            ->filter()
-            ->values()
-            ->all();
-
-        /** @var list<Message> $coalesced */
-        $coalesced = [];
-        foreach ($messages as $message) {
-            $last = $coalesced === [] ? null : $coalesced[array_key_last($coalesced)];
-            if ($last !== null && $last->getRole() === $message->getRole()) {
-                $last->setContents((string) $last->getContent() . "\n\n" . (string) $message->getContent());
-
-                continue;
-            }
-            $coalesced[] = $message;
-        }
+            });
 
         // Providers require the history to start with a user turn.
-        while ($coalesced !== [] && $coalesced[0]->getRole() !== MessageRole::USER->value) {
-            array_shift($coalesced);
+        while ($this->history !== [] && $this->history[0]->getRole() !== MessageRole::USER->value) {
+            array_shift($this->history);
+        }
+    }
+
+    private function toNeuronMessage(SocialMessage $message): ?Message
+    {
+        $content = trim($message->contentText());
+
+        if ($content === '') {
+            return null;
         }
 
-        if ($coalesced !== []) {
-            $this->history = $coalesced;
-        }
+        return (bool) ($message->getMessage()['from_ia'] ?? false)
+            ? new AssistantMessage($content)
+            : new UserMessage($content);
     }
 }

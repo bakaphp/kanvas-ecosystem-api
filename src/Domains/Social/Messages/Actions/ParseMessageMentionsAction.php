@@ -72,16 +72,12 @@ class ParseMessageMentionsAction
      */
     private function resolveMentions(array $handles): array
     {
-        $appUsers = UsersAssociatedApps::query()
+        $userIds = UsersAssociatedApps::query()
             ->where('apps_id', $this->message->apps_id)
             ->whereIn('displayname', $handles)
-            ->get(['users_id', 'displayname']);
+            ->pluck('users_id')
+            ->all();
 
-        $mentioned = [];
-        foreach ($appUsers as $appUser) {
-            $mentioned[] = $appUser->users_id;
-        }
-
-        return array_values(array_unique($mentioned));
+        return array_values(array_unique(array_map('intval', $userIds)));
     }
 }
