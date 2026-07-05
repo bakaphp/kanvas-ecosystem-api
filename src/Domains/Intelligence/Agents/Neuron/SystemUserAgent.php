@@ -56,9 +56,8 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
         }
 
         if ($this->usesEntityRollup() && $this->entity !== null) {
-            // Mentioned on a CRM entity: load THAT entity's full cross-channel timeline
-            // (emails, SMS, prior agent replies, internal notes) so the agent sees the
-            // conversation that happened there before it responds.
+            // Dropped onto a CRM entity → its cross-channel timeline, so the agent reads
+            // the prior conversation before replying.
             return new SalesAssistKanvasMessageHistory(
                 app: $app,
                 company: $company,

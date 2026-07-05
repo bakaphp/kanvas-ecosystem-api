@@ -12,7 +12,6 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
-use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -137,12 +136,10 @@ class PersistChatTurnToSocialAction
         $channel->addMessage($incoming, $this->user);
         $channel->addMessage($reply, $aiUser);
 
-        // Internal system agents (ConversesWithUser) chat with a staffer privately — their
-        // turns must NOT post into the customer-facing lead timeline even when a lead is in
-        // context. They read the lead via tools/brief; the conversation stays on the
-        // user↔agent channel only. Every other agent keeps the lead-channel behaviour, and
-        // falls back to the People's active Lead so a mid-turn create_lead still lands there.
-        $resolvedLead = $this->isInternalUserAgent()
+        // Internal system agents never post into the lead timeline (chat stays on the
+        // user↔agent channel). Others fall back to the People's active Lead so a mid-turn
+        // create_lead still hits the Lead channel.
+        $resolvedLead = $this->agent->conversesWithUser()
             ? null
             : ($this->currentLead
                 ?? match (true) {
@@ -194,21 +191,6 @@ class PersistChatTurnToSocialAction
         } catch (Throwable) {
             return null;
         }
-    }
-
-    /**
-     * A system agent that talks to a user privately (its handler implements
-     * ConversesWithUser) — its turns stay on the user↔agent channel and never
-     * post into a customer-facing lead timeline.
-     */
-    protected function isInternalUserAgent(): bool
-    {
-        $handler = $this->agent->type?->handler;
-
-        return $handler !== null
-            && $handler !== ''
-            && class_exists($handler)
-            && is_subclass_of($handler, ConversesWithUser::class);
     }
 
     protected function resolveChannel(?Model $entity): Channel

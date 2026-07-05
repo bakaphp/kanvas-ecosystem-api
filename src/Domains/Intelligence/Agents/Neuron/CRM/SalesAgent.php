@@ -12,13 +12,13 @@ use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ArtifactsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CalendarEventTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CancelCalendarEventTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CaptureConversationLeadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CommunicationChannelTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyInformationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompletionStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ContactCheckerTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateLeadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\HandOffTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadIntentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
@@ -158,7 +158,7 @@ class SalesAgent extends BaseKanvasAgent
         }
 
         if ($this->app !== null && $this->company !== null && $this->user !== null) {
-            $tools[] = new CreateLeadTool(
+            $tools[] = new CaptureConversationLeadTool(
                 $this->app,
                 $this->company,
                 $this->user,

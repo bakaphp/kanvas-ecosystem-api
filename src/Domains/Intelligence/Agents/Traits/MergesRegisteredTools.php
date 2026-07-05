@@ -100,10 +100,8 @@ trait MergesRegisteredTools
             return new $tool->handler();
         }
 
-        // A tool with constructor params: inject them by type from the host's
-        // dependency context (Apps/Companies/Users/Session/Agent/entity). Hosts that
-        // don't provide context resolve only tools whose params are all optional —
-        // the historical behaviour.
+        // Hosts without a dependency context (non-agent trait users) fall back to
+        // resolving only all-optional-constructor tools — the historical behaviour.
         $candidates = $this instanceof ProvidesToolDependencies
             ? $this->toolDependencyCandidates()
             : [];
