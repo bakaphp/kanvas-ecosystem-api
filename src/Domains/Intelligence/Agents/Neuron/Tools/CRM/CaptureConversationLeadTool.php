@@ -21,16 +21,17 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 
 /**
- * The single-prospect variant of create_lead for a conversational agent (SalesAgent):
- * it creates the prospect's lead AND focuses the session on them — dedupes a repeat
- * call to the session's existing lead, and repoints the session to the new People so
- * later turns are lead-scoped. Use CreateLeadTool for agents that create many leads
- * from one conversation (a plain create must NOT hijack the session identity).
- *
- * Registered under a distinct catalog name so it never overwrites the plain Create Lead
- * row; only assign it to single-prospect conversational agents.
+ * Single-prospect variant of create_lead that also MUTATES the session — it repoints the
+ * session to the prospect's People (and dedupes a repeat create to the session's lead) so
+ * later turns are lead-scoped. Multi-lead agents must use the plain CreateLeadTool instead.
  */
-#[AgentTool(name: 'Capture Conversation Lead')]
+#[AgentTool(
+    name: 'Capture Conversation Lead',
+    description: 'Creates a lead for the prospect in the current conversation AND focuses the session on '
+        . 'them so later turns are lead-scoped (dedupes a repeat call to the same prospect). For '
+        . 'single-prospect conversational agents like sales. Do NOT assign to agents that handle many '
+        . 'leads in one conversation — use "Create Lead" for those, which never mutates the session.',
+)]
 class CaptureConversationLeadTool extends Tool
 {
     use CreatesLeadTrait;

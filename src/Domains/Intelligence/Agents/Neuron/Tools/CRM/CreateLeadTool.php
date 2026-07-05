@@ -15,11 +15,9 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 
 /**
- * Plain lead creation — creates a distinct CRM lead from the input each call and
- * returns its lead_id. No session side effects, so an agent can create many leads
- * for different people in one conversation. Deduping happens by the person's own
- * contact info inside createLead, not by the session. Conversational single-prospect
- * agents that must also focus the session on the new lead use CaptureConversationLeadTool.
+ * Plain lead creation — a distinct lead per call with no session side effects, so an agent
+ * can create leads for many people in one conversation (dedup is by the person's contact
+ * inside createLead). Single-prospect agents use CaptureConversationLeadTool instead.
  */
 #[AgentTool(name: 'Create Lead')]
 class CreateLeadTool extends Tool

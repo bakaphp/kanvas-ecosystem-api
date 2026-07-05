@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
@@ -338,6 +340,25 @@ class Agent extends BaseModel
             && $handler !== ''
             && class_exists($handler)
             && is_subclass_of($handler, ConversesWithUser::class);
+    }
+
+    /**
+     * The agent whose identity is this user, within a tenant — how any user-targeted
+     * signal (assignment, @mention, ...) asks "is this teammate actually an agent?".
+     * Company-scoped, so it never resolves an agent from another tenant.
+     */
+    public static function fromUser(
+        int $userId, AppInterface $app, CompanyInterface $company): ?self
+    {
+        /** @var self|null $agent */
+        $agent = self::query()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->where('user_id', $userId)
+            ->first();
+
+        return $agent;
     }
 
     public function searchableAs(): string

@@ -9,12 +9,14 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
+use Kanvas\Intelligence\Agents\Neuron\History\ChannelMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadEntityContextTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadMyLedgerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\WhoIsUserTool;
 use Kanvas\Intelligence\Agents\Services\EntityContextBriefService;
 use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\InMemoryChatHistory;
@@ -44,9 +46,23 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
 {
     use MergesRegisteredTools;
 
+    private ?Channel $mentionChannel = null;
+
+    /**
+     * Answering an @mention: read the WHOLE channel this turn, not the per-session store.
+     */
+    public function setMentionChannel(?Channel $channel): void
+    {
+        $this->mentionChannel = $channel;
+    }
+
     #[Override]
     protected function chatHistory(): AbstractChatHistory
     {
+        if ($this->mentionChannel !== null) {
+            return new ChannelMessageHistory($this->mentionChannel);
+        }
+
         $app = $this->app;
         $company = $this->company;
         $user = $this->user;
@@ -90,6 +106,11 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
     #[Override]
     public function persistsTurnsToConversationStore(): bool
     {
+        // Mention replies are stored as a child message by the responder — skip logTurn.
+        if ($this->mentionChannel !== null) {
+            return true;
+        }
+
         return $this->app !== null
             && $this->company !== null
             && $this->user !== null
@@ -133,15 +154,24 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
 
         $user = $agent->user;
         if ($user !== null) {
-            $displayName = trim($user->firstname . ' ' . $user->lastname);
+            $fullName = trim($user->firstname . ' ' . $user->lastname);
+            $handle = $user->getAppDisplayName();
 
             $lines[] = sprintf(
                 'You ARE a Kanvas user: %s (email %s, user id %d). You act as this user — every record and ledger '
                 . 'event you create is stamped under this identity. When asked which user you are, this is the answer.',
-                $displayName !== '' ? $displayName : (string) $user->displayname,
+                $fullName !== '' ? $fullName : $handle,
                 (string) $user->email,
                 $user->getId(),
             );
+
+            if ($handle !== '') {
+                $lines[] = sprintf(
+                    'Your display name is "%s" — this is your @mention handle; teammates reach you by typing @%s in a channel.',
+                    $handle,
+                    $handle,
+                );
+            }
         }
 
         return implode("\n", $lines) . "\n\n";

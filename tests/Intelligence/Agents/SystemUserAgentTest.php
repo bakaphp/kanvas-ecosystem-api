@@ -147,6 +147,11 @@ class SystemUserAgentTest extends TestCase
         $this->assertStringContainsString('## Who you are', $instructions);
         $this->assertStringContainsString('You ARE a Kanvas user', $instructions);
         $this->assertStringContainsString((string) $user->email, $instructions);
+
+        // The agent must know the exact @mention handle teammates reach it by.
+        $handle = $user->getAppDisplayName();
+        $this->assertNotSame('', $handle);
+        $this->assertStringContainsString('@' . $handle, $instructions);
     }
 
     public function testResolvesRegisteredToolThatNeedsConstructorContext(): void
