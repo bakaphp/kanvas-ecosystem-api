@@ -6,6 +6,8 @@ namespace Tests\Intelligence\Agents;
 
 use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Actions\RegisterUsersAction;
+use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
 use Kanvas\Intelligence\Agents\Jobs\RespondToMentionJob;
 use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -27,13 +29,26 @@ class RespondToMentionJobTest extends TestCase
     private function makeAgentUser(string $displayname): Users
     {
         // A fully-registered user (with an app profile) — how PR8 provisioning makes a bot-user.
-        $user = $this->createUser();
+        $user = $this->registerFreshUser();
         $user->displayname = $displayname;
         $user->firstname = 'Inventory';
         $user->lastname = 'Bot';
         $user->saveQuietly();
 
         return $user;
+    }
+
+    private function registerFreshUser(): Users
+    {
+        // Unique email — the shared, un-transacted test DB accumulates users, so fake()->email collides.
+        $dto = RegisterPostDataDto::from([
+            'email' => 'agent-' . uniqid('', true) . '@example.test',
+            'password' => 'Password123!',
+            'firstname' => fake()->firstName,
+            'lastname' => fake()->lastName,
+        ]);
+
+        return new RegisterUsersAction($dto)->execute();
     }
 
     private function makeAgent(Users $agentUser): Agent
@@ -177,11 +192,13 @@ class RespondToMentionJobTest extends TestCase
     {
         Bus::fake([RespondToMentionJob::class]);
 
-        $human = auth()->user();
-        $message = $this->makeMessage($human, 'plain note');
+        // A user that is NOT an agent — the shared auth user can be bound to an agent by other
+        // tests leaking through the un-transacted test DB, which would false-positive here.
+        $plainHuman = Users::factory()->create();
+        $message = $this->makeMessage(auth()->user(), 'plain note');
 
         new RespondToAgentMentionListener()->handle(
-            new MessageMentionsStoredEvent($message, [$human->getId()]),
+            new MessageMentionsStoredEvent($message, [$plainHuman->getId()]),
         );
 
         Bus::assertNotDispatched(RespondToMentionJob::class);

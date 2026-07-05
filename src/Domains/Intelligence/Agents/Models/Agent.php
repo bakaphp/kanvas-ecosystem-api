@@ -348,8 +348,10 @@ class Agent extends BaseModel
      * Company-scoped, so it never resolves an agent from another tenant.
      */
     public static function fromUser(
-        int $userId, AppInterface $app, CompanyInterface $company): ?self
-    {
+        int $userId,
+        AppInterface $app,
+        CompanyInterface $company
+    ): ?self {
         /** @var self|null $agent */
         $agent = self::query()
             ->fromApp($app)
