@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Agents;
 
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
@@ -12,6 +13,7 @@ use Kanvas\Intelligence\Agents\Jobs\RespondToMentionJob;
 use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Notifications\AgentRepliedToMentionNotification;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
@@ -123,6 +125,23 @@ class RespondToMentionJobTest extends TestCase
         $this->assertNotNull($reply, 'The agent must reply as a child of the mentioning message');
         $this->assertStringContainsString('Hola Sistema', (string) $reply->getMessage()['content']);
         $this->assertTrue((bool) ($reply->getMessage()['from_ia'] ?? false));
+    }
+
+    public function testMentioningUserIsNotifiedWhenTheAgentReplies(): void
+    {
+        Notification::fake();
+
+        $human = auth()->user();
+        $agentUser = $this->makeAgentUser('InventoryBot');
+        $agent = $this->makeAgent($agentUser);
+
+        $channel = $this->makeChannel($human);
+        $mention = $this->makeMessage($human, 'hey @InventoryBot can you help with this');
+        $channel->addMessage($mention, $human);
+
+        new RespondToMentionJob($agent, $mention)->handle();
+
+        Notification::assertSentTo($human, AgentRepliedToMentionNotification::class);
     }
 
     public function testReplyStaysOneLevelDeepWhenMentionedInsideAChild(): void

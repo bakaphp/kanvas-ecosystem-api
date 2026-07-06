@@ -15,6 +15,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Notifications\AgentRepliedToMentionNotification;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
@@ -95,13 +96,15 @@ final class RespondToMentionJob implements ShouldQueue
             return;
         }
 
-        $this->persistChildReply(
+        $replyMessage = $this->persistChildReply(
             $app,
             $company,
             $channel,
             $reply,
             $agentUser
         );
+
+        $this->notifyMentioner($replyMessage);
     }
 
     private function persistChildReply(
@@ -110,7 +113,7 @@ final class RespondToMentionJob implements ShouldQueue
         Channel $channel,
         string $reply,
         Users $agentUser,
-    ): void {
+    ): Message {
         $replyMessage = new CreateMessageAction(
             new MessageInput(
                 app: $app,
@@ -129,6 +132,19 @@ final class RespondToMentionJob implements ShouldQueue
         if ($entity !== null) {
             $replyMessage->addEntity($entity);
         }
+
+        return $replyMessage;
+    }
+
+    private function notifyMentioner(Message $replyMessage): void
+    {
+        // Load the concrete Users model (Message->user is a UserFullTableName variant) so the
+        // notification routes and the notifiable class is the canonical one.
+        $recipient = Users::getById($this->mentionMessage->users_id);
+
+        $recipient->notify(
+            new AgentRepliedToMentionNotification($replyMessage, $this->agent)
+        );
     }
 
     /**
