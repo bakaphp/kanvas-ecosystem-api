@@ -50,6 +50,12 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
     }
 
     #[Override]
+    public function dispatchCredentialSync(AgentDeployment $deployment): void
+    {
+        throw $this->unsupported('credential sync');
+    }
+
+    #[Override]
     public function fetchContainerLogs(AgentDeployment $deployment, int $lines): string
     {
         throw $this->unsupported('container log fetching');
