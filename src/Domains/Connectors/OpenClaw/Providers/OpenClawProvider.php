@@ -23,6 +23,7 @@ use Kanvas\Connectors\OpenClaw\Actions\UpdateDeploymentConfigAction;
 use Kanvas\Connectors\OpenClaw\Jobs\BackupAgentWorkspaceJob;
 use Kanvas\Connectors\OpenClaw\Jobs\MigrateAgentWorkspaceJob;
 use Kanvas\Connectors\OpenClaw\Jobs\RestartAgentContainerJob;
+use Kanvas\Connectors\OpenClaw\Jobs\SyncDeploymentCredentialsJob;
 use Kanvas\Connectors\OpenClaw\Jobs\TerminateAgentJob;
 use Kanvas\Connectors\OpenClaw\Jobs\UpdateOpenClawOnMachineJob;
 use Kanvas\Connectors\OpenClaw\SshClient;
@@ -76,6 +77,12 @@ class OpenClawProvider extends AbstractAgentRuntimeProvider
     public function dispatchRestart(AgentDeployment $deployment): void
     {
         RestartAgentContainerJob::dispatch($deployment);
+    }
+
+    #[Override]
+    public function dispatchCredentialSync(AgentDeployment $deployment): void
+    {
+        SyncDeploymentCredentialsJob::dispatch($deployment);
     }
 
     #[Override]
