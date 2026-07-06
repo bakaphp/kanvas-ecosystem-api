@@ -17,6 +17,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\History\ChannelMessageHistory;
 use Kanvas\Intelligence\Notifications\AgentRepliedToMentionNotification;
+use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
@@ -183,6 +184,33 @@ class RespondToMentionJobTest extends TestCase
             'The reply must inherit the channel\'s lead so the agent replies with lead context',
         );
         $this->assertSame($lead->getId(), $reply->entity()?->getId());
+    }
+
+    public function testTheReplyIsRecordedInTheLedgerForCrossEntityMemory(): void
+    {
+        $human = auth()->user();
+        $app = app(Apps::class);
+        $company = $human->getCurrentCompany();
+
+        $agentUser = $this->makeAgentUser('InventoryBot');
+        $agent = $this->makeAgent($agentUser);
+
+        $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create();
+        $channel = $this->makeChannel($human, $lead);
+        $mention = $this->makeMessage($human, '@InventoryBot summarize this lead');
+        $channel->addMessage($mention, $human);
+
+        new RespondToMentionJob($agent, $mention)->handle();
+
+        $event = Event::query()
+            ->where('event_type', 'agent.mention.replied')
+            ->where('actor_type', 'Agent')
+            ->where('actor_id', $agent->getId())
+            ->where('source_entity_type', Lead::class)
+            ->where('source_entity_id', $lead->getId())
+            ->first();
+
+        $this->assertNotNull($event, 'The reply must be appended to the ledger so the agent remembers this work later');
     }
 
     public function testChannelHistoryLabelsEachHumanTurnWithItsAuthor(): void
