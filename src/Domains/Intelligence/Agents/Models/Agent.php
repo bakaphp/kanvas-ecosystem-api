@@ -24,6 +24,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
@@ -340,6 +341,21 @@ class Agent extends BaseModel
             && $handler !== ''
             && class_exists($handler)
             && is_subclass_of($handler, ConversesWithUser::class);
+    }
+
+    /**
+     * Whether this agent is customer-facing — its handler implements ConversesWithCustomer.
+     * The mirror of conversesWithUser: an external agent speaks to a prospect as a persona and
+     * must stay prospect-isolated (no company-wide ledger recall on the customer surface).
+     */
+    public function conversesWithCustomer(): bool
+    {
+        $handler = $this->type?->handler;
+
+        return $handler !== null
+            && $handler !== ''
+            && class_exists($handler)
+            && is_subclass_of($handler, ConversesWithCustomer::class);
     }
 
     /**
