@@ -9,6 +9,9 @@ use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
+use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
@@ -228,9 +231,9 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                                 $entity,
                                 ConfigurationEnum::ID_VERIFICATION->value,
                                 ActionStatusEnum::SUBMITTED->value,
-                            );
+                            ) ?? $this->createIdVerificationEngagement($entity);
 
-                            $engagement?->message?->addFile(
+                            $engagement->message?->addFile(
                                 $pdfReport,
                                 'id-verification'
                             );
@@ -267,5 +270,31 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                 'trace' => $e->getTraceAsString(),
             ];
         }
+    }
+
+    private function createIdVerificationEngagement(Lead $lead): Engagement
+    {
+        $taskId = $lead->get('check_list_status') ?? $lead->company->get('default_checklist_id');
+
+        if (is_array($taskId)) {
+            $taskId = $taskId['activeTaskListId'] ?? $lead->company->get('default_checklist_id');
+        }
+
+        $engagementData = new EngagementData(
+            app: $lead->app,
+            company: $lead->company,
+            user: $lead->owner,
+            lead: $lead,
+            action: ConfigurationEnum::ID_VERIFICATION->value,
+            requestId: Str::uuid()->toString(),
+            source: 'workflow',
+            status: ActionStatusEnum::SUBMITTED,
+            people: $lead->people,
+            receiverId: $lead->receiver?->getId(),
+            taskId: $taskId,
+            via: 'webhook',
+        );
+
+        return new CreateEngagementAction($engagementData)->execute();
     }
 }
