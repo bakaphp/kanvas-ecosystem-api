@@ -28,6 +28,15 @@ use Tests\TestCase;
 
 class RespondToMentionJobTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // The reply triggers AgentRepliedToMentionNotification, which renders per-app templates.
+        // Fake it so tests never depend on seeded templates (the assertion test still works).
+        Notification::fake();
+    }
+
     private function makeAgentUser(string $displayname): Users
     {
         // A fully-registered user (with an app profile) — how PR8 provisioning makes a bot-user.
@@ -129,8 +138,6 @@ class RespondToMentionJobTest extends TestCase
 
     public function testMentioningUserIsNotifiedWhenTheAgentReplies(): void
     {
-        Notification::fake();
-
         $human = auth()->user();
         $agentUser = $this->makeAgentUser('InventoryBot');
         $agent = $this->makeAgent($agentUser);
