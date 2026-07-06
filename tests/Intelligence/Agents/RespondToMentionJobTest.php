@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Jobs\RespondToMentionJob;
 use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -77,18 +79,19 @@ class RespondToMentionJobTest extends TestCase
             ->create(['agent_type_id' => $agentType->getId(), 'user_id' => $agentUser->getId()]);
     }
 
-    private function makeChannel(Users $owner): Channel
+    private function makeChannel(Users $owner, ?Model $entity = null): Channel
     {
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
+        $entity ??= $owner;
 
         return new CreateChannelAction(
             new ChannelDto(
                 apps: $app,
                 companies: $company,
                 users: $owner,
-                entity_id: $owner->getId(),
-                entity_namespace: Users::class,
+                entity_id: (int) $entity->getKey(),
+                entity_namespace: $entity::class,
                 name: 'Mention Test',
                 slug: 'mention-test-' . uniqid(),
             ),
@@ -149,6 +152,36 @@ class RespondToMentionJobTest extends TestCase
         new RespondToMentionJob($agent, $mention)->handle();
 
         Notification::assertSentTo($human, AgentRepliedToMentionNotification::class);
+    }
+
+    public function testUsesTheChannelEntityAsContextWhenTheMentionHasNoEntity(): void
+    {
+        $human = auth()->user();
+        $app = app(Apps::class);
+        $company = $human->getCurrentCompany();
+
+        $agentUser = $this->makeAgentUser('InventoryBot');
+        $agent = $this->makeAgent($agentUser);
+
+        $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create();
+        $channel = $this->makeChannel($human, $lead);
+
+        // The mention comment is linked to nothing itself — only the channel carries the lead.
+        $mention = $this->makeMessage($human, '@InventoryBot summarize this lead');
+        $channel->addMessage($mention, $human);
+        $this->assertNull($mention->entity(), 'Precondition: the mention has no entity of its own');
+
+        new RespondToMentionJob($agent, $mention)->handle();
+
+        $reply = Message::where('parent_id', $mention->getId())->latest('id')->first();
+
+        $this->assertNotNull($reply);
+        $this->assertInstanceOf(
+            Lead::class,
+            $reply->entity(),
+            'The reply must inherit the channel\'s lead so the agent replies with lead context',
+        );
+        $this->assertSame($lead->getId(), $reply->entity()?->getId());
     }
 
     public function testReplyStaysOneLevelDeepWhenMentionedInsideAChild(): void

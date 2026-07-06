@@ -7,11 +7,13 @@ namespace Kanvas\Intelligence\Agents\Jobs;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
@@ -21,6 +23,7 @@ use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -73,9 +76,13 @@ final class RespondToMentionJob implements ShouldQueue
             return;
         }
 
+        // The mention comment usually isn't linked to an entity itself — fall back to the
+        // channel's entity (e.g. the Lead the channel lives on) so the agent gets its context.
+        $subjectEntity = $this->mentionMessage->entity() ?? $this->resolveChannelEntity($channel);
+
         $handler->setConfiguration(
             agent: $this->agent,
-            entity: $this->mentionMessage->entity() ?? $agentUser,
+            entity: $subjectEntity ?? $agentUser,
             user: $agentUser,
         );
         $handler->setMentionChannel($channel);
@@ -101,7 +108,8 @@ final class RespondToMentionJob implements ShouldQueue
             $company,
             $channel,
             $reply,
-            $agentUser
+            $agentUser,
+            $subjectEntity,
         );
 
         $this->notifyMentioner($replyMessage);
@@ -113,6 +121,7 @@ final class RespondToMentionJob implements ShouldQueue
         Channel $channel,
         string $reply,
         Users $agentUser,
+        ?Model $subjectEntity,
     ): Message {
         $replyMessage = new CreateMessageAction(
             new MessageInput(
@@ -128,12 +137,34 @@ final class RespondToMentionJob implements ShouldQueue
 
         $channel->addMessage($replyMessage, $agentUser);
 
-        $entity = $this->mentionMessage->entity();
-        if ($entity !== null) {
-            $replyMessage->addEntity($entity);
+        if ($subjectEntity !== null) {
+            $replyMessage->addEntity($subjectEntity);
         }
 
         return $replyMessage;
+    }
+
+    /**
+     * The channel a mention lives on carries the entity (Lead, People, …) even when the mention
+     * comment itself isn't linked to one — resolve it so the agent replies with full context.
+     */
+    private function resolveChannelEntity(Channel $channel): ?Model
+    {
+        if ($channel->entity_namespace === null || $channel->entity_namespace === '' || $channel->entity_id === null) {
+            return null;
+        }
+
+        $class = SystemModules::convertLegacySystemModules($channel->entity_namespace);
+
+        if (! class_exists($class) || ! is_subclass_of($class, Model::class)) {
+            return null;
+        }
+
+        try {
+            return $class::getById($channel->entity_id);
+        } catch (ModelNotFoundException) {
+            return null;
+        }
     }
 
     private function notifyMentioner(Message $replyMessage): void
