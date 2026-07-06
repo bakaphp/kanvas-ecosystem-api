@@ -45,7 +45,11 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
             $name = $name !== 'Unknown' ? $name : ($entity->title ?? ($entity->people->name ?? 'Customer'));
 
             // Process data to generate verification results
-            $verificationResults = IdVerificationService::processVerificationData($verificationData, $name, $isShowRoom);
+            $verificationResults = IdVerificationService::processVerificationData(
+                $verificationData,
+                $name,
+                $isShowRoom
+            );
             $company = $entity->company;
 
             // Generate report HTML using the template
@@ -127,25 +131,31 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         'intellicheckResponse' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],
                     ];
 
-                    // Get lead and people from entity
+                    // Resolve the person the verification payload actually belongs to
+                    // (main buyer vs. a co-buyer/participant). Without this a co-buyer scan
+                    // routed through this lead-scoped activity overwrites the lead's main
+                    // people. Mirrors the guard in VerifyPeopleIdAction::execute().
                     $lead = $entity;
-                    $people = $entity->people;
+                    $verifiedPeople = $entity instanceof Lead
+                        ? $this->resolveVerifiedPeople($entity, $getDocsDriversLicense)
+                        : null;
+                    $isLeadPeople = $verifiedPeople !== null && $verifiedPeople->getId() === $lead->people_id;
 
-                    if ($entity instanceof Lead) {
-                        $lead->set(
-                            'id_verification',
-                            $resultsFromIntellicheck
-                        );
+                    if ($verifiedPeople !== null) {
+                        $verifiedPeople->set('id_verification', $resultsFromIntellicheck);
 
-                        $people->set(
-                            'id_verification',
-                            $resultsFromIntellicheck
-                        );
+                        if (! empty($getDocsDriversLicense)) {
+                            $verifiedPeople->del('get_docs_drivers_license');
+                        }
                     }
 
-                    if (! empty($getDocsDriversLicense)) {
-                        $lead->set('get_docs_drivers_license', $getDocsDriversLicense);
-                        $people->del('get_docs_drivers_license');
+                    // The lead's own DL/verification slots only ever describe the main buyer.
+                    if ($isLeadPeople) {
+                        $lead->set('id_verification', $resultsFromIntellicheck);
+
+                        if (! empty($getDocsDriversLicense)) {
+                            $lead->set('get_docs_drivers_license', $getDocsDriversLicense);
+                        }
                     }
 
                     $sendEmailNotification = (bool) $entity->company->get('disable_id_verification_email', false) === false;
@@ -267,5 +277,50 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                 'trace' => $e->getTraceAsString(),
             ];
         }
+    }
+
+    /**
+     * The verification payload can belong to the main buyer or to a co-buyer/participant.
+     * Prefer a confident participant match so a co-buyer scan never lands on the main
+     * people; fall back to the lead's main people (legacy behavior) when nothing matches.
+     */
+    private function resolveVerifiedPeople(Lead $lead, ?array $getDocsDriversLicense): People
+    {
+        $license = trim((string) ($getDocsDriversLicense['license'] ?? ''));
+        $firstname = trim((string) ($getDocsDriversLicense['firstname'] ?? ''));
+        $lastname = trim((string) ($getDocsDriversLicense['lastname'] ?? ''));
+
+        if ($license === '' && ($firstname === '' || $lastname === '')) {
+            return $lead->people;
+        }
+
+        foreach ($lead->participants()->with('people')->get() as $participant) {
+            $candidate = $participant->people;
+
+            if ($candidate !== null
+                && $candidate->getId() !== $lead->people_id
+                && $this->peopleMatchesLicense($candidate, $license, $firstname, $lastname)
+            ) {
+                return $candidate;
+            }
+        }
+
+        return $lead->people;
+    }
+
+    private function peopleMatchesLicense(People $people, string $license, string $firstname, string $lastname): bool
+    {
+        $peopleLicense = trim($people->license_number);
+
+        if ($license !== '' && $peopleLicense !== '') {
+            return strcasecmp($peopleLicense, $license) === 0;
+        }
+
+        if ($firstname !== '' && $lastname !== '') {
+            return strcasecmp(trim($people->firstname ?? ''), $firstname) === 0
+                && strcasecmp(trim($people->lastname ?? ''), $lastname) === 0;
+        }
+
+        return false;
     }
 }
