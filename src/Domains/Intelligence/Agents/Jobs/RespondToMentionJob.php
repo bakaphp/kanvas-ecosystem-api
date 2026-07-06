@@ -118,7 +118,13 @@ final class RespondToMentionJob implements ShouldQueue
         );
 
         $this->notifyMentioner($replyMessage);
-        $this->recordInteractionInLedger($app, $company, $subjectEntity, $channel, $reply);
+        $this->recordInteractionInLedger(
+            $app,
+            $company,
+            $subjectEntity,
+            $channel,
+            $reply
+        );
     }
 
     private function persistChildReply(
@@ -184,12 +190,6 @@ final class RespondToMentionJob implements ShouldQueue
         );
     }
 
-    /**
-     * Append the reply to the ledger (actor = this agent, source_entity = the record) so the agent
-     * can recall it worked with this person / on this record before — read_my_ledger surfaces it in
-     * a later, unrelated conversation. Best-effort: the reply is already sent, and this job isn't
-     * idempotent, so a ledger hiccup must not fail the job and re-trigger a duplicate reply.
-     */
     private function recordInteractionInLedger(
         Apps $app,
         Companies $company,
