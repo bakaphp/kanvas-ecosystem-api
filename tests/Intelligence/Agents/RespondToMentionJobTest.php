@@ -15,6 +15,7 @@ use Kanvas\Intelligence\Agents\Jobs\RespondToMentionJob;
 use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\History\ChannelMessageHistory;
 use Kanvas\Intelligence\Notifications\AgentRepliedToMentionNotification;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
@@ -182,6 +183,31 @@ class RespondToMentionJobTest extends TestCase
             'The reply must inherit the channel\'s lead so the agent replies with lead context',
         );
         $this->assertSame($lead->getId(), $reply->entity()?->getId());
+    }
+
+    public function testChannelHistoryLabelsEachHumanTurnWithItsAuthor(): void
+    {
+        $alice = $this->registerFreshUser();
+        $alice->firstname = 'Alice';
+        $alice->displayname = 'alice-' . $alice->getId();
+        $alice->saveQuietly();
+
+        $bob = $this->registerFreshUser();
+        $bob->firstname = 'Bob';
+        $bob->displayname = 'bob-' . $bob->getId();
+        $bob->saveQuietly();
+
+        $channel = $this->makeChannel($alice);
+        $channel->addMessage($this->makeMessage($alice, 'hello from alice'), $alice);
+        $channel->addMessage($this->makeMessage($bob, 'hi this is bob'), $bob);
+
+        $text = '';
+        foreach (new ChannelMessageHistory($channel)->getMessages() as $turn) {
+            $text .= (is_string($turn->getContent()) ? $turn->getContent() : '') . "\n";
+        }
+
+        $this->assertStringContainsString('(@alice-' . $alice->getId() . '): hello from alice', $text);
+        $this->assertStringContainsString('(@bob-' . $bob->getId() . '): hi this is bob', $text);
     }
 
     public function testReplyStaysOneLevelDeepWhenMentionedInsideAChild(): void

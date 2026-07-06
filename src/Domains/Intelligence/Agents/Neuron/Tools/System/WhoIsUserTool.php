@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Repositories\UsersRepository;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -25,8 +26,8 @@ class WhoIsUserTool extends Tool
     ) {
         parent::__construct(
             name: 'who_is_user',
-            description: 'Find out who you are talking to (or look up another user in this company by id) — their name, email and company. '
-                . 'Use it to ground your response in who the person is.',
+            description: 'Find out who you are talking to, or look up another teammate by id OR by their @displayname/handle — '
+                . 'their name, email and company. Use it whenever someone refers to a teammate by a handle (e.g. "kaioken", "@jane").',
         );
     }
 
@@ -40,20 +41,30 @@ class WhoIsUserTool extends Tool
                 description: 'The id of a user in this company to describe. Omit to describe the person you are currently talking to.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'handle',
+                type: PropertyType::STRING,
+                description: 'The @displayname/handle of a teammate (e.g. "kaioken" or "@jane"). Use when someone refers to a user by handle rather than id.',
+                required: false,
+            ),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(?int $user_id = null): array
+    public function __invoke(?int $user_id = null, ?string $handle = null): array
     {
-        $user = $user_id !== null ? $this->resolveUser($user_id) : $this->currentUser;
+        $user = match (true) {
+            $user_id !== null => $this->resolveUser($user_id),
+            $handle !== null && trim($handle) !== '' => $this->resolveByHandle($handle),
+            default => $this->currentUser,
+        };
 
         if ($user === null) {
             return [
                 'status' => 'error',
-                'message' => 'No user in scope. Pass a user_id of a user in this company.',
+                'message' => 'No user in scope. Pass a user_id or a @displayname/handle of a user in this company.',
             ];
         }
 
@@ -78,5 +89,30 @@ class WhoIsUserTool extends Tool
         } catch (Throwable) {
             return null;
         }
+    }
+
+    /**
+     * displayname is unique per app, so resolve by app then let resolveUser's tenant guard
+     * confirm the teammate actually belongs to this company — an agent only describes users in
+     * its own company, not app-global users or users from another company.
+     */
+    private function resolveByHandle(string $handle): ?Users
+    {
+        $handle = ltrim(trim($handle), '@');
+
+        if ($handle === '') {
+            return null;
+        }
+
+        $association = UsersAssociatedApps::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('displayname', $handle)
+            ->first();
+
+        if ($association === null) {
+            return null;
+        }
+
+        return $this->resolveUser((int) $association->users_id);
     }
 }
