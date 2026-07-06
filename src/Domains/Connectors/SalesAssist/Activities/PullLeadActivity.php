@@ -105,7 +105,9 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 : null;
 
             if ($lead === null) {
-                $people = PeoplesRepository::getByPhoneNumber($app, $company, [$phone])->first();
+                $people = PeoplesRepository::getByPhoneNumber($app, $company, [$phone])->first() ??
+                    PeoplesRepository::getByEmail($email, $company, $app);
+
                 $lead = $people ? LeadsRepository::getPeopleActiveLeads($people)->first() : null;
                 $lead?->set(ReynoldsCustomFieldEnum::CLIENT_ID->value, $leadId);
             }
