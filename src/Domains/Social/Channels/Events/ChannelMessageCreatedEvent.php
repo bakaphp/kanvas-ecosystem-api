@@ -26,6 +26,16 @@ class ChannelMessageCreatedEvent implements ShouldBroadcast
     ) {
     }
 
+    public function getChannel(): ModelsChannel
+    {
+        return $this->channel;
+    }
+
+    public function getMessage(): Message
+    {
+        return $this->message;
+    }
+
     public function broadcastWith(): array
     {
         return [
