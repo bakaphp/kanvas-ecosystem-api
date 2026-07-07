@@ -109,8 +109,11 @@ class Rule extends BaseModel
                 }, $attribute);
             }
 
-            if (is_array($value)) {
-                $condition = sprintf('%s %s [%s]', $attribute, $operator, implode(', ', array_map(fn ($v) => "'$v'", $value)));
+            // `in` / `not in` require an array on the right side. The stored value has no cast,
+            // so an array saved as `[1, 2]` comes back as the string "[1,2]" — normalize both
+            // shapes into an expression array literal so Symfony's in_array() gets an array.
+            if (is_array($value) || in_array(strtolower($operator), ['in', 'not in'], true)) {
+                $condition = sprintf('%s %s [%s]', $attribute, $operator, $this->formatArrayValue($value));
             } else {
                 $formattedValue = $this->formatValue($value);
                 $condition = sprintf('%s %s %s', $attribute, $operator, $formattedValue);
@@ -128,6 +131,31 @@ class Rule extends BaseModel
             'expression' => $pattern,
             'values' => $values,
         ];
+    }
+
+    /**
+     * Build the comma-separated inner body of an expression array literal (`[...]`) from a value
+     * that may already be a PHP array or a stored string such as "[1, 2]", "1,2" or "'a','b'".
+     * Each element is run through formatValue so numerics stay unquoted (strict in_array matching)
+     * and strings are quoted.
+     */
+    private function formatArrayValue(mixed $value): string
+    {
+        if (is_array($value)) {
+            $elements = $value;
+        } else {
+            $normalized = trim((string) $value);
+            $normalized = trim($normalized, '[]');
+
+            $elements = $normalized === ''
+                ? []
+                : array_map(
+                    fn (string $item) => trim(trim($item), "'\""),
+                    explode(',', $normalized)
+                );
+        }
+
+        return implode(', ', array_map(fn ($item) => $this->formatValue($item), $elements));
     }
 
     /**
