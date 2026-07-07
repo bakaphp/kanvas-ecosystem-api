@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Observers;
 
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
+use Kanvas\Social\Messages\Jobs\ProcessMessageMentionsJob;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -46,6 +47,12 @@ class MessageObserver
         $message->clearLightHouseCacheJob();
 
         $message->user->getAppProfile($message->app)->increment('total_messages_count');
+
+        // Resolve @mentions off the hot path. Skip from_ia so an agent never parses its own reply.
+        $isFromIa = (bool) ($message->getMessage()['from_ia'] ?? false);
+        if (! $isFromIa && str_contains($message->contentText(), '@')) {
+            ProcessMessageMentionsJob::dispatch($message);
+        }
     }
 
     public function updated(Message $message): void

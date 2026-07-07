@@ -21,6 +21,7 @@ use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateUserSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as DataTransferObjectSession;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Intelligence\Sessions\Services\UserAgentChannelService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 
@@ -200,6 +201,18 @@ class AgentChatMutation
             if ($session !== null) {
                 return $session;
             }
+        }
+
+        // Internal system agents get a durable DM keyed on the staffer, never on the lead —
+        // any lead is per-turn context (currentLead), so the chat stays out of the lead timeline.
+        if ($agent->conversesWithUser()) {
+            return new UserAgentChannelService()->resolveSession(
+                human: $user,
+                agent: $agent,
+                app: $app,
+                company: $company,
+                entity: $user,
+            );
         }
 
         if ($currentLead !== null) {

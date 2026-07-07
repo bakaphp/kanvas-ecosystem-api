@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -19,7 +20,7 @@ use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Providers\Gemini\Gemini;
 use Override;
 
-class BaseKanvasAgent extends NeuronAIAgent
+class BaseKanvasAgent extends NeuronAIAgent implements ProvidesToolDependencies
 {
     protected ?Agent $agent = null;
     protected ?Apps $app = null;
@@ -116,6 +117,37 @@ class BaseKanvasAgent extends NeuronAIAgent
     {
         return $this->currentLead
             ?? ($this->entity instanceof Lead ? $this->entity : null);
+    }
+
+    /**
+     * Dependencies MergesRegisteredTools injects into a registry tool's constructor
+     * by type — so a tool assigned in the UI that needs Apps/Companies/Users/Session/
+     * Agent/entity (e.g. CreateLeadTool) is instantiated instead of silently skipped.
+     *
+     * @return list<object>
+     */
+    #[Override]
+    public function toolDependencyCandidates(): array
+    {
+        return array_values(array_filter([
+            $this->app,
+            $this->company,
+            $this->actingUser(),
+            $this->session,
+            $this->agent,
+            $this->resolveLeadForTurn(),
+            $this->entity,
+        ]));
+    }
+
+    /**
+     * The user a tool acts AS. Default is the configured user (the human in userChat,
+     * the AI-agent user on channels). SystemUserAgent overrides this to the agent's own
+     * user so its actions are attributed to the agent identity.
+     */
+    protected function actingUser(): ?Users
+    {
+        return $this->user;
     }
 
     /**
