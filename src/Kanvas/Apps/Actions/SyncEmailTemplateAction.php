@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\File;
 use Kanvas\ActionEngine\Engagements\Enums\NotificationTemplateEnum as EngagementsEnumsNotificationTemplateEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Enums\EmailTemplateEnum as LeadsEnumsEmailTemplateEnum;
+use Kanvas\Intelligence\Notifications\Enums\NotificationTemplateEnum as IntelligenceNotificationTemplateEnum;
 use Kanvas\Inventory\Products\Enums\EmailTemplateEnum as ProductsEnumsEmailTemplateEnum;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Templates\ChangePasswordUserLogged;
@@ -103,6 +104,15 @@ class SyncEmailTemplateAction
             ], [
                 'name' => EngagementsEnumsNotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED_DATABASE->value,
                 'template' => File::get(resource_path('views/push/engagement-status-changed-db.blade.php')),
+            ], [
+                'name' => IntelligenceNotificationTemplateEnum::EMAIL_AGENT_MENTION_REPLY->value,
+                'template' => File::get(resource_path('views/emails/agentMentionReply.blade.php')),
+            ], [
+                'name' => IntelligenceNotificationTemplateEnum::PUSH_AGENT_MENTION_REPLY->value,
+                'template' => File::get(resource_path('views/push/agent-mention-reply.blade.php')),
+            ], [
+                'name' => IntelligenceNotificationTemplateEnum::DATABASE_AGENT_MENTION_REPLY->value,
+                'template' => File::get(resource_path('views/push/agent-mention-reply-db.blade.php')),
             ],
         ];
 
@@ -136,6 +146,8 @@ class SyncEmailTemplateAction
                 'user-email-update',
                 EngagementsEnumsNotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED->value,
                 EngagementsEnumsNotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED_DATABASE->value,
+                IntelligenceNotificationTemplateEnum::PUSH_AGENT_MENTION_REPLY->value,
+                IntelligenceNotificationTemplateEnum::DATABASE_AGENT_MENTION_REPLY->value,
             ];
 
             $action->execute(

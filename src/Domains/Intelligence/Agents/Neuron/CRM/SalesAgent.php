@@ -7,18 +7,19 @@ namespace Kanvas\Intelligence\Agents\Neuron\CRM;
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ArtifactsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CalendarEventTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CancelCalendarEventTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CaptureConversationLeadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CommunicationChannelTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyInformationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompletionStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ContactCheckerTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateLeadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\HandOffTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadIntentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
@@ -31,6 +32,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\InventorySearchTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\ListAvailableProductsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\VariantDetailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\VariantSearchTool;
+use Kanvas\Intelligence\Agents\Traits\HasCustomerPersona;
 use Kanvas\Intelligence\Agents\Traits\HasTemporalContext;
 use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
@@ -45,8 +47,9 @@ use Override;
     description: 'Conversational sales assistant for inbound prospect chat — qualifies leads, creates them when intent shows, schedules meetings, and recommends inventory using the CRM + inventory tool suite.',
     provider: 'neuron',
 )]
-class SalesAgent extends BaseKanvasAgent
+class SalesAgent extends BaseKanvasAgent implements ConversesWithCustomer
 {
+    use HasCustomerPersona;
     use HasTemporalContext;
     use MergesRegisteredTools;
 
@@ -96,6 +99,7 @@ class SalesAgent extends BaseKanvasAgent
 
         return new SystemPrompt(
             background: [
+                ...$this->personaLines(),
                 ...$background,
                 ...$contextLines,
             ],
@@ -158,7 +162,7 @@ class SalesAgent extends BaseKanvasAgent
         }
 
         if ($this->app !== null && $this->company !== null && $this->user !== null) {
-            $tools[] = new CreateLeadTool(
+            $tools[] = new CaptureConversationLeadTool(
                 $this->app,
                 $this->company,
                 $this->user,

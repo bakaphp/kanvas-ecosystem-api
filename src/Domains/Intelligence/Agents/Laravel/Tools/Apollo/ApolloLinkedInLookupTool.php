@@ -29,13 +29,13 @@ class ApolloLinkedInLookupTool implements KanvasToolInterface
     {
         $name = AgentTool::fromClass($this)?->name ?? $this->name();
 
-        return "Use `{$name}` to find LinkedIn profile URLs for a list of people at a specific company. Pass the company name and an array of people (each with a name and optionally a title). Only matches with confidence > 0.5 are returned. Returns an array of people with their `linkedin_url` and `confidence` score.";
+        return "Use `{$name}` to find LinkedIn profile URLs for a list of people at a specific company. Pass the company name and an array of people (each with a name and optionally a title). Only matches meeting the confidence threshold are returned (default 0.5 — lower to capture more matches, raise for stricter name matching via `min_confidence`). Returns an array of people with their `linkedin_url` and `confidence` score.";
     }
 
     #[Override]
     public function description(): Stringable|string
     {
-        return 'Find LinkedIn profile URLs for company executives and board members using Apollo. Returns only matches with confidence > 0.5.';
+        return 'Find LinkedIn profile URLs for company executives and board members using Apollo. Returns only matches above the confidence threshold (default 0.5, configurable via min_confidence).';
     }
 
     #[Override]
@@ -43,6 +43,7 @@ class ApolloLinkedInLookupTool implements KanvasToolInterface
     {
         $companyName = (string) $request->string('company_name');
         $people = (array) ($request['people'] ?? []);
+        $minConfidence = (float) ($request['min_confidence'] ?? 0.5);
 
         if (empty($people)) {
             return json_encode(['people' => []]);
@@ -96,7 +97,7 @@ class ApolloLinkedInLookupTool implements KanvasToolInterface
                 $returnedName = trim((string) ($matched['name'] ?? $inputName));
                 $confidence = $this->nameConfidence($inputName, $returnedName);
 
-                if ($confidence > 0.5) {
+                if ($confidence > $minConfidence) {
                     $results[] = [
                         'name' => $inputName,
                         'title' => $title,
@@ -127,6 +128,9 @@ class ApolloLinkedInLookupTool implements KanvasToolInterface
                 ->items($schema->object())
                 ->description('List of people to look up. Each object must have a "name" field (full name) and optionally a "title" field.')
                 ->required(),
+            'min_confidence' => $schema
+                ->number()
+                ->description('Minimum confidence score (0–1) to include a match. Default 0.5. Lower (e.g. 0.3) to capture more results; raise (e.g. 0.7) for stricter name matching.'),
         ];
     }
 

@@ -384,16 +384,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.387.2",
+            "version": "3.387.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "dac6a19ffc71e6d100f06098e7df58f2e27103f9"
+                "reference": "20818be961ace3ef01c1aed3c247e71b26020149"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/dac6a19ffc71e6d100f06098e7df58f2e27103f9",
-                "reference": "dac6a19ffc71e6d100f06098e7df58f2e27103f9",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/20818be961ace3ef01c1aed3c247e71b26020149",
+                "reference": "20818be961ace3ef01c1aed3c247e71b26020149",
                 "shasum": ""
             },
             "require": {
@@ -475,9 +475,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.387.2"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.387.3"
             },
-            "time": "2026-07-02T18:06:18+00:00"
+            "time": "2026-07-06T18:13:24+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -2188,16 +2188,16 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.448.0",
+            "version": "v0.449.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
-                "reference": "00c3d6814497ec09eaf29af42102455a85338507"
+                "reference": "7e7fbc0e503655d4e7d41b297e0def347a34e026"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/00c3d6814497ec09eaf29af42102455a85338507",
-                "reference": "00c3d6814497ec09eaf29af42102455a85338507",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/7e7fbc0e503655d4e7d41b297e0def347a34e026",
+                "reference": "7e7fbc0e503655d4e7d41b297e0def347a34e026",
                 "shasum": ""
             },
             "require": {
@@ -2226,9 +2226,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.448.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.449.0"
             },
-            "time": "2026-06-28T01:44:38+00:00"
+            "time": "2026-07-01T01:48:37+00:00"
         },
         {
             "name": "google/auth",
@@ -2880,16 +2880,16 @@
         },
         {
             "name": "guzzlehttp/guzzle",
-            "version": "7.13.1",
+            "version": "7.13.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/guzzle.git",
-                "reference": "55901a76dfd2006a0cc012b9e3c5b487f796478d"
+                "reference": "bcd989ad36c92d42a3715379af91f2defee5b8dd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/55901a76dfd2006a0cc012b9e3c5b487f796478d",
-                "reference": "55901a76dfd2006a0cc012b9e3c5b487f796478d",
+                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/bcd989ad36c92d42a3715379af91f2defee5b8dd",
+                "reference": "bcd989ad36c92d42a3715379af91f2defee5b8dd",
                 "shasum": ""
             },
             "require": {
@@ -2907,7 +2907,7 @@
             "require-dev": {
                 "bamarni/composer-bin-plugin": "^1.8.2",
                 "ext-curl": "*",
-                "guzzle/client-integration-tests": "3.0.2",
+                "guzzle/client-integration-tests": "3.0.3",
                 "guzzlehttp/test-server": "^0.6",
                 "php-http/message-factory": "^1.1",
                 "phpunit/phpunit": "^8.5.52 || ^9.6.34",
@@ -2988,7 +2988,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/guzzle/issues",
-                "source": "https://github.com/guzzle/guzzle/tree/7.13.1"
+                "source": "https://github.com/guzzle/guzzle/tree/7.13.2"
             },
             "funding": [
                 {
@@ -3004,7 +3004,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-06-29T20:14:18+00:00"
+            "time": "2026-07-05T19:00:11+00:00"
         },
         {
             "name": "guzzlehttp/promises",
@@ -5630,16 +5630,16 @@
         },
         {
             "name": "league/flysystem",
-            "version": "3.35.1",
+            "version": "3.35.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/flysystem.git",
-                "reference": "f23af6c5aafd958a7593029a271d77baf5ed793c"
+                "reference": "b277b5dc3d56650b68904117124e79c851e12376"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/flysystem/zipball/f23af6c5aafd958a7593029a271d77baf5ed793c",
-                "reference": "f23af6c5aafd958a7593029a271d77baf5ed793c",
+                "url": "https://api.github.com/repos/thephpleague/flysystem/zipball/b277b5dc3d56650b68904117124e79c851e12376",
+                "reference": "b277b5dc3d56650b68904117124e79c851e12376",
                 "shasum": ""
             },
             "require": {
@@ -5707,22 +5707,22 @@
             ],
             "support": {
                 "issues": "https://github.com/thephpleague/flysystem/issues",
-                "source": "https://github.com/thephpleague/flysystem/tree/3.35.1"
+                "source": "https://github.com/thephpleague/flysystem/tree/3.35.2"
             },
-            "time": "2026-06-25T06:52:23+00:00"
+            "time": "2026-07-06T14:42:07+00:00"
         },
         {
             "name": "league/flysystem-aws-s3-v3",
-            "version": "3.35.1",
+            "version": "3.35.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/flysystem-aws-s3-v3.git",
-                "reference": "3f93d3f4bd5c12a5dfb34a7267c40b1bc4587b94"
+                "reference": "8475ef9adfc6498b85469e2abec6fe3118cd08c4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/flysystem-aws-s3-v3/zipball/3f93d3f4bd5c12a5dfb34a7267c40b1bc4587b94",
-                "reference": "3f93d3f4bd5c12a5dfb34a7267c40b1bc4587b94",
+                "url": "https://api.github.com/repos/thephpleague/flysystem-aws-s3-v3/zipball/8475ef9adfc6498b85469e2abec6fe3118cd08c4",
+                "reference": "8475ef9adfc6498b85469e2abec6fe3118cd08c4",
                 "shasum": ""
             },
             "require": {
@@ -5762,9 +5762,9 @@
                 "storage"
             ],
             "support": {
-                "source": "https://github.com/thephpleague/flysystem-aws-s3-v3/tree/3.35.1"
+                "source": "https://github.com/thephpleague/flysystem-aws-s3-v3/tree/3.35.2"
             },
-            "time": "2026-06-25T06:51:08+00:00"
+            "time": "2026-07-01T23:25:49+00:00"
         },
         {
             "name": "league/flysystem-google-cloud-storage",
@@ -7107,16 +7107,16 @@
         },
         {
             "name": "mtdowling/jmespath.php",
-            "version": "2.9.1",
+            "version": "2.9.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/jmespath/jmespath.php.git",
-                "reference": "9c208ba27ae7d90853c288b3795d6702eb251d34"
+                "reference": "2157c5e50e813ec6a96c1eed3be7f64a20fb32a8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/jmespath/jmespath.php/zipball/9c208ba27ae7d90853c288b3795d6702eb251d34",
-                "reference": "9c208ba27ae7d90853c288b3795d6702eb251d34",
+                "url": "https://api.github.com/repos/jmespath/jmespath.php/zipball/2157c5e50e813ec6a96c1eed3be7f64a20fb32a8",
+                "reference": "2157c5e50e813ec6a96c1eed3be7f64a20fb32a8",
                 "shasum": ""
             },
             "require": {
@@ -7167,9 +7167,9 @@
             ],
             "support": {
                 "issues": "https://github.com/jmespath/jmespath.php/issues",
-                "source": "https://github.com/jmespath/jmespath.php/tree/2.9.1"
+                "source": "https://github.com/jmespath/jmespath.php/tree/2.9.2"
             },
-            "time": "2026-06-11T10:43:56+00:00"
+            "time": "2026-07-06T18:56:19+00:00"
         },
         {
             "name": "nesbot/carbon",
@@ -7576,20 +7576,19 @@
         },
         {
             "name": "nikic/php-parser",
-            "version": "v5.7.0",
+            "version": "v5.8.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nikic/PHP-Parser.git",
-                "reference": "dca41cd15c2ac9d055ad70dbfd011130757d1f82"
+                "reference": "044a6a392ff8ad0d61f14370a5fbbd0a0107152f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/dca41cd15c2ac9d055ad70dbfd011130757d1f82",
-                "reference": "dca41cd15c2ac9d055ad70dbfd011130757d1f82",
+                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/044a6a392ff8ad0d61f14370a5fbbd0a0107152f",
+                "reference": "044a6a392ff8ad0d61f14370a5fbbd0a0107152f",
                 "shasum": ""
             },
             "require": {
-                "ext-ctype": "*",
                 "ext-json": "*",
                 "ext-tokenizer": "*",
                 "php": ">=7.4"
@@ -7628,9 +7627,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nikic/PHP-Parser/issues",
-                "source": "https://github.com/nikic/PHP-Parser/tree/v5.7.0"
+                "source": "https://github.com/nikic/PHP-Parser/tree/v5.8.0"
             },
-            "time": "2025-12-06T11:56:16+00:00"
+            "time": "2026-07-04T14:30:18+00:00"
         },
         {
             "name": "nunomaduro/termwind",
@@ -16995,16 +16994,16 @@
         },
         {
             "name": "vlucas/phpdotenv",
-            "version": "v5.6.3",
+            "version": "v5.6.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/vlucas/phpdotenv.git",
-                "reference": "955e7815d677a3eaa7075231212f2110983adecc"
+                "reference": "416df702837983f8d5ff48c9c3fee4f5f57b980b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/vlucas/phpdotenv/zipball/955e7815d677a3eaa7075231212f2110983adecc",
-                "reference": "955e7815d677a3eaa7075231212f2110983adecc",
+                "url": "https://api.github.com/repos/vlucas/phpdotenv/zipball/416df702837983f8d5ff48c9c3fee4f5f57b980b",
+                "reference": "416df702837983f8d5ff48c9c3fee4f5f57b980b",
                 "shasum": ""
             },
             "require": {
@@ -17063,7 +17062,7 @@
             ],
             "support": {
                 "issues": "https://github.com/vlucas/phpdotenv/issues",
-                "source": "https://github.com/vlucas/phpdotenv/tree/v5.6.3"
+                "source": "https://github.com/vlucas/phpdotenv/tree/v5.6.4"
             },
             "funding": [
                 {
@@ -17075,7 +17074,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-12-27T19:49:13+00:00"
+            "time": "2026-07-06T19:11:50+00:00"
         },
         {
             "name": "voku/portable-ascii",
@@ -17411,16 +17410,16 @@
         },
         {
             "name": "webonyx/graphql-php",
-            "version": "v15.33.1",
+            "version": "v15.34.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/webonyx/graphql-php.git",
-                "reference": "e0f40ce40a527ee27413cceced4825aacbc7de5b"
+                "reference": "c72fd0f82e7b992aaf35516ebf860a4729be206f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/e0f40ce40a527ee27413cceced4825aacbc7de5b",
-                "reference": "e0f40ce40a527ee27413cceced4825aacbc7de5b",
+                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/c72fd0f82e7b992aaf35516ebf860a4729be206f",
+                "reference": "c72fd0f82e7b992aaf35516ebf860a4729be206f",
                 "shasum": ""
             },
             "require": {
@@ -17433,13 +17432,13 @@
                 "amphp/http-server": "^2.1 || ^3",
                 "dms/phpunit-arraysubset-asserts": "dev-master",
                 "ergebnis/composer-normalize": "^2.28",
-                "friendsofphp/php-cs-fixer": "3.95.8",
+                "friendsofphp/php-cs-fixer": "3.95.11",
                 "mll-lab/php-cs-fixer-config": "5.13.0",
                 "nyholm/psr7": "^1.5",
                 "phpbench/phpbench": "^1.2",
                 "phpstan/extension-installer": "^1.1",
-                "phpstan/phpstan": "2.2.2",
-                "phpstan/phpstan-phpunit": "2.0.16",
+                "phpstan/phpstan": "2.2.5",
+                "phpstan/phpstan-phpunit": "2.0.18",
                 "phpstan/phpstan-strict-rules": "2.0.11",
                 "phpunit/phpunit": "^9.5 || ^10.5.21 || ^11",
                 "psr/http-message": "^1 || ^2",
@@ -17475,7 +17474,7 @@
             ],
             "support": {
                 "issues": "https://github.com/webonyx/graphql-php/issues",
-                "source": "https://github.com/webonyx/graphql-php/tree/v15.33.1"
+                "source": "https://github.com/webonyx/graphql-php/tree/v15.34.0"
             },
             "funding": [
                 {
@@ -17487,7 +17486,7 @@
                     "type": "open_collective"
                 }
             ],
-            "time": "2026-06-17T06:05:59+00:00"
+            "time": "2026-07-05T18:03:26+00:00"
         },
         {
             "name": "yakovenko/laravel-lighthouse-graphql-multi-schema",
@@ -18845,11 +18844,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.2.4",
+            "version": "2.2.5",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/f0fe3fb03bb53ce68cc2416785b260e62226ec27",
-                "reference": "f0fe3fb03bb53ce68cc2416785b260e62226ec27",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/909c1e5fef7989ac0d0c1c5c42e32a5c4f6198a0",
+                "reference": "909c1e5fef7989ac0d0c1c5c42e32a5c4f6198a0",
                 "shasum": ""
             },
             "require": {
@@ -18905,7 +18904,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-07-03T07:00:23+00:00"
+            "time": "2026-07-05T06:31:06+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",

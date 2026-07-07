@@ -23,6 +23,7 @@ use Kanvas\Connectors\Hermes\Jobs\BackupAgentWorkspaceJob;
 use Kanvas\Connectors\Hermes\Jobs\MigrateAgentWorkspaceJob;
 use Kanvas\Connectors\Hermes\Jobs\MigrateFromOpenClawJob;
 use Kanvas\Connectors\Hermes\Jobs\RestartAgentContainerJob;
+use Kanvas\Connectors\Hermes\Jobs\SyncDeploymentCredentialsJob;
 use Kanvas\Connectors\Hermes\Jobs\TerminateAgentJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateHermesOnMachineJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateWorkspaceFilesJob;
@@ -90,6 +91,12 @@ class HermesProvider extends AbstractAgentRuntimeProvider
     public function dispatchRestart(AgentDeployment $deployment): void
     {
         RestartAgentContainerJob::dispatch($deployment);
+    }
+
+    #[Override]
+    public function dispatchCredentialSync(AgentDeployment $deployment): void
+    {
+        SyncDeploymentCredentialsJob::dispatch($deployment);
     }
 
     #[Override]

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
@@ -22,6 +24,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
@@ -322,6 +326,57 @@ class Agent extends BaseModel
         }
 
         return $this->type?->handler === OpenClawAgentHandler::class;
+    }
+
+    /**
+     * Whether this agent talks to a user privately — its handler implements
+     * ConversesWithUser. An internal system agent whose conversation stays on the
+     * user↔agent channel and never posts into a customer-facing lead timeline.
+     */
+    public function conversesWithUser(): bool
+    {
+        $handler = $this->type?->handler;
+
+        return $handler !== null
+            && $handler !== ''
+            && class_exists($handler)
+            && is_subclass_of($handler, ConversesWithUser::class);
+    }
+
+    /**
+     * Whether this agent is customer-facing — its handler implements ConversesWithCustomer.
+     * The mirror of conversesWithUser: an external agent speaks to a prospect as a persona and
+     * must stay prospect-isolated (no company-wide ledger recall on the customer surface).
+     */
+    public function conversesWithCustomer(): bool
+    {
+        $handler = $this->type?->handler;
+
+        return $handler !== null
+            && $handler !== ''
+            && class_exists($handler)
+            && is_subclass_of($handler, ConversesWithCustomer::class);
+    }
+
+    /**
+     * The agent whose identity is this user, within a tenant — how any user-targeted
+     * signal (assignment, @mention, ...) asks "is this teammate actually an agent?".
+     * Company-scoped, so it never resolves an agent from another tenant.
+     */
+    public static function fromUser(
+        int $userId,
+        AppInterface $app,
+        CompanyInterface $company
+    ): ?self {
+        /** @var self|null $agent */
+        $agent = self::query()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->where('user_id', $userId)
+            ->first();
+
+        return $agent;
     }
 
     public function searchableAs(): string

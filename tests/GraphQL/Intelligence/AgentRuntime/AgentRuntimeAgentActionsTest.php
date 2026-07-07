@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Intelligence\AgentRuntime;
 
+use App\GraphQL\Intelligence\Mutations\AgentRuntime\AgentDeploymentMutation;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Hermes\Actions\DispatchAgentDeploymentAction as DispatchHermesAgentDeploymentAction;
 use Kanvas\Connectors\Hermes\Jobs\LaunchAgentJob as HermesLaunchAgentJob;
+use Kanvas\Connectors\Hermes\Jobs\SyncDeploymentCredentialsJob as HermesSyncDeploymentCredentialsJob;
 use Kanvas\Connectors\OpenClaw\Actions\DispatchAgentDeploymentAction as DispatchOpenClawAgentDeploymentAction;
 use Kanvas\Connectors\OpenClaw\Actions\SyncAgentWorkspaceAction;
 use Kanvas\Connectors\OpenClaw\Actions\UpdateAgentSwarmHierarchyAction;
 use Kanvas\Connectors\OpenClaw\Jobs\LaunchAgentJob as OpenClawLaunchAgentJob;
+use Kanvas\Connectors\OpenClaw\Jobs\SyncDeploymentCredentialsJob as OpenClawSyncDeploymentCredentialsJob;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\AgentRuntime\Notifications\AgentDeploymentMissingChannelIntegrationNotification;
@@ -330,5 +333,78 @@ class AgentRuntimeAgentActionsTest extends TestCase
 
         $this->expectException(NoKeyLoadedException::class);
         new SyncAgentWorkspaceAction($agent, $deployment)->execute();
+    }
+
+    private function createRunningDeployment(Agent $agent, AgentMachine $machine, string $provider): AgentDeployment
+    {
+        $company = auth()->user()->getCurrentCompany();
+
+        $deployment = new AgentDeployment();
+        $deployment->apps_id = $agent->apps_id;
+        $deployment->companies_id = $company->getId();
+        $deployment->agent_id = $agent->getId();
+        $deployment->agent_machine_id = $machine->getId();
+        $deployment->system_user = 'agent-cred-' . fake()->unique()->uuid();
+        $deployment->home_directory = '/home/agent-cred';
+        $deployment->gateway_port = 28000;
+        $deployment->proxy_port = 28001;
+        $deployment->container_name = $provider . '-cred-test';
+        $deployment->provider = $provider;
+        $deployment->status = 'running';
+        $deployment->saveOrFail();
+
+        return $deployment;
+    }
+
+    public function testSetTelegramTokenSyncsCredentialsToRunningHermesDeployment(): void
+    {
+        Queue::fake();
+
+        $agent = $this->createAgent();
+        $machine = $this->createAgentMachine();
+        $this->createRunningDeployment($agent, $machine, AgentProviderEnum::HERMES->value);
+
+        new AgentDeploymentMutation()->setTelegramToken(null, [
+            'agent_id' => $agent->getId(),
+            'telegram_bot_token' => '123456789:rotated',
+            'telegram_allowed_users' => '111,222',
+        ]);
+
+        $agent->refresh();
+        $this->assertSame('123456789:rotated', $agent->get(AgentChannelTokenEnum::TELEGRAM_BOT_TOKEN->value));
+        Queue::assertPushed(HermesSyncDeploymentCredentialsJob::class);
+    }
+
+    public function testSetSlackTokensSyncsCredentialsToRunningOpenClawDeployment(): void
+    {
+        Queue::fake();
+
+        $agent = $this->createAgent();
+        $machine = $this->createAgentMachine();
+        $this->createRunningDeployment($agent, $machine, AgentProviderEnum::OPENCLAW->value);
+
+        new AgentDeploymentMutation()->setSlackTokens(null, [
+            'agent_id' => $agent->getId(),
+            'slack_bot_token' => 'xoxb-rotated',
+            'slack_app_token' => 'xapp-rotated',
+        ]);
+
+        Queue::assertPushed(OpenClawSyncDeploymentCredentialsJob::class);
+    }
+
+    public function testSetTelegramTokenDoesNotSyncWithoutRunningDeployment(): void
+    {
+        Queue::fake();
+
+        $agent = $this->createAgent();
+
+        new AgentDeploymentMutation()->setTelegramToken(null, [
+            'agent_id' => $agent->getId(),
+            'telegram_bot_token' => '123456789:rotated',
+        ]);
+
+        $agent->refresh();
+        $this->assertSame('123456789:rotated', $agent->get(AgentChannelTokenEnum::TELEGRAM_BOT_TOKEN->value));
+        Queue::assertNotPushed(HermesSyncDeploymentCredentialsJob::class);
     }
 }
