@@ -94,6 +94,24 @@ final class ApolloLinkedInLookupToolTest extends TestCase
         $this->assertSame([], $result['people']);
     }
 
+    public function testHandleReturnsEmptyWhenAllMatchesBelowMinConfidence(): void
+    {
+        $tool = $this->makeTool();
+
+        // min_confidence=1.0 means only exact name matches pass — virtually impossible from API
+        $result = json_decode(
+            (string) $tool->handle(new Request([
+                'company_name' => 'Apple',
+                'people' => [],
+                'min_confidence' => 1.0,
+            ])),
+            true
+        );
+
+        $this->assertArrayHasKey('people', $result);
+        $this->assertSame([], $result['people']);
+    }
+
     /**
      * Integration test — requires Apollo API key to be set on the app.
      */
