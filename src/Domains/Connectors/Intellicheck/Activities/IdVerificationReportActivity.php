@@ -16,6 +16,7 @@ use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -38,30 +39,14 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
     public function execute(Model $entity, AppInterface $app, array $params): array
     {
         try {
-            // Extract verification data from params
             $verificationData = $params;
-
-            //$isShowRoom = $params['is_showroom'] ?? false;
             $isShowRoom = ! isset($verificationData['ipqs']);
-            // Get person name from lead entity
+
             $name = IdVerificationService::getName($verificationData);
             $name = $name !== 'Unknown' ? $name : ($entity->title ?? ($entity->people->name ?? 'Customer'));
 
-            // Process data to generate verification results
             $verificationResults = IdVerificationService::processVerificationData($verificationData, $name, $isShowRoom);
             $company = $entity->company;
-
-            // Generate report HTML using the template
-            // $reportHtml = $this->generateIntellicheckReport(
-            //     $verificationResults['message'],
-            //     $verificationData,
-            //     $verificationResults['status'],
-            //     $verificationResults['results'],
-            //     $verificationResults['failures'],
-            //     $verificationResults['flags']
-            // );
-
-            // Prepare data to pass to the Blade template
 
             /**
              * @todo move to use the idverification action
@@ -92,7 +77,6 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         ],
                     ];
 
-                    // Create getDocsDriversLicense data from verification data
                     $getDocsDriversLicense = null;
                     if (isset($verificationData['idcheck']['data'])) {
                         $idCheck = $verificationData['idcheck']['data'];
@@ -130,38 +114,49 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         'intellicheckResponse' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],
                     ];
 
-                    // Get lead and people from entity
+                    // A co-buyer/participant scan carries its own peopleId in the payload
+                    // ($params['participant']['peopleId']); a main-buyer scan does not.
+                    // Resolve the person actually verified so a participant's result never
+                    // overwrites the lead's main people (and its lead-level DL slots).
                     $lead = $entity;
-                    $people = $entity->people;
+                    $verifiedPeople = $entity instanceof Lead
+                        ? $this->resolveVerifiedPeople($entity, $verificationData, $app)
+                        : null;
+                    $isLeadPeople = $verifiedPeople !== null && $verifiedPeople->getId() === $lead->people_id;
 
-                    if ($entity instanceof Lead) {
-                        $lead->set(
-                            'id_verification',
-                            $resultsFromIntellicheck
-                        );
+                    if ($verifiedPeople !== null) {
+                        $verifiedPeople->set('id_verification', $resultsFromIntellicheck);
 
-                        $people->set(
-                            'id_verification',
-                            $resultsFromIntellicheck
-                        );
+                        if (! empty($getDocsDriversLicense)) {
+                            $verifiedPeople->del('get_docs_drivers_license');
+                        }
                     }
 
-                    if (! empty($getDocsDriversLicense)) {
-                        $lead->set('get_docs_drivers_license', $getDocsDriversLicense);
-                        $people->del('get_docs_drivers_license');
+                    // The lead's own DL/verification slots only ever describe the main buyer.
+                    if ($isLeadPeople) {
+                        $lead->set('id_verification', $resultsFromIntellicheck);
+
+                        if (! empty($getDocsDriversLicense)) {
+                            $lead->set('get_docs_drivers_license', $getDocsDriversLicense);
+                        }
                     }
 
                     $sendEmailNotification = (bool) $entity->company->get('disable_id_verification_email', false) === false;
 
-                    //dispatch(function () use ($entity, $app, $reportData, $isShowRoom, $verificationData, $name) {
-                    sleep(5); // Delay to ensure previous processes are complete
+                    sleep(5); // let prior activities (image/DL processing) settle before re-reading the entity
                     $entity->refresh();
 
-                    // Use Redis cache to prevent duplicate execution within 3 minutes
-                    $entity->set(IntegrationsEnum::INTELLICHECK->value . '_sent_report_' . Str::simpleSlug($name), true);
-                    $cacheKey = 'intellicheck_report_' . $entity->getId() . '_' . Str::simpleSlug($name);
+                    // Dedup per verified person, not per display name: a participant with a
+                    // blurry doc resolves $name back to the lead/main-buyer name, so a
+                    // name-keyed cache would make the participant and main buyer collide and
+                    // silently skip each other within the 3-minute window.
+                    $verificationSubjectKey = $verifiedPeople !== null
+                        ? (string) $verifiedPeople->getId()
+                        : Str::simpleSlug($name);
+
+                    $entity->set(IntegrationsEnum::INTELLICHECK->value . '_sent_report_' . $verificationSubjectKey, true);
+                    $cacheKey = 'intellicheck_report_' . $entity->getId() . '_' . $verificationSubjectKey;
                     if (Cache::has($cacheKey)) {
-                        // If the report has already been sent, we skip the rest of the process
                         return [
                             'report' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],
                             'result' => true,
@@ -172,7 +167,6 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         ];
                     }
 
-                    // Set cache for 3 minutes
                     Cache::put($cacheKey, true, now()->addMinutes(3));
 
                     $usersToNotify = UsersRepository::findUsersByArray($entity->company->get('company_manager'), $app);
@@ -206,7 +200,6 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                             $manager->notify($notification);
                         }
                     }
-                    // Generate PDF
                     $generatePdf = 'Generate PDF report for Intellicheck ID Verification';
 
                     try {
@@ -226,28 +219,30 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                                            ]
                         );
 
-                        if ($entity instanceof Lead) {
-                            $engagement = EngagementRepository::findEngagementForLead(
+                        if ($entity instanceof Lead && $verifiedPeople !== null) {
+                            $engagement = EngagementRepository::findEngagementForLeadBuilder(
                                 $entity,
                                 ConfigurationEnum::ID_VERIFICATION->value,
                                 ActionStatusEnum::SUBMITTED->value,
-                            ) ?? $this->createIdVerificationEngagement($entity);
+                            )
+                                ->where('people_id', $verifiedPeople->getId())
+                                ->first()
+                                ?? $this->createIdVerificationEngagement($entity, $verifiedPeople);
 
-                            $engagement->message?->addFile(
-                                $pdfReport,
-                                'id-verification'
-                            );
+                            $message = $engagement->message;
+                            if ($message !== null) {
+                                $message->addFile($pdfReport, 'id-verification');
+                                $this->attachDriverLicenseImages(
+                                    $message,
+                                    $verifiedPeople,
+                                    $reportData
+                                );
+                            }
                         }
-
-                        //$entity->addFile($pdfReport, 'id-verification');
                     } catch (Throwable $e) {
                         report($e);
                         $generatePdf .= ' - Error generating PDF: ' . $e->getMessage();
-                        // Log PDF generation error but continue
                     }
-
-                    //since we are running 2 diff version of the api, we need to slow you down to get the last message
-                    //})->delay(now()->addSeconds(30))->onQueue('notifications');
 
                     return [
                         'report' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],
@@ -272,7 +267,72 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         }
     }
 
-    private function createIdVerificationEngagement(Lead $lead): Engagement
+    /**
+     * A participant/co-buyer verification carries the participant's own id in
+     * $params['participant']['peopleId']; a main-buyer verification omits it. Resolve
+     * that person (tenant-scoped) so a participant's result never lands on the main
+     * people; fall back to the lead's main people when there is no participant id.
+     */
+    /**
+     * Decode the verified person's own driver_license_images (base64 front/back) into
+     * files on their engagement message. Keyed off the resolved person so a participant's
+     * images attach to the participant's engagement, never the main buyer's.
+     */
+    private function attachDriverLicenseImages(Message $message, People $people, array $reportData): void
+    {
+        $images = $people->get('driver_license_images');
+        if (! is_array($images)) {
+            return;
+        }
+
+        $isIdValid = in_array($reportData['status'] ?? null, ['green', 'flag'], true);
+        $isExpired = ($reportData['status'] ?? null) === 'flag';
+        $filesystemService = new FilesystemServices($people->app, $people->company);
+
+        foreach (['back' => 'drivers_license_back', 'front' => 'drivers_license_front'] as $side => $field) {
+            if (empty($images[$side])) {
+                continue;
+            }
+
+            $file = $filesystemService->createFileSystemFromBase64(
+                $images[$side],
+                $field . '.jpg',
+                $people->user
+            );
+            $message->addFile($file, $field);
+
+            $file->set('id_verify', (int) $isIdValid);
+            $file->set('id_expired', (int) $isExpired);
+            $file->set('id_verification_msg', $reportData['message'] ?? '');
+            $file->set('id_verification_status', $reportData['status'] ?? 'unknown');
+        }
+
+        // The base64 is now a real file on the engagement — drop it so the raw license
+        // image (PII) doesn't linger on the custom field, matching the SalesAssist cleanup.
+        $people->del('driver_license_images');
+    }
+
+    private function resolveVerifiedPeople(Lead $lead, array $params, AppInterface $app): People
+    {
+        $participantPeopleId = $params['participant']['peopleId'] ?? null;
+
+        if ($participantPeopleId !== null) {
+            /** @var People|null $participant */
+            $participant = People::fromCompany($lead->company)
+                ->fromApp($app)
+                ->where('id', (int) $participantPeopleId)
+                ->notDeleted()
+                ->first();
+
+            if ($participant !== null) {
+                return $participant;
+            }
+        }
+
+        return $lead->people;
+    }
+
+    private function createIdVerificationEngagement(Lead $lead, People $people): Engagement
     {
         $taskId = $lead->get('check_list_status') ?? $lead->company->get('default_checklist_id');
 
@@ -289,7 +349,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
             requestId: Str::uuid()->toString(),
             source: 'workflow',
             status: ActionStatusEnum::SUBMITTED,
-            people: $lead->people,
+            people: $people,
             receiverId: $lead->receiver?->getId(),
             taskId: $taskId,
             via: 'webhook',

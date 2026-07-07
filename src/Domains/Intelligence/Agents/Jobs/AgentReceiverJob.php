@@ -44,6 +44,13 @@ class AgentReceiverJob extends ProcessWebhookJob
             user: $this->receiver->user,
         )->execute();
 
+        // LLM agents that complete work entirely via tool calls may return an empty
+        // text turn as their closing message. Surface a default so callers can
+        // distinguish "ran but silent" from "ran and errored".
+        if ($response === '') {
+            $response = 'Agent workflow completed. Check CRM for created records.';
+        }
+
         return [
             'message' => 'Agent processed successfully',
             'agent_id' => $agent->getId(),

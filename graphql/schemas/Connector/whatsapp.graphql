@@ -1,0 +1,31 @@
+input WhatsappConnectorInput {
+    agent_id: ID!
+    phone_number: String!
+    session_name: String
+}
+
+type WhatsappConnectResult {
+    session_id: ID
+    status: String!
+    qr_code: String
+}
+
+extend type Mutation @guard {
+    whatsappConnect(input: WhatsappConnectorInput!): WhatsappConnectResult!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\WhatsApp\\WhatsappConnectorResolver@connect"
+        )
+
+    "Disconnect an agent's WhatsApp. remove=false pauses (can reconnect); remove=true deletes the session and tears down routing."
+    whatsappDisconnect(agent_id: ID!, remove: Boolean = false): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\WhatsApp\\WhatsappConnectorResolver@disconnect"
+        )
+}
+
+extend type Query @guard {
+    whatsappConnectionStatus(session_id: ID!): String!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\WhatsApp\\WhatsappConnectorResolver@status"
+        )
+}
