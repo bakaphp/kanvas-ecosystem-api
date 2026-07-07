@@ -130,25 +130,31 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         'intellicheckResponse' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],
                     ];
 
-                    // Get lead and people from entity
+                    // A co-buyer/participant scan carries its own peopleId in the payload
+                    // ($params['participant']['peopleId']); a main-buyer scan does not.
+                    // Resolve the person actually verified so a participant's result never
+                    // overwrites the lead's main people (and its lead-level DL slots).
                     $lead = $entity;
-                    $people = $entity->people;
+                    $verifiedPeople = $entity instanceof Lead
+                        ? $this->resolveVerifiedPeople($entity, $verificationData, $app)
+                        : null;
+                    $isLeadPeople = $verifiedPeople !== null && $verifiedPeople->getId() === $lead->people_id;
 
-                    if ($entity instanceof Lead) {
-                        $lead->set(
-                            'id_verification',
-                            $resultsFromIntellicheck
-                        );
+                    if ($verifiedPeople !== null) {
+                        $verifiedPeople->set('id_verification', $resultsFromIntellicheck);
 
-                        $people->set(
-                            'id_verification',
-                            $resultsFromIntellicheck
-                        );
+                        if (! empty($getDocsDriversLicense)) {
+                            $verifiedPeople->del('get_docs_drivers_license');
+                        }
                     }
 
-                    if (! empty($getDocsDriversLicense)) {
-                        $lead->set('get_docs_drivers_license', $getDocsDriversLicense);
-                        $people->del('get_docs_drivers_license');
+                    // The lead's own DL/verification slots only ever describe the main buyer.
+                    if ($isLeadPeople) {
+                        $lead->set('id_verification', $resultsFromIntellicheck);
+
+                        if (! empty($getDocsDriversLicense)) {
+                            $lead->set('get_docs_drivers_license', $getDocsDriversLicense);
+                        }
                     }
 
                     $sendEmailNotification = (bool) $entity->company->get('disable_id_verification_email', false) === false;
@@ -157,9 +163,17 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                     sleep(5); // Delay to ensure previous processes are complete
                     $entity->refresh();
 
+                    // Dedup per verified person, not per display name: a participant with a
+                    // blurry doc resolves $name back to the lead/main-buyer name, so a
+                    // name-keyed cache would make the participant and main buyer collide and
+                    // silently skip each other within the 3-minute window.
+                    $verificationSubjectKey = $verifiedPeople !== null
+                        ? (string) $verifiedPeople->getId()
+                        : Str::simpleSlug($name);
+
                     // Use Redis cache to prevent duplicate execution within 3 minutes
-                    $entity->set(IntegrationsEnum::INTELLICHECK->value . '_sent_report_' . Str::simpleSlug($name), true);
-                    $cacheKey = 'intellicheck_report_' . $entity->getId() . '_' . Str::simpleSlug($name);
+                    $entity->set(IntegrationsEnum::INTELLICHECK->value . '_sent_report_' . $verificationSubjectKey, true);
+                    $cacheKey = 'intellicheck_report_' . $entity->getId() . '_' . $verificationSubjectKey;
                     if (Cache::has($cacheKey)) {
                         // If the report has already been sent, we skip the rest of the process
                         return [
@@ -270,6 +284,32 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                 'trace' => $e->getTraceAsString(),
             ];
         }
+    }
+
+    /**
+     * A participant/co-buyer verification carries the participant's own id in
+     * $params['participant']['peopleId']; a main-buyer verification omits it. Resolve
+     * that person (tenant-scoped) so a participant's result never lands on the main
+     * people; fall back to the lead's main people when there is no participant id.
+     */
+    private function resolveVerifiedPeople(Lead $lead, array $params, AppInterface $app): People
+    {
+        $participantPeopleId = $params['participant']['peopleId'] ?? null;
+
+        if ($participantPeopleId !== null) {
+            /** @var People|null $participant */
+            $participant = People::fromCompany($lead->company)
+                ->fromApp($app)
+                ->where('id', (int) $participantPeopleId)
+                ->notDeleted()
+                ->first();
+
+            if ($participant !== null) {
+                return $participant;
+            }
+        }
+
+        return $lead->people;
     }
 
     private function createIdVerificationEngagement(Lead $lead): Engagement
