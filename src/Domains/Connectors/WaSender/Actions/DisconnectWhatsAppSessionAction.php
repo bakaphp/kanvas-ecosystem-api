@@ -94,8 +94,8 @@ class DisconnectWhatsAppSessionAction
 
     private function clearAgentConnection(): void
     {
-        $this->agent->set(ConnectionFieldEnum::SESSION_ID->value, '');
-        $this->agent->set(ConnectionFieldEnum::PHONE_NUMBER->value, '');
-        $this->agent->set(ConnectionFieldEnum::RECEIVER_ID->value, '');
+        $this->agent->del(ConnectionFieldEnum::SESSION_ID->value);
+        $this->agent->del(ConnectionFieldEnum::PHONE_NUMBER->value);
+        $this->agent->del(ConnectionFieldEnum::RECEIVER_ID->value);
     }
 }
