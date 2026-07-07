@@ -78,7 +78,7 @@ class ConnectWhatsAppSessionActionTest extends TestCase
                 $captured = $args;
 
                 return [
-                    'session' => ['id' => 909, 'status' => 'need_scan', 'webhook_secret' => 'fb61be92ddb7935e0cedcec58e470f6c'],
+                    'session' => ['id' => 909, 'status' => 'need_scan', 'webhook_secret' => 'fb61be92ddb7935e0cedcec58e470f6c', 'api_key' => 'sess_909_send_key'],
                     'connection' => ['qr_code' => 'base64QRDATA', 'status' => 'need_scan'],
                 ];
             });
@@ -125,6 +125,10 @@ class ConnectWhatsAppSessionActionTest extends TestCase
         $this->assertSame('909', (string) $fresh->get('whatsapp_session_id'));
         $this->assertSame('18095551234', (string) $fresh->get('whatsapp_phone_number'));
         $this->assertSame((string) $receiver->getId(), (string) $fresh->get('whatsapp_receiver_id'));
+
+        // The session's own api_key becomes the company wasender_api_key, so the unchanged send path
+        // (MessageService reads company API_KEY first) authenticates /api/send-message with it.
+        $this->assertSame('sess_909_send_key', (string) $company->get('wasender_api_key'));
 
         // Agent bound on the AFTER_ADDING_MESSAGE_TO_CHANNEL rule
         $rule = Rule::query()

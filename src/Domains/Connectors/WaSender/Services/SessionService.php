@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\WaSender\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\WaSender\Client;
+use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 
 class SessionService
@@ -17,7 +18,12 @@ class SessionService
         protected AppInterface $app,
         protected CompanyInterface $company
     ) {
-        $this->client = new Client($app, $company);
+        $this->client = new Client(
+            $app,
+            $company,
+            false,
+            $app->get(ConfigurationEnum::PERSONAL_ACCESS_TOKEN->value)
+        );
     }
 
     /**
