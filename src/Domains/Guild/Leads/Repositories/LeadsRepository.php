@@ -45,7 +45,7 @@ class LeadsRepository
                     ->where('people_id', $people->id)
                         ->whereHas('status', function ($query) use ($mappingStatus) {
                             if ($mappingStatus && is_array($mappingStatus) && key_exists('active', $mappingStatus) && is_array($mappingStatus['active'])) {
-                                $query->whereIn('name', ...$mappingStatus['active']);
+                                $query->whereIn('name', $mappingStatus['active']);
                             } else {
                                 $query->whereIn('name', ['active', 'created']);
                             }
