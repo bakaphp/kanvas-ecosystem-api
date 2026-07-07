@@ -87,11 +87,6 @@ final class ClaimAnonymousSessionAction
         return $newSession;
     }
 
-    /**
-     * Copy only this token's messages (the shared demo channel accumulates every visitor's chat, so
-     * filter by the demo session uuid) into the clone's channel, re-tagged with the new session uuid.
-     * No notifications/jobs fire — this is a low-level history seed, not a live turn.
-     */
     private function copyTranscript(
         Session $demoSession,
         Session $newSession,

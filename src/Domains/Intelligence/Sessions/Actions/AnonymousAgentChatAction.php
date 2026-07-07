@@ -14,11 +14,6 @@ use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionData;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
 
-/**
- * Run one anonymous chat turn against a public-enabled customer-facing agent, inside the agent's
- * (demo) company. The session is keyed by a client token so the same visitor resumes across visits;
- * a per-token turn cap bounds the free LLM spend. Everything created here stays in the demo company.
- */
 final class AnonymousAgentChatAction
 {
     private const int DEFAULT_TURN_CAP = 50;
