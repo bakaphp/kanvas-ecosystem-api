@@ -53,18 +53,18 @@ final class AdjustOrderItemAmountActionTest extends TestCase
 
         $locationType = ProductsTypes::factory()
             ->company($company->getId())
-            ->create(['slug' => 'impound_lot', 'name' => 'Impound Lot']);
+            ->create(['slug' => 'impound_lot', 'name' => 'impound_lot']);
 
         $serviceType = ProductsTypes::factory()
             ->company($company->getId())
-            ->create(['slug' => 'grua-deposito', 'name' => 'Grua Deposito']);
+            ->create(['slug' => 'grua-deposito', 'name' => 'services']);
 
         $locationProduct = Variants::withoutSyncingToSearch(
             fn () => Products::withoutSyncingToSearch(
                 fn () => Products::factory()
                     ->withAppId($app->getId())
                     ->withCompanyId($company->getId())
-                    ->create(['products_types_id' => $locationType->id])
+                    ->create(['products_types_id' => $locationType->id, 'is_deleted' => 0, 'is_published' => 1])
             )
         );
 
@@ -73,7 +73,7 @@ final class AdjustOrderItemAmountActionTest extends TestCase
                 fn () => Products::factory()
                     ->withAppId($app->getId())
                     ->withCompanyId($company->getId())
-                    ->create(['products_types_id' => $serviceType->id])
+                    ->create(['products_types_id' => $serviceType->id, 'is_deleted' => 0, 'is_published' => 1])
             )
         );
 
@@ -169,8 +169,8 @@ final class AdjustOrderItemAmountActionTest extends TestCase
 
         $items = $order->allItems()->with('variant.product.productType')->get();
 
-        $locationItem = $items->first(fn ($i) => $i->variant?->product?->productType?->slug === 'impound_lot');
-        $serviceItem = $items->first(fn ($i) => $i->variant?->product?->productType?->slug !== 'impound_lot');
+        $locationItem = $items->first(fn ($i) => $i->variant?->product?->productType?->name === 'impound_lot');
+        $serviceItem = $items->first(fn ($i) => $i->variant?->product?->productType?->name == 'services');
 
         $this->assertEquals(0.0, (float) $locationItem->unit_price_net_amount);
         $this->assertEquals(4400.0, (float) $serviceItem->unit_price_net_amount);

@@ -90,7 +90,7 @@ class RelocateVehicleAction extends BaseOrderCorrectionAction
 
         return Variants::query()
             ->whereIn('id', $variantIds)
-            ->whereHas('product.productType', fn ($q) => $q->where('slug', 'impound_lot'))
+            ->whereHas('product.productType', fn ($q) => $q->where('name', 'impound_lot'))
             ->pluck('id')
             ->toArray();
     }
