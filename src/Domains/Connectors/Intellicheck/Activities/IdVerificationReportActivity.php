@@ -16,10 +16,12 @@ use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -227,10 +229,15 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                                 ->first()
                                 ?? $this->createIdVerificationEngagement($entity, $verifiedPeople);
 
-                            $engagement->message?->addFile(
-                                $pdfReport,
-                                'id-verification'
-                            );
+                            $message = $engagement->message;
+                            if ($message !== null) {
+                                $message->addFile($pdfReport, 'id-verification');
+                                $this->attachDriverLicenseImages(
+                                    $message,
+                                    $verifiedPeople,
+                                    $reportData
+                                );
+                            }
                         }
                     } catch (Throwable $e) {
                         report($e);
@@ -266,6 +273,45 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
      * that person (tenant-scoped) so a participant's result never lands on the main
      * people; fall back to the lead's main people when there is no participant id.
      */
+    /**
+     * Decode the verified person's own driver_license_images (base64 front/back) into
+     * files on their engagement message. Keyed off the resolved person so a participant's
+     * images attach to the participant's engagement, never the main buyer's.
+     */
+    private function attachDriverLicenseImages(Message $message, People $people, array $reportData): void
+    {
+        $images = $people->get('driver_license_images');
+        if (! is_array($images)) {
+            return;
+        }
+
+        $isIdValid = in_array($reportData['status'] ?? null, ['green', 'flag'], true);
+        $isExpired = ($reportData['status'] ?? null) === 'flag';
+        $filesystemService = new FilesystemServices($people->app, $people->company);
+
+        foreach (['back' => 'drivers_license_back', 'front' => 'drivers_license_front'] as $side => $field) {
+            if (empty($images[$side])) {
+                continue;
+            }
+
+            $file = $filesystemService->createFileSystemFromBase64(
+                $images[$side],
+                $field . '.jpg',
+                $people->user
+            );
+            $message->addFile($file, $field);
+
+            $file->set('id_verify', (int) $isIdValid);
+            $file->set('id_expired', (int) $isExpired);
+            $file->set('id_verification_msg', $reportData['message'] ?? '');
+            $file->set('id_verification_status', $reportData['status'] ?? 'unknown');
+        }
+
+        // The base64 is now a real file on the engagement — drop it so the raw license
+        // image (PII) doesn't linger on the custom field, matching the SalesAssist cleanup.
+        $people->del('driver_license_images');
+    }
+
     private function resolveVerifiedPeople(Lead $lead, array $params, AppInterface $app): People
     {
         $participantPeopleId = $params['participant']['peopleId'] ?? null;
