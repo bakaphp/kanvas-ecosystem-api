@@ -18,6 +18,7 @@ class AIAssistAgentResponderAction extends BaseAgentChannelReplyAction
 {
     protected string $messageTypeVerb = 'ai-assist';
     protected string $communicationChannel = 'ai-assist';
+    protected bool $respectsLeadAiMode = false;
 
     #[Override]
     public function execute(array $params = []): array
