@@ -26,7 +26,8 @@ class OrderCorrectionMutation
 
         $correctionType = $request['correction_type'];
 
-        Gate::authorize($correctionType, Order::class);
+        // ability-name only — a model arg would trip the module-access gate (view-module-commerce), which order mutations don't require
+        Gate::authorize($correctionType);
 
         $order = Order::getByIdFromCompanyApp(
             (int) $request['order_id'],
