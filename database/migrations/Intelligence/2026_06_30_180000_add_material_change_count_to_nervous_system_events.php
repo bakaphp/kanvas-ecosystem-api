@@ -13,7 +13,8 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::connection('intelligence')->table('nervous_system_events', function (Blueprint $table) {
-            // Real before/after changes only (excludes flags) = rows the feed renders; filtered `> 0`.
+            // Count of REAL before/after changes only (excludes flags like new_account) — equals the
+            // number of rows the change feed renders. Frontend filters `material_change_count > 0`.
             $table->unsignedSmallInteger('material_change_count')->default(0)->after('change_count');
             $table->index(['apps_id', 'companies_id', 'event_type', 'material_change_count'], 'apps_company_type_material');
         });

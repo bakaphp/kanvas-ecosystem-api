@@ -186,6 +186,35 @@ class Message extends BaseModel
         return is_array($value) ? $value : [];
     }
 
+    /**
+     * Message text regardless of body shape — {content}/{text} object, raw string, or
+     * double-encoded JSON. Use this, not getMessage(), which returns [] for non-object bodies.
+     */
+    public function contentText(): string
+    {
+        $payload = $this->getMessage();
+        foreach (['content', 'text', 'message', 'body'] as $key) {
+            $value = $payload[$key] ?? null;
+            if (is_string($value) && $value !== '') {
+                return $value;
+            }
+        }
+
+        $raw = $this->message;
+        if (is_string($raw) && $raw !== '') {
+            return $raw;
+        }
+
+        $original = $this->getRawOriginal('message');
+        if (is_string($original) && $original !== '') {
+            $decoded = json_decode($original);
+
+            return is_string($decoded) ? $decoded : $original;
+        }
+
+        return '';
+    }
+
     public function addMessage(array $message): void
     {
         $this->message = array_merge($this->getMessage(), $message);
