@@ -1,0 +1,25 @@
+input WhatsappConnectorInput {
+    agent_id: ID!
+    phone_number: String!
+    session_name: String
+}
+
+type WhatsappConnectResult {
+    session_id: ID
+    status: String!
+    qr_code: String
+}
+
+extend type Mutation @guard {
+    whatsappConnect(input: WhatsappConnectorInput!): WhatsappConnectResult!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\WhatsApp\\WhatsappConnectorResolver@connect"
+        )
+}
+
+extend type Query @guard {
+    whatsappConnectionStatus(session_id: ID!): String!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\WhatsApp\\WhatsappConnectorResolver@status"
+        )
+}
