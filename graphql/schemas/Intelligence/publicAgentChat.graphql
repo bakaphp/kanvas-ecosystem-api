@@ -1,0 +1,19 @@
+input PublicAgentChatInput {
+    agent: ID!
+    token: String!
+    message: String!
+}
+
+type PublicAgentChatResult {
+    token: String!
+    reply: String!
+    turns_remaining: Int!
+}
+
+extend type Mutation @guardByAppKey {
+    "Anonymous chat with a public-enabled customer-facing agent. Consumed by a trusted backend holding the app key, never the browser directly."
+    publicAgentChat(input: PublicAgentChatInput!): PublicAgentChatResult!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\PublicAgentChatMutation@chat"
+        )
+}
