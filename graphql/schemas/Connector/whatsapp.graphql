@@ -15,6 +15,12 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Connector\\WhatsApp\\WhatsappConnectorResolver@connect"
         )
+
+    "Disconnect an agent's WhatsApp. remove=false pauses (can reconnect); remove=true deletes the session and tears down routing."
+    whatsappDisconnect(agent_id: ID!, remove: Boolean = false): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\WhatsApp\\WhatsappConnectorResolver@disconnect"
+        )
 }
 
 extend type Query @guard {

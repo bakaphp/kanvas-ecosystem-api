@@ -7,10 +7,12 @@ namespace Kanvas\Connectors\WaSender\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Connectors\WaSender\Enums\ConnectionFieldEnum;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
 use Kanvas\Connectors\WaSender\Services\SessionService;
 use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Connectors\WaSender\Workflows\AgentChannelResponderActivity;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -32,6 +34,8 @@ use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
  */
 class ConnectWhatsAppSessionAction
 {
+    public const string RULE_NAME = 'WhatsApp Receptionist responder';
+
     protected SessionService $sessionService;
     private const string CHANNEL_SLUG_ATTRIBUTE = 'slug';
     private const string CHANNEL_SLUG_PATTERN = '/wa/';
@@ -40,7 +44,7 @@ class ConnectWhatsAppSessionAction
         protected readonly AppInterface $app,
         protected readonly CompanyInterface $company,
         protected readonly UserInterface $user,
-        protected readonly int $agentId,
+        protected readonly Agent $agent,
         protected readonly string $phoneNumber,
         protected readonly ?string $sessionName = null,
         ?SessionService $sessionService = null,
@@ -71,11 +75,7 @@ class ConnectWhatsAppSessionAction
         $session = (array) ($result['session'] ?? []);
         $connection = (array) ($result['connection'] ?? []);
 
-        $this->storeWebhookSecret(
-            $receiver,
-            $session,
-            $connection
-        );
+        $this->persistConnection($receiver, $session, $connection);
 
         return [
             'session_id' => $session['id'] ?? null,
@@ -98,7 +98,7 @@ class ConnectWhatsAppSessionAction
                 'users_id' => $this->user->getId(),
                 'name' => 'WhatsApp Receptionist',
                 'description' => 'Inbound WhatsApp routed to the receptionist agent.',
-                'configuration' => ['agent_id' => $this->agentId],
+                'configuration' => ['agent_id' => $this->agent->getId()],
                 'is_active' => true,
                 'run_async' => true,
             ]
@@ -107,28 +107,29 @@ class ConnectWhatsAppSessionAction
 
     private function bindAgentRule(): void
     {
+        $agentId = $this->agent->getId();
         $action = Action::where('model_name', AgentChannelResponderActivity::class)->firstOrFail();
         $systemModule = SystemModulesRepository::getByModelName(Channel::class, $this->app);
         $ruleType = RuleType::where('name', WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value)->firstOrFail();
 
         $rule = Rule::firstOrCreate(
             [
-                'name' => 'WhatsApp Receptionist responder',
+                'name' => self::RULE_NAME,
                 'rules_types_id' => $ruleType->getId(),
                 'systems_modules_id' => $systemModule->getId(),
                 'apps_id' => $this->app->getId(),
                 'companies_id' => $this->company->getId(),
             ],
             [
-                'params' => ['agent_id' => $this->agentId],
+                'params' => ['agent_id' => $agentId],
                 'pattern' => '1',
                 'is_async' => 1,
                 'is_deleted' => 0,
             ]
         );
 
-        if (($rule->params['agent_id'] ?? null) !== $this->agentId) {
-            $rule->params = array_merge($rule->params ?? [], ['agent_id' => $this->agentId]);
+        if (($rule->params['agent_id'] ?? null) !== $agentId) {
+            $rule->params = array_merge($rule->params ?? [], ['agent_id' => $agentId]);
             $rule->saveOrFail();
         }
 
@@ -155,24 +156,36 @@ class ConnectWhatsAppSessionAction
     }
 
     /**
+     * The agent owns the connection: store session id / phone / receiver id on it so update+remove
+     * can read them back. The receiver config keeps the secret (for verifySignature) + session id.
+     *
      * @param array<string, mixed> $session
      * @param array<string, mixed> $connection
      */
-    private function storeWebhookSecret(
+    private function persistConnection(
         ReceiverWebhook $receiver,
         array $session,
         array $connection
     ): void {
+        $sessionId = $session['id'] ?? null;
         $secret = $session['webhook_secret'] ?? $connection['webhook_secret'] ?? null;
-        if ($secret === null || $secret === '') {
-            return;
-        }
 
         $config = $receiver->configuration ?? [];
-        $config['webhook_secret'] = (string) $secret;
-        $config['agent_id'] = $this->agentId;
+        $config['agent_id'] = $this->agent->getId();
+        if ($secret !== null && $secret !== '') {
+            $config['webhook_secret'] = (string) $secret;
+        }
+        if ($sessionId !== null) {
+            $config['session_id'] = $sessionId;
+        }
         $receiver->configuration = $config;
         $receiver->saveOrFail();
+
+        if ($sessionId !== null) {
+            $this->agent->set(ConnectionFieldEnum::SESSION_ID->value, $sessionId);
+        }
+        $this->agent->set(ConnectionFieldEnum::PHONE_NUMBER->value, $this->phoneNumber);
+        $this->agent->set(ConnectionFieldEnum::RECEIVER_ID->value, $receiver->getId());
     }
 
     /**
