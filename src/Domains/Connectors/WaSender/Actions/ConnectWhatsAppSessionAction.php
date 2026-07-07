@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\WaSender\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum;
 use Kanvas\Connectors\WaSender\Enums\ConnectionFieldEnum;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
 use Kanvas\Connectors\WaSender\Services\SessionService;
@@ -169,6 +170,10 @@ class ConnectWhatsAppSessionAction
     ): void {
         $sessionId = $session['id'] ?? null;
         $secret = $session['webhook_secret'] ?? $connection['webhook_secret'] ?? null;
+        // WaSender returns this session's own api_key on create — the key that authorizes its
+        // /api/send-message (the account PAT can't send). Store it as the company's wasender_api_key
+        // so the existing send path (MessageService reads company API_KEY first) uses it unchanged.
+        $sessionApiKey = $session['api_key'] ?? $connection['api_key'] ?? null;
 
         $config = $receiver->configuration ?? [];
         $config['agent_id'] = $this->agent->getId();
@@ -180,6 +185,10 @@ class ConnectWhatsAppSessionAction
         }
         $receiver->configuration = $config;
         $receiver->saveOrFail();
+
+        if ($sessionApiKey !== null && $sessionApiKey !== '') {
+            $this->company->set(ConfigurationEnum::API_KEY->value, (string) $sessionApiKey);
+        }
 
         if ($sessionId !== null) {
             $this->agent->set(ConnectionFieldEnum::SESSION_ID->value, $sessionId);
