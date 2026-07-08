@@ -6,6 +6,7 @@ namespace Tests\Ecosystem\Integration\Notifications;
 
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Actions\CreateNotificationTypeAction;
 use Kanvas\Notifications\Channels\KanvasDatabase;
@@ -17,6 +18,7 @@ use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Notifications\Templates\DynamicKanvasNotification;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Tests\TestCase;
 
 final class DynamicNotificationTest extends TestCase
@@ -310,52 +312,67 @@ final class DynamicNotificationTest extends TestCase
         );
     }
 
-    /** Baseline: an active, non-banned, non-deleted user still resolves the requested channel. */
-    public function testActiveUserResolvesChannels(): void
+    private function appMembership(): UsersAssociatedApps
     {
-        $user = auth()->user();
-        $notification = $this->makeGateNotification();
-
-        $user->user_active = 1;
-        $user->banned = 'N';
-        $user->is_deleted = 0;
-
-        $this->assertContains(KanvasDatabase::class, $notification->via($user));
+        return UsersAssociatedApps::where('users_id', auth()->user()->getId())
+            ->where('apps_id', app(Apps::class)->getId())
+            ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->firstOrFail();
     }
 
-    /** A disabled (user_active = 0) user must resolve zero channels, so nothing is delivered. */
-    public function testDisabledUserResolvesNoChannels(): void
+    /** Baseline: a user active in this app still resolves the requested channel. */
+    public function testUserActiveInAppResolvesChannels(): void
     {
-        $user = auth()->user();
-        $notification = $this->makeGateNotification();
+        $membership = $this->appMembership();
+        $original = $membership->only(['is_active', 'is_deleted']);
 
-        $user->user_active = 0;
-
-        $this->assertEmpty($notification->via($user));
+        try {
+            $membership->forceFill(['is_active' => 1, 'is_deleted' => 0])->saveOrFail();
+            $this->assertContains(KanvasDatabase::class, $this->makeGateNotification()->via(auth()->user()));
+        } finally {
+            $membership->forceFill($original)->saveOrFail();
+        }
     }
 
-    /** A banned user must resolve zero channels. */
-    public function testBannedUserResolvesNoChannels(): void
+    /** Disabled for THIS app (is_active = 0) must resolve zero channels, even if active elsewhere. */
+    public function testUserDisabledInAppResolvesNoChannels(): void
     {
-        $user = auth()->user();
-        $notification = $this->makeGateNotification();
+        $membership = $this->appMembership();
+        $original = $membership->only(['is_active', 'is_deleted']);
 
-        $user->user_active = 0;
-        $user->banned = 'Y';
-
-        $this->assertEmpty($notification->via($user));
+        try {
+            $membership->forceFill(['is_active' => 0])->saveOrFail();
+            $this->assertEmpty($this->makeGateNotification()->via(auth()->user()));
+        } finally {
+            $membership->forceFill($original)->saveOrFail();
+        }
     }
 
-    /** A soft-deleted user must resolve zero channels even while still marked active. */
-    public function testSoftDeletedUserResolvesNoChannels(): void
+    /** Soft-deleted membership for this app must resolve zero channels. */
+    public function testUserDeletedFromAppResolvesNoChannels(): void
+    {
+        $membership = $this->appMembership();
+        $original = $membership->only(['is_active', 'is_deleted']);
+
+        try {
+            $membership->forceFill(['is_active' => 1, 'is_deleted' => 1])->saveOrFail();
+            $this->assertEmpty($this->makeGateNotification()->via(auth()->user()));
+        } finally {
+            $membership->forceFill($original)->saveOrFail();
+        }
+    }
+
+    /** A globally deleted user resolves zero channels regardless of app membership. */
+    public function testGloballyDeletedUserResolvesNoChannels(): void
     {
         $user = auth()->user();
-        $notification = $this->makeGateNotification();
+        $original = $user->is_deleted;
 
-        $user->user_active = 1;
-        $user->banned = 'N';
-        $user->is_deleted = 1;
-
-        $this->assertEmpty($notification->via($user));
+        try {
+            $user->is_deleted = 1;
+            $this->assertEmpty($this->makeGateNotification()->via($user));
+        } finally {
+            $user->is_deleted = $original;
+        }
     }
 }
