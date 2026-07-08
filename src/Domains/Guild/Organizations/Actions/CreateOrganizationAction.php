@@ -38,6 +38,7 @@ class CreateOrganizationAction
             'address' => $this->organizationData->address,
             'users_id' => $this->organizationData->user->getId(),
             'email' => $this->organizationData->email,
+            'phone' => $this->organizationData->phone,
             'state' => $this->organizationData->state,
             'organization_type_id' => $this->organizationData->organizationType?->getId(),
         ]);

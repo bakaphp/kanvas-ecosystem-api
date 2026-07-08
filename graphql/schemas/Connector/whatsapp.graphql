@@ -16,6 +16,12 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Connector\\WhatsApp\\WhatsappConnectorResolver@connect"
         )
 
+    "Fetch a fresh QR for an agent's existing WhatsApp session (QRs rotate ~every 20s). Poll while the user is on the scan screen."
+    whatsappRefreshQrCode(agent_id: ID!): WhatsappConnectResult!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\WhatsApp\\WhatsappConnectorResolver@refreshQrCode"
+        )
+
     "Disconnect an agent's WhatsApp. remove=false pauses (can reconnect); remove=true deletes the session and tears down routing."
     whatsappDisconnect(agent_id: ID!, remove: Boolean = false): Boolean!
         @field(

@@ -25,6 +25,8 @@ class UpdateOrganizationAction
     {
         $this->organization->update([
             'name' => $this->organizationData->name,
+            'email' => $this->organizationData->email,
+            'phone' => $this->organizationData->phone,
             'address' => $this->organizationData->address,
             'organization_type_id' => $this->organizationData->organizationType?->getId(),
         ]);
