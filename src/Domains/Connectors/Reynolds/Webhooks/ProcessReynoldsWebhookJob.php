@@ -11,6 +11,7 @@ use Kanvas\Connectors\Reynolds\Actions\PullLeadAction;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Reynolds\Enums\TransactionCodeEnum;
+use Kanvas\Connectors\Reynolds\Services\SalespersonResolver;
 use Kanvas\Connectors\Reynolds\Services\XmlParser;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
@@ -110,11 +111,16 @@ class ProcessReynoldsWebhookJob extends ProcessWebhookJob
 
     private function applyDisposition(Companies $company, array $record, TransactionCodeEnum $task): array
     {
-        $prospectId = (string) ($record['Prospect']['ProspectId'] ?? '');
-        $newStatusName = (string) ($record['Prospect']['ProspectStatusType'] ?? '');
+        // Two DSP shapes: the RCI disposition puts ProspectId under <Identifier>
+        // (with <RCIDispositionEventName>), the status-change shape under <Prospect>.
+        $prospectId = (string) (
+            $record['Identifier']['ProspectId']
+            ?? $record['Prospect']['ProspectId']
+            ?? ''
+        );
 
-        if ($prospectId === '' || $newStatusName === '') {
-            return ['status' => 'ignored', 'task' => $task->value, 'reason' => 'Missing ProspectId or ProspectStatusType'];
+        if ($prospectId === '') {
+            return ['status' => 'ignored', 'task' => $task->value, 'reason' => 'Missing ProspectId'];
         }
 
         $lead = Lead::query()
@@ -130,6 +136,57 @@ class ProcessReynoldsWebhookJob extends ProcessWebhookJob
 
         if ($lead === null) {
             return ['status' => 'ignored', 'task' => $task->value, 'reason' => 'Lead not found for ProspectId ' . $prospectId];
+        }
+
+        $eventName = $record['RCIDispositionEventName'] ?? null;
+        if ($eventName !== null) {
+            return $this->applyRciDisposition($company, $lead, $record, $task, (string) $eventName);
+        }
+
+        return $this->applyStatusDisposition($company, $lead, $record, $task);
+    }
+
+    /**
+     * Only the "Assigned" RCI disposition changes ownership. R&R sends the
+     * assigned salesperson as "FirstName LastName" in
+     * <RCIDispositionPrimarySalesperson>.
+     */
+    private function applyRciDisposition(
+        Companies $company,
+        Lead $lead,
+        array $record,
+        TransactionCodeEnum $task,
+        string $eventName
+    ): array {
+        if (! str_contains(strtolower($eventName), 'assign')) {
+            return ['status' => 'ignored', 'task' => $task->value, 'reason' => 'Unhandled RCI disposition: ' . $eventName];
+        }
+
+        $salesperson = (string) ($record['RCIDispositionPrimarySalesperson'] ?? '');
+        $ownerId = SalespersonResolver::resolveUserId($salesperson, $company);
+
+        if ($ownerId === null) {
+            return ['status' => 'ignored', 'task' => $task->value, 'reason' => 'Salesperson not found: ' . $salesperson];
+        }
+
+        $lead->leads_owner_id = $ownerId;
+        $lead->saveOrFail();
+
+        return [
+            'status' => 'success',
+            'task' => $task->value,
+            'lead_id' => $lead->getId(),
+            'event' => $eventName,
+            'owner_id' => $ownerId,
+        ];
+    }
+
+    private function applyStatusDisposition(Companies $company, Lead $lead, array $record, TransactionCodeEnum $task): array
+    {
+        $newStatusName = (string) ($record['Prospect']['ProspectStatusType'] ?? '');
+
+        if ($newStatusName === '') {
+            return ['status' => 'ignored', 'task' => $task->value, 'reason' => 'Missing ProspectStatusType'];
         }
 
         $status = LeadStatus::query()

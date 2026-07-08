@@ -10,6 +10,7 @@ use Kanvas\Connectors\Reynolds\Entities\Customer as CustomerEntity;
 use Kanvas\Connectors\Reynolds\Entities\Lead as LeadEntity;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Reynolds\Exceptions\ReynoldsException;
+use Kanvas\Connectors\Reynolds\Services\SalespersonResolver;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
@@ -26,7 +27,7 @@ use Kanvas\Users\Models\Users;
  * Receives the parsed array of a `rey_SalesAssistCRMPublishLeadUpdate.Record` element
  * and creates/updates the corresponding Lead + People in Kanvas. Vehicle of interest
  * and trade-in are stored as Lead custom fields under the Kanvas-standard keys
- * `vehicle_of_interest` and `trade_in`.
+ * `vehicle_of_interest` and `vehicle_trade_id` (the VinSolution TradeIn shape).
  *
  * People sync is delegated entirely to SyncLeadByThirdPartyCustomFieldAction —
  * we build the PeopleData via Customer::toPeopleData() once and hand it off.
@@ -104,7 +105,7 @@ class PullLeadAction
         }
 
         if (! empty($entity->potentialTrade)) {
-            $customFields[CustomFieldEnum::TRADE_IN->value] = $entity->potentialTrade;
+            $customFields[CustomFieldEnum::TRADE_IN->value] = $this->buildTradeInCustomField($entity->potentialTrade);
         }
 
         $leadData = LeadData::from([
@@ -250,31 +251,35 @@ class PullLeadAction
 
     private function resolveOwnerId(LeadEntity $entity): ?int
     {
-        if ($entity->primarySalesPerson === null) {
-            return null;
-        }
+        return SalespersonResolver::resolveUserId($entity->primarySalesPerson, $this->company);
+    }
 
-        // R&R publishes PrimarySalesPerson as "LastName, FirstName" (comma-
-        // separated) — e.g. "Thomas, Erick". Some legacy dealer configs send
-        // "FirstName LastName" (space-separated) instead. Try comma first,
-        // fall back to whitespace for the legacy shape.
-        $raw = trim($entity->primarySalesPerson);
-        if (str_contains($raw, ',')) {
-            [$lastname, $firstname] = array_pad(array_map('trim', explode(',', $raw, 2)), 2, null);
-        } else {
-            [$firstname, $lastname] = array_pad(array_map('trim', explode(' ', $raw, 2)), 2, null);
-        }
-
-        if (! $firstname || ! $lastname) {
-            return null;
-        }
-
-        $user = Users::query()
-            ->where('firstname', $firstname)
-            ->where('lastname', $lastname)
-            ->first();
-
-        return $user?->getId();
+    /**
+     * Map R&R's five trade fields into the VinSolution TradeIn shape so the
+     * shared VehicleTradeInTool reads it; the rest default to VinSolution's
+     * neutral values.
+     */
+    private function buildTradeInCustomField(array $trade): array
+    {
+        return [
+            'vin' => $trade['vin'] ?? null,
+            'year' => isset($trade['year']) ? (string) $trade['year'] : null,
+            'make' => $trade['make'] ?? null,
+            'model' => $trade['model'] ?? null,
+            'trim' => null,
+            'exteriorColor' => null,
+            'interiorColor' => null,
+            'bodyStyle' => null,
+            'engineName' => null,
+            'transmission' => null,
+            'driveTrain' => null,
+            'doors' => null,
+            'mileage' => isset($trade['odometer']) ? (int) str_replace(',', '', (string) $trade['odometer']) : 0,
+            'value' => 0.0,
+            'condition' => 'UNKNOWN',
+            'description' => null,
+            'payOff' => 0.0,
+        ];
     }
 
     private function resolveTypeId(?string $name, ?int $currentId = null): int
