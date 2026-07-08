@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
@@ -28,6 +29,8 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
+use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Scribe\Bills\Actions\AllocateBillPaymentAction;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
@@ -74,7 +77,7 @@ use Throwable;
  *   Pipeline
  *     └─ Organization (account)
  *          ├─ People (contacts, attached to the org)
- *          ├─ Leads (raised by those contacts)
+ *          ├─ Leads (raised by those contacts) ─► Appointment (lead as the meeting resource)
  *          ├─ Deals (spread across pipeline stages; the "Won" ones drive revenue)
  *          │     └─ Quote (sent → accepted) ─► Invoice (issued, billed to the org) ─► Payment
  *          ├─ Orders (commerce, real product variants as line items)
@@ -83,17 +86,30 @@ use Throwable;
  * So a dashboard can show "Account X: N contacts, $Y pipeline, $Z invoiced, $W collected" and
  * the numbers tie out across CRM, Commerce and Accounting.
  *
- * Bulk/leaf rows (products, contacts, leads, orders) use factories with a backdated created_at.
- * Deals + every Accounting document go through their real Actions (they carry invariants
- * factories can't satisfy: pipeline placement, GL balancing, fiscal-period posting). Accounting
- * documents post with the clock frozen inside the matching open fiscal period.
+ * Runs on PRODUCTION builds: it creates every row with plain model instantiation and a small
+ * built-in data generator — NO model factories and NO fake(), both of which depend on
+ * fakerphp/faker (a require-dev package absent from `composer install --no-dev`). Deals + every
+ * Accounting document still go through their real Actions (they carry invariants direct inserts
+ * can't satisfy: pipeline placement, GL balancing, fiscal-period posting), with the clock frozen
+ * inside the matching open fiscal period.
  *
- * NOT idempotent — it appends. Re-running adds another batch. Meant to be run once against a
- * throwaway demo tenant.
+ * NOT idempotent — it appends. Use --fresh to wipe this tenant's prior demo data first.
  */
 class SeedDemoDataCommand extends Command
 {
     use KanvasJobsTrait;
+
+    private const FIRST_NAMES = ['James', 'Mary', 'John', 'Patricia', 'Robert', 'Jennifer', 'Michael', 'Linda', 'William', 'Elizabeth', 'David', 'Barbara', 'Richard', 'Susan', 'Joseph', 'Jessica', 'Thomas', 'Karen', 'Charles', 'Sarah', 'Daniel', 'Lisa', 'Matthew', 'Nancy', 'Anthony', 'Sandra', 'Mark', 'Ashley', 'Paul', 'Emily'];
+    private const LAST_NAMES = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin', 'Lee', 'Perez', 'Thompson', 'White', 'Harris', 'Clark', 'Lewis', 'Robinson', 'Walker', 'Young'];
+    private const COMPANY_ADJ = ['Global', 'Premier', 'United', 'Apex', 'Summit', 'Blue', 'Silver', 'Pioneer', 'Vertex', 'Nova', 'Prime', 'Metro', 'Coastal', 'Highland', 'Evergreen'];
+    private const COMPANY_NOUN = ['Systems', 'Solutions', 'Logistics', 'Dynamics', 'Industries', 'Partners', 'Holdings', 'Group', 'Labs', 'Networks', 'Ventures', 'Analytics', 'Supply', 'Trading', 'Consulting'];
+    private const COMPANY_SUFFIX = ['LLC', 'Inc', 'Corp', 'Co', 'Group'];
+    private const WORDS = ['strategic', 'scalable', 'integrated', 'robust', 'seamless', 'optimized', 'enterprise', 'cloud', 'modular', 'agile', 'premium', 'advanced', 'smart', 'dynamic', 'unified', 'digital', 'managed', 'custom', 'professional', 'turnkey', 'platform', 'workflow', 'pipeline', 'deployment', 'onboarding'];
+    private const PRODUCT_ADJ = ['Pro', 'Plus', 'Max', 'Lite', 'Ultra', 'Core', 'Prime', 'Edge', 'Flex', 'Nano'];
+    private const PRODUCT_NOUN = ['Widget', 'Module', 'Kit', 'Bundle', 'Toolset', 'License', 'Package', 'Device', 'Console', 'Suite'];
+    private const CITIES = ['Springfield', 'Franklin', 'Clinton', 'Georgetown', 'Salem', 'Madison', 'Arlington', 'Ashland', 'Dover', 'Fairview', 'Riverside', 'Kingston', 'Manchester', 'Oxford', 'Bristol'];
+    private const STATES = ['CA', 'TX', 'NY', 'FL', 'IL', 'PA', 'OH', 'GA', 'NC', 'MI', 'NJ', 'VA', 'WA', 'AZ', 'MA'];
+    private const STREETS = ['Main St', 'Oak Ave', 'Maple Dr', 'Cedar Ln', 'Elm St', 'Park Blvd', 'Washington Ave', 'Lake Rd', 'Hill St', 'Sunset Blvd'];
 
     protected $signature = 'kanvas:seed-demo-data
         {app_id : Target app id}
@@ -120,6 +136,10 @@ class SeedDemoDataCommand extends Command
     private int $expenseAccountId = 0;
     private ?int $appointmentTypeId = null;
     private ?int $appointmentCategoryId = null;
+    private int $branchId = 0;
+    private int $regionId = 1;
+    private int $productTypeId = 0;
+    private int $seq = 0;
 
     /** @var array<string, int> */
     private array $stats = [];
@@ -177,6 +197,8 @@ class SeedDemoDataCommand extends Command
 
         $this->usd = Currencies::where('code', 'USD')->firstOrFail();
         $this->expenseAccountId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
+        $this->branchId = (int) ($this->company->defaultBranch()->first()?->getId() ?? 0);
+        $this->regionId = (int) (Regions::query()->where('apps_id', $this->app->getId())->value('id') ?? 1);
 
         $this->pipeline = Pipeline::query()
             ->where('companies_id', $this->company->getId())
@@ -239,33 +261,63 @@ class SeedDemoDataCommand extends Command
             return;
         }
 
+        $typeId = $this->ensureProductType();
         $bar = $this->progress('Inventory catalog (products + variants)', $count);
 
         for ($i = 0; $i < $count; $i++) {
             $date = $this->randomDate();
-            /** @var Products $product */
-            $product = Products::factory()
-                ->withAppId($this->app->getId())
-                ->withCompanyId($this->company->getId())
-                ->withUserId($this->user->getId())
-                ->create([
-                    'created_at' => $date,
-                    'updated_at' => $date,
-                ]);
+
+            $product = new Products();
+            $product->apps_id = $this->app->getId();
+            $product->companies_id = $this->company->getId();
+            $product->users_id = $this->user->getId();
+            $product->products_types_id = $typeId;
+            $product->name = $this->randProduct();
+            $product->description = $this->randSentence();
+            $product->created_at = $date;
+            $product->updated_at = $date;
+            $product->save();
             $this->bump('products');
 
-            $variant = $product->variants()->first();
-            if ($variant !== null) {
-                $variant->setRelation('product', $product);
-                $this->variants[] = $variant;
-                $this->bump('variants');
-            }
+            $variant = new Variants();
+            $variant->apps_id = $this->app->getId();
+            $variant->companies_id = $this->company->getId();
+            $variant->users_id = $this->user->getId();
+            $variant->products_id = $product->getId();
+            $variant->name = $product->name;
+            $variant->sku = $this->randSku();
+            $variant->description = $product->description;
+            $variant->is_published = 1;
+            $variant->created_at = $date;
+            $variant->updated_at = $date;
+            $variant->save();
+
+            $variant->setRelation('product', $product);
+            $this->variants[] = $variant;
+            $this->bump('variants');
 
             $bar->advance();
         }
 
         $bar->finish();
         $this->newLine();
+    }
+
+    private function ensureProductType(): int
+    {
+        if ($this->productTypeId > 0) {
+            return $this->productTypeId;
+        }
+
+        $type = new ProductsTypes();
+        $type->apps_id = $this->app->getId();
+        $type->companies_id = $this->company->getId();
+        $type->users_id = $this->user->getId();
+        $type->name = 'Demo Products';
+        $type->weight = 0;
+        $type->save();
+
+        return $this->productTypeId = (int) $type->getId();
     }
 
     private function seedAccounts(int $count): void
@@ -302,12 +354,12 @@ class SeedDemoDataCommand extends Command
             'apps_id' => $this->app->getId(),
             'companies_id' => $this->company->getId(),
             'users_id' => $this->user->getId(),
-            'name' => fake()->unique()->company(),
-            'email' => fake()->companyEmail(),
-            'address' => fake()->streetAddress(),
-            'city' => fake()->city(),
-            'state' => fake()->stateAbbr(),
-            'zip' => fake()->postcode(),
+            'name' => $this->randCompany(),
+            'email' => $this->randEmail('info'),
+            'address' => $this->randStreet(),
+            'city' => $this->pick(self::CITIES),
+            'state' => $this->pick(self::STATES),
+            'zip' => $this->randZip(),
             'total_employees' => random_int(5, 500),
             'created_at' => $base,
             'updated_at' => $base,
@@ -357,16 +409,25 @@ class SeedDemoDataCommand extends Command
 
         for ($i = 0; $i < $count; $i++) {
             $date = $this->afterBase($base, 10);
-            /** @var People $person */
-            $person = People::factory()
-                ->withAppId($this->app->getId())
-                ->withCompanyId($this->company->getId())
-                ->withUserId($this->user->getId())
-                ->withContacts()
-                ->create([
-                    'created_at' => $date,
-                    'updated_at' => $date,
-                ]);
+            $first = $this->pick(self::FIRST_NAMES);
+            $last = $this->pick(self::LAST_NAMES);
+
+            $person = new People();
+            $person->apps_id = $this->app->getId();
+            $person->companies_id = $this->company->getId();
+            $person->users_id = $this->user->getId();
+            $person->firstname = $first;
+            $person->lastname = $last;
+            $person->name = "{$first} {$last}";
+            $person->created_at = $date;
+            $person->updated_at = $date;
+            $person->save();
+
+            $person->contacts()->createMany([
+                ['contacts_types_id' => 1, 'value' => $this->randEmail("{$first}.{$last}"), 'weight' => 0],
+                ['contacts_types_id' => 2, 'value' => $this->randPhone(), 'weight' => 0],
+            ]);
+
             $person->organizations()->syncWithoutDetaching([
                 $org->getId() => ['created_at' => $date],
             ]);
@@ -380,18 +441,22 @@ class SeedDemoDataCommand extends Command
     private function seedLeadForContact(People $person, Carbon $base): Lead
     {
         $date = $this->afterBase($base, 5);
-        /** @var Lead $lead */
-        $lead = Lead::factory()
-            ->withAppId($this->app->getId())
-            ->withCompanyId($this->company->getId())
-            ->withUserId($this->user->getId())
-            ->withPeopleId($person->getId())
-            ->create([
-                'firstname' => $person->firstname,
-                'lastname' => $person->lastname,
-                'created_at' => $date,
-                'updated_at' => $date,
-            ]);
+
+        $lead = new Lead();
+        $lead->apps_id = $this->app->getId();
+        $lead->companies_id = $this->company->getId();
+        $lead->companies_branches_id = $this->branchId;
+        $lead->users_id = $this->user->getId();
+        $lead->leads_owner_id = $this->user->getId();
+        $lead->leads_receivers_id = 0;
+        $lead->people_id = $person->getId();
+        $lead->firstname = $person->firstname;
+        $lead->lastname = $person->lastname;
+        $lead->title = $this->randPhrase();
+        $lead->is_deleted = 0;
+        $lead->created_at = $date;
+        $lead->updated_at = $date;
+        $lead->save();
         $this->bump('leads');
 
         return $lead;
@@ -422,7 +487,7 @@ class SeedDemoDataCommand extends Command
         try {
             $event = new CreateEventAction(
                 EventDTO::fromMultiple($this->app, $this->user, $this->company, [
-                    'name' => "Appointment — {$person->firstname} {$person->lastname} " . fake()->unique()->uuid(),
+                    'name' => "Appointment — {$person->firstname} {$person->lastname} " . $this->randUid(),
                     'description' => 'Sales appointment',
                     'category_id' => $this->appointmentCategoryId,
                     'type_id' => $this->appointmentTypeId,
@@ -469,8 +534,8 @@ class SeedDemoDataCommand extends Command
                     app: $this->app,
                     company: $this->company,
                     user: $this->user,
-                    title: fake()->catchPhrase() . ' — ' . $org->name,
-                    description: fake()->sentence(),
+                    title: $this->randPhrase() . ' — ' . $org->name,
+                    description: $this->randSentence(),
                     people: $person,
                     organization: $org,
                     pipeline: $this->pipeline,
@@ -537,7 +602,7 @@ class SeedDemoDataCommand extends Command
         });
 
         $invoiceDate = $this->afterBase($quoteDate ?? $dealDate, 10);
-        $invoice = $this->tryDoc('invoices', $invoiceDate, function () use ($org, $lines, $subtotal, $tax, $invoiceDate, $quoteId) {
+        $invoice = $this->tryDoc('invoices', $invoiceDate, function () use ($org, $lines, $invoiceDate, $quoteId) {
             $draft = new CreateInvoiceAction(
                 data: new InvoiceData(
                     app: $this->app,
@@ -583,19 +648,31 @@ class SeedDemoDataCommand extends Command
         }
 
         $date = $this->afterBase($base, 20);
+        $completed = random_int(1, 10) <= 7;
+        $gross = (float) random_int(80, 900);
 
         try {
-            /** @var Order $order */
-            $order = Order::factory()
-                ->withAppId($this->app->getId())
-                ->withCompanyId($this->company->getId())
-                ->withUserId($this->user->getId())
-                ->withPeopleId($person->getId())
-                ->state(random_int(1, 10) <= 7 ? ['status' => 'completed', 'fulfillment_status' => 'fulfilled'] : [])
-                ->create([
-                    'created_at' => $date,
-                    'updated_at' => $date,
-                ]);
+            $order = new Order();
+            $order->apps_id = $this->app->getId();
+            $order->companies_id = $this->company->getId();
+            $order->users_id = $this->user->getId();
+            $order->region_id = $this->regionId;
+            $order->people_id = $person->getId();
+            $order->order_number = random_int(100000, 999999);
+            $order->status = $completed ? 'completed' : 'draft';
+            $order->fulfillment_status = $completed ? 'fulfilled' : 'pending';
+            $order->total_gross_amount = $gross;
+            $order->total_net_amount = round($gross * 0.9, 2);
+            $order->shipping_price_gross_amount = 0;
+            $order->shipping_price_net_amount = 0;
+            $order->discount_amount = 0;
+            $order->tax_amount = round($gross * 0.07, 2);
+            $order->display_gross_prices = true;
+            $order->currency = 'USD';
+            $order->is_deleted = 0;
+            $order->created_at = $date;
+            $order->updated_at = $date;
+            $order->save();
 
             foreach ($this->pickVariants(random_int(1, 3)) as $variant) {
                 $order->addItem(new OrderItemDto(
@@ -702,8 +779,8 @@ class SeedDemoDataCommand extends Command
             try {
                 $event = new CreateEventAction(
                     EventDTO::fromMultiple($this->app, $this->user, $this->company, [
-                        'name' => fake()->catchPhrase() . ' ' . fake()->unique()->uuid(),
-                        'description' => fake()->sentence(),
+                        'name' => $this->randPhrase() . ' ' . $this->randUid(),
+                        'description' => $this->randSentence(),
                         'category_id' => $categoryId,
                         'type_id' => $typeId,
                         'dates' => [],
@@ -742,7 +819,7 @@ class SeedDemoDataCommand extends Command
                             company: $this->company,
                             lines: new DataCollection(ExpenseLineData::class, [
                                 new ExpenseLineData(
-                                    description: fake()->sentence(3),
+                                    description: $this->randPhrase(),
                                     amount_native: (float) random_int(20, 1500),
                                     expense_account_id: $this->expenseAccountId,
                                 ),
@@ -810,7 +887,7 @@ class SeedDemoDataCommand extends Command
 
         // Fall back to a generic line when there is no product catalog.
         if ($lines === []) {
-            $lines[] = ['name' => fake()->bs(), 'price' => (float) random_int(50, 2500), 'qty' => random_int(1, 4)];
+            $lines[] = ['name' => $this->randProduct(), 'price' => (float) random_int(50, 2500), 'qty' => random_int(1, 4)];
         }
 
         return $lines;
@@ -858,6 +935,76 @@ class SeedDemoDataCommand extends Command
             ->subDays(random_int(0, $this->months * 30))
             ->subHours(random_int(0, 23))
             ->subMinutes(random_int(0, 59));
+    }
+
+    /**
+     * @param  array<int, string>  $pool
+     */
+    private function pick(array $pool): string
+    {
+        return $pool[array_rand($pool)];
+    }
+
+    private function randCompany(): string
+    {
+        return $this->pick(self::COMPANY_ADJ) . ' ' . $this->pick(self::COMPANY_NOUN) . ' ' . $this->pick(self::COMPANY_SUFFIX) . ' ' . (++$this->seq);
+    }
+
+    private function randProduct(): string
+    {
+        return $this->pick(self::PRODUCT_ADJ) . ' ' . $this->pick(self::PRODUCT_NOUN) . ' ' . (++$this->seq);
+    }
+
+    private function randPhrase(int $words = 3): string
+    {
+        $parts = [];
+        for ($i = 0; $i < $words; $i++) {
+            $parts[] = ucfirst($this->pick(self::WORDS));
+        }
+
+        return implode(' ', $parts);
+    }
+
+    private function randSentence(int $words = 7): string
+    {
+        $parts = [];
+        for ($i = 0; $i < $words; $i++) {
+            $parts[] = $this->pick(self::WORDS);
+        }
+
+        return ucfirst(implode(' ', $parts)) . '.';
+    }
+
+    private function randEmail(string $seed): string
+    {
+        $slug = Str::slug($seed) ?: 'demo';
+
+        return $slug . (++$this->seq) . '@example.com';
+    }
+
+    private function randPhone(): string
+    {
+        return '809' . str_pad((string) random_int(0, 9999999), 7, '0', STR_PAD_LEFT);
+    }
+
+    private function randStreet(): string
+    {
+        return random_int(10, 9999) . ' ' . $this->pick(self::STREETS);
+    }
+
+    private function randZip(): string
+    {
+        return str_pad((string) random_int(1000, 99999), 5, '0', STR_PAD_LEFT);
+    }
+
+    private function randSku(): string
+    {
+        return 'DEMO-' . str_pad((string) (++$this->seq), 6, '0', STR_PAD_LEFT) . '-' . random_int(100, 999);
+    }
+
+    private function randUid(): string
+    {
+        return (string) Str::uuid();
     }
 
     /**
