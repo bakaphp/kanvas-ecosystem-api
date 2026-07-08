@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Inventory\Integration;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -12,6 +13,10 @@ use Tests\TestCase;
 
 final class RegionDefaultGlobalFallbackTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected $connectionsToTransact = ['ecosystem', 'inventory'];
+
     private Apps $currentApp;
     private mixed $originalFlag = null;
 
@@ -52,12 +57,15 @@ final class RegionDefaultGlobalFallbackTest extends TestCase
     {
         $this->currentApp->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, 1);
         $company = $this->createCompanyWithoutRegions();
-        $globalRegion = $this->createGlobalDefaultRegion();
+        $this->createGlobalDefaultRegion();
 
         $default = Regions::getDefault($company, $this->currentApp);
 
+        // Assert the fallback returned a global region (companies_id = 0), not a
+        // specific id — the app may legitimately hold more than one global default.
         $this->assertNotNull($default);
-        $this->assertEquals($globalRegion->getId(), $default->getId());
+        $this->assertSame(0, (int) $default->companies_id);
+        $this->assertSame(1, (int) $default->is_default);
     }
 
     public function testDoesNotFallBackToGlobalWhenFlagDisabled(): void
@@ -86,6 +94,7 @@ final class RegionDefaultGlobalFallbackTest extends TestCase
 
         $default = Regions::getDefault($company, $this->currentApp);
 
-        $this->assertEquals($companyRegion->getId(), $default->getId());
+        $this->assertSame($companyRegion->getId(), $default->getId());
+        $this->assertSame($company->getId(), (int) $default->companies_id);
     }
 }
