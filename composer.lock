@@ -6604,16 +6604,16 @@
         },
         {
             "name": "mike-bronner/laravel-model-caching",
-            "version": "13.1.5",
+            "version": "13.1.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mike-bronner/laravel-model-caching.git",
-                "reference": "2b81426e076ca5c9a0896ba9ed830bf55d44fa8f"
+                "reference": "d234967c6848e32059ddd2e44964f48651a12573"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/2b81426e076ca5c9a0896ba9ed830bf55d44fa8f",
-                "reference": "2b81426e076ca5c9a0896ba9ed830bf55d44fa8f",
+                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/d234967c6848e32059ddd2e44964f48651a12573",
+                "reference": "d234967c6848e32059ddd2e44964f48651a12573",
                 "shasum": ""
             },
             "require": {
@@ -6677,9 +6677,9 @@
             "description": "Automatic caching for Eloquent models.",
             "support": {
                 "issues": "https://github.com/mike-bronner/laravel-model-caching/issues",
-                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.5"
+                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.6"
             },
-            "time": "2026-07-02T15:43:49+00:00"
+            "time": "2026-07-07T23:40:51+00:00"
         },
         {
             "name": "mikebronner/laravel-pivot-events",
