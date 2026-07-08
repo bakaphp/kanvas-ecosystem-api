@@ -32,6 +32,12 @@ type AgentLogEntry {
 }
 
 extend type Query @guardByAdmin {
+    "Live SSH-checked container status — poll this to detect state changes made outside Kanvas (e.g. a manual restart on the machine)."
+    agentDeploymentContainerStatus(deployment_id: ID!): AgentDeploymentType!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\AgentRuntime\\AgentDeploymentContainerStatusQuery"
+        )
+
     agentCurrentTelemetry(deployment_id: ID!): AgentTelemetryData
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Queries\\AgentRuntime\\AgentTelemetryQuery"
