@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\PipelinesStages\Actions;
 
 use Carbon\Carbon;
-use Deprecated;
 use Exception;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as VinSolutionCustomFieldEnum;
@@ -28,8 +27,9 @@ use function Sentry\captureException;
  * pipeline stage config, keyed by {leadType}_{new|used}_{replied|unreplied}.
  * If the current stage has no entry for the lead's key, the lead advances to the
  * next stage until a matching stage is found.
+ *
+ * @deprecated use agent follow up
  */
-#[Deprecated(message: 'use agent follow up')]
 final class ManlyHondaFollowUpEngagementAction
 {
     private const array SUPPORTED_CHANNELS = [
