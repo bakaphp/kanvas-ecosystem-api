@@ -53,11 +53,11 @@ final class AdjustOrderItemAmountActionTest extends TestCase
 
         $locationType = ProductsTypes::factory()
             ->company($company->getId())
-            ->create(['slug' => 'impound_lot', 'name' => 'Impound Lot']);
+            ->create(['slug' => 'impound-lot', 'name' => 'impound_lot']);
 
         $serviceType = ProductsTypes::factory()
             ->company($company->getId())
-            ->create(['slug' => 'grua-deposito', 'name' => 'Grua Deposito']);
+            ->create(['slug' => 'services', 'name' => 'services']);
 
         $locationProduct = Variants::withoutSyncingToSearch(
             fn () => Products::withoutSyncingToSearch(
@@ -169,8 +169,8 @@ final class AdjustOrderItemAmountActionTest extends TestCase
 
         $items = $order->allItems()->with('variant.product.productType')->get();
 
-        $locationItem = $items->first(fn ($i) => $i->variant?->product?->productType?->slug === 'impound_lot');
-        $serviceItem = $items->first(fn ($i) => $i->variant?->product?->productType?->slug !== 'impound_lot');
+        $locationItem = $items->first(fn ($i) => $i->variant?->product?->productType?->slug === 'impound-lot');
+        $serviceItem = $items->first(fn ($i) => $i->variant?->product?->productType?->slug === 'services');
 
         $this->assertEquals(0.0, (float) $locationItem->unit_price_net_amount);
         $this->assertEquals(4400.0, (float) $serviceItem->unit_price_net_amount);

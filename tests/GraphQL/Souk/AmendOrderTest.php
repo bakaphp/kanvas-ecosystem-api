@@ -169,6 +169,48 @@ final class AmendOrderTest extends TestCase
         $this->assertSame('Test log query', $correctionLog['properties']['reason']);
     }
 
+    public function testActivityLogsExposeCauserUser(): void
+    {
+        $order = $this->createTestOrder([
+            'order_number' => 99911,
+            'metadata' => ['data' => ['vehiclePlate' => 'USR001', 'vehicleBrand' => 'Kia']],
+            'reference' => 'Kia / USR001 - #99911',
+        ]);
+
+        $response = $this->graphQL('
+            mutation($order_id: ID!, $data: Mixed) {
+                amendOrder(
+                    order_id: $order_id
+                    correction_type: "correct-plate"
+                    reason: "Expose causer user"
+                    data: $data
+                ) {
+                    id
+                    activityLogs {
+                        data {
+                            causer_id
+                            user {
+                                id
+                            }
+                        }
+                    }
+                }
+            }
+        ', [
+            'order_id' => $order->id,
+            'data' => ['new_plate' => 'USR999'],
+        ]);
+
+        $response->assertSuccessful();
+
+        $logs = $response->json('data.amendOrder.activityLogs.data');
+        $this->assertNotEmpty($logs);
+
+        $log = collect($logs)->firstWhere('causer_id', (int) $this->kanvasUser->getId());
+        $this->assertNotNull($log, 'activity log should be attributed to the acting user');
+        $this->assertSame((string) $this->kanvasUser->getId(), (string) $log['user']['id']);
+    }
+
     public function testAmendOrderReturnsErrorOnUnknownCorrectionType(): void
     {
         $order = $this->createTestOrder();
