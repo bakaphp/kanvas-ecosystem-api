@@ -232,7 +232,11 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@getPaymentStats"
         )
-    exportOrderPayments(input: ExportOrderPaymentsInput!, format: ExportFormat!): OrderExportResult!
+    exportOrderPayments(
+        input: ExportOrderPaymentsInput!
+        format: ExportFormat!
+        metadata: ExportMetadataInput
+    ): OrderExportResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Queries\\OrderStatsQuery@exportPayments"
         )

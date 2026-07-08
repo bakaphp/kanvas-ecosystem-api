@@ -4,23 +4,28 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Exports;
 
+use Baka\Http\SafeUrlFetcher;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithDrawings;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use Throwable;
 
-class OrderPaymentsStatsExportExcel implements WithEvents, ShouldAutoSize
+class OrderPaymentsStatsExportExcel implements WithEvents, ShouldAutoSize, WithDrawings
 {
-    private const HEADER_BG    = '2B4C8C';
-    private const HEADER_FG    = 'FFFFFF';
-    private const TOTAL_BG     = '2B4C8C';
-    private const BORDER_COLOR = 'CCCCCC';
+    private const DEFAULT_HEADER_BG = '5D8A66';
+    private const HEADER_FG         = 'FFFFFF';
+    private const BORDER_COLOR      = 'CCCCCC';
+
+    private readonly string $headerBg;
 
     /** @var array<string, array<string, string>> */
     private const LABELS = [
@@ -80,7 +85,16 @@ class OrderPaymentsStatsExportExcel implements WithEvents, ShouldAutoSize
         private readonly string $timezone = 'UTC',
         private readonly ?array $fieldMapper = null,
         private readonly string $language = 'en',
+        private readonly ?array $metadata = null,
     ) {
+        $this->headerBg = $this->resolveHeaderColor($metadata['headerColor'] ?? null);
+    }
+
+    private function resolveHeaderColor(?string $color): string
+    {
+        $hex = strtoupper(ltrim(trim((string) $color), '#'));
+
+        return preg_match('/^[0-9A-F]{6}$/', $hex) ? $hex : self::DEFAULT_HEADER_BG;
     }
 
     private function label(string $key): string
@@ -95,6 +109,7 @@ class OrderPaymentsStatsExportExcel implements WithEvents, ShouldAutoSize
                 $sheet = $event->sheet->getDelegate();
                 $row   = 1;
 
+                $row = $this->writeHeaderSection($sheet, $row);
                 $row = $this->writeBreakdownSection($sheet, $row);
                 $row++;
                 $row = $this->writeMetricsSection($sheet, $row);
@@ -109,6 +124,77 @@ class OrderPaymentsStatsExportExcel implements WithEvents, ShouldAutoSize
                 $sheet->getColumnDimension('F')->setWidth(35);
             },
         ];
+    }
+
+    public function drawings(): array
+    {
+        $logos    = $this->metadata['headerImages'] ?? [];
+        $drawings = [];
+
+        foreach ($logos as $index => $logoUrl) {
+            try {
+                $content = SafeUrlFetcher::fetch($logoUrl);
+                if ($content === '') {
+                    continue;
+                }
+
+                $tempPath = storage_path('app/temp_payments_logo_' . $index . '.png');
+                file_put_contents($tempPath, $content);
+
+                $drawing = new Drawing();
+                $drawing->setName('Logo ' . ($index + 1));
+                $drawing->setDescription('Header Logo');
+                $drawing->setPath($tempPath);
+                $drawing->setHeight(50);
+                $drawing->setCoordinates($this->columnLetter($index * 2) . '1');
+
+                $drawings[] = $drawing;
+            } catch (Throwable $e) {
+                continue;
+            }
+        }
+
+        return $drawings;
+    }
+
+    private function hasHeaderMetadata(): bool
+    {
+        return ! empty($this->metadata['custom_title'])
+            || ! empty($this->metadata['subtitle'])
+            || ! empty($this->metadata['headerImages']);
+    }
+
+    private function writeHeaderSection(Worksheet $sheet, int $startRow): int
+    {
+        if (! $this->hasHeaderMetadata()) {
+            return $startRow;
+        }
+
+        $row     = $startRow;
+        $lastCol = 'F';
+
+        if (! empty($this->metadata['headerImages'])) {
+            $sheet->getRowDimension($row)->setRowHeight(55);
+            $row += 2;
+        }
+
+        if (! empty($this->metadata['custom_title'])) {
+            $sheet->setCellValue("A{$row}", Str::upper((string) $this->metadata['custom_title']));
+            $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
+            $sheet->getStyle("A{$row}")->getFont()->setBold(true)->setSize(14);
+            $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $row++;
+        }
+
+        if (! empty($this->metadata['subtitle'])) {
+            $sheet->setCellValue("A{$row}", (string) $this->metadata['subtitle']);
+            $sheet->mergeCells("A{$row}:{$lastCol}{$row}");
+            $sheet->getStyle("A{$row}")->getFont()->setSize(11);
+            $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $row++;
+        }
+
+        return $row + 1;
     }
 
     private function writeBreakdownSection(Worksheet $sheet, int $startRow): int
@@ -307,7 +393,7 @@ class OrderPaymentsStatsExportExcel implements WithEvents, ShouldAutoSize
             ],
             'fill' => [
                 'fillType'   => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => self::HEADER_BG],
+                'startColor' => ['rgb' => $this->headerBg],
             ],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -326,7 +412,7 @@ class OrderPaymentsStatsExportExcel implements WithEvents, ShouldAutoSize
             ],
             'fill' => [
                 'fillType'   => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => self::HEADER_BG],
+                'startColor' => ['rgb' => $this->headerBg],
             ],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -359,7 +445,7 @@ class OrderPaymentsStatsExportExcel implements WithEvents, ShouldAutoSize
             ],
             'fill' => [
                 'fillType'   => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => self::TOTAL_BG],
+                'startColor' => ['rgb' => $this->headerBg],
             ],
             'alignment' => [
                 'vertical' => Alignment::VERTICAL_CENTER,

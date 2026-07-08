@@ -29,6 +29,7 @@ class ExportOrderPaymentsAction
         protected readonly string $language = 'en',
         protected readonly ?string $userEmail = null,
         protected readonly array $providerCompanyIds = [],
+        protected readonly ?array $metadata = null,
     ) {
     }
 
@@ -87,7 +88,14 @@ class ExportOrderPaymentsAction
         $tempFilePath = "exports/{$filename}.xlsx";
 
         Excel::store(
-            new OrderPaymentsStatsExportExcel($stats, $orders, $this->timezone, $this->fieldMapper, $this->language),
+            new OrderPaymentsStatsExportExcel(
+                $stats,
+                $orders,
+                $this->timezone,
+                $this->fieldMapper,
+                $this->language,
+                $this->metadata,
+            ),
             $tempFilePath,
             'public'
         );
@@ -111,6 +119,8 @@ class ExportOrderPaymentsAction
             Storage::disk('public')->delete($tempFilePath);
         }
 
+        $this->cleanupTempImages();
+
         return [
             'status'       => 'success',
             'download_url' => $isSavedInFileSystem ? $uploadedFileEntry->url : Storage::disk('public')->url($tempFilePath),
@@ -118,5 +128,14 @@ class ExportOrderPaymentsAction
             'file_path'    => $uploadedFileEntry->url ?? $tempFilePath,
             'message'      => 'Excel export completed successfully',
         ];
+    }
+
+    private function cleanupTempImages(): void
+    {
+        foreach (glob(storage_path('app/temp_payments_logo_*.png')) ?: [] as $file) {
+            if (file_exists($file)) {
+                unlink($file);
+            }
+        }
     }
 }
