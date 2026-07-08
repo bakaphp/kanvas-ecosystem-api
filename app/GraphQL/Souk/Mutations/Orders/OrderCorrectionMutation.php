@@ -7,13 +7,11 @@ namespace App\GraphQL\Souk\Mutations\Orders;
 use Illuminate\Support\Facades\Gate;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\Corrections\AddObservationsAction;
-use Kanvas\Connectors\Movipass\Actions\Corrections\AddOrderItemAction;
+use Kanvas\Connectors\Movipass\Actions\Corrections\AdjustOrderItemsAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\AssociatePaymentToOrderAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\CorrectVehiclePlateAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\MarkOrderAsDuplicateAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\RelocateVehicleAction;
-use Kanvas\Connectors\Movipass\Actions\Corrections\RemoveOrderItemAction;
-use Kanvas\Connectors\Movipass\Actions\Corrections\UpdateOrderItemAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Models\Payments;
@@ -56,28 +54,10 @@ class OrderCorrectionMutation
                 $reason,
                 $evidenceUrls,
             )->execute(),
-            'update-item' => new UpdateOrderItemAction(
+            'adjust-amount' => new AdjustOrderItemsAction(
                 $order,
                 $user,
-                (int) ($data['order_item_id'] ?? throw new ValidationException('data.order_item_id is required for update-item')),
-                $reason,
-                $evidenceUrls,
-                newAmount: isset($data['new_amount']) ? (float) $data['new_amount'] : null,
-                newQuantity: isset($data['new_quantity']) ? (int) $data['new_quantity'] : null,
-            )->execute(),
-            'add-item' => new AddOrderItemAction(
-                $order,
-                $user,
-                (int) ($data['variant_id'] ?? throw new ValidationException('data.variant_id is required for add-item')),
-                (int) ($data['quantity'] ?? 1),
-                (float) ($data['amount'] ?? throw new ValidationException('data.amount is required for add-item')),
-                $reason,
-                $evidenceUrls,
-            )->execute(),
-            'remove-item' => new RemoveOrderItemAction(
-                $order,
-                $user,
-                (int) ($data['order_item_id'] ?? throw new ValidationException('data.order_item_id is required for remove-item')),
+                (array) ($data['operations'] ?? throw new ValidationException('data.operations is required for adjust-amount')),
                 $reason,
                 $evidenceUrls,
             )->execute(),

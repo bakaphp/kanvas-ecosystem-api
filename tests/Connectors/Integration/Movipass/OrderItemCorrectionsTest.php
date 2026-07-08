@@ -7,9 +7,7 @@ namespace Tests\Connectors\Integration\Movipass;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Movipass\Actions\Corrections\AddOrderItemAction;
-use Kanvas\Connectors\Movipass\Actions\Corrections\RemoveOrderItemAction;
-use Kanvas\Connectors\Movipass\Actions\Corrections\UpdateOrderItemAction;
+use Kanvas\Connectors\Movipass\Actions\Corrections\AdjustOrderItemsAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Products\Models\Products;
@@ -18,6 +16,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
+use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
 final class OrderItemCorrectionsTest extends TestCase
@@ -123,17 +122,16 @@ final class OrderItemCorrectionsTest extends TestCase
         return [$order, $user, $locationItem, $serviceItem, $serviceVariant];
     }
 
-    public function testUpdateItemChangesAmountAndRecalculatesTotal(): void
+    public function testUpdateOperationChangesAmountAndRecalculatesTotal(): void
     {
         [$order, $user, , $serviceItem] = $this->createOrderWithItems(4000.00);
 
         $result = Order::withoutSyncingToSearch(
-            fn () => new UpdateOrderItemAction(
+            fn () => new AdjustOrderItemsAction(
                 $order,
                 $user,
-                (int) $serviceItem->id,
+                [['op' => 'update', 'order_item_id' => (int) $serviceItem->id, 'new_amount' => 4400.00]],
                 'Ajuste de tarifa',
-                newAmount: 4400.00,
             )->execute()
         );
 
@@ -141,17 +139,16 @@ final class OrderItemCorrectionsTest extends TestCase
         $this->assertEquals(4400.00, (float) $serviceItem->fresh()->unit_price_net_amount);
     }
 
-    public function testUpdateItemChangesQuantity(): void
+    public function testUpdateOperationChangesQuantity(): void
     {
         [$order, $user, , $serviceItem] = $this->createOrderWithItems(1000.00);
 
         $result = Order::withoutSyncingToSearch(
-            fn () => new UpdateOrderItemAction(
+            fn () => new AdjustOrderItemsAction(
                 $order,
                 $user,
-                (int) $serviceItem->id,
+                [['op' => 'update', 'order_item_id' => (int) $serviceItem->id, 'new_quantity' => 3]],
                 'Cambio de cantidad',
-                newQuantity: 3,
             )->execute()
         );
 
@@ -159,17 +156,15 @@ final class OrderItemCorrectionsTest extends TestCase
         $this->assertEquals(3000.00, (float) $result->total_net_amount);
     }
 
-    public function testAddItemAppendsLineAndRecalculatesTotal(): void
+    public function testAddOperationAppendsLineAndRecalculatesTotal(): void
     {
         [$order, $user, , , $serviceVariant] = $this->createOrderWithItems(4000.00);
 
         $result = Order::withoutSyncingToSearch(
-            fn () => new AddOrderItemAction(
+            fn () => new AdjustOrderItemsAction(
                 $order,
                 $user,
-                (int) $serviceVariant->id,
-                1,
-                400.00,
+                [['op' => 'add', 'variant_id' => (int) $serviceVariant->id, 'quantity' => 1, 'amount' => 400.00]],
                 'Recargo por mora',
             )->execute()
         );
@@ -178,15 +173,15 @@ final class OrderItemCorrectionsTest extends TestCase
         $this->assertEquals(3, $order->allItems()->count());
     }
 
-    public function testRemoveItemDeletesLineAndRecalculatesTotal(): void
+    public function testRemoveOperationDeletesLineAndRecalculatesTotal(): void
     {
         [$order, $user, , $serviceItem] = $this->createOrderWithItems(4000.00);
 
         $result = Order::withoutSyncingToSearch(
-            fn () => new RemoveOrderItemAction(
+            fn () => new AdjustOrderItemsAction(
                 $order,
                 $user,
-                (int) $serviceItem->id,
+                [['op' => 'remove', 'order_item_id' => (int) $serviceItem->id]],
                 'Servicio no aplicaba',
             )->execute()
         );
@@ -194,6 +189,35 @@ final class OrderItemCorrectionsTest extends TestCase
         $this->assertEquals(0.0, (float) $result->total_net_amount);
         $this->assertNull(OrderItem::find($serviceItem->id));
         $this->assertEquals(1, $order->allItems()->count());
+    }
+
+    public function testBatchAppliesUpdateAndAddAtomicallyInOneLog(): void
+    {
+        [$order, $user, , $serviceItem, $serviceVariant] = $this->createOrderWithItems(4000.00);
+
+        $result = Order::withoutSyncingToSearch(
+            fn () => new AdjustOrderItemsAction(
+                $order,
+                $user,
+                [
+                    ['op' => 'update', 'order_item_id' => (int) $serviceItem->id, 'new_amount' => 4500.00],
+                    ['op' => 'add', 'variant_id' => (int) $serviceVariant->id, 'quantity' => 1, 'amount' => 400.00],
+                ],
+                'El vehículo permaneció 22 días adicionales',
+            )->execute()
+        );
+
+        $this->assertEquals(4900.00, (float) $result->total_net_amount);
+        $this->assertEquals(3, $order->allItems()->count());
+
+        $log = Activity::query()
+            ->where('subject_type', Order::class)
+            ->where('subject_id', $order->getKey())
+            ->where('description', 'adjust-amount')
+            ->latest('id')
+            ->first();
+        $this->assertNotNull($log);
+        $this->assertCount(2, $log->properties['changes']['operations']);
     }
 
     public function testRemoveLocationItemIsBlocked(): void
@@ -204,11 +228,28 @@ final class OrderItemCorrectionsTest extends TestCase
         $this->expectExceptionMessage('The location item cannot be removed from the order');
 
         Order::withoutSyncingToSearch(
-            fn () => new RemoveOrderItemAction(
+            fn () => new AdjustOrderItemsAction(
                 $order,
                 $user,
-                (int) $locationItem->id,
+                [['op' => 'remove', 'order_item_id' => (int) $locationItem->id]],
                 'Intento de quitar location',
+            )->execute()
+        );
+    }
+
+    public function testUnknownOperationThrows(): void
+    {
+        [$order, $user, , $serviceItem] = $this->createOrderWithItems(4000.00);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Unknown item operation: swap');
+
+        Order::withoutSyncingToSearch(
+            fn () => new AdjustOrderItemsAction(
+                $order,
+                $user,
+                [['op' => 'swap', 'order_item_id' => (int) $serviceItem->id]],
+                'Operación inválida',
             )->execute()
         );
     }
