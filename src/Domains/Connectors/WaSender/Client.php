@@ -21,14 +21,19 @@ class Client
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $company,
-        protected bool $outboundMode = false
+        protected bool $outboundMode = false,
+        ?string $apiKey = null,
     ) {
         $baseUrlEnum = $this->outboundMode
             ? ConfigurationEnum::BASE_URL_OUTBOUND
             : ConfigurationEnum::BASE_URL;
 
         $this->baseUrl = $app->get($baseUrlEnum->value);
-        $this->apiKey = $company->get(ConfigurationEnum::API_KEY->value) ?? $app->get(ConfigurationEnum::API_KEY->value);
+        // Session management uses the account PAT (config); per-session ops (send-message) must pass
+        // that session's own api_key. When given, it overrides the account key for this client.
+        $this->apiKey = $apiKey !== null && $apiKey !== ''
+            ? $apiKey
+            : ($company->get(ConfigurationEnum::API_KEY->value) ?? $app->get(ConfigurationEnum::API_KEY->value));
 
         if (empty($this->baseUrl) || empty($this->apiKey)) {
             throw new ValidationException('Wasender configuration is missing');

@@ -25,13 +25,10 @@ class ApolloHandler extends BaseIntegration
         $this->app->set(ConfigurationEnum::APOLLO_API_KEY->value, $apolloApiKey);
 
         try {
-            // Use Apollo Client to attempt a harmless call and validate the API key
             $client = new Client($this->app);
-            $client->post('/people/match', [
-                'email' => 'doesnotexist@kanvas.dev',
-            ]);
+            $client->get('/auth/health');
         } catch (\Exception $e) {
-            if (str_contains($e->getMessage(), 'Unauthorized')) {
+            if (str_contains($e->getMessage(), 'Unauthorized') || str_contains($e->getMessage(), '401')) {
                 throw new ValidationException('Invalid Apollo API key.');
             }
 

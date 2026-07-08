@@ -27,4 +27,5 @@ enum ConfigurationEnum: string
     case DEFAULT_SELECTED_CHANNEL = 'guild_default_selected_channel';
     case AGENT_REACH_OUT_DEFAULT_AGENT_ID = 'agent_reach_out_default_agent_id';
     case MANLY_HONDA = 'manly_honda';
+    case IGNORE_SUB_SOURCE = 'ignore_sub_source';
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Regions\Models;
 
+use Baka\Casts\Json;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
@@ -14,6 +15,7 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Models\BaseModel;
 use Kanvas\Traits\DefaultTrait;
+use Override;
 
 /**
  * Class Regions.
@@ -26,7 +28,9 @@ use Kanvas\Traits\DefaultTrait;
  * @property string $name
  * @property string $slug
  * @property string $short_slug
- * @property ?string settings = null
+ * @property ?array $settings
+ * @property float|null $lat
+ * @property float|null $lng
  * @property int $is_default
  * @property int $is_deleted
  * @property string $created_at
@@ -41,6 +45,21 @@ class Regions extends BaseModel
 
     protected $table = 'regions';
     protected $guarded = [];
+
+    #[Override]
+    protected function casts(): array
+    {
+        return [
+            'settings' => Json::class,
+        ];
+    }
+
+    // Backward-compat: clients queried Region.settings as a raw JSON string before
+    // it was typed as RegionSettings. Expose the encoded string so old apps don't break.
+    public function getSettingsStringAttribute(): ?string
+    {
+        return $this->settings !== null ? json_encode($this->settings, JSON_THROW_ON_ERROR) : null;
+    }
 
     public function currencies(): BelongsTo
     {

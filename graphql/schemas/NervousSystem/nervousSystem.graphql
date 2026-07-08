@@ -12,6 +12,10 @@ type LedgerEvent {
     category: NervousSystemEventCategory
     payload: Mixed
     payload_schema_version: Int!
+    "Count of payload.changed_fields — filter `change_count GT 0` to get only change-bearing events."
+    change_count: Int!
+    "Count of real before/after changes only (excludes flags like new_account) = rows the feed renders. Filter `material_change_count GT 0`."
+    material_change_count: Int!
     result: Mixed
     error: Mixed
     duration_ms: Int
@@ -58,9 +62,11 @@ extend type Query @guard {
                     "actor_type"
                     "actor_id"
                     "occurred_at"
+                    "change_count"
+                    "material_change_count"
                 ]
             )
-        orderBy: _ @orderBy(columns: ["id", "occurred_at", "indexed_at"])
+        orderBy: _ @orderBy(columns: ["id", "occurred_at", "indexed_at", "change_count", "material_change_count"])
     ): [LedgerEvent!]!
         @paginate(
             model: "Kanvas\\NervousSystem\\Ledger\\Models\\Event"

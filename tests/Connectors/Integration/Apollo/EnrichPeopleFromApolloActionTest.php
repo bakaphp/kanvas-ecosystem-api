@@ -211,6 +211,10 @@ final class EnrichPeopleFromApolloActionTest extends TestCase
             ->withUserId(static::$cachedUser->getId())
             ->create();
 
+        // Prior job on file — so the enrichment records a real Antes → Después, not a first fill.
+        $people->set('title', 'Marketing Analyst');
+        $people->set('company', 'Old Co ' . uniqid());
+
         $suffix = uniqid();
         $payload = [
             'title' => 'Chief Marketing Officer',
@@ -238,10 +242,101 @@ final class EnrichPeopleFromApolloActionTest extends TestCase
         $changedFields = $payloadOut['changed_fields'] ?? [];
         $this->assertContains('title', $changedFields);
         $this->assertContains('current_employer', $changedFields);
-        $this->assertContains('contacts_added', $changedFields);
+        // contacts_added + headline are not change-feed rows — never persisted on the event.
+        $this->assertNotContains('contacts_added', $changedFields);
+        $this->assertNotContains('headline', $changedFields);
 
+        // change_count is materialized so the feed can filter/paginate on a real column.
+        $this->assertSame(count($changedFields), (int) $event->change_count);
+        $this->assertGreaterThan(0, (int) $event->change_count);
+
+        // material_change_count = only the real before/after rows (excludes flags like new_account).
+        $this->assertSame(Event::countMaterialChanges($payloadOut['changes']), (int) $event->material_change_count);
+        $this->assertGreaterThan(0, (int) $event->material_change_count);
+        $this->assertLessThanOrEqual((int) $event->change_count, (int) $event->material_change_count);
+
+        $this->assertSame('Marketing Analyst', $payloadOut['changes']['title']['from'], 'The real prior title is captured as Antes.');
         $this->assertSame('Chief Marketing Officer', $payloadOut['changes']['title']['to']);
         $this->assertSame("Acme {$suffix}", $payloadOut['changes']['current_employer']['to']);
+        $this->assertNotSame('', $payloadOut['changes']['current_employer']['from'], 'A real move always has a non-empty Antes.');
+    }
+
+    public function test_first_fill_is_not_recorded_as_a_change(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+
+        // Brand-new person: no prior title or employer on file.
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(static::$cachedUser->getId())
+            ->create();
+
+        $suffix = uniqid();
+        $payload = [
+            'title' => 'Supervisora de Operaciones',
+            'organization' => ['name' => "Aleli {$suffix}"],
+            'employment_history' => [
+                ['organization_name' => "Aleli {$suffix}", 'title' => 'Supervisora de Operaciones', 'current' => 1, 'start_date' => '2024-01-01', 'end_date' => null],
+            ],
+        ];
+
+        new EnrichPeopleFromApolloAction($people, $app)->applyEnrichmentData($payload);
+
+        $event = Event::where('source_entity_type', People::class)
+            ->where('source_entity_id', $people->getId())
+            ->where('event_type', 'people.enriched')
+            ->orderByDesc('id')
+            ->first();
+
+        $this->assertNotNull($event);
+        $payloadOut = (array) $event->payload;
+        $changedFields = $payloadOut['changed_fields'] ?? [];
+
+        // A first-time fill is NOT a "X → X" / empty-from move.
+        $this->assertNotContains('title', $changedFields, 'First-time title fill is not a change.');
+        $this->assertNotContains('current_employer', $changedFields, 'First-time employer fill is not a change.');
+
+        // ...but a genuinely-new employer still surfaces as a net-new account.
+        $this->assertContains('new_account', $changedFields, 'A brand-new employer is still flagged as a new account.');
+    }
+
+    public function test_first_fill_seniority_is_not_a_promotion(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+
+        // Brand-new person: no prior seniority on file.
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(static::$cachedUser->getId())
+            ->create();
+
+        $suffix = uniqid();
+        $payload = [
+            'seniority' => 'director',
+            'organization' => ['name' => "Co {$suffix}"],
+            'employment_history' => [
+                ['organization_name' => "Co {$suffix}", 'title' => 'Director', 'current' => 1, 'start_date' => '2024-01-01', 'end_date' => null],
+            ],
+        ];
+
+        new EnrichPeopleFromApolloAction($people, $app)->applyEnrichmentData($payload);
+
+        $event = Event::where('source_entity_type', People::class)
+            ->where('source_entity_id', $people->getId())
+            ->where('event_type', 'people.enriched')
+            ->orderByDesc('id')
+            ->first();
+
+        $changed = (array) ($event->payload['changed_fields'] ?? []);
+        $this->assertNotContains(
+            'seniority_promoted',
+            $changed,
+            'Learning a seniority for the first time is detection, not a promotion.',
+        );
     }
 
     public function test_emits_seniority_promotion_new_account_and_email_change(): void
@@ -398,6 +493,54 @@ final class EnrichPeopleFromApolloActionTest extends TestCase
         $this->assertFalse(
             EnrichPeopleFromApolloAction::isWithinNoDataCooldown($people, 3),
             'A 10-day-old miss is past a 3-day cooldown and may be retried.',
+        );
+    }
+
+    public function test_past_employer_is_never_recorded_as_the_current_move(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+        $suffix = uniqid();
+
+        $person = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId(static::$cachedUser->getId())
+            ->create();
+
+        // She already works at Alpha (ongoing) — seed it as her current employer on file.
+        $alpha = $this->seedOrganization("Alpha {$suffix}");
+        OrganizationPeople::addPeopleToOrganization($alpha, $person);
+        $person->set('company', "Alpha {$suffix}");
+
+        // Apollo runs perfectly and returns her full history: Alpha is ongoing (no end_date),
+        // Baninter ended in 2001. Apollo's stale top-level primary org points at Baninter.
+        $payload = [
+            'organization' => ['name' => "Baninter {$suffix}"],
+            'employment_history' => [
+                ['organization_name' => "Baninter {$suffix}", 'title' => 'Oficial de Credito', 'current' => 0, 'start_date' => '1999-04-01', 'end_date' => '2001-08-01'],
+                ['organization_name' => "Alpha {$suffix}", 'title' => 'Gerente', 'current' => 1, 'start_date' => '2017-11-26', 'end_date' => null],
+            ],
+        ];
+
+        new EnrichPeopleFromApolloAction($person, $app)->applyEnrichmentData($payload);
+
+        // The genuine current (ongoing, most-recent) employer wins the company field — never the past Baninter.
+        $this->assertSame("Alpha {$suffix}", $person->get('company'));
+
+        $event = Event::where('source_entity_type', People::class)
+            ->where('source_entity_id', $person->getId())
+            ->where('event_type', 'people.enriched')
+            ->orderByDesc('id')
+            ->first();
+
+        $changes = (array) ($event->payload['changes'] ?? []);
+
+        // No false "move to Baninter" — she never left Alpha, so there is no current_employer change.
+        $this->assertArrayNotHasKey('current_employer', $changes, 'A past employer is not recorded as a current move.');
+        $this->assertEmpty(
+            $person->get(ConfigurationEnum::APOLLO_JOB_CHANGED_AT->value),
+            'No job-change marker is stamped when the current employer did not change.',
         );
     }
 

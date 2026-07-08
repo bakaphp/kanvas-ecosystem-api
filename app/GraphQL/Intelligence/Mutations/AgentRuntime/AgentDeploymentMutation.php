@@ -147,6 +147,8 @@ class AgentDeploymentMutation
         $agent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, $botToken);
         $agent->set(AgentChannelTokenEnum::SLACK_APP_TOKEN->value, $appToken);
 
+        $this->syncLiveCredentials($agent);
+
         return true;
     }
 
@@ -169,7 +171,28 @@ class AgentDeploymentMutation
             );
         }
 
+        $this->syncLiveCredentials($agent);
+
         return true;
+    }
+
+    /**
+     * Channel tokens are baked into the container's docker-compose.yml as env vars at launch,
+     * so setting them on the agent alone never reaches an already-running deployment. When the
+     * agent has a live deployment, push the rotated keys to it — the provider recreates the
+     * container (`docker compose up -d`) so the new env applies. No-op pre-launch.
+     */
+    private function syncLiveCredentials(Agent $agent): void
+    {
+        $deployment = $agent->activeDeployment;
+
+        if (! $deployment instanceof AgentDeployment || ! $deployment->isRunning()) {
+            return;
+        }
+
+        AgentRuntimeProviderFactory::forDeployment(
+            $deployment
+        )->dispatchCredentialSync($deployment);
     }
 
     public function execCommand(mixed $root, array $request): bool

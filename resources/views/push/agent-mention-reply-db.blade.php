@@ -1,0 +1,1 @@
+{{ $agentName ?? 'Agent' }} replied: {{ $body ?? '' }}

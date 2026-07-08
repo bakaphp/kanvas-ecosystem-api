@@ -18,6 +18,7 @@ use Kanvas\Guild\Leads\Observers\LeadObserver;
 use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
 use Kanvas\Intelligence\AgentRuntime\Listeners\SendAgentDeploymentLifecycleEmailListener;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
+use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
 use Kanvas\Inventory\Categories\Observers\ProductsCategoriesObserver;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Observers\ChannelObserver;
@@ -40,6 +41,7 @@ use Kanvas\NervousSystem\Plan\Listeners\WakeAgentOnPlanChangeListener;
 use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Notifications\Listeners\NotificationsListener;
 use Kanvas\Social\Messages\Events\AppModuleMessageCreatedEvent;
+use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
 use Kanvas\Social\Messages\Models\UserMessageActivity;
 use Kanvas\Social\Messages\Observers\UserMessageActivityObserver;
 use Kanvas\Social\UsersLists\Models\UserList;
@@ -83,6 +85,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         AppModuleMessageCreatedEvent::class => [
             UpdatePeopleMessageTimestampsListener::class,
+        ],
+        MessageMentionsStoredEvent::class => [
+            RespondToAgentMentionListener::class,
         ],
     ];
 

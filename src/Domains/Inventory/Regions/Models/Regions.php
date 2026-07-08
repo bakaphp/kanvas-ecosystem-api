@@ -13,6 +13,7 @@ use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions as ModelsRegions;
 use Kanvas\Traits\DefaultTrait;
+use Override;
 
 /**
  * Class Regions.
@@ -42,21 +43,25 @@ class Regions extends ModelsRegions
     protected $table = 'regions';
     protected $guarded = [];
 
+    #[Override]
     public function currencies(): BelongsTo
     {
         return $this->belongsTo(Currencies::class, 'currency_id');
     }
 
+    #[Override]
     public function currency(): BelongsTo
     {
         return $this->belongsTo(Currencies::class, 'currency_id');
     }
 
+    #[Override]
     public function warehouses(): HasMany
     {
         return $this->hasMany(Warehouses::class, 'regions_id');
     }
 
+    #[Override]
     public function hasDependencies(): bool
     {
         return $this->warehouses()->exists();

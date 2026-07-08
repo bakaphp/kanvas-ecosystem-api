@@ -13,4 +13,5 @@ enum CustomFieldEnum: string
     case MECHANIC_LAT = 'movipass_mechanic_lat';
     case MECHANIC_LNG = 'movipass_mechanic_lng';
     case MECHANIC_VEHICLE_INFO = 'movipass_mechanic_vehicle_info';
+    case COMPANY_REGION_ID = 'movipass_region_id';
 }

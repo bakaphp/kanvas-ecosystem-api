@@ -23,7 +23,7 @@ class ProviderOrdersBuilder
             throw new ValidationException('You can only view orders for your own company.');
         }
 
-        return Order::query()
+        $query = Order::query()
             ->whereIn('id', function ($q) use ($providerCompanyId) {
                 $q->select('order_id')
                     ->from(OrderProvider::getQualifiedTableName())
@@ -31,5 +31,11 @@ class ProviderOrdersBuilder
             })
             ->where('apps_id', app(Apps::class)->getId())
             ->where('is_deleted', 0);
+
+        if (! empty($args['region_id'])) {
+            $query->where('region_id', (int) $args['region_id']);
+        }
+
+        return $query;
     }
 }

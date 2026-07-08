@@ -1,0 +1,18 @@
+input PublicAgentChatInput {
+    agent: ID!
+    token: String!
+    message: String!
+}
+
+type PublicAgentChatResult {
+    token: String!
+    reply: String!
+    turns_remaining: Int!
+}
+
+extend type Mutation @guardByAppKey {
+    publicAgentChat(input: PublicAgentChatInput!): PublicAgentChatResult!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\PublicAgentChatMutation@chat"
+        )
+}
