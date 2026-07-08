@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
@@ -435,19 +437,108 @@ final class AmendOrderTest extends TestCase
         $this->assertSame($prePaymentStatus->id, (int) $newHistory->to_status_id);
     }
 
-    public function testAmendOrderRelocateVehicleSwapsVariantAndUpdatesMetadata(): void
+    public function testAmendOrderAdjustItemsAppliesUpdateAndAddInOneCorrection(): void
     {
-        $impoundLotVariants = Variants::whereHas(
-            'product.productType',
-            fn ($q) => $q->where('slug', 'impound_lot')
-        )->take(2)->get();
+        $company = $this->kanvasUser->getCurrentCompany();
 
-        if ($impoundLotVariants->count() < 2) {
-            $this->markTestSkipped('Need at least 2 impound_lot variants in test DB');
+        $serviceType = ProductsTypes::factory()
+            ->company($company->getId())
+            ->create(['slug' => 'services', 'name' => 'services']);
+
+        $serviceProduct = Variants::withoutSyncingToSearch(
+            fn () => Products::withoutSyncingToSearch(
+                fn () => Products::factory()
+                    ->withAppId($this->kanvasApp->getId())
+                    ->withCompanyId($company->getId())
+                    ->create(['products_types_id' => $serviceType->id])
+            )
+        );
+        $serviceVariant = $serviceProduct->variants()->first();
+
+        $order = $this->createTestOrder(['order_number' => 99912]);
+
+        $serviceItem = $order->allItems()->create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'product_name' => $serviceVariant->product->name,
+            'product_sku' => $serviceVariant->sku,
+            'quantity' => 1,
+            'unit_price_net_amount' => 400,
+            'unit_price_gross_amount' => 400,
+            'is_shipping_required' => false,
+            'quantity_fulfilled' => 0,
+            'variant_id' => $serviceVariant->id,
+            'variant_name' => $serviceVariant->name,
+            'tax_rate' => 0,
+            'currency' => 'DOP',
+            'is_public' => 1,
+            'is_deleted' => 0,
+        ]);
+        Order::withoutSyncingToSearch(fn () => $order->calculateTotal());
+
+        $response = $this->graphQL('
+            mutation($order_id: ID!, $data: Mixed) {
+                amendOrder(
+                    order_id: $order_id
+                    correction_type: "adjust-amount"
+                    reason: "El vehículo permaneció 22 días adicionales"
+                    data: $data
+                ) {
+                    id
+                    total_net_amount
+                    activityLogs {
+                        data {
+                            description
+                            properties
+                        }
+                    }
+                }
+            }
+        ', [
+            'order_id' => $order->id,
+            'data' => [
+                'operations' => [
+                    ['op' => 'update', 'order_item_id' => $serviceItem->id, 'new_amount' => 500],
+                    ['op' => 'add', 'variant_id' => $serviceVariant->id, 'quantity' => 1, 'amount' => 400],
+                ],
+            ],
+        ]);
+
+        $response->assertSuccessful();
+        if ($response->json('errors')) {
+            $this->fail('GraphQL errors: ' . json_encode($response->json('errors')));
         }
 
-        $oldVariant = $impoundLotVariants->first();
-        $newVariant = $impoundLotVariants->last();
+        $this->assertEquals(900.00, (float) $response->json('data.amendOrder.total_net_amount'));
+
+        $logs = $response->json('data.amendOrder.activityLogs.data');
+        $adjustLog = collect($logs)->firstWhere('description', 'adjust-amount');
+        $this->assertNotNull($adjustLog);
+        $this->assertCount(2, $adjustLog['properties']['changes']['operations']);
+    }
+
+    public function testAmendOrderRelocateVehicleSwapsVariantAndUpdatesMetadata(): void
+    {
+        $company = $this->kanvasUser->getCurrentCompany();
+
+        $locationType = ProductsTypes::factory()
+            ->company($company->getId())
+            ->create(['slug' => 'impound-lot', 'name' => 'impound_lot']);
+
+        $makeLocationVariant = function () use ($company, $locationType) {
+            $product = Variants::withoutSyncingToSearch(
+                fn () => Products::withoutSyncingToSearch(
+                    fn () => Products::factory()
+                        ->withAppId($this->kanvasApp->getId())
+                        ->withCompanyId($company->getId())
+                        ->create(['products_types_id' => $locationType->id])
+                )
+            );
+
+            return $product->variants()->first();
+        };
+
+        $oldVariant = $makeLocationVariant();
+        $newVariant = $makeLocationVariant();
 
         $order = $this->createTestOrder([
             'order_number' => 99910,

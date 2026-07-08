@@ -38,6 +38,37 @@ class PasoRapidoRechargeStatsTest extends TestCase
           ]);
     }
 
+    public function testExportOrderPaymentsWithMetadataAndHeaderColor(): void
+    {
+        $this->graphQL('
+            query ($metadata: ExportMetadataInput) {
+                exportOrderPayments(
+                    input: { orderTypeNames: ["paso_rapido"], paidStates: ["paid"] }
+                    format: EXCEL
+                    metadata: $metadata
+                ) {
+                    status
+                    download_url
+                    file_name
+                    message
+                }
+            }
+        ', [
+            'metadata' => [
+                'custom_title' => 'Reporte de Recargas',
+                'subtitle'     => 'Paso Rápido',
+                'headerColor'  => '#5D8A66',
+            ],
+        ])->assertSuccessful()
+          ->assertJson([
+              'data' => [
+                  'exportOrderPayments' => [
+                      'status' => 'success',
+                  ],
+              ],
+          ]);
+    }
+
     public function testListOrdersFilteredByPasoRapidoPaymentStatus(): void
     {
         $this->graphQL('

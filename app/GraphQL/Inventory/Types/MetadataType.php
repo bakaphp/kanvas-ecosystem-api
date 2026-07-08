@@ -4,22 +4,18 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Types;
 
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Inventory\Regions\Models\Regions;
-use Kanvas\Inventory\Regions\Repositories\RegionRepository;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 class MetadataType
 {
     public function linkedStores(Variants $variant, array $request): array
     {
-        try {
-            $region = app()->bound(Regions::class)
-                ? app(Regions::class)
-                : RegionRepository::getDefault($variant->company, $variant->app);
-        } catch (ModelNotFoundException) {
-            $region = null;
-        }
+        // Regions::getDefault falls back to the app-global region (companies_id = 0)
+        // when the company has none, gated on the souk_allow_cross_company_variants flag.
+        $region = app()->bound(Regions::class)
+            ? app(Regions::class)
+            : Regions::getDefault($variant->company, $variant->app);
 
         if (! $region instanceof Regions) {
             return [
