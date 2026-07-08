@@ -10,6 +10,7 @@ use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Actions\PullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
@@ -23,6 +24,7 @@ use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementV1Action;
+use Kanvas\Intelligence\PipelinesStages\Actions\ManlyHondaFollowUpEngagementAction;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadClosingStatusAction;
@@ -64,8 +66,11 @@ class FollowUpEngagementCommand extends Command
         foreach ($stages as $stage) {
             $config = $stage->config;
 
+            $stageCompany = Companies::getById((int) $stage->pipeline->companies_id);
+            $isManlyHonda = (bool) $stageCompany->get(CompanyConfigurationEnum::MANLY_HONDA->value);
+
             $followUpDay = FollowUpDay::where('pipeline_stages_id', $stage->getId())->first();
-            if (! $followUpDay) {
+            if (! $followUpDay && ! $isManlyHonda) {
                 continue;
             }
 
@@ -228,9 +233,11 @@ class FollowUpEngagementCommand extends Command
                 //how do we avoid sending notifications for leads that haven'b been contacted
                 try {
                     $this->info('Executing FollowUpEngagementAction for lead ID ' . $lead->id . ' - ' . $lead->people->name);
-                    $followUpClass = $isV2
-                        ? FollowUpEngagementAction::class
-                        : FollowUpEngagementV1Action::class;
+                    $followUpClass = match (true) {
+                        $isManlyHonda => ManlyHondaFollowUpEngagementAction::class,
+                        $isV2 => FollowUpEngagementAction::class,
+                        default => FollowUpEngagementV1Action::class,
+                    };
                     $result = new $followUpClass($lead, $log)->execute();
                 } catch (FollowUpException $e) {
                     $this->info('Skipping lead ID ' . $lead->id . ': ' . $e->getMessage());
