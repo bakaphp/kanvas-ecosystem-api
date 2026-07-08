@@ -181,6 +181,13 @@ class PullLeadAction
         // 2. First time we see this prospect — try to match an existing
         // customer by email or phone so we don't fork Peoples that Kanvas
         // already created from other sources (walk-ins, other CRMs, web forms).
+        //
+        // getMatchingEmailPhone AND's the two whereExists clauses, so passing
+        // both when a stored People only carries one of them misses the match
+        // and forks a duplicate. Run the lookups sequentially — email first
+        // (higher signal, customers keep it across phone swaps), phone as a
+        // fallback only when email didn't hit. Two queries in the worst case,
+        // one when the email match works.
         $email = $entity->customer?->email;
         $phone = $this->firstUsablePhone($entity->customer);
 
@@ -188,12 +195,25 @@ class PullLeadAction
             return null;
         }
 
-        $existing = PeoplesRepository::getMatchingEmailPhone(
-            app: $this->app,
-            company: $this->company,
-            email: $email !== null ? strtolower((string) $email) : null,
-            phone: $phone,
-        );
+        $existing = null;
+
+        if (! empty($email)) {
+            $existing = PeoplesRepository::getMatchingEmailPhone(
+                app: $this->app,
+                company: $this->company,
+                email: strtolower((string) $email),
+                phone: null,
+            );
+        }
+
+        if ($existing === null && ! empty($phone)) {
+            $existing = PeoplesRepository::getMatchingEmailPhone(
+                app: $this->app,
+                company: $this->company,
+                email: null,
+                phone: $phone,
+            );
+        }
 
         return $existing?->getId();
     }
