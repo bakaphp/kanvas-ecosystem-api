@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
@@ -437,17 +439,27 @@ final class AmendOrderTest extends TestCase
 
     public function testAmendOrderRelocateVehicleSwapsVariantAndUpdatesMetadata(): void
     {
-        $impoundLotVariants = Variants::whereHas(
-            'product.productType',
-            fn ($q) => $q->where('slug', 'impound_lot')
-        )->take(2)->get();
+        $company = $this->kanvasUser->getCurrentCompany();
 
-        if ($impoundLotVariants->count() < 2) {
-            $this->markTestSkipped('Need at least 2 impound_lot variants in test DB');
-        }
+        $locationType = ProductsTypes::factory()
+            ->company($company->getId())
+            ->create(['slug' => 'impound-lot', 'name' => 'impound_lot']);
 
-        $oldVariant = $impoundLotVariants->first();
-        $newVariant = $impoundLotVariants->last();
+        $makeLocationVariant = function () use ($company, $locationType) {
+            $product = Variants::withoutSyncingToSearch(
+                fn () => Products::withoutSyncingToSearch(
+                    fn () => Products::factory()
+                        ->withAppId($this->kanvasApp->getId())
+                        ->withCompanyId($company->getId())
+                        ->create(['products_types_id' => $locationType->id])
+                )
+            );
+
+            return $product->variants()->first();
+        };
+
+        $oldVariant = $makeLocationVariant();
+        $newVariant = $makeLocationVariant();
 
         $order = $this->createTestOrder([
             'order_number' => 99910,

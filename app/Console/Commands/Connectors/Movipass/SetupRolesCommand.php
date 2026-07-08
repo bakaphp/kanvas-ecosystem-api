@@ -139,7 +139,17 @@ class SetupRolesCommand extends Command
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
             ],
-            'adjust-amount' => [
+            'update-item' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::OPERATIONS,
+            ],
+            'add-item' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::OPERATIONS,
+            ],
+            'remove-item' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
@@ -158,6 +168,11 @@ class SetupRolesCommand extends Command
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::FINANCE,
+                MovipassRolesEnum::OPERATIONS,
+            ],
+            'relocate' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
             ],
             'admin-reverse-transition' => [

@@ -6,10 +6,10 @@ namespace Tests\Connectors\Integration\Movipass;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Auth;
-use Kanvas\Activities\Models\Activity;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Movipass\Actions\Corrections\AdjustOrderItemAmountAction;
-use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
+use Kanvas\Connectors\Movipass\Actions\Corrections\AddOrderItemAction;
+use Kanvas\Connectors\Movipass\Actions\Corrections\RemoveOrderItemAction;
+use Kanvas\Connectors\Movipass\Actions\Corrections\UpdateOrderItemAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Products\Models\Products;
@@ -17,12 +17,10 @@ use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Souk\Orders\Models\OrderStatus;
-use Kanvas\Souk\Orders\Models\OrderTypes;
-use Kanvas\Users\Models\Users;
+use Kanvas\Souk\Orders\Models\OrderItem;
 use Tests\TestCase;
 
-final class AdjustOrderItemAmountActionTest extends TestCase
+final class OrderItemCorrectionsTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -35,12 +33,10 @@ final class AdjustOrderItemAmountActionTest extends TestCase
         }
     }
 
-    private function createOrderWithItems(
-        Apps $app,
-        Users $user,
-        float $servicePrice,
-        array $orderOverrides = []
-    ): Order {
+    private function createOrderWithItems(float $servicePrice = 4000.00): array
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
         $company = $user->getCurrentCompany();
         $region = Regions::getDefault($company, $app);
 
@@ -85,13 +81,10 @@ final class AdjustOrderItemAmountActionTest extends TestCase
                 ->withAppId($app->getId())
                 ->withCompanyId($company->getId())
                 ->withUserId($user->getId())
-                ->create(array_merge([
-                    'region_id' => $region->getId(),
-                    'people_id' => $person->id,
-                ], $orderOverrides))
+                ->create(['region_id' => $region->getId(), 'people_id' => $person->id])
         );
 
-        $order->allItems()->create([
+        $locationItem = $order->allItems()->create([
             'apps_id' => $app->getId(),
             'product_name' => $locationVariant->product->name,
             'product_sku' => $locationVariant->sku,
@@ -108,7 +101,7 @@ final class AdjustOrderItemAmountActionTest extends TestCase
             'is_deleted' => 0,
         ]);
 
-        $order->allItems()->create([
+        $serviceItem = $order->allItems()->create([
             'apps_id' => $app->getId(),
             'product_name' => $serviceVariant->product->name,
             'product_sku' => $serviceVariant->sku,
@@ -125,98 +118,98 @@ final class AdjustOrderItemAmountActionTest extends TestCase
             'is_deleted' => 0,
         ]);
 
-        return $order;
-    }
-
-    public function testItAdjustsServiceItemAmountAndRecalculatesTotal(): void
-    {
-        $app = app(Apps::class);
-        $user = Auth::user();
-
-        $order = $this->createOrderWithItems($app, $user, 4000.00);
         Order::withoutSyncingToSearch(fn () => $order->calculateTotal());
 
-        $this->assertEquals(4000.00, (float) $order->total_net_amount);
+        return [$order, $user, $locationItem, $serviceItem, $serviceVariant];
+    }
+
+    public function testUpdateItemChangesAmountAndRecalculatesTotal(): void
+    {
+        [$order, $user, , $serviceItem] = $this->createOrderWithItems(4000.00);
 
         $result = Order::withoutSyncingToSearch(
-            fn () => new AdjustOrderItemAmountAction($order, $user, 4400.00, 'Ajuste de tarifa aplicado')->execute()
+            fn () => new UpdateOrderItemAction(
+                $order,
+                $user,
+                (int) $serviceItem->id,
+                'Ajuste de tarifa',
+                newAmount: 4400.00,
+            )->execute()
         );
 
         $this->assertEquals(4400.00, (float) $result->total_net_amount);
-        $this->assertEquals(4400.00, (float) $result->total_gross_amount);
-
-        $log = Activity::where('subject_id', $order->id)
-            ->where('subject_type', Order::class)
-            ->where('description', 'adjust-amount')
-            ->first();
-
-        $this->assertNotNull($log);
-        $this->assertEquals(4000.00, $log->properties['changes']['amount']['old']);
-        $this->assertEquals(4400.00, $log->properties['changes']['amount']['new']);
-        $this->assertEquals('Ajuste de tarifa aplicado', $log->properties['reason']);
+        $this->assertEquals(4400.00, (float) $serviceItem->fresh()->unit_price_net_amount);
     }
 
-    public function testItLeavesLocationItemUntouched(): void
+    public function testUpdateItemChangesQuantity(): void
     {
-        $app = app(Apps::class);
-        $user = Auth::user();
+        [$order, $user, , $serviceItem] = $this->createOrderWithItems(1000.00);
 
-        $order = $this->createOrderWithItems($app, $user, 4000.00);
-
-        Order::withoutSyncingToSearch(
-            fn () => new AdjustOrderItemAmountAction($order, $user, 4400.00, 'Ajuste de monto')->execute()
+        $result = Order::withoutSyncingToSearch(
+            fn () => new UpdateOrderItemAction(
+                $order,
+                $user,
+                (int) $serviceItem->id,
+                'Cambio de cantidad',
+                newQuantity: 3,
+            )->execute()
         );
 
-        $items = $order->allItems()->with('variant.product.productType')->get();
-
-        $locationItem = $items->first(fn ($i) => $i->variant?->product?->productType?->slug === 'impound-lot');
-        $serviceItem = $items->first(fn ($i) => $i->variant?->product?->productType?->slug === 'services');
-
-        $this->assertEquals(0.0, (float) $locationItem->unit_price_net_amount);
-        $this->assertEquals(4400.0, (float) $serviceItem->unit_price_net_amount);
+        $this->assertEquals(3, (int) $serviceItem->fresh()->quantity);
+        $this->assertEquals(3000.00, (float) $result->total_net_amount);
     }
 
-    public function testItRejectsZeroAmount(): void
+    public function testAddItemAppendsLineAndRecalculatesTotal(): void
     {
-        $app = app(Apps::class);
-        $user = Auth::user();
+        [$order, $user, , , $serviceVariant] = $this->createOrderWithItems(4000.00);
 
-        $order = $this->createOrderWithItems($app, $user, 4000.00);
-
-        $this->expectException(ValidationException::class);
-
-        Order::withoutSyncingToSearch(
-            fn () => new AdjustOrderItemAmountAction($order, $user, 0.0, 'should fail')->execute()
+        $result = Order::withoutSyncingToSearch(
+            fn () => new AddOrderItemAction(
+                $order,
+                $user,
+                (int) $serviceVariant->id,
+                1,
+                400.00,
+                'Recargo por mora',
+            )->execute()
         );
+
+        $this->assertEquals(4400.00, (float) $result->total_net_amount);
+        $this->assertEquals(3, $order->allItems()->count());
     }
 
-    public function testItBlocksAdjustmentOnFinalStatus(): void
+    public function testRemoveItemDeletesLineAndRecalculatesTotal(): void
     {
-        $app = app(Apps::class);
-        $user = Auth::user();
+        [$order, $user, , $serviceItem] = $this->createOrderWithItems(4000.00);
 
-        $orderType = OrderTypes::where('name', 'impound_lot')->fromApp($app)->first();
+        $result = Order::withoutSyncingToSearch(
+            fn () => new RemoveOrderItemAction(
+                $order,
+                $user,
+                (int) $serviceItem->id,
+                'Servicio no aplicaba',
+            )->execute()
+        );
 
-        if (! $orderType) {
-            $this->markTestSkipped('impound_lot order type not set up in this environment');
-        }
+        $this->assertEquals(0.0, (float) $result->total_net_amount);
+        $this->assertNull(OrderItem::find($serviceItem->id));
+        $this->assertEquals(1, $order->allItems()->count());
+    }
 
-        $releasedStatus = OrderStatus::where('slug', MovipassOrderStatusEnum::RELEASED->value)
-            ->where('order_types_id', $orderType->id)
-            ->first();
-
-        if (! $releasedStatus) {
-            $this->markTestSkipped('released_from_lot status not found — run movipass:setup-impound-lot first');
-        }
-
-        $order = $this->createOrderWithItems($app, $user, 4000.00, [
-            'order_status_id' => $releasedStatus->id,
-        ]);
+    public function testRemoveLocationItemIsBlocked(): void
+    {
+        [$order, $user, $locationItem] = $this->createOrderWithItems(4000.00);
 
         $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('The location item cannot be removed from the order');
 
         Order::withoutSyncingToSearch(
-            fn () => new AdjustOrderItemAmountAction($order, $user, 4400.00, 'should fail')->execute()
+            fn () => new RemoveOrderItemAction(
+                $order,
+                $user,
+                (int) $locationItem->id,
+                'Intento de quitar location',
+            )->execute()
         );
     }
 }
