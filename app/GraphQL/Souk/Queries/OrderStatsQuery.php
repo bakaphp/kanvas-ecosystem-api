@@ -154,6 +154,7 @@ class OrderStatsQuery
             userEmail: $input['user_email'] ?? null,
             providerCompanyIds: array_map('intval', $input['provider_company_id'] ?? []),
             metadata: $args['metadata'] ?? [],
+            includeSummary: $input['includeSummary'] ?? true,
         )->execute();
     }
 }

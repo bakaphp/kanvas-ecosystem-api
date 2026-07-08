@@ -30,6 +30,7 @@ class ExportOrderPaymentsAction
         protected readonly ?string $userEmail = null,
         protected readonly array $providerCompanyIds = [],
         protected readonly ?array $metadata = null,
+        protected readonly bool $includeSummary = true,
     ) {
     }
 
@@ -43,22 +44,25 @@ class ExportOrderPaymentsAction
             ? Carbon::parse($this->endDate, $this->timezone)->endOfDay()->setTimezone('UTC')
             : null;
 
-        $stats = new GetOrderPaymentStatsAction(
-            app: $this->app,
-            paidStates: $this->paidStates,
-            orderTypeNames: $this->orderTypeNames,
-            userEmail: $this->userEmail,
-            providerCompanyIds: $this->providerCompanyIds,
-        )->execute(
-            startDate: $this->startDate,
-            endDate: $this->endDate,
-            timezone: $this->timezone,
-        );
+        $stats = [];
+        if ($this->includeSummary) {
+            $stats = new GetOrderPaymentStatsAction(
+                app: $this->app,
+                paidStates: $this->paidStates,
+                orderTypeNames: $this->orderTypeNames,
+                userEmail: $this->userEmail,
+                providerCompanyIds: $this->providerCompanyIds,
+            )->execute(
+                startDate: $this->startDate,
+                endDate: $this->endDate,
+                timezone: $this->timezone,
+            );
 
-        $stats['totals'] = [
-            'total_transactions' => $stats['ordersInPeriod']['count'] ?? 0,
-            'total_amount'       => $stats['ordersInPeriod']['totalAmount'] ?? 0,
-        ];
+            $stats['totals'] = [
+                'total_transactions' => $stats['ordersInPeriod']['count'] ?? 0,
+                'total_amount'       => $stats['ordersInPeriod']['totalAmount'] ?? 0,
+            ];
+        }
 
         $orders = Order::query()
             ->select('orders.*')
@@ -95,6 +99,7 @@ class ExportOrderPaymentsAction
                 $this->fieldMapper,
                 $this->language,
                 $this->metadata,
+                $this->includeSummary,
             ),
             $tempFilePath,
             'public'

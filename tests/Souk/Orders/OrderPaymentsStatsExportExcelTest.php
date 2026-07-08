@@ -13,18 +13,20 @@ use Tests\TestCase;
 
 class OrderPaymentsStatsExportExcelTest extends TestCase
 {
-    private function makeExport(?array $metadata = null): OrderPaymentsStatsExportExcel
+    private function makeExport(?array $metadata = null, bool $includeSummary = true, string $language = 'en'): OrderPaymentsStatsExportExcel
     {
-        $stats = [
+        $stats = $includeSummary ? [
             'totals'   => ['total_transactions' => 0, 'total_amount' => 0],
             'byPeriod' => [],
             'periods'  => [],
-        ];
+        ] : [];
 
         return new OrderPaymentsStatsExportExcel(
             stats: $stats,
             orders: new Collection(),
+            language: $language,
             metadata: $metadata,
+            includeSummary: $includeSummary,
         );
     }
 
@@ -92,6 +94,49 @@ class OrderPaymentsStatsExportExcelTest extends TestCase
 
         $this->assertEquals(1, $next);
         $this->assertNull($sheet->getCell('A1')->getValue());
+    }
+
+    public function testSummaryBlockRenderedByDefault(): void
+    {
+        $export = $this->makeExport(includeSummary: true, language: 'es');
+
+        $sheet = new Spreadsheet()->getActiveSheet();
+        $this->invoke($export, 'build', [$sheet]);
+
+        $this->assertStringContainsStringInSheet($sheet, 'Resumen por Período');
+        $this->assertStringContainsStringInSheet($sheet, 'Detalle de Órdenes');
+    }
+
+    public function testSummaryBlockHiddenWhenDisabled(): void
+    {
+        $export = $this->makeExport(includeSummary: false, language: 'es');
+
+        $sheet = new Spreadsheet()->getActiveSheet();
+        $this->invoke($export, 'build', [$sheet]);
+
+        $this->assertStringNotContainsStringInSheet($sheet, 'Resumen por Período');
+        $this->assertStringNotContainsStringInSheet($sheet, 'Métrica');
+        $this->assertStringContainsStringInSheet($sheet, 'Detalle de Órdenes');
+    }
+
+    private function sheetText(Worksheet $sheet): string
+    {
+        $text = '';
+        foreach ($sheet->toArray() as $row) {
+            $text .= implode('|', array_map(fn ($c) => (string) $c, $row)) . "\n";
+        }
+
+        return $text;
+    }
+
+    private function assertStringContainsStringInSheet(Worksheet $sheet, string $needle): void
+    {
+        $this->assertStringContainsString($needle, $this->sheetText($sheet));
+    }
+
+    private function assertStringNotContainsStringInSheet(Worksheet $sheet, string $needle): void
+    {
+        $this->assertStringNotContainsString($needle, $this->sheetText($sheet));
     }
 
     public function testHeaderStyleUsesConfiguredColor(): void

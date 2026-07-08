@@ -86,6 +86,7 @@ class OrderPaymentsStatsExportExcel implements WithEvents, ShouldAutoSize, WithD
         private readonly ?array $fieldMapper = null,
         private readonly string $language = 'en',
         private readonly ?array $metadata = null,
+        private readonly bool $includeSummary = true,
     ) {
         $this->headerBg = $this->resolveHeaderColor($metadata['headerColor'] ?? null);
     }
@@ -106,24 +107,30 @@ class OrderPaymentsStatsExportExcel implements WithEvents, ShouldAutoSize, WithD
     {
         return [
             AfterSheet::class => function (AfterSheet $event) {
-                $sheet = $event->sheet->getDelegate();
-                $row   = 1;
-
-                $row = $this->writeHeaderSection($sheet, $row);
-                $row = $this->writeBreakdownSection($sheet, $row);
-                $row++;
-                $row = $this->writeMetricsSection($sheet, $row);
-                $row++;
-                $this->writeDetailSection($sheet, $row);
-
-                $sheet->getColumnDimension('A')->setWidth(22);
-                $sheet->getColumnDimension('B')->setWidth(18);
-                $sheet->getColumnDimension('C')->setWidth(22);
-                $sheet->getColumnDimension('D')->setWidth(15);
-                $sheet->getColumnDimension('E')->setWidth(20);
-                $sheet->getColumnDimension('F')->setWidth(35);
+                $this->build($event->sheet->getDelegate());
             },
         ];
+    }
+
+    private function build(Worksheet $sheet): void
+    {
+        $row = $this->writeHeaderSection($sheet, 1);
+
+        if ($this->includeSummary) {
+            $row = $this->writeBreakdownSection($sheet, $row);
+            $row++;
+            $row = $this->writeMetricsSection($sheet, $row);
+            $row++;
+        }
+
+        $this->writeDetailSection($sheet, $row);
+
+        $sheet->getColumnDimension('A')->setWidth(22);
+        $sheet->getColumnDimension('B')->setWidth(18);
+        $sheet->getColumnDimension('C')->setWidth(22);
+        $sheet->getColumnDimension('D')->setWidth(15);
+        $sheet->getColumnDimension('E')->setWidth(20);
+        $sheet->getColumnDimension('F')->setWidth(35);
     }
 
     public function drawings(): array

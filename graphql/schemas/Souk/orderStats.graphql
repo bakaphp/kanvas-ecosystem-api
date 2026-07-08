@@ -202,6 +202,7 @@ input ExportOrderPaymentsInput {
     fieldMapper: Mixed # keys = column headers, values = dot-notation field paths (e.g. {"Order": "order_number"})
     user_email: String # Filter by order user email (supports LIKE patterns)
     provider_company_id: [ID!] # DB-level filter: only orders linked to these provider companies via order_providers
+    includeSummary: Boolean # Show the breakdown-by-period + metrics summary block (default true); false exports only the order detail table
 }
 
 type OrderCommissionStats {
