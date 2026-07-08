@@ -27,6 +27,17 @@ class SessionService
     }
 
     /**
+     * Pull the QR string out of a session/connection payload, tolerating WaSender's field-name
+     * variants across plans.
+     *
+     * @param array<array-key, mixed> $payload
+     */
+    public static function extractQr(array $payload): ?string
+    {
+        return $payload['qr_code'] ?? $payload['qr'] ?? $payload['qrCode'] ?? $payload['qrcode'] ?? null;
+    }
+
+    /**
      * Get all WhatsApp sessions.
      */
     public function getAllSessions(): array
@@ -70,7 +81,10 @@ class SessionService
             }
         }
 
-        return $this->client->post('/api/whatsapp-sessions', $data);
+        $response = $this->client->post('/api/whatsapp-sessions', $data);
+
+        // WaSender wraps the session object in a `data` envelope.
+        return $response['data'] ?? $response;
     }
 
     /**
@@ -78,7 +92,9 @@ class SessionService
      */
     public function getSession(int $sessionId): array
     {
-        return $this->client->get("/api/whatsapp-sessions/{$sessionId}");
+        $response = $this->client->get("/api/whatsapp-sessions/{$sessionId}");
+
+        return $response['data'] ?? $response;
     }
 
     /**
@@ -113,7 +129,9 @@ class SessionService
             $data['qr_as_image'] = true;
         }
 
-        return $this->client->post("/api/whatsapp-sessions/{$sessionId}/connect", $data);
+        $response = $this->client->post("/api/whatsapp-sessions/{$sessionId}/connect", $data);
+
+        return $response['data'] ?? $response;
     }
 
     /**
@@ -121,7 +139,9 @@ class SessionService
      */
     public function getSessionQrCode(int $sessionId): array
     {
-        return $this->client->get("/api/whatsapp-sessions/{$sessionId}/qr-code");
+        $response = $this->client->get("/api/whatsapp-sessions/{$sessionId}/qr-code");
+
+        return $response['data'] ?? $response;
     }
 
     /**

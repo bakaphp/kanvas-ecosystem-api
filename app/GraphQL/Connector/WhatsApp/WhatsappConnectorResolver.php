@@ -7,6 +7,7 @@ namespace App\GraphQL\Connector\WhatsApp;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Actions\ConnectWhatsAppSessionAction;
 use Kanvas\Connectors\WaSender\Actions\DisconnectWhatsAppSessionAction;
+use Kanvas\Connectors\WaSender\Actions\RefreshWhatsAppQrCodeAction;
 use Kanvas\Connectors\WaSender\Services\SessionService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 
@@ -36,6 +37,25 @@ class WhatsappConnectorResolver
             agent: $agent,
             phoneNumber: (string) $input['phone_number'],
             sessionName: $input['session_name'] ?? null,
+        )->execute();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function refreshQrCode(mixed $root, array $request): array
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        /** @var Agent $agent */
+        $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
+
+        return new RefreshWhatsAppQrCodeAction(
+            app: $app,
+            company: $company,
+            agent: $agent,
         )->execute();
     }
 

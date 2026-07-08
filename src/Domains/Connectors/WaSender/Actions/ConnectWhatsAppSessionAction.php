@@ -78,10 +78,17 @@ class ConnectWhatsAppSessionAction
 
         $this->persistConnection($receiver, $session, $connection);
 
+        $qrCode = SessionService::extractQr($connection) ?? SessionService::extractQr($session);
+
+        // Some plans return the QR only from the dedicated endpoint, not the connect response.
+        if ($qrCode === null && ($session['id'] ?? null) !== null) {
+            $qrCode = SessionService::extractQr($this->sessionService->getSessionQrCode((int) $session['id']));
+        }
+
         return [
             'session_id' => $session['id'] ?? null,
             'status' => (string) ($connection['status'] ?? $session['status'] ?? 'need_scan'),
-            'qr_code' => $connection['qr_code'] ?? $connection['qr'] ?? null,
+            'qr_code' => $qrCode,
         ];
     }
 
