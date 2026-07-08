@@ -101,6 +101,11 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@launch"
         )
+    "Retry a failed deployment on the same agent + machine it already targeted."
+    agentRuntimeRetryDeployment(deployment_id: ID!): AgentDeploymentType!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@retry"
+        )
     agentRuntimeTerminateAgent(deployment_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentRuntime\\AgentDeploymentMutation@terminate"
