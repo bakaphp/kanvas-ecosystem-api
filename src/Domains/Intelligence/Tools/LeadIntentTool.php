@@ -46,10 +46,10 @@ class LeadIntentTool implements ContextToolInterface
         /**
          * @todo standardize source and subsource names to lowercase to avoid issues like this
          */
-        if ($this->entity->get('VIN_SOLUTION_LEADS')) {
-            $leadSource = $this->entity->type->name;
-            $subSource = $this->entity->source->name;
-        }
+        // if ($this->entity->get('VIN_SOLUTION_LEADS')) {
+        //     $leadSource = $this->entity->type->name;
+        //     $subSource = $this->entity->source->name;
+        // }
 
         $ignoreSubSource = $this->entity->company->get('IGNORE_SUB_SOURCE');
 
