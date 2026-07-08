@@ -72,7 +72,7 @@ class AdjustOrderItemAmountAction extends BaseOrderCorrectionAction
 
         return Variants::query()
             ->whereIn('id', $variantIds)
-            ->whereHas('product.productType', fn ($q) => $q->where('name', 'services'))
+            ->whereHas('product.productType', fn ($q) => $q->where('slug', 'services'))
             ->pluck('id')
             ->toArray();
     }
