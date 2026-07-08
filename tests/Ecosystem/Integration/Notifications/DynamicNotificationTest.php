@@ -278,4 +278,84 @@ final class DynamicNotificationTest extends TestCase
         $this->assertSame($databaseBlurb, $stored->content);
         $this->assertStringNotContainsString('long email body', (string) $stored->content);
     }
+
+    private function makeGateNotification(): Blank
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $lead = Lead::factory()
+            ->withAppAndCompany($app->getId(), $company->getId())
+            ->create();
+
+        new CreateTemplateAction(
+            TemplateInput::from([
+                'app' => $app,
+                'name' => 'notification-gate-test',
+                'template' => '<html><body>gate {{ $message->id ?? \'x\' }}</body></html>',
+            ])
+        )->execute();
+
+        return new Blank(
+            templateName: 'notification-gate-test',
+            data: [
+                'message' => $lead,
+                'company' => $company,
+                'app' => $app,
+                'user' => $user,
+            ],
+            via: ['database'],
+            entity: $lead
+        );
+    }
+
+    /** Baseline: an active, non-banned, non-deleted user still resolves the requested channel. */
+    public function testActiveUserResolvesChannels(): void
+    {
+        $user = auth()->user();
+        $notification = $this->makeGateNotification();
+
+        $user->user_active = 1;
+        $user->banned = 'N';
+        $user->is_deleted = 0;
+
+        $this->assertContains(KanvasDatabase::class, $notification->via($user));
+    }
+
+    /** A disabled (user_active = 0) user must resolve zero channels, so nothing is delivered. */
+    public function testDisabledUserResolvesNoChannels(): void
+    {
+        $user = auth()->user();
+        $notification = $this->makeGateNotification();
+
+        $user->user_active = 0;
+
+        $this->assertEmpty($notification->via($user));
+    }
+
+    /** A banned user must resolve zero channels. */
+    public function testBannedUserResolvesNoChannels(): void
+    {
+        $user = auth()->user();
+        $notification = $this->makeGateNotification();
+
+        $user->user_active = 0;
+        $user->banned = 'Y';
+
+        $this->assertEmpty($notification->via($user));
+    }
+
+    /** A soft-deleted user must resolve zero channels even while still marked active. */
+    public function testSoftDeletedUserResolvesNoChannels(): void
+    {
+        $user = auth()->user();
+        $notification = $this->makeGateNotification();
+
+        $user->user_active = 1;
+        $user->banned = 'N';
+        $user->is_deleted = 1;
+
+        $this->assertEmpty($notification->via($user));
+    }
 }

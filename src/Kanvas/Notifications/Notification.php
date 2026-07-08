@@ -85,6 +85,10 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function via(object $notifiable): array
     {
+        if (! $this->isNotifiableReceivable($notifiable)) {
+            return [];
+        }
+
         $channels = $this->getNotificationChannels();
 
         if ($this->shouldFilterChannelsByUserSettings($notifiable)) {
@@ -94,6 +98,25 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         $this->setNotifiableData($notifiable);
 
         return $channels;
+    }
+
+    /**
+     * Suppress every channel for recipients who can no longer receive notifications:
+     * disabled (inactive), banned, or soft-deleted users. Returning an empty channel
+     * list from via() makes Laravel skip delivery entirely for this notifiable.
+     * Non-user notifiables (e.g. an on-demand mail route) are always receivable.
+     */
+    private function isNotifiableReceivable(object $notifiable): bool
+    {
+        if (! $notifiable instanceof UserInterface) {
+            return true;
+        }
+
+        if ($notifiable instanceof Users && $notifiable->is_deleted) {
+            return false;
+        }
+
+        return $notifiable->isActive() && ! $notifiable->isBanned();
     }
 
     /**
