@@ -44,12 +44,12 @@ final class EventAnalyticsServiceTest extends TestCase
 
         $service = new EventAnalyticsService();
 
-        $enriched = $this->query($app, $company, ['people.enriched']);
+        $enriched = $this->analyticsQuery($app, $company, ['people.enriched']);
 
         $this->assertSame(4, $service->count($enriched), 'Four people.enriched events.');
         $this->assertSame(3, $service->countDistinctEntities($enriched), 'Three distinct entities (1001 counted once).');
 
-        $employerOnly = $this->query($app, $company, ['people.enriched'], ['changes.current_employer']);
+        $employerOnly = $this->analyticsQuery($app, $company, ['people.enriched'], ['changes.current_employer']);
         $this->assertSame(3, $service->count($employerOnly), 'Three events carry changes.current_employer.');
         $this->assertSame(2, $service->countDistinctEntities($employerOnly), 'Across two distinct entities.');
 
@@ -58,7 +58,7 @@ final class EventAnalyticsServiceTest extends TestCase
         $this->assertSame(3, $byKey['changes.current_employer']->count);
         $this->assertSame(2, $byKey['changes.title']->count);
 
-        $byType = $service->groupBy($this->query($app, $company), EventGroupByEnum::EVENT_TYPE)
+        $byType = $service->groupBy($this->analyticsQuery($app, $company), EventGroupByEnum::EVENT_TYPE)
             ->keyBy('key');
         $this->assertSame(4, $byType['people.enriched']->count);
         $this->assertSame(1, $byType['people.other']->count);
@@ -115,12 +115,12 @@ final class EventAnalyticsServiceTest extends TestCase
             )->execute();
         }
 
-        $count = new EventAnalyticsService()->count($this->query($app, $company, ['people.enriched']));
+        $count = new EventAnalyticsService()->count($this->analyticsQuery($app, $company, ['people.enriched']));
 
         $this->assertSame(1, $count, 'Only this app\'s event is counted, never the other app\'s.');
     }
 
-    private function query(Apps $app, Companies $company, array $eventTypes = [], array $payloadHasKeys = []): EventAnalyticsQuery
+    private function analyticsQuery(Apps $app, Companies $company, array $eventTypes = [], array $payloadHasKeys = []): EventAnalyticsQuery
     {
         return new EventAnalyticsQuery(
             app: $app,
