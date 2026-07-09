@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Ledger\Actions;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\NervousSystem\Ledger\Models\EventArchive;
@@ -18,8 +19,13 @@ use RuntimeException;
  */
 class RestoreEventsFromArchiveAction
 {
+    private readonly ?Carbon $from;
+    private readonly ?Carbon $to;
+
     /**
      * @param list<string> $eventTypes restrict to these event types (empty = every type in the archive)
+     * @param string|null  $fromDate   inclusive lower bound on occurred_at (bare date → start of that day)
+     * @param string|null  $toDate     inclusive upper bound on occurred_at (bare date → end of that day)
      */
     public function __construct(
         public readonly array $eventTypes = [],
@@ -28,7 +34,27 @@ class RestoreEventsFromArchiveAction
         public readonly ?string $diskOverride = null,
         public readonly ?int $archiveId = null,
         public readonly bool $dryRun = false,
+        ?string $fromDate = null,
+        ?string $toDate = null,
     ) {
+        $this->from = $fromDate !== null ? self::boundary($fromDate, isUpper: false) : null;
+        $this->to = $toDate !== null ? self::boundary($toDate, isUpper: true) : null;
+    }
+
+    /**
+     * Parse a user date/timestamp. A bare `Y-m-d` widens to the whole day so
+     * `--from=2026-06-25 --to=2026-06-25` captures that entire day; an explicit
+     * timestamp is honored as-is.
+     */
+    private static function boundary(string $value, bool $isUpper): Carbon
+    {
+        $carbon = Carbon::parse($value);
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($value)) === 1) {
+            return $isUpper ? $carbon->endOfDay() : $carbon->startOfDay();
+        }
+
+        return $carbon;
     }
 
     /**
@@ -42,8 +68,15 @@ class RestoreEventsFromArchiveAction
         $skippedExisting = 0;
         $missingBlobs = 0;
 
+        $from = $this->from;
+        $to = $this->to;
+
         EventArchive::query()
             ->when($this->archiveId !== null, fn (Builder $q): Builder => $q->where('id', $this->archiveId))
+            // Skip archive windows that can't overlap the requested range. Coarse
+            // (day-granular window bounds); the precise cut is per-row on occurred_at.
+            ->when($from !== null, fn (Builder $q): Builder => $q->where('window_ends_at', '>=', $from->toDateString()))
+            ->when($to !== null, fn (Builder $q): Builder => $q->where('window_starts_at', '<=', $to->toDateString()))
             ->orderBy('id')
             ->each(function (EventArchive $archive) use (
                 &$archivesScanned,
@@ -180,6 +213,18 @@ class RestoreEventsFromArchiveAction
 
         if ($this->companyId !== null && (int) ($row['companies_id'] ?? 0) !== $this->companyId) {
             return false;
+        }
+
+        if (($this->from !== null || $this->to !== null) && isset($row['occurred_at'])) {
+            $occurredAt = Carbon::parse((string) $row['occurred_at']);
+
+            if ($this->from !== null && $occurredAt->lt($this->from)) {
+                return false;
+            }
+
+            if ($this->to !== null && $occurredAt->gt($this->to)) {
+                return false;
+            }
         }
 
         return true;
