@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Ledger\Actions;
 
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -18,9 +20,13 @@ use RuntimeException;
  */
 class ArchiveOldEventsAction
 {
+    /**
+     * @param list<string>|null $preserveEventTypesOverride
+     */
     public function __construct(
         public readonly ?int $retentionDaysOverride = null,
         public readonly ?string $diskOverride = null,
+        public readonly ?array $preserveEventTypesOverride = null,
     ) {
     }
 
@@ -35,11 +41,14 @@ class ArchiveOldEventsAction
             ?? (string) config('nervous-system.ledger.archive_disk', 's3');
         $pathPrefix = (string) config('nervous-system.ledger.archive_path_prefix', 'nervous-system');
         $chunkSize = (int) config('nervous-system.ledger.archive_chunk_size', 5000);
+        $preserveEventTypes = $this->preserveEventTypesOverride
+            ?? (array) config('nervous-system.ledger.preserve_event_types', []);
 
         $cutoff = now()->subDays($retentionDays);
 
         $window = Event::query()
             ->where('occurred_at', '<', $cutoff)
+            ->when($preserveEventTypes !== [], fn (Builder $q): Builder => $q->whereNotIn('event_type', $preserveEventTypes))
             ->selectRaw('count(*) as event_count, min(occurred_at) as window_start, max(occurred_at) as window_end')
             ->first();
 
@@ -71,6 +80,7 @@ class ArchiveOldEventsAction
 
         Event::query()
             ->where('occurred_at', '<', $cutoff)
+            ->when($preserveEventTypes !== [], fn (Builder $q): Builder => $q->whereNotIn('event_type', $preserveEventTypes))
             ->orderBy('id')
             ->chunkById($chunkSize, function ($events) use ($gz, &$written): void {
                 foreach ($events as $event) {
@@ -114,6 +124,7 @@ class ArchiveOldEventsAction
         DB::connection('intelligence')
             ->table('nervous_system_events')
             ->where('occurred_at', '<', $cutoff)
+            ->when($preserveEventTypes !== [], fn (QueryBuilder $q): QueryBuilder => $q->whereNotIn('event_type', $preserveEventTypes))
             ->delete();
 
         return [
