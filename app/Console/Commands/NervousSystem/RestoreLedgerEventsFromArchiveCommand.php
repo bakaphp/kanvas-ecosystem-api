@@ -19,6 +19,8 @@ class RestoreLedgerEventsFromArchiveCommand extends Command
         {--app_id= : Only restore events for this app}
         {--company_id= : Only restore events for this company}
         {--archive-id= : Restore from a single EventArchive row instead of every archive}
+        {--from= : Only restore events with occurred_at on/after this date (bare date = start of day)}
+        {--to= : Only restore events with occurred_at on/before this date (bare date = end of day)}
         {--disk= : Override the archive disk (defaults to each archive\'s stored disk)}
         {--dry-run : Report what would be restored without writing}';
 
@@ -31,6 +33,10 @@ class RestoreLedgerEventsFromArchiveCommand extends Command
         $archiveId = $this->option('archive-id') !== null ? (int) $this->option('archive-id') : null;
         $diskOption = $this->option('disk');
         $disk = is_string($diskOption) ? $diskOption : null;
+        $fromOption = $this->option('from');
+        $from = is_string($fromOption) ? $fromOption : null;
+        $toOption = $this->option('to');
+        $to = is_string($toOption) ? $toOption : null;
 
         if ($appId !== null) {
             /** @var Apps $app */
@@ -58,6 +64,8 @@ class RestoreLedgerEventsFromArchiveCommand extends Command
                 diskOverride: $disk,
                 archiveId: $archiveId,
                 dryRun: $dryRun,
+                fromDate: $from,
+                toDate: $to,
             )->execute();
         } catch (Throwable $e) {
             $this->error('Restore failed: ' . $e->getMessage());

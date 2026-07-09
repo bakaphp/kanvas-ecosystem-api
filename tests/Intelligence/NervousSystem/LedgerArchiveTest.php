@@ -261,4 +261,60 @@ class LedgerArchiveTest extends TestCase
         $this->assertSame(0, $second['restored'], 're-running restore must not duplicate rows');
         $this->assertGreaterThanOrEqual(3, $second['skipped_existing']);
     }
+
+    public function testRestoreHonorsDateRange(): void
+    {
+        Storage::fake('local');
+
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $tag = 'people.enriched';
+        $marker = 'daterange-' . uniqid();
+        $targetDay = Carbon::now()->subDays(30)->startOfDay()->addHours(9);
+
+        $inRange = new AppendEventAction(
+            new EventData(
+                app: $app,
+                company: $company,
+                sourceDomain: 'TestDomain',
+                eventType: $tag,
+                status: EventStatusEnum::INFO,
+                payload: ['marker' => $marker, 'when' => 'in'],
+                occurredAt: $targetDay,
+            ),
+        )->execute();
+
+        $outOfRange = new AppendEventAction(
+            new EventData(
+                app: $app,
+                company: $company,
+                sourceDomain: 'TestDomain',
+                eventType: $tag,
+                status: EventStatusEnum::INFO,
+                payload: ['marker' => $marker, 'when' => 'out'],
+                occurredAt: $targetDay->copy()->subDays(5),
+            ),
+        )->execute();
+
+        new ArchiveOldEventsAction(
+            retentionDaysOverride: 0,
+            diskOverride: 'local',
+            preserveEventTypesOverride: [],
+        )->execute();
+
+        $result = new RestoreEventsFromArchiveAction(
+            eventTypes: [$tag],
+            appId: $app->getId(),
+            companyId: $company->getId(),
+            diskOverride: 'local',
+            fromDate: $targetDay->toDateString(),
+            toDate: $targetDay->toDateString(),
+        )->execute();
+
+        $this->assertSame(1, Event::query()->where('uuid', $inRange->uuid)->count(), 'event inside the day is restored');
+        $this->assertSame(0, Event::query()->where('uuid', $outOfRange->uuid)->count(), 'event outside the range stays archived');
+        $this->assertSame(1, $result['restored']);
+    }
 }
