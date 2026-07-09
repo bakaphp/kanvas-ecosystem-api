@@ -52,6 +52,8 @@ class RegisterUsersAction extends CreateUserAction
                 } else {
                     $this->assignCompany($user);
                 }
+
+                $this->assignUserRole($user);
             }
         } catch (ModelNotFoundException $e) {
             $newUser = true;
