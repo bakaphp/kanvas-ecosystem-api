@@ -150,6 +150,15 @@ class LedgerArchiveTest extends TestCase
         );
     }
 
+    public function testConfigPreservesPeopleEmailValidatedByDefault(): void
+    {
+        $this->assertContains(
+            'people.email_validated',
+            (array) config('nervous-system.ledger.preserve_event_types'),
+            'people.email_validated must ship in the default preserve list so the bounce/invalid-email export is never swept',
+        );
+    }
+
     public function testArchiveNeverSweepsPreservedEventTypes(): void
     {
         Storage::fake('local');
