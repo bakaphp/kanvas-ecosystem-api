@@ -6,6 +6,7 @@ namespace Tests\GraphQL\Ecosystem;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Bus;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
@@ -13,6 +14,7 @@ use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Models\UsersAssociatedCompanies;
+use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
 
 class RegisterExistingUserAssignsGlobalCompanyTest extends TestCase
@@ -22,6 +24,7 @@ class RegisterExistingUserAssignsGlobalCompanyTest extends TestCase
     protected function tearDown(): void
     {
         app(Apps::class)->del(AppSettingsEnums::GLOBAL_USER_REGISTRATION_ASSIGN_GLOBAL_COMPANY->getValue());
+        app(Apps::class)->del(AppSettingsEnums::DEFAULT_SIGNUP_ROLE->getValue());
 
         parent::tearDown();
     }
@@ -125,6 +128,45 @@ class RegisterExistingUserAssignsGlobalCompanyTest extends TestCase
                 ->where('companies_id', $registeredUser->default_company)
                 ->exists(),
             'Expected a new company to be created and assigned to the existing user'
+        );
+    }
+
+    public function testRegisteringExistingUserNotInAppAssignsConfiguredBouncerRole(): void
+    {
+        Bus::fake();
+
+        $app = app(Apps::class);
+        $app->set(AppSettingsEnums::DEFAULT_SIGNUP_ROLE->getValue(), RolesEnums::USER->value);
+
+        $existingUser = Users::factory()->create([
+            'default_company' => 0,
+        ]);
+
+        $this->assertFalse(
+            UsersAssociatedApps::where('users_id', $existingUser->getId())
+                ->where('apps_id', $app->getId())
+                ->exists(),
+            'Precondition failed: user should not already belong to the current app'
+        );
+
+        $data = RegisterInput::fromArray([
+            'email' => $existingUser->email,
+            'password' => fake()->password(9),
+            'firstname' => $existingUser->firstname,
+            'lastname' => $existingUser->lastname,
+        ]);
+
+        $action = new RegisterUsersAction($data, $app);
+        $action->disableWorkflow();
+        $registeredUser = $action->execute();
+
+        $this->assertSame($existingUser->getId(), $registeredUser->getId());
+
+        Bouncer::scope()->to(RolesEnums::getScope($app, global: true));
+
+        $this->assertTrue(
+            $registeredUser->isAn(RolesEnums::USER->value),
+            'Expected the existing user to be assigned the configured default_signup_role Bouncer role in the app scope'
         );
     }
 }
