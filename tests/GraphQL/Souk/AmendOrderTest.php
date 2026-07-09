@@ -16,6 +16,7 @@ use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
 use Kanvas\Souk\Orders\Models\OrderStatus;
+use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
 use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Users\Models\Users;
@@ -308,6 +309,117 @@ final class AmendOrderTest extends TestCase
         $this->assertEmpty($wrongOrder->payments()->where('uuid', $payment->uuid)->get());
         $wrongOrder->refresh();
         $this->assertSame('unpaid', $wrongOrder->payment_status);
+    }
+
+    public function testAmendOrderAssociatePaymentTransitionsReceivingOrderToPaid(): void
+    {
+        $prePaymentStatus = OrderStatus::where('slug', 'awaiting_payment')->first();
+        $paidStatus = OrderStatus::where('slug', 'paid')
+            ->when($prePaymentStatus, fn ($q) => $q->where('order_types_id', $prePaymentStatus->order_types_id))
+            ->first();
+
+        if (! $prePaymentStatus || ! $paidStatus) {
+            $this->markTestSkipped('Required order statuses (awaiting_payment/paid) not found in test DB');
+        }
+
+        // The receiving order must have a defined forward transition to 'paid'.
+        OrderStatusTransitions::firstOrCreate([
+            'order_types_id' => $prePaymentStatus->order_types_id,
+            'from_status_id' => $prePaymentStatus->id,
+            'to_status_id' => $paidStatus->id,
+        ], [
+            'name' => 'awaiting_payment_to_paid',
+        ]);
+
+        $company = $this->kanvasUser->getCurrentCompany();
+        $region = Regions::getDefault($company, $this->kanvasApp);
+
+        $person = People::withoutSyncingToSearch(
+            fn () => People::factory()
+                ->withAppId($this->kanvasApp->getId())
+                ->withCompanyId($company->getId())
+                ->create()
+        );
+
+        // Receiving order sits at awaiting_payment, unpaid.
+        $correctOrder = Order::withoutSyncingToSearch(
+            fn () => Order::factory()
+                ->withAppId($this->kanvasApp->getId())
+                ->withCompanyId($company->getId())
+                ->withUserId($this->kanvasUser->getId())
+                ->create([
+                    'region_id' => $region->getId(),
+                    'people_id' => $person->id,
+                    'order_number' => 99908,
+                    'order_types_id' => $prePaymentStatus->order_types_id,
+                    'order_status_id' => $prePaymentStatus->id,
+                    'total_net_amount' => 4000,
+                    'payment_status' => 'unpaid',
+                ])
+        );
+
+        OrderTransitionHistory::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $company->getId(),
+            'order_id' => $correctOrder->id,
+            'transition_id' => null,
+            'from_status_id' => null,
+            'to_status_id' => $prePaymentStatus->id,
+            'description' => 'initial awaiting_payment',
+            'metadata' => [],
+            'is_current' => true,
+            'changed_at' => now(),
+            'changed_by' => $this->kanvasUser->getId(),
+        ]);
+
+        // Payment currently sits on a different (wrong) order.
+        $wrongOrder = Order::withoutSyncingToSearch(
+            fn () => Order::factory()
+                ->withAppId($this->kanvasApp->getId())
+                ->withCompanyId($company->getId())
+                ->withUserId($this->kanvasUser->getId())
+                ->create(['region_id' => $region->getId(), 'people_id' => $person->id, 'order_number' => 99909])
+        );
+
+        $payment = new Payments();
+        $payment->apps_id = $this->kanvasApp->getId();
+        $payment->companies_id = $company->getId();
+        $payment->users_id = $this->kanvasUser->getId();
+        $payment->amount = 4000;
+        $payment->currency = 'DOP';
+        $payment->payment_date = now()->toDateString();
+        $payment->concept = 'Pago orden equivocada';
+        $payment->status = 'paid';
+        $payment->payment_method = 'cash';
+        $payment->payable_id = $wrongOrder->id;
+        $payment->payable_type = Order::class;
+        $payment->save();
+
+        $response = $this->graphQL('
+            mutation($order_id: ID!, $data: Mixed) {
+                amendOrder(
+                    order_id: $order_id
+                    correction_type: "associate-payment"
+                    reason: "Pago registrado en orden incorrecta"
+                    data: $data
+                ) { id }
+            }
+        ', [
+            'order_id' => $correctOrder->id,
+            'data' => ['payment_uuid' => $payment->uuid],
+        ]);
+
+        $response->assertSuccessful();
+        if ($response->json('errors')) {
+            $this->fail('GraphQL errors: ' . json_encode($response->json('errors')));
+        }
+
+        $correctOrder->refresh();
+
+        // The receiving order transitions its order_status_id to 'paid' (the bug: it
+        // stayed put because the action fired side-effects but never called markAsPaid).
+        $this->assertSame($paidStatus->id, (int) $correctOrder->order_status_id);
+        $this->assertSame('paid', $correctOrder->payment_status);
     }
 
     public function testAmendOrderAssociatePaymentRollsBackStatusAndFulfillmentWhenOrderPastPaid(): void
