@@ -52,6 +52,10 @@ class CreateCompanyActionAction
                 $companyAction->config = $this->data->config;
             }
 
+            if ($this->data->pdf_config !== null) {
+                $companyAction->pdf_config = $this->data->pdf_config;
+            }
+
             if ($this->data->parent_id !== null) {
                 $companyAction->parent_id = $this->data->parent_id;
             }
