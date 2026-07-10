@@ -13,6 +13,7 @@ use Kanvas\Souk\Orders\Actions\GetOrderCommissionStatsAction;
 use Kanvas\Souk\Orders\Actions\GetOrderPaymentStatsAction;
 use Kanvas\Souk\Orders\Actions\GetOrderStatsAction;
 use Kanvas\Souk\Orders\DataTransferObject\CommissionStats;
+use Kanvas\Souk\Orders\Enums\OrderStatsExcludeModeEnum;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -38,6 +39,8 @@ class OrderStatsQuery
         $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
         $providers = $input['providers'] ?? [];
         $userEmail = $input['user_email'] ?? null;
+        $excludeStates = $input['excludeStates'] ?? [];
+        $excludeMode = OrderStatsExcludeModeEnum::from(strtolower($input['excludeMode'] ?? 'current'));
 
         $orderStats = new GetOrderStatsAction(
             $app,
@@ -49,7 +52,9 @@ class OrderStatsQuery
             $productId,
             $providerCompanyIds,
             $providers,
-            $userEmail
+            $userEmail,
+            $excludeStates,
+            $excludeMode
         )->execute(
             $date,
             $startDate,
