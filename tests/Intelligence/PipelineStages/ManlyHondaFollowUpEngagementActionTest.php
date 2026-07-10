@@ -98,6 +98,44 @@ class ManlyHondaFollowUpEngagementActionTest extends TestCase
         }
     }
 
+    public function testManlyHondaIgnoreTimeGateSendsDespiteRecentMessage(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 1, 14, 12, 0, 0, 'America/Los_Angeles'));
+
+        try {
+            // last message only 10 minutes ago, stage requires 60 => would skip,
+            // but withIgnoreTimeGate(true) forces the manual single-lead send
+            $lead = $this->setupLeadWithSessions(
+                lastMessageAgeMinutes: 10,
+                stageConfig: [
+                    'minutes_no_response' => 60,
+                    'internet_used_unreplied' => [
+                        'sms' => 'Hi [Customer Name], still interested in that used GMC?',
+                        'email' => 'Good morning [Customer Name], the used GMC is still available!',
+                    ],
+                ],
+                preferredChannel: 'email',
+            );
+
+            Notification::fake();
+
+            $fake = [
+                'message' => 'Hi there! Just following up on the used GMC. Want to schedule a visit?',
+                'should_respond' => true,
+            ];
+            StructuredAnonymousAgent::fake([$fake]);
+
+            $result = new ManlyHondaFollowUpEngagementAction($lead)
+                ->withIgnoreTimeGate(true)
+                ->execute();
+
+            $this->assertIsArray($result);
+            $this->assertArrayHasKey('follow_up_message', $result);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     public function testManlyHondaSkipsWhenNoStageConfigKeyMatches(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 1, 14, 12, 0, 0, 'America/Los_Angeles'));
