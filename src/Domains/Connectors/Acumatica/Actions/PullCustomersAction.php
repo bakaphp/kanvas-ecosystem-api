@@ -5,17 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Acumatica\Actions;
 
 use Illuminate\Database\Query\JoinClause;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Acumatica\SqlClient;
 use Kanvas\Users\Models\Users;
 
-/**
- * Sync Acumatica customers (or vendors) into Guild People, reading BAccount joined
- * to its default Contact + Address from the replica. Deduped on re-sync by the
- * Acumatica account code stored as a People custom field. Vendors are the same
- * BAccount shape under a different id custom field.
- */
 class PullCustomersAction
 {
     public function __construct(
@@ -25,6 +20,7 @@ class PullCustomersAction
         protected int $acumaticaCompanyId,
         protected bool $isVendor = false,
         protected ?int $limit = null,
+        protected ?Carbon $modifiedSince = null,
     ) {
     }
 
@@ -61,6 +57,10 @@ class PullCustomersAction
                     'a.AddressLine1', 'a.AddressLine2', 'a.City', 'a.State',
                     'a.CountryID', 'a.PostalCode', 'a.Latitude', 'a.Longitude',
                 ]);
+
+        if ($this->modifiedSince !== null) {
+            $query->where('b.LastModifiedDateTime', '>', $this->modifiedSince);
+        }
 
         if ($this->limit !== null) {
             $query->limit($this->limit);

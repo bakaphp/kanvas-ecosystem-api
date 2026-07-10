@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Acumatica\Actions;
 
 use Illuminate\Database\Query\JoinClause;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Acumatica\DataTransferObject\AcumaticaImportProduct;
@@ -19,13 +20,6 @@ use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions as KanvasRegions;
 use Kanvas\Users\Models\Users;
 
-/**
- * Pull on-hand stock from Acumatica `dbo.INSiteStatus` into
- * products_variants_warehouses. Joins InventoryItem (SKU) + INSite (warehouse) so rows
- * arrive as (sku, warehouse, qty). The variant, the warehouse, and the variant↔warehouse
- * link are all created on the fly if missing — so stock actually lands even when the
- * product was imported against a different (default) warehouse.
- */
 class PullStockAction
 {
     /** @var array<int, array<string, mixed>> per-row diagnostics (printed by the command under --debug) */
@@ -38,6 +32,7 @@ class PullStockAction
         protected KanvasRegions $region,
         protected int $acumaticaCompanyId,
         protected ?int $limit = null,
+        protected ?Carbon $modifiedSince = null,
     ) {
     }
 
@@ -71,6 +66,10 @@ class PullStockAction
             ])
             // highest on-hand first so a limited run surfaces items that actually have stock
             ->orderByDesc('s.QtyAvail');
+
+        if ($this->modifiedSince !== null) {
+            $query->where('s.LastModifiedDateTime', '>', $this->modifiedSince);
+        }
 
         if ($this->limit !== null) {
             $query->limit($this->limit);

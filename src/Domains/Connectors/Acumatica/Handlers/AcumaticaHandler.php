@@ -25,7 +25,6 @@ class AcumaticaHandler extends BaseIntegration
         );
         AcumaticaService::setup($dto);
 
-        // REST service-account auth is required — validate it round-trips.
         $client = Client::getInstance($this->app);
 
         try {
@@ -35,7 +34,6 @@ class AcumaticaHandler extends BaseIntegration
             throw new ValidationException('Acumatica REST authentication failed: ' . $e->getMessage());
         }
 
-        // SQL read replica is optional at setup (may be provisioned later); validate only if provided.
         if (SqlClient::isConfigured($this->app)) {
             try {
                 SqlClient::connection($this->app)->select('SELECT 1');

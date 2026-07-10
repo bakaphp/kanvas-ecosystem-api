@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Acumatica\Actions;
 
 use Illuminate\Database\Query\JoinClause;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Acumatica\DataTransferObject\AcumaticaImportOrder;
+use Kanvas\Connectors\Acumatica\DataTransferObject\AcumaticaImportOrderItem;
 use Kanvas\Connectors\Acumatica\DataTransferObject\AcumaticaImportProduct;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Acumatica\SqlClient;
@@ -23,12 +25,6 @@ use Kanvas\Souk\Orders\Models\Order as OrderModel;
 use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\DataCollection;
 
-/**
- * Pull Acumatica sales orders (SOOrder + SOLine) into Souk Orders. The customer and
- * each line's product are created on the fly from Acumatica if they haven't been
- * synced yet (ensurePeople / ensureVariant), so an order never silently skips for a
- * missing dependency. Idempotent: skips orders whose order_number already exists.
- */
 class PullSalesOrdersAction
 {
     /** @var array<string, int> per-run skip breakdown, populated by processRows() */
@@ -41,6 +37,7 @@ class PullSalesOrdersAction
         protected KanvasRegions $region,
         protected int $acumaticaCompanyId,
         protected ?int $limit = null,
+        protected ?Carbon $modifiedSince = null,
     ) {
     }
 
@@ -77,6 +74,10 @@ class PullSalesOrdersAction
                 'o.OrderDate', 'o.ShipDate', 'o.OrderDesc', 'o.CustomerOrderNbr', 'o.UsrRMANbr',
             ])
             ->orderByDesc('o.OrderDate');
+
+        if ($this->modifiedSince !== null) {
+            $query->where('o.LastModifiedDateTime', '>', $this->modifiedSince);
+        }
 
         if ($this->limit !== null) {
             $query->limit($this->limit);
@@ -142,7 +143,7 @@ class PullSalesOrdersAction
             $key = trim((string) ($header['OrderType'] ?? '')) . '-' . trim((string) ($header['OrderNbr'] ?? ''));
             $order = AcumaticaImportOrder::fromRow($header, $linesByOrder[$key] ?? []);
 
-            if ($order['orderNumber'] === '' || $order['customerCode'] === '') {
+            if ($order->orderNumber === '' || $order->customerCode === '') {
                 $this->skipped['no_customer_code']++;
 
                 continue;
@@ -151,7 +152,7 @@ class PullSalesOrdersAction
             $exists = OrderModel::query()
                 ->fromApp($this->app)
                 ->fromCompany($this->company)
-                ->where('order_number', $order['orderNumber'])
+                ->where('order_number', $order->orderNumber)
                 ->first();
 
             if ($exists !== null) {
@@ -160,7 +161,7 @@ class PullSalesOrdersAction
                 continue;
             }
 
-            $people = $this->ensurePeople($order['customerCode']);
+            $people = $this->ensurePeople($order->customerCode);
 
             if ($people === null) {
                 $this->skipped['customer_not_in_kanvas']++; // customer code not found in Acumatica
@@ -168,8 +169,8 @@ class PullSalesOrdersAction
                 continue;
             }
 
-            $currency = Currencies::getByCode($order['currency']);
-            $items = $this->buildItems($order['items'], $currency);
+            $currency = Currencies::getByCode($order->currency);
+            $items = $this->buildItems($order->items, $currency);
 
             if ($items->count() === 0) {
                 $this->skipped['no_matching_variants']++; // line SKUs not synced as products
@@ -183,29 +184,29 @@ class PullSalesOrdersAction
                 company: $this->company,
                 people: $people,
                 user: $this->user,
-                token: $order['token'],
-                orderNumber: $order['orderNumber'],
+                token: $order->token,
+                orderNumber: $order->orderNumber,
                 shippingAddress: null,
                 billingAddress: null,
-                total: $order['total'],
-                taxes: $order['taxes'],
-                totalDiscount: $order['totalDiscount'],
-                totalShipping: $order['totalShipping'],
-                status: $order['status'],
-                checkoutToken: $order['token'],
+                total: $order->total,
+                taxes: $order->taxes,
+                totalDiscount: $order->totalDiscount,
+                totalShipping: $order->totalShipping,
+                status: $order->status,
+                checkoutToken: $order->token,
                 currency: $currency,
                 items: $items,
-                metadata: $order['metadata'],
-                fulfillmentStatus: $order['fulfillmentStatus'],
-                reference: $order['reference'],
-                customerNote: $order['customerNote'],
+                metadata: $order->metadata,
+                fulfillmentStatus: $order->fulfillmentStatus,
+                reference: $order->reference,
+                customerNote: $order->customerNote,
             ));
             $createOrder->runWorkflow = false;
             $orderModel = $createOrder->execute();
 
             $orderModel->set(
                 CustomFieldEnum::ORDER_ID->value,
-                (string) $order['customFields'][CustomFieldEnum::ORDER_ID->value]
+                (string) $order->customFields[CustomFieldEnum::ORDER_ID->value]
             );
 
             $count++;
@@ -215,16 +216,14 @@ class PullSalesOrdersAction
     }
 
     /**
-     * @param array<int, array<string, mixed>> $items
-     *
-     * @return DataCollection
+     * @param DataCollection<int, AcumaticaImportOrderItem> $items
      */
-    private function buildItems(array $items, Currencies $currency): DataCollection
+    private function buildItems(DataCollection $items, Currencies $currency): DataCollection
     {
         $orderItems = [];
 
         foreach ($items as $item) {
-            $variant = $this->ensureVariant((string) $item['sku']);
+            $variant = $this->ensureVariant($item->sku);
 
             if ($variant === null) {
                 continue;
@@ -233,25 +232,20 @@ class PullSalesOrdersAction
             $orderItems[] = new OrderItemDto(
                 app: $this->app,
                 variant: $variant,
-                name: (string) $item['name'],
-                sku: (string) $item['sku'],
-                quantity: (float) $item['quantity'],
-                price: (float) $item['price'],
-                tax: (float) $item['tax'],
-                discount: (float) $item['discount'],
+                name: $item->name,
+                sku: $item->sku,
+                quantity: $item->quantity,
+                price: $item->price,
+                tax: $item->tax,
+                discount: $item->discount,
                 currency: $currency,
-                quantityShipped: (int) $item['quantityShipped'],
+                quantityShipped: $item->quantityShipped,
             );
         }
 
         return new DataCollection(OrderItemDto::class, $orderItems);
     }
 
-    /**
-     * Resolve the Kanvas People for an Acumatica account code — creating it on the
-     * fly from Acumatica if it hasn't been synced yet (so orders don't depend on a
-     * prior full customer sync).
-     */
     private function ensurePeople(string $acctCd): ?People
     {
         /** @var People|null $people */
@@ -274,10 +268,6 @@ class PullSalesOrdersAction
         )->execute($row);
     }
 
-    /**
-     * Resolve the Kanvas Variant for a SKU — importing the product on the fly from
-     * Acumatica if it hasn't been synced yet.
-     */
     private function ensureVariant(string $sku): ?Variants
     {
         /** @var Variants|null $variant */

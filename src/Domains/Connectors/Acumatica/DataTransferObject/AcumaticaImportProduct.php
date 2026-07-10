@@ -9,11 +9,8 @@ use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 
 /**
- * Maps a raw Acumatica `dbo.InventoryItem` row (read from the SQL replica) into the
- * shared ProductImporter shape. Acumatica items are single-SKU (color is a distinct
- * InventoryCD, not a sub-item), so each item → one product + one variant with the same SKU.
- * On-hand quantity is synced separately from `INSiteStatus` (PullStockAction) — variants
- * are created here with quantity 0 and their list price.
+ * Acumatica items are single-SKU (color is a distinct InventoryCD, not a sub-item), so each
+ * maps to one product + one variant. On-hand quantity is synced separately (PullStockAction).
  */
 class AcumaticaImportProduct extends ProductImporter
 {

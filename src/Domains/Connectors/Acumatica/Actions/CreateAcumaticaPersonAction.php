@@ -18,12 +18,6 @@ use Kanvas\Locations\Models\Countries;
 use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\DataCollection;
 
-/**
- * Create/update a single Guild People from one raw Acumatica party row
- * (BAccount joined to its default Contact + Address). Shared by PullCustomersAction
- * (bulk) and PullSalesOrdersAction (create the customer on the fly when an order
- * references someone not yet synced). Deduped on the Acumatica account code.
- */
 class CreateAcumaticaPersonAction
 {
     public function __construct(
@@ -40,26 +34,26 @@ class CreateAcumaticaPersonAction
     {
         $party = AcumaticaImportParty::fromRow($row, $isVendor);
 
-        if ($party['sourceId'] === '') {
+        if ($party->sourceId === '') {
             return null;
         }
 
         $idField = $isVendor ? CustomFieldEnum::VENDOR_ID : CustomFieldEnum::CUSTOMER_ID;
 
         /** @var People|null $existing */
-        $existing = People::getByCustomField($idField->value, $party['sourceId'], $this->company);
+        $existing = People::getByCustomField($idField->value, $party->sourceId, $this->company);
 
         return new CreatePeopleAction(
             PeopleDto::from([
                 'app' => $this->app,
                 'branch' => $this->user->getCurrentBranch(),
                 'user' => $this->user,
-                'firstname' => $party['firstname'],
-                'lastname' => $party['lastname'],
+                'firstname' => $party->firstname,
+                'lastname' => $party->lastname,
                 'contacts' => Contact::collect($this->contacts($party), DataCollection::class),
                 'address' => AddressDto::collect($this->address($party), DataCollection::class),
-                'custom_fields' => $party['customFields'],
-                'organization' => $party['organization'],
+                'custom_fields' => $party->customFields,
+                'organization' => $party->organization,
                 'id' => $existing?->getId() ?? 0,
                 'runWorkflow' => false,
             ])
@@ -67,50 +61,47 @@ class CreateAcumaticaPersonAction
     }
 
     /**
-     * @param array<string, mixed> $party
-     *
      * @return array<int, array<string, mixed>>
      */
-    private function contacts(array $party): array
+    private function contacts(AcumaticaImportParty $party): array
     {
         $contacts = [];
 
-        if (! empty($party['email'])) {
-            $contacts[] = ['value' => $party['email'], 'contacts_types_id' => ContactTypeEnum::EMAIL->value];
+        if ($party->email !== null) {
+            $contacts[] = ['value' => $party->email, 'contacts_types_id' => ContactTypeEnum::EMAIL->value];
         }
 
-        if (! empty($party['phone'])) {
-            $contacts[] = ['value' => $party['phone'], 'contacts_types_id' => ContactTypeEnum::PHONE->value];
+        if ($party->phone !== null) {
+            $contacts[] = ['value' => $party->phone, 'contacts_types_id' => ContactTypeEnum::PHONE->value];
         }
 
         return $contacts;
     }
 
     /**
-     * @param array<string, mixed> $party
-     *
      * @return array<int, array<string, mixed>>
      */
-    private function address(array $party): array
+    private function address(AcumaticaImportParty $party): array
     {
-        if (empty($party['address'])) {
+        $a = $party->address;
+
+        if ($a === null) {
             return [];
         }
 
-        $a = $party['address'];
-        $countryId = ! empty($a['country'])
-            ? Countries::where('code', $a['country'])->first()?->id
+        $countryId = $a->country !== null
+            ? Countries::where('code', $a->country)->first()?->id
             : null;
 
         return [[
-            'address' => $a['address'],
-            'address_2' => $a['address_2'],
-            'city' => $a['city'],
-            'state' => $a['state'],
-            'zip' => $a['zip'],
+            'address' => $a->address,
+            'address_2' => $a->address_2,
+            'city' => $a->city,
+            'state' => $a->state,
+            'zip' => $a->zip,
             'countries_id' => $countryId,
-            'latitude' => $a['latitude'],
-            'longitude' => $a['longitude'],
+            'latitude' => $a->latitude,
+            'longitude' => $a->longitude,
         ]];
     }
 }

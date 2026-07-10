@@ -13,10 +13,6 @@ use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses as WarehousesDto;
 use Kanvas\Regions\Models\Regions as KanvasRegions;
 
-/**
- * Sync Acumatica warehouses/sites (raw dbo.INSite) into Kanvas Inventory warehouses.
- * Warehouse code (SiteCD) → warehouse name; SiteID stored as a custom field for lookup.
- */
 class PullWarehousesAction
 {
     public function __construct(

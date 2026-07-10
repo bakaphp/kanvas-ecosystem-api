@@ -10,12 +10,6 @@ use GuzzleHttp\Cookie\CookieJar;
 use Kanvas\Connectors\Acumatica\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 
-/**
- * Acumatica contract-based REST client — WRITE-BACK transport only
- * (create/update entities + invoke actions). Reads come from the SQL replica
- * (see SqlClient). Stateless factory: rebuilt per call so rotated service-account
- * credentials are always picked up (Octane rule — never cache in static state).
- */
 class Client
 {
     protected GuzzleClient $client;
@@ -98,8 +92,6 @@ class Client
     }
 
     /**
-     * Invoke an Acumatica action (Confirm, Release, …) on an entity.
-     *
      * @param array<string, mixed> $body
      */
     public function invokeAction(string $entity, string $action, array $body): int

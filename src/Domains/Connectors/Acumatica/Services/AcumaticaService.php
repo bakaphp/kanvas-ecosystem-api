@@ -10,10 +10,6 @@ use Kanvas\Exceptions\ValidationException;
 
 class AcumaticaService
 {
-    /**
-     * Store the Acumatica connection config on the app (app-level, single array key).
-     * One config feeds both transports: REST (write-back) + SQL replica (reads).
-     */
     public static function setup(AcumaticaDto $data): bool
     {
         $config = $data->toConfig();

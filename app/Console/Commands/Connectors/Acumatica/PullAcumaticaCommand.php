@@ -8,7 +8,12 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Acumatica\Actions\PullBillsAction;
+use Kanvas\Connectors\Acumatica\Actions\PullChartOfAccountsAction;
 use Kanvas\Connectors\Acumatica\Actions\PullCustomersAction;
+use Kanvas\Connectors\Acumatica\Actions\PullFiscalPeriodsAction;
+use Kanvas\Connectors\Acumatica\Actions\PullInvoicesAction;
+use Kanvas\Connectors\Acumatica\Actions\PullJournalEntriesAction;
 use Kanvas\Connectors\Acumatica\Actions\PullProductsAction;
 use Kanvas\Connectors\Acumatica\Actions\PullSalesOrdersAction;
 use Kanvas\Connectors\Acumatica\Actions\PullStockAction;
@@ -19,7 +24,8 @@ use Throwable;
 
 /**
  * Backfill a single Acumatica legal entity into a Kanvas company from the SQL replica.
- * Order matters: warehouses → products → stock (stock needs variant + warehouse to exist).
+ * Order matters: warehouses → products → stock (stock needs variant + warehouse to exist), and
+ * accounts → periods → journal-entries (a JE can't post without its account + an open period).
  */
 class PullAcumaticaCommand extends Command
 {
@@ -31,12 +37,12 @@ class PullAcumaticaCommand extends Command
         {user_id : Kanvas user to attribute the import to}
         {acumatica_company_id : Acumatica CompanyID for the legal entity (e.g. 2=US)}
         {--region_id= : Kanvas region id (defaults to the app/company first region)}
-        {--only=all : products|warehouses|stock|customers|vendors|orders|all}
+        {--only=all : products|warehouses|stock|customers|vendors|orders|accounts|periods|journal-entries|invoices|bills|all}
         {--all-items : include non-stock items (default: stock items only)}
         {--limit= : cap rows pulled per entity (recommended for first runs / large catalogs)}
         {--debug : print per-row diagnostics (stock)}';
 
-    protected $description = 'Pull Acumatica products, warehouses, stock, customers, vendors and sales orders from the SQL replica into a Kanvas company.';
+    protected $description = 'Pull Acumatica products, warehouses, stock, customers, vendors, sales orders and GL (accounts, fiscal periods, journal entries) from the SQL replica into a Kanvas company.';
 
     public function handle(): int
     {
@@ -102,8 +108,58 @@ class PullAcumaticaCommand extends Command
                 $n = $ordersAction->execute();
                 $this->info("Sales orders synced: {$n}");
 
-                if ($n === 0 && $ordersAction->skipped !== []) {
-                    $this->warn('Skipped: ' . (json_encode($ordersAction->skipped) ?: '{}'));
+                if ($n === 0) {
+                    $this->warnSkipped($ordersAction->skipped);
+                }
+            }
+
+            if (in_array($only, ['all', 'accounts'], true)) {
+                $accountsAction = new PullChartOfAccountsAction($app, $company, $user, $acumaticaCompanyId, $limit);
+                $n = $accountsAction->execute();
+                $this->info("Accounts synced: {$n}");
+
+                if ($n === 0) {
+                    $this->warnSkipped($accountsAction->skipped);
+                }
+            }
+
+            if (in_array($only, ['all', 'periods'], true)) {
+                $periodsAction = new PullFiscalPeriodsAction($app, $company, $user, $acumaticaCompanyId, $limit);
+                $n = $periodsAction->execute();
+                $this->info("Fiscal periods synced: {$n}");
+
+                if ($n === 0) {
+                    $this->warnSkipped($periodsAction->skipped);
+                }
+            }
+
+            if (in_array($only, ['all', 'journal-entries'], true)) {
+                $journalAction = new PullJournalEntriesAction($app, $company, $user, $acumaticaCompanyId, $limit);
+                $n = $journalAction->execute();
+                $this->info("Journal entries synced: {$n}");
+
+                if ($n === 0) {
+                    $this->warnSkipped($journalAction->skipped);
+                }
+            }
+
+            if (in_array($only, ['all', 'invoices'], true)) {
+                $invoicesAction = new PullInvoicesAction($app, $company, $user, $acumaticaCompanyId, $limit);
+                $n = $invoicesAction->execute();
+                $this->info("Invoices synced: {$n}");
+
+                if ($n === 0) {
+                    $this->warnSkipped($invoicesAction->skipped);
+                }
+            }
+
+            if (in_array($only, ['all', 'bills'], true)) {
+                $billsAction = new PullBillsAction($app, $company, $user, $acumaticaCompanyId, $limit);
+                $n = $billsAction->execute();
+                $this->info("Bills synced: {$n}");
+
+                if ($n === 0) {
+                    $this->warnSkipped($billsAction->skipped);
                 }
             }
         } catch (Throwable $e) {
@@ -115,5 +171,18 @@ class PullAcumaticaCommand extends Command
         $this->info('Acumatica sync complete.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * @param array<string, int> $skipped
+     */
+    private function warnSkipped(array $skipped): void
+    {
+        if ($skipped === []) {
+            return;
+        }
+
+        $json = json_encode($skipped);
+        $this->warn('Skipped: ' . ($json !== false ? $json : '{}'));
     }
 }

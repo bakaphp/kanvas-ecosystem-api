@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Acumatica\Actions;
 
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Acumatica\DataTransferObject\AcumaticaImportProduct;
@@ -12,11 +13,6 @@ use Kanvas\Connectors\Acumatica\SqlClient;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Regions\Models\Regions as KanvasRegions;
 
-/**
- * Pull Acumatica products (raw dbo.InventoryItem, read from the replica) into Kanvas
- * Inventory via the shared ProductImporterAction. Scoped to a single Acumatica legal
- * entity (companyId) → the mapped Kanvas company. Idempotent on (source, sourceId).
- */
 class PullProductsAction
 {
     public function __construct(
@@ -27,6 +23,7 @@ class PullProductsAction
         protected int $acumaticaCompanyId,
         protected bool $stockItemsOnly = true,
         protected ?int $limit = null,
+        protected ?Carbon $modifiedSince = null,
     ) {
     }
 
@@ -48,6 +45,10 @@ class PullProductsAction
             $query->where('StkItem', 1);
         }
 
+        if ($this->modifiedSince !== null) {
+            $query->where('LastModifiedDateTime', '>', $this->modifiedSince);
+        }
+
         if ($this->limit !== null) {
             $query->limit($this->limit);
         }
@@ -59,9 +60,6 @@ class PullProductsAction
     }
 
     /**
-     * Transform + import each row. Kept separate from the SQL fetch so it can be
-     * exercised with fixture rows without a live replica connection.
-     *
      * @param array<int, array<array-key, mixed>> $rows
      */
     public function processRows(array $rows): int

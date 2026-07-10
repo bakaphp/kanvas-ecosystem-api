@@ -7,21 +7,50 @@ namespace Kanvas\Connectors\Acumatica\DataTransferObject;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Spatie\LaravelData\Data;
+use Spatie\LaravelData\DataCollection;
 
 /**
- * Normalizes a raw Acumatica SOOrder header + its SOLine rows into the shape
- * PullSalesOrdersAction feeds into the Souk Order DTO. Header carries the customer
- * code (BAccount.AcctCD, joined) for People lookup; lines carry InventoryCD (sku).
+ * Maps one Acumatica sales order (dbo.SOOrder header + dbo.SOLine lines) to the shape
+ * PullSalesOrdersAction feeds into Souk's CreateOrderAction. People + variant resolution happen in
+ * the pull action.
+ *
+ * @property DataCollection<AcumaticaImportOrderItem> $items
  */
-class AcumaticaImportOrder
+class AcumaticaImportOrder extends Data
 {
     /**
-     * @param array<array-key, mixed>        $header SOOrder row (+ joined AcctCD)
-     * @param array<int, array<array-key, mixed>> $lines  SOLine rows (+ joined sku)
-     *
-     * @return array<string, mixed>
+     * @param array<string, string> $customFields
+     * @param array<string, mixed>  $metadata
      */
-    public static function fromRow(array $header, array $lines): array
+    public function __construct(
+        public readonly string $orderNumber,
+        public readonly string $orderType,
+        public readonly string $token,
+        public readonly string $customerCode,
+        public readonly string $status,
+        public readonly string $fulfillmentStatus,
+        public readonly float $total,
+        public readonly float $taxes,
+        public readonly float $totalDiscount,
+        public readonly float $totalShipping,
+        public readonly string $currency,
+        public readonly ?string $orderDate,
+        public readonly ?string $shippedDate,
+        public readonly ?string $customerNote,
+        public readonly ?string $reference,
+        public readonly array $customFields,
+        public readonly array $metadata,
+        /** @var DataCollection<AcumaticaImportOrderItem> */
+        public readonly DataCollection $items,
+    ) {
+    }
+
+    /**
+     * @param array<array-key, mixed>             $header SOOrder row (+ joined AcctCD)
+     * @param array<int, array<array-key, mixed>> $lines  SOLine rows (+ joined sku)
+     */
+    public static function fromRow(array $header, array $lines): self
     {
         $orderType = trim((string) ($header['OrderType'] ?? ''));
         $orderNbr = trim((string) ($header['OrderNbr'] ?? ''));
@@ -43,45 +72,45 @@ class AcumaticaImportOrder
             $orderedTotal += $qty;
             $shippedTotal += $shipped;
 
-            $items[] = [
-                'sku' => $sku,
-                'name' => trim((string) ($line['TranDesc'] ?? '')) ?: $sku,
-                'quantity' => $qty,
-                'quantityShipped' => (int) $shipped,
-                'price' => (float) ($line['UnitPrice'] ?? 0),
-                'discount' => (float) ($line['DiscAmt'] ?? 0),
-                'tax' => 0.0,
-                'warehouse' => trim((string) ($line['warehouse'] ?? '')) ?: null,
-            ];
+            $items[] = new AcumaticaImportOrderItem(
+                sku: $sku,
+                name: trim((string) ($line['TranDesc'] ?? '')) ?: $sku,
+                quantity: $qty,
+                quantityShipped: (int) $shipped,
+                price: (float) ($line['UnitPrice'] ?? 0),
+                discount: (float) ($line['DiscAmt'] ?? 0),
+                tax: 0.0,
+                warehouse: trim((string) ($line['warehouse'] ?? '')) ?: null,
+            );
         }
 
-        return [
-            'orderNumber' => $orderNbr,
-            'orderType' => $orderType,
-            'token' => ! empty($header['NoteID']) ? (string) $header['NoteID'] : $externalId,
-            'customerCode' => trim((string) ($header['AcctCD'] ?? '')),
-            'status' => self::status($header),
-            'fulfillmentStatus' => self::fulfillmentStatus($header, $orderedTotal, $shippedTotal),
-            'total' => (float) ($header['OrderTotal'] ?? 0),
-            'taxes' => (float) ($header['TaxTotal'] ?? 0),
-            'totalDiscount' => (float) ($header['DiscTot'] ?? 0),
-            'totalShipping' => (float) ($header['FreightTot'] ?? 0),
-            'currency' => trim((string) ($header['CuryID'] ?? '')) ?: 'USD',
-            'orderDate' => ! empty($header['OrderDate']) ? (string) $header['OrderDate'] : null,
-            'shippedDate' => ! empty($header['ShipDate']) ? (string) $header['ShipDate'] : null,
-            'customerNote' => trim((string) ($header['OrderDesc'] ?? '')) ?: null,
-            'reference' => trim((string) ($header['CustomerOrderNbr'] ?? '')) ?: null,
-            'customFields' => [
+        return new self(
+            orderNumber: $orderNbr,
+            orderType: $orderType,
+            token: ! empty($header['NoteID']) ? (string) $header['NoteID'] : $externalId,
+            customerCode: trim((string) ($header['AcctCD'] ?? '')),
+            status: self::status($header),
+            fulfillmentStatus: self::fulfillmentStatus($header, $orderedTotal, $shippedTotal),
+            total: (float) ($header['OrderTotal'] ?? 0),
+            taxes: (float) ($header['TaxTotal'] ?? 0),
+            totalDiscount: (float) ($header['DiscTot'] ?? 0),
+            totalShipping: (float) ($header['FreightTot'] ?? 0),
+            currency: trim((string) ($header['CuryID'] ?? '')) ?: 'USD',
+            orderDate: ! empty($header['OrderDate']) ? (string) $header['OrderDate'] : null,
+            shippedDate: ! empty($header['ShipDate']) ? (string) $header['ShipDate'] : null,
+            customerNote: trim((string) ($header['OrderDesc'] ?? '')) ?: null,
+            reference: trim((string) ($header['CustomerOrderNbr'] ?? '')) ?: null,
+            customFields: [
                 CustomFieldEnum::ORDER_ID->value => $externalId,
                 CustomFieldEnum::ORDER_TYPE->value => $orderType,
             ],
-            'metadata' => array_filter([
+            metadata: array_filter([
                 'acumatica_order_type' => $orderType,
                 'acumatica_order_number' => $orderNbr,
                 'rma_number' => ! empty($header['UsrRMANbr']) ? (string) $header['UsrRMANbr'] : null,
             ], static fn ($v): bool => $v !== null),
-            'items' => $items,
-        ];
+            items: new DataCollection(AcumaticaImportOrderItem::class, $items),
+        );
     }
 
     /**

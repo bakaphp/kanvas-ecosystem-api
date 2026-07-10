@@ -10,12 +10,6 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Acumatica\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 
-/**
- * Read transport — a SQL Server (sqlsrv) connection to the Kanvas-controlled
- * Acumatica read replica (raw dbo.* schema). Built dynamically per app from the
- * stored config; the connection is registered under a per-app name and purged
- * on each build so rotated credentials never bleed across Octane workers.
- */
 class SqlClient
 {
     public static function connectionName(AppInterface $app): string
