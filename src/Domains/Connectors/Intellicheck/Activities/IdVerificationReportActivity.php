@@ -226,6 +226,12 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                                         $verifiedPeople,
                                         $reportData
                                     );
+
+                                    // Clear the temp fields once attached, so a stale photo
+                                    // never carries over to the next verification run.
+                                    $verifiedPeople->del('driver_license_images');
+                                    $verifiedPeople->del('get_docs_drivers_license');
+                                    $verifiedPeople->del('intellicheckResponse');
                                 }
                             }
                         } catch (Throwable $e) {
