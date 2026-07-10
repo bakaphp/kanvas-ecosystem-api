@@ -143,7 +143,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
 
                     $sendEmailNotification = (bool) $entity->company->get('disable_id_verification_email', false) === false;
 
-                    sleep(5); // let prior activities (image/DL processing) settle before re-reading the entity
+                    sleep(20); // let prior activities (image/DL processing) settle before re-reading the entity
                     $entity->refresh();
 
                     // Dedup per verified person, not per display name: a participant with a
@@ -156,69 +156,50 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
 
                     $entity->set(IntegrationsEnum::INTELLICHECK->value . '_sent_report_' . $verificationSubjectKey, true);
                     $cacheKey = 'intellicheck_report_' . $entity->getId() . '_' . $verificationSubjectKey;
-                    if (Cache::has($cacheKey)) {
-                        return [
-                            'report' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],
-                            'result' => true,
-                            'message' => 'IdVerificationReportActivity already executed',
-                            'data' => $reportData,
-                            'resultsFromIntellicheck' => $resultsFromIntellicheck,
-                            'getDocsDriversLicense' => $getDocsDriversLicense ?? null,
-                        ];
-                    }
 
-                    Cache::put($cacheKey, true, now()->addMinutes(3));
+                    // Notification + PDF fire once; the image attach runs every pass so a
+                    // later run picks up base64 written after the first pass (write race).
+                    $reportAlreadySent = Cache::has($cacheKey);
 
-                    $usersToNotify = UsersRepository::findUsersByArray($entity->company->get('company_manager'), $app);
-                    $managers = UsersRepository::getCompanyAppUserByRole($entity->company, $entity->app, 'Manager')->get();
+                    if (! $reportAlreadySent) {
+                        Cache::put($cacheKey, true, now()->addMinutes(3));
 
-                    $notification = new Blank(
-                        'id-verification-report',
-                        [
-                            'message' => $reportData['message'],
-                            'status' => $reportData['status'],
-                            'flags' => $reportData['flags'],
-                            'failures' => $reportData['failures'],
-                            'results' => $reportData['results'],
-                            'isShowRoom' => $isShowRoom,
-                            'verificationData' => $verificationData,
-                        ],
-                        ['mail'],
-                        $entity,
-                    );
+                        $usersToNotify = UsersRepository::findUsersByArray($entity->company->get('company_manager'), $app);
+                        $managers = UsersRepository::getCompanyAppUserByRole($entity->company, $entity->app, 'Manager')->get();
 
-                    if ($sendEmailNotification) {
-                        $notification->setSubject($name . ' - ID Verification Report');
-                        Notification::send($usersToNotify, $notification);
+                        $notification = new Blank(
+                            'id-verification-report',
+                            [
+                                'message' => $reportData['message'],
+                                'status' => $reportData['status'],
+                                'flags' => $reportData['flags'],
+                                'failures' => $reportData['failures'],
+                                'results' => $reportData['results'],
+                                'isShowRoom' => $isShowRoom,
+                                'verificationData' => $verificationData,
+                            ],
+                            ['mail'],
+                            $entity,
+                        );
 
-                        $entity->owner?->notify($notification);
+                        if ($sendEmailNotification) {
+                            $notification->setSubject($name . ' - ID Verification Report');
+                            Notification::send($usersToNotify, $notification);
 
-                        foreach ($managers as $manager) {
-                            if ($usersToNotify->contains($manager)) {
-                                continue;
+                            $entity->owner?->notify($notification);
+
+                            foreach ($managers as $manager) {
+                                if ($usersToNotify->contains($manager)) {
+                                    continue;
+                                }
+                                $manager->notify($notification);
                             }
-                            $manager->notify($notification);
                         }
                     }
+
                     $generatePdf = 'Generate PDF report for Intellicheck ID Verification';
 
                     try {
-                        $pdfReport = PdfService::generatePdfFromTemplate(
-                            $app,
-                            $entity->user,
-                            'id-verification-report',
-                            $entity,
-                            [
-                               'message' => $reportData['message'],
-                               'status' => $reportData['status'],
-                               'flags' => $reportData['flags'],
-                               'failures' => $reportData['failures'],
-                               'results' => $reportData['results'],
-                               'isShowRoom' => $isShowRoom,
-                               'verificationData' => $verificationData,
-                                           ]
-                        );
-
                         if ($entity instanceof Lead && $verifiedPeople !== null) {
                             $engagement = EngagementRepository::findEngagementForLeadBuilder(
                                 $entity,
@@ -231,8 +212,26 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
 
                             $message = $engagement->message;
                             if ($message !== null) {
-                                $message->addFile($pdfReport, 'id-verification');
-                                $this->attachDriverLicenseImages(
+                                if (! $reportAlreadySent) {
+                                    $pdfReport = PdfService::generatePdfFromTemplate(
+                                        $app,
+                                        $entity->user,
+                                        'id-verification-report',
+                                        $entity,
+                                        [
+                                           'message' => $reportData['message'],
+                                           'status' => $reportData['status'],
+                                           'flags' => $reportData['flags'],
+                                           'failures' => $reportData['failures'],
+                                           'results' => $reportData['results'],
+                                           'isShowRoom' => $isShowRoom,
+                                           'verificationData' => $verificationData,
+                                                       ]
+                                    );
+                                    $message->addFile($pdfReport, 'id-verification');
+                                }
+
+                                $this->attachDriverLicenseImagesIfMissing(
                                     $message,
                                     $verifiedPeople,
                                     $reportData
@@ -274,14 +273,13 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
      * people; fall back to the lead's main people when there is no participant id.
      */
     /**
-     * Decode the verified person's own driver_license_images (base64 front/back) into
-     * files on their engagement message. Keyed off the resolved person so a participant's
-     * images attach to the participant's engagement, never the main buyer's.
+     * Idempotent; drops the base64 only once both submitted sides are confirmed attached,
+     * so a run that races the base64 write never loses the images.
      */
-    private function attachDriverLicenseImages(Message $message, People $people, array $reportData): void
+    private function attachDriverLicenseImagesIfMissing(Message $message, People $people, array $reportData): void
     {
         $images = $people->get('driver_license_images');
-        if (! is_array($images)) {
+        if (! is_array($images) || (empty($images['front']) && empty($images['back']))) {
             return;
         }
 
@@ -290,7 +288,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         $filesystemService = new FilesystemServices($people->app, $people->company);
 
         foreach (['back' => 'drivers_license_back', 'front' => 'drivers_license_front'] as $side => $field) {
-            if (empty($images[$side])) {
+            if (empty($images[$side]) || $message->getFileByName($field) !== null) {
                 continue;
             }
 
@@ -307,9 +305,12 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
             $file->set('id_verification_status', $reportData['status'] ?? 'unknown');
         }
 
-        // The base64 is now a real file on the engagement — drop it so the raw license
-        // image (PII) doesn't linger on the custom field, matching the SalesAssist cleanup.
-        $people->del('driver_license_images');
+        $frontDone = empty($images['front']) || $message->getFileByName('drivers_license_front') !== null;
+        $backDone = empty($images['back']) || $message->getFileByName('drivers_license_back') !== null;
+
+        if ($frontDone && $backDone) {
+            $people->del('driver_license_images');
+        }
     }
 
     private function resolveVerifiedPeople(Lead $lead, array $params, AppInterface $app): People

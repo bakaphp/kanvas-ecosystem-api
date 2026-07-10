@@ -22,6 +22,11 @@ class ProcessMessageTaskUpdatesAction
 {
     use ExtractsSubmittedDocumentTypes;
 
+    /** Verbs whose task items split into main-buyer vs co-buyer; add new ones here. */
+    protected const COBUYER_AWARE_VERBS = [
+        ActionEnum::ID_VERIFICATION->value,
+    ];
+
     public function __construct(
         protected Message $message,
         protected Lead $lead,
@@ -93,7 +98,33 @@ class ProcessMessageTaskUpdatesAction
             $query->where('task_list_id', $checkListId);
         }
 
+        $this->applyPersonRoleScope($query, $messageData);
+
         return $this->applyDataConditions($query, $messageData);
+    }
+
+    /**
+     * Main-buyer and co-buyer tasks share the same company action, so key off the verified
+     * person instead: `contact_uuid` differs from the lead's main people for a co-buyer, and
+     * co-buyer items carry a `cobuyer-picker` config step. Scoped mutually exclusively — a
+     * co-buyer completes only cobuyer-picker items, the main buyer only the rest.
+     */
+    protected function applyPersonRoleScope(Builder $query, array $messageData): Builder
+    {
+        if (! in_array($messageData['verb'] ?? null, self::COBUYER_AWARE_VERBS, true)) {
+            return $query;
+        }
+
+        $contactUuid = $messageData['contact_uuid'] ?? null;
+        $mainPeopleUuid = $this->lead->people->uuid ?? null;
+
+        $isCoBuyer = $contactUuid !== null
+            && $mainPeopleUuid !== null
+            && $contactUuid !== $mainPeopleUuid;
+
+        $hasCoBuyerStep = "COALESCE(JSON_CONTAINS(JSON_EXTRACT(config, '$.steps[*].type'), '\"cobuyer-picker\"'), 0)";
+
+        return $query->whereRaw($hasCoBuyerStep . ' = ' . ($isCoBuyer ? '1' : '0'));
     }
 
     protected function getCheckListId(array $messageData): ?int
