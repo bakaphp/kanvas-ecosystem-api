@@ -58,16 +58,7 @@ class ProcessLeadDriverLicenseVerificationAction
                 );
                 $this->getService()->setIdVerificationReport($this->idVerificationReport);
 
-                $idVerificationData = [
-                    'intelicheck' => $this->idVerificationReport['status'] == 'green' || $this->idVerificationReport['status'] == 'flag' ? true : false,
-                    'status' => $this->idVerificationReport['status'],
-                    'message' => $this->idVerificationReport['message'],
-                    'scandit' => $this->idVerificationReport['status'] == 'green' || $this->idVerificationReport['status'] == 'flag' ? true : false,
-                    'expired' => $this->idVerificationReport['status'] == 'flag' ? true : false,
-                    'ocMatch' => $this->idVerificationReport['ocMatch'] ?? false,
-                    'intellicheck_workflow_response' => $this->idVerificationReport['status'] === 'green' ? 'passed' : $this->idVerificationReport['status'],
-                    'intellicheckResponse' => $this->idVerificationReport['status'] === 'green' ? 'passed' : $this->idVerificationReport['status'],
-                ];
+                $idVerificationData = $this->mapReportToIdVerificationData($this->idVerificationReport);
 
                 $this->lead->set('id_verification', $idVerificationData);
             }
@@ -95,13 +86,33 @@ class ProcessLeadDriverLicenseVerificationAction
                 $results['lead'] = $result;
             }
 
+            $participantResults = [];
             if ($hasParticipantDriverLicense) {
                 $participantResults = $this->processParticipants($this->lead, $participants);
+            }
+
+            // Participants may also carry their DL images on their own person custom field
+            // (sourced from the lead relationship, not the attempt payload).
+            $participantResults = array_merge(
+                $participantResults,
+                $this->processParticipantsFromRelationship(
+                    $this->lead,
+                    array_column($participantResults, 'people_id')
+                )
+            );
+
+            if (! empty($participantResults)) {
                 $results['participants'] = $participantResults;
+                $hasParticipantDriverLicense = true;
             }
 
             if (is_array($driverLicenseData) && $hasMainDriverLicense) {
-                $this->validateExpirationDate($this->lead, $this->lead->people, $driverLicenseData, $idVerificationData);
+                $this->validateExpirationDate(
+                    $this->lead,
+                    $this->lead->people,
+                    $driverLicenseData,
+                    $idVerificationData
+                );
             }
 
             // Notification + PDF only need the intellicheck report — they're
@@ -268,16 +279,7 @@ class ProcessLeadDriverLicenseVerificationAction
             $idVerificationData = $participant['id_verification'] ?? [];
 
             if (! empty($idVerificationReport)) {
-                $idVerificationData = [
-                    'intelicheck' => $idVerificationReport['status'] == 'green' || $idVerificationReport['status'] == 'flag' ? true : false,
-                    'status' => $idVerificationReport['status'],
-                    'message' => $idVerificationReport['message'],
-                    'scandit' => $idVerificationReport['status'] == 'green' || $idVerificationReport['status'] == 'flag' ? true : false,
-                    'expired' => $idVerificationReport['status'] == 'flag' ? true : false,
-                    'ocMatch' => $idVerificationReport['ocMatch'] ?? false,
-                    'intellicheck_workflow_response' => $idVerificationReport['status'] === 'green' ? 'passed' : $idVerificationReport['status'],
-                    'intellicheckResponse' => $idVerificationReport['status'] === 'green' ? 'passed' : $idVerificationReport['status'],
-                ];
+                $idVerificationData = $this->mapReportToIdVerificationData($idVerificationReport);
             }
 
             $currentScanOption = $lead->company->get('id_verification') ?? 'intelicheck';
@@ -315,6 +317,117 @@ class ProcessLeadDriverLicenseVerificationAction
         }
 
         return $results;
+    }
+
+    /**
+     * Process participants whose DL images live on their own person custom field,
+     * walking the lead relationship rather than the attempt payload.
+     */
+    protected function processParticipantsFromRelationship(Lead $lead, array $skipPeopleIds = []): array
+    {
+        $results = [];
+
+        foreach ($lead->participants as $leadParticipant) {
+            $people = $leadParticipant->people;
+            if ($people === null || in_array($people->getId(), $skipPeopleIds, true)) {
+                continue;
+            }
+
+            $driverLicenseImages = $people->get('driver_license_images');
+            if (! is_array($driverLicenseImages) || (empty($driverLicenseImages['front']) && empty($driverLicenseImages['back']))) {
+                continue;
+            }
+
+            $results[] = $this->processParticipantPerson(
+                $lead,
+                $people,
+                $driverLicenseImages
+            );
+        }
+
+        return $results;
+    }
+
+    protected function processParticipantPerson(Lead $lead, People $people, array $driverLicenseImages): array
+    {
+        $intellicheckResponse = $people->get('intellicheckResponse');
+        $driverLicenseData = $people->get('get_docs_drivers_license') ?? [];
+        $idVerificationData = $people->get('id_verification') ?? [];
+        $idVerificationReport = [];
+
+        if (is_array($intellicheckResponse) && $intellicheckResponse !== []) {
+            $idVerificationReport = IdVerificationService::processVerificationData(
+                $intellicheckResponse,
+                $people->name,
+                true
+            );
+            $idVerificationData = $this->mapReportToIdVerificationData($idVerificationReport);
+        }
+
+        $currentScanOption = $lead->company->get('id_verification') ?? 'intelicheck';
+        $isIdValid = (bool) ($idVerificationData[$currentScanOption] ?? false);
+
+        if (! empty($driverLicenseData)) {
+            $this->getService()->updatePeopleFromDriverLicense($people, $driverLicenseData);
+        }
+
+        $isExpired = $this->validateExpirationDate(
+            $lead,
+            $people,
+            $driverLicenseData,
+            $idVerificationData,
+            $people->name
+        );
+
+        $engagement = $this->getService()->createEngagement($lead, $people);
+        $message = $engagement->message;
+
+        $this->getService()->processDriverLicenseImages(
+            $message,
+            $driverLicenseImages,
+            $isIdValid,
+            $isExpired
+        );
+
+        if (! empty($idVerificationReport) && is_array($intellicheckResponse)) {
+            $this->getService()->generateIdVerificationPdf(
+                $lead,
+                $people,
+                $idVerificationReport,
+                $intellicheckResponse,
+                $message
+            );
+        }
+
+        // Critical: clear the participant's temp fields so a re-run doesn't reprocess them.
+        $people->del('driver_license_images');
+        $people->del('get_docs_drivers_license');
+        $people->del('intellicheckResponse');
+
+        return [
+            'people_id' => $people->id,
+            'engagement_id' => $engagement->getId(),
+            'message_id' => $message->getId(),
+            'id_valid' => $isIdValid,
+            'id_expired' => $isExpired,
+            'participant_name' => $people->name,
+        ];
+    }
+
+    protected function mapReportToIdVerificationData(array $report): array
+    {
+        $passed = in_array($report['status'] ?? null, ['green', 'flag'], true);
+
+        return [
+            'intelicheck' => $passed,
+            'status' => $report['status'],
+            'message' => $report['message'],
+            'scandit' => $passed,
+            'expired' => ($report['status'] ?? null) === 'flag',
+            'ocMatch' => $report['ocMatch'] ?? false,
+            'intellicheck_workflow_response' => $report['status'] === 'green' ? 'passed' : $report['status'],
+            'intellicheckResponse' => $report['status'] === 'green' ? 'passed' : $report['status'],
+        ];
     }
 
     protected function findLeadParticipant(Lead $lead, array $participant): ?LeadParticipant
