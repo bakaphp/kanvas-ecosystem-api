@@ -4,10 +4,20 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\SalesAssists;
 
+use Kanvas\ActionEngine\Actions\Models\Action;
+use Kanvas\ActionEngine\Actions\Models\CompanyAction;
+use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
+use Kanvas\ActionEngine\Pipelines\Models\PipelineStage;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\SalesAssist\Actions\ProcessLeadDriverLicenseVerificationAction;
+use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadAttempt;
+use Kanvas\Guild\Leads\Models\LeadParticipant;
+use Kanvas\Social\Channels\Actions\CreateChannelAction;
+use Kanvas\Social\Channels\DataTransferObject\Channel;
+use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;
 
 class ProcessLeadDriverLicenseVerificationActionTest extends TestCase
@@ -202,6 +212,149 @@ class ProcessLeadDriverLicenseVerificationActionTest extends TestCase
         $this->assertIsArray($idVerification);
         $this->assertArrayHasKey('status', $idVerification);
         $this->assertArrayHasKey('intellicheckResponse', $idVerification);
+    }
+
+    public function testParticipantSourcedFromRelationshipAttachesImagesAndClearsFields(): void
+    {
+        $lead = $this->makeLead();
+        $this->setUpIdVerificationEngagement($lead);
+
+        $participant = $this->makeParticipantPerson($lead, 'Relationship', 'Cobuyer');
+
+        $image = $this->validImageBase64();
+        $participant->set('driver_license_images', ['front' => $image, 'back' => $image]);
+        $participant->set('intellicheckResponse', $this->blurryBackImageIntellicheckResponse());
+
+        $result = $this->makeAction($lead)->execute();
+
+        $this->assertTrue($result['success']);
+        $this->assertArrayHasKey('participants', $result['results']);
+
+        $entry = collect($result['results']['participants'])
+            ->firstWhere('people_id', $participant->getId());
+        $this->assertNotNull($entry, 'participant sourced from the relationship should be processed');
+
+        $message = Message::getById((int) $entry['message_id'], app(Apps::class));
+        $this->assertNotNull($message->getFileByName('drivers_license_front'));
+        $this->assertNotNull($message->getFileByName('drivers_license_back'));
+
+        $fresh = $participant->fresh();
+        $this->assertNull($fresh->get('driver_license_images'), 'participant DL images must be cleared to avoid reprocessing');
+        $this->assertNull($fresh->get('intellicheckResponse'), 'participant intellicheckResponse must be cleared');
+        $this->assertNull($fresh->get('get_docs_drivers_license'), 'participant get_docs_drivers_license must be cleared');
+    }
+
+    public function testParticipantSourcedFromAttemptArrayStillAttachesImages(): void
+    {
+        $lead = $this->makeLead();
+        $this->setUpIdVerificationEngagement($lead);
+
+        $participant = $this->makeParticipantPerson($lead, 'Array', 'Cobuyer');
+
+        $image = $this->validImageBase64();
+        $lead->set('participants', [
+            [
+                'firstname' => 'Array',
+                'lastname' => 'Cobuyer',
+                'driver_license_images' => ['front' => $image, 'back' => $image],
+                'intellicheckResponse' => $this->blurryBackImageIntellicheckResponse(),
+            ],
+        ]);
+
+        $result = $this->makeAction($lead)->execute();
+
+        $this->assertTrue($result['success']);
+        $this->assertArrayHasKey('participants', $result['results']);
+
+        $entry = collect($result['results']['participants'])
+            ->firstWhere('people_id', $participant->getId());
+        $this->assertNotNull($entry, 'participant sourced from the attempt array should be processed');
+
+        $message = Message::getById((int) $entry['message_id'], app(Apps::class));
+        $this->assertNotNull($message->getFileByName('drivers_license_front'));
+        $this->assertNotNull($message->getFileByName('drivers_license_back'));
+    }
+
+    private function makeParticipantPerson(Lead $lead, string $firstname, string $lastname): People
+    {
+        $people = People::factory()
+            ->withAppId($lead->apps_id)
+            ->withCompanyId($lead->companies_id)
+            ->create([
+                'firstname' => $firstname,
+                'lastname' => $lastname,
+            ]);
+
+        LeadParticipant::create([
+            'leads_id' => $lead->getId(),
+            'peoples_id' => $people->getId(),
+            'participants_types_id' => 1,
+        ]);
+
+        return $people;
+    }
+
+    private function setUpIdVerificationEngagement(Lead $lead): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $pipeline = Pipeline::firstOrCreate([
+            'slug' => ConfigurationEnum::ID_VERIFICATION->value,
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+        ], [
+            'users_id' => $user->getId(),
+            'name' => 'ID Verification',
+            'weight' => 0,
+        ]);
+
+        PipelineStage::firstOrCreate([
+            'pipelines_id' => $pipeline->getId(),
+            'slug' => 'submitted',
+        ], [
+            'name' => 'Submitted',
+            'weight' => 1,
+        ]);
+
+        $action = Action::getBySlug(ConfigurationEnum::ID_VERIFICATION->value, $company);
+
+        CompanyAction::firstOrCreate([
+            'actions_id' => $action->getId(),
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+        ], [
+            'users_id' => $user->getId(),
+            'companies_branches_id' => $company->defaultBranch->getId(),
+            'pipelines_id' => $pipeline->getId(),
+            'name' => 'ID Verification',
+        ]);
+
+        // createEngagement attaches the message to the lead's social channel.
+        new CreateChannelAction(new Channel(
+            apps: $app,
+            companies: $company,
+            users: $user,
+            entity_id: $lead->getId(),
+            entity_namespace: Lead::class,
+            name: (string) $lead->uuid,
+            slug: (string) $lead->uuid,
+            description: (string) $lead->uuid,
+        ))->execute();
+    }
+
+    private function validImageBase64(): string
+    {
+        $img = imagecreatetruecolor(120, 80);
+        imagefill($img, 0, 0, imagecolorallocate($img, 10, 20, 30));
+
+        ob_start();
+        imagejpeg($img, null, 90);
+        $bytes = (string) ob_get_clean();
+        imagedestroy($img);
+
+        return base64_encode($bytes);
     }
 
     private function makeLead(): Lead
