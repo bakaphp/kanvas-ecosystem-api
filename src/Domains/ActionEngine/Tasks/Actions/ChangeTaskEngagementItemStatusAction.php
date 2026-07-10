@@ -13,6 +13,7 @@ use Kanvas\ActionEngine\Tasks\Enums\TaskStatusEnum;
 use Kanvas\ActionEngine\Tasks\Models\TaskEngagementItem;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\ActionEngine\Tasks\Traits\ExtractsSubmittedDocumentTypes;
+use Kanvas\ActionEngine\Tasks\Traits\IdentifiesCoBuyerTaskItems;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -45,6 +46,7 @@ use Throwable;
 class ChangeTaskEngagementItemStatusAction
 {
     use ExtractsSubmittedDocumentTypes;
+    use IdentifiesCoBuyerTaskItems;
 
     public function __construct(
         protected TaskListItem $taskListItem,
@@ -334,9 +336,16 @@ class ChangeTaskEngagementItemStatusAction
      */
     protected function findSiblingsByName(): iterable
     {
+        // Name + companies_action_id alone would let a co-buyer's completion fan into a
+        // same-named main-buyer sibling (or vice-versa). Keep the fan-out within the source
+        // item's buyer role using the same cobuyer-picker discriminator as item selection.
         return $this->baseSiblingQuery()
             ->where('company_task_list_items.name', $this->taskListItem->name)
             ->where('company_task_list_items.companies_action_id', $this->taskListItem->companies_action_id)
+            ->whereRaw($this->coBuyerConfigPredicate(
+                'company_task_list_items.config',
+                $this->taskItemHasCoBuyerStep($this->taskListItem),
+            ))
             ->select('company_task_list_items.*')
             ->get();
     }
