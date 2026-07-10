@@ -134,6 +134,34 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
     }
 
     /**
+     * A plain id-verification item (no cobuyer-picker config — e.g. a company that doesn't use
+     * co-buyers) must still complete for the main buyer. The role predicate only excludes the
+     * opposite role; a step-less/empty config counts as main-buyer and is never dropped.
+     */
+    public function testPlainIdVerificationItemWithoutCobuyerConfigStillCompletes(): void
+    {
+        [$company, $lead] = $this->bootChecklist('id-verification', 'ID Verification');
+
+        $plainItem = TaskListItem::create([
+            'task_list_id' => $this->taskList->getId(),
+            'companies_action_id' => $this->companyAction->getId(),
+            'name' => 'Verify Driver License',
+            'config' => [],
+            'weight' => 1,
+        ]);
+
+        new ProcessMessageTaskUpdatesAction(
+            $this->idVerificationMessage($lead, $lead->people->uuid),
+            $lead,
+            auth()->user(),
+        )->execute();
+
+        $this->assertItemStatus($plainItem, $lead, 'completed');
+
+        $company->del('default_checklist_id');
+    }
+
+    /**
      * Regression (Serra): the co-buyer's active DL item lives on the lead's active checklist,
      * not the company default. Pinning the query to default_checklist_id returned "No task
      * list items found", so the co-buyer was never marked. Id-verification must match across
