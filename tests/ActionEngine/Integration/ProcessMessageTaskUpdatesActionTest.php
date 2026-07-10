@@ -134,6 +134,40 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
     }
 
     /**
+     * Regression (Serra): the co-buyer's active DL item lives on the lead's active checklist,
+     * not the company default. Pinning the query to default_checklist_id returned "No task
+     * list items found", so the co-buyer was never marked. Id-verification must match across
+     * checklists.
+     */
+    public function testCoBuyerItemOnNonDefaultChecklistIsStillMatched(): void
+    {
+        [$company, $lead] = $this->bootChecklist('id-verification', 'ID Verification');
+
+        // Default checklist only carries the main buyer; the co-buyer item is on another list.
+        $mainBuyerOnDefault = $this->createRoleItem('Verify Mainbuyer DL', isCoBuyer: false);
+
+        $activeChecklist = TaskList::create([
+            'companies_id' => $company->getId(),
+            'apps_id' => app(Apps::class)->getId(),
+            'users_id' => auth()->user()->getId(),
+            'name' => 'Active Checklist ' . fake()->uuid(),
+            'config' => [],
+        ]);
+        $coBuyerOffDefault = $this->createRoleItem('Verify Cobuyer DL', isCoBuyer: true, taskList: $activeChecklist);
+
+        new ProcessMessageTaskUpdatesAction(
+            $this->idVerificationMessage($lead, fake()->uuid()),
+            $lead,
+            auth()->user(),
+        )->execute();
+
+        $this->assertItemStatus($coBuyerOffDefault, $lead, 'completed');
+        $this->assertItemUntouched($mainBuyerOnDefault, $lead);
+
+        $company->del('default_checklist_id');
+    }
+
+    /**
      * Regression: with checklist_auto_complete_siblings on, completing a co-buyer item used
      * to fan out to a same-named main-buyer item on another checklist because sibling
      * matching keyed on name alone. The fan-out must stay within the source item's role.

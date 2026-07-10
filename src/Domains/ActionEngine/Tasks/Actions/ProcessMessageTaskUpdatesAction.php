@@ -96,7 +96,11 @@ class ProcessMessageTaskUpdatesAction
         $query = TaskListItem::where('companies_action_id', $companyAction->getId())
             ->where('is_deleted', 0);
 
-        if ($checkListId) {
+        // Co-buyer-aware verbs mark the verified person's task on every checklist: the active
+        // item can live on a checklist other than the company default (the message's checklist
+        // hint is unreliable), so don't pin to one list — applyPersonRoleScope below keeps it
+        // to the correct buyer, and each buyer only has one non-deleted item per checklist.
+        if ($checkListId && ! in_array($verb, self::COBUYER_AWARE_VERBS, true)) {
             $query->where('task_list_id', $checkListId);
         }
 
