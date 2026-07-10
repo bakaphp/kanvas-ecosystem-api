@@ -134,6 +134,41 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
     }
 
     /**
+     * Regression: with checklist_auto_complete_siblings on, completing a co-buyer item used
+     * to fan out to a same-named main-buyer item on another checklist because sibling
+     * matching keyed on name alone. The fan-out must stay within the source item's role.
+     */
+    public function testSiblingFanOutDoesNotCrossBuyerRoles(): void
+    {
+        [$company, $lead] = $this->bootChecklist('id-verification', 'ID Verification');
+        $company->set('checklist_auto_complete_siblings', 1);
+
+        $otherChecklist = TaskList::create([
+            'companies_id' => $company->getId(),
+            'apps_id' => app(Apps::class)->getId(),
+            'users_id' => auth()->user()->getId(),
+            'name' => 'Secondary Checklist ' . fake()->uuid(),
+            'config' => [],
+        ]);
+
+        // Same name across roles is what used to make the fan-out cross.
+        $coBuyer = $this->createRoleItem('Verify DL', isCoBuyer: true);
+        $mainBuyerSibling = $this->createRoleItem('Verify DL', isCoBuyer: false, taskList: $otherChecklist);
+
+        new ProcessMessageTaskUpdatesAction(
+            $this->idVerificationMessage($lead, fake()->uuid()),
+            $lead,
+            auth()->user(),
+        )->execute();
+
+        $this->assertItemStatus($coBuyer, $lead, 'completed');
+        $this->assertItemUntouched($mainBuyerSibling, $lead);
+
+        $company->del('checklist_auto_complete_siblings');
+        $company->del('default_checklist_id');
+    }
+
+    /**
      * Builds a company action + checklist for the given action slug on the auth user's
      * company and pins it as the default checklist so the message processor resolves to
      * exactly these items.
@@ -225,7 +260,7 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
         ]);
     }
 
-    private function createRoleItem(string $name, bool $isCoBuyer): TaskListItem
+    private function createRoleItem(string $name, bool $isCoBuyer, ?TaskList $taskList = null): TaskListItem
     {
         $steps = [['data' => ['remote-only' => ['chrome']], 'type' => 'open-customer-action']];
 
@@ -234,7 +269,7 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
         }
 
         return TaskListItem::create([
-            'task_list_id' => $this->taskList->getId(),
+            'task_list_id' => ($taskList ?? $this->taskList)->getId(),
             'companies_action_id' => $this->companyAction->getId(),
             'name' => $name,
             'config' => ['steps' => $steps, 'checkout' => ['hide' => true]],

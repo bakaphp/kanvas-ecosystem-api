@@ -13,6 +13,7 @@ use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Pipelines\Repositories\PipelineStageRepository;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\ActionEngine\Tasks\Traits\ExtractsSubmittedDocumentTypes;
+use Kanvas\ActionEngine\Tasks\Traits\IdentifiesCoBuyerTaskItems;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
@@ -21,6 +22,7 @@ use Throwable;
 class ProcessMessageTaskUpdatesAction
 {
     use ExtractsSubmittedDocumentTypes;
+    use IdentifiesCoBuyerTaskItems;
 
     /** Verbs whose task items split into main-buyer vs co-buyer; add new ones here. */
     protected const COBUYER_AWARE_VERBS = [
@@ -122,9 +124,7 @@ class ProcessMessageTaskUpdatesAction
             && $mainPeopleUuid !== null
             && $contactUuid !== $mainPeopleUuid;
 
-        $hasCoBuyerStep = "COALESCE(JSON_CONTAINS(JSON_EXTRACT(config, '$.steps[*].type'), '\"cobuyer-picker\"'), 0)";
-
-        return $query->whereRaw($hasCoBuyerStep . ' = ' . ($isCoBuyer ? '1' : '0'));
+        return $query->whereRaw($this->coBuyerConfigPredicate('config', $isCoBuyer));
     }
 
     protected function getCheckListId(array $messageData): ?int

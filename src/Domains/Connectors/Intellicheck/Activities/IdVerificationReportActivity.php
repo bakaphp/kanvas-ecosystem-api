@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
-use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
@@ -157,11 +156,11 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                     $entity->set(IntegrationsEnum::INTELLICHECK->value . '_sent_report_' . $verificationSubjectKey, true);
                     $cacheKey = 'intellicheck_report_' . $entity->getId() . '_' . $verificationSubjectKey;
 
-                    // Notification + PDF fire once; the image attach runs every pass so a
-                    // later run picks up base64 written after the first pass (write race).
-                    $reportAlreadySent = Cache::has($cacheKey);
+                    $generatePdf = 'Generate PDF report for Intellicheck ID Verification';
 
-                    if (! $reportAlreadySent) {
+                    // Guard the whole report as do-once: each verification gets its own fresh
+                    // engagement, so a retry must not spawn a second empty one.
+                    if (! Cache::has($cacheKey)) {
                         Cache::put($cacheKey, true, now()->addMinutes(3));
 
                         $usersToNotify = UsersRepository::findUsersByArray($entity->company->get('company_manager'), $app);
@@ -195,24 +194,16 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                                 $manager->notify($notification);
                             }
                         }
-                    }
 
-                    $generatePdf = 'Generate PDF report for Intellicheck ID Verification';
+                        try {
+                            if ($entity instanceof Lead && $verifiedPeople !== null) {
+                                $engagement = $this->createIdVerificationEngagement(
+                                    $entity,
+                                    $verifiedPeople
+                                );
 
-                    try {
-                        if ($entity instanceof Lead && $verifiedPeople !== null) {
-                            $engagement = EngagementRepository::findEngagementForLeadBuilder(
-                                $entity,
-                                ConfigurationEnum::ID_VERIFICATION->value,
-                                ActionStatusEnum::SUBMITTED->value,
-                            )
-                                ->where('people_id', $verifiedPeople->getId())
-                                ->first()
-                                ?? $this->createIdVerificationEngagement($entity, $verifiedPeople);
-
-                            $message = $engagement->message;
-                            if ($message !== null) {
-                                if (! $reportAlreadySent) {
+                                $message = $engagement->message;
+                                if ($message !== null) {
                                     $pdfReport = PdfService::generatePdfFromTemplate(
                                         $app,
                                         $entity->user,
@@ -229,18 +220,18 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                                                        ]
                                     );
                                     $message->addFile($pdfReport, 'id-verification');
-                                }
 
-                                $this->attachDriverLicenseImagesIfMissing(
-                                    $message,
-                                    $verifiedPeople,
-                                    $reportData
-                                );
+                                    $this->attachDriverLicenseImagesIfMissing(
+                                        $message,
+                                        $verifiedPeople,
+                                        $reportData
+                                    );
+                                }
                             }
+                        } catch (Throwable $e) {
+                            report($e);
+                            $generatePdf .= ' - Error generating PDF: ' . $e->getMessage();
                         }
-                    } catch (Throwable $e) {
-                        report($e);
-                        $generatePdf .= ' - Error generating PDF: ' . $e->getMessage();
                     }
 
                     return [
