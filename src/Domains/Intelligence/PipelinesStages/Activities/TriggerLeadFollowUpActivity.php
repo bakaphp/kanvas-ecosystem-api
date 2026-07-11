@@ -20,6 +20,12 @@ use Override;
  * only relaxation is the "minutes since last message" time gate, which the
  * command bypasses non-destructively when --ignore-time is set (no message
  * timestamps are rewritten).
+ *
+ * @deprecated rides the legacy pipeline-stage follow-up engine
+ *             ({@see \App\Console\Commands\Intelligence\FollowUpEngagementCommand}).
+ *             Use the v1 engine — {@see \Kanvas\Intelligence\FollowUp\Actions\FollowUpLeadAction}
+ *             (manual single-lead trigger) — instead. Slated for deletion with the
+ *             rest of the engine; see docs/intelligence/follow-up-deprecation-spec.md kill list.
  */
 #[WorkflowAction]
 class TriggerLeadFollowUpActivity extends KanvasActivity implements WorkflowActivityInterface
