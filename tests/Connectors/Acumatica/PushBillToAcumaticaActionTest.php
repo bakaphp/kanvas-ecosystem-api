@@ -93,6 +93,34 @@ class PushBillToAcumaticaActionTest extends ScribeTestCase
         $this->assertSame(['value' => 250.0], $line['UnitCost']);
     }
 
+    public function test_creates_vendor_when_org_has_no_code_then_pushes_with_it(): void
+    {
+        $vendor = $this->seedTestOrganization('Brand New Vendor'); // no VENDOR_ID set
+        $accountId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
+        $bill = $this->billWithCoding($vendor, $accountId, 0);
+
+        $captured = null;
+        $writer = Mockery::mock(AcumaticaWriteService::class);
+        $writer->shouldReceive('findOrCreate')->once()
+            ->andReturn(['id' => 'GUID-V', 'VendorID' => ['value' => 'V7777']]);
+        $writer->shouldReceive('push')->once()->andReturnUsing(
+            function (string $entity, array $body, bool $release = false, array $files = []) use (&$captured): array {
+                $captured = $body;
+
+                return ['id' => 'B1', 'ReferenceNbr' => ['value' => '000999']];
+            }
+        );
+
+        $ref = new PushBillToAcumaticaAction($this->kanvasApp, $bill, $writer)->execute();
+
+        $this->assertSame('000999', $ref);
+        $this->assertSame(['value' => 'V7777'], $captured['Vendor']);
+
+        /** @var Organization $fresh */
+        $fresh = Organization::query()->where('id', $vendor->getId())->firstOrFail();
+        $this->assertSame('V7777', (string) $fresh->get(CustomFieldEnum::VENDOR_ID->value));
+    }
+
     public function test_is_idempotent_when_already_pushed(): void
     {
         $vendor = $this->seedTestOrganization('Globex Supply');

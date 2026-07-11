@@ -48,11 +48,11 @@ class PushBillToAcumaticaAction
             return $existing;
         }
 
-        $vendorCode = $this->resolveVendorCode();
+        $vendorCode = $this->ensureVendorCode();
 
         if ($vendorCode === '') {
             throw new AcumaticaWriteException(
-                "Bill {$this->bill->getId()} has no Acumatica vendor code — cannot push (is the vendor synced?)."
+                "Bill {$this->bill->getId()} has no vendor organization — assign a vendor before pushing."
             );
         }
 
@@ -186,16 +186,45 @@ class PushBillToAcumaticaAction
         ]];
     }
 
-    private function resolveVendorCode(): string
+    /**
+     * Find-or-create the vendor in Acumatica (push path). Creates the ERP vendor lazily when the org
+     * has no code yet — only reached on a real push, so a rejected bill never spawns a junk vendor.
+     */
+    private function ensureVendorCode(): string
     {
-        if ($this->bill->vendor_organization_id === null) {
+        $vendor = $this->vendorOrg();
+
+        if ($vendor === null) {
             return '';
         }
 
-        /** @var Organization|null $vendor */
-        $vendor = Organization::query()->where('id', $this->bill->vendor_organization_id)->first();
+        return new EnsureAcumaticaVendorAction(
+            $this->app,
+            $vendor,
+            taxId: $this->bill->vendor_tax_id,
+            name: $this->bill->vendor_display_name,
+            email: $this->bill->vendor_email,
+            writer: $this->writer(),
+        )->execute();
+    }
+
+    /**
+     * Read-only vendor code for the dry-run preview — never creates anything in the ERP.
+     */
+    private function resolveVendorCode(): string
+    {
+        $vendor = $this->vendorOrg();
 
         return $vendor !== null ? (string) $vendor->get(CustomFieldEnum::VENDOR_ID->value, '') : '';
+    }
+
+    private function vendorOrg(): ?Organization
+    {
+        if ($this->bill->vendor_organization_id === null) {
+            return null;
+        }
+
+        return Organization::query()->where('id', $this->bill->vendor_organization_id)->first();
     }
 
     private function writer(): AcumaticaWriteService

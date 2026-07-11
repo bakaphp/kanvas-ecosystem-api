@@ -128,6 +128,57 @@ class AcumaticaWriteFoundationTest extends TestCase
         $this->assertTrue(true);
     }
 
+    public function testFindOrCreateReturnsExistingMatch(): void
+    {
+        $this->enableWrites();
+
+        $client = Mockery::mock(Client::class);
+        $client->shouldReceive('login')->once();
+        $client->shouldReceive('get')->once()->with('Vendor', Mockery::type('array'))
+            ->andReturn([['id' => 'GUID-V', 'VendorID' => ['value' => 'V0001']]]);
+        $client->shouldReceive('put')->never();
+        $client->shouldReceive('logout')->once();
+
+        $record = new AcumaticaWriteService($this->app(), $client)->findOrCreate(
+            'Vendor',
+            ['$filter' => "VendorName eq 'Globex'"],
+            AcumaticaPayload::wrap(['VendorName' => 'Globex']),
+        );
+
+        $this->assertSame('V0001', AcumaticaPayload::value($record, 'VendorID'));
+    }
+
+    public function testFindOrCreateCreatesWhenNoMatch(): void
+    {
+        $this->enableWrites();
+
+        $client = Mockery::mock(Client::class);
+        $client->shouldReceive('login')->once();
+        $client->shouldReceive('get')->once()->andReturn([]);
+        $client->shouldReceive('put')->once()->with('Vendor', Mockery::type('array'))
+            ->andReturn(['id' => 'GUID-NEW', 'VendorID' => ['value' => 'V9999']]);
+        $client->shouldReceive('logout')->once();
+
+        $record = new AcumaticaWriteService($this->app(), $client)->findOrCreate(
+            'Vendor',
+            ['$filter' => "VendorName eq 'NewCo'"],
+            AcumaticaPayload::wrap(['VendorName' => 'NewCo']),
+        );
+
+        $this->assertSame('V9999', AcumaticaPayload::value($record, 'VendorID'));
+    }
+
+    public function testFindOrCreateThrowsWhenWriteDisabled(): void
+    {
+        $this->app()->set(ConfigurationEnum::ACUMATICA_WRITE_ENABLED->value, '0');
+        $client = Mockery::mock(Client::class);
+        $client->shouldNotReceive('login');
+
+        $this->expectException(AcumaticaWriteException::class);
+
+        new AcumaticaWriteService($this->app(), $client)->findOrCreate('Vendor', [], []);
+    }
+
     public function testPushReleasesWhenRequested(): void
     {
         $this->enableWrites();

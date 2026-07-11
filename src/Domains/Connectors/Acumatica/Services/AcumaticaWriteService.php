@@ -87,6 +87,37 @@ class AcumaticaWriteService
     }
 
     /**
+     * @param array<string, mixed> $query      OData query, e.g. ['$filter' => "VendorName eq 'X'", '$top' => 1]
+     * @param array<string, mixed> $createBody `{value:}`-wrapped payload for the create branch
+     *
+     * @return array<array-key, mixed> the found or created record
+     */
+    public function findOrCreate(string $entity, array $query, array $createBody): array
+    {
+        $this->assertWriteEnabled();
+
+        $client = $this->client();
+
+        try {
+            $client->login();
+
+            $found = $client->get($entity, $query);
+
+            if (isset($found[0]) && is_array($found[0])) {
+                return $found[0];
+            }
+
+            return $client->put($entity, $createBody);
+        } catch (AcumaticaWriteException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            throw AcumaticaWriteException::fromThrowable($e, "findOrCreate {$entity}");
+        } finally {
+            $this->safeLogout();
+        }
+    }
+
+    /**
      * Best-effort: a missing files link or a failed attachment is swallowed — the document is already
      * created, so an attachment must never abort the push.
      *
