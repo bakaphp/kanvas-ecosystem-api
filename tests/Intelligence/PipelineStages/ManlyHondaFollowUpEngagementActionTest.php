@@ -265,8 +265,12 @@ class ManlyHondaFollowUpEngagementActionTest extends TestCase
 
         $this->setupViewVehicleActionPipeline($app, $user, $company);
 
-        $timezone = $lead->company->get('timezone') ?? 'UTC';
-        $messageTime = Carbon::now($timezone)->subMinutes($lastMessageAgeMinutes);
+        // Build the timestamp in UTC (the app/storage tz) so the stored wall-clock
+        // equals the true instant on every environment. A company-tz (LA) Carbon
+        // round-trips as its wall-clock read back as UTC on some MySQL/driver setups,
+        // shifting the instant by the tz offset and breaking the instant-based
+        // diffInMinutes gate (490 vs 10) — flaky between local and CI.
+        $messageTime = Carbon::now('UTC')->subMinutes($lastMessageAgeMinutes);
 
         $smsChannelDto = ChannelDto::from([
             'apps' => $app,
