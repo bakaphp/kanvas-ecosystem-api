@@ -47,14 +47,15 @@ class AcumaticaWriteService
     }
 
     /**
-     * Create (or update) a contract-based REST entity and optionally Release it, in one session.
+     * Create/update an entity, attach files, and optionally Release — one authenticated session.
+     * Files attach BEFORE the Release so they land on the draft.
      *
-     * @param string               $entity  the endpoint entity name (e.g. 'Bill', 'Payment')
-     * @param array<string, mixed> $body    already `{value:}`-wrapped payload (use AcumaticaPayload::wrap)
+     * @param array<string, mixed>                                             $body  `{value:}`-wrapped (AcumaticaPayload::wrap)
+     * @param array<int, array{name: string, content: string, type?: string}> $files
      *
-     * @return array<array-key, mixed> the persisted record — includes the `id` GUID + key fields
+     * @return array<array-key, mixed> the persisted record (includes the `id` GUID)
      */
-    public function push(string $entity, array $body, bool $release = false): array
+    public function push(string $entity, array $body, bool $release = false, array $files = []): array
     {
         $this->assertWriteEnabled();
 
@@ -64,6 +65,8 @@ class AcumaticaWriteService
             $client->login();
 
             $record = $client->put($entity, $body);
+
+            $this->attachFiles($client, $record, $files);
 
             if ($release) {
                 $id = AcumaticaPayload::recordId($record);
@@ -80,6 +83,34 @@ class AcumaticaWriteService
             throw AcumaticaWriteException::fromThrowable($e, "push {$entity}");
         } finally {
             $this->safeLogout();
+        }
+    }
+
+    /**
+     * Best-effort: a missing files link or a failed attachment is swallowed — the document is already
+     * created, so an attachment must never abort the push.
+     *
+     * @param array<array-key, mixed>                                          $record
+     * @param array<int, array{name: string, content: string, type?: string}> $files
+     */
+    private function attachFiles(Client $client, array $record, array $files): void
+    {
+        if ($files === []) {
+            return;
+        }
+
+        $template = AcumaticaPayload::filesPutHref($record);
+
+        if ($template === null) {
+            return;
+        }
+
+        foreach ($files as $file) {
+            try {
+                $url = str_replace('{filename}', rawurlencode($file['name']), $template);
+                $client->putFile($url, $file['content'], $file['type'] ?? 'application/octet-stream');
+            } catch (Throwable) {
+            }
         }
     }
 

@@ -10,10 +10,6 @@ enum ConfigurationEnum: string
     case ACUMATICA_DEFAULT_WAREHOUSE = 'ACUMATICA_DEFAULT_WAREHOUSE';
     case ACUMATICA_WRITE_ENABLED = 'ACUMATICA_WRITE_ENABLED';
 
-    /**
-     * Per-company gate for the scheduled sync. The scheduler NEVER touches a company unless this is
-     * truthy — enablement is opt-in, set per legal entity via kanvas:acumatica-enable-sync.
-     */
     case SYNC_ENABLED = 'ACUMATICA_SYNC_ENABLED';
 
     // Company-scoped params the scheduler needs to build a pull for the enabled company.

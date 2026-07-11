@@ -87,6 +87,47 @@ class AcumaticaWriteFoundationTest extends TestCase
         $this->assertSame('000123', AcumaticaPayload::value($record, 'RefNbr'));
     }
 
+    public function testFilesPutHrefHandlesStringAndObjectForms(): void
+    {
+        $this->assertSame(
+            '/entity/Bill/000123/files/{filename}',
+            AcumaticaPayload::filesPutHref(['_links' => ['files:put' => '/entity/Bill/000123/files/{filename}']]),
+        );
+        $this->assertSame(
+            '/entity/Bill/000123/files/{filename}',
+            AcumaticaPayload::filesPutHref(['_links' => ['files:put' => ['href' => '/entity/Bill/000123/files/{filename}']]]),
+        );
+        $this->assertNull(AcumaticaPayload::filesPutHref(['id' => 'GUID-1']));
+    }
+
+    public function testPushAttachesFilesToRecordBeforeRelease(): void
+    {
+        $this->enableWrites();
+        $body = AcumaticaPayload::wrap(['Vendor' => 'GLOBEX']);
+        $record = [
+            'id' => 'GUID-9',
+            '_links' => ['files:put' => '/entity/Default/24.200.001/Bill/Bill/000123/files/{filename}'],
+        ];
+
+        $client = Mockery::mock(Client::class);
+        $client->shouldReceive('login')->once();
+        $client->shouldReceive('put')->once()->andReturn($record);
+        $client->shouldReceive('putFile')->once()
+            ->with('/entity/Default/24.200.001/Bill/Bill/000123/files/invoice.pdf', 'PDFBYTES', 'application/pdf')
+            ->andReturn(204);
+        $client->shouldReceive('invokeAction')->once()->andReturn(202);
+        $client->shouldReceive('logout')->once();
+
+        new AcumaticaWriteService($this->app(), $client)->push(
+            'Bill',
+            $body,
+            release: true,
+            files: [['name' => 'invoice.pdf', 'content' => 'PDFBYTES', 'type' => 'application/pdf']],
+        );
+
+        $this->assertTrue(true);
+    }
+
     public function testPushReleasesWhenRequested(): void
     {
         $this->enableWrites();

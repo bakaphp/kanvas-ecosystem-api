@@ -12,6 +12,7 @@ use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Services\BillStateMachineService;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class RejectBillAction
 {
@@ -31,7 +32,7 @@ class RejectBillAction
             return $this->bill;
         }
 
-        return DB::connection('accounting')->transaction(function (): Bill {
+        $bill = DB::connection('accounting')->transaction(function (): Bill {
             $bill = $this->bill;
 
             $bill->document_status = BillDocumentStatusEnum::DRAFT;
@@ -53,5 +54,19 @@ class RejectBillAction
 
             return $bill->refresh();
         });
+
+        // Same generic event as approval, to = draft. The ERP-push rule filters on to = received, so
+        // a rejection never triggers a push — it just lets rules react to the send-back.
+        $bill->fireWorkflow(
+            WorkflowEnum::STATUS_TRANSITION->value,
+            params: [
+                'app' => $bill->app,
+                'entity' => 'bill',
+                'from' => BillDocumentStatusEnum::PENDING_APPROVAL->value,
+                'to' => BillDocumentStatusEnum::DRAFT->value,
+            ],
+        );
+
+        return $bill;
     }
 }

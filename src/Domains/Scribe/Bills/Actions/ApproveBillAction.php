@@ -12,6 +12,7 @@ use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class ApproveBillAction
 {
@@ -28,7 +29,7 @@ class ApproveBillAction
             return $this->bill;
         }
 
-        return DB::connection('accounting')->transaction(function (): Bill {
+        $bill = DB::connection('accounting')->transaction(function (): Bill {
             $bill = new ReceiveBillAction(
                 $this->bill,
                 $this->vendor,
@@ -50,5 +51,19 @@ class ApproveBillAction
 
             return $bill;
         });
+
+        // Generic event so a workflow rule routes the approved bill to whichever ERP-push activity
+        // it's wired to — the approval never hardcodes a connector.
+        $bill->fireWorkflow(
+            WorkflowEnum::STATUS_TRANSITION->value,
+            params: [
+                'app' => $bill->app,
+                'entity' => 'bill',
+                'from' => BillDocumentStatusEnum::PENDING_APPROVAL->value,
+                'to' => BillDocumentStatusEnum::RECEIVED->value,
+            ],
+        );
+
+        return $bill;
     }
 }

@@ -230,6 +230,18 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\Bills\\BillMutation@receive"
         )
+    submitScribeBillForApproval(id: ID!): ScribeBill!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Bills\\BillMutation@submitForApproval"
+        )
+    approveScribeBill(id: ID!): ScribeBill!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Bills\\BillMutation@approve"
+        )
+    rejectScribeBill(id: ID!, reason: String): ScribeBill!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Bills\\BillMutation@reject"
+        )
     voidScribeBill(id: ID!, void_reason_code: String!): ScribeBill!
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\Bills\\BillMutation@void"

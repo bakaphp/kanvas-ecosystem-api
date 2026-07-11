@@ -18,6 +18,8 @@ use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
+use Kanvas\Workflow\Enums\WorkflowEnum;
+use Kanvas\Workflow\SyncWorkflowStub;
 use Spatie\LaravelData\DataCollection;
 use Tests\Scribe\ScribeTestCase;
 
@@ -89,6 +91,60 @@ class BillApprovalActionTest extends ScribeTestCase
             ->where('action_type', 'approve_bill')->where('target_id', $bill->id)->first();
         $this->assertSame(ApprovalQueueStatusEnum::APPROVED, $item->status);
         $this->assertSame((int) static::$cachedUser->getId(), (int) $item->approved_by_users_id);
+    }
+
+    /**
+     * A persisted-bill stand-in that records fireWorkflow calls instead of dispatching them — avoids
+     * a real workflow rule while proving the action fires the right event/params.
+     */
+    private function spyBill(Bill $real): Bill
+    {
+        $spy = new class () extends Bill {
+            /** @var array<int, array{event: string, params: array<string, mixed>}> */
+            public array $firedWorkflows = [];
+
+            public function fireWorkflow(string $event, bool $async = true, array $params = []): ?SyncWorkflowStub
+            {
+                $this->firedWorkflows[] = ['event' => $event, 'params' => $params];
+
+                return null;
+            }
+        };
+
+        $spy->setRawAttributes($real->getAttributes(), true);
+        $spy->exists = true;
+
+        return $spy;
+    }
+
+    public function test_approve_fires_status_transition_event_to_received(): void
+    {
+        $vendor = $this->seedTestOrganization('Globex Supply');
+        $real = $this->draftBill($vendor);
+        new SubmitBillForApprovalAction($real, static::$cachedUser)->execute();
+
+        $spy = $this->spyBill($real->refresh());
+        new ApproveBillAction($spy, $vendor, static::$cachedUser)->execute();
+
+        $this->assertCount(1, $spy->firedWorkflows);
+        $this->assertSame(WorkflowEnum::STATUS_TRANSITION->value, $spy->firedWorkflows[0]['event']);
+        $this->assertSame(BillDocumentStatusEnum::RECEIVED->value, $spy->firedWorkflows[0]['params']['to']);
+        $this->assertSame('bill', $spy->firedWorkflows[0]['params']['entity']);
+    }
+
+    public function test_reject_fires_status_transition_event_to_draft(): void
+    {
+        $vendor = $this->seedTestOrganization('Globex Supply');
+        $real = $this->draftBill($vendor);
+        new SubmitBillForApprovalAction($real, static::$cachedUser)->execute();
+
+        $spy = $this->spyBill($real->refresh());
+        new RejectBillAction($spy, static::$cachedUser, reason: 'Wrong PO')->execute();
+
+        $this->assertCount(1, $spy->firedWorkflows);
+        $this->assertSame(WorkflowEnum::STATUS_TRANSITION->value, $spy->firedWorkflows[0]['event']);
+        $this->assertSame(BillDocumentStatusEnum::DRAFT->value, $spy->firedWorkflows[0]['params']['to']);
+        $this->assertSame('bill', $spy->firedWorkflows[0]['params']['entity']);
     }
 
     public function test_reject_returns_bill_to_draft_and_marks_queue_item_rejected(): void

@@ -103,4 +103,17 @@ class Client
 
         return $response->getStatusCode();
     }
+
+    public function putFile(
+        string $path,
+        string $contents,
+        string $contentType = 'application/octet-stream'
+    ): int {
+        $response = $this->client->put(ltrim($path, '/'), [
+            'body' => $contents,
+            'headers' => ['Content-Type' => $contentType],
+        ]);
+
+        return $response->getStatusCode();
+    }
 }

@@ -55,4 +55,22 @@ final class AcumaticaPayload
 
         return is_string($id) && $id !== '' ? $id : null;
     }
+
+    /**
+     * The `_links.files:put` href — a `{filename}` template you PUT raw bytes to, to attach a file.
+     * Acumatica serializes `_links` entries as either a bare href string or an `{href}` object, so
+     * handle both.
+     *
+     * @param array<array-key, mixed> $record
+     */
+    public static function filesPutHref(array $record): ?string
+    {
+        $link = data_get($record, '_links.files:put');
+
+        if (is_array($link)) {
+            $link = $link['href'] ?? null;
+        }
+
+        return is_string($link) && $link !== '' ? $link : null;
+    }
 }

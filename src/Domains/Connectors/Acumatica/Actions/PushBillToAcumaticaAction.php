@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Acumatica\Actions;
 
+use Baka\Http\SafeUrlFetcher;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
@@ -13,6 +14,8 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
+use Kanvas\Scribe\PdfIngest\Models\PdfIngestLog;
+use Throwable;
 
 /**
  * Pushes an approved Kanvas bill out to Acumatica as an AP Bill (create + Release), the last step of
@@ -53,7 +56,12 @@ class PushBillToAcumaticaAction
             );
         }
 
-        $record = $this->writer()->push('Bill', $this->buildPayload($vendorCode), release: true);
+        $record = $this->writer()->push(
+            'Bill',
+            $this->buildPayload($vendorCode),
+            release: true,
+            files: $this->collectAttachments(),
+        );
 
         $id = AcumaticaPayload::recordId($record);
         $referenceNbr = (string) (AcumaticaPayload::value($record, 'ReferenceNbr') ?? $id ?? '');
@@ -141,6 +149,41 @@ class PushBillToAcumaticaAction
         $code = Subaccount::query()->where('id', $subaccountId)->value('sub_code');
 
         return $code !== null ? (string) $code : null;
+    }
+
+    /**
+     * The original vendor-invoice PDF from the Mailgun ingest pipeline, to ride onto the Acumatica
+     * bill. Best-effort — no ingested PDF or an unreadable file just pushes without an attachment.
+     *
+     * @return array<int, array{name: string, content: string, type: string}>
+     */
+    private function collectAttachments(): array
+    {
+        if ($this->bill->pdf_ingest_log_id === null) {
+            return [];
+        }
+
+        $file = PdfIngestLog::query()
+            ->where('id', $this->bill->pdf_ingest_log_id)
+            ->first()?->filesystem;
+
+        if ($file === null || empty($file->url)) {
+            return [];
+        }
+
+        try {
+            $bytes = SafeUrlFetcher::fetch((string) $file->url);
+        } catch (Throwable) {
+            return [];
+        }
+
+        $name = $file->name !== '' && $file->name !== null ? (string) $file->name : 'invoice.pdf';
+
+        return [[
+            'name' => str_ends_with(strtolower($name), '.pdf') ? $name : $name . '.pdf',
+            'content' => $bytes,
+            'type' => 'application/pdf',
+        ]];
     }
 
     private function resolveVendorCode(): string
