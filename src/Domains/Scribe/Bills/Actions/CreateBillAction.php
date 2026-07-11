@@ -111,6 +111,7 @@ class CreateBillAction
                 $line->line_total_native = $lineData->lineTotalNative();
                 $line->line_total_base = $lineData->lineTotalNative() * $fxRate;
                 $line->expense_account_id = $lineData->expense_account_id;
+                $line->subaccount_id = $lineData->subaccount_id;
                 $line->tax_metadata = $lineData->tax_metadata;
                 $line->class_id = $lineData->class_id;
                 $line->department_id = $lineData->department_id;

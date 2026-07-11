@@ -1,0 +1,162 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\Acumatica\Actions;
+
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
+use Kanvas\Connectors\Acumatica\Services\AcumaticaWriteService;
+use Kanvas\Connectors\Acumatica\Support\AcumaticaPayload;
+use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Ledger\Models\Account;
+use Kanvas\Scribe\Ledger\Models\Subaccount;
+
+/**
+ * Pushes an approved Kanvas bill out to Acumatica as an AP Bill (create + Release), the last step of
+ * the Kanvas-first AP flow: the agent proposed it, a human approved it, now it lands in the ERP.
+ *
+ * Idempotent — a bill already carrying its ACUMATICA_BILL_ID custom field is not re-pushed. The
+ * returned Acumatica reference is stored back on the bill so the sync + agent can see it's mirrored.
+ * Line coding is translated Kanvas → Acumatica: expense_account_id → AccountCD, subaccount_id → SubCD.
+ */
+class PushBillToAcumaticaAction
+{
+    private ?AcumaticaWriteService $writer;
+
+    public function __construct(
+        protected Apps $app,
+        protected Bill $bill,
+        ?AcumaticaWriteService $writer = null,
+    ) {
+        $this->writer = $writer;
+    }
+
+    /**
+     * @return string the Acumatica ReferenceNbr (or record id) of the created bill
+     */
+    public function execute(): string
+    {
+        $existing = (string) $this->bill->get(CustomFieldEnum::BILL_ID->value, '');
+
+        if ($existing !== '') {
+            return $existing;
+        }
+
+        $vendorCode = $this->resolveVendorCode();
+
+        if ($vendorCode === '') {
+            throw new AcumaticaWriteException(
+                "Bill {$this->bill->getId()} has no Acumatica vendor code — cannot push (is the vendor synced?)."
+            );
+        }
+
+        $record = $this->writer()->push('Bill', $this->buildPayload($vendorCode), release: true);
+
+        $id = AcumaticaPayload::recordId($record);
+        $referenceNbr = (string) (AcumaticaPayload::value($record, 'ReferenceNbr') ?? $id ?? '');
+
+        if ($id !== null) {
+            $this->bill->set(CustomFieldEnum::BILL_ID->value, $id);
+        }
+
+        if ($referenceNbr !== '') {
+            $this->bill->set(CustomFieldEnum::BILL_REF->value, $referenceNbr);
+        }
+
+        return $referenceNbr;
+    }
+
+    /**
+     * Build the exact Acumatica payload this action would send, WITHOUT writing anything. For
+     * dry-runs / debugging — no write gate, no network call.
+     *
+     * @return array<string, mixed>
+     */
+    public function preview(): array
+    {
+        return $this->buildPayload($this->resolveVendorCode());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildPayload(string $vendorCode): array
+    {
+        $header = AcumaticaPayload::wrap([
+            'Type' => 'Bill',
+            'Vendor' => $vendorCode,
+            'VendorRef' => $this->bill->bill_number,
+            'Description' => $this->bill->notes ?? ('Kanvas bill ' . $this->bill->bill_number),
+            'Date' => $this->bill->bill_date?->toDateString(),
+            'DueDate' => $this->bill->due_date?->toDateString(),
+            'CurrencyID' => $this->bill->currency,
+            'Hold' => false,
+        ]);
+
+        $header['Details'] = $this->buildLines();
+
+        return $header;
+    }
+
+    /**
+     * @return array<int, array<string, array{value: mixed}>>
+     */
+    private function buildLines(): array
+    {
+        $lines = [];
+
+        foreach ($this->bill->lines as $line) {
+            $lines[] = AcumaticaPayload::wrap([
+                'Description' => $line->description,
+                'Qty' => (float) $line->quantity,
+                'UnitCost' => (float) $line->unit_price_native,
+                'Account' => $this->accountCode($line->expense_account_id),
+                'Subaccount' => $this->subaccountCode($line->subaccount_id),
+            ]);
+        }
+
+        return $lines;
+    }
+
+    private function accountCode(?int $accountId): ?string
+    {
+        if ($accountId === null) {
+            return null;
+        }
+
+        $code = Account::query()->where('id', $accountId)->value('account_number');
+
+        return $code !== null ? (string) $code : null;
+    }
+
+    private function subaccountCode(?int $subaccountId): ?string
+    {
+        if ($subaccountId === null) {
+            return null;
+        }
+
+        $code = Subaccount::query()->where('id', $subaccountId)->value('sub_code');
+
+        return $code !== null ? (string) $code : null;
+    }
+
+    private function resolveVendorCode(): string
+    {
+        if ($this->bill->vendor_organization_id === null) {
+            return '';
+        }
+
+        /** @var Organization|null $vendor */
+        $vendor = Organization::query()->where('id', $this->bill->vendor_organization_id)->first();
+
+        return $vendor !== null ? (string) $vendor->get(CustomFieldEnum::VENDOR_ID->value, '') : '';
+    }
+
+    private function writer(): AcumaticaWriteService
+    {
+        return $this->writer ??= new AcumaticaWriteService($this->app);
+    }
+}

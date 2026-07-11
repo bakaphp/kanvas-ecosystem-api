@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $journal_entry_id
  * @property int $account_id
+ * @property int|null $subaccount_id
  * @property int $sort_order
  * @property float $debit_native
  * @property float $credit_native
@@ -59,6 +60,11 @@ class JournalEntryLine extends EloquentModel
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class, 'account_id', 'id');
+    }
+
+    public function subaccount(): BelongsTo
+    {
+        return $this->belongsTo(Subaccount::class, 'subaccount_id', 'id');
     }
 
     public function isDebit(): bool

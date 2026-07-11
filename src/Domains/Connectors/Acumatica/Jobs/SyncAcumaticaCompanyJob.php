@@ -21,8 +21,10 @@ use Kanvas\Connectors\Acumatica\Actions\PullFiscalPeriodsAction;
 use Kanvas\Connectors\Acumatica\Actions\PullInvoicesAction;
 use Kanvas\Connectors\Acumatica\Actions\PullJournalEntriesAction;
 use Kanvas\Connectors\Acumatica\Actions\PullProductsAction;
+use Kanvas\Connectors\Acumatica\Actions\PullPurchaseOrdersAction;
 use Kanvas\Connectors\Acumatica\Actions\PullSalesOrdersAction;
 use Kanvas\Connectors\Acumatica\Actions\PullStockAction;
+use Kanvas\Connectors\Acumatica\Actions\PullSubaccountsAction;
 use Kanvas\Connectors\Acumatica\Actions\PullWarehousesAction;
 use Kanvas\Connectors\Acumatica\Enums\SyncEntityEnum;
 use Kanvas\Connectors\Acumatica\Services\AcumaticaSyncService;
@@ -82,6 +84,13 @@ final class SyncAcumaticaCompanyJob implements ShouldQueue
             $this->acumaticaCompanyId,
         )->execute());
 
+        $this->runFull(fn (): int => new PullSubaccountsAction(
+            $this->app,
+            $this->company,
+            $this->user,
+            $this->acumaticaCompanyId,
+        )->execute());
+
         $this->runFull(fn (): int => new PullFiscalPeriodsAction(
             $this->app,
             $this->company,
@@ -104,6 +113,14 @@ final class SyncAcumaticaCompanyJob implements ShouldQueue
             $this->user,
             $this->acumaticaCompanyId,
             isVendor: true,
+            modifiedSince: $since,
+        )->execute());
+
+        $this->runIncremental($sync, SyncEntityEnum::PURCHASE_ORDERS, fn (?Carbon $since): int => new PullPurchaseOrdersAction(
+            $this->app,
+            $this->company,
+            $this->user,
+            $this->acumaticaCompanyId,
             modifiedSince: $since,
         )->execute());
 

@@ -49,7 +49,10 @@ class AcumaticaImportJournalEntry extends Data
             currency: $currency,
             finPeriodId: trim((string) ($header['FinPeriodID'] ?? '')),
             module: trim((string) ($header['Module'] ?? '')),
-            lines: new DataCollection(AcumaticaImportJournalEntryLine::class, self::mapLines($lines, $currency)),
+            lines: new DataCollection(
+                AcumaticaImportJournalEntryLine::class,
+                self::mapLines($lines, $currency)
+            ),
         );
     }
 
@@ -77,9 +80,11 @@ class AcumaticaImportJournalEntry extends Data
             }
 
             $memo = trim((string) ($line['TranDesc'] ?? ''));
+            $subCode = trim((string) ($line['SubCD'] ?? ''));
 
             $mapped[] = new AcumaticaImportJournalEntryLine(
                 accountCd: $accountCd,
+                subCode: $subCode !== '' ? $subCode : null,
                 debitNative: $debitNative,
                 creditNative: $creditNative,
                 debitBase: $debitBase,

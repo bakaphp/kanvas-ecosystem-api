@@ -15,8 +15,10 @@ use Kanvas\Connectors\Acumatica\Actions\PullFiscalPeriodsAction;
 use Kanvas\Connectors\Acumatica\Actions\PullInvoicesAction;
 use Kanvas\Connectors\Acumatica\Actions\PullJournalEntriesAction;
 use Kanvas\Connectors\Acumatica\Actions\PullProductsAction;
+use Kanvas\Connectors\Acumatica\Actions\PullPurchaseOrdersAction;
 use Kanvas\Connectors\Acumatica\Actions\PullSalesOrdersAction;
 use Kanvas\Connectors\Acumatica\Actions\PullStockAction;
+use Kanvas\Connectors\Acumatica\Actions\PullSubaccountsAction;
 use Kanvas\Connectors\Acumatica\Actions\PullWarehousesAction;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
@@ -37,9 +39,10 @@ class PullAcumaticaCommand extends Command
         {user_id : Kanvas user to attribute the import to}
         {acumatica_company_id : Acumatica CompanyID for the legal entity (e.g. 2=US)}
         {--region_id= : Kanvas region id (defaults to the app/company first region)}
-        {--only=all : products|warehouses|stock|customers|vendors|orders|accounts|periods|journal-entries|invoices|bills|all}
+        {--only=all : products|warehouses|stock|customers|vendors|purchase-orders|orders|accounts|subaccounts|periods|journal-entries|invoices|bills|all}
         {--all-items : include non-stock items (default: stock items only)}
         {--limit= : cap rows pulled per entity (recommended for first runs / large catalogs)}
+        {--order-number= : pull a single sales order by its number (orders only)}
         {--debug : print per-row diagnostics (stock)}';
 
     protected $description = 'Pull Acumatica products, warehouses, stock, customers, vendors, sales orders and GL (accounts, fiscal periods, journal entries) from the SQL replica into a Kanvas company.';
@@ -90,6 +93,16 @@ class PullAcumaticaCommand extends Command
                 $this->info("Vendors synced: {$n}");
             }
 
+            if (in_array($only, ['all', 'purchase-orders'], true)) {
+                $poAction = new PullPurchaseOrdersAction($app, $company, $user, $acumaticaCompanyId, $limit);
+                $n = $poAction->execute();
+                $this->info("Purchase orders synced: {$n}");
+
+                if ($n === 0) {
+                    $this->warnSkipped($poAction->skipped);
+                }
+            }
+
             if (in_array($only, ['all', 'stock'], true)) {
                 $stockAction = new PullStockAction($app, $company, $user, $region, $acumaticaCompanyId, $limit);
                 $n = $stockAction->execute();
@@ -104,7 +117,8 @@ class PullAcumaticaCommand extends Command
             }
 
             if (in_array($only, ['all', 'orders'], true)) {
-                $ordersAction = new PullSalesOrdersAction($app, $company, $user, $region, $acumaticaCompanyId, $limit);
+                $orderNumber = is_string($this->option('order-number')) ? $this->option('order-number') : null;
+                $ordersAction = new PullSalesOrdersAction($app, $company, $user, $region, $acumaticaCompanyId, $limit, orderNumber: $orderNumber);
                 $n = $ordersAction->execute();
                 $this->info("Sales orders synced: {$n}");
 
@@ -120,6 +134,16 @@ class PullAcumaticaCommand extends Command
 
                 if ($n === 0) {
                     $this->warnSkipped($accountsAction->skipped);
+                }
+            }
+
+            if (in_array($only, ['all', 'subaccounts'], true)) {
+                $subaccountsAction = new PullSubaccountsAction($app, $company, $user, $acumaticaCompanyId, $limit);
+                $n = $subaccountsAction->execute();
+                $this->info("Subaccounts synced: {$n}");
+
+                if ($n === 0) {
+                    $this->warnSkipped($subaccountsAction->skipped);
                 }
             }
 

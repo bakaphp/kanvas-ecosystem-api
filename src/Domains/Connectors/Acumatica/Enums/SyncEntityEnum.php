@@ -13,11 +13,13 @@ enum SyncEntityEnum: string
 {
     case WAREHOUSES = 'warehouses';
     case ACCOUNTS = 'accounts';
+    case SUBACCOUNTS = 'subaccounts';
     case PERIODS = 'periods';
     case PRODUCTS = 'products';
     case STOCK = 'stock';
     case CUSTOMERS = 'customers';
     case VENDORS = 'vendors';
+    case PURCHASE_ORDERS = 'purchase_orders';
     case ORDERS = 'orders';
     case JOURNAL_ENTRIES = 'journal_entries';
     case INVOICES = 'invoices';
@@ -26,7 +28,7 @@ enum SyncEntityEnum: string
     public function isIncremental(): bool
     {
         return match ($this) {
-            self::WAREHOUSES, self::ACCOUNTS, self::PERIODS => false,
+            self::WAREHOUSES, self::ACCOUNTS, self::SUBACCOUNTS, self::PERIODS => false,
             default => true,
         };
     }

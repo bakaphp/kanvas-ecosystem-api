@@ -38,6 +38,7 @@ class PullSalesOrdersAction
         protected int $acumaticaCompanyId,
         protected ?int $limit = null,
         protected ?Carbon $modifiedSince = null,
+        protected ?string $orderNumber = null,
     ) {
     }
 
@@ -74,6 +75,10 @@ class PullSalesOrdersAction
                 'o.OrderDate', 'o.ShipDate', 'o.OrderDesc', 'o.CustomerOrderNbr', 'o.UsrRMANbr',
             ])
             ->orderByDesc('o.OrderDate');
+
+        if ($this->orderNumber !== null) {
+            $query->where('o.OrderNbr', $this->orderNumber);
+        }
 
         if ($this->modifiedSince !== null) {
             $query->where('o.LastModifiedDateTime', '>', $this->modifiedSince);

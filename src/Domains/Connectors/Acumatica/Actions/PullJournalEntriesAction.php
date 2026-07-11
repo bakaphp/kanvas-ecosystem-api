@@ -23,10 +23,12 @@ use Kanvas\Scribe\Ledger\Exceptions\ClosedFiscalPeriodException;
 use Kanvas\Scribe\Ledger\Exceptions\UnbalancedJournalEntryException;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
+use Kanvas\Scribe\Ledger\Models\Subaccount;
 use Kanvas\Scribe\Ledger\Services\PeriodCloseService;
 use Kanvas\Users\Models\Users;
 use RuntimeException;
 use Spatie\LaravelData\DataCollection;
+use stdClass;
 use Throwable;
 
 /**
@@ -44,6 +46,9 @@ class PullJournalEntriesAction
 
     /** @var array<string, int|null> accountCd → resolved Kanvas account id (per-run cache) */
     private array $accountCache = [];
+
+    /** @var array<string, int|null> subCode → resolved Kanvas subaccount id (per-run cache) */
+    private array $subaccountCache = [];
 
     public function __construct(
         protected Apps $app,
@@ -65,7 +70,10 @@ class PullJournalEntriesAction
             $headers
         ))));
 
-        return $this->processRows($headers, $this->fetchLinesByBatch($batchNbrs));
+        return $this->processRows(
+            $headers,
+            $this->fetchLinesByBatch($batchNbrs)
+        );
     }
 
     /**
@@ -91,7 +99,10 @@ class PullJournalEntriesAction
             $query->limit($this->limit);
         }
 
-        return array_map(fn ($row): array => (array) $row, $query->get()->all());
+        return array_map(
+            fn (stdClass $row): array => (array) $row,
+            $query->get()->all()
+        );
     }
 
     /**
@@ -111,12 +122,16 @@ class PullJournalEntriesAction
                 $join->on('a.AccountID', '=', 't.AccountID')
                     ->on('a.CompanyID', '=', 't.CompanyID');
             })
+            ->leftJoin('Sub as s', function (JoinClause $join): void {
+                $join->on('s.SubID', '=', 't.SubID')
+                    ->on('s.CompanyID', '=', 't.CompanyID');
+            })
             ->where('t.CompanyID', $this->acumaticaCompanyId)
             ->whereIn('t.BatchNbr', $batchNbrs)
             // GLTran carries no currency code (CuryID lives on the Batch header); the mapper
             // falls the line currency back to the batch currency.
             ->select([
-                't.Module', 't.BatchNbr', 'a.AccountCD', 't.TranDesc',
+                't.Module', 't.BatchNbr', 'a.AccountCD', 's.SubCD', 't.TranDesc',
                 't.DebitAmt', 't.CreditAmt', 't.CuryDebitAmt', 't.CuryCreditAmt',
             ])
             ->orderBy('t.LineNbr')
@@ -234,6 +249,7 @@ class PullJournalEntriesAction
 
             $built[] = new JournalEntryLineData(
                 account_id: $accountId,
+                subaccount_id: $this->resolveSubaccountId($line->subCode),
                 debit_native: $line->debitNative,
                 credit_native: $line->creditNative,
                 debit_base: $line->debitBase,
@@ -273,6 +289,31 @@ class PullJournalEntriesAction
         $id = $account?->getId();
 
         return $this->accountCache[$accountCd] = $id !== null ? (int) $id : null;
+    }
+
+    /**
+     * Subaccount is the optional second coding dimension. Unlike accounts, we don't create it on the
+     * fly — it's pulled wholesale by PullSubaccountsAction — so a not-yet-synced subaccount just
+     * leaves the line's subaccount_id null rather than blocking the posting.
+     */
+    private function resolveSubaccountId(?string $subCode): ?int
+    {
+        if ($subCode === null || $subCode === '') {
+            return null;
+        }
+
+        if (array_key_exists($subCode, $this->subaccountCache)) {
+            return $this->subaccountCache[$subCode];
+        }
+
+        $id = Subaccount::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('sub_code', $subCode)
+            ->where('is_deleted', false)
+            ->value('id');
+
+        return $this->subaccountCache[$subCode] = $id !== null ? (int) $id : null;
     }
 
     private function findAccount(string $accountCd): ?Account

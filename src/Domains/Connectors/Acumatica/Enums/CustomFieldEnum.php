@@ -17,4 +17,5 @@ enum CustomFieldEnum: string
     case JOURNAL_ENTRY_ID = 'ACUMATICA_JE_ID';
     case INVOICE_ID = 'ACUMATICA_INVOICE_ID';
     case BILL_ID = 'ACUMATICA_BILL_ID';
+    case BILL_REF = 'ACUMATICA_BILL_REF';
 }
