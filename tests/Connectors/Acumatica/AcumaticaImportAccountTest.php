@@ -25,7 +25,7 @@ class AcumaticaImportAccountTest extends TestCase
 
     public function testMapsCoreFields(): void
     {
-        $account = AcumaticaImportAccount::fromRow($this->row());
+        $account = AcumaticaImportAccount::from($this->row());
 
         $this->assertSame('10500', $account->externalId);
         $this->assertSame('1200', $account->accountNumber);
@@ -36,27 +36,27 @@ class AcumaticaImportAccountTest extends TestCase
 
     public function testTypeMapping(): void
     {
-        $this->assertSame(AccountTypeEnum::ASSET, AcumaticaImportAccount::fromRow($this->row(['Type' => 'Asset']))->accountType);
-        $this->assertSame(AccountTypeEnum::LIABILITY, AcumaticaImportAccount::fromRow($this->row(['Type' => 'Liability']))->accountType);
-        $this->assertSame(AccountTypeEnum::REVENUE, AcumaticaImportAccount::fromRow($this->row(['Type' => 'Income']))->accountType);
-        $this->assertSame(AccountTypeEnum::EXPENSE, AcumaticaImportAccount::fromRow($this->row(['Type' => 'Expense']))->accountType);
+        $this->assertSame(AccountTypeEnum::ASSET, AcumaticaImportAccount::from($this->row(['Type' => 'Asset']))->accountType);
+        $this->assertSame(AccountTypeEnum::LIABILITY, AcumaticaImportAccount::from($this->row(['Type' => 'Liability']))->accountType);
+        $this->assertSame(AccountTypeEnum::REVENUE, AcumaticaImportAccount::from($this->row(['Type' => 'Income']))->accountType);
+        $this->assertSame(AccountTypeEnum::EXPENSE, AcumaticaImportAccount::from($this->row(['Type' => 'Expense']))->accountType);
     }
 
     public function testSingleLetterTypeMapping(): void
     {
-        $this->assertSame(AccountTypeEnum::ASSET, AcumaticaImportAccount::fromRow($this->row(['Type' => 'A']))->accountType);
-        $this->assertSame(AccountTypeEnum::EXPENSE, AcumaticaImportAccount::fromRow($this->row(['Type' => 'E']))->accountType);
+        $this->assertSame(AccountTypeEnum::ASSET, AcumaticaImportAccount::from($this->row(['Type' => 'A']))->accountType);
+        $this->assertSame(AccountTypeEnum::EXPENSE, AcumaticaImportAccount::from($this->row(['Type' => 'E']))->accountType);
     }
 
     public function testUnknownTypeIsNull(): void
     {
-        $this->assertNull(AcumaticaImportAccount::fromRow($this->row(['Type' => '']))->accountType);
-        $this->assertNull(AcumaticaImportAccount::fromRow($this->row(['Type' => 'Zebra']))->accountType);
+        $this->assertNull(AcumaticaImportAccount::from($this->row(['Type' => '']))->accountType);
+        $this->assertNull(AcumaticaImportAccount::from($this->row(['Type' => 'Zebra']))->accountType);
     }
 
     public function testNameFallsBackToAccountNumberWhenNoDescription(): void
     {
-        $account = AcumaticaImportAccount::fromRow($this->row(['Description' => '']));
+        $account = AcumaticaImportAccount::from($this->row(['Description' => '']));
 
         $this->assertSame('1200', $account->name);
         $this->assertNull($account->description);

@@ -179,7 +179,7 @@ class PullStockAction
         }
 
         new ProductImporterAction(
-            AcumaticaImportProduct::fromRow($row),
+            AcumaticaImportProduct::from($row),
             $this->company,
             $this->user,
             $this->region,

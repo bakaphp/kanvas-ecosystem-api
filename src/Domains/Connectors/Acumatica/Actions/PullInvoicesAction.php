@@ -88,7 +88,7 @@ class PullInvoicesAction
         ];
 
         foreach ($headers as $header) {
-            $invoice = AcumaticaImportInvoice::fromRow($header);
+            $invoice = AcumaticaImportInvoice::from($header);
 
             if ($invoice->refNbr === '') {
                 $this->skipped['no_ref']++;

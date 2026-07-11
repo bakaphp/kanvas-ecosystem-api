@@ -33,7 +33,7 @@ class AcumaticaImportAccount extends Data
     /**
      * @param array<array-key, mixed> $row raw dbo.Account row (PascalCase columns)
      */
-    public static function fromRow(array $row): self
+    public static function fromArray(array $row): self
     {
         $accountNumber = trim((string) ($row['AccountCD'] ?? ''));
         $description = trim((string) ($row['Description'] ?? ''));

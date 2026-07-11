@@ -29,7 +29,7 @@ class AcumaticaImportBillTest extends TestCase
 
     public function testMapsCoreFields(): void
     {
-        $bill = AcumaticaImportBill::fromRow($this->row());
+        $bill = AcumaticaImportBill::from($this->row());
 
         $this->assertSame('BIL-AP-5001', $bill->externalId);
         $this->assertSame('AP-5001', $bill->refNbr);
@@ -43,13 +43,13 @@ class AcumaticaImportBillTest extends TestCase
 
     public function testPaidIsOrigMinusBalance(): void
     {
-        $this->assertSame(500.00, AcumaticaImportBill::fromRow($this->row())->paid);
-        $this->assertSame(0.0, AcumaticaImportBill::fromRow($this->row(['CuryDocBal' => 800.00]))->paid);
-        $this->assertSame(800.00, AcumaticaImportBill::fromRow($this->row(['CuryDocBal' => 0.0]))->paid);
+        $this->assertSame(500.00, AcumaticaImportBill::from($this->row())->paid);
+        $this->assertSame(0.0, AcumaticaImportBill::from($this->row(['CuryDocBal' => 800.00]))->paid);
+        $this->assertSame(800.00, AcumaticaImportBill::from($this->row(['CuryDocBal' => 0.0]))->paid);
     }
 
     public function testCurrencyFallsBackToUsd(): void
     {
-        $this->assertSame('USD', AcumaticaImportBill::fromRow($this->row(['CuryID' => '']))->currency);
+        $this->assertSame('USD', AcumaticaImportBill::from($this->row(['CuryID' => '']))->currency);
     }
 }

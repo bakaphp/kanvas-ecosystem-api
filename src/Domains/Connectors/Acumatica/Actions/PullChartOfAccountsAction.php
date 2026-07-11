@@ -69,7 +69,7 @@ class PullChartOfAccountsAction
         ];
 
         foreach ($rows as $row) {
-            $account = AcumaticaImportAccount::fromRow($row);
+            $account = AcumaticaImportAccount::from($row);
 
             if ($account->accountNumber === '') {
                 $this->skipped['no_account_number']++;

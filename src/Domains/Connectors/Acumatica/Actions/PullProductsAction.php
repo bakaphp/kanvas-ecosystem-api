@@ -67,7 +67,7 @@ class PullProductsAction
         $count = 0;
 
         foreach ($rows as $row) {
-            $importer = AcumaticaImportProduct::fromRow($row);
+            $importer = AcumaticaImportProduct::from($row);
 
             if ($importer->sku === '') {
                 continue;

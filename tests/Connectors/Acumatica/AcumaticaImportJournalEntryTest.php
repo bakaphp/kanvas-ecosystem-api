@@ -38,7 +38,7 @@ class AcumaticaImportJournalEntryTest extends TestCase
 
     public function testMapsHeader(): void
     {
-        $je = AcumaticaImportJournalEntry::fromRow($this->header(), $this->lines());
+        $je = AcumaticaImportJournalEntry::from($this->header(), $this->lines());
 
         $this->assertSame('000123', $je->externalId);
         $this->assertSame('2026-03-17', $je->postedAt?->toDateString());
@@ -50,7 +50,7 @@ class AcumaticaImportJournalEntryTest extends TestCase
 
     public function testMapsLines(): void
     {
-        $je = AcumaticaImportJournalEntry::fromRow($this->header(), $this->lines());
+        $je = AcumaticaImportJournalEntry::from($this->header(), $this->lines());
 
         $this->assertCount(2, $je->lines);
         $this->assertSame('1200', $je->lines[0]->accountCd);
@@ -65,7 +65,7 @@ class AcumaticaImportJournalEntryTest extends TestCase
         $lines = $this->lines();
         $lines[] = ['AccountCD' => '', 'DebitAmt' => 10.0, 'CreditAmt' => 0.0];
 
-        $je = AcumaticaImportJournalEntry::fromRow($this->header(), $lines);
+        $je = AcumaticaImportJournalEntry::from($this->header(), $lines);
 
         $this->assertCount(2, $je->lines);
     }
@@ -75,7 +75,7 @@ class AcumaticaImportJournalEntryTest extends TestCase
         $lines = $this->lines();
         $lines[] = ['AccountCD' => '9999', 'DebitAmt' => 0.0, 'CreditAmt' => 0.0, 'CuryDebitAmt' => 0.0, 'CuryCreditAmt' => 0.0];
 
-        $je = AcumaticaImportJournalEntry::fromRow($this->header(), $lines);
+        $je = AcumaticaImportJournalEntry::from($this->header(), $lines);
 
         $this->assertCount(2, $je->lines);
     }
@@ -86,7 +86,7 @@ class AcumaticaImportJournalEntryTest extends TestCase
             ['AccountCD' => '1200', 'DebitAmt' => 500.00, 'CreditAmt' => 0.0, 'CuryDebitAmt' => 500.00, 'CuryCreditAmt' => 0.0, 'CuryID' => ''],
         ];
 
-        $je = AcumaticaImportJournalEntry::fromRow($this->header(['CuryID' => 'EUR']), $lines);
+        $je = AcumaticaImportJournalEntry::from($this->header(['CuryID' => 'EUR']), $lines);
 
         $this->assertSame('EUR', $je->lines[0]->currency);
     }

@@ -31,7 +31,7 @@ class AcumaticaImportProductTest extends TestCase
 
     public function testMapsCoreProductFields(): void
     {
-        $importer = AcumaticaImportProduct::fromRow($this->sampleRow());
+        $importer = AcumaticaImportProduct::from($this->sampleRow());
 
         $this->assertSame('COOLER-X-BLACK', $importer->sku);
         $this->assertSame('ACME Liquid Cooler X - Black', $importer->name);
@@ -45,7 +45,7 @@ class AcumaticaImportProductTest extends TestCase
 
     public function testBuildsSingleVariantWithPrice(): void
     {
-        $importer = AcumaticaImportProduct::fromRow($this->sampleRow());
+        $importer = AcumaticaImportProduct::from($this->sampleRow());
 
         $this->assertCount(1, $importer->variants);
         $variant = $importer->variants[0];
@@ -57,7 +57,7 @@ class AcumaticaImportProductTest extends TestCase
 
     public function testCarriesAcumaticaIdentifiersAsCustomFieldsAndImage(): void
     {
-        $importer = AcumaticaImportProduct::fromRow($this->sampleRow());
+        $importer = AcumaticaImportProduct::from($this->sampleRow());
 
         $names = array_column($importer->customFields, 'name');
         $this->assertContains(CustomFieldEnum::PRODUCT_ID->value, $names);
@@ -69,14 +69,14 @@ class AcumaticaImportProductTest extends TestCase
 
     public function testInactiveStatusIsUnpublished(): void
     {
-        $importer = AcumaticaImportProduct::fromRow($this->sampleRow(['ItemStatus' => 'IN']));
+        $importer = AcumaticaImportProduct::from($this->sampleRow(['ItemStatus' => 'IN']));
 
         $this->assertFalse($importer->isPublished);
     }
 
     public function testFallsBackToSkuWhenDescriptionEmptyAndOmitsWeightWhenZero(): void
     {
-        $importer = AcumaticaImportProduct::fromRow($this->sampleRow([
+        $importer = AcumaticaImportProduct::from($this->sampleRow([
             'Descr' => '',
             'BaseItemWeight' => 0,
             'BaseWeight' => 0,

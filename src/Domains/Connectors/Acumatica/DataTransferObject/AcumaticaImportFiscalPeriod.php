@@ -30,7 +30,7 @@ class AcumaticaImportFiscalPeriod extends Data
     /**
      * @param array<array-key, mixed> $row raw dbo.FinPeriod row (PascalCase columns)
      */
-    public static function fromRow(array $row): self
+    public static function fromArray(array $row): self
     {
         $start = DateHelper::tryParseCarbon($row['StartDate'] ?? null);
         $end = DateHelper::tryParseCarbon($row['EndDate'] ?? null);

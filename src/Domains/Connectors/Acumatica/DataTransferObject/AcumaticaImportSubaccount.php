@@ -1,4 +1,4 @@
-1<?php
+<?php
 
 declare(strict_types=1);
 
@@ -21,7 +21,7 @@ class AcumaticaImportSubaccount extends Data
     /**
      * @param array<array-key, mixed> $row raw dbo.Sub row (PascalCase columns)
      */
-    public static function fromRow(array $row): self
+    public static function fromArray(array $row): self
     {
         $description = trim((string) ($row['Description'] ?? ''));
 

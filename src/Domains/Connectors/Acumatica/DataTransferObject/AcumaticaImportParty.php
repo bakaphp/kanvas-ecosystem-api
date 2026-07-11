@@ -30,7 +30,7 @@ class AcumaticaImportParty extends Data
     /**
      * @param array<array-key, mixed> $row
      */
-    public static function fromRow(array $row, bool $isVendor = false): self
+    public static function fromArray(array $row, bool $isVendor = false): self
     {
         $acctCd = trim((string) ($row['AcctCD'] ?? ''));
         $acctName = trim((string) ($row['AcctName'] ?? ''));

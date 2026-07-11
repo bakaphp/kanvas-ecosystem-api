@@ -50,7 +50,7 @@ class AcumaticaImportOrderTest extends TestCase
 
     public function testMapsHeaderAndItems(): void
     {
-        $order = AcumaticaImportOrder::fromRow($this->header(), $this->lines());
+        $order = AcumaticaImportOrder::from($this->header(), $this->lines());
 
         $this->assertSame('SO-1001', $order->orderNumber);
         $this->assertSame('SO', $order->orderType);
@@ -70,21 +70,21 @@ class AcumaticaImportOrderTest extends TestCase
     {
         $this->assertSame(
             OrderStatusEnum::PENDING->value,
-            AcumaticaImportOrder::fromRow($this->header(), $this->lines())->status
+            AcumaticaImportOrder::from($this->header(), $this->lines())->status
         );
         $this->assertSame(
             OrderStatusEnum::COMPLETED->value,
-            AcumaticaImportOrder::fromRow($this->header(['Completed' => true]), $this->lines())->status
+            AcumaticaImportOrder::from($this->header(['Completed' => true]), $this->lines())->status
         );
         $this->assertSame(
             OrderStatusEnum::CANCELED->value,
-            AcumaticaImportOrder::fromRow($this->header(['Cancelled' => true]), $this->lines())->status
+            AcumaticaImportOrder::from($this->header(['Cancelled' => true]), $this->lines())->status
         );
     }
 
     public function testFulfillmentIsPendingWhenNotAllShipped(): void
     {
-        $order = AcumaticaImportOrder::fromRow($this->header(), $this->lines());
+        $order = AcumaticaImportOrder::from($this->header(), $this->lines());
         $this->assertSame(OrderFulfillmentStatusEnum::PENDING->value, $order->fulfillmentStatus);
     }
 
@@ -93,7 +93,7 @@ class AcumaticaImportOrderTest extends TestCase
         $lines = [
             ['sku' => 'COOLER-X-BLACK', 'OrderQty' => 2, 'ShippedQty' => 2, 'UnitPrice' => 279.99],
         ];
-        $order = AcumaticaImportOrder::fromRow($this->header(), $lines);
+        $order = AcumaticaImportOrder::from($this->header(), $lines);
         $this->assertSame(OrderFulfillmentStatusEnum::COMPLETED->value, $order->fulfillmentStatus);
     }
 }

@@ -50,7 +50,7 @@ class AcumaticaImportOrder extends Data
      * @param array<array-key, mixed>             $header SOOrder row (+ joined AcctCD)
      * @param array<int, array<array-key, mixed>> $lines  SOLine rows (+ joined sku)
      */
-    public static function fromRow(array $header, array $lines): self
+    public static function fromArray(array $header, array $lines): self
     {
         $orderType = trim((string) ($header['OrderType'] ?? ''));
         $orderNbr = trim((string) ($header['OrderNbr'] ?? ''));

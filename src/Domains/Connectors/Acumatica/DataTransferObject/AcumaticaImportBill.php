@@ -34,7 +34,7 @@ class AcumaticaImportBill extends Data
     /**
      * @param array<array-key, mixed> $row raw APRegister + BAccount row (PascalCase columns)
      */
-    public static function fromRow(array $row): self
+    public static function fromArray(array $row): self
     {
         $docType = trim((string) ($row['DocType'] ?? ''));
         $refNbr = trim((string) ($row['RefNbr'] ?? ''));

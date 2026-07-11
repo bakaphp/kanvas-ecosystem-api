@@ -71,7 +71,7 @@ class PullFiscalPeriodsAction
         $seen = [];
 
         foreach ($rows as $row) {
-            $period = AcumaticaImportFiscalPeriod::fromRow($row);
+            $period = AcumaticaImportFiscalPeriod::from($row);
 
             if ($period->start === null || $period->end === null) {
                 $this->skipped['no_dates']++;

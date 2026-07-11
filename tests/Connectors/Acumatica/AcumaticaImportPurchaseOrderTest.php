@@ -41,7 +41,7 @@ class AcumaticaImportPurchaseOrderTest extends TestCase
 
     public function testMapsHeader(): void
     {
-        $po = AcumaticaImportPurchaseOrder::fromRow($this->header(), $this->lines());
+        $po = AcumaticaImportPurchaseOrder::from($this->header(), $this->lines());
 
         $this->assertSame('RO-PO1001', $po->externalId);
         $this->assertSame('RO', $po->orderType);
@@ -56,7 +56,7 @@ class AcumaticaImportPurchaseOrderTest extends TestCase
 
     public function testMapsLinesIncludingCodingAndSkuTrim(): void
     {
-        $po = AcumaticaImportPurchaseOrder::fromRow($this->header(), $this->lines());
+        $po = AcumaticaImportPurchaseOrder::from($this->header(), $this->lines());
 
         $inventoryLine = $po->lines[0];
         $this->assertSame('RL-KP336-RB', $inventoryLine->sku, 'SKU is trimmed.');
@@ -72,7 +72,7 @@ class AcumaticaImportPurchaseOrderTest extends TestCase
 
     public function testCurrencyFallsBackToUsd(): void
     {
-        $po = AcumaticaImportPurchaseOrder::fromRow($this->header(['CuryID' => '']), []);
+        $po = AcumaticaImportPurchaseOrder::from($this->header(['CuryID' => '']), []);
         $this->assertSame('USD', $po->currency);
         $this->assertCount(0, $po->lines);
     }

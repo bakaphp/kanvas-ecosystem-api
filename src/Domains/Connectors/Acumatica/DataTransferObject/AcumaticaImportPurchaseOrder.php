@@ -38,7 +38,7 @@ class AcumaticaImportPurchaseOrder extends Data
      * @param array<array-key, mixed>             $header POOrder row (+ joined vendor AcctCD)
      * @param array<int, array<array-key, mixed>> $lines  POLine rows (+ joined sku / account / sub)
      */
-    public static function fromRow(array $header, array $lines): self
+    public static function fromArray(array $header, array $lines): self
     {
         $orderType = trim((string) ($header['OrderType'] ?? ''));
         $orderNbr = trim((string) ($header['OrderNbr'] ?? ''));

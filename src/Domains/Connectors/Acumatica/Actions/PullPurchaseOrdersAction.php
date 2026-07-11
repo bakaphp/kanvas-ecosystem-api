@@ -152,7 +152,7 @@ class PullPurchaseOrdersAction
         $this->skipped = ['no_number' => 0];
 
         foreach ($headers as $header) {
-            $po = AcumaticaImportPurchaseOrder::fromRow(
+            $po = AcumaticaImportPurchaseOrder::from(
                 $header,
                 $linesByOrder[$header['OrderType'] . '-' . $header['OrderNbr']] ?? []
             );

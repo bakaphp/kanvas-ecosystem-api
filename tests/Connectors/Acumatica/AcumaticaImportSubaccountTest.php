@@ -11,7 +11,7 @@ class AcumaticaImportSubaccountTest extends TestCase
 {
     public function testMapsCoreFields(): void
     {
-        $sub = AcumaticaImportSubaccount::fromRow([
+        $sub = AcumaticaImportSubaccount::from([
             'SubID' => '402222',
             'SubCD' => 'MKT-CA-000',
             'Description' => 'Marketing — California',
@@ -26,7 +26,7 @@ class AcumaticaImportSubaccountTest extends TestCase
 
     public function testInactiveAndBlankDescription(): void
     {
-        $sub = AcumaticaImportSubaccount::fromRow([
+        $sub = AcumaticaImportSubaccount::from([
             'SubID' => '999999',
             'SubCD' => '000000',
             'Description' => '',

@@ -94,7 +94,7 @@ class PullBillsAction
         ];
 
         foreach ($headers as $header) {
-            $bill = AcumaticaImportBill::fromRow($header);
+            $bill = AcumaticaImportBill::from($header);
 
             if ($bill->refNbr === '') {
                 $this->skipped['no_ref']++;

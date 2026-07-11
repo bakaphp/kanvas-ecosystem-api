@@ -37,7 +37,7 @@ class AcumaticaImportJournalEntry extends Data
      * @param array<array-key, mixed>             $header raw dbo.Batch row
      * @param array<int, array<array-key, mixed>> $lines  raw dbo.GLTran rows (joined to Account for AccountCD)
      */
-    public static function fromRow(array $header, array $lines): self
+    public static function fromArray(array $header, array $lines): self
     {
         $description = trim((string) ($header['Description'] ?? ''));
         $currency = trim((string) ($header['CuryID'] ?? '')) ?: 'USD';

@@ -30,7 +30,7 @@ class AcumaticaImportInvoiceTest extends TestCase
 
     public function testMapsCoreFields(): void
     {
-        $invoice = AcumaticaImportInvoice::fromRow($this->row());
+        $invoice = AcumaticaImportInvoice::from($this->row());
 
         $this->assertSame('INV-000123', $invoice->externalId);
         $this->assertSame('000123', $invoice->refNbr);
@@ -45,14 +45,14 @@ class AcumaticaImportInvoiceTest extends TestCase
 
     public function testPaidIsOrigMinusBalance(): void
     {
-        $this->assertSame(780.00, AcumaticaImportInvoice::fromRow($this->row())->paid);
-        $this->assertSame(0.0, AcumaticaImportInvoice::fromRow($this->row(['CuryDocBal' => 1180.00]))->paid);
-        $this->assertSame(1180.00, AcumaticaImportInvoice::fromRow($this->row(['CuryDocBal' => 0.0]))->paid);
+        $this->assertSame(780.00, AcumaticaImportInvoice::from($this->row())->paid);
+        $this->assertSame(0.0, AcumaticaImportInvoice::from($this->row(['CuryDocBal' => 1180.00]))->paid);
+        $this->assertSame(1180.00, AcumaticaImportInvoice::from($this->row(['CuryDocBal' => 0.0]))->paid);
     }
 
     public function testCreditMemoMapsToCreditNote(): void
     {
-        $invoice = AcumaticaImportInvoice::fromRow($this->row(['DocType' => 'CRM']));
+        $invoice = AcumaticaImportInvoice::from($this->row(['DocType' => 'CRM']));
 
         $this->assertSame('CRM-000123', $invoice->externalId);
         $this->assertSame(DocumentTypeEnum::CREDIT_NOTE, $invoice->documentType);
@@ -60,6 +60,6 @@ class AcumaticaImportInvoiceTest extends TestCase
 
     public function testCurrencyFallsBackToUsd(): void
     {
-        $this->assertSame('USD', AcumaticaImportInvoice::fromRow($this->row(['CuryID' => '']))->currency);
+        $this->assertSame('USD', AcumaticaImportInvoice::from($this->row(['CuryID' => '']))->currency);
     }
 }

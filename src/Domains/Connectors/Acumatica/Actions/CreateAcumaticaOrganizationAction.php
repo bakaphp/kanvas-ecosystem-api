@@ -32,7 +32,7 @@ class CreateAcumaticaOrganizationAction
      */
     public function execute(array $row, bool $isVendor = false): ?Organization
     {
-        $party = AcumaticaImportParty::fromRow($row, $isVendor);
+        $party = AcumaticaImportParty::from($row, $isVendor);
 
         if ($party->sourceId === '') {
             return null;

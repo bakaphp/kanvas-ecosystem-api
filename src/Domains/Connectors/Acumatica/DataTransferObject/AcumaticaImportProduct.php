@@ -19,7 +19,7 @@ class AcumaticaImportProduct extends ProductImporter
     /**
      * @param array<array-key, mixed> $row raw InventoryItem row (PascalCase columns)
      */
-    public static function fromRow(array $row): self
+    public static function fromArray(array $row): self
     {
         $sku = trim((string) ($row['InventoryCD'] ?? ''));
         $name = trim((string) ($row['Descr'] ?? '')) ?: $sku;

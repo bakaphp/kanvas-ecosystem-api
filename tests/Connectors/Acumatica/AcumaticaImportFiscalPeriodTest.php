@@ -11,7 +11,7 @@ class AcumaticaImportFiscalPeriodTest extends TestCase
 {
     public function testNormalizesExclusiveEndToInclusiveLastDay(): void
     {
-        $period = AcumaticaImportFiscalPeriod::fromRow([
+        $period = AcumaticaImportFiscalPeriod::from([
             'FinPeriodID' => '202603',
             'StartDate' => '2026-03-01 00:00:00',
             'EndDate' => '2026-04-01 00:00:00',
@@ -24,7 +24,7 @@ class AcumaticaImportFiscalPeriodTest extends TestCase
 
     public function testFallsBackToCalendarMonthWhenNoEndDate(): void
     {
-        $period = AcumaticaImportFiscalPeriod::fromRow([
+        $period = AcumaticaImportFiscalPeriod::from([
             'FinPeriodID' => '202602',
             'StartDate' => '2026-02-01 00:00:00',
             'EndDate' => null,
@@ -36,7 +36,7 @@ class AcumaticaImportFiscalPeriodTest extends TestCase
 
     public function testKeepsInclusiveMidMonthEndAsIs(): void
     {
-        $period = AcumaticaImportFiscalPeriod::fromRow([
+        $period = AcumaticaImportFiscalPeriod::from([
             'FinPeriodID' => '202612',
             'StartDate' => '2026-12-01 00:00:00',
             'EndDate' => '2026-12-31 00:00:00',
@@ -47,7 +47,7 @@ class AcumaticaImportFiscalPeriodTest extends TestCase
 
     public function testNullWhenNoStartDate(): void
     {
-        $period = AcumaticaImportFiscalPeriod::fromRow([
+        $period = AcumaticaImportFiscalPeriod::from([
             'FinPeriodID' => '202601',
             'StartDate' => null,
             'EndDate' => null,

@@ -68,7 +68,7 @@ class PullSubaccountsAction
         $this->skipped = ['no_code' => 0];
 
         foreach ($rows as $row) {
-            $sub = AcumaticaImportSubaccount::fromRow($row);
+            $sub = AcumaticaImportSubaccount::from($row);
 
             if ($sub->subCode === '') {
                 $this->skipped['no_code']++;

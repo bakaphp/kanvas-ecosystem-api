@@ -146,7 +146,7 @@ class PullSalesOrdersAction
 
         foreach ($headers as $header) {
             $key = trim((string) ($header['OrderType'] ?? '')) . '-' . trim((string) ($header['OrderNbr'] ?? ''));
-            $order = AcumaticaImportOrder::fromRow($header, $linesByOrder[$key] ?? []);
+            $order = AcumaticaImportOrder::from($header, $linesByOrder[$key] ?? []);
 
             if ($order->orderNumber === '' || $order->customerCode === '') {
                 $this->skipped['no_customer_code']++;
@@ -294,7 +294,7 @@ class PullSalesOrdersAction
         }
 
         new ProductImporterAction(
-            AcumaticaImportProduct::fromRow($row),
+            AcumaticaImportProduct::from($row),
             $this->company,
             $this->user,
             $this->region,

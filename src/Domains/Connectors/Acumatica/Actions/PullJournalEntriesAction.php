@@ -169,7 +169,7 @@ class PullJournalEntriesAction
             $batchNbr = trim((string) ($header['BatchNbr'] ?? ''));
             $key = $module . '-' . $batchNbr;
 
-            $je = AcumaticaImportJournalEntry::fromRow($header, $linesByBatch[$key] ?? []);
+            $je = AcumaticaImportJournalEntry::from($header, $linesByBatch[$key] ?? []);
             $externalId = $key;
 
             if ($batchNbr === '' || $je->postedAt === null) {
@@ -339,7 +339,7 @@ class PullJournalEntriesAction
             return null;
         }
 
-        $account = AcumaticaImportAccount::fromRow((array) $row);
+        $account = AcumaticaImportAccount::from((array) $row);
 
         if ($account->accountType === null) {
             return null;

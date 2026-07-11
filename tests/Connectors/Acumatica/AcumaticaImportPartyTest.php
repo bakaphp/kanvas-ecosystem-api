@@ -33,7 +33,7 @@ class AcumaticaImportPartyTest extends TestCase
 
     public function testMapsCustomerWithContactAndAddress(): void
     {
-        $party = AcumaticaImportParty::fromRow($this->row());
+        $party = AcumaticaImportParty::from($this->row());
 
         $this->assertSame('Jane', $party->firstname);
         $this->assertSame('Buyer', $party->lastname);
@@ -51,7 +51,7 @@ class AcumaticaImportPartyTest extends TestCase
 
     public function testVendorUsesVendorCustomFieldKey(): void
     {
-        $party = AcumaticaImportParty::fromRow($this->row(['AcctCD' => 'ACME-SUPPLY']), isVendor: true);
+        $party = AcumaticaImportParty::from($this->row(['AcctCD' => 'ACME-SUPPLY']), true);
 
         $this->assertSame('ACME-SUPPLY', $party->customFields[CustomFieldEnum::VENDOR_ID->value]);
         $this->assertArrayNotHasKey(CustomFieldEnum::CUSTOMER_ID->value, $party->customFields);
@@ -59,7 +59,7 @@ class AcumaticaImportPartyTest extends TestCase
 
     public function testFirstnameFallsBackToAccountNameWhenNoContact(): void
     {
-        $party = AcumaticaImportParty::fromRow($this->row(['FirstName' => '', 'LastName' => '']));
+        $party = AcumaticaImportParty::from($this->row(['FirstName' => '', 'LastName' => '']));
 
         $this->assertSame('ACME Retail Inc', $party->firstname);
         $this->assertNull($party->lastname);
@@ -67,7 +67,7 @@ class AcumaticaImportPartyTest extends TestCase
 
     public function testNoAddressWhenLine1Missing(): void
     {
-        $party = AcumaticaImportParty::fromRow($this->row(['AddressLine1' => '']));
+        $party = AcumaticaImportParty::from($this->row(['AddressLine1' => '']));
 
         $this->assertNull($party->address);
     }
