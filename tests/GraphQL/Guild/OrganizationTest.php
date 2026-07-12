@@ -57,7 +57,8 @@ class OrganizationTest extends TestCase
     {
         $user = auth()->user();
         $branch = $user->getCurrentBranch();
-        $name = fake()->company();
+        // Suffix-free name so OrganizationNameNormalizerService leaves it untouched.
+        $name = 'Org-' . fake()->unique()->word() . '-' . time();
 
         $input = [
             'name' => $name,
@@ -66,7 +67,7 @@ class OrganizationTest extends TestCase
 
         $this->graphQL('
         mutation($input: OrganizationInput!) {
-            createOrganization(input: $input) {                
+            createOrganization(input: $input) {
                 name
             }
         }
@@ -96,7 +97,8 @@ class OrganizationTest extends TestCase
 
         $organizationId = $response['data']['createOrganization']['id'];
 
-        $newName = fake()->company();
+        // Suffix-free name so OrganizationNameNormalizerService leaves it untouched.
+        $newName = 'Org-' . fake()->unique()->word() . '-' . time();
 
         $input = [
             'name' => $newName,
@@ -265,7 +267,10 @@ class OrganizationTest extends TestCase
 
     public function testCreateOrganizationNormalizesAndSavesPhone(): void
     {
-        $name = fake()->company();
+        // Suffix-free name: fake()->company() randomly appends a legal suffix (LLC,
+        // Inc, ...) that OrganizationNameNormalizerService strips on save, which would
+        // make the name assertion flaky. This test only cares about phone normalization.
+        $name = 'OrgPhone-' . fake()->unique()->word() . '-' . time();
         $digits = fake()->unique()->numerify('1##########');
 
         $response = $this->graphQL('
