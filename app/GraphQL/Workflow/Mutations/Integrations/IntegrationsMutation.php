@@ -26,7 +26,7 @@ class IntegrationsMutation
     {
         $integration = Integrations::getById((int) $request['input']['integration']['id']);
         $company = CompaniesRepository::getById((int) $request['input']['company_id']);
-        $region = RegionRepository::getById((int) $request['input']['region']['id'], $company);
+        $region = RegionRepository::getByIdOrGlobal((int) $request['input']['region']['id'], $company, app(Apps::class));
         $user = auth()->user();
 
         if (! $user->isAppOwner()) {

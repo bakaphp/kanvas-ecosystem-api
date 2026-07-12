@@ -70,6 +70,12 @@ class CleanEnrichmentChangeNoiseCommand extends Command
         $apply = (bool) $this->option('force');
         $pruneEmpty = (bool) $this->option('prune-empty');
 
+        if ($apply && $pruneEmpty && ! $this->confirmPrune()) {
+            $this->warn('Aborted. Nothing was written.');
+
+            return self::SUCCESS;
+        }
+
         $emptied = 0;
         $partial = 0;
         $pruned = 0;
@@ -128,6 +134,21 @@ class CleanEnrichmentChangeNoiseCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * `--prune-empty` + `--force` permanently DELETEs events. This flag combo once wiped
+     * ~19.5k people.enriched rows for a single company (the rows were recoverable only from
+     * a table backup). Gate it behind an explicit confirmation, defaulting to "no", so an
+     * absent-minded re-run can't silently destroy the change feed again. In no-interaction
+     * mode (cron) confirm() returns the default → aborts, which is the safe outcome.
+     */
+    private function confirmPrune(): bool
+    {
+        $this->warn('⚠️  --prune-empty with --force will PERMANENTLY DELETE every people.enriched event that has no real change left after cleanup.');
+        $this->warn('This is irreversible and previously wiped ~19.5k events for one company. Prefer running WITHOUT --prune-empty — the rewrite keeps every row and preserves the verified count.');
+
+        return $this->confirm('Are you absolutely sure you want to DELETE emptied events?', false);
     }
 
     /**

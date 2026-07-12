@@ -6,6 +6,10 @@ type ActivityLog {
     event: String
     entity_id: Int @rename(attribute: "subject_id")
     causer_id: Int!
+    user: User
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Types\\ActivityLog\\ActivityLogType@user"
+        )
     properties: Mixed
     created_at: DateTime!
 }

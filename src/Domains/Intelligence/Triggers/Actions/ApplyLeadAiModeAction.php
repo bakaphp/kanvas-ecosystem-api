@@ -197,7 +197,9 @@ class ApplyLeadAiModeAction
 
     protected function logModeChangeNote(string $newMode): void
     {
-        $this->logSystemNote('Sally Mode set to ' . $newMode);
+        $agentName = $this->lead->aiSession()->with('agent.user')->first()?->agent?->user?->firstname ?? 'Sally';
+
+        $this->logSystemNote($agentName . ' Mode set to ' . $newMode);
     }
 
     protected function logFollowUpChangeNote(mixed $currentFollowUp): void

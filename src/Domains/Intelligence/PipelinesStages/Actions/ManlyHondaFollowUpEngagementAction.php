@@ -15,6 +15,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
+use Kanvas\Intelligence\PipelinesStages\Contracts\FollowUpTimeGateOverridable;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Services\DailyReportService;
@@ -30,7 +31,7 @@ use function Sentry\captureException;
  *
  * @deprecated use agent follow up
  */
-final class ManlyHondaFollowUpEngagementAction
+final class ManlyHondaFollowUpEngagementAction implements FollowUpTimeGateOverridable
 {
     private const array SUPPORTED_CHANNELS = [
         LeadCommunicationChannelEnum::SMS->value,
@@ -40,11 +41,19 @@ final class ManlyHondaFollowUpEngagementAction
     private const string MINUTES_NO_RESPONSE_KEY = 'minutes_no_response';
 
     protected array $skippedReasons = [];
+    protected bool $ignoreTimeGate = false;
 
     public function __construct(
         public Lead $lead,
         protected ?FollowUpLog $log = null,
     ) {
+    }
+
+    public function withIgnoreTimeGate(bool $ignore = true): static
+    {
+        $this->ignoreTimeGate = $ignore;
+
+        return $this;
     }
 
     public function execute(): ?array
@@ -96,7 +105,7 @@ final class ManlyHondaFollowUpEngagementAction
             ? abs($lastMessageTime->diffInMinutes(Carbon::now($timezone)))
             : PHP_INT_MAX;
 
-        if ($timeDiff < $minutesNoResponse) {
+        if (! $this->ignoreTimeGate && $timeDiff < $minutesNoResponse) {
             $this->logSkip(
                 'not_enough_time',
                 "Only {$timeDiff} minutes since last message, stage requires {$minutesNoResponse}"

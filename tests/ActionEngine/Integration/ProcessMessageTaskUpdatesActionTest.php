@@ -90,13 +90,154 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
     }
 
     /**
-     * Builds a get-docs company action + checklist for the auth user's company
-     * and pins it as the default checklist so the message processor resolves to
+     * Regression: a co-buyer's ID-verification submission used to complete the main
+     * buyer's task because both tasks share the same company action and the query
+     * ignored who was verified. A co-buyer item is flagged with a cobuyer-picker step;
+     * the message's contact_uuid resolves to a person other than the lead's main people.
+     */
+    public function testCoBuyerVerificationCompletesOnlyTheCoBuyerItem(): void
+    {
+        [$company, $lead] = $this->bootChecklist('id-verification', 'ID Verification');
+
+        $mainBuyer = $this->createRoleItem('Verify Mainbuyer DL', isCoBuyer: false);
+        $coBuyer = $this->createRoleItem('Verify Cobuyer DL', isCoBuyer: true);
+
+        new ProcessMessageTaskUpdatesAction(
+            $this->idVerificationMessage($lead, fake()->uuid()),
+            $lead,
+            auth()->user(),
+        )->execute();
+
+        $this->assertItemStatus($coBuyer, $lead, 'completed');
+        $this->assertItemUntouched($mainBuyer, $lead);
+
+        $company->del('default_checklist_id');
+    }
+
+    public function testMainBuyerVerificationCompletesOnlyTheMainBuyerItem(): void
+    {
+        [$company, $lead] = $this->bootChecklist('id-verification', 'ID Verification');
+
+        $mainBuyer = $this->createRoleItem('Verify Mainbuyer DL', isCoBuyer: false);
+        $coBuyer = $this->createRoleItem('Verify Cobuyer DL', isCoBuyer: true);
+
+        new ProcessMessageTaskUpdatesAction(
+            $this->idVerificationMessage($lead, $lead->people->uuid),
+            $lead,
+            auth()->user(),
+        )->execute();
+
+        $this->assertItemStatus($mainBuyer, $lead, 'completed');
+        $this->assertItemUntouched($coBuyer, $lead);
+
+        $company->del('default_checklist_id');
+    }
+
+    /**
+     * A plain id-verification item (no cobuyer-picker config — e.g. a company that doesn't use
+     * co-buyers) must still complete for the main buyer. The role predicate only excludes the
+     * opposite role; a step-less/empty config counts as main-buyer and is never dropped.
+     */
+    public function testPlainIdVerificationItemWithoutCobuyerConfigStillCompletes(): void
+    {
+        [$company, $lead] = $this->bootChecklist('id-verification', 'ID Verification');
+
+        $plainItem = TaskListItem::create([
+            'task_list_id' => $this->taskList->getId(),
+            'companies_action_id' => $this->companyAction->getId(),
+            'name' => 'Verify Driver License',
+            'config' => [],
+            'weight' => 1,
+        ]);
+
+        new ProcessMessageTaskUpdatesAction(
+            $this->idVerificationMessage($lead, $lead->people->uuid),
+            $lead,
+            auth()->user(),
+        )->execute();
+
+        $this->assertItemStatus($plainItem, $lead, 'completed');
+
+        $company->del('default_checklist_id');
+    }
+
+    /**
+     * Regression (Serra): the co-buyer's active DL item lives on the lead's active checklist,
+     * not the company default. Pinning the query to default_checklist_id returned "No task
+     * list items found", so the co-buyer was never marked. Id-verification must match across
+     * checklists.
+     */
+    public function testCoBuyerItemOnNonDefaultChecklistIsStillMatched(): void
+    {
+        [$company, $lead] = $this->bootChecklist('id-verification', 'ID Verification');
+
+        // Default checklist only carries the main buyer; the co-buyer item is on another list.
+        $mainBuyerOnDefault = $this->createRoleItem('Verify Mainbuyer DL', isCoBuyer: false);
+
+        $activeChecklist = TaskList::create([
+            'companies_id' => $company->getId(),
+            'apps_id' => app(Apps::class)->getId(),
+            'users_id' => auth()->user()->getId(),
+            'name' => 'Active Checklist ' . fake()->uuid(),
+            'config' => [],
+        ]);
+        $coBuyerOffDefault = $this->createRoleItem('Verify Cobuyer DL', isCoBuyer: true, taskList: $activeChecklist);
+
+        new ProcessMessageTaskUpdatesAction(
+            $this->idVerificationMessage($lead, fake()->uuid()),
+            $lead,
+            auth()->user(),
+        )->execute();
+
+        $this->assertItemStatus($coBuyerOffDefault, $lead, 'completed');
+        $this->assertItemUntouched($mainBuyerOnDefault, $lead);
+
+        $company->del('default_checklist_id');
+    }
+
+    /**
+     * Regression: with checklist_auto_complete_siblings on, completing a co-buyer item used
+     * to fan out to a same-named main-buyer item on another checklist because sibling
+     * matching keyed on name alone. The fan-out must stay within the source item's role.
+     */
+    public function testSiblingFanOutDoesNotCrossBuyerRoles(): void
+    {
+        [$company, $lead] = $this->bootChecklist('id-verification', 'ID Verification');
+        $company->set('checklist_auto_complete_siblings', 1);
+
+        $otherChecklist = TaskList::create([
+            'companies_id' => $company->getId(),
+            'apps_id' => app(Apps::class)->getId(),
+            'users_id' => auth()->user()->getId(),
+            'name' => 'Secondary Checklist ' . fake()->uuid(),
+            'config' => [],
+        ]);
+
+        // Same name across roles is what used to make the fan-out cross.
+        $coBuyer = $this->createRoleItem('Verify DL', isCoBuyer: true);
+        $mainBuyerSibling = $this->createRoleItem('Verify DL', isCoBuyer: false, taskList: $otherChecklist);
+
+        new ProcessMessageTaskUpdatesAction(
+            $this->idVerificationMessage($lead, fake()->uuid()),
+            $lead,
+            auth()->user(),
+        )->execute();
+
+        $this->assertItemStatus($coBuyer, $lead, 'completed');
+        $this->assertItemUntouched($mainBuyerSibling, $lead);
+
+        $company->del('checklist_auto_complete_siblings');
+        $company->del('default_checklist_id');
+    }
+
+    /**
+     * Builds a company action + checklist for the given action slug on the auth user's
+     * company and pins it as the default checklist so the message processor resolves to
      * exactly these items.
      *
      * @return array{0: Companies, 1: Lead}
      */
-    private function bootChecklist(): array
+    private function bootChecklist(string $actionSlug = 'get-docs', string $actionName = 'Get Docs'): array
     {
         // Creating the Engagement fires EngagementStatusChangedEvent, which renders
         // a push-notification template not seeded in CI. The test asserts on task
@@ -126,13 +267,13 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
         }
 
         $action = Action::firstOrCreate(
-            ['slug' => 'get-docs'],
+            ['slug' => $actionSlug],
             [
                 'companies_id' => 0,
                 'apps_id' => 0,
                 'users_id' => 0,
                 'pipelines_id' => $pipeline->getId(),
-                'name' => 'Get Docs',
+                'name' => $actionName,
                 'is_active' => 1,
                 'is_published' => 1,
                 'is_deleted' => 0,
@@ -145,7 +286,7 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
             'apps_id' => $app->getId(),
             'users_id' => $user->getId(),
             'actions_id' => $action->getId(),
-            'name' => 'Get Docs',
+            'name' => $actionName,
             'pipelines_id' => $pipeline->getId(),
             'is_active' => 1,
             'is_published' => 1,
@@ -179,6 +320,39 @@ final class ProcessMessageTaskUpdatesActionTest extends TestCase
             'config' => ['id' => $documentTypeId],
             'weight' => 1,
         ]);
+    }
+
+    private function createRoleItem(string $name, bool $isCoBuyer, ?TaskList $taskList = null): TaskListItem
+    {
+        $steps = [['data' => ['remote-only' => ['chrome']], 'type' => 'open-customer-action']];
+
+        if ($isCoBuyer) {
+            array_unshift($steps, ['data' => [], 'type' => 'cobuyer-picker']);
+        }
+
+        return TaskListItem::create([
+            'task_list_id' => ($taskList ?? $this->taskList)->getId(),
+            'companies_action_id' => $this->companyAction->getId(),
+            'name' => $name,
+            'config' => ['steps' => $steps, 'checkout' => ['hide' => true]],
+            'weight' => 1,
+        ]);
+    }
+
+    private function idVerificationMessage(Lead $lead, string $contactUuid): Message
+    {
+        $message = Message::factory()->create([
+            'message' => [
+                'verb' => 'id-verification',
+                'status' => 'submitted',
+                'data' => [],
+                'contact_uuid' => $contactUuid,
+            ],
+        ]);
+
+        $message->addEntity($lead);
+
+        return $message;
     }
 
     /**

@@ -60,8 +60,11 @@ class AssociatePaymentToOrderAction extends BaseOrderCorrectionAction
 
             new SyncPayablePaymentStatusAction($this->order)->execute();
 
+            // markAsPaid (not checkPayments) so the receiving order also transitions
+            // its order_status_id to 'paid' — mirroring the normal capture flow.
+            // checkPayments only fires the paid side-effects, it never moves the status.
             if ($this->order->isPaid()) {
-                $this->order->checkPayments();
+                $this->order->markAsPaid($this->user);
             }
 
             $this->logCorrection(

@@ -97,9 +97,27 @@ final class CleanEnrichmentChangeNoiseCommandTest extends TestCase
         $id = $event->id;
 
         $this->artisan(self::COMMAND, ['app_id' => $app->getId(), '--force' => true, '--prune-empty' => true])
+            ->expectsConfirmation('Are you absolutely sure you want to DELETE emptied events?', 'yes')
             ->assertSuccessful();
 
         $this->assertNull(Event::query()->find($id), 'An event left with no real change is pruned.');
+    }
+
+    public function test_prune_empty_declining_confirmation_deletes_nothing(): void
+    {
+        $app = app(Apps::class);
+        $entityId = random_int(800000, 899999);
+
+        $event = $this->seedEvent($app, $entityId, [
+            'current_employer' => ['from' => '', 'to' => 'Nowhere Inc'],
+        ]);
+        $id = $event->id;
+
+        $this->artisan(self::COMMAND, ['app_id' => $app->getId(), '--force' => true, '--prune-empty' => true])
+            ->expectsConfirmation('Are you absolutely sure you want to DELETE emptied events?', 'no')
+            ->assertSuccessful();
+
+        $this->assertNotNull(Event::query()->find($id), 'Declining the confirmation must leave the event untouched.');
     }
 
     public function test_strips_a_move_to_a_past_employer(): void

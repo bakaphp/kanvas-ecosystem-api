@@ -28,7 +28,7 @@ class UpdateRuleAction
                 'description' => $this->data->description,
                 'rules_types_id' => $this->data->ruleType->getId(),
                 'systems_modules_id' => $this->data->systemModule->getId(),
-                'companies_id' => $this->data->company->getId(),
+                'companies_id' => $this->rule->companies_id === 0 ? 0 : $this->data->company->getId(),
                 'pattern' => $this->data->pattern,
                 'params' => $this->data->params,
                 'is_async' => $this->data->is_async,

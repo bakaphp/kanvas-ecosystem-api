@@ -13,6 +13,7 @@ use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Pipelines\Repositories\PipelineStageRepository;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\ActionEngine\Tasks\Traits\ExtractsSubmittedDocumentTypes;
+use Kanvas\ActionEngine\Tasks\Traits\IdentifiesCoBuyerTaskItems;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
@@ -21,6 +22,12 @@ use Throwable;
 class ProcessMessageTaskUpdatesAction
 {
     use ExtractsSubmittedDocumentTypes;
+    use IdentifiesCoBuyerTaskItems;
+
+    /** Verbs whose task items split into main-buyer vs co-buyer; add new ones here. */
+    protected const COBUYER_AWARE_VERBS = [
+        ActionEnum::ID_VERIFICATION->value,
+    ];
 
     public function __construct(
         protected Message $message,
@@ -89,11 +96,39 @@ class ProcessMessageTaskUpdatesAction
         $query = TaskListItem::where('companies_action_id', $companyAction->getId())
             ->where('is_deleted', 0);
 
-        if ($checkListId) {
+        // Co-buyer-aware verbs mark the verified person's task on every checklist: the active
+        // item can live on a checklist other than the company default (the message's checklist
+        // hint is unreliable), so don't pin to one list — applyPersonRoleScope below keeps it
+        // to the correct buyer, and each buyer only has one non-deleted item per checklist.
+        if ($checkListId && ! in_array($verb, self::COBUYER_AWARE_VERBS, true)) {
             $query->where('task_list_id', $checkListId);
         }
 
+        $this->applyPersonRoleScope($query, $messageData);
+
         return $this->applyDataConditions($query, $messageData);
+    }
+
+    /**
+     * Main-buyer and co-buyer tasks share the same company action, so key off the verified
+     * person instead: `contact_uuid` differs from the lead's main people for a co-buyer, and
+     * co-buyer items carry a `cobuyer-picker` config step. Scoped mutually exclusively — a
+     * co-buyer completes only cobuyer-picker items, the main buyer only the rest.
+     */
+    protected function applyPersonRoleScope(Builder $query, array $messageData): Builder
+    {
+        if (! in_array($messageData['verb'] ?? null, self::COBUYER_AWARE_VERBS, true)) {
+            return $query;
+        }
+
+        $contactUuid = $messageData['contact_uuid'] ?? null;
+        $mainPeopleUuid = $this->lead->people->uuid ?? null;
+
+        $isCoBuyer = $contactUuid !== null
+            && $mainPeopleUuid !== null
+            && $contactUuid !== $mainPeopleUuid;
+
+        return $query->whereRaw($this->coBuyerConfigPredicate('config', $isCoBuyer));
     }
 
     protected function getCheckListId(array $messageData): ?int

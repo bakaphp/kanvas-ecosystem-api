@@ -8,9 +8,11 @@ use Laravel\Ai\Gateway\Gemini\GeminiGateway;
 use Laravel\Ai\Gateway\TextGenerationOptions;
 use Laravel\Ai\Providers\Provider;
 use Laravel\Ai\Providers\Tools\ProviderTool;
+use Override;
 
 class KanvasGeminiGateway extends GeminiGateway
 {
+    #[Override]
     protected function buildTextRequestBody(
         Provider $provider,
         ?string $instructions,
@@ -19,35 +21,13 @@ class KanvasGeminiGateway extends GeminiGateway
         ?array $schema,
         ?TextGenerationOptions $options,
     ): array {
-        [$body, $contents] = parent::buildTextRequestBody(
+        $body = parent::buildTextRequestBody(
             $provider,
             $instructions,
             $messages,
             $tools,
             $schema,
             $options,
-        );
-
-        $this->injectServerSideToolFlag($body, $tools);
-
-        return [$body, $contents];
-    }
-
-    protected function rebuildContinuationBody(
-        array $contents,
-        ?string $instructions,
-        array $tools,
-        ?array $schema,
-        ?TextGenerationOptions $options,
-        Provider $provider,
-    ): array {
-        $body = parent::rebuildContinuationBody(
-            $contents,
-            $instructions,
-            $tools,
-            $schema,
-            $options,
-            $provider,
         );
 
         $this->injectServerSideToolFlag($body, $tools);
