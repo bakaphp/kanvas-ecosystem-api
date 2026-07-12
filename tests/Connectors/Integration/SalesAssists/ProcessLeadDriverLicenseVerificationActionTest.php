@@ -318,7 +318,15 @@ class ProcessLeadDriverLicenseVerificationActionTest extends TestCase
             'weight' => 1,
         ]);
 
-        $action = Action::getBySlug(ConfigurationEnum::ID_VERIFICATION->value, $company);
+        $action = Action::firstOrCreate([
+            'slug' => ConfigurationEnum::ID_VERIFICATION->value,
+        ], [
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'pipelines_id' => $pipeline->getId(),
+            'name' => 'ID Verification',
+        ]);
 
         $branch = $company->defaultBranch ?? $company->branch()->firstOrFail();
 
