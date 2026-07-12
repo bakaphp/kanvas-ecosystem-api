@@ -227,8 +227,11 @@ class ManlyHondaFollowUpEngagementActionTest extends TestCase
 
         $this->setupViewVehicleActionPipeline($app, $user, $company);
 
-        $timezone = $lead->company->get('timezone') ?? 'UTC';
-        $messageTime = Carbon::now($timezone)->subMinutes($lastMessageAgeMinutes);
+        // created_at is persisted and re-read in the app default timezone, so build
+        // the message time on that same clock. Using the company timezone here would
+        // inject the tz offset on save (never converted back on read) and make even a
+        // 10-minute-old message look hours stale.
+        $messageTime = Carbon::now()->subMinutes($lastMessageAgeMinutes);
 
         $smsChannelDto = ChannelDto::from([
             'apps' => $app,
