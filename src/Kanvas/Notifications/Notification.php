@@ -85,6 +85,10 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function via(object $notifiable): array
     {
+        if (! $this->isNotifiableReceivable($notifiable)) {
+            return [];
+        }
+
         $channels = $this->getNotificationChannels();
 
         if ($this->shouldFilterChannelsByUserSettings($notifiable)) {
@@ -94,6 +98,25 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         $this->setNotifiableData($notifiable);
 
         return $channels;
+    }
+
+    private function isNotifiableReceivable(object $notifiable): bool
+    {
+        if (! $notifiable instanceof UserInterface) {
+            return true;
+        }
+
+        // Globally removed users never receive anything for any app.
+        if ($notifiable instanceof Users && $notifiable->is_deleted) {
+            return false;
+        }
+
+        try {
+            return $notifiable->getAppProfile($this->app)->isActive();
+        } catch (ModelNotFoundException) {
+            // No membership row for this app — fall back to the global flags.
+            return $notifiable->isActive() && ! $notifiable->isBanned();
+        }
     }
 
     /**

@@ -160,6 +160,11 @@ class SetupRolesCommand extends Command
                 MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::OPERATIONS,
             ],
+            'relocate' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::OPERATIONS,
+            ],
             'admin-reverse-transition' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,

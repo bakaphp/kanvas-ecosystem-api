@@ -57,7 +57,8 @@ class OrganizationTest extends TestCase
     {
         $user = auth()->user();
         $branch = $user->getCurrentBranch();
-        $name = fake()->company();
+        // Suffix-free name so OrganizationNameNormalizerService leaves it untouched.
+        $name = 'Org-' . fake()->unique()->word() . '-' . time();
 
         $input = [
             'name' => $name,
@@ -66,7 +67,7 @@ class OrganizationTest extends TestCase
 
         $this->graphQL('
         mutation($input: OrganizationInput!) {
-            createOrganization(input: $input) {                
+            createOrganization(input: $input) {
                 name
             }
         }
@@ -96,7 +97,8 @@ class OrganizationTest extends TestCase
 
         $organizationId = $response['data']['createOrganization']['id'];
 
-        $newName = fake()->company();
+        // Suffix-free name so OrganizationNameNormalizerService leaves it untouched.
+        $newName = 'Org-' . fake()->unique()->word() . '-' . time();
 
         $input = [
             'name' => $newName,
@@ -261,6 +263,94 @@ class OrganizationTest extends TestCase
         ', ['search' => $uniqueName])
             ->assertSuccessful()
             ->assertJsonPath('data.organizations.data.0.name', $uniqueName);
+    }
+
+    public function testCreateOrganizationNormalizesAndSavesPhone(): void
+    {
+        // Suffix-free name: fake()->company() randomly appends a legal suffix (LLC,
+        // Inc, ...) that OrganizationNameNormalizerService strips on save, which would
+        // make the name assertion flaky. This test only cares about phone normalization.
+        $name = 'OrgPhone-' . fake()->unique()->word() . '-' . time();
+        $digits = fake()->unique()->numerify('1##########');
+
+        $response = $this->graphQL('
+            mutation($input: OrganizationInput!) {
+                createOrganization(input: $input) {
+                    id
+                    name
+                    email
+                    phone
+                }
+            }
+        ', [
+            'input' => [
+                'name' => $name,
+                'email' => 'org-' . fake()->unique()->safeEmail(),
+                // Formatted on the way in — must be stored as bare digits, like People contacts.
+                'phone' => '+' . substr($digits, 0, 1) . ' (' . substr($digits, 1, 3) . ') ' . substr($digits, 4, 3) . '-' . substr($digits, 7),
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJsonPath('data.createOrganization.name', $name)
+        ->assertJsonPath('data.createOrganization.phone', $digits);
+
+        $organizationId = (int) $response->json('data.createOrganization.id');
+        $this->assertSame($digits, Organization::find($organizationId)->phone);
+    }
+
+    public function testUpdateOrganizationNormalizesAndSavesPhone(): void
+    {
+        $response = $this->createOrganizationAndGetResponse();
+        $organizationId = $response['data']['createOrganization']['id'];
+        $digits = fake()->unique()->numerify('1##########');
+
+        $this->graphQL('
+            mutation($id: ID!, $input: OrganizationInput!) {
+                updateOrganization(id: $id, input: $input) {
+                    id
+                    phone
+                }
+            }
+        ', [
+            'id' => $organizationId,
+            'input' => [
+                'name' => fake()->company(),
+                'phone' => '(' . substr($digits, 1, 3) . ') ' . substr($digits, 4, 3) . '-' . substr($digits, 7),
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJsonPath('data.updateOrganization.phone', substr($digits, 1));
+
+        $this->assertSame(substr($digits, 1), Organization::find((int) $organizationId)->phone);
+    }
+
+    public function testFilterOrganizationsByPhone(): void
+    {
+        $digits = fake()->unique()->numerify('1##########');
+
+        $this->createOrganizationAndGetResponse([
+            'name' => fake()->company(),
+            'phone' => '+' . $digits,
+        ]);
+
+        $this->graphQL('
+            query($where: QueryOrganizationsWhereWhereConditions) {
+                organizations(where: $where) {
+                    data {
+                        id
+                        phone
+                    }
+                }
+            }
+        ', [
+            'where' => [
+                'column' => 'PHONE',
+                'operator' => 'EQ',
+                'value' => $digits,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJsonPath('data.organizations.data.0.phone', $digits);
     }
 
     public function testRestoreOrganization()

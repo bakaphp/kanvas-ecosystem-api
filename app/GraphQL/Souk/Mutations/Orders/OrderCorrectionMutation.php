@@ -7,7 +7,7 @@ namespace App\GraphQL\Souk\Mutations\Orders;
 use Illuminate\Support\Facades\Gate;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\Corrections\AddObservationsAction;
-use Kanvas\Connectors\Movipass\Actions\Corrections\AdjustOrderItemAmountAction;
+use Kanvas\Connectors\Movipass\Actions\Corrections\AdjustOrderItemsAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\AssociatePaymentToOrderAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\CorrectVehiclePlateAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\MarkOrderAsDuplicateAction;
@@ -26,7 +26,8 @@ class OrderCorrectionMutation
 
         $correctionType = $request['correction_type'];
 
-        Gate::authorize($correctionType, Order::class);
+        // ability-name only — a model arg would trip the module-access gate (view-module-commerce), which order mutations don't require
+        Gate::authorize($correctionType);
 
         $order = Order::getByIdFromCompanyApp(
             (int) $request['order_id'],
@@ -53,13 +54,12 @@ class OrderCorrectionMutation
                 $reason,
                 $evidenceUrls,
             )->execute(),
-            'adjust-amount' => new AdjustOrderItemAmountAction(
+            'adjust-amount' => new AdjustOrderItemsAction(
                 $order,
                 $user,
-                (float) ($data['new_amount'] ?? throw new ValidationException('data.new_amount is required for adjust-amount')),
+                (array) ($data['operations'] ?? throw new ValidationException('data.operations is required for adjust-amount')),
                 $reason,
                 $evidenceUrls,
-                isset($data['variant_id']) ? (int) $data['variant_id'] : null,
             )->execute(),
             'mark-duplicate' => new MarkOrderAsDuplicateAction(
                 $order,

@@ -8,6 +8,7 @@ use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\ActionEngine\Pipelines\Models\PipelineStage;
+use Kanvas\Apps\Actions\SyncEmailTemplateAction;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\SalesAssist\Actions\ProcessLeadDriverLicenseVerificationAction;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
@@ -300,6 +301,11 @@ class ProcessLeadDriverLicenseVerificationActionTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
+        // the engagement status-change fires an OneSignal notification that renders
+        // the engagement-status-changed template; seed it (and siblings) from the
+        // blade sources so the notification path runs for real on a fresh DB.
+        new SyncEmailTemplateAction($app, $user)->execute(overWrite: false);
+
         $pipeline = Pipeline::firstOrCreate([
             'slug' => ConfigurationEnum::ID_VERIFICATION->value,
             'companies_id' => $company->getId(),
@@ -318,7 +324,17 @@ class ProcessLeadDriverLicenseVerificationActionTest extends TestCase
             'weight' => 1,
         ]);
 
-        $action = Action::getBySlug(ConfigurationEnum::ID_VERIFICATION->value, $company);
+        $action = Action::firstOrCreate([
+            'slug' => ConfigurationEnum::ID_VERIFICATION->value,
+        ], [
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'pipelines_id' => $pipeline->getId(),
+            'name' => 'ID Verification',
+        ]);
+
+        $branch = $company->defaultBranch ?? $company->branch()->firstOrFail();
 
         CompanyAction::firstOrCreate([
             'actions_id' => $action->getId(),
@@ -326,7 +342,7 @@ class ProcessLeadDriverLicenseVerificationActionTest extends TestCase
             'apps_id' => $app->getId(),
         ], [
             'users_id' => $user->getId(),
-            'companies_branches_id' => $company->defaultBranch->getId(),
+            'companies_branches_id' => $branch->getId(),
             'pipelines_id' => $pipeline->getId(),
             'name' => 'ID Verification',
         ]);

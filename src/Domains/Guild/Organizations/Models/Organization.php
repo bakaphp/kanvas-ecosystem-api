@@ -41,6 +41,8 @@ use Override;
  * @property int $users_id
  * @property int $companies_id
  * @property string $name
+ * @property ?string $email = null
+ * @property ?string $phone = null
  * @property ?string $address = null
  * @property int $total_employees
  * @property int|null $merged_into_organization_id
@@ -151,6 +153,8 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
             'apps_id' => $this->apps_id,
             'companies_id' => $this->companies_id,
             'name' => $this->name,
+            'email' => $this->email,
+            'phone' => $this->phone,
             'address' => $this->address,
             'total_employees' => $this->total_employees,
         ];

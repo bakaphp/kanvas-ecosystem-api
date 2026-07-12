@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "795d2a7b3d1d3f4c08bd1c8df91dfa5f",
+    "content-hash": "c4590936994f177eb1666764e7fd65e7",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
-            "version": "4.46.1",
+            "version": "4.46.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/algolia/algoliasearch-client-php.git",
-                "reference": "92e7587abf17aa4e9fd9d14f281582594bd4ac9c"
+                "reference": "fb738213d0dc0df6bb241f547e9721f417c229de"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/algolia/algoliasearch-client-php/zipball/92e7587abf17aa4e9fd9d14f281582594bd4ac9c",
-                "reference": "92e7587abf17aa4e9fd9d14f281582594bd4ac9c",
+                "url": "https://api.github.com/repos/algolia/algoliasearch-client-php/zipball/fb738213d0dc0df6bb241f547e9721f417c229de",
+                "reference": "fb738213d0dc0df6bb241f547e9721f417c229de",
                 "shasum": ""
             },
             "require": {
@@ -69,9 +69,9 @@
             ],
             "support": {
                 "issues": "https://github.com/algolia/algoliasearch-client-php/issues",
-                "source": "https://github.com/algolia/algoliasearch-client-php/tree/4.46.1"
+                "source": "https://github.com/algolia/algoliasearch-client-php/tree/4.46.2"
             },
-            "time": "2026-06-23T12:44:33+00:00"
+            "time": "2026-07-07T18:53:22+00:00"
         },
         {
             "name": "algolia/scout-extended",
@@ -384,16 +384,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.387.3",
+            "version": "3.388.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "20818be961ace3ef01c1aed3c247e71b26020149"
+                "reference": "6dd9a0674641ef7d302a50cc8f275eb443182dc9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/20818be961ace3ef01c1aed3c247e71b26020149",
-                "reference": "20818be961ace3ef01c1aed3c247e71b26020149",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/6dd9a0674641ef7d302a50cc8f275eb443182dc9",
+                "reference": "6dd9a0674641ef7d302a50cc8f275eb443182dc9",
                 "shasum": ""
             },
             "require": {
@@ -475,9 +475,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.387.3"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.388.0"
             },
-            "time": "2026-07-06T18:13:24+00:00"
+            "time": "2026-07-07T18:11:48+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -2880,22 +2880,22 @@
         },
         {
             "name": "guzzlehttp/guzzle",
-            "version": "7.13.2",
+            "version": "7.14.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/guzzle.git",
-                "reference": "bcd989ad36c92d42a3715379af91f2defee5b8dd"
+                "reference": "aef242412e13128b5049864867bb49fc37dd39de"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/bcd989ad36c92d42a3715379af91f2defee5b8dd",
-                "reference": "bcd989ad36c92d42a3715379af91f2defee5b8dd",
+                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/aef242412e13128b5049864867bb49fc37dd39de",
+                "reference": "aef242412e13128b5049864867bb49fc37dd39de",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
-                "guzzlehttp/promises": "^2.5",
-                "guzzlehttp/psr7": "^2.12.3",
+                "guzzlehttp/promises": "^2.5.1",
+                "guzzlehttp/psr7": "^2.12.4",
                 "php": "^7.2.5 || ^8.0",
                 "psr/http-client": "^1.0",
                 "symfony/deprecation-contracts": "^2.5 || ^3.0",
@@ -2988,7 +2988,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/guzzle/issues",
-                "source": "https://github.com/guzzle/guzzle/tree/7.13.2"
+                "source": "https://github.com/guzzle/guzzle/tree/7.14.0"
             },
             "funding": [
                 {
@@ -3004,20 +3004,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-07-05T19:00:11+00:00"
+            "time": "2026-07-08T22:54:09+00:00"
         },
         {
             "name": "guzzlehttp/promises",
-            "version": "2.5.0",
+            "version": "2.5.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/promises.git",
-                "reference": "4360e982f87f5f258bf872d094647791db2f4c8e"
+                "reference": "9ad1e4fc607446a055b95870c7f668e93b5cff29"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/promises/zipball/4360e982f87f5f258bf872d094647791db2f4c8e",
-                "reference": "4360e982f87f5f258bf872d094647791db2f4c8e",
+                "url": "https://api.github.com/repos/guzzle/promises/zipball/9ad1e4fc607446a055b95870c7f668e93b5cff29",
+                "reference": "9ad1e4fc607446a055b95870c7f668e93b5cff29",
                 "shasum": ""
             },
             "require": {
@@ -3072,7 +3072,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/promises/issues",
-                "source": "https://github.com/guzzle/promises/tree/2.5.0"
+                "source": "https://github.com/guzzle/promises/tree/2.5.1"
             },
             "funding": [
                 {
@@ -3088,20 +3088,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-06-02T12:23:43+00:00"
+            "time": "2026-07-08T15:48:39+00:00"
         },
         {
             "name": "guzzlehttp/psr7",
-            "version": "2.12.3",
+            "version": "2.12.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/psr7.git",
-                "reference": "7ec62dc3f44aa218487dbed81a9bf9bc647be55d"
+                "reference": "51e27f9e2b332ab3e72f4520d5ff4f3c68c3577c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/psr7/zipball/7ec62dc3f44aa218487dbed81a9bf9bc647be55d",
-                "reference": "7ec62dc3f44aa218487dbed81a9bf9bc647be55d",
+                "url": "https://api.github.com/repos/guzzle/psr7/zipball/51e27f9e2b332ab3e72f4520d5ff4f3c68c3577c",
+                "reference": "51e27f9e2b332ab3e72f4520d5ff4f3c68c3577c",
                 "shasum": ""
             },
             "require": {
@@ -3191,7 +3191,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/psr7/issues",
-                "source": "https://github.com/guzzle/psr7/tree/2.12.3"
+                "source": "https://github.com/guzzle/psr7/tree/2.12.4"
             },
             "funding": [
                 {
@@ -3207,20 +3207,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-06-23T15:21:08+00:00"
+            "time": "2026-07-08T15:56:20+00:00"
         },
         {
             "name": "guzzlehttp/uri-template",
-            "version": "v1.0.8",
+            "version": "v1.0.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/uri-template.git",
-                "reference": "9c19128923b05a5d7355e5d2318d7808b7e33bbd"
+                "reference": "d7580af6d3f8384325d9cd3e99b21c3ed1848176"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/uri-template/zipball/9c19128923b05a5d7355e5d2318d7808b7e33bbd",
-                "reference": "9c19128923b05a5d7355e5d2318d7808b7e33bbd",
+                "url": "https://api.github.com/repos/guzzle/uri-template/zipball/d7580af6d3f8384325d9cd3e99b21c3ed1848176",
+                "reference": "d7580af6d3f8384325d9cd3e99b21c3ed1848176",
                 "shasum": ""
             },
             "require": {
@@ -3277,7 +3277,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/uri-template/issues",
-                "source": "https://github.com/guzzle/uri-template/tree/v1.0.8"
+                "source": "https://github.com/guzzle/uri-template/tree/v1.0.9"
             },
             "funding": [
                 {
@@ -3293,7 +3293,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-06-23T13:02:23+00:00"
+            "time": "2026-07-08T16:19:22+00:00"
         },
         {
             "name": "haydenpierce/class-finder",
@@ -4189,16 +4189,16 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v0.8.1",
+            "version": "v0.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "b23bc857576d7c4b3bb52ffd8be936ae74005d23"
+                "reference": "1091772a6c2dba104c741286b4a73cc71a47cd00"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/b23bc857576d7c4b3bb52ffd8be936ae74005d23",
-                "reference": "b23bc857576d7c4b3bb52ffd8be936ae74005d23",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/1091772a6c2dba104c741286b4a73cc71a47cd00",
+                "reference": "1091772a6c2dba104c741286b4a73cc71a47cd00",
                 "shasum": ""
             },
             "require": {
@@ -4259,7 +4259,7 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-06-10T11:23:35+00:00"
+            "time": "2026-07-07T17:38:48+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -4352,16 +4352,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v13.18.1",
+            "version": "v13.19.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "7d66044819e269f05924793a6800022dc181d850"
+                "reference": "514502b38e11bd676ecf83b271c9452cc7500f16"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/7d66044819e269f05924793a6800022dc181d850",
-                "reference": "7d66044819e269f05924793a6800022dc181d850",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/514502b38e11bd676ecf83b271c9452cc7500f16",
+                "reference": "514502b38e11bd676ecf83b271c9452cc7500f16",
                 "shasum": ""
             },
             "require": {
@@ -4572,7 +4572,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2026-07-02T18:35:20+00:00"
+            "time": "2026-07-07T14:13:33+00:00"
         },
         {
             "name": "laravel/octane",
@@ -6604,16 +6604,16 @@
         },
         {
             "name": "mike-bronner/laravel-model-caching",
-            "version": "13.1.5",
+            "version": "13.1.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mike-bronner/laravel-model-caching.git",
-                "reference": "2b81426e076ca5c9a0896ba9ed830bf55d44fa8f"
+                "reference": "d234967c6848e32059ddd2e44964f48651a12573"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/2b81426e076ca5c9a0896ba9ed830bf55d44fa8f",
-                "reference": "2b81426e076ca5c9a0896ba9ed830bf55d44fa8f",
+                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/d234967c6848e32059ddd2e44964f48651a12573",
+                "reference": "d234967c6848e32059ddd2e44964f48651a12573",
                 "shasum": ""
             },
             "require": {
@@ -6677,9 +6677,9 @@
             "description": "Automatic caching for Eloquent models.",
             "support": {
                 "issues": "https://github.com/mike-bronner/laravel-model-caching/issues",
-                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.5"
+                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.6"
             },
-            "time": "2026-07-02T15:43:49+00:00"
+            "time": "2026-07-07T23:40:51+00:00"
         },
         {
             "name": "mikebronner/laravel-pivot-events",
@@ -18220,16 +18220,16 @@
         },
         {
             "name": "laravel/boost",
-            "version": "v2.4.11",
+            "version": "v2.4.12",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/boost.git",
-                "reference": "c98fc9d151de97a1864b51fc7c710fc03023ba17"
+                "reference": "d43bdf901fee8d216145cb062c9847c892844908"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/boost/zipball/c98fc9d151de97a1864b51fc7c710fc03023ba17",
-                "reference": "c98fc9d151de97a1864b51fc7c710fc03023ba17",
+                "url": "https://api.github.com/repos/laravel/boost/zipball/d43bdf901fee8d216145cb062c9847c892844908",
+                "reference": "d43bdf901fee8d216145cb062c9847c892844908",
                 "shasum": ""
             },
             "require": {
@@ -18282,7 +18282,7 @@
                 "issues": "https://github.com/laravel/boost/issues",
                 "source": "https://github.com/laravel/boost"
             },
-            "time": "2026-06-26T08:21:49+00:00"
+            "time": "2026-07-08T09:53:34+00:00"
         },
         {
             "name": "laravel/mcp",

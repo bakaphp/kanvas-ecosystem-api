@@ -9,11 +9,14 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
 use Kanvas\Souk\Orders\Models\OrderStatus;
+use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
 use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Users\Models\Users;
@@ -169,6 +172,48 @@ final class AmendOrderTest extends TestCase
         $this->assertSame('Test log query', $correctionLog['properties']['reason']);
     }
 
+    public function testActivityLogsExposeCauserUser(): void
+    {
+        $order = $this->createTestOrder([
+            'order_number' => 99911,
+            'metadata' => ['data' => ['vehiclePlate' => 'USR001', 'vehicleBrand' => 'Kia']],
+            'reference' => 'Kia / USR001 - #99911',
+        ]);
+
+        $response = $this->graphQL('
+            mutation($order_id: ID!, $data: Mixed) {
+                amendOrder(
+                    order_id: $order_id
+                    correction_type: "correct-plate"
+                    reason: "Expose causer user"
+                    data: $data
+                ) {
+                    id
+                    activityLogs {
+                        data {
+                            causer_id
+                            user {
+                                id
+                            }
+                        }
+                    }
+                }
+            }
+        ', [
+            'order_id' => $order->id,
+            'data' => ['new_plate' => 'USR999'],
+        ]);
+
+        $response->assertSuccessful();
+
+        $logs = $response->json('data.amendOrder.activityLogs.data');
+        $this->assertNotEmpty($logs);
+
+        $log = collect($logs)->firstWhere('causer_id', (int) $this->kanvasUser->getId());
+        $this->assertNotNull($log, 'activity log should be attributed to the acting user');
+        $this->assertSame((string) $this->kanvasUser->getId(), (string) $log['user']['id']);
+    }
+
     public function testAmendOrderReturnsErrorOnUnknownCorrectionType(): void
     {
         $order = $this->createTestOrder();
@@ -264,6 +309,117 @@ final class AmendOrderTest extends TestCase
         $this->assertEmpty($wrongOrder->payments()->where('uuid', $payment->uuid)->get());
         $wrongOrder->refresh();
         $this->assertSame('unpaid', $wrongOrder->payment_status);
+    }
+
+    public function testAmendOrderAssociatePaymentTransitionsReceivingOrderToPaid(): void
+    {
+        $prePaymentStatus = OrderStatus::where('slug', 'awaiting_payment')->first();
+        $paidStatus = OrderStatus::where('slug', 'paid')
+            ->when($prePaymentStatus, fn ($q) => $q->where('order_types_id', $prePaymentStatus->order_types_id))
+            ->first();
+
+        if (! $prePaymentStatus || ! $paidStatus) {
+            $this->markTestSkipped('Required order statuses (awaiting_payment/paid) not found in test DB');
+        }
+
+        // The receiving order must have a defined forward transition to 'paid'.
+        OrderStatusTransitions::firstOrCreate([
+            'order_types_id' => $prePaymentStatus->order_types_id,
+            'from_status_id' => $prePaymentStatus->id,
+            'to_status_id' => $paidStatus->id,
+        ], [
+            'name' => 'awaiting_payment_to_paid',
+        ]);
+
+        $company = $this->kanvasUser->getCurrentCompany();
+        $region = Regions::getDefault($company, $this->kanvasApp);
+
+        $person = People::withoutSyncingToSearch(
+            fn () => People::factory()
+                ->withAppId($this->kanvasApp->getId())
+                ->withCompanyId($company->getId())
+                ->create()
+        );
+
+        // Receiving order sits at awaiting_payment, unpaid.
+        $correctOrder = Order::withoutSyncingToSearch(
+            fn () => Order::factory()
+                ->withAppId($this->kanvasApp->getId())
+                ->withCompanyId($company->getId())
+                ->withUserId($this->kanvasUser->getId())
+                ->create([
+                    'region_id' => $region->getId(),
+                    'people_id' => $person->id,
+                    'order_number' => 99908,
+                    'order_types_id' => $prePaymentStatus->order_types_id,
+                    'order_status_id' => $prePaymentStatus->id,
+                    'total_net_amount' => 4000,
+                    'payment_status' => 'unpaid',
+                ])
+        );
+
+        OrderTransitionHistory::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $company->getId(),
+            'order_id' => $correctOrder->id,
+            'transition_id' => null,
+            'from_status_id' => null,
+            'to_status_id' => $prePaymentStatus->id,
+            'description' => 'initial awaiting_payment',
+            'metadata' => [],
+            'is_current' => true,
+            'changed_at' => now(),
+            'changed_by' => $this->kanvasUser->getId(),
+        ]);
+
+        // Payment currently sits on a different (wrong) order.
+        $wrongOrder = Order::withoutSyncingToSearch(
+            fn () => Order::factory()
+                ->withAppId($this->kanvasApp->getId())
+                ->withCompanyId($company->getId())
+                ->withUserId($this->kanvasUser->getId())
+                ->create(['region_id' => $region->getId(), 'people_id' => $person->id, 'order_number' => 99909])
+        );
+
+        $payment = new Payments();
+        $payment->apps_id = $this->kanvasApp->getId();
+        $payment->companies_id = $company->getId();
+        $payment->users_id = $this->kanvasUser->getId();
+        $payment->amount = 4000;
+        $payment->currency = 'DOP';
+        $payment->payment_date = now()->toDateString();
+        $payment->concept = 'Pago orden equivocada';
+        $payment->status = 'paid';
+        $payment->payment_method = 'cash';
+        $payment->payable_id = $wrongOrder->id;
+        $payment->payable_type = Order::class;
+        $payment->save();
+
+        $response = $this->graphQL('
+            mutation($order_id: ID!, $data: Mixed) {
+                amendOrder(
+                    order_id: $order_id
+                    correction_type: "associate-payment"
+                    reason: "Pago registrado en orden incorrecta"
+                    data: $data
+                ) { id }
+            }
+        ', [
+            'order_id' => $correctOrder->id,
+            'data' => ['payment_uuid' => $payment->uuid],
+        ]);
+
+        $response->assertSuccessful();
+        if ($response->json('errors')) {
+            $this->fail('GraphQL errors: ' . json_encode($response->json('errors')));
+        }
+
+        $correctOrder->refresh();
+
+        // The receiving order transitions its order_status_id to 'paid' (the bug: it
+        // stayed put because the action fired side-effects but never called markAsPaid).
+        $this->assertSame($paidStatus->id, (int) $correctOrder->order_status_id);
+        $this->assertSame('paid', $correctOrder->payment_status);
     }
 
     public function testAmendOrderAssociatePaymentRollsBackStatusAndFulfillmentWhenOrderPastPaid(): void
@@ -393,19 +549,108 @@ final class AmendOrderTest extends TestCase
         $this->assertSame($prePaymentStatus->id, (int) $newHistory->to_status_id);
     }
 
-    public function testAmendOrderRelocateVehicleSwapsVariantAndUpdatesMetadata(): void
+    public function testAmendOrderAdjustItemsAppliesUpdateAndAddInOneCorrection(): void
     {
-        $impoundLotVariants = Variants::whereHas(
-            'product.productType',
-            fn ($q) => $q->where('slug', 'impound_lot')
-        )->take(2)->get();
+        $company = $this->kanvasUser->getCurrentCompany();
 
-        if ($impoundLotVariants->count() < 2) {
-            $this->markTestSkipped('Need at least 2 impound_lot variants in test DB');
+        $serviceType = ProductsTypes::factory()
+            ->company($company->getId())
+            ->create(['slug' => 'services', 'name' => 'services']);
+
+        $serviceProduct = Variants::withoutSyncingToSearch(
+            fn () => Products::withoutSyncingToSearch(
+                fn () => Products::factory()
+                    ->withAppId($this->kanvasApp->getId())
+                    ->withCompanyId($company->getId())
+                    ->create(['products_types_id' => $serviceType->id])
+            )
+        );
+        $serviceVariant = $serviceProduct->variants()->first();
+
+        $order = $this->createTestOrder(['order_number' => 99912]);
+
+        $serviceItem = $order->allItems()->create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'product_name' => $serviceVariant->product->name,
+            'product_sku' => $serviceVariant->sku,
+            'quantity' => 1,
+            'unit_price_net_amount' => 400,
+            'unit_price_gross_amount' => 400,
+            'is_shipping_required' => false,
+            'quantity_fulfilled' => 0,
+            'variant_id' => $serviceVariant->id,
+            'variant_name' => $serviceVariant->name,
+            'tax_rate' => 0,
+            'currency' => 'DOP',
+            'is_public' => 1,
+            'is_deleted' => 0,
+        ]);
+        Order::withoutSyncingToSearch(fn () => $order->calculateTotal());
+
+        $response = $this->graphQL('
+            mutation($order_id: ID!, $data: Mixed) {
+                amendOrder(
+                    order_id: $order_id
+                    correction_type: "adjust-amount"
+                    reason: "El vehículo permaneció 22 días adicionales"
+                    data: $data
+                ) {
+                    id
+                    total_net_amount
+                    activityLogs {
+                        data {
+                            description
+                            properties
+                        }
+                    }
+                }
+            }
+        ', [
+            'order_id' => $order->id,
+            'data' => [
+                'operations' => [
+                    ['op' => 'update', 'order_item_id' => $serviceItem->id, 'new_amount' => 500],
+                    ['op' => 'add', 'variant_id' => $serviceVariant->id, 'quantity' => 1, 'amount' => 400],
+                ],
+            ],
+        ]);
+
+        $response->assertSuccessful();
+        if ($response->json('errors')) {
+            $this->fail('GraphQL errors: ' . json_encode($response->json('errors')));
         }
 
-        $oldVariant = $impoundLotVariants->first();
-        $newVariant = $impoundLotVariants->last();
+        $this->assertEquals(900.00, (float) $response->json('data.amendOrder.total_net_amount'));
+
+        $logs = $response->json('data.amendOrder.activityLogs.data');
+        $adjustLog = collect($logs)->firstWhere('description', 'adjust-amount');
+        $this->assertNotNull($adjustLog);
+        $this->assertCount(2, $adjustLog['properties']['changes']['operations']);
+    }
+
+    public function testAmendOrderRelocateVehicleSwapsVariantAndUpdatesMetadata(): void
+    {
+        $company = $this->kanvasUser->getCurrentCompany();
+
+        $locationType = ProductsTypes::factory()
+            ->company($company->getId())
+            ->create(['slug' => 'impound-lot', 'name' => 'impound_lot']);
+
+        $makeLocationVariant = function () use ($company, $locationType) {
+            $product = Variants::withoutSyncingToSearch(
+                fn () => Products::withoutSyncingToSearch(
+                    fn () => Products::factory()
+                        ->withAppId($this->kanvasApp->getId())
+                        ->withCompanyId($company->getId())
+                        ->create(['products_types_id' => $locationType->id])
+                )
+            );
+
+            return $product->variants()->first();
+        };
+
+        $oldVariant = $makeLocationVariant();
+        $newVariant = $makeLocationVariant();
 
         $order = $this->createTestOrder([
             'order_number' => 99910,

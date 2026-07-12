@@ -29,6 +29,8 @@ class ExportOrderPaymentsAction
         protected readonly string $language = 'en',
         protected readonly ?string $userEmail = null,
         protected readonly array $providerCompanyIds = [],
+        protected readonly ?array $metadata = null,
+        protected readonly bool $includeSummary = true,
     ) {
     }
 
@@ -42,22 +44,25 @@ class ExportOrderPaymentsAction
             ? Carbon::parse($this->endDate, $this->timezone)->endOfDay()->setTimezone('UTC')
             : null;
 
-        $stats = new GetOrderPaymentStatsAction(
-            app: $this->app,
-            paidStates: $this->paidStates,
-            orderTypeNames: $this->orderTypeNames,
-            userEmail: $this->userEmail,
-            providerCompanyIds: $this->providerCompanyIds,
-        )->execute(
-            startDate: $this->startDate,
-            endDate: $this->endDate,
-            timezone: $this->timezone,
-        );
+        $stats = [];
+        if ($this->includeSummary) {
+            $stats = new GetOrderPaymentStatsAction(
+                app: $this->app,
+                paidStates: $this->paidStates,
+                orderTypeNames: $this->orderTypeNames,
+                userEmail: $this->userEmail,
+                providerCompanyIds: $this->providerCompanyIds,
+            )->execute(
+                startDate: $this->startDate,
+                endDate: $this->endDate,
+                timezone: $this->timezone,
+            );
 
-        $stats['totals'] = [
-            'total_transactions' => $stats['ordersInPeriod']['count'] ?? 0,
-            'total_amount'       => $stats['ordersInPeriod']['totalAmount'] ?? 0,
-        ];
+            $stats['totals'] = [
+                'total_transactions' => $stats['ordersInPeriod']['count'] ?? 0,
+                'total_amount'       => $stats['ordersInPeriod']['totalAmount'] ?? 0,
+            ];
+        }
 
         $orders = Order::query()
             ->select('orders.*')
@@ -87,7 +92,15 @@ class ExportOrderPaymentsAction
         $tempFilePath = "exports/{$filename}.xlsx";
 
         Excel::store(
-            new OrderPaymentsStatsExportExcel($stats, $orders, $this->timezone, $this->fieldMapper, $this->language),
+            new OrderPaymentsStatsExportExcel(
+                $stats,
+                $orders,
+                $this->timezone,
+                $this->fieldMapper,
+                $this->language,
+                $this->metadata,
+                $this->includeSummary,
+            ),
             $tempFilePath,
             'public'
         );
@@ -111,6 +124,8 @@ class ExportOrderPaymentsAction
             Storage::disk('public')->delete($tempFilePath);
         }
 
+        $this->cleanupTempImages();
+
         return [
             'status'       => 'success',
             'download_url' => $isSavedInFileSystem ? $uploadedFileEntry->url : Storage::disk('public')->url($tempFilePath),
@@ -118,5 +133,14 @@ class ExportOrderPaymentsAction
             'file_path'    => $uploadedFileEntry->url ?? $tempFilePath,
             'message'      => 'Excel export completed successfully',
         ];
+    }
+
+    private function cleanupTempImages(): void
+    {
+        foreach (glob(storage_path('app/temp_payments_logo_*.png')) ?: [] as $file) {
+            if (file_exists($file)) {
+                unlink($file);
+            }
+        }
     }
 }

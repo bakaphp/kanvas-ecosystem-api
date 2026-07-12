@@ -53,6 +53,9 @@ return [
             'driver' => 'anthropic',
             'key' => env('ANTHROPIC_API_KEY'),
             'url' => env('ANTHROPIC_URL', 'https://api.anthropic.com/v1'),
+            // laravel/ai 0.9 defaults Anthropic structured output to the native
+            // output_config.format API; keep the pre-0.9 synthetic-tool behavior.
+            'use_native_structured_output' => env('ANTHROPIC_USE_NATIVE_STRUCTURED_OUTPUT', false),
         ],
 
         'azure' => [

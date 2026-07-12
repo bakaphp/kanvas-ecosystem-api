@@ -42,6 +42,39 @@ class AgentDeploymentMutation
         return $provider->dispatchDeployment($agent, $machine, $app, $company);
     }
 
+    /**
+     * Retry a failed deployment on the same agent + machine it already targeted.
+     *
+     * `dispatchDeployment` (via BaseDispatchAgentDeploymentAction) already looks up
+     * the existing row by (agent_machine_id, system_user) and reuses it — resetting
+     * status to `provisioning`, clearing error_message, and reassigning ports — so
+     * this doesn't need any new dedup logic. It just re-derives agent/machine from
+     * the failed deployment itself (rather than asking the caller to resupply them)
+     * and reuses the provider that deployment is actually pinned to, not whatever
+     * the agent's current default happens to be.
+     */
+    public function retry(mixed $root, array $request): AgentDeployment
+    {
+        $deployment = $this->loadDeployment((int) $request['deployment_id']);
+
+        if ($deployment->status !== DeploymentStatusEnum::FAILED->value) {
+            throw new ValidationException('Only a failed deployment can be retried.');
+        }
+
+        $agent = $deployment->agent;
+        $machine = $deployment->machine;
+
+        if ($agent === null || $machine === null) {
+            throw new ValidationException('Cannot retry: the agent or machine no longer exists.');
+        }
+
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        return AgentRuntimeProviderFactory::forDeployment($deployment)
+            ->dispatchDeployment($agent, $machine, $app, $company);
+    }
+
     public function terminate(mixed $root, array $request): bool
     {
         $deployment = $this->loadDeployment((int) $request['deployment_id']);
