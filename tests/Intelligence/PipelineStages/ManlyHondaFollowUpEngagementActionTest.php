@@ -98,6 +98,44 @@ class ManlyHondaFollowUpEngagementActionTest extends TestCase
         }
     }
 
+    public function testManlyHondaIgnoreTimeGateSendsDespiteRecentMessage(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 1, 14, 12, 0, 0, 'America/Los_Angeles'));
+
+        try {
+            // last message only 10 minutes ago, stage requires 60 => would skip,
+            // but withIgnoreTimeGate(true) forces the manual single-lead send
+            $lead = $this->setupLeadWithSessions(
+                lastMessageAgeMinutes: 10,
+                stageConfig: [
+                    'minutes_no_response' => 60,
+                    'internet_used_unreplied' => [
+                        'sms' => 'Hi [Customer Name], still interested in that used GMC?',
+                        'email' => 'Good morning [Customer Name], the used GMC is still available!',
+                    ],
+                ],
+                preferredChannel: 'email',
+            );
+
+            Notification::fake();
+
+            $fake = [
+                'message' => 'Hi there! Just following up on the used GMC. Want to schedule a visit?',
+                'should_respond' => true,
+            ];
+            StructuredAnonymousAgent::fake([$fake]);
+
+            $result = new ManlyHondaFollowUpEngagementAction($lead)
+                ->withIgnoreTimeGate(true)
+                ->execute();
+
+            $this->assertIsArray($result);
+            $this->assertArrayHasKey('follow_up_message', $result);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     public function testManlyHondaSkipsWhenNoStageConfigKeyMatches(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 1, 14, 12, 0, 0, 'America/Los_Angeles'));
@@ -227,11 +265,12 @@ class ManlyHondaFollowUpEngagementActionTest extends TestCase
 
         $this->setupViewVehicleActionPipeline($app, $user, $company);
 
-        // created_at is persisted and re-read in the app default timezone, so build
-        // the message time on that same clock. Using the company timezone here would
-        // inject the tz offset on save (never converted back on read) and make even a
-        // 10-minute-old message look hours stale.
-        $messageTime = Carbon::now()->subMinutes($lastMessageAgeMinutes);
+        // Build the timestamp in UTC (the app/storage tz) so the stored wall-clock
+        // equals the true instant on every environment. A company-tz (LA) Carbon
+        // round-trips as its wall-clock read back as UTC on some MySQL/driver setups,
+        // shifting the instant by the tz offset and breaking the instant-based
+        // diffInMinutes gate (490 vs 10) — flaky between local and CI.
+        $messageTime = Carbon::now('UTC')->subMinutes($lastMessageAgeMinutes);
 
         $smsChannelDto = ChannelDto::from([
             'apps' => $app,
