@@ -24,8 +24,9 @@ use Kanvas\Scribe\Payments\Models\Payment;
  * already happened in Scribe. This just mirrors the applied payment into the ERP. Idempotent by
  * ACUMATICA_PAYMENT_ID; retry-safe via the PaymentRef find-query.
  *
- * NOTE: exact Acumatica entity/Type names (Payment vs Check, DocType 'INV'/'Bill') are the common
- * defaults — verify against NZXT's endpoint on the first live push and adjust if their config differs.
+ * NOTE: the `Payment` entity and `Type` are confirmed against a live push; the DocumentsToApply
+ * DocType ('INV' for AR, 'Bill' for AP) follows Acumatica's defaults — verify on the first live
+ * payment that carries applications.
  */
 class PushPaymentToAcumaticaAction
 {

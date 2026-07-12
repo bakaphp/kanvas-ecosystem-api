@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Acumatica\Actions;
 
 use Baka\Http\SafeUrlFetcher;
+use Illuminate\Database\Query\JoinClause;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Acumatica\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Connectors\Acumatica\Services\AcumaticaWriteService;
+use Kanvas\Connectors\Acumatica\SqlClient;
 use Kanvas\Connectors\Acumatica\Support\AcumaticaPayload;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Bills\Models\BillLine;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
 use Kanvas\Scribe\PdfIngest\Models\PdfIngestLog;
@@ -29,6 +33,12 @@ use Throwable;
 class PushBillToAcumaticaAction
 {
     private ?AcumaticaWriteService $writer;
+
+    /** @var array<string, string|null> memoized dominant subaccount per account code, one bill push */
+    private array $subaccountByAccount = [];
+
+    /** @var array<int|string, string> resolved subaccount code per bill line, to mirror back post-push */
+    private array $lineSubaccountCodes = [];
 
     public function __construct(
         protected Apps $app,
@@ -83,6 +93,8 @@ class PushBillToAcumaticaAction
         if ($referenceNbr !== '') {
             $this->bill->set(CustomFieldEnum::BILL_REF->value, $referenceNbr);
         }
+
+        $this->mirrorSubaccountOntoLines();
 
         return $referenceNbr;
     }
@@ -152,27 +164,119 @@ class PushBillToAcumaticaAction
         $lines = [];
 
         foreach ($this->bill->lines as $line) {
+            /** @var BillLine $line */
+            $account = $this->lineAccount($line->expense_account_id);
+            $accountCode = $account?->account_number;
+            $subaccountCode = $this->resolveSubaccountCode($line->subaccount_id, $account);
+
+            if ($subaccountCode !== null && $subaccountCode !== '') {
+                $this->lineSubaccountCodes[$line->getKey()] = $subaccountCode;
+            }
+
             $lines[] = AcumaticaPayload::wrap([
                 'Description' => $line->description,
                 'Qty' => (float) $line->quantity,
                 'UnitCost' => (float) $line->unit_price_native,
-                'Account' => $this->accountCode($line->expense_account_id),
-                'Subaccount' => $this->subaccountCode($line->subaccount_id),
+                'Account' => $accountCode,
+                'Subaccount' => $subaccountCode,
             ]);
         }
 
         return $lines;
     }
 
-    private function accountCode(?int $accountId): ?string
+    /**
+     * Resolve the AP line subaccount. Some tenants make Subaccount required on AP lines, but a
+     * Kanvas-originated bill usually carries none — so we derive it. Order: (1) the line's own
+     * subaccount, (2) the dominant subaccount this expense account is historically coded with in the
+     * replica (cached on the account after the first lookup), (3) the tenant's
+     * ACUMATICA_DEFAULT_SUBACCOUNT fallback. Derivation is best-effort — a missing/unreachable replica
+     * just drops through to the config default.
+     */
+    private function resolveSubaccountCode(?int $subaccountId, ?Account $account): ?string
+    {
+        if ($subaccountId !== null) {
+            $code = $this->subaccountCode($subaccountId);
+
+            if ($code !== null && $code !== '') {
+                return $code;
+            }
+        }
+
+        if ($account !== null) {
+            $derived = $this->deriveSubaccountForAccount($account);
+
+            if ($derived !== null && $derived !== '') {
+                return $derived;
+            }
+        }
+
+        $default = (string) $this->app->get(ConfigurationEnum::ACUMATICA_DEFAULT_SUBACCOUNT->value);
+
+        return $default !== '' ? $default : null;
+    }
+
+    /**
+     * The subaccount an expense account is most often coded against in released AP transactions on the
+     * replica — the "derive from the expense account" source, since Scribe accounts carry no default
+     * subaccount and the REST Account entity exposes none. Company-global (the dominant across the
+     * dataset). The first lookup is cached onto the account (ACUMATICA_DERIVED_SUBACCOUNT custom
+     * field), so every later bill on the same account skips the replica round-trip entirely.
+     */
+    private function deriveSubaccountForAccount(Account $account): ?string
+    {
+        $accountCode = $account->account_number;
+
+        if ($accountCode === '') {
+            return null;
+        }
+
+        if (array_key_exists($accountCode, $this->subaccountByAccount)) {
+            return $this->subaccountByAccount[$accountCode];
+        }
+
+        $cached = (string) $account->get(CustomFieldEnum::DERIVED_SUBACCOUNT->value, '');
+
+        if ($cached !== '') {
+            return $this->subaccountByAccount[$accountCode] = $cached;
+        }
+
+        try {
+            $subCode = SqlClient::connection($this->app)
+                ->table('APTran as t')
+                ->join('Account as a', function (JoinClause $join): void {
+                    $join->on('a.AccountID', '=', 't.AccountID')
+                        ->on('a.CompanyID', '=', 't.CompanyID');
+                })
+                ->join('Sub as s', function (JoinClause $join): void {
+                    $join->on('s.SubID', '=', 't.SubID')
+                        ->on('s.CompanyID', '=', 't.CompanyID');
+                })
+                ->where('a.AccountCD', $accountCode)
+                ->whereNotNull('t.SubID')
+                ->groupBy('s.SubCD')
+                ->orderByRaw('COUNT(*) DESC')
+                ->value('s.SubCD');
+
+            $derived = $subCode !== null ? (string) $subCode : null;
+        } catch (Throwable) {
+            $derived = null;
+        }
+
+        if ($derived !== null && $derived !== '') {
+            $account->set(CustomFieldEnum::DERIVED_SUBACCOUNT->value, $derived);
+        }
+
+        return $this->subaccountByAccount[$accountCode] = $derived;
+    }
+
+    private function lineAccount(?int $accountId): ?Account
     {
         if ($accountId === null) {
             return null;
         }
 
-        $code = Account::query()->where('id', $accountId)->value('account_number');
-
-        return $code !== null ? (string) $code : null;
+        return Account::query()->where('id', $accountId)->first();
     }
 
     private function subaccountCode(?int $subaccountId): ?string
@@ -184,6 +288,62 @@ class PushBillToAcumaticaAction
         $code = Subaccount::query()->where('id', $subaccountId)->value('sub_code');
 
         return $code !== null ? (string) $code : null;
+    }
+
+    /**
+     * Middle-out mirroring: stamp the subaccount actually pushed to Acumatica back onto the Kanvas
+     * bill line, so the internal record reflects the ERP's real GL coding instead of a blank
+     * dimension. Only fills lines that had none — an explicit line subaccount is never overwritten.
+     * Best-effort: a mirror failure must not fail an already-successful push.
+     */
+    private function mirrorSubaccountOntoLines(): void
+    {
+        if ($this->lineSubaccountCodes === []) {
+            return;
+        }
+
+        foreach ($this->bill->lines as $line) {
+            /** @var BillLine $line */
+            if (! empty($line->subaccount_id)) {
+                continue;
+            }
+
+            $code = $this->lineSubaccountCodes[$line->getKey()] ?? null;
+
+            if ($code === null) {
+                continue;
+            }
+
+            $subaccount = $this->findOrCreateSubaccount($code);
+
+            if ($subaccount !== null) {
+                $line->subaccount_id = $subaccount->getKey();
+                $line->saveQuietly();
+            }
+        }
+    }
+
+    /**
+     * Resolve the Scribe subaccount mirroring an Acumatica SubCD (reference data is normally already
+     * synced; create a stub when it isn't yet). Keyed on the app/company/sub_code unique.
+     */
+    private function findOrCreateSubaccount(string $subCode): ?Subaccount
+    {
+        try {
+            /** @var Subaccount $subaccount */
+            $subaccount = Subaccount::firstOrCreate(
+                [
+                    'apps_id' => $this->app->getId(),
+                    'companies_id' => $this->bill->companies_id,
+                    'sub_code' => $subCode,
+                ],
+                ['source' => IntegrationsEnum::ACUMATICA->value],
+            );
+
+            return $subaccount;
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /**

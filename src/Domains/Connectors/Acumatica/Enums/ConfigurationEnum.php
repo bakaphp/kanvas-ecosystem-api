@@ -10,6 +10,23 @@ enum ConfigurationEnum: string
     case ACUMATICA_DEFAULT_WAREHOUSE = 'ACUMATICA_DEFAULT_WAREHOUSE';
     case ACUMATICA_WRITE_ENABLED = 'ACUMATICA_WRITE_ENABLED';
 
+    /**
+     * Fallback subaccount code for an AP bill line when neither the Kanvas line carries one nor the
+     * replica can derive the account's dominant historical subaccount. Tenants that make Subaccount
+     * required on AP lines set this so a push never fails for a missing dimension.
+     */
+    case ACUMATICA_DEFAULT_SUBACCOUNT = 'ACUMATICA_DEFAULT_SUBACCOUNT';
+
+    /**
+     * Per-tenant required custom fields injected into a SalesOrder push, so a tenant's Acumatica
+     * customizations (e.g. required Usr* order-date fields) are satisfied without hardcoding them in
+     * the connector. Map of Acumatica field name → spec; a spec is `{days:int}` (order date + N days,
+     * as a DateTime), a `{value:string}` literal, or a bare int/string shorthand for those. Optional
+     * per-entry `type` (default DateTime for `days`, String for `value`) and `view` (default
+     * `Document` — the SO header data view the fields hang off in contract-based REST).
+     */
+    case SO_CUSTOM_FIELDS = 'ACUMATICA_SO_CUSTOM_FIELDS';
+
     case SYNC_ENABLED = 'ACUMATICA_SYNC_ENABLED';
 
     // Company-scoped params the scheduler needs to build a pull for the enabled company.

@@ -60,12 +60,22 @@ class ProcessAcumaticaWebhookJob extends ProcessWebhookJob
 
     private function syncSalesOrder(mixed $app, mixed $company, mixed $user, int $acumaticaCompanyId, string $ref): int
     {
-        $region = Regions::fromApp($app)->fromCompany($company)->notDeleted()->first();
+        $region = Regions::fromApp($app)
+                ->fromCompany($company)
+                ->notDeleted()
+                ->first();
 
         if ($region === null) {
             return 0;
         }
 
-        return new PullSalesOrdersAction($app, $company, $user, $region, $acumaticaCompanyId, orderNumber: $ref)->execute();
+        return new PullSalesOrdersAction(
+            $app,
+            $company,
+            $user,
+            $region,
+            $acumaticaCompanyId,
+            orderNumber: $ref
+        )->execute();
     }
 }

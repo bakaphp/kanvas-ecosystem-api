@@ -6,6 +6,7 @@ namespace Tests\Connectors\Acumatica;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Actions\PushBillToAcumaticaAction;
+use Kanvas\Connectors\Acumatica\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Connectors\Acumatica\Services\AcumaticaWriteService;
@@ -136,6 +137,43 @@ class PushBillToAcumaticaActionTest extends ScribeTestCase
         $this->expectException(AcumaticaWriteException::class);
 
         new PushBillToAcumaticaAction($this->kanvasApp, $bill, $writer)->execute();
+    }
+
+    public function test_falls_back_to_configured_default_subaccount_when_line_has_none(): void
+    {
+        $vendor = $this->seedTestOrganization('Globex Supply');
+        $vendor->set(CustomFieldEnum::VENDOR_ID->value, 'V0000505');
+        $this->kanvasApp->set(ConfigurationEnum::ACUMATICA_DEFAULT_SUBACCOUNT->value, '000000');
+
+        try {
+            // subaccount_id 0 => no explicit line subaccount; replica derivation is unavailable in the
+            // test env (caught), so resolution drops through to the configured default.
+            $bill = $this->billWithCoding($vendor, $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS), 0);
+
+            $captured = null;
+            $writer = Mockery::mock(AcumaticaWriteService::class);
+            $writer->shouldReceive('push')->once()->andReturnUsing(
+                function (string $entity, array $body, bool $release = false, array $files = [], ?array $findQuery = null) use (&$captured): array {
+                    $captured = $body;
+
+                    return ['id' => 'B2', 'ReferenceNbr' => ['value' => '001000']];
+                }
+            );
+
+            new PushBillToAcumaticaAction($this->kanvasApp, $bill, $writer)->execute();
+
+            $this->assertSame(['value' => '000000'], $captured['Details'][0]['Subaccount']);
+
+            // middle-out: the pushed subaccount is mirrored back onto the internal bill line
+            $mirroredLine = $bill->lines()->first();
+            $this->assertNotEmpty($mirroredLine->subaccount_id);
+
+            $subaccount = Subaccount::query()->where('id', $mirroredLine->subaccount_id)->first();
+            $this->assertSame('000000', $subaccount->sub_code);
+            $this->assertSame('acumatica', $subaccount->source);
+        } finally {
+            $this->kanvasApp->set(ConfigurationEnum::ACUMATICA_DEFAULT_SUBACCOUNT->value, '');
+        }
     }
 
     public function test_is_idempotent_when_already_pushed(): void

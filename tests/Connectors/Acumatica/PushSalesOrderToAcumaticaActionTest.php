@@ -7,6 +7,7 @@ namespace Tests\Connectors\Acumatica;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Acumatica\Actions\PushSalesOrderToAcumaticaAction;
+use Kanvas\Connectors\Acumatica\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Services\AcumaticaWriteService;
 use Kanvas\Guild\Customers\Models\People;
@@ -116,6 +117,54 @@ class PushSalesOrderToAcumaticaActionTest extends TestCase
         $this->assertSame('SO000999', $ref);
         $this->assertSame(['value' => 'C7777'], $captured['CustomerID']);
         $this->assertSame('C7777', (string) $people->fresh()->get(CustomFieldEnum::CUSTOMER_ID->value));
+    }
+
+    public function test_injects_configured_custom_fields_into_so_payload(): void
+    {
+        $app = $this->app();
+        $app->set(ConfigurationEnum::SO_CUSTOM_FIELDS->value, [
+            'UsrSOETA' => ['days' => 7],
+            'UsrOrderReadyDate' => 2,
+            'UsrNote' => ['value' => 'kanvas'],
+        ]);
+
+        try {
+            $people = $this->person();
+            $people->set(CustomFieldEnum::CUSTOMER_ID->value, 'C0001');
+            $order = $this->orderWithItem($people);
+
+            $captured = null;
+            $writer = Mockery::mock(AcumaticaWriteService::class);
+            $writer->shouldReceive('push')->once()->andReturnUsing(
+                function (string $entity, array $body, bool $release = false, array $files = [], ?array $findQuery = null) use (&$captured): array {
+                    $captured = $body;
+
+                    return ['id' => 'SO-1', 'OrderNbr' => ['value' => 'SO000123']];
+                }
+            );
+
+            new PushSalesOrderToAcumaticaAction($app, $order, $writer)->execute();
+
+            $this->assertArrayHasKey('custom', $captured);
+            $doc = $captured['custom']['Document'];
+
+            $this->assertSame('DateTime', $doc['UsrSOETA']['type']);
+            $this->assertSame(
+                $order->created_at->copy()->addDays(7)->format('Y-m-d\T00:00:00'),
+                $doc['UsrSOETA']['value']
+            );
+
+            // bare-int shorthand → order date + N days
+            $this->assertSame('DateTime', $doc['UsrOrderReadyDate']['type']);
+            $this->assertSame(
+                $order->created_at->copy()->addDays(2)->format('Y-m-d\T00:00:00'),
+                $doc['UsrOrderReadyDate']['value']
+            );
+
+            $this->assertSame(['type' => 'String', 'value' => 'kanvas'], $doc['UsrNote']);
+        } finally {
+            $app->set(ConfigurationEnum::SO_CUSTOM_FIELDS->value, []);
+        }
     }
 
     public function test_is_idempotent_when_already_pushed(): void

@@ -25,7 +25,7 @@ use Override;
 use Spatie\LaravelData\DataCollection;
 
 /**
- * Creates a $0 sample / giveaway sales order in Kanvas (Souk) — the NZXT "send a reviewer a free unit"
+ * Creates a $0 sample / giveaway sales order in Kanvas (Souk) — the "send a reviewer a free unit"
  * flow. Kanvas-first: it lands as a DRAFT, nothing is written to the ERP here; a human approves it and
  * the workflow pushes it to Acumatica. The customer is resolved by email (created if new); the SKU
  * must already be synced as a product.

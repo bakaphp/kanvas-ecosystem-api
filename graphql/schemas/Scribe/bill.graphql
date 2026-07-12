@@ -97,6 +97,7 @@ type ScribeBillLine {
     discount_rate: Float
     tax_rate: Float
     expense_account: ScribeAccount @belongsTo(relation: "expenseAccount")
+    subaccount: ScribeSubaccount @belongsTo(relation: "subaccount")
     class_id: Int
     department_id: Int
     metadata: Mixed

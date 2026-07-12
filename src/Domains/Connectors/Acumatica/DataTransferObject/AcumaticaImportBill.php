@@ -9,10 +9,9 @@ use Illuminate\Support\Carbon;
 use Spatie\LaravelData\Data;
 
 /**
- * Maps one Acumatica AP document (dbo.APRegister joined to BAccount for the vendor code) to the
- * shape PullBillsAction feeds into Scribe's ImportBillFromExternalAction. Header-level only: a
- * single summary line carries the document total (the line-level GL split lives in the imported
- * journal entries).
+ * Maps one Acumatica AP document header (dbo.APRegister joined to BAccount for the vendor code) to
+ * the shape PullBillsAction feeds into Scribe's ImportBillFromExternalAction. Header-level only —
+ * PullBillsAction builds the coded lines separately from APTran.
  *
  * `paid` is derived as OrigDocAmt − DocBal. External id is "{DocType}-{RefNbr}".
  */

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Acumatica\Actions;
 
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Acumatica\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Connectors\Acumatica\Services\AcumaticaWriteService;
@@ -87,7 +89,58 @@ class PushSalesOrderToAcumaticaAction
 
         $header['Details'] = $this->buildLines();
 
+        $custom = $this->buildCustomFields();
+
+        if ($custom !== []) {
+            $header['custom'] = $custom;
+        }
+
         return $header;
+    }
+
+    /**
+     * Build the `custom` node from the tenant's ACUMATICA_SO_CUSTOM_FIELDS config. Contract-based
+     * REST hangs user-defined fields off a named data view (the SO header view is `Document`), each
+     * as `{type, value}` — so the shape is `custom.Document.UsrX = {type, value}`. Date specs resolve
+     * to order date + N days; this is how a tenant's required order-date customizations get satisfied
+     * without the connector knowing their field names.
+     *
+     * @return array<string, array<string, array{type: string, value: string}>>
+     */
+    private function buildCustomFields(): array
+    {
+        $config = $this->app->get(ConfigurationEnum::SO_CUSTOM_FIELDS->value);
+
+        if (is_string($config)) {
+            $config = json_decode($config, true);
+        }
+
+        if (! is_array($config) || $config === []) {
+            return [];
+        }
+
+        $baseDate = $this->order->created_at ?? Carbon::now();
+        $custom = [];
+
+        foreach ($config as $field => $spec) {
+            if (! is_array($spec)) {
+                $spec = is_numeric($spec) ? ['days' => (int) $spec] : ['value' => (string) $spec];
+            }
+
+            $view = (string) ($spec['view'] ?? 'Document');
+
+            if (isset($spec['days'])) {
+                $type = (string) ($spec['type'] ?? 'DateTime');
+                $value = $baseDate->copy()->addDays((int) $spec['days'])->format('Y-m-d\T00:00:00');
+            } else {
+                $type = (string) ($spec['type'] ?? 'String');
+                $value = (string) ($spec['value'] ?? '');
+            }
+
+            $custom[$view][(string) $field] = ['type' => $type, 'value' => $value];
+        }
+
+        return $custom;
     }
 
     /**

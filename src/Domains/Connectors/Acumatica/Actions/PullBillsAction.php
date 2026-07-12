@@ -11,6 +11,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Acumatica\DataTransferObject\AcumaticaImportBill;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Acumatica\SqlClient;
+use Kanvas\Connectors\Acumatica\Traits\ResolvesAcumaticaGlCoding;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Bills\Actions\ImportBillFromExternalAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
@@ -26,6 +27,8 @@ use Spatie\LaravelData\DataCollection;
  */
 class PullBillsAction
 {
+    use ResolvesAcumaticaGlCoding;
+
     /** @var array<string, int> per-run skip breakdown */
     public array $skipped = [];
 
@@ -42,7 +45,14 @@ class PullBillsAction
 
     public function execute(): int
     {
-        return $this->processRows($this->fetchHeaders());
+        $headers = $this->fetchHeaders();
+
+        $refNbrs = array_values(array_unique(array_filter(array_map(
+            static fn (array $h): string => trim((string) ($h['RefNbr'] ?? '')),
+            $headers
+        ))));
+
+        return $this->processRows($headers, $this->fetchLines($refNbrs));
     }
 
     /**
@@ -64,7 +74,9 @@ class PullBillsAction
             })
             ->where('r.CompanyID', $this->acumaticaCompanyId)
             ->where('r.Released', 1)
-            ->whereIn('r.DocType', ['BIL', 'ACR'])
+            // AP vendor bill = DocType 'INV' (Acumatica stores it as INV, not the display label
+            // "Bill"); 'ACR' = credit adjustment.
+            ->whereIn('r.DocType', ['INV', 'ACR'])
             ->select([
                 'r.DocType', 'r.RefNbr', 'b.AcctCD', 'r.DocDate', 'i.DueDate as DueDate',
                 'r.CuryID', 'r.CuryOrigDocAmt', 'r.CuryDocBal', 'r.DocDesc',
@@ -87,9 +99,55 @@ class PullBillsAction
     }
 
     /**
-     * @param array<int, array<array-key, mixed>> $headers
+     * Per-line GL coding for the bills being imported: APTran distribution rows joined to Account
+     * (AccountCD) and Sub (SubCD). Grouped by "TranType|RefNbr" so each header picks up exactly its
+     * own lines. Tax lives on separate tax rows, so these sum to the pre-tax subtotal — the header
+     * delta is reconciled in buildLines.
+     *
+     * @param array<int, string> $refNbrs
+     *
+     * @return array<string, array<int, array<array-key, mixed>>>
      */
-    public function processRows(array $headers): int
+    protected function fetchLines(array $refNbrs): array
+    {
+        if ($refNbrs === []) {
+            return [];
+        }
+
+        $rows = SqlClient::connection($this->app)
+            ->table('APTran as t')
+            ->join('Account as a', function (JoinClause $join): void {
+                $join->on('a.AccountID', '=', 't.AccountID')
+                    ->on('a.CompanyID', '=', 't.CompanyID');
+            })
+            ->leftJoin('Sub as s', function (JoinClause $join): void {
+                $join->on('s.SubID', '=', 't.SubID')
+                    ->on('s.CompanyID', '=', 't.CompanyID');
+            })
+            ->where('t.CompanyID', $this->acumaticaCompanyId)
+            ->whereIn('t.RefNbr', $refNbrs)
+            ->select([
+                't.TranType', 't.RefNbr', 'a.AccountCD', 's.SubCD',
+                't.Qty', 't.CuryUnitCost', 't.CuryTranAmt', 't.TranDesc',
+            ])
+            ->orderBy('t.LineNbr')
+            ->get();
+
+        $grouped = [];
+
+        foreach ($rows as $row) {
+            $key = trim((string) $row->TranType) . '|' . trim((string) $row->RefNbr);
+            $grouped[$key][] = (array) $row;
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * @param array<int, array<array-key, mixed>>                $headers
+     * @param array<string, array<int, array<array-key, mixed>>> $linesByDoc
+     */
+    public function processRows(array $headers, array $linesByDoc = []): int
     {
         $count = 0;
         $this->skipped = [
@@ -121,18 +179,17 @@ class PullBillsAction
                 continue;
             }
 
+            $key = trim((string) ($header['DocType'] ?? '')) . '|' . trim((string) ($header['RefNbr'] ?? ''));
+
             $billModel = new ImportBillFromExternalAction(
                 data: new BillData(
                     app: $this->app,
                     company: $this->company,
                     vendor: $organization,
-                    lines: new DataCollection(BillLineData::class, [
-                        new BillLineData(
-                            description: $bill->memo ?? ('Acumatica ' . $bill->externalId),
-                            quantity: 1,
-                            unit_price_native: $bill->total,
-                        ),
-                    ]),
+                    lines: new DataCollection(
+                        BillLineData::class,
+                        $this->buildLines($linesByDoc[$key] ?? [], $bill)
+                    ),
                     currency: $bill->currency,
                     fx_rate_to_base: 1.0,
                     bill_number: $bill->refNbr,
@@ -154,6 +211,66 @@ class PullBillsAction
         }
 
         return $count;
+    }
+
+    /**
+     * Build the Kanvas bill lines from the ERP's APTran distribution rows, each carrying its
+     * expense account + subaccount so Kanvas mirrors the source GL coding. Falls back to a single
+     * header-total line when the replica has no line detail. A final "Tax & adjustments" line
+     * reconciles any header/line delta (tax rows are separate) so the imported total is exact.
+     *
+     * @param array<int, array<array-key, mixed>> $rawLines
+     *
+     * @return array<int, BillLineData>
+     */
+    private function buildLines(array $rawLines, AcumaticaImportBill $bill): array
+    {
+        if ($rawLines === []) {
+            return [new BillLineData(
+                description: $bill->memo ?? ('Acumatica ' . $bill->externalId),
+                quantity: 1,
+                unit_price_native: $bill->total,
+            )];
+        }
+
+        $lines = [];
+        $sum = 0.0;
+
+        foreach ($rawLines as $row) {
+            $qty = (float) ($row['Qty'] ?? 0);
+            $unit = (float) ($row['CuryUnitCost'] ?? 0);
+            $amount = (float) ($row['CuryTranAmt'] ?? 0);
+
+            // Service / fee rows carry no quantity — represent them as one line at the row amount.
+            if ($qty === 0.0) {
+                $qty = 1.0;
+                $unit = $amount;
+            }
+
+            $subCode = trim((string) ($row['SubCD'] ?? ''));
+
+            $lines[] = new BillLineData(
+                description: trim((string) ($row['TranDesc'] ?? '')) ?: ('Acumatica ' . $bill->refNbr),
+                quantity: $qty,
+                unit_price_native: $unit,
+                expense_account_id: $this->resolveAccountId(trim((string) ($row['AccountCD'] ?? ''))),
+                subaccount_id: $this->resolveSubaccountId($subCode !== '' ? $subCode : null),
+            );
+
+            $sum += $qty * $unit;
+        }
+
+        $delta = round($bill->total - $sum, 4);
+
+        if (abs($delta) >= 0.005) {
+            $lines[] = new BillLineData(
+                description: 'Tax & adjustments',
+                quantity: 1,
+                unit_price_native: $delta,
+            );
+        }
+
+        return $lines;
     }
 
     private function ensureOrganization(string $acctCd): ?Organization

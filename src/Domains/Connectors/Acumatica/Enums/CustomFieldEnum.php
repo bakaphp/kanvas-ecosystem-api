@@ -22,4 +22,7 @@ enum CustomFieldEnum: string
     case PAYMENT_ID = 'ACUMATICA_PAYMENT_ID';
     case PAYMENT_REF = 'ACUMATICA_PAYMENT_REF';
     case CASH_ACCOUNT = 'ACUMATICA_CASH_ACCOUNT';
+
+    /** Cached dominant subaccount for an expense Account, derived once from the replica's AP history. */
+    case DERIVED_SUBACCOUNT = 'ACUMATICA_DERIVED_SUBACCOUNT';
 }
