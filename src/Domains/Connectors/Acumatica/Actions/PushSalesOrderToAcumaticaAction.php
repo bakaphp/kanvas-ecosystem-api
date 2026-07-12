@@ -11,12 +11,13 @@ use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Connectors\Acumatica\Services\AcumaticaWriteService;
 use Kanvas\Connectors\Acumatica\Support\AcumaticaPayload;
+use Kanvas\Connectors\Acumatica\Traits\HasAcumaticaWriter;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Models\Order;
 
 class PushSalesOrderToAcumaticaAction
 {
-    private ?AcumaticaWriteService $writer;
+    use HasAcumaticaWriter;
 
     public function __construct(
         protected Apps $app,
@@ -151,7 +152,7 @@ class PushSalesOrderToAcumaticaAction
      */
     private function existingOrderQuery(): array
     {
-        $ref = str_replace("'", "''", (string) $this->order->order_number);
+        $ref = AcumaticaPayload::escapeLiteral((string) $this->order->order_number);
 
         return ['$filter' => "CustomerOrderNbr eq '{$ref}'", '$top' => 1];
     }
@@ -189,10 +190,5 @@ class PushSalesOrderToAcumaticaAction
             email: $this->order->user_email,
             writer: $this->writer(),
         )->execute();
-    }
-
-    private function writer(): AcumaticaWriteService
-    {
-        return $this->writer ??= new AcumaticaWriteService($this->app);
     }
 }

@@ -45,6 +45,14 @@ final class AcumaticaPayload
     }
 
     /**
+     * Escape a value for an OData `$filter` string literal (single quotes are doubled).
+     */
+    public static function escapeLiteral(string $value): string
+    {
+        return str_replace("'", "''", $value);
+    }
+
+    /**
      * The record's Acumatica primary key (the `id` GUID contract-based REST returns on create).
      *
      * @param array<array-key, mixed> $record

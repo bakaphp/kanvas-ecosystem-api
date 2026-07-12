@@ -45,9 +45,27 @@ class ProcessAcumaticaWebhookJob extends ProcessWebhookJob
         }
 
         $synced = match ($entity) {
-            'bill', 'apbill', 'ap' => new PullBillsAction($app, $company, $user, $acumaticaCompanyId, ref: $ref)->execute(),
-            'invoice', 'arinvoice', 'ar' => new PullInvoicesAction($app, $company, $user, $acumaticaCompanyId, ref: $ref)->execute(),
-            'salesorder', 'order', 'so' => $this->syncSalesOrder($app, $company, $user, $acumaticaCompanyId, $ref),
+            'bill', 'apbill', 'ap' => new PullBillsAction(
+                $app,
+                $company,
+                $user,
+                $acumaticaCompanyId,
+                ref: $ref
+            )->execute(),
+            'invoice', 'arinvoice', 'ar' => new PullInvoicesAction(
+                $app,
+                $company,
+                $user,
+                $acumaticaCompanyId,
+                ref: $ref
+            )->execute(),
+            'salesorder', 'order', 'so' => $this->syncSalesOrder(
+                $app,
+                $company,
+                $user,
+                $acumaticaCompanyId,
+                $ref
+            ),
             default => null,
         };
 

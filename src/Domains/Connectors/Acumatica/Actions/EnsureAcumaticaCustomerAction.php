@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Services\AcumaticaWriteService;
 use Kanvas\Connectors\Acumatica\Support\AcumaticaPayload;
+use Kanvas\Connectors\Acumatica\Traits\HasAcumaticaWriter;
 use Kanvas\Guild\Customers\Models\People;
 
 /**
@@ -21,7 +22,7 @@ use Kanvas\Guild\Customers\Models\People;
  */
 class EnsureAcumaticaCustomerAction
 {
-    private ?AcumaticaWriteService $writer;
+    use HasAcumaticaWriter;
 
     public function __construct(
         protected Apps $app,
@@ -70,10 +71,10 @@ class EnsureAcumaticaCustomerAction
     private function findQuery(string $name): array
     {
         if ($this->taxId !== null && $this->taxId !== '') {
-            return ['$filter' => "TaxRegistrationID eq '" . $this->escape($this->taxId) . "'", '$top' => 1];
+            return ['$filter' => "TaxRegistrationID eq '" . AcumaticaPayload::escapeLiteral($this->taxId) . "'", '$top' => 1];
         }
 
-        return ['$filter' => "CustomerName eq '" . $this->escape($name) . "'", '$top' => 1];
+        return ['$filter' => "CustomerName eq '" . AcumaticaPayload::escapeLiteral($name) . "'", '$top' => 1];
     }
 
     /**
@@ -86,15 +87,5 @@ class EnsureAcumaticaCustomerAction
             'TaxRegistrationID' => $this->taxId,
             'Email' => $this->email,
         ]);
-    }
-
-    private function escape(string $value): string
-    {
-        return str_replace("'", "''", $value);
-    }
-
-    private function writer(): AcumaticaWriteService
-    {
-        return $this->writer ??= new AcumaticaWriteService($this->app);
     }
 }

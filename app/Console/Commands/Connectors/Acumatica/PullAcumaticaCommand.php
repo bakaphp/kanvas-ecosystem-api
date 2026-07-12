@@ -6,6 +6,7 @@ namespace App\Console\Commands\Connectors\Acumatica;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Acumatica\Actions\PullBillsAction;
@@ -42,6 +43,7 @@ class PullAcumaticaCommand extends Command
         {--only=all : products|warehouses|stock|customers|vendors|purchase-orders|orders|accounts|subaccounts|periods|journal-entries|invoices|bills|all}
         {--all-items : include non-stock items (default: stock items only)}
         {--limit= : cap rows pulled per entity (recommended for first runs / large catalogs)}
+        {--since= : only pull transactional rows modified on/after this ISO date (master data is always full)}
         {--order-number= : pull a single sales order by its number (orders only)}
         {--debug : print per-row diagnostics (stock)}';
 
@@ -72,29 +74,70 @@ class PullAcumaticaCommand extends Command
         $stockItemsOnly = ! (bool) $this->option('all-items');
         $limit = is_numeric($this->option('limit')) ? (int) $this->option('limit') : null;
 
+        $sinceOption = $this->option('since');
+        $since = is_string($sinceOption) && $sinceOption !== '' ? Carbon::parse($sinceOption) : null;
+
         try {
             if (in_array($only, ['all', 'warehouses'], true)) {
-                $n = new PullWarehousesAction($app, $company, $user, $region, $acumaticaCompanyId, $limit)->execute();
+                $n = new PullWarehousesAction(
+                    $app,
+                    $company,
+                    $user,
+                    $region,
+                    $acumaticaCompanyId,
+                    $limit
+                )->execute();
                 $this->info("Warehouses synced: {$n}");
             }
 
             if (in_array($only, ['all', 'products'], true)) {
-                $n = new PullProductsAction($app, $company, $user, $region, $acumaticaCompanyId, $stockItemsOnly, $limit)->execute();
+                $n = new PullProductsAction(
+                    $app,
+                    $company,
+                    $user,
+                    $region,
+                    $acumaticaCompanyId,
+                    $stockItemsOnly,
+                    $limit,
+                    modifiedSince: $since
+                )->execute();
                 $this->info("Products synced: {$n}");
             }
 
             if (in_array($only, ['all', 'customers'], true)) {
-                $n = new PullCustomersAction($app, $company, $user, $acumaticaCompanyId, limit: $limit)->execute();
+                $n = new PullCustomersAction(
+                    $app,
+                    $company,
+                    $user,
+                    $acumaticaCompanyId,
+                    limit: $limit,
+                    modifiedSince: $since
+                )->execute();
                 $this->info("Customers synced: {$n}");
             }
 
             if (in_array($only, ['all', 'vendors'], true)) {
-                $n = new PullCustomersAction($app, $company, $user, $acumaticaCompanyId, isVendor: true, limit: $limit)->execute();
+                $n = new PullCustomersAction(
+                    $app,
+                    $company,
+                    $user,
+                    $acumaticaCompanyId,
+                    isVendor: true,
+                    limit: $limit,
+                    modifiedSince: $since
+                )->execute();
                 $this->info("Vendors synced: {$n}");
             }
 
             if (in_array($only, ['all', 'purchase-orders'], true)) {
-                $poAction = new PullPurchaseOrdersAction($app, $company, $user, $acumaticaCompanyId, $limit);
+                $poAction = new PullPurchaseOrdersAction(
+                    $app,
+                    $company,
+                    $user,
+                    $acumaticaCompanyId,
+                    $limit,
+                    modifiedSince: $since
+                );
                 $n = $poAction->execute();
                 $this->info("Purchase orders synced: {$n}");
 
@@ -104,7 +147,15 @@ class PullAcumaticaCommand extends Command
             }
 
             if (in_array($only, ['all', 'stock'], true)) {
-                $stockAction = new PullStockAction($app, $company, $user, $region, $acumaticaCompanyId, $limit);
+                $stockAction = new PullStockAction(
+                    $app,
+                    $company,
+                    $user,
+                    $region,
+                    $acumaticaCompanyId,
+                    $limit,
+                    modifiedSince: $since
+                );
                 $n = $stockAction->execute();
                 $this->info("Stock rows updated: {$n}");
 
@@ -118,7 +169,16 @@ class PullAcumaticaCommand extends Command
 
             if (in_array($only, ['all', 'orders'], true)) {
                 $orderNumber = is_string($this->option('order-number')) ? $this->option('order-number') : null;
-                $ordersAction = new PullSalesOrdersAction($app, $company, $user, $region, $acumaticaCompanyId, $limit, orderNumber: $orderNumber);
+                $ordersAction = new PullSalesOrdersAction(
+                    $app,
+                    $company,
+                    $user,
+                    $region,
+                    $acumaticaCompanyId,
+                    $limit,
+                    modifiedSince: $since,
+                    orderNumber: $orderNumber
+                );
                 $n = $ordersAction->execute();
                 $this->info("Sales orders synced: {$n}");
 
@@ -128,7 +188,13 @@ class PullAcumaticaCommand extends Command
             }
 
             if (in_array($only, ['all', 'accounts'], true)) {
-                $accountsAction = new PullChartOfAccountsAction($app, $company, $user, $acumaticaCompanyId, $limit);
+                $accountsAction = new PullChartOfAccountsAction(
+                    $app,
+                    $company,
+                    $user,
+                    $acumaticaCompanyId,
+                    $limit
+                );
                 $n = $accountsAction->execute();
                 $this->info("Accounts synced: {$n}");
 
@@ -138,7 +204,13 @@ class PullAcumaticaCommand extends Command
             }
 
             if (in_array($only, ['all', 'subaccounts'], true)) {
-                $subaccountsAction = new PullSubaccountsAction($app, $company, $user, $acumaticaCompanyId, $limit);
+                $subaccountsAction = new PullSubaccountsAction(
+                    $app,
+                    $company,
+                    $user,
+                    $acumaticaCompanyId,
+                    $limit
+                );
                 $n = $subaccountsAction->execute();
                 $this->info("Subaccounts synced: {$n}");
 
@@ -148,7 +220,13 @@ class PullAcumaticaCommand extends Command
             }
 
             if (in_array($only, ['all', 'periods'], true)) {
-                $periodsAction = new PullFiscalPeriodsAction($app, $company, $user, $acumaticaCompanyId, $limit);
+                $periodsAction = new PullFiscalPeriodsAction(
+                    $app,
+                    $company,
+                    $user,
+                    $acumaticaCompanyId,
+                    $limit
+                );
                 $n = $periodsAction->execute();
                 $this->info("Fiscal periods synced: {$n}");
 
@@ -158,7 +236,14 @@ class PullAcumaticaCommand extends Command
             }
 
             if (in_array($only, ['all', 'journal-entries'], true)) {
-                $journalAction = new PullJournalEntriesAction($app, $company, $user, $acumaticaCompanyId, $limit);
+                $journalAction = new PullJournalEntriesAction(
+                    $app,
+                    $company,
+                    $user,
+                    $acumaticaCompanyId,
+                    $limit,
+                    modifiedSince: $since
+                );
                 $n = $journalAction->execute();
                 $this->info("Journal entries synced: {$n}");
 
@@ -168,7 +253,14 @@ class PullAcumaticaCommand extends Command
             }
 
             if (in_array($only, ['all', 'invoices'], true)) {
-                $invoicesAction = new PullInvoicesAction($app, $company, $user, $acumaticaCompanyId, $limit);
+                $invoicesAction = new PullInvoicesAction(
+                    $app,
+                    $company,
+                    $user,
+                    $acumaticaCompanyId,
+                    $limit,
+                    modifiedSince: $since
+                );
                 $n = $invoicesAction->execute();
                 $this->info("Invoices synced: {$n}");
 
@@ -178,7 +270,14 @@ class PullAcumaticaCommand extends Command
             }
 
             if (in_array($only, ['all', 'bills'], true)) {
-                $billsAction = new PullBillsAction($app, $company, $user, $acumaticaCompanyId, $limit);
+                $billsAction = new PullBillsAction(
+                    $app,
+                    $company,
+                    $user,
+                    $acumaticaCompanyId,
+                    $limit,
+                    modifiedSince: $since
+                );
                 $n = $billsAction->execute();
                 $this->info("Bills synced: {$n}");
 

@@ -19,7 +19,6 @@ class PushSalesOrderToAcumaticaActivity extends KanvasActivity
     public $tries = 3;
 
     /**
-     *
      * @return array<array-key, mixed>
      */
     public function execute(Order $entity, Apps $app, array $params): array

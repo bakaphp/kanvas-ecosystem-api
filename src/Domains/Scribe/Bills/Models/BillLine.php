@@ -30,6 +30,7 @@ use Kanvas\Scribe\Ledger\Models\Subaccount;
  * @property float $line_total_native
  * @property float $line_total_base
  * @property int|null $expense_account_id
+ * @property int|null $subaccount_id
  * @property int|null $class_id
  * @property int|null $department_id
  * @property array|null $tax_metadata

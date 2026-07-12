@@ -13,6 +13,7 @@ use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Connectors\Acumatica\Services\AcumaticaWriteService;
 use Kanvas\Connectors\Acumatica\SqlClient;
 use Kanvas\Connectors\Acumatica\Support\AcumaticaPayload;
+use Kanvas\Connectors\Acumatica\Traits\HasAcumaticaWriter;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Models\BillLine;
@@ -32,7 +33,7 @@ use Throwable;
  */
 class PushBillToAcumaticaAction
 {
-    private ?AcumaticaWriteService $writer;
+    use HasAcumaticaWriter;
 
     /** @var array<string, string|null> memoized dominant subaccount per account code, one bill push */
     private array $subaccountByAccount = [];
@@ -114,14 +115,9 @@ class PushBillToAcumaticaAction
             return null;
         }
 
-        $filter = "VendorRef eq '" . $this->escape($vendorRef) . "' and Vendor eq '" . $this->escape($vendorCode) . "'";
+        $filter = "VendorRef eq '" . AcumaticaPayload::escapeLiteral($vendorRef) . "' and Vendor eq '" . AcumaticaPayload::escapeLiteral($vendorCode) . "'";
 
         return ['$filter' => $filter, '$top' => 1];
-    }
-
-    private function escape(string $value): string
-    {
-        return str_replace("'", "''", $value);
     }
 
     /**
@@ -420,10 +416,5 @@ class PushBillToAcumaticaAction
         }
 
         return Organization::query()->where('id', $this->bill->vendor_organization_id)->first();
-    }
-
-    private function writer(): AcumaticaWriteService
-    {
-        return $this->writer ??= new AcumaticaWriteService($this->app);
     }
 }

@@ -9,6 +9,7 @@ use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Connectors\Acumatica\Services\AcumaticaWriteService;
 use Kanvas\Connectors\Acumatica\Support\AcumaticaPayload;
+use Kanvas\Connectors\Acumatica\Traits\HasAcumaticaWriter;
 use Kanvas\Scribe\Bills\Models\BillPaymentAllocation;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Payments\Enums\PaymentDirectionEnum;
@@ -30,7 +31,7 @@ use Kanvas\Scribe\Payments\Models\Payment;
  */
 class PushPaymentToAcumaticaAction
 {
-    private ?AcumaticaWriteService $writer;
+    use HasAcumaticaWriter;
 
     public function __construct(
         protected Apps $app,
@@ -204,13 +205,8 @@ class PushPaymentToAcumaticaAction
             return null;
         }
 
-        $ref = str_replace("'", "''", $ref);
+        $ref = AcumaticaPayload::escapeLiteral($ref);
 
         return ['$filter' => "PaymentRef eq '{$ref}'", '$top' => 1];
-    }
-
-    private function writer(): AcumaticaWriteService
-    {
-        return $this->writer ??= new AcumaticaWriteService($this->app);
     }
 }

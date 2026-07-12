@@ -11,7 +11,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Acumatica\DataTransferObject\AcumaticaImportInvoice;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Acumatica\SqlClient;
-use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Connectors\Acumatica\Traits\ResolvesAcumaticaParty;
 use Kanvas\Scribe\Invoices\Actions\ImportInvoiceFromExternalAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
@@ -26,6 +26,8 @@ use Spatie\LaravelData\DataCollection;
  */
 class PullInvoicesAction
 {
+    use ResolvesAcumaticaParty;
+
     /** @var array<string, int> per-run skip breakdown */
     public array $skipped = [];
 
@@ -107,7 +109,7 @@ class PullInvoicesAction
                 continue;
             }
 
-            $organization = $this->ensureOrganization($invoice->customerCode);
+            $organization = $this->resolveOrganization($invoice->customerCode, CustomFieldEnum::CUSTOMER_ID->value, false);
 
             if ($organization === null) {
                 $this->skipped['customer_not_in_kanvas']++;
@@ -145,55 +147,5 @@ class PullInvoicesAction
         }
 
         return $count;
-    }
-
-    private function ensureOrganization(string $acctCd): ?Organization
-    {
-        /** @var Organization|null $organization */
-        $organization = Organization::getByCustomField(CustomFieldEnum::CUSTOMER_ID->value, $acctCd, $this->company);
-
-        if ($organization !== null) {
-            return $organization;
-        }
-
-        $row = $this->fetchPartyRow($acctCd);
-
-        if ($row === null) {
-            return null;
-        }
-
-        return new CreateAcumaticaOrganizationAction(
-            $this->app,
-            $this->company,
-            $this->user
-        )->execute($row);
-    }
-
-    /**
-     * @return array<array-key, mixed>|null
-     */
-    private function fetchPartyRow(string $acctCd): ?array
-    {
-        $row = SqlClient::connection($this->app)
-            ->table('BAccount as b')
-            ->leftJoin('Contact as c', function (JoinClause $join): void {
-                $join->on('c.ContactID', '=', 'b.DefContactID')
-                    ->on('c.CompanyID', '=', 'b.CompanyID');
-            })
-            ->leftJoin('Address as a', function (JoinClause $join): void {
-                $join->on('a.AddressID', '=', 'b.DefAddressID')
-                    ->on('a.CompanyID', '=', 'b.CompanyID');
-            })
-            ->where('b.CompanyID', $this->acumaticaCompanyId)
-            ->where('b.AcctCD', $acctCd)
-            ->select([
-                'b.AcctCD', 'b.AcctName', 'b.NoteID',
-                'c.FirstName', 'c.LastName', 'c.EMail', 'c.Phone1',
-                'a.AddressLine1', 'a.AddressLine2', 'a.City', 'a.State',
-                'a.CountryID', 'a.PostalCode', 'a.Latitude', 'a.Longitude',
-            ])
-            ->first();
-
-        return $row !== null ? (array) $row : null;
     }
 }
