@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenBillsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Override;
@@ -54,6 +55,7 @@ class AccountsPayableAgent extends SystemUserAgent
             new FindPurchaseOrderTool()->withContext($this->app, $this->company, $this->actingUser()),
             new FindBillTool()->withContext($this->app, $this->company, $this->actingUser()),
             new FindVendorTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new MatchBillsForPaymentTool()->withContext($this->app, $this->company, $this->actingUser()),
         ]);
     }
 

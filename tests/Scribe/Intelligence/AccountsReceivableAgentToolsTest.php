@@ -8,6 +8,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTool;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoiceLine;
@@ -68,5 +69,33 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $missing = new FindInvoiceTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(invoice_number: 'DOES-NOT-EXIST');
         $this->assertFalse($missing['found']);
+    }
+
+    public function test_match_invoices_for_payment_flags_the_exact_invoice(): void
+    {
+        $customer = $this->seedTestOrganization('Acme Corporation');
+
+        Invoice::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'document_type' => 'invoice',
+            'invoice_number' => 'INV-9001',
+            'customer_organization_id' => $customer->getId(),
+            'billable_display_name' => 'Acme Corporation',
+            'document_status' => InvoiceDocumentStatusEnum::ISSUED->value,
+            'currency' => 'USD',
+            'fx_rate_to_base' => 1.0,
+            'subtotal_native' => 1200.0, 'total_native' => 1200.0, 'paid_native' => 0.0, 'balance_due_native' => 1200.0,
+            'subtotal_base' => 1200.0, 'total_base' => 1200.0, 'paid_base' => 0.0, 'balance_due_base' => 1200.0,
+            'issued_date' => Carbon::parse('2026-06-01'),
+            'source' => 'kanvas',
+        ]);
+
+        $result = new MatchInvoicesForPaymentTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer: 'Acme Corp', amount: 1200.0);
+
+        $this->assertNotEmpty($result['open_invoices']);
+        $this->assertSame('INV-9001', $result['exact_match']);
     }
 }

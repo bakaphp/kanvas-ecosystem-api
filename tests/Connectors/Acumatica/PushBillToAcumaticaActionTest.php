@@ -7,6 +7,7 @@ namespace Tests\Connectors\Acumatica;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Actions\PushBillToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Connectors\Acumatica\Services\AcumaticaWriteService;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
@@ -66,7 +67,7 @@ class PushBillToAcumaticaActionTest extends ScribeTestCase
         $captured = null;
         $writer = Mockery::mock(AcumaticaWriteService::class);
         $writer->shouldReceive('push')->once()->andReturnUsing(
-            function (string $entity, array $body, bool $release) use (&$captured): array {
+            function (string $entity, array $body, bool $release = false, array $files = [], ?array $findQuery = null) use (&$captured): array {
                 $captured = [$entity, $body, $release];
 
                 return ['id' => 'GUID-1', 'ReferenceNbr' => ['value' => '66104999']];
@@ -104,7 +105,7 @@ class PushBillToAcumaticaActionTest extends ScribeTestCase
         $writer->shouldReceive('findOrCreate')->once()
             ->andReturn(['id' => 'GUID-V', 'VendorID' => ['value' => 'V7777']]);
         $writer->shouldReceive('push')->once()->andReturnUsing(
-            function (string $entity, array $body, bool $release = false, array $files = []) use (&$captured): array {
+            function (string $entity, array $body, bool $release = false, array $files = [], ?array $findQuery = null) use (&$captured): array {
                 $captured = $body;
 
                 return ['id' => 'B1', 'ReferenceNbr' => ['value' => '000999']];
@@ -119,6 +120,22 @@ class PushBillToAcumaticaActionTest extends ScribeTestCase
         /** @var Organization $fresh */
         $fresh = Organization::query()->where('id', $vendor->getId())->firstOrFail();
         $this->assertSame('V7777', (string) $fresh->get(CustomFieldEnum::VENDOR_ID->value));
+    }
+
+    public function test_refuses_to_push_a_bill_that_originated_in_acumatica(): void
+    {
+        $vendor = $this->seedTestOrganization('Globex Supply');
+        $vendor->set(CustomFieldEnum::VENDOR_ID->value, 'V0000505');
+        $bill = $this->billWithCoding($vendor, $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS), 0);
+        $bill->source = 'acumatica';
+        $bill->save();
+
+        $writer = Mockery::mock(AcumaticaWriteService::class);
+        $writer->shouldNotReceive('push');
+
+        $this->expectException(AcumaticaWriteException::class);
+
+        new PushBillToAcumaticaAction($this->kanvasApp, $bill, $writer)->execute();
     }
 
     public function test_is_idempotent_when_already_pushed(): void

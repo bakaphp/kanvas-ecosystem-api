@@ -9,6 +9,7 @@ use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
@@ -16,6 +17,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\CreateSampleOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindProductTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindSalesOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\ListOpenSalesOrdersTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\SalesByCustomerTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\SalesByProductTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\SalesRevenueTool;
 use Override;
 
 /**
@@ -59,6 +63,10 @@ class AccountsReceivableAgent extends SystemUserAgent
             new ListOpenSalesOrdersTool()->withContext($this->app, $this->company, $this->actingUser()),
             new FindProductTool()->withContext($this->app, $this->company, $this->actingUser()),
             new CreateSampleOrderTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new SalesByCustomerTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new SalesByProductTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new SalesRevenueTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new MatchInvoicesForPaymentTool()->withContext($this->app, $this->company, $this->actingUser()),
         ]);
     }
 
@@ -78,6 +86,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Who is customer X" / resolve a customer name to its ERP code → find_customer.',
             '- "Look up sales order #X" → find_sales_order (a sales order is a CUSTOMER order, not a purchase order).',
             '- "What orders are open" / "a customer\'s in-flight orders" / the sales pipeline → list_open_sales_orders.',
+            '- "Top customers" / "biggest buyers" → sales_by_customer. "Best sellers" / "top products" → sales_by_product. "Revenue this quarter / trend" → sales_revenue (set by_month for a trend). All exclude draft/canceled orders; be clear about the date range.',
             '- "Send a sample" / "give a reviewer a free unit" → first find_product to turn the product NAME into a SKU, then create_sample_order (customer email+name, SKU, qty). If the customer email is missing, ask for it — it is a real shipment. It creates a $0 DRAFT in Kanvas; tell the user it pushes to the ERP only after a human approves it.',
             '- If asked about a PURCHASE order or a vendor BILL, say that is Accounts Payable, not your area.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',

@@ -15,6 +15,7 @@ use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
 use Kanvas\Scribe\PdfIngest\Models\PdfIngestLog;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Throwable;
 
 /**
@@ -42,6 +43,14 @@ class PushBillToAcumaticaAction
      */
     public function execute(): string
     {
+        // Never push a bill that originated in Acumatica back to it — self-defending even when this
+        // action is called directly (bypassing the activity's guard).
+        if ($this->bill->source === IntegrationsEnum::ACUMATICA->value) {
+            throw new AcumaticaWriteException(
+                "Bill {$this->bill->getId()} originated from Acumatica — cannot push it back."
+            );
+        }
+
         $existing = (string) $this->bill->get(CustomFieldEnum::BILL_ID->value, '');
 
         if ($existing !== '') {
@@ -61,6 +70,7 @@ class PushBillToAcumaticaAction
             $this->buildPayload($vendorCode),
             release: true,
             files: $this->collectAttachments(),
+            findQuery: $this->existingBillQuery($vendorCode),
         );
 
         $id = AcumaticaPayload::recordId($record);
@@ -75,6 +85,31 @@ class PushBillToAcumaticaAction
         }
 
         return $referenceNbr;
+    }
+
+    /**
+     * OData filter to adopt an Acumatica bill this push may have already created on a prior, partially
+     * failed attempt (put succeeded, local id storage crashed). Matched on the vendor + their invoice
+     * number (VendorRef), which together identify the AP bill. Null when there's no bill number to key on.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function existingBillQuery(string $vendorCode): ?array
+    {
+        $vendorRef = (string) ($this->bill->bill_number ?? '');
+
+        if ($vendorRef === '') {
+            return null;
+        }
+
+        $filter = "VendorRef eq '" . $this->escape($vendorRef) . "' and Vendor eq '" . $this->escape($vendorCode) . "'";
+
+        return ['$filter' => $filter, '$top' => 1];
+    }
+
+    private function escape(string $value): string
+    {
+        return str_replace("'", "''", $value);
     }
 
     /**

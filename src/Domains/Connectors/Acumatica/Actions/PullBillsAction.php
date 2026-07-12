@@ -116,7 +116,7 @@ class PullBillsAction
                 continue;
             }
 
-            new ImportBillFromExternalAction(
+            $billModel = new ImportBillFromExternalAction(
                 data: new BillData(
                     app: $this->app,
                     company: $this->company,
@@ -140,6 +140,10 @@ class PullBillsAction
                 paidNative: $bill->paid,
                 user: $this->user,
             )->execute();
+
+            if ($bill->externalId !== '') {
+                $billModel->set(CustomFieldEnum::BILL_ID->value, $bill->externalId);
+            }
 
             $count++;
         }

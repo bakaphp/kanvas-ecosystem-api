@@ -179,6 +179,28 @@ class AcumaticaWriteFoundationTest extends TestCase
         new AcumaticaWriteService($this->app(), $client)->findOrCreate('Vendor', [], []);
     }
 
+    public function testPushAdoptsExistingRecordWhenFindQueryMatchesAndSkipsCreate(): void
+    {
+        $this->enableWrites();
+
+        $client = Mockery::mock(Client::class);
+        $client->shouldReceive('login')->once();
+        $client->shouldReceive('get')->once()->with('Bill', Mockery::type('array'))
+            ->andReturn([['id' => 'EXISTING-GUID', 'ReferenceNbr' => ['value' => '000777']]]);
+        $client->shouldReceive('put')->never();          // adopted — never re-create
+        $client->shouldReceive('invokeAction')->never(); // never re-release
+        $client->shouldReceive('logout')->once();
+
+        $record = new AcumaticaWriteService($this->app(), $client)->push(
+            'Bill',
+            AcumaticaPayload::wrap(['Vendor' => 'V1']),
+            release: true,
+            findQuery: ['$filter' => "VendorRef eq 'INV-1'", '$top' => 1],
+        );
+
+        $this->assertSame('EXISTING-GUID', AcumaticaPayload::recordId($record));
+    }
+
     public function testPushReleasesWhenRequested(): void
     {
         $this->enableWrites();

@@ -50,12 +50,18 @@ class AcumaticaWriteService
      * Create/update an entity, attach files, and optionally Release — one authenticated session.
      * Files attach BEFORE the Release so they land on the draft.
      *
+     * `$findQuery` makes the push idempotent against retries: if a matching record already exists
+     * (e.g. a prior attempt created it in Acumatica but crashed before the local id was stored), it
+     * is adopted instead of created — preventing a duplicate document on retry. Runs in the same
+     * session, so it costs no extra login.
+     *
      * @param array<string, mixed>                                             $body  `{value:}`-wrapped (AcumaticaPayload::wrap)
      * @param array<int, array{name: string, content: string, type?: string}> $files
+     * @param array<string, mixed>|null                                        $findQuery OData filter to adopt an existing record
      *
      * @return array<array-key, mixed> the persisted record (includes the `id` GUID)
      */
-    public function push(string $entity, array $body, bool $release = false, array $files = []): array
+    public function push(string $entity, array $body, bool $release = false, array $files = [], ?array $findQuery = null): array
     {
         $this->assertWriteEnabled();
 
@@ -63,6 +69,14 @@ class AcumaticaWriteService
 
         try {
             $client->login();
+
+            if ($findQuery !== null) {
+                $found = $client->get($entity, $findQuery);
+
+                if (isset($found[0]) && is_array($found[0])) {
+                    return $found[0];
+                }
+            }
 
             $record = $client->put($entity, $body);
 
@@ -138,7 +152,7 @@ class AcumaticaWriteService
 
         foreach ($files as $file) {
             try {
-                $url = str_replace('{filename}', rawurlencode($file['name']), $template);
+                $url = str_ireplace('{filename}', rawurlencode($file['name']), $template);
                 $client->putFile($url, $file['content'], $file['type'] ?? 'application/octet-stream');
             } catch (Throwable) {
             }

@@ -8,10 +8,12 @@ use Baka\Contracts\PayeeInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class ApproveBillAction
@@ -25,6 +27,12 @@ class ApproveBillAction
 
     public function execute(): Bill
     {
+        // Bills pulled from Acumatica are already posted there — the Kanvas approval → push flow is
+        // for Kanvas-originated bills only. Reject with a clear message instead of a silent no-op.
+        if ($this->bill->source === IntegrationsEnum::ACUMATICA->value) {
+            throw new ValidationException('Inbound Acumatica bills cannot be approved through Kanvas.');
+        }
+
         if ($this->bill->document_status === BillDocumentStatusEnum::RECEIVED) {
             return $this->bill;
         }

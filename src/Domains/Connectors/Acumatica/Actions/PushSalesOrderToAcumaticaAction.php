@@ -40,7 +40,11 @@ class PushSalesOrderToAcumaticaAction
             );
         }
 
-        $record = $this->writer()->push('SalesOrder', $this->buildPayload($customerCode));
+        $record = $this->writer()->push(
+            'SalesOrder',
+            $this->buildPayload($customerCode),
+            findQuery: $this->existingOrderQuery(),
+        );
 
         $id = AcumaticaPayload::recordId($record);
         $orderNbr = (string) (AcumaticaPayload::value($record, 'OrderNbr') ?? $id ?? '');
@@ -77,12 +81,26 @@ class PushSalesOrderToAcumaticaAction
         $header = AcumaticaPayload::wrap([
             'OrderType' => (string) ($this->order->get(CustomFieldEnum::ORDER_TYPE->value) ?? 'SO'),
             'CustomerID' => $customerCode,
+            'CustomerOrderNbr' => (string) $this->order->order_number,
             'OrderDesc' => $this->order->customer_note,
         ]);
 
         $header['Details'] = $this->buildLines();
 
         return $header;
+    }
+
+    /**
+     * OData filter to adopt a SalesOrder a prior partially-failed push may have already created —
+     * keyed on the Kanvas order number we stamp as CustomerOrderNbr — so a retry doesn't duplicate it.
+     *
+     * @return array<string, mixed>
+     */
+    private function existingOrderQuery(): array
+    {
+        $ref = str_replace("'", "''", (string) $this->order->order_number);
+
+        return ['$filter' => "CustomerOrderNbr eq '{$ref}'", '$top' => 1];
     }
 
     /**

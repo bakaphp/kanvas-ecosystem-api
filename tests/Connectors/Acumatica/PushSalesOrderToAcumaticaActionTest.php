@@ -74,7 +74,7 @@ class PushSalesOrderToAcumaticaActionTest extends TestCase
         $captured = null;
         $writer = Mockery::mock(AcumaticaWriteService::class);
         $writer->shouldReceive('push')->once()->andReturnUsing(
-            function (string $entity, array $body) use (&$captured): array {
+            function (string $entity, array $body, bool $release = false, array $files = [], ?array $findQuery = null) use (&$captured): array {
                 $captured = [$entity, $body];
 
                 return ['id' => 'SO-1', 'OrderNbr' => ['value' => 'SO000123']];
@@ -104,7 +104,7 @@ class PushSalesOrderToAcumaticaActionTest extends TestCase
         $writer->shouldReceive('findOrCreate')->once()
             ->andReturn(['id' => 'GUID-C', 'CustomerID' => ['value' => 'C7777']]);
         $writer->shouldReceive('push')->once()->andReturnUsing(
-            function (string $entity, array $body) use (&$captured): array {
+            function (string $entity, array $body, bool $release = false, array $files = [], ?array $findQuery = null) use (&$captured): array {
                 $captured = $body;
 
                 return ['id' => 'SO-9', 'OrderNbr' => ['value' => 'SO000999']];

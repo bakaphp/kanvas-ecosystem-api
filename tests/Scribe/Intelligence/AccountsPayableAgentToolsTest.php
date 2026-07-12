@@ -12,6 +12,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenBillsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
@@ -49,6 +50,20 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         )->execute();
 
         new ReceiveBillAction($bill, $vendor, static::$cachedUser)->execute();
+    }
+
+    public function test_match_bills_for_payment_flags_the_exact_bill(): void
+    {
+        $vendor = $this->seedTestOrganization('Globex Supply');
+        $this->receiveOpenBill($vendor, 800.0, '2026-06-20');
+
+        $result = new MatchBillsForPaymentTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(vendor: 'Globex Supply', amount: 800.0);
+
+        $this->assertNotEmpty($result['open_bills']);
+        $this->assertSame(800.0, (float) $result['total_open']);
+        $this->assertNotNull($result['exact_match']);
     }
 
     public function test_ap_aging_and_open_bills_tools_report_owed_amounts(): void

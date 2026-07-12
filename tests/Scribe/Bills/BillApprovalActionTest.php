@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Scribe\Bills;
 
 use Illuminate\Support\Carbon;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
@@ -145,6 +146,18 @@ class BillApprovalActionTest extends ScribeTestCase
         $this->assertSame(WorkflowEnum::STATUS_TRANSITION->value, $spy->firedWorkflows[0]['event']);
         $this->assertSame(BillDocumentStatusEnum::DRAFT->value, $spy->firedWorkflows[0]['params']['to']);
         $this->assertSame('bill', $spy->firedWorkflows[0]['params']['entity']);
+    }
+
+    public function test_approve_refuses_an_inbound_acumatica_bill(): void
+    {
+        $vendor = $this->seedTestOrganization('Globex Supply');
+        $bill = $this->draftBill($vendor);
+        $bill->source = 'acumatica';
+        $bill->save();
+
+        $this->expectException(ValidationException::class);
+
+        new ApproveBillAction($bill->refresh(), $vendor, static::$cachedUser)->execute();
     }
 
     public function test_reject_returns_bill_to_draft_and_marks_queue_item_rejected(): void
