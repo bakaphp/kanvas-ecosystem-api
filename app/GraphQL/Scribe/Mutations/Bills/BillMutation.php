@@ -8,9 +8,12 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Bills\Actions\AllocateBillPaymentAction;
+use Kanvas\Scribe\Bills\Actions\ApproveBillAction;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\MarkBillPaidAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
+use Kanvas\Scribe\Bills\Actions\RejectBillAction;
+use Kanvas\Scribe\Bills\Actions\SubmitBillForApprovalAction;
 use Kanvas\Scribe\Bills\Actions\UpdateBillAction;
 use Kanvas\Scribe\Bills\Actions\VoidBillAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
@@ -76,6 +79,63 @@ class BillMutation
             bill: $bill,
             vendor: $vendor,
             user: $user,
+        )->execute();
+    }
+
+    public function submitForApproval(mixed $rootValue, array $request): Bill
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        /** @var Bill $bill */
+        $bill = Bill::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+
+        return new SubmitBillForApprovalAction(bill: $bill, user: $user)->execute();
+    }
+
+    public function approve(mixed $rootValue, array $request): Bill
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        /** @var Bill $bill */
+        $bill = Bill::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+
+        if ($bill->vendor_organization_id === null) {
+            throw new RuntimeException(
+                "Bill {$bill->id} has no vendor reference — assign a vendor before approving."
+            );
+        }
+
+        /** @var Organization $vendor */
+        $vendor = Organization::getByIdFromCompanyApp(
+            (int) $bill->vendor_organization_id,
+            $company,
+            $app,
+        );
+
+        return new ApproveBillAction(
+            bill: $bill,
+            vendor: $vendor,
+            approver: $user
+        )->execute();
+    }
+
+    public function reject(mixed $rootValue, array $request): Bill
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        /** @var Bill $bill */
+        $bill = Bill::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+
+        return new RejectBillAction(
+            bill: $bill,
+            rejector: $user,
+            reason: $request['reason'] ?? null,
         )->execute();
     }
 

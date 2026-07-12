@@ -24,6 +24,7 @@ class JournalEntryLine extends Data
         public readonly float $credit_base,
         public readonly string $currency,
         public readonly float $fx_rate_to_base,
+        public readonly ?int $subaccount_id = null,
         public readonly ?int $sort_order = null,
         public readonly ?string $customer_billable_type = null,
         public readonly ?int $customer_billable_id = null,

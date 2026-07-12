@@ -21,6 +21,7 @@ use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Payments\Models\Payment;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
 /**
@@ -85,6 +86,7 @@ use Override;
  */
 class Bill extends BaseModel implements PayableInterface
 {
+    use CanUseWorkflow;
     use EmitsLedgerEventsForEntity;
     use UuidTrait;
 

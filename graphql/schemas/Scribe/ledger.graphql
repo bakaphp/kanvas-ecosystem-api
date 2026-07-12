@@ -48,6 +48,19 @@ type ScribeAccount {
     updated_at: DateTime!
 }
 
+type ScribeSubaccount {
+    id: ID!
+    uuid: String!
+    sub_code: String!
+    description: String
+    is_active: Boolean!
+    source: String
+    external_id: String
+    company: Company! @belongsTo(relation: "company")
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
 type ScribeFiscalPeriod {
     id: ID!
     period_start: Date!
@@ -87,6 +100,7 @@ type ScribeJournalEntryLine {
     id: ID!
     sort_order: Int!
     account: ScribeAccount! @belongsTo(relation: "account")
+    subaccount: ScribeSubaccount @belongsTo(relation: "subaccount")
     debit_native: Money!
     credit_native: Money!
     debit_base: Money!
