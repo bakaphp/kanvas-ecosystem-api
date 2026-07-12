@@ -44,12 +44,11 @@ abstract class ScribeTestCase extends TestCase
     /**
      * `intelligence` is included so the NervousSystem ledger events emitted by Scribe Actions
      * (via EmitsLedgerEventsForEntity) get rolled back at the end of each test — otherwise
-     * stale `nervous_system_events` rows leak across tests. `crm`/`commerce`/`inventory` are
-     * included because Scribe tests seed Guild orgs/people, Souk orders and Inventory variants
-     * (vendor/customer/sample-order flows) — without them those rows leak and skew later tests
-     * (e.g. duplicate 'Globex Supply' orgs crowding out a find_vendor limit).
+     * stale `nervous_system_events` rows leak across tests. `crm` is included because Scribe tests
+     * seed Guild vendor/customer orgs (via seedTestOrganization) — without it those rows leak and
+     * skew later tests (duplicate 'Globex Supply' orgs crowding out a find_vendor limit).
      */
-    protected array $connectionsToTransact = ['mysql', 'accounting', 'intelligence', 'crm', 'commerce', 'inventory'];
+    protected array $connectionsToTransact = ['mysql', 'accounting', 'intelligence', 'crm'];
 
     protected Apps $kanvasApp;
     protected Companies $company;
