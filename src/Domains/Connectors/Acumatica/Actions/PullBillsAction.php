@@ -36,6 +36,7 @@ class PullBillsAction
         protected int $acumaticaCompanyId,
         protected ?int $limit = null,
         protected ?Carbon $modifiedSince = null,
+        protected ?string $ref = null,
     ) {
     }
 
@@ -69,6 +70,10 @@ class PullBillsAction
                 'r.CuryID', 'r.CuryOrigDocAmt', 'r.CuryDocBal', 'r.DocDesc',
             ])
             ->orderByDesc('r.DocDate');
+
+        if ($this->ref !== null && $this->ref !== '') {
+            $query->where('r.RefNbr', $this->ref);
+        }
 
         if ($this->modifiedSince !== null) {
             $query->where('r.LastModifiedDateTime', '>', $this->modifiedSince);
