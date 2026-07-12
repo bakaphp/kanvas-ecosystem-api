@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Sales;
 
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Souk\Orders\Models\Order;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -20,6 +20,8 @@ use Override;
 #[AgentTool(name: 'Find Sales Order')]
 class FindSalesOrderTool extends Tool
 {
+    use HasKanvasContext;
+
     public function __construct()
     {
         parent::__construct(
@@ -52,8 +54,8 @@ class FindSalesOrderTool extends Tool
      */
     public function __invoke(string $order_number): array
     {
-        $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
+        $app = $this->app;
+        $company = $this->company;
 
         /** @var Order|null $order */
         $order = Order::query()

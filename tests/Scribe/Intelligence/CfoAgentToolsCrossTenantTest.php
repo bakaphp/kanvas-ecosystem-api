@@ -36,7 +36,7 @@ class CfoAgentToolsCrossTenantTest extends ScribeTestCase
     {
         $this->seedIssuedInvoice(total: 1000.0);
 
-        $payload = new QueryBalanceSheetTool()->__invoke(
+        $payload = new QueryBalanceSheetTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(
             as_of: '2026-06-30',
             currency: 'USD',
         );
@@ -55,7 +55,7 @@ class CfoAgentToolsCrossTenantTest extends ScribeTestCase
     {
         $this->seedIssuedInvoice(total: 500.0);
 
-        $payload = new QueryArAgingTool()->__invoke(as_of: '2026-06-30', currency: 'USD');
+        $payload = new QueryArAgingTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(as_of: '2026-06-30', currency: 'USD');
 
         $this->assertIsArray($payload);
         $this->assertSame(500.0, (float) $payload['grand_total']);
@@ -65,7 +65,7 @@ class CfoAgentToolsCrossTenantTest extends ScribeTestCase
     {
         $this->seedIssuedInvoice(total: 750.0, dueDateOffsetDays: -45);
 
-        $payload = new ListOverdueInvoicesTool()->__invoke(limit: 25, min_days_overdue: 1);
+        $payload = new ListOverdueInvoicesTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(limit: 25, min_days_overdue: 1);
 
         $this->assertIsArray($payload);
         $this->assertGreaterThanOrEqual(1, (int) $payload['count']);
@@ -76,7 +76,7 @@ class CfoAgentToolsCrossTenantTest extends ScribeTestCase
 
     public function test_query_recent_expenses_tool_isolates_to_current_tenant(): void
     {
-        $payload = new QueryRecentExpensesTool()->__invoke(days_back: 30);
+        $payload = new QueryRecentExpensesTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(days_back: 30);
 
         $this->assertIsArray($payload);
         $this->assertArrayHasKey('expenses', $payload);
@@ -88,7 +88,7 @@ class CfoAgentToolsCrossTenantTest extends ScribeTestCase
     {
         $this->seedIssuedInvoice(total: 100.0);
 
-        $payload = new QueryDataFreshnessTool()->__invoke();
+        $payload = new QueryDataFreshnessTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke();
 
         $this->assertIsArray($payload);
         $this->assertArrayHasKey('counts', $payload);

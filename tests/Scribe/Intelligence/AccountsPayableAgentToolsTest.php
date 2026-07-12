@@ -56,11 +56,11 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $vendor = $this->seedTestOrganization('Globex Supply');
         $this->receiveOpenBill($vendor, 800.0, '2026-05-20'); // overdue
 
-        $aging = new QueryApAgingTool()->__invoke(as_of: '2026-06-01');
+        $aging = new QueryApAgingTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(as_of: '2026-06-01');
         $this->assertGreaterThanOrEqual(800.0, (float) $aging['grand_total']);
         $this->assertGreaterThanOrEqual(1, (int) $aging['vendor_count']);
 
-        $open = new ListOpenBillsTool()->__invoke();
+        $open = new ListOpenBillsTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke();
         $this->assertGreaterThanOrEqual(1, (int) $open['count']);
         $this->assertGreaterThanOrEqual(800.0, (float) $open['total_balance_due']);
     }
@@ -87,7 +87,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             'unit_cost' => 200,
         ]);
 
-        $result = new ListOpenPurchaseOrdersTool()->__invoke(vendor_code: 'V0000505');
+        $result = new ListOpenPurchaseOrdersTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(vendor_code: 'V0000505');
 
         $this->assertSame(1, (int) $result['count']);
         $this->assertSame('PO900', $result['purchase_orders'][0]['order_number']);
@@ -99,7 +99,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $vendor = $this->seedTestOrganization('Globex Supply');
         $vendor->set(CustomFieldEnum::VENDOR_ID->value, 'V0000505');
 
-        $result = new FindVendorTool()->__invoke(name: 'Globex Supply Co');
+        $result = new FindVendorTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(name: 'Globex Supply Co');
 
         $this->assertGreaterThanOrEqual(1, (int) $result['count']);
         $codes = array_column($result['vendors'], 'acumatica_vendor_code');
@@ -128,13 +128,13 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             'unit_cost' => 200,
         ]);
 
-        $found = new FindPurchaseOrderTool()->__invoke(order_number: 'PO4242');
+        $found = new FindPurchaseOrderTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(order_number: 'PO4242');
         $this->assertTrue($found['found']);
         $this->assertSame('V0000505', $found['vendor_code']);
         $this->assertCount(1, $found['lines']);
         $this->assertSame('RL-KP336', $found['lines'][0]['sku']);
 
-        $missing = new FindPurchaseOrderTool()->__invoke(order_number: 'DOES-NOT-EXIST');
+        $missing = new FindPurchaseOrderTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(order_number: 'DOES-NOT-EXIST');
         $this->assertFalse($missing['found']);
     }
 
@@ -149,7 +149,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             ->latest('id')
             ->first();
 
-        $result = new FindBillTool()->__invoke(bill_number: (string) $bill->bill_number);
+        $result = new FindBillTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(bill_number: (string) $bill->bill_number);
 
         $this->assertTrue($result['found']);
         $this->assertSame('received', $result['document_status']);

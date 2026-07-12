@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
@@ -22,6 +22,8 @@ use Override;
 #[AgentTool(name: 'Find Purchase Order')]
 class FindPurchaseOrderTool extends Tool
 {
+    use HasKanvasContext;
+
     public function __construct()
     {
         parent::__construct(
@@ -54,8 +56,8 @@ class FindPurchaseOrderTool extends Tool
      */
     public function __invoke(string $order_number): array
     {
-        $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
+        $app = $this->app;
+        $company = $this->company;
 
         /** @var PurchaseOrder|null $po */
         $po = PurchaseOrder::query()

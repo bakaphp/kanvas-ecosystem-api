@@ -20,7 +20,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $customer = $this->seedTestOrganization('Acme Corporation');
         $customer->set(CustomFieldEnum::CUSTOMER_ID->value, 'C0000123');
 
-        $result = new FindCustomerTool()->__invoke(name: 'Acme Corp');
+        $result = new FindCustomerTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(name: 'Acme Corp');
 
         $this->assertGreaterThanOrEqual(1, (int) $result['count']);
         $codes = array_column($result['customers'], 'acumatica_customer_code');
@@ -59,14 +59,14 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             'unit_price_native' => 250.0,
         ]);
 
-        $found = new FindInvoiceTool()->__invoke(invoice_number: 'INV-5150');
+        $found = new FindInvoiceTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(invoice_number: 'INV-5150');
         $this->assertTrue($found['found']);
         $this->assertSame('Acme Corporation', $found['customer']);
         $this->assertSame(1000.0, (float) $found['balance_due_native']);
         $this->assertCount(1, $found['lines']);
         $this->assertSame('RL-KP336', $found['lines'][0]['sku']);
 
-        $missing = new FindInvoiceTool()->__invoke(invoice_number: 'DOES-NOT-EXIST');
+        $missing = new FindInvoiceTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(invoice_number: 'DOES-NOT-EXIST');
         $this->assertFalse($missing['found']);
     }
 }

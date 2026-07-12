@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -19,6 +19,8 @@ use Override;
 #[AgentTool(name: 'List Open Purchase Orders')]
 class ListOpenPurchaseOrdersTool extends Tool
 {
+    use HasKanvasContext;
+
     public function __construct()
     {
         parent::__construct(
@@ -57,8 +59,8 @@ class ListOpenPurchaseOrdersTool extends Tool
      */
     public function __invoke(?string $vendor_code = null, ?int $limit = null): array
     {
-        $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
+        $app = $this->app;
+        $company = $this->company;
         $limit = max(1, min(100, $limit ?? 20));
 
         $query = PurchaseOrder::query()

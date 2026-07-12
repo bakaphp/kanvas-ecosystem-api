@@ -12,6 +12,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\CreateSampleOrderTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindProductTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindSalesOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\ListOpenSalesOrdersTool;
 use Override;
@@ -47,14 +49,16 @@ class AccountsReceivableAgent extends SystemUserAgent
     protected function tools(): array
     {
         return array_merge(parent::tools(), [
-            new QueryDataFreshnessTool(),
-            new QueryArAgingTool(),
-            new ListOverdueInvoicesTool(),
-            new TopLatePayersTool(),
-            new FindInvoiceTool(),
-            new FindCustomerTool(),
-            new FindSalesOrderTool(),
-            new ListOpenSalesOrdersTool(),
+            new QueryDataFreshnessTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new QueryArAgingTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new ListOverdueInvoicesTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new TopLatePayersTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new FindInvoiceTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new FindCustomerTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new FindSalesOrderTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new ListOpenSalesOrdersTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new FindProductTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new CreateSampleOrderTool()->withContext($this->app, $this->company, $this->actingUser()),
         ]);
     }
 
@@ -74,6 +78,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Who is customer X" / resolve a customer name to its ERP code → find_customer.',
             '- "Look up sales order #X" → find_sales_order (a sales order is a CUSTOMER order, not a purchase order).',
             '- "What orders are open" / "a customer\'s in-flight orders" / the sales pipeline → list_open_sales_orders.',
+            '- "Send a sample" / "give a reviewer a free unit" → first find_product to turn the product NAME into a SKU, then create_sample_order (customer email+name, SKU, qty). If the customer email is missing, ask for it — it is a real shipment. It creates a $0 DRAFT in Kanvas; tell the user it pushes to the ERP only after a human approves it.',
             '- If asked about a PURCHASE order or a vendor BILL, say that is Accounts Payable, not your area.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);

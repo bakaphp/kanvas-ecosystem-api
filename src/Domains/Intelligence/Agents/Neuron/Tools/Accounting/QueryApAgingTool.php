@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use NeuronAI\Tools\PropertyType;
@@ -21,6 +21,8 @@ use Override;
 #[AgentTool(name: 'Query AP Aging')]
 class QueryApAgingTool extends Tool
 {
+    use HasKanvasContext;
+
     public function __construct()
     {
         parent::__construct(
@@ -58,8 +60,8 @@ class QueryApAgingTool extends Tool
      */
     public function __invoke(?string $as_of = null, ?int $limit = null): array
     {
-        $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
+        $app = $this->app;
+        $company = $this->company;
         $asOf = $as_of !== null ? Carbon::parse($as_of) : Carbon::today();
         $limit = max(1, min(200, $limit ?? 25));
 
