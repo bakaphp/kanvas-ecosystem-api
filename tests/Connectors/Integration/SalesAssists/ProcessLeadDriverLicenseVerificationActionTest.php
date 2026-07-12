@@ -8,6 +8,7 @@ use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\ActionEngine\Pipelines\Models\PipelineStage;
+use Kanvas\Apps\Actions\SyncEmailTemplateAction;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\SalesAssist\Actions\ProcessLeadDriverLicenseVerificationAction;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
@@ -299,6 +300,11 @@ class ProcessLeadDriverLicenseVerificationActionTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+
+        // the engagement status-change fires an OneSignal notification that renders
+        // the engagement-status-changed template; seed it (and siblings) from the
+        // blade sources so the notification path runs for real on a fresh DB.
+        new SyncEmailTemplateAction($app, $user)->execute(overWrite: false);
 
         $pipeline = Pipeline::firstOrCreate([
             'slug' => ConfigurationEnum::ID_VERIFICATION->value,
