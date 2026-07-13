@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Mercury\Traits;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Users\Models\Users;
 use RuntimeException;
 
@@ -45,5 +46,14 @@ trait MercuryBankAccountTrait
     protected function owner(): Users
     {
         return Users::getById($this->bankAccount->users_id ?? 0);
+    }
+
+    /**
+     * A card is money you OWE, so it backs a liability account rather than a cash one — which is also how we
+     * tell the two apart, since we don't persist Mercury's `kind`.
+     */
+    protected function isCreditCard(): bool
+    {
+        return $this->bankAccount->glAccount?->account_sub_type === AccountSubTypeEnum::CREDIT_CARD_LIABILITY;
     }
 }
