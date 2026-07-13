@@ -9,36 +9,38 @@ use Illuminate\Notifications\AnonymousNotifiable;
 use Kanvas\Souk\Orders\Models\Order;
 use Override;
 
-class RoadsideAssistanceStatusNotification extends CustomOrderNotification
+class RoadsideChatMessageNotification extends CustomOrderNotification
 {
     public function __construct(
         Order $order,
-        string $title,
-        string $message,
-        string $destinationEvent,
+        string $channelSlug,
+        string $senderName,
+        string $preview,
+        int $chatMessageId,
         array $via = ['push', 'database', 'expo'],
     ) {
-        $assistanceCase = $order->metadata['assistance_case'] ?? ($order->metadata['data']['assistance_case'] ?? []);
-
         $data = [
             'email_template' => null,
             'push_template' => null,
             'app' => $order->app,
             'company' => $order->company,
-            'title' => $title,
-            'message' => $message,
+            'title' => "New message from {$senderName}",
+            'message' => $preview,
+            // Top-level scalar so it survives the Expo scalar-only data filter; the app
+            // uses it to deep-link into the chat via channelMessages(channel_slug: ...).
+            'channel_slug' => $channelSlug,
             'metadata' => [
                 'order_id' => $order->getId(),
                 'order_uuid' => $order->uuid,
-                'service' => $assistanceCase['service'] ?? null,
-                'location' => $assistanceCase['location'] ?? [],
+                'channel_slug' => $channelSlug,
+                'chat_message_id' => $chatMessageId,
             ],
             'message_owner_id' => $order->users_id,
-            'message_id' => $order->getId(),
-            'parent_message_id' => $order->getId(),
-            'destination_id' => $order->getId(),
-            'destination_type' => 'ORDER',
-            'destination_event' => $destinationEvent,
+            'message_id' => $chatMessageId,
+            'parent_message_id' => $chatMessageId,
+            'destination_id' => $channelSlug,
+            'destination_type' => 'CHANNEL',
+            'destination_event' => 'NEW_MESSAGE',
             'fromUser' => $order->user,
         ];
 
@@ -61,9 +63,9 @@ class RoadsideAssistanceStatusNotification extends CustomOrderNotification
         ];
     }
 
-    // The title/message come per-event from the constructor, not from a stored push
-    // template (push_template is null). Emit them as the JSON shape getPushContent()
-    // expects so the Expo channel ships without trying to render a missing DB template.
+    // The title/message come from the constructor, not from a stored push template
+    // (push_template is null). Emit them as the JSON shape getPushContent() expects so
+    // the Expo channel ships without trying to render a missing DB template.
     #[Override]
     protected function getPushTemplate(): string
     {

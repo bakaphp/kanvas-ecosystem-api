@@ -1,0 +1,113 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\Movipass\Actions;
+
+use Illuminate\Support\Str;
+use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Connectors\Movipass\Notifications\RoadsideChatMessageNotification;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\SystemModules\Models\SystemModules;
+
+class SendRoadsideChatMessagePushAction
+{
+    public function __construct(
+        protected Channel $channel,
+        protected Message $message,
+    ) {
+    }
+
+    /**
+     * Push the new chat message to every channel member except the sender.
+     * Self-guards: only fires for roadside-assistance order channels, so it is
+     * safe to bind on a broad Channel/updated workflow rule.
+     *
+     * @return int number of recipients notified
+     */
+    public function execute(): int
+    {
+        if (! $this->isOrderChannel($this->channel)) {
+            return 0;
+        }
+
+        $order = $this->resolveRoadsideOrder($this->channel);
+
+        if ($order === null) {
+            return 0;
+        }
+
+        $senderId = (int) $this->message->users_id;
+
+        $recipients = $this->channel->users()
+            ->wherePivot('users_id', '!=', $senderId)
+            ->wherePivot('is_deleted', 0)
+            ->get();
+
+        if ($recipients->isEmpty()) {
+            return 0;
+        }
+
+        $notification = new RoadsideChatMessageNotification(
+            $order,
+            (string) $this->channel->slug,
+            $this->resolveSenderName($this->message),
+            $this->resolvePreview($this->message),
+            (int) $this->message->getKey(),
+        );
+
+        foreach ($recipients as $recipient) {
+            $recipient->notify($notification);
+        }
+
+        return $recipients->count();
+    }
+
+    private function isOrderChannel(Channel $channel): bool
+    {
+        if (empty($channel->entity_id) || empty($channel->entity_namespace)) {
+            return false;
+        }
+
+        return SystemModules::convertLegacySystemModules((string) $channel->entity_namespace) === Order::class;
+    }
+
+    private function resolveRoadsideOrder(Channel $channel): ?Order
+    {
+        $order = Order::find((int) $channel->entity_id);
+
+        if ($order === null) {
+            return null;
+        }
+
+        return $order->orderType?->name === OrderTypeEnum::ROADSIDE_ASSISTANCE->value ? $order : null;
+    }
+
+    private function resolveSenderName(Message $message): string
+    {
+        $name = trim((string) ($message->user?->displayname ?? ''));
+
+        return $name !== '' ? $name : 'Roadside Assistance';
+    }
+
+    private function resolvePreview(Message $message): string
+    {
+        $content = $message->getMessage();
+
+        foreach (['message', 'text', 'content', 'body'] as $key) {
+            if (isset($content[$key]) && is_string($content[$key]) && trim($content[$key]) !== '') {
+                return Str::limit(trim($content[$key]), 120);
+            }
+        }
+
+        foreach ($content as $value) {
+            if (is_string($value) && trim($value) !== '') {
+                return Str::limit(trim($value), 120);
+            }
+        }
+
+        return 'You have a new message';
+    }
+}
