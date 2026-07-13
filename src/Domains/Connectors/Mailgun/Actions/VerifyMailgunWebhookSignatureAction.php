@@ -48,6 +48,6 @@ class VerifyMailgunWebhookSignatureAction
         $appKey = (string) $this->app->get($key);
         $companyKey = (string) $this->company->get($key);
 
-        return $appKey !== '' ? $appKey : $companyKey;
+        return $companyKey !== '' ? $companyKey : $appKey;
     }
 }
