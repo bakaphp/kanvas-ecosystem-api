@@ -6,10 +6,9 @@ namespace Tests\Connectors\Movipass;
 
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Movipass\Actions\SendRoadsideChatMessagePushAction;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
-use Kanvas\Connectors\Movipass\Listeners\SendRoadsideChatMessagePushListener;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideChatMessageNotification;
-use Kanvas\Social\Channels\Events\ChannelMessageCreatedEvent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -71,7 +70,7 @@ final class RoadsideChatMessagePushTest extends TestCase
         $this->assertSame('roadside-abc-123', $oneSignal['data']['channel_slug']);
     }
 
-    public function testListenerNotifiesCounterpartyOnRoadsideChat(): void
+    public function testActionNotifiesCounterpartyOnRoadsideChat(): void
     {
         $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
         $mechanic = Users::factory()->create();
@@ -80,16 +79,15 @@ final class RoadsideChatMessagePushTest extends TestCase
 
         Notification::fake();
 
-        new SendRoadsideChatMessagePushListener()->handle(
-            new ChannelMessageCreatedEvent($channel, $message),
-        );
+        $notified = new SendRoadsideChatMessagePushAction($channel, $message)->execute();
 
+        $this->assertSame(1, $notified);
         Notification::assertSentTo($mechanic, RoadsideChatMessageNotification::class);
         // The sender never gets pushed for their own message.
         Notification::assertNotSentTo($this->authUser, RoadsideChatMessageNotification::class);
     }
 
-    public function testListenerIgnoresNonRoadsideOrderChat(): void
+    public function testActionIgnoresNonRoadsideOrderChat(): void
     {
         $order = $this->createOrder(OrderTypeEnum::MOVIPASS->value);
         $mechanic = Users::factory()->create();
@@ -98,10 +96,9 @@ final class RoadsideChatMessagePushTest extends TestCase
 
         Notification::fake();
 
-        new SendRoadsideChatMessagePushListener()->handle(
-            new ChannelMessageCreatedEvent($channel, $message),
-        );
+        $notified = new SendRoadsideChatMessagePushAction($channel, $message)->execute();
 
+        $this->assertSame(0, $notified);
         Notification::assertNothingSent();
     }
 

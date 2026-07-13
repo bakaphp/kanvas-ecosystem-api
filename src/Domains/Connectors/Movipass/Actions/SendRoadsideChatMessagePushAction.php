@@ -2,70 +2,67 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Movipass\Listeners;
+namespace Kanvas\Connectors\Movipass\Actions;
 
-use Baka\Traits\KanvasJobsTrait;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideChatMessageNotification;
-use Kanvas\Social\Channels\Events\ChannelMessageCreatedEvent;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\SystemModules\Models\SystemModules;
 
-class SendRoadsideChatMessagePushListener implements ShouldQueue
+class SendRoadsideChatMessagePushAction
 {
-    use InteractsWithQueue;
-    use KanvasJobsTrait;
+    public function __construct(
+        protected Channel $channel,
+        protected Message $message,
+    ) {
+    }
 
-    public int $tries = 2;
-
-    // The event is dispatched from inside CreateMessageAction's social DB transaction.
-    // Wait for commit so the worker reads a persisted message/channel membership.
-    public bool $afterCommit = true;
-
-    public function handle(ChannelMessageCreatedEvent $event): void
+    /**
+     * Push the new chat message to every channel member except the sender.
+     * Self-guards: only fires for roadside-assistance order channels, so it is
+     * safe to bind on a broad Channel/updated workflow rule.
+     *
+     * @return int number of recipients notified
+     */
+    public function execute(): int
     {
-        $channel = $event->getChannel();
-
-        if (! $this->isOrderChannel($channel)) {
-            return;
+        if (! $this->isOrderChannel($this->channel)) {
+            return 0;
         }
 
-        $this->overwriteAppService($channel->app);
-
-        $order = $this->resolveRoadsideOrder($channel);
+        $order = $this->resolveRoadsideOrder($this->channel);
 
         if ($order === null) {
-            return;
+            return 0;
         }
 
-        $message = $event->getMessage();
-        $senderId = (int) $message->users_id;
+        $senderId = (int) $this->message->users_id;
 
-        $recipients = $channel->users()
+        $recipients = $this->channel->users()
             ->wherePivot('users_id', '!=', $senderId)
             ->wherePivot('is_deleted', 0)
             ->get();
 
         if ($recipients->isEmpty()) {
-            return;
+            return 0;
         }
 
         $notification = new RoadsideChatMessageNotification(
             $order,
-            (string) $channel->slug,
-            $this->resolveSenderName($message),
-            $this->resolvePreview($message),
-            (int) $message->getKey(),
+            (string) $this->channel->slug,
+            $this->resolveSenderName($this->message),
+            $this->resolvePreview($this->message),
+            (int) $this->message->getKey(),
         );
 
         foreach ($recipients as $recipient) {
             $recipient->notify($notification);
         }
+
+        return $recipients->count();
     }
 
     private function isOrderChannel(Channel $channel): bool

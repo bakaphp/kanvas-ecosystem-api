@@ -7,7 +7,6 @@ namespace App\Providers;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Kanvas\Companies\Groups\Observers\CompaniesGroupsObserver;
 use Kanvas\Companies\Models\CompaniesGroups;
-use Kanvas\Connectors\Movipass\Listeners\SendRoadsideChatMessagePushListener;
 use Kanvas\Connectors\ScrapperApi\Listeners\CartListener;
 use Kanvas\Guild\Customers\Listeners\UpdatePeopleMessageTimestampsListener;
 use Kanvas\Guild\Customers\Models\People;
@@ -41,7 +40,6 @@ use Kanvas\NervousSystem\Plan\Listeners\SyncKanbanAfterChatListener;
 use Kanvas\NervousSystem\Plan\Listeners\WakeAgentOnPlanChangeListener;
 use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Notifications\Listeners\NotificationsListener;
-use Kanvas\Social\Channels\Events\ChannelMessageCreatedEvent;
 use Kanvas\Social\Messages\Events\AppModuleMessageCreatedEvent;
 use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
 use Kanvas\Social\Messages\Models\UserMessageActivity;
@@ -87,9 +85,6 @@ class EventServiceProvider extends ServiceProvider
         ],
         AppModuleMessageCreatedEvent::class => [
             UpdatePeopleMessageTimestampsListener::class,
-        ],
-        ChannelMessageCreatedEvent::class => [
-            SendRoadsideChatMessagePushListener::class,
         ],
         MessageMentionsStoredEvent::class => [
             RespondToAgentMentionListener::class,
