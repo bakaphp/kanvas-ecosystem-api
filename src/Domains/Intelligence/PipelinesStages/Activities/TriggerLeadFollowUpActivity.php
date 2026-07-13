@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Artisan;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
@@ -39,19 +40,28 @@ class TriggerLeadFollowUpActivity extends KanvasActivity implements WorkflowActi
             return ['error' => 'Entity must be a Lead'];
         }
 
-        $exitCode = Artisan::call('intelligence:notification-engagement', [
-            'apps' => [$app->getId()],
-            '--company_id' => $entity->companies_id,
-            '--lead_id' => $entity->getId(),
-            '--ignore-time' => (int) ($params['ignore_time'] ?? 1),
-            '--ignore-have-follow-up' => (int) ($params['ignore_have_follow_up'] ?? 1),
-            '--ignore-first-message' => (int) ($params['ignore_first_message'] ?? 1),
-        ]);
+        return $this->executeIntegration(
+            entity: $entity,
+            app: $app,
+            integration: IntegrationsEnum::INTERNAL,
+            integrationOperation: function () use ($entity, $app, $params) {
+                $exitCode = Artisan::call('intelligence:notification-engagement', [
+                    'apps' => [$app->getId()],
+                    '--company_id' => $entity->companies_id,
+                    '--lead_id' => $entity->getId(),
+                    '--ignore-time' => (int) ($params['ignore_time'] ?? 1),
+                    '--ignore-have-follow-up' => (int) ($params['ignore_have_follow_up'] ?? 1),
+                    '--ignore-first-message' => (int) ($params['ignore_first_message'] ?? 1),
+                ]);
 
-        return [
-            'lead_id' => $entity->getId(),
-            'exit_code' => $exitCode,
-            'output' => Artisan::output(),
-        ];
+                return [
+                    'lead_id' => $entity->getId(),
+                    'exit_code' => $exitCode,
+                    'output' => Artisan::output(),
+                ];
+            },
+            additionalParams: $params,
+            company: $entity->company,
+        );
     }
 }
