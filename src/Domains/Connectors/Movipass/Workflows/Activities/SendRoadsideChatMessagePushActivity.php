@@ -40,11 +40,11 @@ class SendRoadsideChatMessagePushActivity extends KanvasActivity
             additionalParams: $params,
             integrationOperation: function () use ($entity, $message): array {
                 if (! $message instanceof Message) {
-                    return [
+                    return $this->failWorkflow([
                         'result' => false,
                         'message' => 'No message provided in params',
                         'channel_id' => $entity->getId(),
-                    ];
+                    ]);
                 }
 
                 $notified = new SendRoadsideChatMessagePushAction($entity, $message)->execute();
