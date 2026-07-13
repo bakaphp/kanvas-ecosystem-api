@@ -47,8 +47,7 @@ class VerifyMailgunWebhookSignatureAction
         $key = ConfigurationEnum::WEBHOOK_SIGNING_KEY->value;
         $appKey = (string) $this->app->get($key);
         $companyKey = (string) $this->company->get($key);
-        $useCompanyMailgun = $this->company->get('use_company_mailgun');
 
-        return $companyKey !== '' && $useCompanyMailgun ? $companyKey : $appKey;
+        return $companyKey !== '' ? $companyKey : $appKey;
     }
 }
