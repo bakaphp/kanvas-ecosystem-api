@@ -6,7 +6,12 @@ type Organization {
     name: String!
     email: String
     phone: String
+    "Legacy free-text address. Kept for the code that still reads it — use `addresses` for anything structured (invoicing, shipping, external billing APIs)."
     address: String
+    "Structured addresses — typically one Billing and one Shipping. This is what Scribe invoices and external billing APIs read."
+    addresses: [OrganizationAddress!]! @hasMany(relation: "addresses")
+    "The address an invoice bills to: the one tagged Billing, else the default, else whichever exists."
+    billing_address: OrganizationAddress @method(name: "billingAddress")
     organization_type: OrganizationType @belongsTo(relation: "organizationType")
     leads: [Lead!]!
         @paginate(
@@ -30,14 +35,47 @@ type Organization {
         )
 }
 
+"""
+A structured address on an Organization. Own table, but the SAME `AddressTypeEnum` and `AddressInput` People
+uses — Billing is Billing regardless of who owns the address.
+"""
+type OrganizationAddress {
+    id: ID!
+    organization: Organization! @belongsTo(relation: "organization")
+    address: String
+    address_2: String
+    city: String
+    county: String
+    state: String
+    zip: String
+    latitude: Float
+    longitude: Float
+    is_default: Boolean!
+    "Billing / Shipping / Home / Other. A plain string — the name `AddressType` is already taken in the Ecosystem schema by an unrelated value object."
+    type: String @method(name: "addressTypeName")
+    "True only when every field an external billing API needs is present. Mercury and Stripe validate an address all-or-nothing, so a partial one is rejected outright — this lets the UI warn before that happens."
+    is_complete: Boolean! @method(name: "isComplete")
+    country: Country @belongsTo(relation: "country")
+    states: States @belongsTo(relation: "state")
+    cities: Cities @belongsTo(relation: "city")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
 input OrganizationInput {
     name: String!
     email: String
     phone: String
+    "Legacy free-text address. Use `addresses` for anything structured."
     address: String
+    "DEPRECATED — never persisted. The organizations table has no such columns; these have always been silently discarded. Use `addresses` instead."
     city: String
+    "DEPRECATED — never persisted. Use `addresses` instead."
     state: String
+    "DEPRECATED — never persisted. Use `addresses` instead."
     zip: String
+    "Structured addresses, set on create/update. One row per type — re-sending Billing updates it rather than adding a second."
+    addresses: [AddressInput!]
     organization_type_id: ID
 }
 
@@ -88,6 +126,24 @@ extend type Mutation @guard {
     mergeGuildOrganizations(source_id: Int!, target_id: Int!): Organization!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMergeMutation@merge"
+        )
+
+    addOrganizationAddress(
+        organization_id: ID!
+        input: AddressInput!
+    ): OrganizationAddress!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationAddressMutation@add"
+        )
+
+    updateOrganizationAddress(id: ID!, input: AddressInput!): OrganizationAddress!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationAddressMutation@update"
+        )
+
+    deleteOrganizationAddress(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationAddressMutation@delete"
         )
 }
 

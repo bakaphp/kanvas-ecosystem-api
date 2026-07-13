@@ -527,24 +527,50 @@ class ExpenseLifecycleTest extends TestCase
         )->execute();
     }
 
-    public function test_create_bank_account_rejects_non_asset_gl_account(): void
+    /**
+     * A credit card IS a bank account — it just sits on the other side of the sheet. Its balance is what you
+     * OWE, so it's backed by a Liability, not an Asset. Same as QBO/Xero. (Was previously rejected; the
+     * Mercury feed pulls a real credit-card account and needs this.)
+     */
+    public function test_create_bank_account_accepts_a_liability_gl_account_for_credit_cards(): void
     {
         $liabilityAccount = Account::query()
             ->where('apps_id', $this->kanvasApp->getId())
             ->where('companies_id', $this->company->getId())
             ->where('account_sub_type', AccountSubTypeEnum::CREDIT_CARD_LIABILITY->value)
-            ->first();
-        $this->assertNotNull($liabilityAccount);
+            ->firstOrFail();
+
+        $bankAccount = new CreateBankAccountAction(
+            data: new BankAccountData(
+                app: $this->kanvasApp,
+                company: $this->company,
+                account_name: 'Company Credit Card',
+                gl_account_id: (int) $liabilityAccount->id,
+                currency: 'USD',
+            ),
+            user: static::$cachedUser,
+        )->execute();
+
+        $this->assertSame((int) $liabilityAccount->id, (int) $bankAccount->gl_account_id);
+    }
+
+    public function test_create_bank_account_rejects_a_gl_account_that_is_neither_cash_nor_a_card(): void
+    {
+        $revenueAccount = Account::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('account_sub_type', AccountSubTypeEnum::SALES_REVENUE->value)
+            ->firstOrFail();
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessageMatches('/must back Asset accounts/');
+        $this->expectExceptionMessageMatches('/must back an Asset .* or Liability/');
 
         new CreateBankAccountAction(
             data: new BankAccountData(
                 app: $this->kanvasApp,
                 company: $this->company,
                 account_name: 'Wrong-type test',
-                gl_account_id: (int) $liabilityAccount->id,
+                gl_account_id: (int) $revenueAccount->id,
                 currency: 'USD',
             ),
             user: static::$cachedUser,

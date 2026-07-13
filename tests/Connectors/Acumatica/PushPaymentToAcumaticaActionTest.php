@@ -107,7 +107,7 @@ class PushPaymentToAcumaticaActionTest extends ScribeTestCase
             }
         );
 
-        $ref = new PushPaymentToAcumaticaAction($this->kanvasApp, $payment, $writer)->execute();
+        $ref = new PushPaymentToAcumaticaAction($payment, $writer)->execute();
 
         $this->assertSame('000900', $ref);
         $this->assertSame('PAY-1', $payment->get(CustomFieldEnum::PAYMENT_ID->value));
@@ -168,7 +168,7 @@ class PushPaymentToAcumaticaActionTest extends ScribeTestCase
             }
         );
 
-        $ref = new PushPaymentToAcumaticaAction($this->kanvasApp, $payment, $writer)->execute();
+        $ref = new PushPaymentToAcumaticaAction($payment, $writer)->execute();
 
         $this->assertSame('000999', $ref);
         $this->assertSame(['value' => 'Payment'], $captured['Type']);
@@ -185,7 +185,7 @@ class PushPaymentToAcumaticaActionTest extends ScribeTestCase
         $writer = Mockery::mock(AcumaticaWriteService::class);
         $writer->shouldNotReceive('push');
 
-        $ref = new PushPaymentToAcumaticaAction($this->kanvasApp, $payment, $writer)->execute();
+        $ref = new PushPaymentToAcumaticaAction($payment, $writer)->execute();
 
         $this->assertSame('ALREADY', $ref);
     }
@@ -199,6 +199,6 @@ class PushPaymentToAcumaticaActionTest extends ScribeTestCase
 
         $this->expectException(AcumaticaWriteException::class);
 
-        new PushPaymentToAcumaticaAction($this->kanvasApp, $payment, $writer)->execute();
+        new PushPaymentToAcumaticaAction($payment, $writer)->execute();
     }
 }

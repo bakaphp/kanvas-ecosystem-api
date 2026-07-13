@@ -20,7 +20,7 @@ class EnsureAcumaticaVendorActionTest extends ScribeTestCase
         $writer = Mockery::mock(AcumaticaWriteService::class);
         $writer->shouldNotReceive('findOrCreate');
 
-        $code = new EnsureAcumaticaVendorAction($this->kanvasApp, $vendor, writer: $writer)->execute();
+        $code = new EnsureAcumaticaVendorAction($vendor, writer: $writer)->execute();
 
         $this->assertSame('V0001', $code);
     }
@@ -35,7 +35,6 @@ class EnsureAcumaticaVendorActionTest extends ScribeTestCase
             ->andReturn(['id' => 'GUID-NEW', 'VendorID' => ['value' => 'V4242']]);
 
         $code = new EnsureAcumaticaVendorAction(
-            $this->kanvasApp,
             $vendor,
             taxId: '130-99999-9',
             name: 'New Vendor LLC',

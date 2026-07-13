@@ -21,8 +21,8 @@ use Nevadskiy\Tree\AsTree;
  * @property string $account_number
  * @property string $name
  * @property string|null $description
- * @property string $account_type
- * @property string|null $account_sub_type
+ * @property AccountTypeEnum $account_type
+ * @property AccountSubTypeEnum|null $account_sub_type
  * @property int|null $parent_account_id
  * @property string|null $currency
  * @property bool $is_active

@@ -172,7 +172,7 @@ class Setup
             'name' => $defaultPipelineName,
             'companies_id' => $this->company->getId(),
             'system_modules_id' => $leadSystemModule->getId(),
-            'apps_id' => $this->app->getId()
+            'apps_id' => $this->app->getId(),
         ], [
             'users_id' => $this->user->getId(),
             'is_default' => StateEnums::YES->getValue(),

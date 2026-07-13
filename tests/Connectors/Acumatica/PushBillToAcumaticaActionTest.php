@@ -75,7 +75,7 @@ class PushBillToAcumaticaActionTest extends ScribeTestCase
             }
         );
 
-        $ref = new PushBillToAcumaticaAction($this->kanvasApp, $bill, $writer)->execute();
+        $ref = new PushBillToAcumaticaAction($bill, $writer)->execute();
 
         $this->assertSame('66104999', $ref);
         $this->assertSame('GUID-1', $bill->get(CustomFieldEnum::BILL_ID->value));
@@ -113,7 +113,7 @@ class PushBillToAcumaticaActionTest extends ScribeTestCase
             }
         );
 
-        $ref = new PushBillToAcumaticaAction($this->kanvasApp, $bill, $writer)->execute();
+        $ref = new PushBillToAcumaticaAction($bill, $writer)->execute();
 
         $this->assertSame('000999', $ref);
         $this->assertSame(['value' => 'V7777'], $captured['Vendor']);
@@ -136,7 +136,7 @@ class PushBillToAcumaticaActionTest extends ScribeTestCase
 
         $this->expectException(AcumaticaWriteException::class);
 
-        new PushBillToAcumaticaAction($this->kanvasApp, $bill, $writer)->execute();
+        new PushBillToAcumaticaAction($bill, $writer)->execute();
     }
 
     public function test_falls_back_to_configured_default_subaccount_when_line_has_none(): void
@@ -160,7 +160,7 @@ class PushBillToAcumaticaActionTest extends ScribeTestCase
                 }
             );
 
-            new PushBillToAcumaticaAction($this->kanvasApp, $bill, $writer)->execute();
+            new PushBillToAcumaticaAction($bill, $writer)->execute();
 
             $this->assertSame(['value' => '000000'], $captured['Details'][0]['Subaccount']);
 
@@ -186,7 +186,7 @@ class PushBillToAcumaticaActionTest extends ScribeTestCase
         $writer = Mockery::mock(AcumaticaWriteService::class);
         $writer->shouldNotReceive('push');
 
-        $ref = new PushBillToAcumaticaAction($this->kanvasApp, $bill, $writer)->execute();
+        $ref = new PushBillToAcumaticaAction($bill, $writer)->execute();
 
         $this->assertSame('ALREADY-THERE', $ref);
     }

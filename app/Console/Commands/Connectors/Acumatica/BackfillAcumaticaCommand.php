@@ -18,8 +18,12 @@ use Throwable;
  * incremental sync keeps fresh. Delegates each company to `kanvas:acumatica-pull` — same ordering,
  * same per-entity counts — and just orchestrates the multi-company loop + the backfill window.
  *
- * Default window is 24 months (covers every realistically-open AR/AP item + recent history without
- * dragging a decade of paid documents); `--all-history` lifts it, `--since` sets it explicitly.
+ * The window ONLY bounds the historical documents (purchase-orders, orders, journal-entries,
+ * invoices, bills) — default 24 months, which covers every realistically-open AR/AP item without
+ * dragging a decade of paid ones; `--all-history` lifts it, `--since` sets it explicitly. Inventory
+ * and the other current-state data (products, stock, customers, vendors, warehouses, accounts,
+ * subaccounts, periods) is ALWAYS pulled in full — a window there would silently drop a product or
+ * an on-hand quantity that simply hasn't changed recently.
  */
 class BackfillAcumaticaCommand extends Command
 {

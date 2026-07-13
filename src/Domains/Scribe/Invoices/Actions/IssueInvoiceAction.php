@@ -16,6 +16,7 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Services\InvoiceJournalEntryComposerService;
 use Kanvas\Scribe\Invoices\Services\InvoiceStateMachineService;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
  * Transitions a draft invoice into ISSUED state.
@@ -54,7 +55,7 @@ class IssueInvoiceAction
             return $this->invoice;
         }
 
-        return DB::connection('accounting')->transaction(function (): Invoice {
+        $invoice = DB::connection('accounting')->transaction(function (): Invoice {
             $invoice = $this->invoice;
 
             $this->freezeBillableSnapshot($invoice, $this->billable);
@@ -91,6 +92,23 @@ class IssueInvoiceAction
 
             return $invoice->refresh();
         });
+
+        // Fired outside the transaction: a connector activity can push this invoice to a third party, and it
+        // must not see (or be rolled back with) a JE that hasn't committed yet.
+        //
+        // Generic event, so a workflow rule routes the issued invoice to whichever push activity it's wired
+        // to. The issue never hardcodes a connector.
+        $invoice->fireWorkflow(
+            WorkflowEnum::STATUS_TRANSITION->value,
+            params: [
+                'app' => $invoice->app,
+                'entity' => 'invoice',
+                'from' => InvoiceDocumentStatusEnum::DRAFT->value,
+                'to' => InvoiceDocumentStatusEnum::ISSUED->value,
+            ],
+        );
+
+        return $invoice;
     }
 
     private function freezeBillableSnapshot(Invoice $invoice, BillableInterface $billable): void

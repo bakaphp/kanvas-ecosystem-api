@@ -24,14 +24,17 @@ class EnsureAcumaticaVendorAction
 {
     use HasAcumaticaWriter;
 
+    /** The vendor org's own app — the tenant whose Acumatica config/credentials this runs against. */
+    protected Apps $app;
+
     public function __construct(
-        protected Apps $app,
         protected Organization $vendor,
         protected ?string $taxId = null,
         protected ?string $name = null,
         protected ?string $email = null,
         ?AcumaticaWriteService $writer = null,
     ) {
+        $this->app = $vendor->app;
         $this->writer = $writer;
     }
 

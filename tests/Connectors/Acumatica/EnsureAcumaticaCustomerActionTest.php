@@ -29,7 +29,7 @@ class EnsureAcumaticaCustomerActionTest extends ScribeTestCase
         $writer = Mockery::mock(AcumaticaWriteService::class);
         $writer->shouldNotReceive('findOrCreate');
 
-        $code = new EnsureAcumaticaCustomerAction($this->kanvasApp, $customer, writer: $writer)->execute();
+        $code = new EnsureAcumaticaCustomerAction($customer, writer: $writer)->execute();
 
         $this->assertSame('C0001', $code);
     }
@@ -44,7 +44,6 @@ class EnsureAcumaticaCustomerActionTest extends ScribeTestCase
             ->andReturn(['id' => 'GUID-C', 'CustomerID' => ['value' => 'C4242']]);
 
         $code = new EnsureAcumaticaCustomerAction(
-            $this->kanvasApp,
             $customer,
             name: 'Jane Buyer',
             email: 'jane@buyer.test',

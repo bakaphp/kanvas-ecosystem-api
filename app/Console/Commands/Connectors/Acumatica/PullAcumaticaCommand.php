@@ -43,7 +43,7 @@ class PullAcumaticaCommand extends Command
         {--only=all : products|warehouses|stock|customers|vendors|purchase-orders|orders|accounts|subaccounts|periods|journal-entries|invoices|bills|all}
         {--all-items : include non-stock items (default: stock items only)}
         {--limit= : cap rows pulled per entity (recommended for first runs / large catalogs)}
-        {--since= : only pull transactional rows modified on/after this ISO date (master data is always full)}
+        {--since= : window the historical DOCUMENTS (purchase-orders, orders, journal-entries, invoices, bills) to those modified on/after this ISO date. Current-state data (products, stock, customers, vendors, warehouses, accounts, subaccounts, periods) is ALWAYS pulled in full — windowing it would silently drop a product or an on-hand qty that simply has not changed recently}
         {--order-number= : pull a single sales order by its number (orders only)}
         {--debug : print per-row diagnostics (stock)}';
 
@@ -98,8 +98,7 @@ class PullAcumaticaCommand extends Command
                     $region,
                     $acumaticaCompanyId,
                     $stockItemsOnly,
-                    $limit,
-                    modifiedSince: $since
+                    $limit
                 )->execute();
                 $this->info("Products synced: {$n}");
             }
@@ -110,8 +109,7 @@ class PullAcumaticaCommand extends Command
                     $company,
                     $user,
                     $acumaticaCompanyId,
-                    limit: $limit,
-                    modifiedSince: $since
+                    limit: $limit
                 )->execute();
                 $this->info("Customers synced: {$n}");
             }
@@ -123,8 +121,7 @@ class PullAcumaticaCommand extends Command
                     $user,
                     $acumaticaCompanyId,
                     isVendor: true,
-                    limit: $limit,
-                    modifiedSince: $since
+                    limit: $limit
                 )->execute();
                 $this->info("Vendors synced: {$n}");
             }
@@ -153,8 +150,7 @@ class PullAcumaticaCommand extends Command
                     $user,
                     $region,
                     $acumaticaCompanyId,
-                    $limit,
-                    modifiedSince: $since
+                    $limit
                 );
                 $n = $stockAction->execute();
                 $this->info("Stock rows updated: {$n}");

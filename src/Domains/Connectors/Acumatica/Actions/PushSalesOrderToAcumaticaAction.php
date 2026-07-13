@@ -19,11 +19,14 @@ class PushSalesOrderToAcumaticaAction
 {
     use HasAcumaticaWriter;
 
+    /** The order's own app — the tenant whose Acumatica config/credentials this push runs against. */
+    protected Apps $app;
+
     public function __construct(
-        protected Apps $app,
         protected Order $order,
         ?AcumaticaWriteService $writer = null,
     ) {
+        $this->app = $order->app;
         $this->writer = $writer;
     }
 
@@ -185,7 +188,6 @@ class PushSalesOrderToAcumaticaAction
         }
 
         return new EnsureAcumaticaCustomerAction(
-            $this->app,
             $people,
             email: $this->order->user_email,
             writer: $this->writer(),

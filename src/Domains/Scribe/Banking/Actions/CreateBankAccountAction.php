@@ -46,10 +46,13 @@ class CreateBankAccountAction
                 );
             }
 
-            if ($glAccount->account_type !== AccountTypeEnum::ASSET) {
+            // Deposit accounts back an Asset (cash). Credit cards back a Liability — the balance is what you
+            // OWE, so it lives on the other side of the sheet. Both are "bank accounts" in the sense that
+            // matters here: a feed of transactions with a GL account behind them. Same as QBO/Xero.
+            if (! in_array($glAccount->account_type, [AccountTypeEnum::ASSET, AccountTypeEnum::LIABILITY], true)) {
                 throw new RuntimeException(
                     "GL account {$glAccount->id} has type='{$glAccount->account_type->value}'; bank accounts "
-                    . 'must back Asset accounts.'
+                    . 'must back an Asset (cash) or Liability (credit card) account.'
                 );
             }
 

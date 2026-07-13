@@ -38,7 +38,7 @@ class PushSalesOrderToAcumaticaActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::ACUMATICA,
             integrationOperation: fn (): array => [
-                'reference' => new PushSalesOrderToAcumaticaAction($app, $entity)->execute(),
+                'reference' => new PushSalesOrderToAcumaticaAction($entity)->execute(),
             ],
             additionalParams: $params,
             company: $entity->company,

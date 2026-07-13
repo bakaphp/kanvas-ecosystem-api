@@ -41,11 +41,14 @@ class PushBillToAcumaticaAction
     /** @var array<int|string, string> resolved subaccount code per bill line, to mirror back post-push */
     private array $lineSubaccountCodes = [];
 
+    /** The bill's own app — the tenant whose Acumatica config/credentials this push runs against. */
+    protected Apps $app;
+
     public function __construct(
-        protected Apps $app,
         protected Bill $bill,
         ?AcumaticaWriteService $writer = null,
     ) {
+        $this->app = $bill->app;
         $this->writer = $writer;
     }
 
@@ -390,7 +393,6 @@ class PushBillToAcumaticaAction
         }
 
         return new EnsureAcumaticaVendorAction(
-            $this->app,
             $vendor,
             taxId: $this->bill->vendor_tax_id,
             name: $this->bill->vendor_display_name,

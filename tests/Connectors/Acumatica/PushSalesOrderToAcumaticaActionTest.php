@@ -82,7 +82,7 @@ class PushSalesOrderToAcumaticaActionTest extends TestCase
             }
         );
 
-        $ref = new PushSalesOrderToAcumaticaAction($this->app(), $order, $writer)->execute();
+        $ref = new PushSalesOrderToAcumaticaAction($order, $writer)->execute();
 
         $this->assertSame('SO000123', $ref);
         $this->assertSame('SO-1', $order->get(CustomFieldEnum::ORDER_ID->value));
@@ -112,7 +112,7 @@ class PushSalesOrderToAcumaticaActionTest extends TestCase
             }
         );
 
-        $ref = new PushSalesOrderToAcumaticaAction($this->app(), $order, $writer)->execute();
+        $ref = new PushSalesOrderToAcumaticaAction($order, $writer)->execute();
 
         $this->assertSame('SO000999', $ref);
         $this->assertSame(['value' => 'C7777'], $captured['CustomerID']);
@@ -143,7 +143,7 @@ class PushSalesOrderToAcumaticaActionTest extends TestCase
                 }
             );
 
-            new PushSalesOrderToAcumaticaAction($app, $order, $writer)->execute();
+            new PushSalesOrderToAcumaticaAction($order, $writer)->execute();
 
             $this->assertArrayHasKey('custom', $captured);
             $doc = $captured['custom']['Document'];
@@ -176,7 +176,7 @@ class PushSalesOrderToAcumaticaActionTest extends TestCase
         $writer = Mockery::mock(AcumaticaWriteService::class);
         $writer->shouldNotReceive('push');
 
-        $ref = new PushSalesOrderToAcumaticaAction($this->app(), $order, $writer)->execute();
+        $ref = new PushSalesOrderToAcumaticaAction($order, $writer)->execute();
 
         $this->assertSame('ALREADY-THERE', $ref);
     }
