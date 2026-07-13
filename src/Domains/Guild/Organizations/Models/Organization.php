@@ -14,10 +14,12 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
+use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
@@ -74,6 +76,33 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     public function organizationType(): BelongsTo
     {
         return $this->belongsTo(OrganizationType::class, 'organization_type_id');
+    }
+
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(Address::class, 'organizations_id', 'id')
+            ->where('is_deleted', false);
+    }
+
+    /**
+     * The address an invoice should be billed to.
+     *
+     * Falls back to the default address, then to any address at all. A company that only ever entered one
+     * address means it — making them tag it "Billing" before an invoice will render is bureaucracy, not
+     * correctness.
+     */
+    public function billingAddress(): ?Address
+    {
+        /** @var Collection<int, Address> $addresses */
+        $addresses = $this->addresses()->with('type')->get()->collect();
+
+        $billing = $addresses->first(
+            fn (Address $a): bool => $a->type?->name === AddressTypeEnum::BILLING->value,
+        );
+
+        return $billing
+            ?? $addresses->firstWhere('is_default', true)
+            ?? $addresses->first();
     }
 
     public function peoples(): HasManyThrough

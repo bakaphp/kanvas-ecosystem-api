@@ -7,6 +7,7 @@ namespace Kanvas\Scribe\Banking\Models;
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Models\BaseModel;
@@ -56,5 +57,10 @@ class BankAccount extends BaseModel
     public function glAccount(): BelongsTo
     {
         return $this->belongsTo(Account::class, 'gl_account_id', 'id');
+    }
+
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(BankTransaction::class, 'bank_account_id', 'id');
     }
 }

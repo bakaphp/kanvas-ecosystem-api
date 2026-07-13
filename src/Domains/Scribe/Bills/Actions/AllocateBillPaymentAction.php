@@ -43,6 +43,13 @@ class AllocateBillPaymentAction
         public readonly string $source = 'kanvas',
         public readonly ?array $metadata = null,
         public readonly ?Carbon $paidAt = null,
+        /**
+         * Set false ONLY when the cash movement was already booked elsewhere — specifically, when a bank
+         * feed parked this payment in Suspense before the bill existed. Posting DR AP / CR Cash again would
+         * credit cash twice for one real-world payment. The caller then owes the books a DR AP / CR Suspense
+         * entry to clear the payable; SettleBillFromSuspenseAction is the only thing that should do this.
+         */
+        public readonly bool $postCashJournalEntry = true,
         protected readonly BillJournalEntryComposerService $composer = new BillJournalEntryComposerService(),
     ) {
     }
@@ -107,15 +114,17 @@ class AllocateBillPaymentAction
             $allocation->metadata = $this->metadata;
             $allocation->save();
 
-            $jeData = $this->composer->composePayment(
-                bill: $bill,
-                allocation: $allocation,
-                cashAccountSubType: $this->cashAccountSubType,
-            );
-            new PostJournalEntryAction(
-                data: $jeData,
-                postedByUser: $this->user,
-            )->execute();
+            if ($this->postCashJournalEntry) {
+                $jeData = $this->composer->composePayment(
+                    bill: $bill,
+                    allocation: $allocation,
+                    cashAccountSubType: $this->cashAccountSubType,
+                );
+                new PostJournalEntryAction(
+                    data: $jeData,
+                    postedByUser: $this->user,
+                )->execute();
+            }
 
             new MarkBillPaidAction(
                 bill: $bill,
