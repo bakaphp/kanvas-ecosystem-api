@@ -40,7 +40,7 @@ class PushBillToAcumaticaActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::ACUMATICA,
             integrationOperation: fn (): array => [
-                'reference' => new PushBillToAcumaticaAction($app, $entity)->execute(),
+                'reference' => new PushBillToAcumaticaAction($entity)->execute(),
             ],
             additionalParams: $params,
             company: $entity->company,

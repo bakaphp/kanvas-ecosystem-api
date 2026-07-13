@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mercury\Services;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
-use Kanvas\Connectors\Mercury\Client;
 use Kanvas\Connectors\Mercury\DataTransferObject\MercuryTransaction;
 
-class MercuryTransactionService
+class MercuryTransactionService extends MercuryApiService
 {
     /** Mercury's own ceiling; asking for more is an error, not a bigger page. */
     private const int MAX_PAGE_SIZE = 1000;
@@ -18,14 +15,13 @@ class MercuryTransactionService
     /** A runaway cursor would loop forever against a paginating API. Bound it. */
     private const int MAX_PAGES = 100;
 
-    protected Client $client;
+    public function find(string $transactionId): ?MercuryTransaction
+    {
+        $response = $this->client->get("transactions/{$transactionId}");
 
-    public function __construct(
-        protected readonly AppInterface $app,
-        protected readonly CompanyInterface $company,
-        ?Client $client = null,
-    ) {
-        $this->client = $client ?? new Client($this->app, $this->company);
+        return isset($response['id'])
+            ? MercuryTransaction::fromApi($response)
+            : null;
     }
 
     /**

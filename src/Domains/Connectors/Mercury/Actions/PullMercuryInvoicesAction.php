@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Mercury\DataTransferObject\MercuryInvoice;
 use Kanvas\Connectors\Mercury\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Mercury\Enums\InvoiceStatusEnum;
+use Kanvas\Connectors\Mercury\Services\MercuryCustomFieldLookupService;
 use Kanvas\Connectors\Mercury\Services\MercuryInvoiceService;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
@@ -177,22 +178,18 @@ class PullMercuryInvoicesAction
         ));
     }
 
+    /**
+     * `external_id` finds the ones we imported; the custom field finds the ones we pushed.
+     */
     private function findLinkedInvoice(string $mercuryInvoiceId): ?Invoice
     {
         return Invoice::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('is_deleted', false)
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
             ->where('external_id', $mercuryInvoiceId)
             ->first()
-            ?? Invoice::query()
-                ->where('apps_id', $this->app->getId())
-                ->where('companies_id', $this->company->getId())
-                ->where('is_deleted', false)
-                ->get()
-                ->first(
-                    fn (Invoice $i): bool => (string) $i->get(CustomFieldEnum::INVOICE_ID->value) === $mercuryInvoiceId,
-                );
+            ?? MercuryCustomFieldLookupService::invoice($mercuryInvoiceId, $this->app, $this->company);
     }
 
     private function resolveCustomer(MercuryInvoice $mercuryInvoice): ?Organization
@@ -201,13 +198,10 @@ class PullMercuryInvoicesAction
             return null;
         }
 
-        return Organization::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('is_deleted', false)
-            ->get()
-            ->first(
-                fn (Organization $o): bool => (string) $o->get(CustomFieldEnum::CUSTOMER_ID->value) === $mercuryInvoice->customerId,
-            );
+        return MercuryCustomFieldLookupService::organization(
+            $mercuryInvoice->customerId,
+            $this->app,
+            $this->company,
+        );
     }
 }

@@ -8,6 +8,8 @@ use Kanvas\Connectors\Mercury\Actions\PullMercuryCustomersAction;
 use Kanvas\Connectors\Mercury\Actions\PullMercuryInvoicesAction;
 use Kanvas\Connectors\Mercury\Actions\PushCustomerToMercuryAction;
 use Kanvas\Connectors\Mercury\Actions\PushInvoiceToMercuryAction;
+use Kanvas\Connectors\Mercury\Activities\PushCustomerToMercuryActivity;
+use Kanvas\Connectors\Mercury\Activities\PushInvoiceToMercuryActivity;
 use Kanvas\Connectors\Mercury\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Mercury\Services\MercuryCustomerService;
 use Kanvas\Connectors\Mercury\Services\MercuryInvoiceService;
@@ -61,8 +63,6 @@ final class MercuryArTest extends ScribeTestCase
         $before = $this->journalEntryCount();
 
         $pushed = new PushInvoiceToMercuryAction(
-            app: $this->kanvasApp,
-            company: $this->company,
             invoice: $invoice,
             invoiceService: $this->invoiceServiceReturning([
                 'id' => 'minv-1',
@@ -108,8 +108,6 @@ final class MercuryArTest extends ScribeTestCase
         $this->expectExceptionMessageMatches('/originated in Mercury/');
 
         new PushInvoiceToMercuryAction(
-            app: $this->kanvasApp,
-            company: $this->company,
             invoice: $invoice,
             invoiceService: $this->invoiceServiceReturning(['id' => 'minv-x', 'status' => 'Unpaid', 'amount' => 1_000.00]),
         )->execute();
@@ -125,8 +123,6 @@ final class MercuryArTest extends ScribeTestCase
         $this->expectExceptionMessageMatches('/already on Mercury/');
 
         new PushInvoiceToMercuryAction(
-            app: $this->kanvasApp,
-            company: $this->company,
             invoice: $invoice->refresh(),
             invoiceService: $this->invoiceServiceReturning(['id' => 'minv-y', 'status' => 'Unpaid', 'amount' => 1_000.00]),
         )->execute();
@@ -146,8 +142,6 @@ final class MercuryArTest extends ScribeTestCase
         $this->expectExceptionMessageMatches('/not yet an obligation/');
 
         new PushInvoiceToMercuryAction(
-            app: $this->kanvasApp,
-            company: $this->company,
             invoice: $invoice,
             invoiceService: $this->invoiceServiceReturning(['id' => 'minv-z', 'status' => 'Unpaid', 'amount' => 500.00]),
         )->execute();
@@ -161,11 +155,66 @@ final class MercuryArTest extends ScribeTestCase
         $this->expectExceptionMessageMatches('/has no email/');
 
         new PushCustomerToMercuryAction(
-            app: $this->kanvasApp,
-            company: $this->company,
             organization: $customer,
             customerService: $this->customerServiceReturning(['id' => 'mcus-9', 'name' => 'No Email Corp', 'email' => '']),
         )->execute();
+    }
+
+    public function testTheInvoiceActivityRefusesADraft(): void
+    {
+        $customer = $this->customerWithEmail('Initech LLC', 'ap@initech.test');
+        $invoice = $this->issueTestInvoice($customer, 500.00);
+        $invoice->document_status = InvoiceDocumentStatusEnum::DRAFT;
+        $invoice->saveQuietly();
+
+        // The activity is wired to the invoice's status-transition event, and a draft has no posted JE — so
+        // sending it would ask a customer to pay something our own books don't record them owing.
+        $outcome = $this->activity(PushInvoiceToMercuryActivity::class)->execute($invoice->refresh(), $this->kanvasApp, []);
+
+        $this->assertSame('skipped', $outcome['status']);
+        $this->assertSame('not_issued', $outcome['reason']);
+    }
+
+    public function testTheInvoiceActivityRefusesToEchoBackAnInvoiceThatCameFromMercury(): void
+    {
+        $customer = $this->customerWithEmail('Initech LLC', 'ap@initech.test');
+        $invoice = $this->issueTestInvoice($customer, 500.00);
+        $invoice->source = 'mercury';
+        $invoice->saveQuietly();
+
+        // Without this guard the pulled invoice is pushed back as a NEW one, which is then pulled again — a
+        // loop that bills the customer afresh on every cycle.
+        $outcome = $this->activity(PushInvoiceToMercuryActivity::class)->execute($invoice->refresh(), $this->kanvasApp, []);
+
+        $this->assertSame('skipped', $outcome['status']);
+        $this->assertSame('originated_in_mercury', $outcome['reason']);
+    }
+
+    public function testTheCustomerActivityRefusesAnOrganizationWithNoEmail(): void
+    {
+        // Mercury delivers invoices BY email. An org without one isn't an error — it just isn't a billing
+        // customer yet, and creating it would produce an invoice nobody ever receives.
+        $outcome = $this->activity(PushCustomerToMercuryActivity::class)->execute(
+            $this->seedTestOrganization('No Email Corp'),
+            $this->kanvasApp,
+            [],
+        );
+
+        $this->assertSame('skipped', $outcome['status']);
+        $this->assertSame('no_email', $outcome['reason']);
+    }
+
+    public function testTheCustomerActivityDoesNotPushTwice(): void
+    {
+        $customer = $this->customerWithEmail('Initech LLC', 'ap@initech.test');
+        $customer->set(CustomFieldEnum::CUSTOMER_ID->value, 'mcus-1');
+
+        // Organizations are updated constantly, and the activity fires on every update. Mercury will happily
+        // hold five customers all called "Initech LLC" and split their AR ageing across all five.
+        $outcome = $this->activity(PushCustomerToMercuryActivity::class)->execute($customer->refresh(), $this->kanvasApp, []);
+
+        $this->assertSame('skipped', $outcome['status']);
+        $this->assertSame('already_in_mercury', $outcome['reason']);
     }
 
     public function testPullingStatusForAnInvoiceWePushedDoesNotSettleIt(): void

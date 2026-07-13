@@ -24,14 +24,17 @@ class EnsureAcumaticaCustomerAction
 {
     use HasAcumaticaWriter;
 
+    /** The customer's own app — the tenant whose Acumatica config/credentials this runs against. */
+    protected Apps $app;
+
     public function __construct(
-        protected Apps $app,
         protected People $customer,
         protected ?string $taxId = null,
         protected ?string $name = null,
         protected ?string $email = null,
         ?AcumaticaWriteService $writer = null,
     ) {
+        $this->app = $customer->app;
         $this->writer = $writer;
     }
 

@@ -10,8 +10,11 @@ use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
+use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Mercury\Client;
 use Kanvas\Connectors\Mercury\Enums\ConfigurationEnum;
+use Kanvas\Workflow\KanvasActivity;
+use Kanvas\Workflow\Models\StoredWorkflow;
 
 /**
  * Builds a Mercury Client backed by canned HTTP responses, so tests exercise the real request-building and
@@ -26,6 +29,21 @@ trait HasMercuryConfiguration
     }
 
     /**
+     * Workflow's base Activity carries temporal-style bookkeeping args on its constructor. None of the Mercury
+     * activities read them, so they're filled with placeholders.
+     *
+     * @template T of KanvasActivity
+     *
+     * @param class-string<T> $activity
+     *
+     * @return T
+     */
+    protected function activity(string $activity): KanvasActivity
+    {
+        return new $activity(0, Carbon::now()->toDateTimeString(), StoredWorkflow::make(), []);
+    }
+
+    /**
      * @param list<array<string, mixed>> $responses Decoded JSON bodies, returned in order.
      */
     protected function mercuryClientReturning(
@@ -37,6 +55,23 @@ trait HasMercuryConfiguration
             fn (array $body): Response => new Response(200, ['Content-Type' => 'application/json'], (string) json_encode($body)),
             $responses,
         ));
+
+        return new Client(
+            $app,
+            $company,
+            new GuzzleClient(['handler' => HandlerStack::create($mock)]),
+        );
+    }
+
+    /**
+     * A client whose every call fails — for asserting that a third-party outage degrades gracefully rather
+     * than taking an accounting operation down with it.
+     */
+    protected function mercuryClientFailing(AppInterface $app, CompanyInterface $company): Client
+    {
+        $mock = new MockHandler([
+            new Response(500, [], '{"errors":{"message":"Mercury is down"}}'),
+        ]);
 
         return new Client(
             $app,

@@ -4,26 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mercury\Services;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
-use Kanvas\Connectors\Mercury\Client;
 use Kanvas\Connectors\Mercury\DataTransferObject\MercuryInvoice;
 
 /**
  * Mercury AR invoices. Note the `/ar/` prefix — `/invoices` is a different (nonexistent) route and 404s.
  */
-class MercuryInvoiceService
+class MercuryInvoiceService extends MercuryApiService
 {
-    protected Client $client;
-
-    public function __construct(
-        protected readonly AppInterface $app,
-        protected readonly CompanyInterface $company,
-        ?Client $client = null,
-    ) {
-        $this->client = $client ?? new Client($this->app, $this->company);
-    }
-
     /**
      * @return list<MercuryInvoice>
      */
@@ -45,5 +32,14 @@ class MercuryInvoiceService
         return MercuryInvoice::fromApi(
             $this->client->post('ar/invoices', $payload),
         );
+    }
+
+    /**
+     * Cancel is a POST, not a DELETE — `DELETE /ar/invoices/{id}` answers 405 despite what the reference
+     * implies. Only unpaid invoices are eligible, and Mercury will not undo it.
+     */
+    public function cancel(string $mercuryInvoiceId): void
+    {
+        $this->client->post("ar/invoices/{$mercuryInvoiceId}/cancel", []);
     }
 }

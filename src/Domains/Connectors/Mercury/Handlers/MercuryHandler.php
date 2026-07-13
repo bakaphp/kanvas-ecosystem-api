@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Mercury\Handlers;
 
 use Kanvas\Connectors\Contracts\BaseIntegration;
+use Kanvas\Connectors\Mercury\Actions\RegisterMercuryWebhookAction;
 use Kanvas\Connectors\Mercury\DataTransferObject\Mercury as MercuryDto;
 use Kanvas\Connectors\Mercury\Services\MercuryAccountService;
 use Kanvas\Connectors\Mercury\Services\MercuryService;
@@ -45,6 +46,19 @@ class MercuryHandler extends BaseIntegration
             new MercuryAccountService($this->app, $this->company)->list();
         } catch (Throwable $e) {
             throw new ValidationException('Mercury authentication failed: ' . $e->getMessage());
+        }
+
+        // A read-only token can pull but can't register a webhook. That's a degraded setup, not a broken one:
+        // the nightly poll still keeps the books correct, just without near-real-time. Don't fail the whole
+        // connection over it — say so and move on.
+        try {
+            new RegisterMercuryWebhookAction(
+                app: $this->app,
+                company: $this->company,
+                user: $this->company->user,
+            )->execute();
+        } catch (Throwable $e) {
+            report($e);
         }
 
         return true;

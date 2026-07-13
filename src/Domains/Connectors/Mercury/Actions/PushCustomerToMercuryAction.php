@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mercury\Actions;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Mercury\DataTransferObject\MercuryCustomer;
 use Kanvas\Connectors\Mercury\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Mercury\Services\MercuryCustomerService;
@@ -22,8 +20,6 @@ use Kanvas\Guild\Organizations\Models\Organization;
 class PushCustomerToMercuryAction
 {
     public function __construct(
-        public readonly AppInterface $app,
-        public readonly CompanyInterface $company,
         public readonly Organization $organization,
         protected readonly ?MercuryCustomerService $customerService = null,
     ) {
@@ -47,7 +43,10 @@ class PushCustomerToMercuryAction
             );
         }
 
-        $service = $this->customerService ?? new MercuryCustomerService($this->app, $this->company);
+        $service = $this->customerService ?? new MercuryCustomerService(
+            $this->organization->app,
+            $this->organization->company,
+        );
 
         $created = $service->create(
             MercuryCustomer::fromOrganization($this->organization, $email),

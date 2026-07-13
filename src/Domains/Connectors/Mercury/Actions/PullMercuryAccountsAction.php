@@ -55,7 +55,9 @@ class PullMercuryAccountsAction
     private function syncOne(MercuryAccount $mercuryAccount): BankAccount
     {
         $existing = BankAccount::query()
-            ->where('apps_id', $this->app->getId())
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
             ->where('source', 'mercury')
             ->where('external_id', $mercuryAccount->id)
             ->first();

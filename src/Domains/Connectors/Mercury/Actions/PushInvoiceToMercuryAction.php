@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mercury\Actions;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Mercury\DataTransferObject\MercuryInvoice;
 use Kanvas\Connectors\Mercury\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Mercury\Enums\CustomFieldEnum;
@@ -39,8 +37,6 @@ use RuntimeException;
 class PushInvoiceToMercuryAction
 {
     public function __construct(
-        public readonly AppInterface $app,
-        public readonly CompanyInterface $company,
         public readonly Invoice $invoice,
         protected readonly ?MercuryInvoiceService $invoiceService = null,
         protected readonly ?MercuryCustomerService $customerService = null,
@@ -52,13 +48,14 @@ class PushInvoiceToMercuryAction
         $this->assertPushable();
 
         $customerId = new PushCustomerToMercuryAction(
-            app: $this->app,
-            company: $this->company,
             organization: $this->customerOrganization(),
             customerService: $this->customerService,
         )->execute();
 
-        $service = $this->invoiceService ?? new MercuryInvoiceService($this->app, $this->company);
+        $service = $this->invoiceService ?? new MercuryInvoiceService(
+            $this->invoice->app,
+            $this->invoice->company,
+        );
 
         $created = $service->create(
             MercuryInvoice::payloadFromInvoice(
@@ -126,7 +123,11 @@ class PushInvoiceToMercuryAction
         }
 
         /** @var Organization $organization */
-        $organization = Organization::getByIdFromCompanyApp($organizationId, $this->company, $this->app);
+        $organization = Organization::getByIdFromCompanyApp(
+            $organizationId,
+            $this->invoice->company,
+            $this->invoice->app,
+        );
 
         return $organization;
     }
@@ -137,17 +138,17 @@ class PushInvoiceToMercuryAction
      */
     private function destinationAccountId(): string
     {
-        $configured = $this->company->get(ConfigurationEnum::AR_DEPOSIT_ACCOUNT_ID->value);
+        $configured = $this->invoice->company->get(ConfigurationEnum::AR_DEPOSIT_ACCOUNT_ID->value);
 
         if (! empty($configured)) {
             return (string) $configured;
         }
 
         $checking = BankAccount::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
+            ->fromApp($this->invoice->app)
+            ->fromCompany($this->invoice->company)
+            ->notDeleted()
             ->where('source', 'mercury')
-            ->where('is_deleted', false)
             ->whereHas(
                 'glAccount',
                 fn ($query) => $query->where('account_sub_type', AccountSubTypeEnum::CASH_CHECKING->value),
@@ -168,6 +169,6 @@ class PushInvoiceToMercuryAction
 
     private function shouldSendEmail(): bool
     {
-        return (bool) $this->company->get(ConfigurationEnum::AR_SEND_EMAIL->value);
+        return (bool) $this->invoice->company->get(ConfigurationEnum::AR_SEND_EMAIL->value);
     }
 }

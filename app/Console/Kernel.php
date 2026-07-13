@@ -3,6 +3,7 @@
 namespace App\Console;
 
 use App\Console\Commands\Connectors\Acumatica\ScheduledAcumaticaSyncCommand;
+use App\Console\Commands\Connectors\Mercury\PullMercuryCommand;
 use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
 use App\Console\Commands\Connectors\Movipass\CheckExpiringOrdersCommand;
 use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
@@ -51,6 +52,11 @@ class Kernel extends ConsoleKernel
 
         // Acumatica — incremental delta sync for every opted-in company (gated per company).
         //$schedule->command(ScheduledAcumaticaSyncCommand::class)->hourly()->withoutOverlapping()->onOneServer();
+
+        // Mercury — webhooks carry the live feed; this is the recovery pull. Mercury has no replay API, so an
+        // event dropped past its ~1-day retry window is gone unless we go looking. Nightly, off-peak, with a
+        // 7-day lookback that comfortably outruns that window.
+        //$schedule->command(PullMercuryCommand::class)->dailyAt('02:00')->withoutOverlapping()->onOneServer();
 
         // Nervous System — agent lifecycle, ledger maintenance, pulse + dashboard
         // rollups, plan + capability sweeps, the daily-learning loop.

@@ -4,20 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mercury\Actions;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
-use Kanvas\Connectors\Mercury\DataTransferObject\MercuryAccount;
 use Kanvas\Connectors\Mercury\DataTransferObject\MercuryTransaction;
 use Kanvas\Connectors\Mercury\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Mercury\Services\MercuryTransactionService;
-use Kanvas\Scribe\Banking\Actions\CreateBankTransactionAction;
-use Kanvas\Scribe\Banking\DataTransferObject\BankTransaction as BankTransactionData;
-use Kanvas\Scribe\Banking\Enums\BankTransactionCategoryEnum;
+use Kanvas\Connectors\Mercury\Traits\MercuryBankAccountTrait;
 use Kanvas\Scribe\Banking\Models\BankAccount;
 use Kanvas\Scribe\Banking\Models\BankTransaction;
-use RuntimeException;
 
 /**
  * Pulls settled Mercury transactions for one bank account into `accounting.bank_transactions`.
@@ -33,6 +27,8 @@ use RuntimeException;
  */
 class PullMercuryTransactionsAction
 {
+    use MercuryBankAccountTrait;
+
     /** How far back to re-scan on every run, to catch late-posting transactions. */
     private const int RECHECK_WINDOW_DAYS = 3;
 
@@ -40,8 +36,6 @@ class PullMercuryTransactionsAction
     public const int DEFAULT_LOOKBACK_DAYS = 90;
 
     public function __construct(
-        public readonly AppInterface $app,
-        public readonly CompanyInterface $company,
         public readonly BankAccount $bankAccount,
         public readonly ?UserInterface $user = null,
         /** Only applies to the first pull; afterwards the stored cursor takes over. */
@@ -55,16 +49,10 @@ class PullMercuryTransactionsAction
      */
     public function execute(): array
     {
-        $mercuryAccountId = $this->bankAccount->external_id;
-
-        if ($mercuryAccountId === null || $this->bankAccount->source !== 'mercury') {
-            throw new RuntimeException(
-                "BankAccount {$this->bankAccount->getId()} is not a Mercury account — refusing to sync."
-            );
-        }
+        $mercuryAccountId = $this->mercuryAccountId();
 
         $service = $this->transactionService
-            ?? new MercuryTransactionService($this->app, $this->company);
+            ?? new MercuryTransactionService($this->app(), $this->company());
 
         $transactions = $service->listForAccount($mercuryAccountId, $this->resolveCursor($mercuryAccountId));
 
@@ -80,7 +68,7 @@ class PullMercuryTransactionsAction
         }
 
         if ($newestPostedAt !== null) {
-            $this->company->set(
+            $this->company()->set(
                 ConfigurationEnum::SYNC_CURSOR->forAccount($mercuryAccountId),
                 $newestPostedAt->toIso8601String(),
             );
@@ -94,75 +82,16 @@ class PullMercuryTransactionsAction
 
     private function land(MercuryTransaction $transaction): BankTransaction
     {
-        return new CreateBankTransactionAction(
-            data: new BankTransactionData(
-                app: $this->app,
-                company: $this->company,
-                bankAccount: $this->bankAccount,
-                postedAt: $transaction->postedAt,
-                transactionDate: $transaction->postedAt->copy()->startOfDay(),
-                direction: $transaction->direction,
-                amountNative: $transaction->amount,
-                currency: MercuryAccount::CURRENCY,
-                // Mercury is USD-only, and USD is the base currency for the tenants on it. If a non-USD-base
-                // tenant ever lands on Mercury this needs an FxRates lookup.
-                amountBase: $transaction->amount,
-                fxRateToBase: 1.0,
-                category: $this->resolveCategory($transaction),
-                counterpartyName: $transaction->counterpartyName,
-                memo: $transaction->memo,
-                rawPayload: $transaction->raw,
-                source: 'mercury',
-                externalId: $transaction->id,
-            ),
+        return new LandMercuryTransactionAction(
+            bankAccount: $this->bankAccount,
+            transaction: $transaction,
             user: $this->user,
         )->execute();
     }
 
-    /**
-     * Money moving between accounts WE OWN is a transfer, never a spend.
-     *
-     * Mercury's `kind` catches the checking↔savings case (`internalTransfer`) but NOT a credit-card payment,
-     * which it reports as the useless `kind: "other"` with the card's name as the counterparty. Left as
-     * UNKNOWN, that would auto-draft a bill for a vendor called "Mercury Credit" every month — inventing an
-     * expense out of paying down your own card.
-     *
-     * So: if the counterparty is one of our own Mercury accounts, it's a transfer. Both legs then post to
-     * Suspense and cancel each other out, which is exactly right — no cash was created or destroyed, it just
-     * moved.
-     */
-    private function resolveCategory(MercuryTransaction $transaction): BankTransactionCategoryEnum
-    {
-        if ($transaction->category !== BankTransactionCategoryEnum::UNKNOWN) {
-            return $transaction->category;
-        }
-
-        $counterparty = $transaction->counterpartyName;
-
-        if ($counterparty !== null && $this->isOwnAccountName($counterparty)) {
-            return BankTransactionCategoryEnum::TRANSFER;
-        }
-
-        return $transaction->category;
-    }
-
-    private function isOwnAccountName(string $counterparty): bool
-    {
-        $ownNames = BankAccount::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('source', 'mercury')
-            ->where('is_deleted', false)
-            ->pluck('account_name')
-            ->map(fn (string $name): string => strtolower(trim($name)))
-            ->all();
-
-        return in_array(strtolower(trim($counterparty)), $ownNames, true);
-    }
-
     private function resolveCursor(string $mercuryAccountId): Carbon
     {
-        $stored = $this->company->get(ConfigurationEnum::SYNC_CURSOR->forAccount($mercuryAccountId));
+        $stored = $this->company()->get(ConfigurationEnum::SYNC_CURSOR->forAccount($mercuryAccountId));
 
         if (empty($stored)) {
             return Carbon::now()->subDays($this->initialLookbackDays);

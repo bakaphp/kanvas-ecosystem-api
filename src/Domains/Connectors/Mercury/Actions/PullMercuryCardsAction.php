@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mercury\Actions;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Mercury\Services\MercuryCardService;
+use Kanvas\Connectors\Mercury\Traits\MercuryBankAccountTrait;
 use Kanvas\Scribe\Banking\Models\BankAccount;
-use RuntimeException;
 
 /**
  * Stores the cards attached to a Mercury account on the bank account's metadata.
@@ -20,9 +18,9 @@ use RuntimeException;
  */
 class PullMercuryCardsAction
 {
+    use MercuryBankAccountTrait;
+
     public function __construct(
-        public readonly AppInterface $app,
-        public readonly CompanyInterface $company,
         public readonly BankAccount $bankAccount,
         protected readonly ?MercuryCardService $cardService = null,
     ) {
@@ -33,16 +31,8 @@ class PullMercuryCardsAction
      */
     public function execute(): array
     {
-        $mercuryAccountId = $this->bankAccount->external_id;
-
-        if ($mercuryAccountId === null || $this->bankAccount->source !== 'mercury') {
-            throw new RuntimeException(
-                "BankAccount {$this->bankAccount->getId()} is not a Mercury account — refusing to sync cards."
-            );
-        }
-
-        $service = $this->cardService ?? new MercuryCardService($this->app, $this->company);
-        $cards = $service->listForAccount($mercuryAccountId);
+        $service = $this->cardService ?? new MercuryCardService($this->app(), $this->company());
+        $cards = $service->listForAccount($this->mercuryAccountId());
 
         $metadata = $this->bankAccount->metadata ?? [];
         $metadata['cards'] = $cards;

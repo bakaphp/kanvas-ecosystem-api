@@ -4,24 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mercury\Services;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
-use Kanvas\Connectors\Mercury\Client;
 use Kanvas\Connectors\Mercury\DataTransferObject\MercuryAccount;
 use Throwable;
 
-class MercuryAccountService
+class MercuryAccountService extends MercuryApiService
 {
-    protected Client $client;
-
-    public function __construct(
-        protected readonly AppInterface $app,
-        protected readonly CompanyInterface $company,
-        ?Client $client = null,
-    ) {
-        $this->client = $client ?? new Client($this->app, $this->company);
-    }
-
     /**
      * Every Mercury account we own — deposit accounts AND credit cards.
      *

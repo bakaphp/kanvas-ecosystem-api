@@ -10,6 +10,7 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Connectors\Mercury\DataTransferObject\MercuryCustomer;
 use Kanvas\Connectors\Mercury\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Mercury\Services\MercuryCustomerService;
+use Kanvas\Connectors\Mercury\Services\MercuryCustomFieldLookupService;
 use Kanvas\Guild\Organizations\Models\Organization;
 
 /**
@@ -83,14 +84,11 @@ class PullMercuryCustomersAction
 
     private function findByMercuryId(string $mercuryCustomerId): ?Organization
     {
-        return Organization::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('is_deleted', false)
-            ->get()
-            ->first(
-                fn (Organization $o): bool => (string) $o->get(CustomFieldEnum::CUSTOMER_ID->value) === $mercuryCustomerId,
-            );
+        return MercuryCustomFieldLookupService::organization(
+            $mercuryCustomerId,
+            $this->app,
+            $this->company,
+        );
     }
 
     private function findByEmail(string $email): ?Organization
@@ -100,9 +98,9 @@ class PullMercuryCustomersAction
         }
 
         return Organization::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('is_deleted', false)
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
             ->where('email', $email)
             ->first();
     }

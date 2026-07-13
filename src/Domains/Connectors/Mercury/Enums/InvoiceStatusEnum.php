@@ -17,15 +17,4 @@ enum InvoiceStatusEnum: string
     case PROCESSING = 'Processing';
     case PAID = 'Paid';
     case CANCELLED = 'Cancelled';
-
-    /** Money is in flight but not landed. Nothing is settled until the deposit hits the account. */
-    public function isCollected(): bool
-    {
-        return $this === self::PAID;
-    }
-
-    public function isOpen(): bool
-    {
-        return $this === self::UNPAID || $this === self::PROCESSING;
-    }
 }

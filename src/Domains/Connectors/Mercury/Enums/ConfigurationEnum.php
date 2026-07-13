@@ -16,11 +16,24 @@ enum ConfigurationEnum: string
 
     case SYNC_ENABLED = 'MERCURY_SYNC_ENABLED';
 
+    /**
+     * Which app the company connected Mercury under. The nightly pull iterates companies and has no request
+     * context to infer it from — without this it can't rebind the app scope, and Bouncer/container state
+     * from the previous tenant leaks into the next one's queries.
+     */
+    case SYNC_APP_ID = 'MERCURY_SYNC_APP_ID';
+
     /** Cursor per Mercury account: the postedAt we last ingested through. */
     case SYNC_CURSOR = 'MERCURY_SYNC_CURSOR';
 
-    /** Set in PR 4 when the webhook is registered, so we can tear it down on disconnect. */
     case WEBHOOK_ID = 'MERCURY_WEBHOOK_ID';
+
+    /**
+     * The HMAC signing secret. Mercury returns it EXACTLY ONCE, in the response to POST /webhooks — never on
+     * GET, never on update. Miss it at registration and it is unrecoverable: the only way back is to delete
+     * the webhook and create a new one.
+     */
+    case WEBHOOK_SECRET = 'MERCURY_WEBHOOK_SECRET';
 
     /**
      * Which Mercury account collects payments for AR invoices we push. Mercury requires a

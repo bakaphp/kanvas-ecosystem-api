@@ -33,11 +33,14 @@ class PushPaymentToAcumaticaAction
 {
     use HasAcumaticaWriter;
 
+    /** The payment's own app — the tenant whose Acumatica config/credentials this push runs against. */
+    protected Apps $app;
+
     public function __construct(
-        protected Apps $app,
         protected Payment $payment,
         ?AcumaticaWriteService $writer = null,
     ) {
+        $this->app = $payment->app;
         $this->writer = $writer;
     }
 

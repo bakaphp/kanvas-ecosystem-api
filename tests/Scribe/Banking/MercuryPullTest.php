@@ -299,8 +299,6 @@ final class MercuryPullTest extends ScribeTestCase
         $bankAccount = $this->seedBankAccount();
 
         $cards = new PullMercuryCardsAction(
-            app: $this->kanvasApp,
-            company: $this->company,
             bankAccount: $bankAccount,
             cardService: new MercuryCardService(
                 $this->kanvasApp,
@@ -355,8 +353,6 @@ final class MercuryPullTest extends ScribeTestCase
     private function syncTransactions(BankAccount $bankAccount, array $response): array
     {
         return new PullMercuryTransactionsAction(
-            app: $this->kanvasApp,
-            company: $this->company,
             bankAccount: $bankAccount,
             user: static::$cachedUser,
             transactionService: new MercuryTransactionService(

@@ -109,6 +109,11 @@ class Client
         return (array) json_decode((string) $response->getBody(), true);
     }
 
+    public function delete(string $endpoint): void
+    {
+        $this->client->delete(ltrim($endpoint, '/'));
+    }
+
     /**
      * Raw bytes, for statement PDFs. Goes through the authenticated client rather than a bare URL fetch —
      * the host is fixed (api.mercury.com), so there's no user-controlled URL and no SSRF surface.

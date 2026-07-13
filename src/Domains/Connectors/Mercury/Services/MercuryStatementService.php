@@ -4,22 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mercury\Services;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
-use Kanvas\Connectors\Mercury\Client;
-
-class MercuryStatementService
+class MercuryStatementService extends MercuryApiService
 {
-    protected Client $client;
-
-    public function __construct(
-        protected readonly AppInterface $app,
-        protected readonly CompanyInterface $company,
-        ?Client $client = null,
-    ) {
-        $this->client = $client ?? new Client($this->app, $this->company);
-    }
-
     /**
      * Monthly statements for one account. The heavy `transactions` array each statement carries is dropped —
      * we already hold every transaction as a first-class row, and keeping a second copy would be a second

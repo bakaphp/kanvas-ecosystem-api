@@ -32,6 +32,7 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\SalesReceipts\Models\SalesReceipt;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
 /**
@@ -53,6 +54,7 @@ use Override;
 class Organization extends BaseModel implements BillableInterface, PayeeInterface
 {
     use BillableTrait;
+    use CanUseWorkflow;
     use DatabaseSearchableTrait;
     use HasLightHouseCache;
     use HasTagsTrait;

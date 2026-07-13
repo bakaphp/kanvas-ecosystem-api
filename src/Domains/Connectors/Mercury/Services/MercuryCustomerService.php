@@ -4,26 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mercury\Services;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
-use Kanvas\Connectors\Mercury\Client;
 use Kanvas\Connectors\Mercury\DataTransferObject\MercuryCustomer;
 
 /**
  * Mercury AR customers. Note the `/ar/` prefix — `/customers` is a different (nonexistent) route and 404s.
  */
-class MercuryCustomerService
+class MercuryCustomerService extends MercuryApiService
 {
-    protected Client $client;
-
-    public function __construct(
-        protected readonly AppInterface $app,
-        protected readonly CompanyInterface $company,
-        ?Client $client = null,
-    ) {
-        $this->client = $client ?? new Client($this->app, $this->company);
-    }
-
     /**
      * @return list<MercuryCustomer>
      */

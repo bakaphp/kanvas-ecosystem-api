@@ -78,11 +78,6 @@ class MercuryAccount
         );
     }
 
-    public function isCreditCard(): bool
-    {
-        return $this->kind === self::KIND_CREDIT;
-    }
-
     /**
      * Which GL account backs this bank account.
      *
