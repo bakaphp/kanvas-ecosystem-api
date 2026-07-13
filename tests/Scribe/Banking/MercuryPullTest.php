@@ -6,10 +6,12 @@ namespace Tests\Scribe\Banking;
 
 use Kanvas\Connectors\Mercury\Actions\PullMercuryAccountsAction;
 use Kanvas\Connectors\Mercury\Actions\PullMercuryCardsAction;
+use Kanvas\Connectors\Mercury\Actions\PullMercuryStatementsAction;
 use Kanvas\Connectors\Mercury\Actions\PullMercuryTransactionsAction;
 use Kanvas\Connectors\Mercury\Enums\TransactionKindEnum;
 use Kanvas\Connectors\Mercury\Services\MercuryAccountService;
 use Kanvas\Connectors\Mercury\Services\MercuryCardService;
+use Kanvas\Connectors\Mercury\Services\MercuryStatementService;
 use Kanvas\Connectors\Mercury\Services\MercuryTransactionService;
 use Kanvas\Scribe\Banking\Enums\BankTransactionCategoryEnum;
 use Kanvas\Scribe\Banking\Enums\BankTransactionDirectionEnum;
@@ -242,6 +244,33 @@ final class MercuryPullTest extends ScribeTestCase
             $card->glAccount->account_sub_type
         );
         $this->assertSame(-1_130.55, (float) $card->current_balance_native);
+    }
+
+    public function testStatementsAreNotRequestedForACreditCard(): void
+    {
+        // Mercury's v1 statements endpoint 404s for credit accounts — statements are v2-only for cards. The
+        // client below has NO canned response, so any request at all would blow up the mock.
+        $card = collect($this->syncAccounts(
+            ['accounts' => []],
+            ['accounts' => [[
+                'id' => 'credit-9999',
+                'status' => 'active',
+                'createdAt' => '2024-10-29T16:21:04Z',
+                'currentBalance' => -1_130.55,
+                'availableBalance' => -1_130.55,
+            ]]],
+        ))->firstWhere('external_id', 'credit-9999');
+
+        $statements = new PullMercuryStatementsAction(
+            bankAccount: $card,
+            statementService: new MercuryStatementService(
+                $this->kanvasApp,
+                $this->company,
+                $this->mercuryClientReturning($this->kanvasApp, $this->company, []),
+            ),
+        )->execute();
+
+        $this->assertSame([], $statements);
     }
 
     public function testPayingOurOwnCreditCardIsClassifiedAsATransfer(): void

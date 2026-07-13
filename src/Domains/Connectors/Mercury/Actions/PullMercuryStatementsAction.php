@@ -30,6 +30,12 @@ class PullMercuryStatementsAction
      */
     public function execute(): array
     {
+        // Mercury's v1 statements endpoint 404s for credit accounts — cards are v2-only. Asking anyway warns
+        // on every run for every tenant with a card.
+        if ($this->isCreditCard()) {
+            return [];
+        }
+
         $service = $this->statementService ?? new MercuryStatementService($this->app(), $this->company());
         $statements = $service->listForAccount($this->mercuryAccountId());
 
