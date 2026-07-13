@@ -11,10 +11,12 @@ use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateLeadTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindProductTool;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\InMemoryChatHistory;
 use ReflectionMethod;
+use ReflectionProperty;
 use Tests\TestCase;
 
 class SystemUserAgentTest extends TestCase
@@ -178,5 +180,33 @@ class SystemUserAgentTest extends TestCase
             $resolved,
             'A context-needing registered tool must be instantiated with injected dependencies, not skipped',
         );
+    }
+
+    public function testResolvesRegisteredTraitToolAndFillsWithContext(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+
+        $handler = new SystemUserAgent();
+        $handler->setConfiguration(agent: $agent, entity: $user, user: $user);
+
+        $tool = new Tool();
+        $tool->handler = FindProductTool::class; // uses HasKanvasContext (no-arg ctor)
+
+        $resolved = new ReflectionMethod($handler, 'resolveRegisteredTool')->invoke($handler, $tool);
+
+        $this->assertInstanceOf(FindProductTool::class, $resolved);
+
+        // A HasKanvasContext tool has a no-arg constructor — the merge resolver must call
+        // withContext() to fill it, otherwise the typed $app property stays uninitialized.
+        $appProp = new ReflectionProperty($resolved, 'app');
+        $this->assertTrue($appProp->isInitialized($resolved), 'withContext must have filled the tenant context');
+        $this->assertSame($app->getId(), $appProp->getValue($resolved)->getId());
     }
 }

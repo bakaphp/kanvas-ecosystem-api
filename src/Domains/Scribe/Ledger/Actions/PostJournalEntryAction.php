@@ -94,6 +94,7 @@ class PostJournalEntryAction
                 $lineRow = new JournalEntryLine();
                 $lineRow->journal_entry_id = $entry->id;
                 $lineRow->account_id = $line['account_id'];
+                $lineRow->subaccount_id = $line['subaccount_id'] ?? null;
                 $lineRow->sort_order = (int) ($line['sort_order'] ?? $index);
                 $lineRow->debit_native = $line['debit_native'];
                 $lineRow->credit_native = $line['credit_native'];
@@ -129,6 +130,7 @@ class PostJournalEntryAction
             ->map(function (JournalEntryLineData $line): array {
                 return [
                     'account_id' => $line->account_id,
+                    'subaccount_id' => $line->subaccount_id,
                     'sort_order' => $line->sort_order,
                     'debit_native' => $line->debit_native,
                     'credit_native' => $line->credit_native,

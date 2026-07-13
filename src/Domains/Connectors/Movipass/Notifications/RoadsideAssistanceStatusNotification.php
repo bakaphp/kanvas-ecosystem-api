@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Movipass\Notifications;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Kanvas\Souk\Orders\Models\Order;
+use Override;
 
 class RoadsideAssistanceStatusNotification extends CustomOrderNotification
 {
@@ -15,7 +16,7 @@ class RoadsideAssistanceStatusNotification extends CustomOrderNotification
         string $title,
         string $message,
         string $destinationEvent,
-        array $via = ['push', 'database'],
+        array $via = ['push', 'database', 'expo'],
     ) {
         $assistanceCase = $order->metadata['assistance_case'] ?? ($order->metadata['data']['assistance_case'] ?? []);
 
@@ -58,5 +59,18 @@ class RoadsideAssistanceStatusNotification extends CustomOrderNotification
             'apps_id' => $this->data['app']->getId(),
             'data' => $this->getData(),
         ];
+    }
+
+    // The title/message come per-event from the constructor, not from a stored push
+    // template (push_template is null). Emit them as the JSON shape getPushContent()
+    // expects so the Expo channel ships without trying to render a missing DB template.
+    #[Override]
+    protected function getPushTemplate(): string
+    {
+        return json_encode([
+            'title' => $this->data['title'] ?? '',
+            'message' => $this->data['message'] ?? '',
+            'subtitle' => null,
+        ], JSON_THROW_ON_ERROR);
     }
 }

@@ -1,11 +1,11 @@
-FROM php:8.5.7-cli
+FROM php:8.5.8-cli
 
 # Add docker PHP extension installer
 ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
 
 # Install PHP extensions
 RUN chmod +x /usr/local/bin/install-php-extensions && \
-    install-php-extensions mbstring pdo_mysql zip exif pcntl gd memcached redis swoole opcache curl readline sqlite3 msgpack igbinary pcov sockets bcmath soap imagick
+    install-php-extensions mbstring pdo_mysql pdo_sqlsrv zip exif pcntl gd memcached redis swoole opcache curl readline sqlite3 msgpack igbinary pcov sockets bcmath soap imagick
 
 # Harden ImageMagick against malicious-image RCE (disable dangerous coders/delegates + resource caps)
 COPY docker/imagemagick-policy.xml /tmp/imagemagick-policy.xml

@@ -58,4 +58,6 @@ enum IntegrationsEnum: string
     case LENDFLOW = 'lendflow';
     case PRODUCT_ENRICHMENT = 'product_enrichment';
     case REYNOLDS = 'reynolds';
+    case ACUMATICA = 'acumatica';
+    case MERCURY = 'mercury';
 }

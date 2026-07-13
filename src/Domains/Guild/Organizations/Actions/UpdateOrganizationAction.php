@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Organizations\Actions;
 
 use Kanvas\Guild\Organizations\DataTransferObject\Organization as OrganizationData;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class UpdateOrganizationAction
 {
@@ -30,6 +31,11 @@ class UpdateOrganizationAction
             'address' => $this->organizationData->address,
             'organization_type_id' => $this->organizationData->organizationType?->getId(),
         ]);
+
+        $this->organization->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            params: ['app' => $this->organizationData->app],
+        );
 
         return $this->organization;
     }

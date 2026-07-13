@@ -14,11 +14,14 @@ use Override;
 /**
  * Gates Bill document_status transitions.
  *
- *   DRAFT     → RECEIVED   (posts AP JE)
- *   RECEIVED  → PAID       (recompute from allocations — balance hit zero)
- *   RECEIVED  → VOIDED     (posts reversal JE)
- *   PAID      → (terminal — issue a vendor credit instead of voiding)
- *   VOIDED    → (terminal)
+ *   DRAFT             → RECEIVED          (direct — posts AP JE)
+ *   DRAFT             → PENDING_APPROVAL  (agent proposes; awaits sign-off)
+ *   PENDING_APPROVAL  → RECEIVED          (approved — posts AP JE)
+ *   PENDING_APPROVAL  → DRAFT             (rejected — back for correction)
+ *   RECEIVED          → PAID              (recompute from allocations — balance hit zero)
+ *   RECEIVED          → VOIDED            (posts reversal JE)
+ *   PAID              → (terminal — issue a vendor credit instead of voiding)
+ *   VOIDED            → (terminal)
  */
 class BillStateMachineService extends AbstractDocumentStateMachineService
 {
@@ -28,6 +31,11 @@ class BillStateMachineService extends AbstractDocumentStateMachineService
     private const ALLOWED = [
         'draft' => [
             BillDocumentStatusEnum::RECEIVED,
+            BillDocumentStatusEnum::PENDING_APPROVAL,
+        ],
+        'pending_approval' => [
+            BillDocumentStatusEnum::RECEIVED,
+            BillDocumentStatusEnum::DRAFT,
         ],
         'received' => [
             BillDocumentStatusEnum::PAID,

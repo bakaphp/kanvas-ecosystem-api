@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Scribe\Items\Models\Item;
 use Kanvas\Scribe\Ledger\Models\Account;
+use Kanvas\Scribe\Ledger\Models\Subaccount;
 
 /**
  * @property int $id
@@ -29,6 +30,7 @@ use Kanvas\Scribe\Ledger\Models\Account;
  * @property float $line_total_native
  * @property float $line_total_base
  * @property int|null $expense_account_id
+ * @property int|null $subaccount_id
  * @property int|null $class_id
  * @property int|null $department_id
  * @property array|null $tax_metadata
@@ -69,5 +71,10 @@ class BillLine extends EloquentModel
     public function expenseAccount(): BelongsTo
     {
         return $this->belongsTo(Account::class, 'expense_account_id', 'id');
+    }
+
+    public function subaccount(): BelongsTo
+    {
+        return $this->belongsTo(Subaccount::class, 'subaccount_id', 'id');
     }
 }
