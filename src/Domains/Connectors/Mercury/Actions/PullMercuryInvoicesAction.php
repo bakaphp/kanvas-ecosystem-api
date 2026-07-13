@@ -11,7 +11,6 @@ use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Mercury\DataTransferObject\MercuryInvoice;
 use Kanvas\Connectors\Mercury\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Mercury\Enums\InvoiceStatusEnum;
-use Kanvas\Connectors\Mercury\Services\MercuryCustomFieldLookupService;
 use Kanvas\Connectors\Mercury\Services\MercuryInvoiceService;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
@@ -189,7 +188,7 @@ class PullMercuryInvoicesAction
             ->notDeleted()
             ->where('external_id', $mercuryInvoiceId)
             ->first()
-            ?? MercuryCustomFieldLookupService::invoice($mercuryInvoiceId, $this->app, $this->company);
+            ?? $this->findInvoiceByMercuryId($mercuryInvoiceId);
     }
 
     private function resolveCustomer(MercuryInvoice $mercuryInvoice): ?Organization
@@ -198,10 +197,33 @@ class PullMercuryInvoicesAction
             return null;
         }
 
-        return MercuryCustomFieldLookupService::organization(
+        /** @var Organization|null $organization */
+        $organization = Organization::getByCustomFieldBuilder(
+            CustomFieldEnum::CUSTOMER_ID->value,
             $mercuryInvoice->customerId,
-            $this->app,
             $this->company,
-        );
+        )
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
+            ->first();
+
+        return $organization;
+    }
+
+    private function findInvoiceByMercuryId(string $mercuryInvoiceId): ?Invoice
+    {
+        /** @var Invoice|null $invoice */
+        $invoice = Invoice::getByCustomFieldBuilder(
+            CustomFieldEnum::INVOICE_ID->value,
+            $mercuryInvoiceId,
+            $this->company,
+        )
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
+            ->first();
+
+        return $invoice;
     }
 }
