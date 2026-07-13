@@ -6,6 +6,7 @@ namespace Tests\Ecosystem\Integration\Notifications;
 
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Actions\CreateNotificationTypeAction;
 use Kanvas\Notifications\Channels\KanvasDatabase;
@@ -17,6 +18,7 @@ use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Notifications\Templates\DynamicKanvasNotification;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\DataTransferObject\TemplateInput;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Tests\TestCase;
 
 final class DynamicNotificationTest extends TestCase
@@ -277,5 +279,100 @@ final class DynamicNotificationTest extends TestCase
         $this->assertNotNull($stored);
         $this->assertSame($databaseBlurb, $stored->content);
         $this->assertStringNotContainsString('long email body', (string) $stored->content);
+    }
+
+    private function makeGateNotification(): Blank
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $lead = Lead::factory()
+            ->withAppAndCompany($app->getId(), $company->getId())
+            ->create();
+
+        new CreateTemplateAction(
+            TemplateInput::from([
+                'app' => $app,
+                'name' => 'notification-gate-test',
+                'template' => '<html><body>gate {{ $message->id ?? \'x\' }}</body></html>',
+            ])
+        )->execute();
+
+        return new Blank(
+            templateName: 'notification-gate-test',
+            data: [
+                'message' => $lead,
+                'company' => $company,
+                'app' => $app,
+                'user' => $user,
+            ],
+            via: ['database'],
+            entity: $lead
+        );
+    }
+
+    private function appMembership(): UsersAssociatedApps
+    {
+        return UsersAssociatedApps::where('users_id', auth()->user()->getId())
+            ->where('apps_id', app(Apps::class)->getId())
+            ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->firstOrFail();
+    }
+
+    /** Baseline: a user active in this app still resolves the requested channel. */
+    public function testUserActiveInAppResolvesChannels(): void
+    {
+        $membership = $this->appMembership();
+        $original = $membership->only(['is_active', 'is_deleted']);
+
+        try {
+            $membership->forceFill(['is_active' => 1, 'is_deleted' => 0])->saveOrFail();
+            $this->assertContains(KanvasDatabase::class, $this->makeGateNotification()->via(auth()->user()));
+        } finally {
+            $membership->forceFill($original)->saveOrFail();
+        }
+    }
+
+    /** Disabled for THIS app (is_active = 0) must resolve zero channels, even if active elsewhere. */
+    public function testUserDisabledInAppResolvesNoChannels(): void
+    {
+        $membership = $this->appMembership();
+        $original = $membership->only(['is_active', 'is_deleted']);
+
+        try {
+            $membership->forceFill(['is_active' => 0])->saveOrFail();
+            $this->assertEmpty($this->makeGateNotification()->via(auth()->user()));
+        } finally {
+            $membership->forceFill($original)->saveOrFail();
+        }
+    }
+
+    /** Soft-deleted membership for this app must resolve zero channels. */
+    public function testUserDeletedFromAppResolvesNoChannels(): void
+    {
+        $membership = $this->appMembership();
+        $original = $membership->only(['is_active', 'is_deleted']);
+
+        try {
+            $membership->forceFill(['is_active' => 1, 'is_deleted' => 1])->saveOrFail();
+            $this->assertEmpty($this->makeGateNotification()->via(auth()->user()));
+        } finally {
+            $membership->forceFill($original)->saveOrFail();
+        }
+    }
+
+    /** A globally deleted user resolves zero channels regardless of app membership. */
+    public function testGloballyDeletedUserResolvesNoChannels(): void
+    {
+        $user = auth()->user();
+        $original = $user->is_deleted;
+
+        try {
+            $user->is_deleted = 1;
+            $this->assertEmpty($this->makeGateNotification()->via($user));
+        } finally {
+            $user->is_deleted = $original;
+        }
     }
 }

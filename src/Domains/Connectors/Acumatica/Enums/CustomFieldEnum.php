@@ -1,0 +1,28 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\Acumatica\Enums;
+
+enum CustomFieldEnum: string
+{
+    case NOTE_ID = 'ACUMATICA_NOTE_ID';
+    case COMPANY_ID = 'ACUMATICA_COMPANY_ID';
+    case PRODUCT_ID = 'ACUMATICA_PRODUCT_ID';
+    case WAREHOUSE_ID = 'ACUMATICA_WAREHOUSE_ID';
+    case CUSTOMER_ID = 'ACUMATICA_CUSTOMER_ID';
+    case VENDOR_ID = 'ACUMATICA_VENDOR_ID';
+    case ORDER_ID = 'ACUMATICA_ORDER_ID';
+    case ORDER_TYPE = 'ACUMATICA_ORDER_TYPE';
+    case ORDER_REF = 'ACUMATICA_ORDER_REF';
+    case JOURNAL_ENTRY_ID = 'ACUMATICA_JE_ID';
+    case INVOICE_ID = 'ACUMATICA_INVOICE_ID';
+    case BILL_ID = 'ACUMATICA_BILL_ID';
+    case BILL_REF = 'ACUMATICA_BILL_REF';
+    case PAYMENT_ID = 'ACUMATICA_PAYMENT_ID';
+    case PAYMENT_REF = 'ACUMATICA_PAYMENT_REF';
+    case CASH_ACCOUNT = 'ACUMATICA_CASH_ACCOUNT';
+
+    /** Cached dominant subaccount for an expense Account, derived once from the replica's AP history. */
+    case DERIVED_SUBACCOUNT = 'ACUMATICA_DERIVED_SUBACCOUNT';
+}

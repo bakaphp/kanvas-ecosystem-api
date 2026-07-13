@@ -11,7 +11,6 @@ use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Reynolds\Actions\PushLeadAction as ReynoldsPushLeadAction;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum as ReynoldsConfigurationEnum;
-use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum as ReynoldsCustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -52,23 +51,16 @@ class PushLeadActivity extends KanvasActivity
                 } elseif ($isReynolds) {
                     $connectedCRM = 'Reynolds';
 
-                    // Reynolds rejects ISL re-sends for leads that already carry a
-                    // REYNOLDS_PROSPECT_ID. Short-circuit here so the workflow does
-                    // not blow up when it is wired to a generic "lead saved" trigger.
-                    if ($lead->get(ReynoldsCustomFieldEnum::PROSPECT_ID->value)) {
-                        $result = [
-                            'message' => 'Lead already exists in Reynolds — skipping ISL',
-                            'prospect_id' => (string) $lead->get(ReynoldsCustomFieldEnum::PROSPECT_ID->value),
-                        ];
-                    } else {
-                        try {
-                            $result = new ReynoldsPushLeadAction($lead)->execute();
-                        } catch (Throwable $e) {
-                            return $this->failWorkflow([
-                                'error' => 'Reynolds Insert Sales Lead failed: ' . $e->getMessage(),
-                                'crm' => $connectedCRM,
-                            ]);
-                        }
+                    // ReynoldsPushLeadAction upserts internally: it delegates to
+                    // UpdateLeadAction (USL) when the lead already carries a
+                    // REYNOLDS_PROSPECT_ID, else runs the ISL insert path.
+                    try {
+                        $result = new ReynoldsPushLeadAction($lead)->execute();
+                    } catch (Throwable $e) {
+                        return $this->failWorkflow([
+                            'error' => 'Reynolds push failed: ' . $e->getMessage(),
+                            'crm' => $connectedCRM,
+                        ]);
                     }
                 }
 

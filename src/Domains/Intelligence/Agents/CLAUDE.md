@@ -4,6 +4,61 @@ Loads when work touches anything under `src/Domains/Intelligence/Agents/`. For u
 
 Documents the **current state** of the agent chat flow and the rules for safely changing it.
 
+## Agent archetypes — internal teammate vs external-facing (identity & memory)
+
+Every Neuron agent **is (or should be) a Kanvas user** — `Agent.user_id` → a real `Users` row. This
+holds for BOTH archetypes below; a customer-facing `SalesAgent` gets a dedicated user just like an
+internal teammate does. **Identity** lives on `user_id`; **persona** (name/voice) lives in the agent's
+`role`/`soul`. Give every agent its OWN dedicated user — never the shared `getAiAgentUser()` — so its
+actions are attributed to its identity and its ledger memory accrues to it alone (the shared AI user
+has no isolated memory and bleeds work across agents).
+
+Two archetypes, split by **audience**:
+
+| | Internal teammate | External / customer-facing |
+|---|---|---|
+| Example | `SystemUserAgent` (implements `ConversesWithUser`) | `SalesAgent` |
+| Talks to | company **staff** | a **prospect / customer** |
+| Reached via | @mention, channel, DM, task assignment, ownership, follow | inbound connector channel (WhatsApp/email/SMS) on a lead |
+| Acts as | itself (its own user) | itself, as a consistent **persona** |
+| Conversation memory | per channel/entity | per prospect (`SalesAssistKanvasMessageHistory` rollup — continuity *within* a lead) |
+| Cross-entity memory | ✅ full — `read_my_ledger` is company-wide | ❌ none on the customer surface — prospect-isolated |
+
+### The core rule: memory scope follows AUDIENCE, not agent type
+
+- **Talking to an external prospect → entity-scoped memory only.** Continuity *within* that prospect
+  (the rollup) is correct; cross-prospect / cross-entity recall is a **leak** (prospect A's trade-in
+  shown to prospect B). Customer-facing context/activity tools MUST be entity-scoped
+  (`read_entity_context`, `read_user_activity` bounded to the record) — NEVER company-wide
+  `read_my_ledger` in a live customer chat.
+- **Talking to internal staff → full cross-entity recall is fine** — it's the company's own data.
+  `read_my_ledger` (company-wide) is the agent's durable self-memory across every lead/order it touched.
+
+This is the same guard already in code: `read_user_activity` is entity-scoped, `read_my_ledger` is
+company-wide. The **audience** decides which applies — the same user-identity agent could switch
+surfaces (answer a teammate with full recall, answer a prospect with only that prospect's thread).
+
+### Rules
+
+- **Every agent gets a dedicated Kanvas user + a persona.** Required for external agents (a faceless
+  bot is a worse experience); natural for internal ones. Persona = `role`/`soul`; identity = `user_id`.
+- **Attribution:** records/events an agent creates are stamped to its dedicated user → clean audit AND
+  the substrate for its ledger memory. Wire write-tool actor = `$agent->user`, not the conversation partner.
+- **Never expose cross-entity memory to an external counterparty.** Gate context/activity tools to the
+  entity in scope whenever the audience is a customer.
+- **Internal agents may recall company-wide** via the ledger.
+- **Tools ≠ identity.** Giving a user-agent the sales toolset makes a *sales teammate with identity +
+  memory*, not a `SalesAgent`; giving `SalesAgent` system tools doesn't grant it a self. The archetype
+  is the identity + audience + memory-scope combination, not the tool list.
+
+### Pending convergence (TODO)
+
+`SalesAgent` should adopt the user-identity model: **its own dedicated user + a named persona** (like
+`SystemUserAgent`), while KEEPING prospect-isolation on the customer-facing surface. Target end state:
+**one identity mechanism (it's a user), two memory surfaces (internal = full recall, external =
+prospect-isolated), switched by who it's talking to.** Concretely: add a persona + dedicated user to
+`SalesAgent`; do NOT hand it company-wide `read_my_ledger` on the prospect-facing path.
+
 ## End-to-end flow
 
 ```

@@ -8,6 +8,7 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
@@ -82,6 +83,19 @@ class CheckAgentRuntimeHealthCommand extends Command
                         $deployment->provider ?? '?',
                         substr($deployment->container_name, 0, 30),
                         $result->value,
+                    ));
+                } catch (ModelNotFoundException $e) {
+                    // Orphaned deployment: its agent/app/company was deleted but the row is still
+                    // running, so the probe can never succeed. Terminate it so it drops out of the
+                    // running query instead of re-reporting to Sentry on every cron run.
+                    $deployment->status = DeploymentStatusEnum::TERMINATED->value;
+                    $deployment->terminated_at = now();
+                    $deployment->error_message = $e->getMessage();
+                    $deployment->saveOrFail();
+
+                    $this->warn(sprintf(
+                        '  deployment=%d orphaned (agent missing) → terminated',
+                        $deployment->getId(),
                     ));
                 } catch (Throwable $e) {
                     $errored++;

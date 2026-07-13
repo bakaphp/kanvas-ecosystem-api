@@ -107,6 +107,37 @@ final class CustomerTest extends TestCase
         );
     }
 
+    public function testCustomerWebhookWithoutId()
+    {
+        $app = app(Apps::class);
+        $product = Products::first();
+        $variant = $product->variants()->first();
+        $warehouse = $variant->warehouses()->first();
+        $this->setupShopifyConfiguration($product, $warehouse);
+        $region = $warehouse->region;
+
+        $shopifyCustomerData = [
+            'email' => 'guest@example.com',
+            'first_name' => 'Guest',
+            'phone' => '18093505111',
+        ];
+
+        $syncCustomer = new SyncShopifyCustomerAction(
+            $app,
+            $product->company,
+            $region,
+            $shopifyCustomerData
+        );
+
+        $shopifyCustomer = $syncCustomer->execute();
+
+        $this->assertInstanceOf(People::class, $shopifyCustomer);
+        $this->assertEquals(
+            $shopifyCustomerData['first_name'],
+            $shopifyCustomer->firstname
+        );
+    }
+
     public function testCreateCustomer()
     {
         $app = app(Apps::class);

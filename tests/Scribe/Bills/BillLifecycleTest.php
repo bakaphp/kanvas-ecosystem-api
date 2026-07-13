@@ -58,6 +58,10 @@ class BillLifecycleTest extends TestCase
     {
         parent::setUp();
 
+        // JE posting dates default to Carbon::now(); freeze "now" inside the June 2026 fiscal period
+        // so postings land in the open window regardless of the real wall-clock.
+        Carbon::setTestNow(Carbon::parse('2026-06-15 12:00:00'));
+
         $this->kanvasApp = app(Apps::class);
         $this->company = static::$cachedUser->getCurrentCompany();
 
@@ -70,6 +74,13 @@ class BillLifecycleTest extends TestCase
             'period_end' => '2026-06-30',
             'status' => FiscalPeriodStatusEnum::OPEN,
         ]);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     public function test_snapshot_override_wins_over_org_default_on_receive(): void
@@ -310,6 +321,12 @@ class BillLifecycleTest extends TestCase
         $this->assertSame(BillDocumentStatusEnum::PAID, $paid->document_status);
         $this->assertEquals(500.0, (float) $paid->paid_native);
         $this->assertEquals(0.0, (float) $paid->balance_due_native);
+        $this->assertNotNull($paid->paid_at, 'paid_at must be set on PAID transition.');
+        $this->assertEquals(
+            $allocation->allocated_at->toDateTimeString(),
+            $paid->paid_at->toDateTimeString(),
+            'paid_at must equal the allocation date that cleared the balance.',
+        );
     }
 
     public function test_void_received_bill_posts_mirror_reversal(): void

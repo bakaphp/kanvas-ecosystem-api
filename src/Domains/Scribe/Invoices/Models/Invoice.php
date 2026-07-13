@@ -73,6 +73,7 @@ use Throwable;
  * @property float $total_base
  * @property float $paid_base
  * @property float $balance_due_base
+ * @property Carbon|null $paid_at
  * @property array|null $tax_metadata
  * @property array|null $regional_compliance
  * @property int|null $parent_invoice_grouping_id
@@ -109,6 +110,7 @@ class Invoice extends BaseModel implements PayableInterface
         'due_date' => 'date',
         'sent_at' => 'datetime',
         'voided_at' => 'datetime',
+        'paid_at' => 'datetime',
         'fx_rate_at' => 'datetime',
         'delivery_last_attempt_at' => 'datetime',
         'last_synced_at' => 'datetime',

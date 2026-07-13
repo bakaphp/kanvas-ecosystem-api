@@ -12,6 +12,7 @@ use Kanvas\Connectors\Reynolds\Exceptions\ReynoldsException;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Locations\Models\Countries;
+use Throwable;
 
 class Customer
 {
@@ -213,7 +214,12 @@ class Customer
         }
 
         $countryCode = $this->address['Country'] ?? 'US';
-        $country = Countries::getByCode($countryCode) ?? Countries::getByCode('US');
+
+        try {
+            $country = Countries::getByCode($countryCode) ?? Countries::getByCode('US');
+        } catch (Throwable $e) {
+            $country = Countries::getByCode('US');
+        }
 
         return [[
             'address' => $this->address['Addr1'] ?? '',

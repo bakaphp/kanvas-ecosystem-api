@@ -44,6 +44,7 @@ class BaseAgentChannelReplyAction
     protected string $messageTypeVerb = 'text';
     protected string $communicationChannel = '';
     protected bool $supportsHumanApproval = false;
+    protected bool $respectsLeadAiMode = true;
 
     public function __construct(
         protected Channel $channel,
@@ -77,7 +78,7 @@ class BaseAgentChannelReplyAction
             : 'ai_mode';
 
         $mode = IntelligenceModeEnum::tryFrom((string) $lead->get($aiModeKey));
-        if ($mode?->isOff()) {
+        if ($this->respectsLeadAiMode && $mode?->isOff()) {
             throw new Exception('Ai Agent Off for this lead');
         }
 

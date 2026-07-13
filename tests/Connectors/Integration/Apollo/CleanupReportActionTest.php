@@ -48,13 +48,13 @@ final class CleanupReportActionTest extends TestCase
         $this->seedEnriched(90003, 'Grupo Ramos', ['email_changed' => ['from' => 'a@x.do', 'to' => 'b@y.do']]);
         $this->seedEnriched(90004, 'Grupo Ramos', ['seniority_promoted' => ['from' => 'manager', 'to' => 'director'], 'new_account' => true]);
 
-        $baselineBouncing = $this->runReport($app, $company)['bouncingLeads'];
+        $baselineBouncing = $this->runReport($app, $company)['bouncingPeople'];
         $this->seedBouncingLead($app, $company);
 
         $report = $this->runReport($app, $company);
 
-        $this->assertSame($baselineBouncing + 1, $report['bouncingLeads']);
-        $this->assertSame(4, $report['verifiedLeads']);
+        $this->assertSame($baselineBouncing + 1, $report['bouncingPeople']);
+        $this->assertSame(4, $report['verifiedPeople']);
         $this->assertSame(1, $report['changedCompany']);
         $this->assertSame(1, $report['changedTitle']);
         $this->assertSame(1, $report['changedEmail']);

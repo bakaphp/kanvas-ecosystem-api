@@ -99,7 +99,7 @@ class StripePaymentLinkService
 
         // Add custom fields if provided
         if (isset($options['custom_fields'])) {
-            $paymentLinkData['custom_fields'] = $options['custom_fields'];
+            $paymentLinkData['custom_fields'] = $this->normalizeCustomFields($options['custom_fields']);
         }
 
         // Line items are built from item gross prices, so the order-level discount
@@ -160,7 +160,7 @@ class StripePaymentLinkService
            } */
 
         if (isset($options['custom_fields'])) {
-            $paymentLinkData['custom_fields'] = $options['custom_fields'];
+            $paymentLinkData['custom_fields'] = $this->normalizeCustomFields($options['custom_fields']);
         }
 
         // Add metadata if provided
@@ -183,6 +183,27 @@ class StripePaymentLinkService
         $message->set('stripe_payment_link_url', $paymentLink->url);
 
         return $paymentLink;
+    }
+
+    /**
+     * Stripe rejects an empty `default_value` on a text/numeric custom field
+     * (`parameter_invalid_empty`): it reads "" as an attempt to unset the param.
+     * Drop empty default_value entries so an optional field with no value is
+     * sent as a blank field instead of a failed request.
+     */
+    protected function normalizeCustomFields(array $customFields): array
+    {
+        foreach ($customFields as &$field) {
+            foreach (['text', 'numeric'] as $inputType) {
+                if (isset($field[$inputType]['default_value'])
+                    && trim((string) $field[$inputType]['default_value']) === ''
+                ) {
+                    unset($field[$inputType]['default_value']);
+                }
+            }
+        }
+
+        return $customFields;
     }
 
     /**

@@ -13,6 +13,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep\FmpCompanyProfileTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep\FmpCompanySearchTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep\FmpFinancialSnapshotTool;
+use Kanvas\Intelligence\Agents\Laravel\Tools\FinancialModelingPrep\FmpInstitutionalOwnershipTool;
 use Laravel\Ai\Tools\Request;
 use Tests\TestCase;
 
@@ -162,5 +163,45 @@ final class FmpToolsTest extends TestCase
         $this->assertNotNull($result['metrics']['revenue']['current']);
         $this->assertNotNull($result['metrics']['revenue']['previous']);
         $this->assertNotNull($result['metrics']['revenue']['change_pct']);
+    }
+
+    public function testInstitutionalOwnershipToolHasDescription(): void
+    {
+        $tool = new FmpInstitutionalOwnershipTool();
+        $this->assertNotEmpty($tool->description());
+        $this->assertNotEmpty($tool->name());
+        $this->assertStringContainsString('fmp_institutional_ownership', $tool->name());
+    }
+
+    /**
+     * Integration test — requires TEST_FMP_API_KEY env var.
+     */
+    public function testInstitutionalOwnershipToolReturnsTopHolders(): void
+    {
+        $apiKey = getenv('TEST_FMP_API_KEY');
+
+        if (empty($apiKey)) {
+            $this->markTestSkipped('TEST_FMP_API_KEY not set.');
+        }
+
+        $this->kanvasApp->set(ConfigurationEnum::FMP_API_KEY->value, $apiKey);
+
+        $tool = (new FmpInstitutionalOwnershipTool())->withContext($this->kanvasApp, $this->company);
+        $result = json_decode($tool->handle(new Request(['symbol' => 'AAPL'])), true);
+
+        $this->assertArrayNotHasKey('error', $result);
+        $this->assertArrayHasKey('symbol', $result);
+        $this->assertSame('AAPL', $result['symbol']);
+        $this->assertArrayHasKey('top_holders', $result);
+        $this->assertIsArray($result['top_holders']);
+        $this->assertLessThanOrEqual(3, count($result['top_holders']));
+
+        if (! empty($result['top_holders'])) {
+            $holder = $result['top_holders'][0];
+            $this->assertArrayHasKey('holder', $holder);
+            $this->assertArrayHasKey('shares', $holder);
+            $this->assertArrayHasKey('date_reported', $holder);
+            $this->assertArrayHasKey('change', $holder);
+        }
     }
 }

@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Enums\ConfigurationEnum as CompaniesConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\DealerSocket\Actions\PullPeopleAction;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum as DealerSocketEnumsCustomFieldEnum;
@@ -14,13 +17,12 @@ use Kanvas\Connectors\DriveCentric\Actions\PullPeopleLeadAction;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\PullLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Reynolds\Actions\PullLeadAction as ReynoldsPullLeadAction;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum as ReynoldsConfigurationEnum;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum as ReynoldsCustomFieldEnum;
-use Kanvas\Connectors\Reynolds\Services\XmlParser as ReynoldsXmlParser;
 use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelsAfterPullAction;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -101,43 +103,31 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
 
             $pullLead = $leadModel ? [$leadModel->toArray()] : [];
         } elseif ($isReynolds) {
-            // Reynolds is push-only — no GET-prospect endpoint exists in the
-            // SalesAssist specs. We can only refresh the lead when an inbound
-            // Publish Lead Update payload was previously parsed by the webhook
-            // job and handed to us via $params['record'] (or the raw envelope
-            // via $params['xml']). Otherwise this is a no-op and we just echo
-            // back whatever Reynolds state the lead already carries locally.
-            $record = match (true) {
-                isset($params['record']) && is_array($params['record']) => $params['record'],
-                isset($params['xml']) && is_string($params['xml']) && $params['xml'] !== ''
-                    => ReynoldsXmlParser::extractPayloadFromEnvelope($params['xml'])['Record'] ?? null,
-                default => null,
-            };
+            $lead = $this->findReynoldsLead(
+                app: $app,
+                company: $company,
+                leadId: $leadId !== null ? (string) $leadId : null,
+                email: $email,
+                phone: $phone,
+            );
 
-            if (is_array($record)) {
-                $refreshed = new ReynoldsPullLeadAction($app, $company, $user)->execute($record);
-                $pullLead = [[
-                    'id' => $refreshed->getId(),
-                    'prospect_id' => $refreshed->get(ReynoldsCustomFieldEnum::PROSPECT_ID->value),
-                ]];
-            } else {
-                $pullLead = [
-                    'message' => 'No Reynolds LDU payload supplied; nothing to pull',
-                    'lead_id' => $entity->id ?: null,
-                    'prospect_id' => ($entity instanceof Lead && $entity->id > 0)
-                        ? $entity->get(ReynoldsCustomFieldEnum::PROSPECT_ID->value)
-                        : null,
-                ];
+            if ($lead !== null && $leadId !== null
+                && (string) $lead->get(ReynoldsCustomFieldEnum::CLIENT_ID->value) !== (string) $leadId
+            ) {
+                $lead->set(ReynoldsCustomFieldEnum::CLIENT_ID->value, (string) $leadId);
             }
+
+            $pullLead = $lead ? [$lead->toArray()] : [];
         }
 
         $resolvedLead = match (true) {
             $isDriveCentric => $leadModel ?? null,
             $isDealerSocket => isset($people) ? LeadsRepository::getPeopleActiveLead($people) : null,
-            $isReynolds && isset($refreshed) => $refreshed,
-            ! empty($pullLead[0]['id']) => Lead::getById((int) $pullLead[0]['id'], $app),
-            $entity instanceof Lead && $entity->id > 0 => $entity,
-            default => null,
+            $isReynolds => $entity,
+            $isVinSolutions, $isElead => isset($pullLead[0]['id'])
+                ? Lead::getByIdFromCompanyApp((int) $pullLead[0]['id'], $company, $app)
+                : null,
+            default => null
         };
 
         try {
@@ -165,28 +155,124 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
         return $pullLead;
     }
 
-    private function extractPhone(mixed $phone): ?string
-    {
-        if ($phone === null) {
+    /**
+     * Single-query lookup for the Reynolds branch. Matches leads by any of:
+     *   - REYNOLDS_CLIENT_ID custom field equal to the inbound lead id, OR
+     *   - any of the People's email contacts equal to the inbound email, OR
+     *   - any of the People's home/cell phone contacts equal to the inbound phone.
+     *
+     * All three predicates are OR'd inside a single filter block; the JOIN
+     * on leads_status limits results to whatever the company considers an
+     * "active" lead (mirrors LeadsRepository::getPeopleActiveLeads). Leads
+     * that already carry the CLIENT_ID matching the inbound id win the
+     * ORDER BY tiebreaker so we never demote an already-linked lead.
+     */
+    private function findReynoldsLead(
+        Apps $app,
+        Companies $company,
+        ?string $leadId,
+        ?string $email,
+        ?string $phone,
+    ): ?Lead {
+        if ($leadId === null && empty($email) && empty($phone)) {
             return null;
         }
 
-        if (is_string($phone)) {
-            return $phone;
+        // Exclude terminal statuses instead of whitelisting "active" — Reynolds
+        // dealers publish prospects as "Open" which the auto-seed creates, and
+        // Kanvas defaults use "active" / "created". Exclusion covers both plus
+        // any custom pipeline stage the dealer configures. MAPPING_STATUS_CRM
+        // overrides the default when the company has a mapping installed.
+        $closedStatuses = ['closed', 'sold', 'lost'];
+        $mappingStatus = $company->get(CompaniesConfigurationEnum::MAPPING_STATUS_CRM->value);
+        if (is_array($mappingStatus)
+            && isset($mappingStatus['closed'])
+            && is_array($mappingStatus['closed'])
+            && ! empty($mappingStatus['closed'])
+        ) {
+            $closedStatuses = $mappingStatus['closed'];
         }
 
-        if (is_array($phone)) {
-            if (isset($phone['cell'])) {
-                return (string) $phone['cell'];
-            }
-            if (isset($phone['home'])) {
-                return (string) $phone['home'];
-            }
-            $first = reset($phone);
+        $emailTypes = [
+            ContactTypeEnum::EMAIL->value,
+            ContactTypeEnum::PRIMARY_EMAIL->value,
+            ContactTypeEnum::SECONDARY_EMAIL->value,
+        ];
+        $phoneTypes = [
+            ContactTypeEnum::PHONE->value,
+            ContactTypeEnum::CELLPHONE->value,
+        ];
 
-            return $first !== false ? (string) $first : null;
+        return Lead::query()
+            ->select('leads.*')
+            ->join('peoples as p', 'p.id', '=', 'leads.people_id')
+            ->join('peoples_contacts as pc', function ($join) {
+                $join->on('pc.peoples_id', '=', 'p.id')
+                    ->where('pc.is_deleted', 0);
+            })
+            ->join('leads_status as ls', 'ls.id', '=', 'leads.leads_status_id')
+            // apps_custom_fields lives on the ecosystem connection (kanvas_laravel
+            // DB) while leads / peoples / peoples_contacts live on crm. Prefix
+            // the join with the resolved DB name so the same cross-DB pattern
+            // HasCustomFields::getByCustomFieldBuilder uses keeps working here.
+            ->leftJoin(
+                DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields as cf',
+                function ($join) use ($company) {
+                    $join->on('cf.entity_id', '=', 'leads.id')
+                        ->where('cf.model_name', Lead::class)
+                        ->where('cf.name', ReynoldsCustomFieldEnum::CLIENT_ID->value)
+                        ->where('cf.companies_id', $company->getId())
+                        ->where('cf.is_deleted', 0);
+                },
+            )
+            ->where('leads.companies_id', $company->getId())
+            ->where('leads.apps_id', $app->getId())
+            ->where('leads.is_deleted', 0)
+            ->whereNotIn('ls.name', $closedStatuses)
+            ->where(function ($q) use ($leadId, $email, $phone, $emailTypes, $phoneTypes) {
+                if ($leadId !== null) {
+                    $q->orWhere('cf.value', $leadId);
+                }
+                if (! empty($email)) {
+                    $q->orWhere(function ($sub) use ($email, $emailTypes) {
+                        $sub->whereIn('pc.contacts_types_id', $emailTypes)
+                            ->where('pc.value', $email);
+                    });
+                }
+                if (! empty($phone)) {
+                    $q->orWhere(function ($sub) use ($phone, $phoneTypes) {
+                        $sub->whereIn('pc.contacts_types_id', $phoneTypes)
+                            ->where('pc.value', $phone);
+                    });
+                }
+            })
+            // Prefer any lead whose CLIENT_ID custom field already matches the
+            // inbound id; ties break by newest lead first. first() collapses
+            // the JOIN's N-per-contact rows to the single top-ranked lead.
+            ->orderByRaw('CASE WHEN cf.value = ? THEN 0 ELSE 1 END', [$leadId ?? ''])
+            ->orderByDesc('leads.id')
+            ->first();
+    }
+
+    private function extractPhone(mixed $phone): ?string
+    {
+        $raw = match (true) {
+            $phone === null => null,
+            is_string($phone) => $phone,
+            is_array($phone) => match (true) {
+                isset($phone['cell']) => (string) $phone['cell'],
+                isset($phone['home']) => (string) $phone['home'],
+                default => ($first = reset($phone)) !== false ? (string) $first : null,
+            },
+            default => (string) $phone,
+        };
+
+        if ($raw === null) {
+            return null;
         }
 
-        return (string) $phone;
+        $sanitized = Str::sanitizePhoneNumber($raw);
+
+        return $sanitized === '' ? null : $sanitized;
     }
 }

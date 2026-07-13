@@ -21,6 +21,7 @@ use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Payments\Models\Payment;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
 /**
@@ -66,6 +67,7 @@ use Override;
  * @property float $total_base
  * @property float $paid_base
  * @property float $balance_due_base
+ * @property Carbon|null $paid_at
  * @property array|null $tax_metadata
  * @property array|null $regional_compliance
  * @property string|null $notes
@@ -84,6 +86,7 @@ use Override;
  */
 class Bill extends BaseModel implements PayableInterface
 {
+    use CanUseWorkflow;
     use EmitsLedgerEventsForEntity;
     use UuidTrait;
 
@@ -101,6 +104,7 @@ class Bill extends BaseModel implements PayableInterface
         'due_date' => 'date',
         'scheduled_payment_date' => 'date',
         'voided_at' => 'datetime',
+        'paid_at' => 'datetime',
         'fx_rate_at' => 'datetime',
         'last_synced_at' => 'datetime',
         'fx_rate_to_base' => 'float',

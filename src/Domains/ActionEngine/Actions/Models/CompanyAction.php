@@ -37,6 +37,7 @@ use Override;
  * @property string $description
  * @property string $form_config
  * @property string $config
+ * @property string $pdf_config
  * @property int $is_active
  * @property int $is_published
  * @property int $weight
@@ -61,6 +62,7 @@ class CompanyAction extends BaseModel
         'description',
         'form_config',
         'config',
+        'pdf_config',
         'status',
         'weight',
         'is_active',
@@ -73,6 +75,7 @@ class CompanyAction extends BaseModel
         return [
             'form_config' => Json::class,
             'config' => Json::class,
+            'pdf_config' => Json::class,
         ];
     }
 

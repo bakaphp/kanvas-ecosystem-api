@@ -4,11 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Traits;
 
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\NervousSystem\Capability\Services\CapabilityProvider;
+use Kanvas\Users\Models\Users;
 use ReflectionClass;
+use ReflectionNamedType;
+use ReflectionParameter;
 
 /**
  * Loop the agent's registered tools and turn them into runtime instances.
@@ -93,14 +100,93 @@ trait MergesRegisteredTools
         }
 
         $ctor = new ReflectionClass($tool->handler)->getConstructor();
-        if ($ctor !== null) {
-            foreach ($ctor->getParameters() as $param) {
-                if (! $param->isOptional()) {
-                    return null;
-                }
+        if ($ctor === null || $ctor->getNumberOfParameters() === 0) {
+            return $this->fillKanvasContext(new $tool->handler());
+        }
+
+        // Hosts without a dependency context (non-agent trait users) fall back to
+        // resolving only all-optional-constructor tools — the historical behaviour.
+        $candidates = $this instanceof ProvidesToolDependencies
+            ? $this->toolDependencyCandidates()
+            : [];
+
+        $args = [];
+        foreach ($ctor->getParameters() as $param) {
+            $dependency = $this->matchToolDependency($param, $candidates);
+
+            if ($dependency !== null) {
+                $args[$param->getName()] = $dependency;
+
+                continue;
+            }
+
+            if (! $param->isOptional()) {
+                // A required dependency we can't satisfy — skip rather than fatal.
+                return null;
             }
         }
 
-        return new $tool->handler();
+        return $this->fillKanvasContext(new $tool->handler(...$args));
+    }
+
+    /**
+     * Tools using HasKanvasContext take their tenant context via a withContext() setter, not the
+     * constructor — so a registry-resolved instance (especially the no-arg path) would otherwise be
+     * left with uninitialized app/company/user. Fill it from the same dependency candidates the
+     * constructor path uses, so trait tools work whether hand-constructed or merged from the registry.
+     */
+    private function fillKanvasContext(object $tool): object
+    {
+        if (! in_array(HasKanvasContext::class, class_uses_recursive($tool), true)) {
+            return $tool;
+        }
+
+        $candidates = $this instanceof ProvidesToolDependencies
+            ? $this->toolDependencyCandidates()
+            : [];
+
+        $app = $this->firstCandidateOfType($candidates, Apps::class);
+        $company = $this->firstCandidateOfType($candidates, Companies::class);
+        $user = $this->firstCandidateOfType($candidates, Users::class);
+
+        if ($app instanceof Apps && $company instanceof Companies && $user instanceof Users) {
+            $tool->withContext($app, $company, $user);
+        }
+
+        return $tool;
+    }
+
+    /**
+     * @param list<object> $candidates
+     */
+    private function firstCandidateOfType(array $candidates, string $class): ?object
+    {
+        foreach ($candidates as $candidate) {
+            if ($candidate instanceof $class) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param list<object> $candidates
+     */
+    private function matchToolDependency(ReflectionParameter $param, array $candidates): ?object
+    {
+        $type = $param->getType();
+        if (! $type instanceof ReflectionNamedType || $type->isBuiltin()) {
+            return null;
+        }
+
+        $expected = $type->getName();
+        foreach ($candidates as $candidate) {
+            if ($candidate instanceof $expected) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 }

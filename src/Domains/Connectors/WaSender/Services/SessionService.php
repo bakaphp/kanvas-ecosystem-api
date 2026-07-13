@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\WaSender\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\WaSender\Client;
+use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 
 class SessionService
@@ -17,7 +18,23 @@ class SessionService
         protected AppInterface $app,
         protected CompanyInterface $company
     ) {
-        $this->client = new Client($app, $company);
+        $this->client = new Client(
+            $app,
+            $company,
+            false,
+            $app->get(ConfigurationEnum::PERSONAL_ACCESS_TOKEN->value)
+        );
+    }
+
+    /**
+     * Pull the QR string out of a session/connection payload, tolerating WaSender's field-name
+     * variants across plans.
+     *
+     * @param array<array-key, mixed> $payload
+     */
+    public static function extractQr(array $payload): ?string
+    {
+        return $payload['qr_code'] ?? $payload['qr'] ?? $payload['qrCode'] ?? $payload['qrcode'] ?? null;
     }
 
     /**
@@ -25,7 +42,7 @@ class SessionService
      */
     public function getAllSessions(): array
     {
-        return $this->client->get('/whatsapp-sessions');
+        return $this->client->get('/api/whatsapp-sessions');
     }
 
     /**
@@ -64,7 +81,10 @@ class SessionService
             }
         }
 
-        return $this->client->post('/whatsapp-sessions', $data);
+        $response = $this->client->post('/api/whatsapp-sessions', $data);
+
+        // WaSender wraps the session object in a `data` envelope.
+        return $response['data'] ?? $response;
     }
 
     /**
@@ -72,7 +92,9 @@ class SessionService
      */
     public function getSession(int $sessionId): array
     {
-        return $this->client->get("/whatsapp-sessions/{$sessionId}");
+        $response = $this->client->get("/api/whatsapp-sessions/{$sessionId}");
+
+        return $response['data'] ?? $response;
     }
 
     /**
@@ -83,7 +105,7 @@ class SessionService
      */
     public function updateSession(int $sessionId, array $data): array
     {
-        return $this->client->put("/whatsapp-sessions/{$sessionId}", $data);
+        return $this->client->put("/api/whatsapp-sessions/{$sessionId}", $data);
     }
 
     /**
@@ -91,7 +113,7 @@ class SessionService
      */
     public function deleteSession(int $sessionId): array
     {
-        return $this->client->delete("/whatsapp-sessions/{$sessionId}");
+        return $this->client->delete("/api/whatsapp-sessions/{$sessionId}");
     }
 
     /**
@@ -107,7 +129,9 @@ class SessionService
             $data['qr_as_image'] = true;
         }
 
-        return $this->client->post("/whatsapp-sessions/{$sessionId}/connect", $data);
+        $response = $this->client->post("/api/whatsapp-sessions/{$sessionId}/connect", $data);
+
+        return $response['data'] ?? $response;
     }
 
     /**
@@ -115,7 +139,9 @@ class SessionService
      */
     public function getSessionQrCode(int $sessionId): array
     {
-        return $this->client->get("/whatsapp-sessions/{$sessionId}/qrcode");
+        $response = $this->client->get("/api/whatsapp-sessions/{$sessionId}/qr-code");
+
+        return $response['data'] ?? $response;
     }
 
     /**
@@ -123,7 +149,7 @@ class SessionService
      */
     public function disconnectSession(int $sessionId): array
     {
-        return $this->client->post("/whatsapp-sessions/{$sessionId}/disconnect", []);
+        return $this->client->post("/api/whatsapp-sessions/{$sessionId}/disconnect", []);
     }
 
     /**
@@ -131,7 +157,7 @@ class SessionService
      */
     public function regenerateApiKey(int $sessionId): array
     {
-        return $this->client->post("/whatsapp-sessions/{$sessionId}/regenerate-key", []);
+        return $this->client->post("/api/whatsapp-sessions/{$sessionId}/regenerate-api-key", []);
     }
 
     /**

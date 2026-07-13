@@ -4,6 +4,8 @@ type Organization {
     company: Company! @belongsTo(relation: "company")
     user: User! @belongsTo(relation: "user")
     name: String!
+    email: String
+    phone: String
     address: String
     organization_type: OrganizationType @belongsTo(relation: "organizationType")
     leads: [Lead!]!
@@ -31,6 +33,7 @@ type Organization {
 input OrganizationInput {
     name: String!
     email: String
+    phone: String
     address: String
     city: String
     state: String
@@ -97,6 +100,8 @@ extend type Query @guard {
                     "id"
                     "name"
                     "uuid"
+                    "email"
+                    "phone"
                     "total_employees"
                     "organization_type_id"
                 ]

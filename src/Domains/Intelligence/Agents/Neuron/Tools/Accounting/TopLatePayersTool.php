@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Reports\Repositories\ArAgingRepository;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -16,6 +16,8 @@ use Override;
 #[AgentTool(name: 'Top Late Payers')]
 class TopLatePayersTool extends Tool
 {
+    use HasKanvasContext;
+
     public function __construct()
     {
         parent::__construct(
@@ -41,8 +43,8 @@ class TopLatePayersTool extends Tool
 
     public function __invoke(?int $limit = null): array
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
+        $app = $this->app;
+        $user = $this->user;
         $company = $user->getCurrentCompany();
         $limit = max(1, min(50, $limit ?? 10));
 

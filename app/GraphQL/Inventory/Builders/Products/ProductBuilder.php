@@ -14,6 +14,7 @@ use Kanvas\Connectors\Recombee\Services\RecombeeItemRecommendationService;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Inventory\Products\Actions\ExportProductsAction;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Souk\Services\B2BConfigurationService;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -85,6 +86,24 @@ class ProductBuilder
 
         $roleBasedBuilder = new RoleBasedProductBuilder($user, $company, $app);
         $query = $roleBasedBuilder->applyRoleScope($query, $args);
+
+        $regionId = ! empty($args['region_id'])
+            ? (int) $args['region_id']
+            : (app()->bound(Regions::class) ? app(Regions::class)->getId() : null);
+
+        if ($regionId) {
+            $query->whereHas(
+                'variants',
+                fn ($q) => $q->where('is_deleted', 0)->whereHas(
+                    'variantWarehouses',
+                    fn ($q) => $q->where('is_deleted', 0)->whereHas(
+                        'warehouse',
+                        fn ($q) => $q->where('regions_id', $regionId)
+                            ->where('is_deleted', 0)
+                    )
+                )
+            );
+        }
 
         return $query;
     }

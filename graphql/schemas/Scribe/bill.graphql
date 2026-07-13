@@ -55,6 +55,7 @@ type ScribeBill {
     total_base: Money!
     paid_base: Money!
     balance_due_base: Money!
+    paid_at: DateTime
     tax_metadata: Mixed
     regional_compliance: Mixed
     notes: String
@@ -96,6 +97,7 @@ type ScribeBillLine {
     discount_rate: Float
     tax_rate: Float
     expense_account: ScribeAccount @belongsTo(relation: "expenseAccount")
+    subaccount: ScribeSubaccount @belongsTo(relation: "subaccount")
     class_id: Int
     department_id: Int
     metadata: Mixed
@@ -190,6 +192,7 @@ extend type Query @guard {
                     "vendor_organization_id"
                     "bill_date"
                     "due_date"
+                    "paid_at"
                     "source"
                     "external_id"
                 ]
@@ -201,6 +204,7 @@ extend type Query @guard {
                     "bill_number"
                     "bill_date"
                     "due_date"
+                    "paid_at"
                     "total_base"
                     "balance_due_base"
                     "created_at"
@@ -226,6 +230,18 @@ extend type Mutation @guard {
     receiveScribeBill(id: ID!): ScribeBill!
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\Bills\\BillMutation@receive"
+        )
+    submitScribeBillForApproval(id: ID!): ScribeBill!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Bills\\BillMutation@submitForApproval"
+        )
+    approveScribeBill(id: ID!): ScribeBill!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Bills\\BillMutation@approve"
+        )
+    rejectScribeBill(id: ID!, reason: String): ScribeBill!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Bills\\BillMutation@reject"
         )
     voidScribeBill(id: ID!, void_reason_code: String!): ScribeBill!
         @field(

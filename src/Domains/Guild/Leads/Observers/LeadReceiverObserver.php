@@ -13,6 +13,7 @@ class LeadReceiverObserver
 {
     public function created(LeadReceiver $leadReceiver): void
     {
+        //create default workflow for the receiver
         $action = Action::where('model_name', CreateLeadsFromReceiverJob::class)->first();
 
         if ($action) {

@@ -28,6 +28,8 @@ class OrganizationManagementMutation
             $user,
             $app,
             $data['name'],
+            email: $data['email'] ?? null,
+            phone: $data['phone'] ?? null,
             address: $data['address'] ?? null,
             organizationType: isset($data['organization_type_id'])
                 ? OrganizationType::getByIdFromCompanyApp((int) $data['organization_type_id'], $company, $app)
@@ -57,6 +59,8 @@ class OrganizationManagementMutation
             $user,
             $app,
             $data['name'],
+            email: $data['email'] ?? null,
+            phone: $data['phone'] ?? null,
             address: $data['address'] ?? null,
             organizationType: $organizationType,
         );

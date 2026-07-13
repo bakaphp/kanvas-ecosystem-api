@@ -12,9 +12,9 @@ use Kanvas\Guild\Customers\Models\People;
 
 class ApolloRateLimitService
 {
-    public const int DEFAULT_DAILY_LIMIT = 2000;
-    public const int DEFAULT_HOURLY_LIMIT = 400;
-    public const int HOURLY_WINDOW = 3600;
+    public const int DEFAULT_DAILY_LIMIT = 50000;
+    public const int DEFAULT_PER_MINUTE_LIMIT = 100;
+    public const int MINUTE_WINDOW = 60;
     private const string DEFAULT_REVALIDATION = '-2 months';
 
     public function hasReachedDailyLimit(CompanyInterface $company, int $dailyLimit = self::DEFAULT_DAILY_LIMIT): bool
@@ -42,44 +42,51 @@ class ApolloRateLimitService
         return (int) $lastScreenedAt > strtotime($threshold);
     }
 
-    public function hourlyCount(AppInterface $app): int
+    public function minuteCount(AppInterface $app): int
     {
-        return (int) Cache::get($this->hourlyKey($app), 0);
+        return (int) Cache::get($this->minuteKey($app), 0);
     }
 
-    public function hasReachedHourlyLimit(AppInterface $app, int $hourlyLimit = self::DEFAULT_HOURLY_LIMIT): bool
+    public function hasReachedMinuteLimit(AppInterface $app, int $minuteLimit = self::DEFAULT_PER_MINUTE_LIMIT): bool
     {
-        return $this->hourlyCount($app) >= $hourlyLimit;
+        return $this->minuteCount($app) >= $minuteLimit;
     }
 
-    public function recordHourlyHit(AppInterface $app): int
+    public function recordMinuteHit(AppInterface $app): int
     {
-        $key = $this->hourlyKey($app);
+        $key = $this->minuteKey($app);
 
-        // Pin the TTL on the first hit so the window is fixed from then — increment keeps
-        // the existing TTL, so the counter resets exactly one hour after it started.
-        if (! Cache::has($key)) {
-            Cache::put($key, 1, self::HOURLY_WINDOW);
+        // Increment first: on Redis, INCRBY on a missing key recreates it with NO expiration
+        // (persists forever). If we branched on Cache::has() and the key expired in the race
+        // window between the check and the increment, the counter would come back with no TTL
+        // and never reset — pinning the window whenever the count is 1 closes that race.
+        $count = (int) Cache::increment($key);
 
-            return 1;
+        if ($count === 1) {
+            Cache::put($key, 1, self::MINUTE_WINDOW);
         }
 
-        return (int) Cache::increment($key);
+        return $count;
+    }
+
+    public function resetMinuteWindow(AppInterface $app): void
+    {
+        Cache::forget($this->minuteKey($app));
     }
 
     /**
-     * Seconds to wait after a hit so the remaining hourly budget spreads evenly across
+     * Seconds to wait after a hit so the remaining per-minute budget spreads evenly across
      * the rest of the window, instead of bursting then stalling at the cap.
      */
-    public function pacingDelay(int $currentCount, int $hourlyLimit = self::DEFAULT_HOURLY_LIMIT): int
+    public function pacingDelay(int $currentCount, int $minuteLimit = self::DEFAULT_PER_MINUTE_LIMIT): int
     {
-        $remaining = $hourlyLimit - $currentCount;
+        $remaining = $minuteLimit - $currentCount;
 
-        return $remaining > 0 ? intdiv(self::HOURLY_WINDOW, $remaining) : 2;
+        return $remaining > 0 ? intdiv(self::MINUTE_WINDOW, $remaining) : 2;
     }
 
-    private function hourlyKey(AppInterface $app): string
+    private function minuteKey(AppInterface $app): string
     {
-        return 'api_hourly_rate_limit_' . (int) $app->getId();
+        return 'api_minute_rate_limit_' . (int) $app->getId();
     }
 }

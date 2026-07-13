@@ -136,14 +136,17 @@ class PersistChatTurnToSocialAction
         $channel->addMessage($incoming, $this->user);
         $channel->addMessage($reply, $aiUser);
 
-        // Falls back to the People's active Lead so mid-turn create_lead
-        // (request started lead-less, tool fired) still hits the Lead channel.
-        $resolvedLead = $this->currentLead
-            ?? match (true) {
-                $entity instanceof Lead => $entity,
-                $entity instanceof People => LeadsRepository::getPeopleActiveLead($entity),
-                default => null,
-            };
+        // Internal system agents never post into the lead timeline (chat stays on the
+        // user↔agent channel). Others fall back to the People's active Lead so a mid-turn
+        // create_lead still hits the Lead channel.
+        $resolvedLead = $this->agent->conversesWithUser()
+            ? null
+            : ($this->currentLead
+                ?? match (true) {
+                    $entity instanceof Lead => $entity,
+                    $entity instanceof People => LeadsRepository::getPeopleActiveLead($entity),
+                    default => null,
+                });
 
         if ($resolvedLead !== null && ! ($entity instanceof Lead)) {
             $leadChannelService = new LeadChannelService();
@@ -164,10 +167,19 @@ class PersistChatTurnToSocialAction
         }
 
         if ($resolvedLead !== null) {
-            new MarkLeadMessagesAsRespondedAction($resolvedLead, $reply)->execute();
+            new MarkLeadMessagesAsRespondedAction(
+                $resolvedLead,
+                $reply
+            )->execute();
         }
 
-        $this->user->notify(new AgentReplyNotification($reply, $this->agent, $aiUser));
+        $this->user->notify(
+            new AgentReplyNotification(
+                $reply,
+                $this->agent,
+                $aiUser
+            )
+        );
 
         return $reply;
     }

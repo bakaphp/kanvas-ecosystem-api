@@ -7,9 +7,11 @@ namespace App\GraphQL\Inventory\Mutations\Regions;
 use Baka\Support\Str;
 use Baka\Traits\ResolvesTargetCompanyTrait;
 use Illuminate\Support\Facades\Validator;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
 use Kanvas\Inventory\Regions\DataTransferObject\Region as RegionDto;
+use Kanvas\Inventory\Regions\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Regions\Models\Regions as RegionModel;
 use Kanvas\Inventory\Regions\Repositories\RegionRepository as RegionRepository;
 use Kanvas\Support\Validations\UniqueSlugRule;
@@ -70,6 +72,20 @@ class Region
         $id = (int) $request['id'];
         $region = RegionRepository::getByIdOrGlobal($id, auth()->user()->getCurrentCompany());
         $region->delete();
+
+        return true;
+    }
+
+    public function setDefaultRegion(mixed $root, array $request): bool
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $region = RegionModel::getByIdFromCompanyAppOrGlobal(
+            (int) $request['region_id'],
+            $user->getCurrentCompany(),
+            $app
+        );
+        $user->set(CustomFieldEnum::DEFAULT_REGION_ID->value, $region->getId());
 
         return true;
     }

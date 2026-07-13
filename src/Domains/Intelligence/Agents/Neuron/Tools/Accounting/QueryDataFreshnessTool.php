@@ -6,14 +6,16 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use NeuronAI\Tools\Tool;
 use Override;
 
 #[AgentTool(name: 'Query Data Freshness')]
 class QueryDataFreshnessTool extends Tool
 {
+    use HasKanvasContext;
+
     public function __construct()
     {
         parent::__construct(
@@ -33,8 +35,8 @@ class QueryDataFreshnessTool extends Tool
 
     public function __invoke(): array
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
+        $app = $this->app;
+        $user = $this->user;
         $company = $user->getCurrentCompany();
         $appId = $app->getId();
         $companyId = $company->getId();

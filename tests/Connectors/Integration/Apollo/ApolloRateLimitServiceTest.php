@@ -26,9 +26,10 @@ final class ApolloRateLimitServiceTest extends TestCase
         $company->del(ConfigurationEnum::APOLLO_COMPANY_REPORTS->value);
         $company->del(ConfigurationEnum::APOLLO_REVALIDATION->value);
 
-        // The hourly counter lives in cache (not a DB transaction) — clear it so the
-        // count can't bleed into another test.
+        // The hourly/minute counters live in cache (not a DB transaction) — clear them so
+        // the count can't bleed into another test.
         Cache::forget('api_hourly_rate_limit_' . (int) app(Apps::class)->getId());
+        Cache::forget('api_minute_rate_limit_' . (int) app(Apps::class)->getId());
 
         parent::tearDown();
     }
@@ -43,7 +44,7 @@ final class ApolloRateLimitServiceTest extends TestCase
         $this->assertFalse($service->hasReachedDailyLimit($company));
         $this->assertSame(5, $service->dailyTotal($company));
 
-        $company->set(ConfigurationEnum::APOLLO_COMPANY_REPORTS->value, [$today => ['total' => 2000, 'success' => 2000, 'processed' => 2000, 'failed' => 0]]);
+        $company->set(ConfigurationEnum::APOLLO_COMPANY_REPORTS->value, [$today => ['total' => 50000, 'success' => 50000, 'processed' => 50000, 'failed' => 0]]);
         $this->assertTrue($service->hasReachedDailyLimit($company));
 
         // A lower explicit cap trips earlier.
@@ -83,29 +84,64 @@ final class ApolloRateLimitServiceTest extends TestCase
         $this->assertTrue($service->hasBeenScreenedRecently($people));
     }
 
-    public function test_hourly_counter_increments_and_trips_the_limit(): void
+    public function test_per_minute_counter_increments_and_trips_the_limit(): void
     {
         $app = app(Apps::class);
         $service = new ApolloRateLimitService();
 
-        $this->assertSame(0, $service->hourlyCount($app));
-        $this->assertFalse($service->hasReachedHourlyLimit($app));
+        $this->assertSame(0, $service->minuteCount($app));
+        $this->assertFalse($service->hasReachedMinuteLimit($app));
 
-        $this->assertSame(1, $service->recordHourlyHit($app));
-        $this->assertSame(2, $service->recordHourlyHit($app));
-        $this->assertSame(2, $service->hourlyCount($app));
+        $this->assertSame(1, $service->recordMinuteHit($app));
+        $this->assertSame(2, $service->recordMinuteHit($app));
+        $this->assertSame(2, $service->minuteCount($app));
 
         // Two hits is at the limit when the cap is 2.
-        $this->assertTrue($service->hasReachedHourlyLimit($app, hourlyLimit: 2));
-        $this->assertFalse($service->hasReachedHourlyLimit($app, hourlyLimit: 3));
+        $this->assertTrue($service->hasReachedMinuteLimit($app, minuteLimit: 2));
+        $this->assertFalse($service->hasReachedMinuteLimit($app, minuteLimit: 3));
+    }
+
+    public function test_reset_minute_window_clears_a_stuck_counter(): void
+    {
+        $app = app(Apps::class);
+        $service = new ApolloRateLimitService();
+        $key = 'api_minute_rate_limit_' . (int) $app->getId();
+
+        // Reproduce the stuck state: a counter pinned above the cap with NO TTL, as happens
+        // when Cache::increment recreates an expired key with no expiration. Before the fix
+        // the sync command relied solely on the TTL, so this window never cleared and every
+        // iteration looped on "Per-minute rate limit reached".
+        Cache::forever($key, 500);
+        $this->assertTrue($service->hasReachedMinuteLimit($app, minuteLimit: 100));
+
+        $service->resetMinuteWindow($app);
+
+        $this->assertSame(0, $service->minuteCount($app));
+        $this->assertFalse($service->hasReachedMinuteLimit($app, minuteLimit: 100));
+    }
+
+    public function test_record_minute_hit_recovers_after_a_lost_ttl(): void
+    {
+        $app = app(Apps::class);
+        $service = new ApolloRateLimitService();
+
+        // A fresh window starts at 1 and keeps counting up.
+        $this->assertSame(1, $service->recordMinuteHit($app));
+        $this->assertSame(2, $service->recordMinuteHit($app));
+
+        // Simulate the window expiring, then a hit that lands on the empty key — it must
+        // return 1 (fresh window) so a lost TTL self-heals instead of leaving the counter
+        // stranded above the cap forever.
+        $service->resetMinuteWindow($app);
+        $this->assertSame(1, $service->recordMinuteHit($app));
     }
 
     public function test_pacing_delay_spreads_the_remaining_budget(): void
     {
         $service = new ApolloRateLimitService();
 
-        // 1 of 10 used → spread 9 remaining over the hour.
-        $this->assertSame(intdiv(ApolloRateLimitService::HOURLY_WINDOW, 9), $service->pacingDelay(1, 10));
+        // 1 of 10 used → spread 9 remaining over the minute.
+        $this->assertSame(intdiv(ApolloRateLimitService::MINUTE_WINDOW, 9), $service->pacingDelay(1, 10));
 
         // At/over the cap → minimal floor delay.
         $this->assertSame(2, $service->pacingDelay(10, 10));

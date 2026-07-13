@@ -13,24 +13,36 @@ trait NotificationSmsTrait
     {
         $this->toUser = $notifiable instanceof UserInterface ? $notifiable : null;
 
-        if ($this->toUser == null) {
-            return [];
-        }
-
-        $appUser = $this->toUser->getAppProfile($this->app);
-        $phone = $appUser->two_step_phone_number ?? $this->toUser->cell_phone_number ?? $this->toUser->phone_number;
+        $phone = $this->resolveSmsRecipientPhone($notifiable);
 
         if (empty($phone)) {
             return [];
         }
 
         return [
-            'user_id' => $this->toUser->getId(),
+            'user_id' => $this->toUser?->getId(),
             'phone' => $phone,
             'content' => $this->getSmsTemplate(),
             'title' => $this->subject ?? '',
             'app' => $this->app,
             'company' => $this->company,
         ];
+    }
+
+    /**
+     * Anonymous notifiables (e.g. a lead contact with no user account) carry their phone in the
+     * `sms` route; registered users resolve it from their app profile / contact columns.
+     */
+    private function resolveSmsRecipientPhone(UserInterface|AnonymousNotifiable $notifiable): ?string
+    {
+        if ($notifiable instanceof AnonymousNotifiable) {
+            $route = $notifiable->routeNotificationFor('sms');
+
+            return is_string($route) && $route !== '' ? $route : null;
+        }
+
+        $appUser = $notifiable->getAppProfile($this->app);
+
+        return $appUser->two_step_phone_number ?? $notifiable->cell_phone_number ?? $notifiable->phone_number;
     }
 }

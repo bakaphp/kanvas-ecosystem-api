@@ -7,6 +7,7 @@ namespace App\Console\Commands\Connectors\VinSolution;
 use Baka\Traits\KanvasJobsTrait;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
@@ -34,10 +35,10 @@ class DownloadAllLeadsCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:vinsolution-download-all-leads 
+    protected $signature = 'kanvas:vinsolution-download-all-leads
                             {app_id : The application ID}
-                            {company_ids : Comma-separated company IDs (e.g., "11265,8170,8171")}
-                            {user_ids : User ID(s) - single for all, comma-separated matching companies, or partial list (remaining use company relationship)}
+                            {company_ids? : Comma-separated company IDs (e.g., "11265,8170,8171"). Omit to auto-discover every opted-in company for the app}
+                            {user_ids? : User ID(s) - single for all, comma-separated matching companies, or partial list (remaining use company relationship)}
                             {--from-first-page=0 : Start from first page (1) or continue from last position (0)}
                             {--total-page-limit= : Limit the total number of pages to process}
                             {--items-per-page=10 : Number of items per page}
@@ -48,7 +49,8 @@ class DownloadAllLeadsCommand extends Command
      *
      * @var string|null
      */
-    protected $description = 'Download all leads from VinSolution for one or multiple companies (processed sequentially to avoid rate limiting)';
+    protected $description = 'Download all leads from VinSolution for one or multiple companies (processed sequentially to avoid rate limiting). 
+                                Omit company_ids to auto-discover every company opted-in via the DOWNLOAD_ALL_LEADS_USER setting.';
 
     public function handle(): void
     {
@@ -56,27 +58,36 @@ class DownloadAllLeadsCommand extends Command
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
 
-        // Parse company IDs
         $companyIdsInput = $this->argument('company_ids');
-        if (is_array($companyIdsInput)) {
-            $this->error('Invalid company_ids format. Please provide a comma-separated string.');
 
-            return;
-        }
-        $companyIds = array_map('trim', explode(',', (string) $companyIdsInput));
+        if ($companyIdsInput === null || $companyIdsInput === '') {
+            [$companyIds, $userIds] = $this->resolveOptedInCompanies($app);
 
-        // Parse user IDs
-        $userIdsInput = $this->argument('user_ids');
-        if (is_array($userIdsInput)) {
-            $this->error('Invalid user_ids format. Please provide a comma-separated string.');
+            if ($companyIds === []) {
+                $this->info('No companies opted into the VinSolution bulk lead download for this app.');
 
-            return;
-        }
-        $userIds = array_map('trim', explode(',', (string) $userIdsInput));
+                return;
+            }
+        } else {
+            if (is_array($companyIdsInput)) {
+                $this->error('Invalid company_ids format. Please provide a comma-separated string.');
 
-        // If only one user ID provided, use it for all companies
-        if (count($userIds) === 1 && count($companyIds) > 1) {
-            $userIds = array_fill(0, count($companyIds), $userIds[0]);
+                return;
+            }
+            $companyIds = array_map('trim', explode(',', (string) $companyIdsInput));
+
+            $userIdsInput = $this->argument('user_ids');
+            if (is_array($userIdsInput)) {
+                $this->error('Invalid user_ids format. Please provide a comma-separated string.');
+
+                return;
+            }
+            $userIds = array_map('trim', explode(',', (string) $userIdsInput));
+
+            // If only one user ID provided, use it for all companies
+            if (count($userIds) === 1 && count($companyIds) > 1) {
+                $userIds = array_fill(0, count($companyIds), $userIds[0]);
+            }
         }
 
         $companiesCount = count($companyIds);
@@ -120,6 +131,44 @@ class DownloadAllLeadsCommand extends Command
         }
 
         $this->info('=== All companies processed ===');
+    }
+
+    /**
+     * Auto-discover every company in the app that opted into the bulk download
+     * via the DOWNLOAD_ALL_LEADS_USER setting, returning parallel company-id /
+     * user-id arrays matching the manual-argument shape the main loop expects.
+     *
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private function resolveOptedInCompanies(Apps $app): array
+    {
+        $companies = Companies::getByCustomFieldBuilder(ConfigurationEnum::DOWNLOAD_ALL_LEADS_USER->value, null)
+            ->whereIn(
+                'companies.id',
+                fn (QueryBuilder $query): QueryBuilder => $query->select('companies_id')
+                    ->from('user_company_apps')
+                    ->where('apps_id', $app->getId())
+            )
+            ->where('companies.is_deleted', 0)
+            ->get();
+
+        $companyIds = [];
+        $userIds = [];
+
+        foreach ($companies as $company) {
+            $userId = $company->get(ConfigurationEnum::DOWNLOAD_ALL_LEADS_USER->value);
+
+            if (empty($userId)) {
+                continue;
+            }
+
+            $companyIds[] = (string) $company->getId();
+            $userIds[] = (string) $userId;
+        }
+
+        $this->info('Auto-discovered ' . count($companyIds) . ' opted-in companies for VinSolution bulk lead download.');
+
+        return [$companyIds, $userIds];
     }
 
     /**

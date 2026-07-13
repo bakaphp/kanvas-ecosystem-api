@@ -8,7 +8,6 @@ use Kanvas\Connectors\Reynolds\Client;
 use Kanvas\Connectors\Reynolds\DataTransferObject\Lead as LeadData;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Reynolds\Enums\TransactionCodeEnum;
-use Kanvas\Connectors\Reynolds\Exceptions\ReynoldsException;
 use Kanvas\Connectors\Reynolds\Services\ApplicationAreaBuilder;
 use Kanvas\Guild\Leads\Models\Lead as LeadModel;
 
@@ -23,14 +22,14 @@ class PushLeadAction
 
     public function execute(): array
     {
-        $client = new Client($this->lead->app, $this->lead->company);
-
+        // Upsert semantics: if the lead already carries a REYNOLDS_PROSPECT_ID
+        // it exists in R&R and can only be Updated (USL) — re-sending an ISL
+        // for the same prospect makes R&R reject the request.
         if ($this->lead->get(CustomFieldEnum::PROSPECT_ID->value)) {
-            throw new ReynoldsException(
-                'Lead already exists in Reynolds (ProspectId set). Use UpdateLeadAction instead.'
-            );
+            return new UpdateLeadAction($this->lead)->execute();
         }
 
+        $client = new Client($this->lead->app, $this->lead->company);
         $payload = $this->buildPayload($client);
 
         $response = $client->processMessage(self::ROOT_ELEMENT, $payload);

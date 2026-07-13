@@ -18,6 +18,7 @@ use Kanvas\Intelligence\FollowUp\Exceptions\FollowUpException;
 use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpLog;
 use Kanvas\Intelligence\FollowUp\Repositories\FollowUpRepository;
+use Kanvas\Intelligence\PipelinesStages\Contracts\FollowUpTimeGateOverridable;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Services\DailyReportService;
@@ -30,11 +31,19 @@ use function Sentry\captureException;
  *             replaced this V1 path. Slated for deletion — see
  *             docs/intelligence/follow-up-deprecation-spec.md kill list.
  */
-class FollowUpEngagementV1Action
+class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
 {
     protected ?FollowUp $followUp = null;
     protected ?FollowUpLog $log = null;
     protected array $skippedReasons = [];
+    protected bool $ignoreTimeGate = false;
+
+    public function withIgnoreTimeGate(bool $ignore = true): static
+    {
+        $this->ignoreTimeGate = $ignore;
+
+        return $this;
+    }
 
     public function __construct(
         public Lead $lead,
@@ -202,7 +211,7 @@ class FollowUpEngagementV1Action
             }
 
             if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
-                && $timeDiff > $followUpDay->time_value
+                && ($this->ignoreTimeGate || $timeDiff > $followUpDay->time_value)
                 && $contacted === false
                 && $isActive) {
                 $message = null;
