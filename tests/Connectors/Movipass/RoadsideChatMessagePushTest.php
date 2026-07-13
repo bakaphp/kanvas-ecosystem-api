@@ -48,7 +48,6 @@ final class RoadsideChatMessagePushTest extends TestCase
 
         $this->assertSame('New message from Juan Pérez', $expo['title']);
         $this->assertSame('Hi, where are you?', $expo['body']);
-        // ExpoMessage::data() json-encodes the payload, so toArray()['data'] is a JSON string.
         $expoData = json_decode((string) $expo['data'], true);
         $this->assertSame('roadside-abc-123', $expoData['channel_slug']);
     }
