@@ -85,11 +85,8 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     }
 
     /**
-     * The address an invoice should be billed to.
-     *
-     * Falls back to the default address, then to any address at all. A company that only ever entered one
-     * address means it — making them tag it "Billing" before an invoice will render is bureaucracy, not
-     * correctness.
+     * Falls back to the default, then to any address: a company that entered exactly one address means it,
+     * and requiring them to tag it "Billing" before an invoice renders is bureaucracy, not correctness.
      */
     public function billingAddress(): ?Address
     {

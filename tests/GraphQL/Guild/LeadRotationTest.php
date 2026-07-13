@@ -67,11 +67,11 @@ class LeadRotationTest extends TestCase
             'hits' => fake()->numberBetween(1, 100),
             'agents' => [
                 [
-                    "users_id" => auth()->user()->getId(),
-                    "phone" => fake()->phoneNumber,
-                    "percent" => 100,
-                ]
-            ]
+                    'users_id' => auth()->user()->getId(),
+                    'phone' => fake()->phoneNumber,
+                    'percent' => 100,
+                ],
+            ],
         ];
         $this->graphQL(
             '
@@ -83,14 +83,14 @@ class LeadRotationTest extends TestCase
         ',
             [
             'id' => $id,
-            'input' => $input
+            'input' => $input,
         ]
         )->assertJson([
                     'data' => [
-                        "updateLeadRotation" => [
-                            "name" => $input['name']
-                        ]
-                    ]
+                        'updateLeadRotation' => [
+                            'name' => $input['name'],
+                        ],
+                    ],
                 ]);
     }
 
@@ -120,11 +120,11 @@ class LeadRotationTest extends TestCase
                 deleteLeadRotation(id: $id)
             }
         ', [
-            "id" => $id
+            'id' => $id,
         ])->assertJson([
             'data' => [
-                "deleteLeadRotation" => true
-            ]
+                'deleteLeadRotation' => true,
+            ],
         ]);
     }
 
@@ -139,9 +139,9 @@ class LeadRotationTest extends TestCase
                     'users_id' => auth()->user()->getId(),
                     'phone' => fake()->phoneNumber,
                     'percent' => 10,
-                    'hits' => 0
-                ]
-            ]
+                    'hits' => 0,
+                ],
+            ],
         ];
 
         $response = $this->graphQL(
@@ -168,8 +168,8 @@ class LeadRotationTest extends TestCase
                     'leads_rotations_email' => $input['leads_rotations_email'],
                     'hits' => $input['hits'],
                     'company' => [
-                        'id' => auth()->user()->getCurrentCompany()->id
-                    ]
+                        'id' => auth()->user()->getCurrentCompany()->id,
+                    ],
                 ],
             ],
         ]);

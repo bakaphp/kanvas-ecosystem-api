@@ -7,17 +7,11 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Structured addresses for Organizations, mirroring `peoples_address`.
+ * Structured addresses for Organizations, mirroring the shape of `peoples_address` and sharing its
+ * `address_types` lookup.
  *
- * Organizations were the only party in Kanvas with just a free-text `address` string, while People,
- * Companies and Users all carry multiple typed addresses. That gap blocks anything that needs a REAL address:
- * Scribe invoices already have separate `billing_address_snapshot` and `shipping_address_snapshot` columns,
- * and Mercury's AR API rejects a half-filled address outright — it wants address1 / city / region /
- * postalCode / country, all or nothing.
- *
- * A single field can't express "bill here, ship there", which is why this is multi-row and typed rather than
- * a set of columns bolted onto `organizations`. The legacy `organizations.address` string is left alone —
- * plenty of code still reads it — but structured consumers should use this table.
+ * Multi-row and typed rather than columns on `organizations`: a single field can't express "bill here, ship
+ * there", and Scribe invoices already carry separate billing and shipping snapshots.
  */
 return new class () extends Migration {
     protected $connection = 'crm';
@@ -28,10 +22,7 @@ return new class () extends Migration {
             $table->id();
             $table->unsignedBigInteger('organizations_id')->index();
             $table->unsignedBigInteger('address_type_id')->nullable()->index();
-            $table->unsignedInteger('users_id')->nullable();
 
-            // Mailing name — who the envelope is addressed to. Not always the organization's own name.
-            $table->string('name')->nullable();
             $table->string('address')->nullable();
             $table->string('address_2')->nullable();
             $table->string('city')->nullable();
@@ -43,8 +34,8 @@ return new class () extends Migration {
             $table->unsignedInteger('city_id')->nullable()->index();
             $table->unsignedInteger('state_id')->nullable()->index();
 
-            $table->decimal('latitude', 10, 7)->nullable();
-            $table->decimal('longitude', 10, 7)->nullable();
+            $table->decimal('latitude', 10, 8)->nullable();
+            $table->decimal('longitude', 11, 8)->nullable();
 
             $table->boolean('is_default')->default(false)->index();
             $table->boolean('is_deleted')->default(false)->index();

@@ -50,8 +50,18 @@ input UpdateContactInput {
     is_opt_out: Boolean
 }
 
+"The shared address-type lookup — Billing is Billing whether it belongs to a Person or an Organization."
+enum AddressTypeEnum {
+    HOME @enum(value: "Home")
+    BILLING @enum(value: "Billing")
+    SHIPPING @enum(value: "Shipping")
+    EMPLOYER @enum(value: "Employer")
+    OTHER @enum(value: "Other")
+}
+
 input AddressInput {
-    address: String!
+    "Nullable so an update can PATCH a single field — requiring the street back just to correct a zip is how people accidentally blank out data."
+    address: String
     address_2: String
     city: String
     county: String
@@ -64,6 +74,8 @@ input AddressInput {
     latitude: Float
     longitude: Float
     is_default: Boolean
+    "Billing / Shipping / Home / Other. One address per type — re-sending Billing UPDATES the existing one rather than stacking a second."
+    type: AddressTypeEnum
     id: ID
 }
 

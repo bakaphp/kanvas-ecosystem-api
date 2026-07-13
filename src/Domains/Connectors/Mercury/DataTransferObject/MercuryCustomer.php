@@ -9,14 +9,11 @@ use Kanvas\Guild\Organizations\Models\Organization;
 /**
  * A Mercury AR customer (`/ar/customers`) — the party an invoice is billed to.
  *
- * Mercury requires `name` and `email`. An Organization with no email cannot be pushed, and that's a real
- * constraint rather than something to paper over: Mercury delivers the invoice BY email, so an emailless
- * customer produces an invoice nobody ever receives.
+ * Mercury delivers the invoice BY email, so an Organization without one produces an invoice nobody receives;
+ * that's why the email is required rather than defaulted.
  *
- * The address comes from the Organization's structured BILLING address. Mercury validates it all-or-nothing
- * — a half-filled address is rejected outright, not partially accepted — so an incomplete one is simply
- * omitted rather than sent to fail. The address itself is optional to Mercury; the invoice still works
- * without it, it just doesn't print one.
+ * The address is optional to Mercury but validated all-or-nothing, so an incomplete one is omitted rather
+ * than sent to fail.
  */
 class MercuryCustomer
 {
@@ -70,8 +67,8 @@ class MercuryCustomer
     }
 
     /**
-     * Maps our billing address onto Mercury's field names. Note `region` is their word for state/province,
-     * and `country` must be the ISO 3166-1 alpha-2 code, which is what Countries::$code already holds.
+     * `region` is Mercury's word for state/province, and `country` must be the ISO 3166-1 alpha-2 code —
+     * which is what Countries::$code already holds.
      *
      * @return array<string, string>|null
      */
@@ -84,7 +81,7 @@ class MercuryCustomer
         }
 
         $payload = [
-            'name' => $billing->name ?? $organization->name,
+            'name' => $organization->name,
             'address1' => (string) $billing->address,
             'city' => (string) $billing->city,
             'region' => (string) $billing->state,

@@ -119,7 +119,6 @@ class OrganizationTest extends TestCase
                 'updateOrganization' => [
                     'id' => $organizationId,
                     'name' => $newName,
-
                 ],
             ],
         ]);
