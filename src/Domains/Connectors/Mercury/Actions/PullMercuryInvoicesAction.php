@@ -198,7 +198,7 @@ class PullMercuryInvoicesAction
         }
 
         /** @var Organization|null $organization */
-        $organization = Organization::getByCustomFieldBuilder(
+        $organization = Organization::getByCustomFieldBuilderTransactionSafe(
             CustomFieldEnum::CUSTOMER_ID->value,
             $mercuryInvoice->customerId,
             $this->company,
@@ -214,7 +214,7 @@ class PullMercuryInvoicesAction
     private function findInvoiceByMercuryId(string $mercuryInvoiceId): ?Invoice
     {
         /** @var Invoice|null $invoice */
-        $invoice = Invoice::getByCustomFieldBuilder(
+        $invoice = Invoice::getByCustomFieldBuilderTransactionSafe(
             CustomFieldEnum::INVOICE_ID->value,
             $mercuryInvoiceId,
             $this->company,

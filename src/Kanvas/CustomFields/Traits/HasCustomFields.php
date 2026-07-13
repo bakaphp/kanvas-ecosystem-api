@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\CustomFields\Traits;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HasSchemaAccessors;
@@ -528,6 +529,62 @@ trait HasCustomFields
         }
 
         return $query->select($table . '.*');
+    }
+
+    /**
+     * Use this instead of `getByCustomFieldBuilder` when you write a custom field and read it back with a
+     * transaction open on the model's connection (which is every test — `DatabaseTransactions`).
+     *
+     * The plain builder JOINs `apps_custom_fields` (on `ecosystem`) from the model's connection (`crm`,
+     * `accounting`, `commerce`). REPEATABLE READ pins that session to a snapshot taken at its first read, and
+     * `set()` commits on `ecosystem` independently — so a field written after the snapshot is invisible to the
+     * join, which then returns nothing. Nondeterministic: it depends on which connection read first.
+     *
+     * Two queries instead of a join, reading `apps_custom_fields` on its own connection. ~0.2ms slower. Stay
+     * on `getByCustomFieldBuilder` when you aren't straddling a transaction.
+     */
+    public static function getByCustomFieldBuilderTransactionSafe(
+        string $name,
+        mixed $value,
+        ?CompanyInterface $company = null,
+        bool $useCompanyFilter = true
+    ): Builder {
+        $systemModuleLegacy = SystemModules::getLegacyNamespace(static::class);
+        $systemModules = $systemModuleLegacy !== static::class
+            ? [static::class, $systemModuleLegacy]
+            : [static::class];
+
+        $customFields = AppsCustomFields::query()
+            ->whereIn('model_name', $systemModules)
+            ->where('name', $name);
+
+        if ($useCompanyFilter) {
+            $companyId = $company ? $company->getId() : AppEnums::GLOBAL_COMPANY_ID->getValue();
+            $customFields->where('companies_id', $companyId);
+        }
+
+        if ($value !== null) {
+            $customFields->where('value', $value);
+        }
+
+        return static::query()->whereIn(
+            (new static())->getTable() . '.id',
+            $customFields->pluck('entity_id')->all(),
+        );
+    }
+
+    public static function getByCustomFieldTransactionSafe(
+        string $name,
+        mixed $value,
+        ?CompanyInterface $company = null,
+        bool $useCompanyFilter = true
+    ): ?Model {
+        return self::getByCustomFieldBuilderTransactionSafe(
+            $name,
+            $value,
+            $company,
+            $useCompanyFilter
+        )->first();
     }
 
     protected function clearCustomFieldsCacheIfNeeded(): void

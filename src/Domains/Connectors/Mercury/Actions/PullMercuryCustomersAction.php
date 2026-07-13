@@ -84,7 +84,7 @@ class PullMercuryCustomersAction
     private function findByMercuryId(string $mercuryCustomerId): ?Organization
     {
         /** @var Organization|null $organization */
-        $organization = Organization::getByCustomFieldBuilder(
+        $organization = Organization::getByCustomFieldBuilderTransactionSafe(
             CustomFieldEnum::CUSTOMER_ID->value,
             $mercuryCustomerId,
             $this->company,
