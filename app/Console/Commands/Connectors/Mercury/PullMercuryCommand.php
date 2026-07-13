@@ -27,19 +27,11 @@ use Kanvas\Scribe\Ledger\Services\GlOwnershipService;
 use Throwable;
 
 /**
- * The nightly recovery pull. Webhooks carry the day-to-day feed; this exists because they can't be trusted
- * alone.
+ * The nightly recovery pull. Webhooks carry the day-to-day feed; this exists because Mercury has NO replay or
+ * backfill API — it retries a delivery for ~a day, and a 4xx gets no retry at all. Anything dropped past that
+ * is gone unless something goes looking, which is why the lookback is wider than Mercury's retry window.
  *
- * Mercury retries a failed delivery 10 times over ~a day, so anything transient self-heals. But there is NO
- * replay or backfill API: if our endpoint is down longer than that (bad deploy, expired cert, DNS), those
- * events are gone permanently. Worse, a 4xx — say a bug in signature verification returning 401 — gets no
- * retry at all. This nightly sweep is the only thing that can find what was silently dropped, which is why
- * its lookback (7 days) is comfortably wider than Mercury's retry window.
- *
- * It also re-runs the matcher over anything still unmatched, so a bill entered today can settle a payment the
- * bank reported last week.
- *
- * Cheap to run twice if you'd rather: every step is idempotent.
+ * Every step is idempotent, so running it twice is free.
  */
 class PullMercuryCommand extends Command
 {
@@ -81,8 +73,8 @@ class PullMercuryCommand extends Command
 
     private function pullCompany(Apps $app, Companies $company, int $lookback): void
     {
-        // The worker is long-lived and Bouncer's scope is process-global — without this, the previous
-        // tenant's scope leaks into this one's queries.
+        // Bouncer's scope is process-global and the worker is long-lived: without this, the previous tenant's
+        // scope leaks into this one's queries.
         $this->overwriteAppService($app);
 
         if (! new GlOwnershipService()->kanvasOwnsGl($company)) {
@@ -104,10 +96,6 @@ class PullMercuryCommand extends Command
                 )->execute()
             );
 
-            // Receipts, cards and statements are supporting documents, not accounting. A storage
-            // misconfiguration must never stop the books being reconciled — which is exactly what happened
-            // before this guard: an unset S3 key aborted the whole company and skipped transactions,
-            // matching and balances with it.
             $this->attempt($company, 'receipts', fn () => new PullMercuryReceiptsAction($bankAccount)->execute());
             $this->attempt($company, 'cards', fn () => new PullMercuryCardsAction($bankAccount)->execute());
             $this->attempt($company, 'statements', fn () => new PullMercuryStatementsAction($bankAccount)->execute());
@@ -138,10 +126,8 @@ class PullMercuryCommand extends Command
     }
 
     /**
-     * Mirrors Mercury's AR side. Opt-in, because it does more than mirror: an invoice raised in the Mercury
-     * UI doesn't exist on our books at all, so importing it ISSUES it here and posts DR AR / CR Revenue. That
-     * is correct — a real invoice went to a real customer — but it is a write to the ledger, and a nightly job
-     * should not start making those on a tenant's behalf without someone asking for it.
+     * Opt-in, because it does more than mirror: an invoice raised in the Mercury UI gets ISSUED here, posting
+     * DR AR / CR Revenue. Correct, but a nightly job shouldn't start writing to a tenant's ledger unasked.
      */
     private function pullAr(Apps $app, Companies $company, ?UserInterface $user): void
     {
@@ -150,8 +136,8 @@ class PullMercuryCommand extends Command
     }
 
     /**
-     * Supporting data must never sink the pull. The books are the point; a card list that failed to refresh is
-     * an inconvenience, an aborted reconciliation is an outage.
+     * Supporting documents must never sink the pull — an unset S3 key once aborted a whole company and took
+     * its transactions, matching and balances with it. The books are the point.
      */
     private function attempt(Companies $company, string $what, Closure $pull): void
     {
@@ -163,10 +149,7 @@ class PullMercuryCommand extends Command
         }
     }
 
-    /**
-     * Re-runs the matcher over everything still unmatched — a bill entered today can settle a payment the
-     * bank reported last week, and nothing else would ever revisit it.
-     */
+    /** A bill entered today can settle a payment the bank reported last week; nothing else revisits those. */
     private function matchOutstanding(Apps $app, Companies $company): int
     {
         $outstanding = BankTransaction::query()

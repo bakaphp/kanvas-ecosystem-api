@@ -10,19 +10,14 @@ use Kanvas\Users\Models\Users;
 use RuntimeException;
 
 /**
- * For actions that operate on ONE Mercury-backed BankAccount.
- *
- * The bank account already knows which app and company it belongs to, so passing them in alongside it only
- * creates a way for the three to disagree.
+ * The bank account already knows its app and company — passing them in alongside it only creates a way for
+ * the three to disagree.
  */
 trait MercuryBankAccountTrait
 {
     /**
-     * The account's id on Mercury's side.
-     *
-     * Guards the assumption every caller makes. A bank account from another source has no Mercury id, and
-     * calling `/account/{whatever}/…` with a foreign key would either 404 or — worse — hit a real Mercury
-     * account belonging to someone else's row and file its transactions here.
+     * A bank account from another source has no Mercury id; calling `/account/{foreign-key}/…` would 404 — or
+     * worse, hit a real Mercury account and file its transactions here.
      */
     protected function mercuryAccountId(): string
     {

@@ -15,11 +15,8 @@ use Kanvas\Scribe\Banking\Models\BankAccount;
 use Kanvas\Scribe\Banking\Models\BankTransaction;
 
 /**
- * Turns ONE Mercury transaction into a Scribe bank_transaction.
- *
- * The single place both ingest paths meet: the nightly pull and the webhook. If they mapped the record
- * independently they would drift — the same charge could land with a different category, or a different
- * posting date, depending only on which path got there first.
+ * The single place the nightly pull and the webhook both map a transaction. Mapping it twice would let them
+ * drift — the same charge landing with a different category depending on which path got there first.
  */
 class LandMercuryTransactionAction
 {

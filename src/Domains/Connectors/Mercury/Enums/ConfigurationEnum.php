@@ -6,55 +6,35 @@ namespace Kanvas\Connectors\Mercury\Enums;
 
 enum ConfigurationEnum: string
 {
-    /**
-     * Mercury API token. Company-level, not app-level: one Kanvas app serves many tenants and each holds
-     * its own Mercury organization. A read-only token is enough — the connector never moves money.
-     */
+    /** Company-level, not app-level: one Kanvas app serves many tenants, each with its own Mercury org. */
     case API_TOKEN = 'MERCURY_API_TOKEN';
 
     case BASE_URL = 'MERCURY_BASE_URL';
 
     case SYNC_ENABLED = 'MERCURY_SYNC_ENABLED';
 
-    /**
-     * Which app the company connected Mercury under. The nightly pull iterates companies and has no request
-     * context to infer it from — without this it can't rebind the app scope, and Bouncer/container state
-     * from the previous tenant leaks into the next one's queries.
-     */
+    /** The nightly pull iterates companies with no request context to infer the app from. */
     case SYNC_APP_ID = 'MERCURY_SYNC_APP_ID';
 
-    /** Cursor per Mercury account: the postedAt we last ingested through. */
+    /** Per Mercury account: the postedAt we last ingested through. */
     case SYNC_CURSOR = 'MERCURY_SYNC_CURSOR';
 
     case WEBHOOK_ID = 'MERCURY_WEBHOOK_ID';
 
     /**
-     * The HMAC signing secret. Mercury returns it EXACTLY ONCE, in the response to POST /webhooks — never on
-     * GET, never on update. Miss it at registration and it is unrecoverable: the only way back is to delete
-     * the webhook and create a new one.
+     * Mercury returns this EXACTLY ONCE, in the response to POST /webhooks — never on GET, never on update.
+     * Miss it and the only way back is to delete the webhook and register a new one.
      */
     case WEBHOOK_SECRET = 'MERCURY_WEBHOOK_SECRET';
 
-    /**
-     * Which Mercury account collects payments for AR invoices we push. Mercury requires a
-     * `destinationAccountId` on every invoice; without this set we fall back to the tenant's checking
-     * account, which is what a company with one account expects anyway.
-     */
+    /** Mercury requires a destinationAccountId on every invoice; unset, we fall back to checking. */
     case AR_DEPOSIT_ACCOUNT_ID = 'MERCURY_AR_DEPOSIT_ACCOUNT_ID';
 
-    /**
-     * Whether pushing invoices to Mercury also EMAILS them to the customer. Off by default — sending a real
-     * invoice to a real customer is not something a sync should do behind your back the first time you flip
-     * the connector on.
-     */
+    /** Off by default — flipping the connector on must not email real invoices to real customers. */
     case AR_SEND_EMAIL = 'MERCURY_AR_SEND_EMAIL';
 
     public const string DEFAULT_BASE_URL = 'https://api.mercury.com/api/v1';
 
-    /**
-     * Cursor is per (company, mercury account) — a tenant can hold several accounts and they backfill
-     * independently.
-     */
     public function forAccount(string $mercuryAccountId): string
     {
         return $this->value . '-' . $mercuryAccountId;

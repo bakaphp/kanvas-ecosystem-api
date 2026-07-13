@@ -25,16 +25,9 @@ class MercuryTransactionService extends MercuryApiService
     }
 
     /**
-     * Settled transactions for ONE Mercury account, oldest first.
-     *
-     * Uses the path-scoped `/account/{id}/transactions` endpoint, NOT `/transactions?accountId=…`. The
-     * collection endpoint silently IGNORES the accountId filter and returns every transaction across every
-     * account — verified against the live API. Trusting it stamped card and savings movements onto the
-     * checking account's bank row, which would have posted their cash to the wrong GL account. The path form
-     * is the only one that actually scopes.
-     *
-     * `postedStart` is mandatory in practice: without a date filter the endpoint quietly returns only a few
-     * recent weeks rather than everything.
+     * Path-scoped `/account/{id}/transactions`, NOT `/transactions?accountId=…` — the collection endpoint
+     * silently ignores the accountId filter and returns every account's transactions. And without
+     * `postedStart` it quietly returns only a few recent weeks rather than everything.
      *
      * @return list<MercuryTransaction>
      */

@@ -50,17 +50,22 @@ input UpdateContactInput {
     is_opt_out: Boolean
 }
 
-"The shared address-type lookup — Billing is Billing whether it belongs to a Person or an Organization."
+"Mirrors Kanvas\\Guild\\Customers\\Enums\\AddressTypeEnum — Lighthouse cannot bind a PHP enum, so keep both in step."
 enum AddressTypeEnum {
     HOME @enum(value: "Home")
+    PREVIOUS_HOME @enum(value: "PreviousHome")
+    EMPLOYER @enum(value: "Employer")
+    PREVIOUS_EMPLOYER @enum(value: "PreviousEmployer")
     BILLING @enum(value: "Billing")
     SHIPPING @enum(value: "Shipping")
-    EMPLOYER @enum(value: "Employer")
+    HEADQUARTERS @enum(value: "Headquarters")
+    WAREHOUSE @enum(value: "Warehouse")
+    REGISTERED_OFFICE @enum(value: "RegisteredOffice")
     OTHER @enum(value: "Other")
 }
 
 input AddressInput {
-    "Nullable so an update can PATCH a single field — requiring the street back just to correct a zip is how people accidentally blank out data."
+    "Nullable so an update can PATCH one field — demanding the street back to fix a zip is how data gets blanked."
     address: String
     address_2: String
     city: String

@@ -18,20 +18,12 @@ use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
 
 /**
- * Mercury's near-real-time feed.
+ * The delivery is a NUDGE, not data — the envelope carries a resourceId and a merge-patch, never the
+ * transaction. We re-fetch by id and reuse the nightly pull's ingest path, which makes Mercury's no-ordering
+ * and at-least-once guarantees free: we always read current state, and re-ingest is idempotent.
  *
- * The delivery is a NUDGE, not data: the envelope carries `{resourceType, resourceId, operationType,
- * mergePatch, ...}` and never the transaction itself. So we re-fetch the record by id and push it through the
- * SAME ingest path the nightly poll uses. Two consequences fall out for free:
- *
- *   - Out-of-order deliveries don't matter (Mercury guarantees no ordering) — we always read current state,
- *     never apply a stale diff.
- *   - Duplicate deliveries don't matter (at-least-once) — CreateBankTransactionAction is idempotent on
- *     external_id and the matcher early-returns on anything already accounted for.
- *
- * The important subtlety: we only ingest `sent` transactions, but a card auth is CREATED as `pending` and
- * later UPDATED to `sent`. The settlement therefore arrives as `transaction.updated`, which is why that event
- * is subscribed and why re-fetching (rather than trusting the create payload) is the only correct approach.
+ * The subtlety: we only book `sent` transactions, but a card auth is CREATED `pending` and later UPDATED to
+ * `sent` — so the settlement arrives as `transaction.updated`, and trusting the create payload would miss it.
  */
 #[WorkflowAction]
 class ProcessMercuryWebhookJob extends ProcessWebhookJob

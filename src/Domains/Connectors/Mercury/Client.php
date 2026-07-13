@@ -11,21 +11,13 @@ use Kanvas\Connectors\Mercury\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 
 /**
- * Read-only Mercury REST client.
- *
- * The token is company-level (one app, many tenants, each with its own Mercury org) and is read fresh on
- * every construction — never cached in a static. Under Octane the worker outlives the request, so a cached
- * client would keep serving a rotated token until the worker recycled. Building a Guzzle client is a few
- * string assignments; there is nothing to save by caching it.
+ * Token is read fresh on every construction, never cached in a static: under Octane the worker outlives the
+ * request, so a cached client keeps serving a rotated token until the worker recycles.
  */
 class Client
 {
     protected GuzzleClient $client;
 
-    /**
-     * $httpClient is a test seam — pass a Guzzle client with a MockHandler to exercise the real
-     * request-building path against canned responses. Production always leaves it null.
-     */
     public function __construct(
         protected readonly AppInterface $app,
         protected readonly CompanyInterface $company,
@@ -68,16 +60,9 @@ class Client
     }
 
     /**
-     * Serializes array parameters as REPEATED KEYS (`accountId=a&accountId=b`), not Guzzle's default
-     * bracket-indexed form (`accountId[0]=a`).
-     *
-     * This is not a style preference. Mercury SILENTLY IGNORES a bracket-indexed filter — it returns 200 OK
-     * with unfiltered results rather than erroring. Asking `/transactions?accountId[0]=<checking>` returns
-     * transactions from every account you own, and the caller has no way to tell. That put savings and
-     * credit-card movements onto the checking account's bank row, posting their cash to the wrong GL account.
-     *
-     * The failure is worse than it sounds because it's load-dependent: at a small `limit` the first page
-     * happens to come back clean, so it looks like it works right up until it doesn't.
+     * Arrays serialize as REPEATED KEYS (`accountId=a&accountId=b`), not Guzzle's default `accountId[0]=a`.
+     * Mercury SILENTLY IGNORES the bracket form — 200 OK, unfiltered results — so a scoped request quietly
+     * returns every account's transactions. Load-dependent too: a small `limit` comes back clean.
      *
      * @param array<string, mixed> $query
      */
@@ -114,10 +99,6 @@ class Client
         $this->client->delete(ltrim($endpoint, '/'));
     }
 
-    /**
-     * Raw bytes, for statement PDFs. Goes through the authenticated client rather than a bare URL fetch —
-     * the host is fixed (api.mercury.com), so there's no user-controlled URL and no SSRF surface.
-     */
     public function getRaw(string $endpoint): string
     {
         return (string) $this->client->get(ltrim($endpoint, '/'))->getBody();

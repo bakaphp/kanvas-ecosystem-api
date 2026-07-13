@@ -21,22 +21,12 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 use Spatie\LaravelData\DataCollection;
 
 /**
- * Brings Mercury AR invoices into Scribe.
+ * Two jobs, and keeping them apart is the point:
  *
- * Two very different jobs, and keeping them apart is the whole point:
- *
- * 1. **Invoices WE pushed** — already exist in Scribe, already booked. We only record Mercury's status
- *    (Unpaid → Paid) for visibility, so nobody chases a customer who has already paid. **No journal entry.**
- *    The actual settlement happens when the cash lands in the bank feed and the matcher clears the invoice —
- *    Mercury saying "Paid" is not the same as money being in the account, and only one of those is a fact
- *    the ledger cares about.
- *
- * 2. **Invoices created IN Mercury** (someone used the Mercury UI) — these don't exist on our books at all.
- *    We mirror them into Scribe and ISSUE them, which posts DR AR / CR Revenue. That's correct: a real
- *    invoice went to a real customer, so the receivable and the revenue are real. Unlike Acumatica — where
- *    the ERP owns the GL and imports post nothing — Kanvas owns the GL here, so the entry is ours to make.
- *
- * Idempotent on `external_id`: an invoice already imported is never imported twice.
+ * 1. Invoices WE pushed — already booked. We record Mercury's status for visibility only, NO journal entry.
+ *    "Paid" on Mercury means collected, not banked; the matcher settles it when the cash actually lands.
+ * 2. Invoices created IN the Mercury UI — not on our books at all. We mirror and ISSUE them, posting
+ *    DR AR / CR Revenue. Kanvas owns the GL here (unlike Acumatica, where the ERP does), so the entry is ours.
  */
 class PullMercuryInvoicesAction
 {
@@ -82,11 +72,8 @@ class PullMercuryInvoicesAction
     }
 
     /**
-     * Records what Mercury thinks, without touching the ledger.
-     *
-     * Deliberately does NOT mark the Scribe invoice PAID. Mercury reporting "Paid" means it has collected —
-     * the money may still be in transit. The invoice is settled when the deposit actually lands and the bank
-     * matcher clears it. Jumping the gun here would credit AR against cash that hasn't arrived.
+     * Deliberately does NOT mark the invoice PAID. Mercury "Paid" means collected, and the money may still be
+     * in transit — crediting AR here books cash that hasn't arrived.
      */
     private function syncStatus(Invoice $invoice, MercuryInvoice $mercuryInvoice): void
     {
@@ -100,11 +87,8 @@ class PullMercuryInvoicesAction
     }
 
     /**
-     * Mirrors a Mercury-native invoice onto our books, issued.
-     *
-     * Returns null when we can't safely place it — a cancelled invoice (no receivable exists) or one whose
-     * customer we can't identify (booking revenue against an unknown party is worse than skipping it and
-     * saying so).
+     * Null when we can't safely place it: cancelled (no receivable), or an unidentifiable customer — booking
+     * revenue against an unknown party is worse than skipping and saying so.
      */
     private function importMercuryNative(MercuryInvoice $mercuryInvoice): ?Invoice
     {
@@ -147,11 +131,7 @@ class PullMercuryInvoicesAction
         return $issued;
     }
 
-    /**
-     * Mercury's line items where it gives them; otherwise a single line for the invoice total. A one-line
-     * fallback keeps the AR figure correct even if the breakdown is missing — the number that matters for
-     * the books is what the customer owes.
-     */
+    /** Falls back to a single line for the total: the breakdown is nice, the AR figure is what must be right. */
     private function lines(MercuryInvoice $mercuryInvoice): DataCollection
     {
         $items = (array) ($mercuryInvoice->raw['lineItems'] ?? []);

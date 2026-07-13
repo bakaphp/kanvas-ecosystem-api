@@ -12,17 +12,10 @@ use Kanvas\Scribe\Banking\Models\BankTransaction;
 use Throwable;
 
 /**
- * Downloads the receipts people attached to their Mercury transactions and stores them against the matching
- * bank_transaction row.
+ * The source documents that turn "a $2,400 debit to a hosting provider" into an auditable expense.
  *
- * These are the actual source documents — invoices, fiscal receipts, card slips. They're what turns "a $2,400
- * debit to a hosting provider" into an auditable expense.
- *
- * The attachment URLs are PRESIGNED S3 links with a ~12 hour expiry, so we fetch the bytes now rather than
- * storing the link. `addFileFromUrl` would have kept the URL and downloaded nothing, leaving a Filesystem row
- * with size=0 pointing at a link that dies before anyone clicks it.
- *
- * Idempotent: a transaction whose receipts we already stored is skipped.
+ * Attachment URLs are presigned with a ~12h expiry, so we fetch the bytes now. `addFileFromUrl` would store
+ * the link and download nothing (size=0), pointing at a URL that dies before anyone clicks it.
  */
 class PullMercuryReceiptsAction
 {
@@ -77,14 +70,12 @@ class PullMercuryReceiptsAction
             }
 
             try {
-                // uploadFileFromUrl fetches the bytes into our own storage (SSRF-guarded inside), unlike
-                // addFileFromUrl which would only record the soon-to-expire link.
                 $file = $filesystemService->uploadFileFromUrl($url, $owner);
                 $transaction->addFile($file, 'receipt');
                 $stored++;
             } catch (Throwable $e) {
-                // A single unreachable receipt must not sink the whole pull — the transaction itself is
-                // already on the books. The next run retries, since we only mark success below.
+                // One unreachable receipt must not sink the pull; only successes are marked, so the next run
+                // retries it.
                 report($e);
 
                 continue;

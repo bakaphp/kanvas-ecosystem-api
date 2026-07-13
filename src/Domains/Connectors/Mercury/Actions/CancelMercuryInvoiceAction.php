@@ -11,21 +11,13 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 use Throwable;
 
 /**
- * Cancels a voided invoice's Mercury copy.
+ * Without this, a voided invoice leaves its Mercury pay page live — the customer can still pay, and the cash
+ * lands with no open receivable to match.
  *
- * Without this, voiding an invoice in Scribe leaves the Mercury pay page live and the customer can still pay
- * it — money would land in the bank feed with no open receivable to match, and sit in Suspense while the
- * books say nothing is owed.
+ * Cancel, never delete, and KEEP `MERCURY_INVOICE_ID`. Mercury has no delete (405); it cancels and retains,
+ * so clearing our reference would orphan a record that still exists on their side.
  *
- * **Cancel, never delete — and KEEP the reference.** Mercury has no delete for an invoice (`DELETE` answers
- * 405); it cancels and retains the record, which is the right behaviour for a document a customer has seen.
- * We mirror that: `MERCURY_INVOICE_ID` is deliberately left on the invoice after cancellation, so a voided
- * Scribe invoice still points at the cancelled Mercury one and the trail survives on both sides. Clearing it
- * would orphan the Mercury record — still there, no longer traceable to anything.
- *
- * Deliberately never throws. A void is an accounting act that has already happened and posted its reversal;
- * it must not be undone because a third-party API was unreachable. A failure is reported and leaves the
- * Mercury invoice live, which the nightly pull surfaces as a status mismatch.
+ * Never throws: the void already posted its reversal and must not be undone because an API was unreachable.
  */
 class CancelMercuryInvoiceAction
 {

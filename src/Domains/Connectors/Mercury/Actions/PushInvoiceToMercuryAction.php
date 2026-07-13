@@ -18,21 +18,11 @@ use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use RuntimeException;
 
 /**
- * Publishes a Scribe invoice to Mercury so the customer gets a pay page and Mercury can collect card/ACH.
+ * Scribe stays the book of record; Mercury AR is a delivery and collection channel. Posts NO journal entry —
+ * the invoice was booked at issue, and the cash is booked when the bank feed lands and the matcher settles it.
  *
- * **Scribe stays the book of record.** Mercury AR is a delivery and collection channel, nothing more. This
- * action posts NO journal entry: the invoice was already booked (DR AR / CR Revenue) when it was issued, and
- * the cash gets booked when the customer's payment lands in the bank feed and the matcher settles it. Pushing
- * a copy of the document to Mercury changes nothing about what we owe or are owed.
- *
- * ## The echo guard
- *
- * We refuse to push an invoice that CAME FROM Mercury (`source='mercury'`). Without that, a pulled invoice
- * would be pushed straight back as a new one, which would then be pulled again — a loop that manufactures a
- * fresh invoice on every cycle and bills the customer repeatedly. Same guard, same reason, as every other
- * bidirectional connector in this codebase.
- *
- * Idempotent on the `MERCURY_INVOICE_ID` custom field: an invoice already on Mercury is not sent twice.
+ * Idempotent on `MERCURY_INVOICE_ID`, and refuses to push an invoice that CAME FROM Mercury: pushing a pulled
+ * invoice back mints a new one, which is then pulled again, billing the customer afresh every cycle.
  */
 class PushInvoiceToMercuryAction
 {
@@ -68,8 +58,6 @@ class PushInvoiceToMercuryAction
 
         $this->invoice->set(CustomFieldEnum::INVOICE_ID->value, $created->id);
 
-        // external_url is the customer-facing pay page — the single most useful thing Mercury hands back.
-        // It's what goes in a dunning email or the answer to "where do I pay?".
         $this->invoice->external_url = $created->payPageUrl();
         $this->invoice->saveQuietly();
 
@@ -98,8 +86,7 @@ class PushInvoiceToMercuryAction
             );
         }
 
-        // A DRAFT hasn't been booked (no DR AR / CR Revenue) and isn't a real obligation yet. Sending it to a
-        // customer would ask them to pay something our own books don't record them owing.
+        // A draft has no posted JE — sending it asks a customer to pay something our books don't record.
         if (! in_array($this->invoice->document_status, [
             InvoiceDocumentStatusEnum::ISSUED,
             InvoiceDocumentStatusEnum::SENT,
@@ -132,10 +119,6 @@ class PushInvoiceToMercuryAction
         return $organization;
     }
 
-    /**
-     * Which Mercury account collects the money. Explicit config wins; otherwise the tenant's checking
-     * account, which is what a company with a single account expects.
-     */
     private function destinationAccountId(): string
     {
         $configured = $this->invoice->company->get(ConfigurationEnum::AR_DEPOSIT_ACCOUNT_ID->value);

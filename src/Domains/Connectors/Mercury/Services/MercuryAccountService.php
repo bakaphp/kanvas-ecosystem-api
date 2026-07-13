@@ -10,14 +10,8 @@ use Throwable;
 class MercuryAccountService extends MercuryApiService
 {
     /**
-     * Every Mercury account we own — deposit accounts AND credit cards.
-     *
-     * The credit card lives behind a SEPARATE endpoint (`/credit`) and does not appear in `/accounts` at
-     * all. Pulling only `/accounts` silently omits every card transaction, which for a company that puts its
-     * SaaS spend on the card is most of the operating expense. Two calls, one list.
-     *
-     * Counterparty rows (type=external/recipient) are filtered out — they are not our money and must never
-     * become bank accounts on the books.
+     * Credit cards live behind a SEPARATE endpoint and never appear in `/accounts`, so pulling only that one
+     * silently omits every card transaction. `isOurs()` drops counterparty rows — not our money.
      *
      * @return list<MercuryAccount>
      */
@@ -43,8 +37,8 @@ class MercuryAccountService extends MercuryApiService
     }
 
     /**
-     * A tenant with no credit line gets a 404 here rather than an empty list. That's not an error — it just
-     * means no card — so swallow it instead of failing the whole account pull.
+     * A tenant with no credit line 404s here rather than returning an empty list. That means "no card", not
+     * "broken".
      *
      * @return list<MercuryAccount>
      */

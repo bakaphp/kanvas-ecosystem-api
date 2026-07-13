@@ -14,16 +14,12 @@ use Kanvas\Scribe\Banking\Models\BankAccount;
 use Kanvas\Scribe\Banking\Models\BankTransaction;
 
 /**
- * Pulls settled Mercury transactions for one bank account into `accounting.bank_transactions`.
+ * INGESTS ONLY — no journal entries. Whether a transaction gets its own JE is the matcher's call; posting
+ * here would send every incoming payment to Suspense before anything could match it.
  *
- * This action INGESTS ONLY — it deliberately posts no journal entries. Whether a transaction gets its own
- * JE depends on whether it settles an existing bill or invoice, and that's the matcher's call (PR 3).
- * Posting here would send every incoming payment to Suspense before anything had a chance to match it.
- *
- * Incremental: the cursor is the postedAt of the newest transaction we've ingested for this account, minus
- * a re-check window. The overlap is intentional — Mercury can post a transaction with an earlier postedAt
- * than one we've already seen, and a strict "newer than the cursor" filter would skip it forever.
- * Re-ingesting is free because CreateBankTransactionAction is idempotent on external_id.
+ * The cursor overlap is intentional: Mercury can post a transaction with an earlier postedAt than one we've
+ * seen, so a strict "newer than the cursor" filter would skip it forever. Re-ingesting is free (idempotent on
+ * external_id).
  */
 class PullMercuryTransactionsAction
 {

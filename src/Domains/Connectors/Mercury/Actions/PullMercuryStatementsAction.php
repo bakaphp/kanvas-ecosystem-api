@@ -12,12 +12,8 @@ use Kanvas\Scribe\Banking\Models\BankAccount;
 use Throwable;
 
 /**
- * Records each monthly statement on the bank account and attaches its PDF.
- *
- * The statement's own `transactions` array is dropped — every transaction already exists as a first-class
- * `bank_transactions` row, and a second copy would be a second source of truth. What the statement adds is
- * the bank's own signed closing balance, which is what a future reconciliation pass checks our books
- * against.
+ * The statement's own `transactions` array is dropped — we already hold each one as a `bank_transactions`
+ * row, and a second copy is a second source of truth. What it adds is the bank's signed closing balance.
  */
 class PullMercuryStatementsAction
 {
@@ -62,14 +58,9 @@ class PullMercuryStatementsAction
     }
 
     /**
-     * Fetches the PDF bytes into our own storage.
-     *
-     * NOT addFileFromUrl — that records the URL and downloads nothing, leaving a Filesystem row with size=0.
-     * Mercury's download links are presigned and expire, so the row would point at a dead link. We want the
-     * document, not a pointer to it. (uploadFileFromUrl is SSRF-guarded internally.)
-     *
-     * A statement we can't fetch is not worth failing the whole pull over — the balances and transactions are
-     * already in. Skip it; the next run retries, because only successes are recorded.
+     * NOT addFileFromUrl — that stores the URL and downloads nothing (size=0), and Mercury's links are
+     * presigned and expire. A statement we can't fetch is skipped, not fatal; only successes are recorded, so
+     * the next run retries it.
      *
      * @param array<string, mixed> $statement
      */
