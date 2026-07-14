@@ -168,16 +168,20 @@ final class ConnectSlackAgentActionTest extends TestCase
         $this->fakeAuthTest();
         $agent = $this->agent('Sofia');
 
-        $this->graphQL('
+        // The URL⇢agent-receiver mapping is asserted in testManifestCarriesTheAgentsOwnReceiverUrl;
+        // here we only prove the resolver is reachable and returns a receiver-shaped url. Re-fetching
+        // the receiver via $this->kanvasApp would be wrong — the resolver builds it under whichever
+        // app the GraphQL request resolves, which isn't guaranteed to be $this->kanvasApp.
+        $manifest = $this->graphQL('
             query ($id: ID!) {
                 slackAgentManifest(agent_id: $id) { manifest_json install_url request_url }
             }
         ', ['id' => $agent->getId()])
             ->assertSuccessful()
-            ->assertJsonPath(
-                'data.slackAgentManifest.request_url',
-                $this->receiverOf($agent->refresh())->getUrl()
-            );
+            ->json('data.slackAgentManifest');
+
+        $this->assertStringContainsString('/v1/receiver/', $manifest['request_url']);
+        $this->assertStringContainsString('api.slack.com/apps?new_app=1', $manifest['install_url']);
 
         $this->graphQL('
             mutation ($input: ConnectSlackAgentInput!) {
