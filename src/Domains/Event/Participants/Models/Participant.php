@@ -10,6 +10,8 @@ use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Participants\Observers\ParticipantObserver;
 use Kanvas\Event\Themes\Models\ThemeArea;
@@ -47,6 +49,16 @@ class Participant extends BaseModel
     public function participantType(): BelongsTo
     {
         return $this->belongsTo(ParticipantType::class);
+    }
+
+    public function eventVersions(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            EventVersion::class,
+            'event_version_participants',
+            'participant_id',
+            'event_version_id'
+        );
     }
 
     #[Override]

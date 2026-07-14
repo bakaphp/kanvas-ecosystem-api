@@ -19,6 +19,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
@@ -141,6 +142,11 @@ class People extends BaseModel
     public function peopleType(): BelongsTo
     {
         return $this->belongsTo(PeopleType::class, 'people_types_id');
+    }
+
+    public function participants(): HasMany
+    {
+        return $this->hasMany(Participant::class, 'people_id', 'id');
     }
 
     public function quotes(): HasMany
