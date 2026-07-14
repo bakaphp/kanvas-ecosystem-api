@@ -112,7 +112,7 @@ class LeadConfigurationService
         $followUpKey = $this->getFollowUpActiveDefaultKey($lead);
         $firstMessageKey = $this->getFirstMessageDefaultKey($lead);
 
-        $isContacted = (bool) $lead->get(LeadConfigurationEnum::CONTACTED->value);
+        $isContacted = $lead->hasBeenContacted();
         $firstFollowUpActive = (bool) ($leadTypeConfig[$firstMessageKey] ?? false);
 
         return [
