@@ -83,7 +83,7 @@ final class ManlyHondaFollowUpEngagementAction implements FollowUpTimeGateOverri
         // its channels; stages that don't apply (wrong key combo, or no message
         // for the lead's channel) are skipped so the matching stage's
         // minutes_no_response governs the timing.
-        $stage = $this->resolveStageForLead($key, array_keys($sessionsByChannel));
+        $stage = $this->lead->stage;
         if (! $stage) {
             $this->logSkip('no_stage_for_lead', "No pipeline stage sends key '{$key}' on the lead's channels");
 
@@ -91,7 +91,7 @@ final class ManlyHondaFollowUpEngagementAction implements FollowUpTimeGateOverri
         }
 
         $hoursTool = new CompanyWorkHoursTool($this->lead)->execute();
-        if ($hoursTool['status'] !== 'work_hours') {
+        if ($hoursTool['status'] !== 'work_hours' && ! $this->ignoreTimeGate) {
             $this->logSkip('outside_work_hours', 'Outside company work hours');
 
             return null;
