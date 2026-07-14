@@ -6,6 +6,7 @@ namespace Tests\Intelligence\Agents;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Laravel\Inventory\AgentInventoryAssistance;
 use Kanvas\Intelligence\Agents\Laravel\KanvasGenericLaravelAgent;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Common\CurrentTimeTool as LaravelCurrentTimeTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -80,12 +81,30 @@ final class UniversalAgentToolsTest extends TestCase
         );
     }
 
+    /**
+     * Asserts on tools() — not agentTools() — because that is the list the runtime hands the
+     * provider, and it is where the universal injection lives so that EVERY Laravel agent gets
+     * time, not just the registry-driven generic one.
+     */
     public function testGenericLaravelAgentWithoutGrantedToolsStillExposesCurrentTime(): void
     {
         $handler = new KanvasGenericLaravelAgent();
         $handler->setConfiguration($this->makeAgent('laravel'));
 
-        $tools = iterator_to_array($handler->agentTools(), false);
+        $tools = iterator_to_array($handler->tools(), false);
+
+        $this->assertNotEmpty(array_filter(
+            $tools,
+            fn (object $tool): bool => $tool instanceof LaravelCurrentTimeTool,
+        ));
+    }
+
+    public function testHardcodedToolLaravelAgentStillExposesCurrentTime(): void
+    {
+        $handler = new AgentInventoryAssistance();
+        $handler->setConfiguration($this->makeAgent('laravel'));
+
+        $tools = iterator_to_array($handler->tools(), false);
 
         $this->assertNotEmpty(array_filter(
             $tools,
