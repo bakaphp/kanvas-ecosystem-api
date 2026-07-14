@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Config;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
+use Kanvas\Intelligence\Agents\Laravel\Tools\Common\CurrentTimeTool;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentRecord;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
@@ -186,13 +187,40 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
     {
         $tools = [];
 
-        foreach ($this->agentTools() as $tool) {
+        foreach ($this->withUniversalTools($this->agentTools()) as $tool) {
             if (($tool instanceof KanvasToolInterface || $tool instanceof KanvasAgentAsTool)
                 && $this->app && $this->company) {
                 $tool->withContext($this->app, $this->company);
             }
             $tools[] = $tool;
         }
+
+        return $tools;
+    }
+
+    /**
+     * Souls tell the model to call get_current_time, and the runtime errors when the model names a
+     * tool the provider was never given (Sentry KANVAS-ECOSYSTEM-600). Time must reach every agent
+     * whatever its agentTools() returns. Appending here (rather than in each agentTools()) also means
+     * the tool picks up its Kanvas context from the loop above like any other.
+     *
+     * @param iterable<object> $agentTools
+     *
+     * @return list<object>
+     */
+    private function withUniversalTools(iterable $agentTools): array
+    {
+        $tools = is_array($agentTools)
+            ? array_values($agentTools)
+            : iterator_to_array($agentTools, false);
+
+        foreach ($tools as $tool) {
+            if ($tool instanceof CurrentTimeTool) {
+                return $tools;
+            }
+        }
+
+        $tools[] = new CurrentTimeTool();
 
         return $tools;
     }

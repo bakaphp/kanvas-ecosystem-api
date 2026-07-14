@@ -11,6 +11,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\CurrentTimeTool;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
@@ -18,6 +19,7 @@ use NeuronAI\Agent\Agent as NeuronAIAgent;
 use NeuronAI\Agent\SystemPrompt;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Providers\Gemini\Gemini;
+use NeuronAI\Tools\ToolInterface;
 use Override;
 
 class BaseKanvasAgent extends NeuronAIAgent implements ProvidesToolDependencies
@@ -117,6 +119,51 @@ class BaseKanvasAgent extends NeuronAIAgent implements ProvidesToolDependencies
     {
         return $this->currentLead
             ?? ($this->entity instanceof Lead ? $this->entity : null);
+    }
+
+    /**
+     * Souls tell the model to call get_current_time, and Neuron kills the turn with a
+     * ProviderException when the model names a tool the provider was never given
+     * (Sentry KANVAS-ECOSYSTEM-600). Time must therefore reach every agent whatever its
+     * tools() returns — a hardcoded baseline, a registry selection, or nothing at all.
+     * Deduped by tool name, so an operator who also grants it in the registry gets one copy.
+     */
+    #[Override]
+    public function getTools(): array
+    {
+        $tools = parent::getTools();
+
+        foreach ($this->universalTools() as $universal) {
+            if (! $this->hasToolNamed($tools, $universal->getName())) {
+                $tools[] = $universal;
+            }
+        }
+
+        return $tools;
+    }
+
+    /**
+     * @return list<ToolInterface>
+     */
+    protected function universalTools(): array
+    {
+        return [
+            new CurrentTimeTool(),
+        ];
+    }
+
+    /**
+     * @param array<int, object> $tools
+     */
+    private function hasToolNamed(array $tools, string $name): bool
+    {
+        foreach ($tools as $tool) {
+            if ($tool instanceof ToolInterface && $tool->getName() === $name) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
