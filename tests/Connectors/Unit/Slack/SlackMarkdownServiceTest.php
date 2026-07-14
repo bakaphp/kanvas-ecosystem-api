@@ -60,4 +60,3 @@ final class SlackMarkdownServiceTest extends TestCase
         $this->assertSame('R&D < 5 > 2', SlackMarkdownService::fromMrkdwn('R&amp;D &lt; 5 &gt; 2'));
     }
 }
-∑
