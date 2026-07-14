@@ -42,11 +42,17 @@ final class ManlyHondaFollowUpEngagementAction implements FollowUpTimeGateOverri
 
     protected array $skippedReasons = [];
     protected bool $ignoreTimeGate = false;
+    protected ?string $template = null;
 
     public function __construct(
         public Lead $lead,
         protected ?FollowUpLog $log = null,
     ) {
+    }
+
+    public function setTemplate(string $template)
+    {
+        $this->template = $template;
     }
 
     public function withIgnoreTimeGate(bool $ignore = true): static
@@ -114,11 +120,11 @@ final class ManlyHondaFollowUpEngagementAction implements FollowUpTimeGateOverri
             return null;
         }
 
-        $channelMessages = ($stage->config ?? [])[$key] ?? [];
+        $channelMessages = ($stage->config ?? [])['notification_engagement_rules']['templates'][$key] ?? [];
         $sentMessage = null;
 
         foreach ($sessionsByChannel as $channel => $session) {
-            $messageTemplate = $channelMessages[$channel] ?? null;
+            $messageTemplate = $this->template ?? $channelMessages[$channel] ?? null;
             if (empty($messageTemplate)) {
                 continue;
             }

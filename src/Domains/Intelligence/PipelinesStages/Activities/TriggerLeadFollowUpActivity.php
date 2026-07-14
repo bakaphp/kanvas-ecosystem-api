@@ -52,6 +52,7 @@ class TriggerLeadFollowUpActivity extends KanvasActivity implements WorkflowActi
                     '--ignore-time' => (int) ($params['ignore_time'] ?? 1),
                     '--ignore-have-follow-up' => (int) ($params['ignore_have_follow_up'] ?? 1),
                     '--ignore-first-message' => (int) ($params['ignore_first_message'] ?? 1),
+                    '--template' => $params['template'] ?? null,
                 ]);
 
                 return [

@@ -46,7 +46,7 @@ class FollowUpEngagementCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'intelligence:notification-engagement {apps*} {--company_id=} {--date=} {--lead_id=} {--ignore-time=0} {--ignore-have-follow-up=0} {--ignore-first-message=0}';
+    protected $signature = 'intelligence:notification-engagement {apps*} {--company_id=} {--date=} {--lead_id=} {--ignore-time=0} {--ignore-have-follow-up=0} {--ignore-first-message=0} {--template=0}';
 
     protected $description = 'Refresh the content of a session by its ID';
 
@@ -255,6 +255,9 @@ class FollowUpEngagementCommand extends Command
                     $followUpAction = new $followUpClass($lead, $log);
                     if ($ignoreTime && $followUpAction instanceof FollowUpTimeGateOverridable) {
                         $followUpAction->withIgnoreTimeGate(true);
+                    }
+                    if ($this->option('template') != null && $this->option('template')) {
+                        $followUpAction->setTemplate($this->option('template'));
                     }
                     $result = $followUpAction->execute();
                 } catch (FollowUpException $e) {
