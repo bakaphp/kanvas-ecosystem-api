@@ -65,14 +65,19 @@ class ChannelMessageHistory extends AbstractChatHistory
         foreach ($messages as $message) {
             $turn = $this->toNeuronMessage($message, $authorLabels);
 
-            if ($turn !== null) {
-                $this->addMessage($turn);
+            if ($turn === null) {
+                continue;
             }
-        }
 
-        // Providers require the history to start with a user turn.
-        while ($this->history !== [] && $this->history[0]->getRole() !== MessageRole::USER->value) {
-            array_shift($this->history);
+            // Providers require the history to start with a user turn, and AbstractChatHistory
+            // validates alternation on EVERY addMessage — so a channel the agent opened has to drop
+            // its leading assistant turns here, before they are ever added. Stripping them after the
+            // load loop is too late: the first add already threw.
+            if ($this->history === [] && $turn->getRole() !== MessageRole::USER->value) {
+                continue;
+            }
+
+            $this->addMessage($turn);
         }
     }
 

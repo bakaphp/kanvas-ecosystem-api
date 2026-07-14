@@ -27,6 +27,7 @@ use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Chat\Enums\MessageRole;
 use Tests\Stubs\Intelligence\SystemUserAgentStub;
 use Tests\TestCase;
 
@@ -100,8 +101,12 @@ class RespondToMentionJobTest extends TestCase
         )->execute();
     }
 
-    private function makeMessage(Users $author, string $content, ?int $parentId = null): Message
-    {
+    private function makeMessage(
+        Users $author,
+        string $content,
+        ?int $parentId = null,
+        bool $fromIa = false,
+    ): Message {
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
 
@@ -111,7 +116,7 @@ class RespondToMentionJobTest extends TestCase
                 company: $company,
                 user: $author,
                 type: MessageTypeService::getOrCreate($app, 'note'),
-                message: ['content' => $content, 'from_ia' => false],
+                message: ['content' => $content, 'from_ia' => $fromIa],
                 parent_id: $parentId,
                 is_public: 1,
             ),
@@ -119,6 +124,29 @@ class RespondToMentionJobTest extends TestCase
         $action->runWorkflow = false;
 
         return $action->execute();
+    }
+
+    public function testChannelHistoryDropsLeadingAgentTurnsInsteadOfThrowing(): void
+    {
+        $human = auth()->user();
+        $agentUser = $this->makeAgentUser('InventoryBot');
+
+        // A channel the agent opened: the first turn on record is the agent's, not a human's.
+        // Providers reject a history that starts with an assistant turn, and NeuronAI's trimmer
+        // validates alternation on every add — so these must be dropped as the history loads.
+        $channel = $this->makeChannel($human);
+        $channel->addMessage($this->makeMessage($agentUser, 'Heads up: 3 SKUs are low', fromIa: true), $agentUser);
+        $channel->addMessage($this->makeMessage($human, 'thanks, which ones?'), $human);
+
+        $turns = new ChannelMessageHistory($channel)->getMessages();
+
+        $this->assertNotEmpty($turns);
+        $this->assertSame(MessageRole::USER->value, $turns[0]->getRole());
+        $this->assertStringContainsString('thanks, which ones?', (string) $turns[0]->getContent());
+        $this->assertStringNotContainsString(
+            '3 SKUs are low',
+            implode("\n", array_map(fn ($turn): string => (string) $turn->getContent(), $turns)),
+        );
     }
 
     public function testAgentUserMentionGetsAChildReply(): void
