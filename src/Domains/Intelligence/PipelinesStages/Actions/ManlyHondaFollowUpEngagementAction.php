@@ -104,7 +104,7 @@ final class ManlyHondaFollowUpEngagementAction implements FollowUpTimeGateOverri
         }
 
         $timezone = $this->lead->company->timezone ?? 'UTC';
-        $minutesNoResponse = (int) (($stage->config ?? [])[self::MINUTES_NO_RESPONSE_KEY] ?? 0);
+        $minutesNoResponse = (int) (($stage->config['notification_engagement_rules'] ?? [])[self::MINUTES_NO_RESPONSE_KEY] ?? 0);
         $lastMessageTime = $this->lastMessageTime($sessionsByChannel, $timezone);
 
         $timeDiff = $lastMessageTime
