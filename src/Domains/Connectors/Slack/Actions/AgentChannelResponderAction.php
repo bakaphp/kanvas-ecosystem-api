@@ -12,13 +12,6 @@ use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Override;
 use Throwable;
 
-/**
- * Runs the agent for one inbound Slack turn and edits the reply back into the thread.
- *
- * Called straight from ProcessSlackWebhookJob — no workflow rule in between. We're already on the
- * queue by then, and the agent is already known (one Slack app per agent), so the rule would only
- * decide something the receiver has decided.
- */
 class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 {
     private const string WORKING = ':hourglass_flowing_sand: working on it…';
@@ -62,7 +55,12 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         }
 
         $responseText = ChatHelper::extractTextFromResponse($response);
-        $reply = $this->createMessage($responseText, $slackChannelId, $this->message, $this->channel);
+        $reply = $this->createMessage(
+            $responseText,
+            $slackChannelId,
+            $this->message,
+            $this->channel
+        );
 
         if (! $reply->is_locked) {
             $client->updateMessage(

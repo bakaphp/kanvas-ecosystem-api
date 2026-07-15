@@ -13,6 +13,7 @@ use Kanvas\Connectors\Slack\Actions\GenerateSlackManifestAction;
 use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Slack\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Slack\Webhooks\ProcessSlackWebhookJob;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -168,15 +169,18 @@ final class ConnectSlackAgentActionTest extends TestCase
         $this->fakeAuthTest();
         $agent = $this->agent('Sofia');
 
-        // The URL⇢agent-receiver mapping is asserted in testManifestCarriesTheAgentsOwnReceiverUrl;
-        // here we only prove the resolver is reachable and returns a receiver-shaped url. Re-fetching
-        // the receiver via $this->kanvasApp would be wrong — the resolver builds it under whichever
-        // app the GraphQL request resolves, which isn't guaranteed to be $this->kanvasApp.
+        // Pin the request to the app the agent lives under. Without the app-key header the resolver's
+        // app(Apps::class) is resolved from the request host, which needn't match $this->kanvasApp —
+        // then getByIdFromCompanyApp can't find the agent and the query returns null.
+        $headers = [
+            AppEnums::KANVAS_APP_KEY_HEADER->getValue() => $this->kanvasApp->keys()->first()->client_secret_id,
+        ];
+
         $manifest = $this->graphQL('
             query ($id: ID!) {
                 slackAgentManifest(agent_id: $id) { manifest_json install_url request_url }
             }
-        ', ['id' => $agent->getId()])
+        ', ['id' => $agent->getId()], [], $headers)
             ->assertSuccessful()
             ->json('data.slackAgentManifest');
 
@@ -191,14 +195,14 @@ final class ConnectSlackAgentActionTest extends TestCase
             'agent_id' => $agent->getId(),
             'bot_token' => 'xoxb-real-token',
             'signing_secret' => 'shhh',
-        ]])
+        ]], [], $headers)
             ->assertSuccessful()
             ->assertJsonPath('data.connectSlackAgent.connected', true)
             ->assertJsonPath('data.connectSlackAgent.team_name', 'Acme');
 
         $this->graphQL('
             mutation ($id: ID!) { disconnectSlackAgent(agent_id: $id) }
-        ', ['id' => $agent->getId()])
+        ', ['id' => $agent->getId()], [], $headers)
             ->assertSuccessful()
             ->assertJsonPath('data.disconnectSlackAgent', true);
     }
