@@ -29,6 +29,12 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Connector\\Slack\\SlackConnectorResolver@manifest"
         )
+
+    "Is this agent currently listening on Slack? null when not connected — use it to render the tile on load."
+    slackAgentConnection(agent_id: ID!): SlackAgentConnection
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Slack\\SlackConnectorResolver@connection"
+        )
 }
 
 extend type Mutation @guard {

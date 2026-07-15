@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Slack\Actions;
 
-use Baka\Contracts\CompanyInterface;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Slack\Client;
 use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Slack\Services\SlackReceiverService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Users\Models\Users;
 
 /**
  * Binds a customer-created Slack app to one agent.
@@ -30,9 +27,6 @@ class ConnectSlackAgentAction
 {
     public function __construct(
         private readonly Agent $agent,
-        private readonly Apps $app,
-        private readonly CompanyInterface $company,
-        private readonly Users $user,
         private readonly string $botToken,
         private readonly string $signingSecret,
     ) {
@@ -51,8 +45,7 @@ class ConnectSlackAgentAction
 
         $identity = new Client($this->botToken)->authTest();
 
-        $receiver = new SlackReceiverService($this->app, $this->company, $this->user)
-            ->forAgent($this->agent);
+        $receiver = new SlackReceiverService()->forAgent($this->agent);
 
         $this->agent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, $this->botToken);
 
@@ -62,6 +55,7 @@ class ConnectSlackAgentAction
             ConfigurationEnum::SIGNING_SECRET->value => $this->signingSecret,
             ConfigurationEnum::BOT_USER_ID->value => (string) ($identity['user_id'] ?? ''),
             ConfigurationEnum::TEAM_ID->value => (string) ($identity['team_id'] ?? ''),
+            ConfigurationEnum::TEAM_NAME->value => (string) ($identity['team'] ?? ''),
         ];
         $receiver->is_active = true;
         $receiver->saveOrFail();

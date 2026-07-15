@@ -12,6 +12,7 @@ use Kanvas\Connectors\Slack\Actions\DisconnectSlackAgentAction;
 use Kanvas\Connectors\Slack\Actions\GenerateSlackManifestAction;
 use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Slack\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Slack\Services\SlackConnectionStatusService;
 use Kanvas\Connectors\Slack\Webhooks\ProcessSlackWebhookJob;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
@@ -105,9 +106,6 @@ final class ConnectSlackAgentActionTest extends TestCase
 
         $result = new ConnectSlackAgentAction(
             agent: $agent,
-            app: $this->kanvasApp,
-            company: $this->company,
-            user: $this->user,
             botToken: 'xoxb-real-token',
             signingSecret: 'shhh',
         )->execute();
@@ -132,9 +130,6 @@ final class ConnectSlackAgentActionTest extends TestCase
 
         new ConnectSlackAgentAction(
             agent: $this->agent('Sofia'),
-            app: $this->kanvasApp,
-            company: $this->company,
-            user: $this->user,
             botToken: 'xoxp-a-user-token',
             signingSecret: 'shhh',
         )->execute();
@@ -147,14 +142,11 @@ final class ConnectSlackAgentActionTest extends TestCase
 
         $connected = new ConnectSlackAgentAction(
             agent: $agent,
-            app: $this->kanvasApp,
-            company: $this->company,
-            user: $this->user,
             botToken: 'xoxb-real-token',
             signingSecret: 'shhh',
         )->execute();
 
-        new DisconnectSlackAgentAction($agent, $this->kanvasApp)->execute();
+        new DisconnectSlackAgentAction($agent)->execute();
 
         $receiver = $this->receiverOf($agent->refresh());
 
@@ -162,6 +154,31 @@ final class ConnectSlackAgentActionTest extends TestCase
         $this->assertNull($agent->get(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value));
         // The customer's Slack app still posts here and we can't edit an app we don't own.
         $this->assertSame($connected['request_url'], $receiver->getUrl());
+    }
+
+    public function testConnectionStatusReflectsTheLifecycle(): void
+    {
+        $this->fakeAuthTest();
+        $agent = $this->agent('Sofia');
+        $status = new SlackConnectionStatusService();
+
+        // Never provisioned → not connected.
+        $this->assertNull($status->forAgent($agent));
+
+        new ConnectSlackAgentAction(
+            agent: $agent,
+            botToken: 'xoxb-real-token',
+            signingSecret: 'shhh',
+        )->execute();
+
+        $connected = $status->forAgent($agent->refresh());
+        $this->assertTrue($connected['connected']);
+        $this->assertSame('Acme', $connected['team_name']);
+        $this->assertSame('UBOT123', $connected['bot_user_id']);
+
+        // Disconnected → not connected, even though the receiver row survives.
+        new DisconnectSlackAgentAction($agent)->execute();
+        $this->assertNull($status->forAgent($agent->refresh()));
     }
 
     public function testTheGraphQLSurfaceIsWired(): void
@@ -205,6 +222,13 @@ final class ConnectSlackAgentActionTest extends TestCase
         ', ['id' => $agent->getId()], [], $headers)
             ->assertSuccessful()
             ->assertJsonPath('data.disconnectSlackAgent', true);
+
+        // After disconnect the status query goes null — the tile flips back to "not connected".
+        $this->graphQL('
+            query ($id: ID!) { slackAgentConnection(agent_id: $id) { connected team_name } }
+        ', ['id' => $agent->getId()], [], $headers)
+            ->assertSuccessful()
+            ->assertJsonPath('data.slackAgentConnection', null);
     }
 
     private function fakeAuthTest(): void
@@ -232,12 +256,7 @@ final class ConnectSlackAgentActionTest extends TestCase
      */
     private function manifestFor(Agent $agent): array
     {
-        return new GenerateSlackManifestAction(
-            agent: $agent,
-            app: $this->kanvasApp,
-            company: $this->company,
-            user: $this->user,
-        )->execute();
+        return new GenerateSlackManifestAction($agent)->execute();
     }
 
     private function receiverOf(Agent $agent): ReceiverWebhook

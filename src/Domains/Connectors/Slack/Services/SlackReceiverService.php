@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Slack\Services;
 
-use Baka\Contracts\CompanyInterface;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Slack\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Slack\Webhooks\ProcessSlackWebhookJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
 
@@ -28,20 +25,13 @@ use Kanvas\Workflow\Models\WorkflowAction;
  */
 class SlackReceiverService
 {
-    public function __construct(
-        private readonly Apps $app,
-        private readonly CompanyInterface $company,
-        private readonly Users $user,
-    ) {
-    }
-
     public function forAgent(Agent $agent): ReceiverWebhook
     {
         $receiverId = $agent->get(CustomFieldEnum::RECEIVER_ID->value);
 
         if ($receiverId !== null) {
             /** @var ReceiverWebhook $receiver */
-            $receiver = ReceiverWebhook::getById((int) $receiverId, $this->app);
+            $receiver = ReceiverWebhook::getById((int) $receiverId, $agent->app);
 
             return $receiver;
         }
@@ -49,9 +39,11 @@ class SlackReceiverService
         $action = WorkflowAction::where('model_name', ProcessSlackWebhookJob::class)->firstOrFail();
 
         $receiver = new ReceiverWebhook();
-        $receiver->apps_id = $this->app->getId();
-        $receiver->companies_id = $this->company->getId();
-        $receiver->users_id = $this->user->getId();
+        $receiver->apps_id = $agent->app->getId();
+        $receiver->companies_id = $agent->company->getId();
+        // The agent owns its receiver, and ProcessWebhookJob logs inbound events in as receiver->user
+        // — so the agent's own user is the right actor, not whoever happened to click connect.
+        $receiver->users_id = $agent->user->getId();
         $receiver->action_id = $action->getId();
         $receiver->name = 'Slack — ' . $agent->name;
         $receiver->description = 'Inbound Slack events for agent ' . $agent->name;

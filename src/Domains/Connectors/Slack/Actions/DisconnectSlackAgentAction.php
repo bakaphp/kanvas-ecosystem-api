@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Slack\Actions;
 
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Slack\Enums\CustomFieldEnum;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -14,7 +13,6 @@ class DisconnectSlackAgentAction
 {
     public function __construct(
         private readonly Agent $agent,
-        private readonly Apps $app,
     ) {
     }
 
@@ -24,7 +22,7 @@ class DisconnectSlackAgentAction
 
         if ($receiverId !== null) {
             /** @var ReceiverWebhook $receiver */
-            $receiver = ReceiverWebhook::getById((int) $receiverId, $this->app);
+            $receiver = ReceiverWebhook::getById((int) $receiverId, $this->agent->app);
             $receiver->is_active = false;
             $receiver->saveOrFail();
         }
