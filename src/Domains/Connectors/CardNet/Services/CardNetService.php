@@ -135,9 +135,12 @@ class CardNetService
         return $result;
     }
 
-    public function commit(int $purchaseId): CardNetPurchaseResponse
+    public function commit(int $purchaseId, ?int $amount = null): CardNetPurchaseResponse
     {
-        $response = $this->client->post("v1/api/purchase/{$purchaseId}/commit");
+        // CardNet's lab deployment 500s on a body-less commit; always send the Amount
+        // (Bamboo spec allows it — equal or lower than the pre-authorized amount).
+        $body = $amount !== null ? ['Amount' => $amount] : [];
+        $response = $this->client->post("v1/api/purchase/{$purchaseId}/commit", $body);
         $result = CardNetPurchaseResponse::fromResponse($response);
 
         if (! $result->isApproved()) {
@@ -152,9 +155,30 @@ class CardNetService
         return $result;
     }
 
-    public function refund(int $purchaseId): CardNetPurchaseResponse
+    public function refund(int $purchaseId, ?CardNetPurchaseRequest $request = null): CardNetPurchaseResponse
     {
-        $response = $this->client->post("v1/api/purchase/{$purchaseId}/refund");
+        // CardNet's lab expects the refund body to echo the original purchase payload
+        // (TrxToken, Order, Amount, Tip, Currency, CustomerIP, DataDo.Invoice) — a body-less
+        // refund 500s or fails with PR015. Shape taken from CardNet's official Postman collection.
+        $body = [];
+
+        if ($request !== null) {
+            $body = array_filter(
+                [
+                    'TrxToken' => $request->trxToken,
+                    'Order' => $request->order,
+                    'Amount' => $request->amount,
+                    'Tip' => $request->tip ?? 0,
+                    'Currency' => $request->currency,
+                    'CustomerIP' => $request->customerIp,
+                    'CustomerUserAgent' => $request->customerUserAgent,
+                    'DataDo' => ['Invoice' => $request->invoice],
+                ],
+                fn ($value) => $value !== null,
+            );
+        }
+
+        $response = $this->client->post("v1/api/purchase/{$purchaseId}/refund", $body);
         $result = CardNetPurchaseResponse::fromResponse($response);
 
         if (! $result->isApproved()) {

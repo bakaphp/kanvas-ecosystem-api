@@ -46,7 +46,7 @@ class CurrencySeeder extends Seeder
                         INSERT INTO `currencies` VALUES (30, 'Cyprus', 'Euro', 'EUR', '€', '2018-12-05 01:00:00', NULL, 0);
                         INSERT INTO `currencies` VALUES (31, 'Czech Republic', 'Koruny', 'CZK', 'Kč', '2018-12-05 01:00:00', NULL, 0);
                         INSERT INTO `currencies` VALUES (32, 'Denmark', 'Kroner', 'DKK', 'kr', '2018-12-05 01:00:00', NULL, 0);
-                        INSERT INTO `currencies` VALUES (33, 'Dominican Republic', 'Pesos', 'DOP ', 'RD$', '2018-12-05 01:00:00', NULL, 0);
+                        INSERT INTO `currencies` VALUES (33, 'Dominican Republic', 'Pesos', 'DOP', 'RD$', '2018-12-05 01:00:00', NULL, 0);
                         INSERT INTO `currencies` VALUES (34, 'East Caribbean', 'Dollars', 'XCD', '$', '2018-12-05 01:00:00', NULL, 0);
                         INSERT INTO `currencies` VALUES (35, 'Egypt', 'Pounds', 'EGP', '£', '2018-12-05 01:00:00', NULL, 0);
                         INSERT INTO `currencies` VALUES (36, 'El Salvador', 'Colones', 'SVC', '$', '2018-12-05 01:00:00', NULL, 0);
