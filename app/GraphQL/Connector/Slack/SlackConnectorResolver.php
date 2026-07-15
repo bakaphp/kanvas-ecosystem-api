@@ -10,12 +10,6 @@ use Kanvas\Connectors\Slack\Actions\DisconnectSlackAgentAction;
 use Kanvas\Connectors\Slack\Actions\GenerateSlackManifestAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 
-/**
- * Ship an agent as its own Slack app. Two steps for the client:
- *   1. slackAgentManifest(agent_id) → open install_url, the customer creates the app in their
- *      workspace and installs it
- *   2. connectSlackAgent(...) with the bot token + signing secret they copy back
- */
 class SlackConnectorResolver
 {
     /**
