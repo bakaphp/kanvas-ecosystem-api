@@ -6,6 +6,7 @@ namespace Kanvas\NervousSystem\Pulse\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
@@ -60,7 +61,16 @@ class RollupPulseMetricsAction
         ];
 
         $snapshot = DB::connection('intelligence')->transaction(function () use ($attributes, $values): PulseMetricsDaily {
-            return PulseMetricsDaily::updateOrCreate($attributes, $values);
+            try {
+                return PulseMetricsDaily::updateOrCreate($attributes, $values);
+            } catch (UniqueConstraintViolationException) {
+                // A concurrent rollup inserted this (app, company, date) row
+                // between our SELECT and INSERT. The row exists now — update it.
+                $snapshot = PulseMetricsDaily::query()->where($attributes)->firstOrFail();
+                $snapshot->update($values);
+
+                return $snapshot;
+            }
         });
 
         new AppendEventAction(

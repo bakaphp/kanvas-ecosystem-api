@@ -138,15 +138,16 @@ class ApplyLeadAiModeAction
         $aiModeDefaultKey = $configService->getAiModeDefaultKey($this->lead, $isOpen);
         $followUpDefaultKey = $configService->getFollowUpActiveDefaultKey($this->lead);
 
-        $aiModeValue = $leadTypeConfig[$aiModeDefaultKey] ?? $this->lead->company->get($aiModeKey);
+        $aiModeValue = $leadTypeConfig[$aiModeDefaultKey] ?? $this->lead->company->get($aiModeKey) ?? null;
         $followUpRawValue = $leadTypeConfig[$followUpDefaultKey] ?? $this->lead->company->get($aiFollowUpKey);
 
         if ($followUpRawValue !== null) {
             $this->setFollowUp(FollowUpValueEnum::from($followUpRawValue));
         }
 
-        $this->setMode($aiModeValue);
-
+        if ($aiModeValue !== null) {
+            $this->setMode($aiModeValue);
+        }
         $this->lead->set('first_followup', $configService->getAllDefaultKeys($this->lead, $isOpen));
 
         match ($configService->getStatusSuffix($this->lead)) {
