@@ -6,10 +6,12 @@ namespace Kanvas\Workflow\Rules;
 
 use Generator;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Kanvas\Workflow\Rules\Models\Rule;
+use Kanvas\Workflow\Rules\Support\ExpressionData;
 use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
 use Throwable;
 use Workflow\ActivityStub;
@@ -40,6 +42,10 @@ class DynamicRuleWorkflow extends Workflow
             $params
         );
 
+        // JSON columns arrive as plain arrays; wrap them so a rule can navigate nested keys with
+        // dot syntax (metadata.data.x) — Symfony's `.` operator only works on objects, not arrays.
+        $values = ExpressionData::wrapValues($values);
+
         $expressionLanguage = new ExpressionLanguage();
 
         //validate the expression and values with symfony expression language
@@ -49,7 +55,13 @@ class DynamicRuleWorkflow extends Workflow
                 $values
             );
         } catch (Throwable $e) {
-            report($e);
+            Log::debug('Rule expression evaluation failed; treating as non-match', [
+                'rule_id' => $rule->getId(),
+                'expression' => $expression,
+                'entity' => $entity::class,
+                'entity_id' => $entity->getKey(),
+                'error' => $e->getMessage(),
+            ]);
 
             return $activities;
         }
