@@ -83,5 +83,19 @@ abstract class ProcessWebhookJob implements ShouldQueue
         return true;
     }
 
+    /**
+     * In-band answer to a provider's handshake request — a non-null return short-circuits the
+     * receiver: the array is the JSON response and the job is never dispatched.
+     *
+     * For providers that validate the endpoint by POSTing a nonce they expect echoed back in the
+     * response body (Slack's `url_verification` challenge). Those requests carry no work, so they
+     * must not ride the queue — and the alternative, running the whole receiver synchronously just
+     * to reach a `return`, puts every real event inside the provider's ack timeout.
+     */
+    public static function handshakeResponse(Request $request, ReceiverWebhook $receiver): ?array
+    {
+        return null;
+    }
+
     abstract public function execute(): array;
 }

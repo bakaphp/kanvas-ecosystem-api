@@ -25,6 +25,9 @@ class SessionChannelService
             'email' => $id,
             'respondio' => '+' . $normalizedId,
             'ai-assist' => 'ai-assist-' . $id,
+            // `{team}:{channel}:{thread_ts}` — the thread is the conversation. Not normalized:
+            // Slack ids are alphanumeric and normalizePhoneNumber() would strip them to digits.
+            'slack' => 'slack:' . $id,
         };
     }
 
@@ -38,6 +41,8 @@ class SessionChannelService
             'email' => 'email-' . Str::sanitizeEmail($id),
             'respondio' => 'respondio-' . $normalizedId,
             'ai-assist' => 'ai-assist-' . $id,
+            // `{team}-{channel}` — one Kanvas channel per Slack conversation (a room, or a DM).
+            'slack' => 'slack-' . strtolower($id),
         };
     }
 
