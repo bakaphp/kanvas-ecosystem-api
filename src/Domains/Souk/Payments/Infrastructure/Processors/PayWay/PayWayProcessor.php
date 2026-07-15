@@ -549,10 +549,17 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
             }
             $this->applyTransactionToPayment($payment, $trxInfo);
             $payment->processor = $this->name();
+            // markAsPaid() sets status=PAID, saves, AND propagates to the payable
+            // (Order->markAsPaid() / checkPayments()) so order.payment_status flips
+            // to 'paid'. Direct $payment->save() would only fire the Eloquent
+            // updated event and rely on PaymentObserver — which we've seen not
+            // fire reliably in Octane. Matches the pattern used by AzulProcessor,
+            // CardNetProcessor, and handleStep3Terminal (the frictionless path).
+            $payment->markAsPaid();
+        } else {
+            $payment->status = PaymentStatusEnum::FAILED->value;
+            $payment->save();
         }
-
-        $payment->status = $isPaid ? PaymentStatusEnum::PAID->value : PaymentStatusEnum::FAILED->value;
-        $payment->save();
 
         $payment->addLog('payway_finalize_otp_submitted', [
             'otp_terminal_status' => $otpStatus,
