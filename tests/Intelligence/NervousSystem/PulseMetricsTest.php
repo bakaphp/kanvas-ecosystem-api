@@ -174,6 +174,57 @@ class PulseMetricsTest extends TestCase
         $this->assertSame(2, (int) $second->decide_count);
     }
 
+    public function testRollupSurvivesConcurrentInsertRace(): void
+    {
+        $app = $this->app();
+        $company = $this->user()->getCurrentCompany();
+        $day = Carbon::parse('2026-02-13', 'UTC');
+
+        $this->seedEvent($app, $company, $day->copy()->setTime(9, 0), 'signal.lead_detected', EventStatusEnum::INFO);
+
+        // Reproduce the production race (Sentry KANVAS-ECOSYSTEM-5MG): a
+        // one-shot query listener injects the conflicting row the moment
+        // updateOrCreate probes for it (SELECT miss), so the subsequent
+        // INSERT collides on uniq_pulse_metric_daily. Before the fix this
+        // bubbled a UniqueConstraintViolationException; now it's absorbed.
+        $injected = false;
+        DB::connection('intelligence')->listen(function ($query) use (&$injected, $app, $company, $day): void {
+            if ($injected
+                || ! str_contains($query->sql, 'nervous_system_pulse_metrics_daily')
+                || ! str_contains($query->sql, 'select')) {
+                return;
+            }
+
+            $injected = true;
+            DB::connection('intelligence')->table('nervous_system_pulse_metrics_daily')->insert([
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+                'metric_date' => $day->toDateString(),
+                'signals_count' => 0,
+                'understand_count' => 0,
+                'decide_count' => 0,
+                'actions_executed' => 0,
+                'warnings_count' => 0,
+                'prevented_issues' => 0,
+                'system_confidence_pct' => null,
+                'computed_at' => Carbon::now(),
+                'formula_version' => '1.0',
+            ]);
+        });
+
+        $snapshot = new RollupPulseMetricsAction($app, $company, $day)->execute();
+
+        $this->assertTrue($injected, 'The race was actually triggered');
+        // Our computed value overwrote the concurrently-injected 0.
+        $this->assertSame(1, (int) $snapshot->signals_count);
+        $this->assertSame(1, DB::connection('intelligence')
+            ->table('nervous_system_pulse_metrics_daily')
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->where('metric_date', $day->toDateString())
+            ->count(), 'Exactly one row survives the race');
+    }
+
     public function testServicePrefersSnapshotForPastDay(): void
     {
         $app = $this->app();
