@@ -243,8 +243,10 @@ abstract class BaseMigrateAgentWorkspaceAction
 
         $exists = $client->exec('docker image inspect ' . escapeshellarg($imageName) . ' &>/dev/null && echo "EXISTS" || echo "MISSING"');
         if (str_contains($exists, 'MISSING')) {
+            // --pull checks the registry for a newer base image before building, same
+            // reasoning as BaseLaunchAgentOnMachineAction::ensureSharedImage().
             $buildResult = $client->exec(
-                'sudo docker build --no-cache -t ' . escapeshellarg($imageName) . ' ' . escapeshellarg($imageDir) . ' 2>&1; echo "EXIT_CODE:$?"',
+                'sudo docker build --no-cache --pull -t ' . escapeshellarg($imageName) . ' ' . escapeshellarg($imageDir) . ' 2>&1; echo "EXIT_CODE:$?"',
                 900
             );
             if (! str_contains($buildResult, 'EXIT_CODE:0')) {

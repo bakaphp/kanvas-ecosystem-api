@@ -47,7 +47,7 @@ class RebuildSharedImageAction
 
             $result = $client->exec(
                 'cd ' . escapeshellarg($imageDir)
-                . ' && sudo docker build --no-cache -t ' . escapeshellarg($imageName) . ' . 2>&1'
+                . ' && sudo docker build --no-cache --pull -t ' . escapeshellarg($imageName) . ' . 2>&1'
                 . '; echo "EXIT_CODE:$?"',
                 900,
             );
