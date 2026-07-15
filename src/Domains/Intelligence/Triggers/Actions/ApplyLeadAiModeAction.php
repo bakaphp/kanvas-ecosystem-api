@@ -145,8 +145,9 @@ class ApplyLeadAiModeAction
             $this->setFollowUp(FollowUpValueEnum::from($followUpRawValue));
         }
 
-        $this->setMode($aiModeValue);
-
+        if ($aiModeValue !== null) {
+            $this->setMode($aiModeValue);
+        }
         $this->lead->set('first_followup', $configService->getAllDefaultKeys($this->lead, $isOpen));
 
         match ($configService->getStatusSuffix($this->lead)) {
