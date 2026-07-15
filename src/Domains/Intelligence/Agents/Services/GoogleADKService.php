@@ -231,8 +231,12 @@ class GoogleADKService
      *
      * @throws GuzzleException
      */
-    public function chatSimple(string $userId, string $sessionId, string $message, ?Users $user): array
-    {
+    public function chatSimple(
+        string $userId,
+        string $sessionId,
+        string $message,
+        ?Users $user
+    ): array {
         $response = $this->client->post('/run', [
             'json' => [
                 'app_name' => $this->appName,
