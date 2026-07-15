@@ -42,6 +42,29 @@ final class UserRegionPreferenceTest extends TestCase
         $storedRegionId = $user->get(CustomFieldEnum::DEFAULT_REGION_ID->value);
         $this->assertEquals($region->getId(), (int) $storedRegionId);
 
+        // It must be stored as public so it surfaces in me.custom_fields
+        $meResponse = $this->graphQL('
+            query {
+                me {
+                    custom_fields {
+                        data {
+                            name
+                            value
+                        }
+                    }
+                }
+            }
+        ');
+
+        $customFields = collect($meResponse->json('data.me.custom_fields.data'));
+        $defaultRegionField = $customFields->firstWhere('name', CustomFieldEnum::DEFAULT_REGION_ID->value);
+
+        $this->assertNotNull(
+            $defaultRegionField,
+            'default_region_id must appear in me.custom_fields'
+        );
+        $this->assertEquals($region->getId(), (int) $defaultRegionField['value']);
+
         // Cleanup
         $user->del(CustomFieldEnum::DEFAULT_REGION_ID->value);
     }
