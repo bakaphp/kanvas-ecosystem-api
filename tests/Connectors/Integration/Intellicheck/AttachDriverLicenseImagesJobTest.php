@@ -130,7 +130,17 @@ final class AttachDriverLicenseImagesJobTest extends TestCase
             'weight' => 1,
         ]);
 
-        $action = Action::getBySlug(ConfigurationEnum::ID_VERIFICATION->value, $company);
+        $action = Action::firstOrCreate([
+            'slug' => ConfigurationEnum::ID_VERIFICATION->value,
+        ], [
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+            'pipelines_id' => $pipeline->getId(),
+            'name' => 'ID Verification',
+        ]);
+
+        $branch = $company->defaultBranch ?? $company->branch()->firstOrFail();
 
         CompanyAction::firstOrCreate([
             'actions_id' => $action->getId(),
@@ -138,7 +148,7 @@ final class AttachDriverLicenseImagesJobTest extends TestCase
             'apps_id' => $app->getId(),
         ], [
             'users_id' => $user->getId(),
-            'companies_branches_id' => $company->defaultBranch->getId(),
+            'companies_branches_id' => $branch->getId(),
             'pipelines_id' => $pipeline->getId(),
             'name' => 'ID Verification',
         ]);
