@@ -127,8 +127,13 @@ abstract class BaseLaunchAgentOnMachineAction
         $client->writeFileAsUser($imageDir . '/entrypoint.sh', $builder->buildEntrypoint(), 'root');
         $client->exec('sudo chmod +x ' . escapeshellarg($imageDir . '/entrypoint.sh'));
 
+        // --pull forces Docker to check the registry for a newer base image before
+        // building, rather than silently reusing whatever's already cached locally
+        // under that tag (e.g. nousresearch/hermes-agent:latest) — otherwise a machine
+        // that has ever built this image before keeps using the version that happened
+        // to be current the first time, indefinitely.
         $result = $client->exec(
-            'cd ' . escapeshellarg($imageDir) . ' && sudo docker build -t ' . escapeshellarg($imageName) . ' . 2>&1; echo "EXIT_CODE:$?"',
+            'cd ' . escapeshellarg($imageDir) . ' && sudo docker build --pull -t ' . escapeshellarg($imageName) . ' . 2>&1; echo "EXIT_CODE:$?"',
             900,
         );
 

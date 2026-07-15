@@ -433,9 +433,11 @@ class MigrateFromOpenClawAction
         $client->writeFileAsUser($imageDir . '/entrypoint.sh', $builder->buildEntrypoint(), 'root');
         $client->exec('sudo chmod +x ' . escapeshellarg($imageDir . '/entrypoint.sh'));
 
+        // --pull checks the registry for a newer base image before building, same
+        // reasoning as BaseLaunchAgentOnMachineAction::ensureSharedImage().
         $buildResult = $client->exec(
             'cd ' . escapeshellarg($imageDir)
-            . ' && sudo docker build --no-cache -t ' . escapeshellarg($imageName) . ' . 2>&1; echo "EXIT_CODE:$?"',
+            . ' && sudo docker build --no-cache --pull -t ' . escapeshellarg($imageName) . ' . 2>&1; echo "EXIT_CODE:$?"',
             900
         );
 
