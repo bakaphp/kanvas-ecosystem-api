@@ -41,8 +41,8 @@ class CreateMessageFromSlackEventAction
 
         $client = Client::getInstanceByAgent($this->agent);
         $slackChannelId = (string) ($this->event['channel'] ?? '');
-        $threadTs = (string) ($this->event['thread_ts'] ?? $this->event['ts'] ?? '');
         $isDirectMessage = ($this->event['channel_type'] ?? '') === 'im';
+        $threadTs = $this->replyThreadTs($isDirectMessage);
 
         $speaker = new SlackUserResolverService($client, $app, $company)
             ->resolve((string) ($this->event['user'] ?? ''));
@@ -147,6 +147,25 @@ class CreateMessageFromSlackEventAction
     private function teamId(): string
     {
         return (string) ($this->webhookRequest->payload['team_id'] ?? '');
+    }
+
+    /**
+     * Where the reply lands. A DM reads like a normal chat, so answer in the main conversation —
+     * threading every message clutters the DM with one-reply threads. A channel answer threads under
+     * the mention so a long agent reply doesn't flood the room. Either way, if the human is already
+     * in a thread, stay in it.
+     *
+     * Empty string = post at the top level (the client drops an empty thread_ts).
+     */
+    private function replyThreadTs(bool $isDirectMessage): string
+    {
+        $existingThread = (string) ($this->event['thread_ts'] ?? '');
+
+        if ($existingThread !== '') {
+            return $existingThread;
+        }
+
+        return $isDirectMessage ? '' : (string) ($this->event['ts'] ?? '');
     }
 
     /**

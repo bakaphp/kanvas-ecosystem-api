@@ -113,6 +113,8 @@ final class ProcessSlackWebhookJobTest extends TestCase
         $this->assertTrue($outbound->message['from_ia']);
         $this->assertStringContainsString('Hola Mundo', $outbound->message['content']);
         $this->assertSlackReplyWasEdited();
+        // A DM reads like a normal chat — the reply posts at the top level, not in a thread.
+        $this->assertPlaceholderThreadTs(null);
     }
 
     public function testChannelMentionIsAnsweredAndBoundToTheChannel(): void
@@ -136,6 +138,8 @@ final class ProcessSlackWebhookJobTest extends TestCase
         // The bot's own handle is stripped before the agent ever sees the text.
         $this->assertSame('status on the deal', $inbound->message['content']);
         $this->assertSlackReplyWasEdited();
+        // In a channel the reply threads under the mention so a long answer doesn't flood the room.
+        $this->assertPlaceholderThreadTs('1700000000.000100');
     }
 
     public function testDirectMessageFromUnknownSlackUserIsRejected(): void
@@ -218,6 +222,17 @@ final class ProcessSlackWebhookJobTest extends TestCase
     {
         Http::assertSent(fn ($request) => str_contains($request->url(), 'chat.update')
             && str_contains((string) $request->body(), 'Hola'));
+    }
+
+    private function assertPlaceholderThreadTs(?string $expected): void
+    {
+        Http::assertSent(function ($request) use ($expected): bool {
+            if (! str_contains($request->url(), 'chat.postMessage')) {
+                return false;
+            }
+
+            return ($request['thread_ts'] ?? null) === $expected;
+        });
     }
 
     private function messagesOn(string $slackChannelId): Collection

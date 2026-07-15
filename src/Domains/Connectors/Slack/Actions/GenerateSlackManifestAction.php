@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Slack\Actions;
 
-use Baka\Contracts\CompanyInterface;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Slack\Services\SlackReceiverService;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Users\Models\Users;
 
 /**
  * Builds the Slack app manifest for an agent, plus the link the customer clicks to create it.
@@ -47,9 +44,6 @@ class GenerateSlackManifestAction
 
     public function __construct(
         private readonly Agent $agent,
-        private readonly Apps $app,
-        private readonly CompanyInterface $company,
-        private readonly Users $user,
     ) {
     }
 
@@ -58,8 +52,7 @@ class GenerateSlackManifestAction
      */
     public function execute(): array
     {
-        $receiver = new SlackReceiverService($this->app, $this->company, $this->user)
-            ->forAgent($this->agent);
+        $receiver = new SlackReceiverService()->forAgent($this->agent);
 
         $requestUrl = $receiver->getUrl();
         $manifest = (string) json_encode($this->manifest($requestUrl), JSON_UNESCAPED_SLASHES);

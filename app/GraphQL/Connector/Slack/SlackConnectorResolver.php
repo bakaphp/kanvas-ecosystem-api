@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Slack\Actions\ConnectSlackAgentAction;
 use Kanvas\Connectors\Slack\Actions\DisconnectSlackAgentAction;
 use Kanvas\Connectors\Slack\Actions\GenerateSlackManifestAction;
+use Kanvas\Connectors\Slack\Services\SlackConnectionStatusService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 
 class SlackConnectorResolver
@@ -24,12 +25,7 @@ class SlackConnectorResolver
         /** @var Agent $agent */
         $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
 
-        return new GenerateSlackManifestAction(
-            agent: $agent,
-            app: $app,
-            company: $company,
-            user: $user,
-        )->execute();
+        return new GenerateSlackManifestAction($agent)->execute();
     }
 
     /**
@@ -48,9 +44,6 @@ class SlackConnectorResolver
 
         return new ConnectSlackAgentAction(
             agent: $agent,
-            app: $app,
-            company: $company,
-            user: $user,
             botToken: (string) $input['bot_token'],
             signingSecret: (string) $input['signing_secret'],
         )->execute();
@@ -65,6 +58,21 @@ class SlackConnectorResolver
         /** @var Agent $agent */
         $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
 
-        return new DisconnectSlackAgentAction($agent, $app)->execute();
+        return new DisconnectSlackAgentAction($agent)->execute();
+    }
+
+    /**
+     * @return array<string, mixed>|null null when the agent isn't listening on Slack
+     */
+    public function connection(mixed $root, array $request): ?array
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        /** @var Agent $agent */
+        $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
+
+        return new SlackConnectionStatusService()->forAgent($agent);
     }
 }
