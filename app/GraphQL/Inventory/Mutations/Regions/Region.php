@@ -85,7 +85,7 @@ class Region
             $user->getCurrentCompany(),
             $app
         );
-        $user->set(CustomFieldEnum::DEFAULT_REGION_ID->value, $region->getId());
+        $user->set(CustomFieldEnum::DEFAULT_REGION_ID->value, $region->getId(), isPublic: 1);
 
         return true;
     }
