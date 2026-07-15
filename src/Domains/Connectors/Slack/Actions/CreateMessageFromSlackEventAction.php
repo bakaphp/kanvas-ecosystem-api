@@ -42,7 +42,7 @@ class CreateMessageFromSlackEventAction
         $client = Client::getInstanceByAgent($this->agent);
         $slackChannelId = (string) ($this->event['channel'] ?? '');
         $isDirectMessage = ($this->event['channel_type'] ?? '') === 'im';
-        $threadTs = $this->replyThreadTs($isDirectMessage);
+        $threadTs = $this->replyThreadTs();
 
         $speaker = new SlackUserResolverService($client, $app, $company)
             ->resolve((string) ($this->event['user'] ?? ''));
@@ -72,7 +72,16 @@ class CreateMessageFromSlackEventAction
             )
         )->execute();
 
+        // In a room the conversation entity is the channel, not any one person, so the agent has no
+        // built-in sense of who's speaking this turn. Attribute the message so it — and the stored
+        // history other speakers share — knows. A DM's entity is already the user, so it needs none.
         $text = $this->text();
+        if (! $isDirectMessage && $speaker !== null) {
+            $speakerName = trim($speaker->firstname . ' ' . $speaker->lastname);
+            if ($speakerName !== '') {
+                $text = $speakerName . ': ' . $text;
+            }
+        }
 
         $messageInput = new MessageInput(
             app: $app,
@@ -150,22 +159,15 @@ class CreateMessageFromSlackEventAction
     }
 
     /**
-     * Where the reply lands. A DM reads like a normal chat, so answer in the main conversation —
-     * threading every message clutters the DM with one-reply threads. A channel answer threads under
-     * the mention so a long agent reply doesn't flood the room. Either way, if the human is already
-     * in a thread, stay in it.
+     * Reply where the human spoke: in their thread if they opened one, otherwise at the top level —
+     * for DMs and channels alike. We never force a channel reply into its own thread, so the
+     * conversation stays in the main channel unless the user themselves threaded it.
      *
      * Empty string = post at the top level (the client drops an empty thread_ts).
      */
-    private function replyThreadTs(bool $isDirectMessage): string
+    private function replyThreadTs(): string
     {
-        $existingThread = (string) ($this->event['thread_ts'] ?? '');
-
-        if ($existingThread !== '') {
-            return $existingThread;
-        }
-
-        return $isDirectMessage ? '' : (string) ($this->event['ts'] ?? '');
+        return (string) ($this->event['thread_ts'] ?? '');
     }
 
     /**

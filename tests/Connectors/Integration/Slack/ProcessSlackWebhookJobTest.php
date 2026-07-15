@@ -135,11 +135,27 @@ final class ProcessSlackWebhookJobTest extends TestCase
             'slack-' . strtolower($this->teamId . '-' . self::SLACK_CHANNEL),
             $inbound->entity()->slug
         );
-        // The bot's own handle is stripped before the agent ever sees the text.
-        $this->assertSame('status on the deal', $inbound->message['content']);
+        // Bot handle stripped; the speaker is attributed so the agent knows who's talking this turn.
+        $speakerName = trim($this->user->firstname . ' ' . $this->user->lastname);
+        $this->assertSame($speakerName . ': status on the deal', $inbound->message['content']);
         $this->assertSlackReplyWasEdited();
-        // In a channel the reply threads under the mention so a long answer doesn't flood the room.
-        $this->assertPlaceholderThreadTs('1700000000.000100');
+        // A top-level mention → reply in the main channel, not forced into a thread.
+        $this->assertPlaceholderThreadTs(null);
+    }
+
+    public function testAMentionInsideAThreadIsAnsweredInThatThread(): void
+    {
+        $this->fakeSlackApi();
+
+        $this->dispatch($this->messageEvent([
+            'type' => 'app_mention',
+            'channel' => self::SLACK_CHANNEL,
+            'thread_ts' => '1699999999.000001',
+            'text' => '<@' . self::BOT_USER_ID . '> and this?',
+        ]));
+
+        // The human is already in a thread — stay in it rather than replying to the channel.
+        $this->assertPlaceholderThreadTs('1699999999.000001');
     }
 
     public function testDirectMessageFromUnknownSlackUserIsRejected(): void
