@@ -6,7 +6,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
-use Illuminate\Queue\Failed\FailedJobProviderInterface;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Throwable;
@@ -50,16 +50,14 @@ class KanvasStatusCommand extends Command
         'accounting',
     ];
 
-    public function handle(
-        QueueFactory $queue,
-        FailedJobProviderInterface $failer
-    ): int {
+    public function handle(QueueFactory $queue): int
+    {
         $healthy = true;
 
         $healthy = $this->reportDatabases() && $healthy;
         $healthy = $this->reportRedis() && $healthy;
 
-        $backlogged = $this->reportQueues($queue, $failer, (int) $this->option('backlog'));
+        $backlogged = $this->reportQueues($queue, (int) $this->option('backlog'));
 
         $this->newLine();
         if (! $healthy) {
@@ -127,15 +125,10 @@ class KanvasStatusCommand extends Command
     /**
      * @return bool whether any queue is backed up or carrying failed jobs
      */
-    private function reportQueues(QueueFactory $queue, FailedJobProviderInterface $failer, int $backlogThreshold): bool
+    private function reportQueues(QueueFactory $queue, int $backlogThreshold): bool
     {
-        $failedJobs = $failer->all();
-        $totalFailed = count($failedJobs);
-
-        $failedByQueue = [];
-        foreach ($failedJobs as $job) {
-            $failedByQueue[$job->queue] = ($failedByQueue[$job->queue] ?? 0) + 1;
-        }
+        $failedByQueue = $this->failedCountsByQueue();
+        $totalFailed = array_sum($failedByQueue);
 
         $totalPending = 0;
         $backlogged = false;
@@ -161,6 +154,35 @@ class KanvasStatusCommand extends Command
         $this->line('  Total pending: ' . $totalPending . '   |   Total failed: ' . $totalFailed);
 
         return $backlogged || $totalFailed > 0;
+    }
+
+    /**
+     * Count failed jobs grouped by queue with a single aggregate query.
+     *
+     * Never load the rows themselves — each carries a full serialized payload
+     * and exception trace, so `SELECT *` on a large failed_jobs table exhausts
+     * memory just to count them.
+     *
+     * @return array<string, int> queue name => failed count
+     */
+    private function failedCountsByQueue(): array
+    {
+        $connection = Config::get('queue.failed.database');
+        $table = Config::get('queue.failed.table', 'failed_jobs');
+
+        try {
+            return DB::connection($connection)
+                ->table($table)
+                ->selectRaw('queue, COUNT(*) as aggregate')
+                ->groupBy('queue')
+                ->pluck('aggregate', 'queue')
+                ->map(fn ($count) => (int) $count)
+                ->all();
+        } catch (Throwable $e) {
+            $this->warn('  ! Could not read failed jobs: ' . $this->shorten($e->getMessage()));
+
+            return [];
+        }
     }
 
     private function shorten(string $message): string
