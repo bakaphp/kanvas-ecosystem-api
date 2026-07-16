@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Slack\Actions;
 
 use Kanvas\Connectors\Slack\Client;
 use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Slack\Exceptions\SlackIdentityUnavailableException;
 use Kanvas\Connectors\Slack\Services\SlackMarkdownService;
 use Kanvas\Connectors\Slack\Services\SlackUserResolverService;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -44,12 +45,26 @@ class CreateMessageFromSlackEventAction
         $isDirectMessage = ($this->event['channel_type'] ?? '') === 'im';
         $threadTs = $this->replyThreadTs();
 
-        $speaker = new SlackUserResolverService($client, $app, $company)
-            ->resolve((string) ($this->event['user'] ?? ''));
+        try {
+            $speaker = new SlackUserResolverService($client, $app, $company)
+                ->resolve((string) ($this->event['user'] ?? ''));
+        } catch (SlackIdentityUnavailableException) {
+            // We couldn't reach Slack to identify the sender (rate limit / transient API error).
+            // In a DM there's no identity to proceed on, so skip this turn silently — the next
+            // message resolves, and a successful lookup is cached. Never post the "get invited"
+            // message here: that misreads a transient failure as a missing account. In a room the
+            // speaker is only used for attribution, so answer anyway with an unknown speaker.
+            if ($isDirectMessage) {
+                return null;
+            }
+
+            $speaker = null;
+        }
 
         if ($isDirectMessage && $speaker === null) {
-            // A DM belongs to the human on the other side. Without a Kanvas identity there's no
-            // entity to hang the conversation on — and no basis to trust them with the agent.
+            // Slack knows this person but no Kanvas account matches their email — a genuine "not
+            // invited". Without a Kanvas identity there's no entity to hang the conversation on,
+            // and no basis to trust them with the agent.
             $client->postMessage(
                 $slackChannelId,
                 "I can't find a Kanvas account for your Slack email. Ask an admin to invite you, then message me again.",

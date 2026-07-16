@@ -50,6 +50,26 @@ class DateHelper
         }
     }
 
+    /**
+     * Parses a "years.months" duration string (e.g. "3.6" → 3 years, 6 months)
+     * as used by the credit-app form fields (time at address, years employed).
+     *
+     * @return array{years: int, months: int}
+     */
+    public static function parseDuration(mixed $duration): array
+    {
+        if (empty($duration)) {
+            return ['years' => 0, 'months' => 0];
+        }
+
+        $parts = explode('.', (string) $duration);
+
+        return [
+            'years' => (int) ($parts[0] ?? 0),
+            'months' => (int) ($parts[1] ?? 0),
+        ];
+    }
+
     // Returns null instead of throwing on garbage / non-strings / empty input.
     public static function tryParseCarbon(mixed $value): ?Carbon
     {

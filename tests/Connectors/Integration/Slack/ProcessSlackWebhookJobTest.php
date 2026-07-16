@@ -165,12 +165,71 @@ final class ProcessSlackWebhookJobTest extends TestCase
         $result = $this->dispatch($this->messageEvent([
             'channel' => 'DSTRANGER',
             'channel_type' => 'im',
+            'user' => 'U' . strtoupper(Str::random(6)),
         ]));
 
         $this->assertSame('Sender has no Kanvas account', $result['message']);
         $this->assertNull(
             Channel::where('slug', 'slack-' . strtolower($this->teamId . '-dstranger'))->first(),
             'An unrecognized Slack user must not open a conversation.'
+        );
+    }
+
+    public function testTransientSlackFailureDoesNotClaimMissingAccount(): void
+    {
+        // users.info is rate-limited / unreachable — we can't say who this is, but that is NOT
+        // evidence they have no account.
+        Http::fake([
+            'slack.com/api/users.info' => Http::response(['ok' => false, 'error' => 'ratelimited'], 429),
+            'slack.com/api/*' => Http::response(['ok' => true, 'ts' => '1700000000.000100']),
+        ]);
+
+        $result = $this->dispatch($this->messageEvent([
+            'channel' => 'DFLAKY',
+            'channel_type' => 'im',
+            'user' => 'U' . strtoupper(Str::random(6)),
+        ]));
+
+        $this->assertSame('Sender has no Kanvas account', $result['message']);
+
+        // The misleading "ask an admin to invite you" reply must never be posted on a transient error.
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'chat.postMessage')
+            && str_contains((string) $request->body(), 'invite you'));
+
+        $this->assertNull(
+            Channel::where('slug', 'slack-' . strtolower($this->teamId . '-dflaky'))->first(),
+            'A transient failure must not open a conversation.'
+        );
+    }
+
+    public function testUserEmailLookupIsCachedAcrossMessages(): void
+    {
+        $this->fakeSlackApi();
+
+        // A fresh Slack user id so a prior run's cache can't mask the first lookup.
+        $slackUserId = 'U' . strtoupper(Str::random(6));
+
+        $this->dispatch($this->messageEvent([
+            'channel' => self::DM_CHANNEL,
+            'channel_type' => 'im',
+            'user' => $slackUserId,
+            'ts' => '1700000000.000101',
+        ]));
+        $this->dispatch($this->messageEvent([
+            'channel' => self::DM_CHANNEL,
+            'channel_type' => 'im',
+            'user' => $slackUserId,
+            'ts' => '1700000000.000102',
+        ]));
+
+        $userInfoCalls = collect(Http::recorded())
+            ->filter(fn ($pair) => str_contains($pair[0]->url(), 'users.info'))
+            ->count();
+
+        $this->assertSame(
+            1,
+            $userInfoCalls,
+            'users.info is rate-limited; a repeat message from the same person must resolve from cache.'
         );
     }
 
