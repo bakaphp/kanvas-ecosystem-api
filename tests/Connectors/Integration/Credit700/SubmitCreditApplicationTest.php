@@ -97,7 +97,13 @@ final class SubmitCreditApplicationTest extends TestCase
             ->andReturnUsing(function (string $path, array $data) use (&$capturedPayload): array {
                 $capturedPayload = $data;
 
-                return ['Status' => 'success'];
+                return [
+                    'XML_Version' => 'Iframe 2.0',
+                    'XML_Report' => [
+                        'Transid' => '700DSO-198906135',
+                        'Token' => '700DSO-04f4c5c0-1858-4c9a-b4f6-3ac7ababb5cc',
+                    ],
+                ];
             });
 
         $people = People::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
@@ -106,6 +112,8 @@ final class SubmitCreditApplicationTest extends TestCase
         $result = new CreditApplicationService($app)->submitToRouteOne($application);
 
         $this->assertTrue($result['success']);
+        $this->assertSame('700DSO-198906135', $result['transaction_id']);
+        $this->assertSame('700DSO-04f4c5c0-1858-4c9a-b4f6-3ac7ababb5cc', $result['token']);
         $this->assertSame('SAVEONLY', $capturedPayload['PRODUCT']);
         $this->assertSame('R1', $capturedPayload['LOS_SYSTEM']);
         $this->assertSame('PCCREDIT', $capturedPayload['PROCESS']);

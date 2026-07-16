@@ -25,7 +25,7 @@ class CreditApplicationService
     }
 
     /**
-     * @return array{success: bool, response: array<string, mixed>}
+     * @return array{success: bool, transaction_id: string|null, token: string|null, response: array<string, mixed>}
      */
     public function submitToRouteOne(CreditApplication $application): array
     {
@@ -37,8 +37,12 @@ class CreditApplicationService
                 $this->buildPayload($application, $appOrCompany)
             );
 
+            $transactionId = $responseArray['XML_Report']['Transid'] ?? null;
+
             return [
-                'success' => ! isset($responseArray['Creditsystem_Error']),
+                'success' => $transactionId !== null && ! isset($responseArray['Creditsystem_Error']),
+                'transaction_id' => $transactionId,
+                'token' => $responseArray['XML_Report']['Token'] ?? null,
                 'response' => $responseArray,
             ];
         } catch (RequestException $e) {
