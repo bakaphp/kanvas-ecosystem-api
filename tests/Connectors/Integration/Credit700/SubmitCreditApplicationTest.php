@@ -26,7 +26,7 @@ final class SubmitCreditApplicationTest extends TestCase
                 'first_name' => 'John',
                 'last_name' => 'Smith',
                 'ssn' => '123-45-6789',
-                'dob' => '01/15/1985',
+                'dob' => '14-April-1965',
                 'email' => 'john@example.com',
                 'mobile_number' => '312-555-1234',
                 'drivers_license' => 'D1234567',
@@ -66,6 +66,7 @@ final class SubmitCreditApplicationTest extends TestCase
 
         $this->assertSame('John Smith', $application->name);
         $this->assertSame('123-45-6789', $application->ssn);
+        $this->assertSame('04/14/1965', $application->dob);
         $this->assertSame('123 Main St', $application->address);
         $this->assertSame('Chicago', $application->city);
         $this->assertSame('IL', $application->state);
