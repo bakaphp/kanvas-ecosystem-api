@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\AccessControlList\Templates\ModulesRepositories;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Models\SystemModules;
 
 use function Laravel\Prompts\info;
@@ -22,20 +23,31 @@ class CreateGlobalSystemModulesFromTemplateCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:create-global-system-modules-from-template';
+    protected $signature = 'kanvas:create-global-system-modules-from-template
+        {--app_id=0 : Target app id — 0 (default) registers global modules for all apps; a specific id registers them for that one app}';
 
     /**
      * The console command description.
      *
      * @var string|null
      */
-    protected $description = 'Create global system modules based on ModulesRepositories template with their corresponding modules_id';
+    protected $description = 'Create system modules from the ModulesRepositories template with their modules_id. Global (apps_id=0) by default, or per-app via --app_id.';
 
     public function handle(): int
     {
-        $appId = 0;
+        $appId = (int) $this->option('app_id');
         $verbose = $this->option('verbose');
         $abilitiesByModule = ModulesRepositories::getAbilitiesByModule();
+
+        // Per the connector-tree rule: rebind the app scope before touching app-scoped rows. `getByModelName`
+        // (what fireWorkflow resolves through) keys on (model_name, apps_id), so per-app rows are what the
+        // workflow actually reads — the apps_id=0 rows never resolve for a concrete app.
+        if ($appId !== 0) {
+            /** @var Apps $app */
+            $app = Apps::getById($appId);
+            $this->overwriteAppService($app);
+            info("Registering system modules for app {$appId}.");
+        }
 
         $createdCount = 0;
         $updatedCount = 0;
@@ -60,7 +72,6 @@ class CreateGlobalSystemModulesFromTemplateCommand extends Command
                     $this->line("  → Checking: {$modelName} ({$modelClass})");
                 }
 
-                // Check if system module already exists (for global apps_id = 0)
                 $systemModule = SystemModules::where('model_name', $modelClass)
                     ->where('apps_id', $appId)
                     ->first();
