@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Quotes\Exceptions;
 
-use RuntimeException;
+use Kanvas\Scribe\Ledger\Exceptions\InvalidDocumentTransitionException;
 
-class InvalidQuoteTransitionException extends RuntimeException
+class InvalidQuoteTransitionException extends InvalidDocumentTransitionException
 {
 }

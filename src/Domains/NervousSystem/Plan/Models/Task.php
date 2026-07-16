@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Traits\TruncatesTitleTrait;
 use Override;
 
 /**
@@ -39,6 +40,7 @@ use Override;
 class Task extends BaseModel
 {
     use EmitsLedgerEventsForEntity;
+    use TruncatesTitleTrait;
     use UuidTrait;
 
     protected $table = 'nervous_system_tasks';
