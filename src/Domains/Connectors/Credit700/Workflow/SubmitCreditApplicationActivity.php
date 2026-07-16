@@ -37,6 +37,8 @@ class SubmitCreditApplicationActivity extends KanvasActivity
                         ? 'Credit application submitted to RouteOne successfully'
                         : 'RouteOne rejected the credit application',
                     'success' => $result['success'],
+                    'transaction_id' => $result['transaction_id'],
+                    'token' => $result['token'],
                     'entity' => $result['response'],
                 ];
             },

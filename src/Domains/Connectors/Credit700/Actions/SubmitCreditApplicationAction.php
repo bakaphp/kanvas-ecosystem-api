@@ -21,7 +21,7 @@ class SubmitCreditApplicationAction
     }
 
     /**
-     * @return array{success: bool, response: array<string, mixed>}
+     * @return array{success: bool, transaction_id: string|null, token: string|null, response: array<string, mixed>}
      */
     public function execute(): array
     {
@@ -44,25 +44,34 @@ class SubmitCreditApplicationAction
         $service = new CreditApplicationService($lead->app, $lead->company);
         $result = $service->submitToRouteOne($application);
 
-        $this->storeSubmissionHistory($targetPeople, $lead, $result);
+        $this->storeSubmissionHistory(
+            $lead,
+            $targetPeople,
+            $result
+        );
 
         return $result;
     }
 
     /**
-     * @param array{success: bool, response: array<string, mixed>} $result
+     * @param array{success: bool, transaction_id: string|null, token: string|null, response: array<string, mixed>} $result
      */
-    protected function storeSubmissionHistory(People $people, Lead $lead, array $result): void
-    {
-        $history = $people->get(CustomFieldEnum::LEAD_CREDIT_APP_SUBMISSION->value) ?? [];
+    protected function storeSubmissionHistory(
+        Lead $lead,
+        People $people,
+        array $result
+    ): void {
+        $history = $lead->get(CustomFieldEnum::LEAD_CREDIT_APP_SUBMISSION->value) ?? [];
 
         $history[] = [
             'date' => date('Y-m-d H:i:s'),
-            'lead_id' => $lead->getId(),
+            'people_id' => $people->getId(),
             'success' => $result['success'],
+            'transaction_id' => $result['transaction_id'],
+            'token' => $result['token'],
             'response' => $result['response'],
         ];
 
-        $people->set(CustomFieldEnum::LEAD_CREDIT_APP_SUBMISSION->value, $history);
+        $lead->set(CustomFieldEnum::LEAD_CREDIT_APP_SUBMISSION->value, $history);
     }
 }
