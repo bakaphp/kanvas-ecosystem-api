@@ -23,6 +23,7 @@ use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Observers\PlanObserver;
+use Kanvas\NervousSystem\Plan\Traits\TruncatesTitleTrait;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -78,6 +79,7 @@ class Plan extends BaseModel
     use EmitsLedgerEventsForEntity;
     use HasLightHouseCache;
     use HasTagsTrait;
+    use TruncatesTitleTrait;
     use UuidTrait;
 
     protected $cascadeDeletes = ['tasks', 'children'];

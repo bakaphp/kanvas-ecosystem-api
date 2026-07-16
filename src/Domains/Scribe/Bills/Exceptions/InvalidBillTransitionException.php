@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Bills\Exceptions;
 
-use RuntimeException;
+use Kanvas\Scribe\Ledger\Exceptions\InvalidDocumentTransitionException;
 
-class InvalidBillTransitionException extends RuntimeException
+class InvalidBillTransitionException extends InvalidDocumentTransitionException
 {
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Invoices;
 
+use GraphQL\Error\ClientAware;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Exceptions\InvalidInvoiceTransitionException;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -71,5 +72,24 @@ class InvoiceStateMachineTest extends TestCase
             'voided → paid (voided is terminal)' => [InvoiceDocumentStatusEnum::VOIDED, InvoiceDocumentStatusEnum::PAID],
             'sent → draft (cannot rewind)' => [InvoiceDocumentStatusEnum::SENT, InvoiceDocumentStatusEnum::DRAFT],
         ];
+    }
+
+    /**
+     * A rejected transition is user error, not a server fault — it must be client-safe so Lighthouse
+     * surfaces the message and keeps it OUT of Sentry (regression for KANVAS-ECOSYSTEM-5VR, where
+     * voiding a draft invoice was logged as an unhandled 5xx error).
+     */
+    public function test_rejection_is_client_safe(): void
+    {
+        $invoice = new Invoice();
+        $invoice->document_status = InvoiceDocumentStatusEnum::DRAFT;
+
+        try {
+            $this->machine->assertTransition($invoice, InvoiceDocumentStatusEnum::VOIDED);
+            $this->fail('Expected InvalidInvoiceTransitionException for draft → voided.');
+        } catch (InvalidInvoiceTransitionException $e) {
+            $this->assertInstanceOf(ClientAware::class, $e);
+            $this->assertTrue($e->isClientSafe(), 'Transition rejection must be client-safe.');
+        }
     }
 }
