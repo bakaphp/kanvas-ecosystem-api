@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\DriveCentric\Actions;
 
+use Baka\Support\DateHelper;
 use Kanvas\Connectors\DriveCentric\Enums\CustomFieldEnums;
 use Kanvas\Connectors\DriveCentric\Services\LeadService;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
@@ -60,9 +61,9 @@ class AddCreditAppToDealAction
         $formData = $messageData['data']['form'] ?? [];
 
         // Parse duration fields (format: "years.months")
-        $durationAtAddress = $this->parseDuration($formData['housing']['time_at_address'] ?? '');
-        $durationAtJob = $this->parseDuration($formData['financial']['years_at_current_employment'] ?? '');
-        $durationAtPreviousJob = $this->parseDuration($formData['financial']['years_at_previous_employment'] ?? '');
+        $durationAtAddress = DateHelper::parseDuration($formData['housing']['time_at_address'] ?? '');
+        $durationAtJob = DateHelper::parseDuration($formData['financial']['years_at_current_employment'] ?? '');
+        $durationAtPreviousJob = DateHelper::parseDuration($formData['financial']['years_at_previous_employment'] ?? '');
 
         // Clean phone numbers to 10 digits
         $currentEmployerPhone = $this->cleanPhoneNumber($formData['financial']['current_employer_phone'] ?? '');
@@ -96,7 +97,7 @@ class AddCreditAppToDealAction
 
         // Previous Residence History (if provided)
         if (isset($formData['housing']['previous_address']) && ! empty($formData['housing']['previous_address'])) {
-            $durationAtPreviousAddress = $this->parseDuration($formData['housing']['previous_time_at_address'] ?? '');
+            $durationAtPreviousAddress = DateHelper::parseDuration($formData['housing']['previous_time_at_address'] ?? '');
             $creditApp['previousResidenceHistory'] = [
                 'addressLine' => $formData['housing']['previous_address'] ?? null,
                 'county' => null,
@@ -204,20 +205,6 @@ class AddCreditAppToDealAction
 
             $people->addAddress($previousAddressDto);
         }
-    }
-
-    protected function parseDuration(string $duration): array
-    {
-        if (empty($duration)) {
-            return ['years' => 0, 'months' => 0];
-        }
-
-        $parts = explode('.', (string) $duration);
-
-        return [
-            'years' => (int) ($parts[0] ?? 0),
-            'months' => (int) ($parts[1] ?? 0),
-        ];
     }
 
     protected function calculateTotalMonths(array $duration): int

@@ -131,6 +131,11 @@ trait ScalarCoercionTrait
         return $value === null ? null : (int) $value;
     }
 
+    protected static function nullableFloat(mixed $value): ?float
+    {
+        return $value === null || $value === '' ? null : (float) $value;
+    }
+
     /**
      * @return list<string>
      */

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Warehouses\Observers;
 
+use Illuminate\Database\UniqueConstraintViolationException;
 use Kanvas\Inventory\Products\Models\ProductsWarehouses;
 use Kanvas\Inventory\Status\Actions\CreateStatusHistoryAction;
 use Kanvas\Inventory\Status\Repositories\StatusRepository;
@@ -49,11 +50,17 @@ class VariantsWarehouseObserver
             ->first();
 
         if (! $productWarehouse) {
-            $productWarehouse = new ProductsWarehouses();
-            $productWarehouse->products_id = $variantWarehouse->variant->products_id;
-            $productWarehouse->warehouses_id = $variantWarehouse->warehouses_id;
-            $productWarehouse->is_deleted = 0;
-            $productWarehouse->saveOrFail();
+            try {
+                $productWarehouse = new ProductsWarehouses();
+                $productWarehouse->products_id = $variantWarehouse->variant->products_id;
+                $productWarehouse->warehouses_id = $variantWarehouse->warehouses_id;
+                $productWarehouse->is_deleted = 0;
+                $productWarehouse->saveOrFail();
+            } catch (UniqueConstraintViolationException) {
+                // The paired created()/saved() event (or a concurrent write) already created this link.
+                // The lookup missed it (composite-key + is_deleted scope + model cache), but the row
+                // exists — which is exactly the state we want, so the duplicate is safe to ignore.
+            }
         } elseif ($productWarehouse->is_deleted) {
             $productWarehouse->restore();
         }
@@ -77,11 +84,17 @@ class VariantsWarehouseObserver
             ->first();
 
         if (! $productWarehouse) {
-            $productWarehouse = new ProductsWarehouses();
-            $productWarehouse->products_id = $variantWarehouse->variant->products_id;
-            $productWarehouse->warehouses_id = $variantWarehouse->warehouses_id;
-            $productWarehouse->is_deleted = 0;
-            $productWarehouse->saveOrFail();
+            try {
+                $productWarehouse = new ProductsWarehouses();
+                $productWarehouse->products_id = $variantWarehouse->variant->products_id;
+                $productWarehouse->warehouses_id = $variantWarehouse->warehouses_id;
+                $productWarehouse->is_deleted = 0;
+                $productWarehouse->saveOrFail();
+            } catch (UniqueConstraintViolationException) {
+                // The paired created()/saved() event (or a concurrent write) already created this link.
+                // The lookup missed it (composite-key + is_deleted scope + model cache), but the row
+                // exists — which is exactly the state we want, so the duplicate is safe to ignore.
+            }
         }
     }
 
