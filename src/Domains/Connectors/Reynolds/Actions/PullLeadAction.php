@@ -322,7 +322,7 @@ class PullLeadAction
 
             return $default?->getId() ?? 0;
         }
-
+        $name = $name == 'Open' ? 'Active' : $name;
         $status = LeadStatus::firstOrCreate(
             [
                 'apps_id' => $this->app->getId(),
