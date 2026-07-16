@@ -27,8 +27,8 @@ class Credit700Handler extends BaseIntegration
 
         $this->app->set(ConfigurationEnum::CLIENT_ID->value, $clientId);
         $this->app->set(ConfigurationEnum::CLIENT_SECRET->value, $clientSecret);
-        $this->app->set(ConfigurationEnum::ACCOUNT->value, $account);
-        $this->app->set(ConfigurationEnum::PASSWORD->value, $password);
+        $this->company->set(ConfigurationEnum::ACCOUNT->value, $account);
+        $this->company->set(ConfigurationEnum::PASSWORD->value, $password);
         $this->app->set(ConfigurationEnum::DIGITAL_JACKET_DOMAIN->value, $digitalJacketDomain);
 
         $client = new Client(
