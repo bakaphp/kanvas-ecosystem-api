@@ -38,8 +38,11 @@ class PaymentProcessorMutation
 
             $payment->update(['status' => PaymentStatusEnum::PROCESSING->value]);
 
+            // Explicit argument wins over the flag stored at addPaymentToOrder time.
             $context = [];
-            if (isset($payment->metadata['use_hold'])) {
+            if (isset($request['use_hold'])) {
+                $context['use_hold'] = (bool) $request['use_hold'];
+            } elseif (isset($payment->metadata['use_hold'])) {
                 $context['use_hold'] = (bool) $payment->metadata['use_hold'];
             }
 
