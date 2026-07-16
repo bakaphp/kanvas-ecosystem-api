@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Reynolds;
 
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Reynolds\Actions\AddTradeInAction;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
