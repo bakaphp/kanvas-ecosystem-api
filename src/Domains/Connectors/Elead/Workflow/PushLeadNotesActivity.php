@@ -14,6 +14,7 @@ use Kanvas\Connectors\Elead\Actions\AddCreditAppAction;
 use Kanvas\Connectors\Elead\Actions\AddNoteToLeadAction;
 use Kanvas\Connectors\Elead\Actions\AddTradeInAction;
 use Kanvas\Connectors\Elead\Actions\AddVehicleAction;
+use Kanvas\Connectors\Elead\Actions\ProcessDriversLicenseAction;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\DataTransferObject\Address as AddressDto;
@@ -172,7 +173,7 @@ class PushLeadNotesActivity extends KanvasActivity
                 break;
             case ActionEnum::GET_DOCS->value:
                 if ($status === ActionStatusEnum::SUBMITTED->value) {
-                    //$lead->set(CustomFieldEnum::GET_DOCS_IMPORTER->value, 1);
+                    $result = new ProcessDriversLicenseAction($lead)->execute($messageData);
                 }
 
                 break;
