@@ -43,10 +43,14 @@ class ManlyHondaFollowUpEngagementActionTest extends TestCase
             $lead = $this->setupLeadWithSessions(
                 lastMessageAgeMinutes: 120,
                 stageConfig: [
-                    'minutes_no_response' => 60,
-                    'internet_used_unreplied' => [
-                        'sms' => 'Hi [Customer Name], still interested in that used GMC?',
-                        'email' => 'Good morning [Customer Name], the used GMC is still available!',
+                    'notification_engagement_rules' => [
+                        'minutes_no_response' => 60,
+                        'templates' => [
+                            'internet_used_unreplied' => [
+                                'sms' => 'Hi [Customer Name], still interested in that used GMC?',
+                                'email' => 'Good morning [Customer Name], the used GMC is still available!',
+                            ],
+                        ],
                     ],
                 ],
                 preferredChannel: 'email',
@@ -78,10 +82,14 @@ class ManlyHondaFollowUpEngagementActionTest extends TestCase
             $lead = $this->setupLeadWithSessions(
                 lastMessageAgeMinutes: 10,
                 stageConfig: [
-                    'minutes_no_response' => 60,
-                    'internet_used_unreplied' => [
-                        'sms' => 'Hi [Customer Name], still interested in that used GMC?',
-                        'email' => 'Good morning [Customer Name], the used GMC is still available!',
+                    'notification_engagement_rules' => [
+                        'minutes_no_response' => 60,
+                        'templates' => [
+                            'internet_used_unreplied' => [
+                                'sms' => 'Hi [Customer Name], still interested in that used GMC?',
+                                'email' => 'Good morning [Customer Name], the used GMC is still available!',
+                            ],
+                        ],
                     ],
                 ],
                 preferredChannel: 'email',
@@ -108,10 +116,14 @@ class ManlyHondaFollowUpEngagementActionTest extends TestCase
             $lead = $this->setupLeadWithSessions(
                 lastMessageAgeMinutes: 10,
                 stageConfig: [
-                    'minutes_no_response' => 60,
-                    'internet_used_unreplied' => [
-                        'sms' => 'Hi [Customer Name], still interested in that used GMC?',
-                        'email' => 'Good morning [Customer Name], the used GMC is still available!',
+                    'notification_engagement_rules' => [
+                        'minutes_no_response' => 60,
+                        'templates' => [
+                            'internet_used_unreplied' => [
+                                'sms' => 'Hi [Customer Name], still interested in that used GMC?',
+                                'email' => 'Good morning [Customer Name], the used GMC is still available!',
+                            ],
+                        ],
                     ],
                 ],
                 preferredChannel: 'email',
@@ -155,8 +167,12 @@ class ManlyHondaFollowUpEngagementActionTest extends TestCase
             $pipelineStage = $lead->getCurrentPipelineStage();
             // config only holds a key the lead can never resolve to
             $pipelineStage->config = [
-                'minutes_no_response' => 60,
-                'internet_new_replied' => ['sms' => 'foo', 'email' => 'bar'],
+                'notification_engagement_rules' => [
+                    'minutes_no_response' => 60,
+                    'templates' => [
+                        'internet_new_replied' => ['sms' => 'foo', 'email' => 'bar'],
+                    ],
+                ],
             ];
             $pipelineStage->saveOrFail();
 

@@ -13,6 +13,7 @@ use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\Connectors\Intellicheck\Jobs\AttachDriverLicenseImagesJob;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Services\FilesystemServices;
@@ -227,11 +228,17 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                                         $reportData
                                     );
 
-                                    // Clear the temp fields once attached, so a stale photo
-                                    // never carries over to the next verification run.
-                                    $verifiedPeople->del('driver_license_images');
-                                    $verifiedPeople->del('get_docs_drivers_license');
-                                    $verifiedPeople->del('intellicheckResponse');
+                                    // The base64 usually lands on the person a few seconds
+                                    // after this runs, so the inline attach above loses the
+                                    // race. A delayed idempotent job re-attaches once it's
+                                    // written and clears the temp fields.
+                                    AttachDriverLicenseImagesJob::dispatch(
+                                        $app,
+                                        $verifiedPeople,
+                                        $message,
+                                        (string) ($reportData['status'] ?? 'unknown'),
+                                        (string) ($reportData['message'] ?? ''),
+                                    )->delay(now()->addSeconds(30));
                                 }
                             }
                         } catch (Throwable $e) {
