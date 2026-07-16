@@ -61,7 +61,7 @@ class CreditApplication extends Data
             city: self::normalizeCity($housing['city'] ?? null),
             state: self::normalizeState($housing['state'] ?? null),
             zip: self::normalizeZip($housing['zip_code'] ?? ''),
-            dob: self::nullableString($personal['dob'] ?? null),
+            dob: self::normalizeDob($personal['dob'] ?? null),
             email: self::nullableString($personal['email'] ?? null),
             phone: self::nullableString($personal['mobile_number'] ?? null),
             employer: self::nullableString($financial['current_employer'] ?? null),
@@ -78,6 +78,15 @@ class CreditApplication extends Data
             driversLicenseNumber: self::nullableString($personal['drivers_license'] ?? null),
             driversLicenseState: self::normalizeState($personal['drivers_license_state'] ?? null) ?: null,
         );
+    }
+
+    /**
+     * 700Credit expects the DOB as MM/DD/YYYY. The form submits free-form values
+     * (e.g. "14-April-1965"), so parse leniently and reformat; null on unparseable.
+     */
+    private static function normalizeDob(mixed $dob): ?string
+    {
+        return DateHelper::tryParseCarbon(self::nullableString($dob))?->format('m/d/Y');
     }
 
     private static function normalizeCity(array|string|null $city): string
