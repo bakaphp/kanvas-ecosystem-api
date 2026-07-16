@@ -11,8 +11,8 @@ use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Reynolds\Actions\AddNoteToLeadAction;
-use Kanvas\Connectors\Reynolds\Actions\AddTradeInAction;
 use Kanvas\Connectors\Reynolds\Enums\ConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\Actions\AddTradeInAction;
 use Kanvas\Connectors\SalesAssist\Services\MessageNoteService;
 use Kanvas\Connectors\SalesAssist\Services\MessageNotificationTextService;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -125,7 +125,10 @@ class PushLeadNotesActivity extends KanvasActivity
             ActionEnum::PAYOFF_FORM->value,
             ActionEnum::ADD_TRADE->value,
         ], true) && $status === ActionStatusEnum::SUBMITTED->value) {
-            $tradeIn = new AddTradeInAction($lead)->execute($messageData);
+            $tradeIn = new AddTradeInAction(
+                $lead,
+                'Trade-In Ready to be imported into Reynolds.'
+            )->execute($messageData);
         }
 
         // Everything else — build a note the SalesAssist way: engagement

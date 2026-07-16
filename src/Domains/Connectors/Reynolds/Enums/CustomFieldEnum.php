@@ -24,13 +24,6 @@ enum CustomFieldEnum: string
     case VEHICLE_OF_INTEREST = 'vehicle_of_interest';
     case TRADE_IN = 'vehicle_trade_id';
 
-    // Trade-in submitted via SalesAssist. Reynolds USL has no trade sub-flow,
-    // so the form is stored on the lead and imported into the DMS by the
-    // SalesAssist extension. `tradein_data` holds the raw form; `tradein_imported`
-    // holds the {active, message, date} importer banner metadata.
-    case TRADE_IN_DATA = 'tradein_data';
-    case TRADE_IN_IMPORTED = 'tradein_imported';
-
     case CONSENT_EMAIL = 'REYNOLDS_CONSENT_EMAIL';
     case CONSENT_TEXT = 'REYNOLDS_CONSENT_TEXT';
     case CONSENT_PHONE = 'REYNOLDS_CONSENT_PHONE';

@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\Reynolds;
+namespace Tests\Connectors\Integration\SalesAssist;
 
-use Kanvas\Connectors\Reynolds\Actions\AddTradeInAction;
-use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\SalesAssist\Actions\AddTradeInAction;
+use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Tests\TestCase;
@@ -27,7 +28,7 @@ final class AddTradeInActionTest extends TestCase
             'ext_color' => 'Silver',
         ];
 
-        $result = new AddTradeInAction($lead)->execute([
+        $result = new AddTradeInAction($lead, 'Trade-In Ready to be imported into Reynolds.')->execute([
             'verb' => 'add-trade',
             'status' => 'submitted',
             'data' => ['form' => $form],
@@ -35,14 +36,27 @@ final class AddTradeInActionTest extends TestCase
 
         $lead->refresh();
 
-        $this->assertSame($form, $lead->get(CustomFieldEnum::TRADE_IN_DATA->value));
+        $this->assertSame($form, $lead->get(LeadCustomFieldEnum::TRADE_IN_DATA->value));
         $this->assertSame($form, $result['tradein_data']);
 
-        $importer = $lead->get(CustomFieldEnum::TRADE_IN_IMPORTED->value);
+        $importer = $lead->get(LeadCustomFieldEnum::TRADE_IN_IMPORTED->value);
         $this->assertSame(1, $importer['active']);
         $this->assertSame('Trade-In Ready to be imported into Reynolds.', $importer['message']);
         $this->assertArrayHasKey('date', $importer);
         $this->assertSame($importer, $result['tradein_imported']);
+    }
+
+    public function testUsesGenericDefaultImportMessage(): void
+    {
+        $lead = $this->buildFreshLead();
+
+        $result = new AddTradeInAction($lead)->execute([
+            'verb' => 'add-trade',
+            'status' => 'submitted',
+            'data' => ['form' => ['vin' => '1G1ZD5ST0MF012345']],
+        ]);
+
+        $this->assertSame('Trade-In Ready to be imported.', $result['tradein_imported']['message']);
     }
 
     public function testStoresEmptyFormWhenMessageHasNoForm(): void
@@ -57,15 +71,15 @@ final class AddTradeInActionTest extends TestCase
 
         $lead->refresh();
 
-        $this->assertSame([], $lead->get(CustomFieldEnum::TRADE_IN_DATA->value));
+        $this->assertSame([], $lead->get(LeadCustomFieldEnum::TRADE_IN_DATA->value));
         $this->assertSame([], $result['tradein_data']);
-        $this->assertSame(1, $lead->get(CustomFieldEnum::TRADE_IN_IMPORTED->value)['active']);
+        $this->assertSame(1, $lead->get(LeadCustomFieldEnum::TRADE_IN_IMPORTED->value)['active']);
     }
 
     private function buildFreshLead(): Lead
     {
         $user = auth()->user();
-        $app = app(\Kanvas\Apps\Models\Apps::class);
+        $app = app(Apps::class);
         $company = $user->getCurrentCompany();
 
         $people = People::factory()
