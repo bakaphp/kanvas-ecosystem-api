@@ -242,7 +242,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 if (! empty($phone)) {
                     $q->orWhere(function ($sub) use ($phone, $phoneTypes) {
                         $sub->whereIn('pc.contacts_types_id', $phoneTypes)
-                            ->where('REGEXP_REPLACE(pc.value, "[^0-9]", "") = ?', $phone);
+                            ->whereRaw('REGEXP_REPLACE(pc.value, "[^0-9]", "") = ?', $phone);
                     });
                 }
             })
