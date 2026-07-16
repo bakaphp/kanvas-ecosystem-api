@@ -19,10 +19,10 @@ enum CustomFieldEnum: string
 
     // Shared Kanvas custom-field keys — matches what every other CRM connector
     // (VinSolution, DriveCentric, DealerSocket, SalesAssist) writes, so the AI
-    // tooling (CreateContentSession, LeadIntentTool, VoiceBridge, ElevenLabs)
-    // picks them up automatically without per-connector wiring.
+    // tooling picks them up automatically without per-connector wiring. Trade-in
+    // must be `vehicle_trade_id` (not `trade_in`) for VehicleTradeInTool to read it.
     case VEHICLE_OF_INTEREST = 'vehicle_of_interest';
-    case TRADE_IN = 'trade_in';
+    case TRADE_IN = 'vehicle_trade_id';
 
     case CONSENT_EMAIL = 'REYNOLDS_CONSENT_EMAIL';
     case CONSENT_TEXT = 'REYNOLDS_CONSENT_TEXT';
