@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Acumatica\Actions;
 
+use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
@@ -29,6 +30,9 @@ class PullSalesOrdersAction
 {
     /** @var array<string, int> per-run skip breakdown, populated by processRows() */
     public array $skipped = [];
+
+    /** Kept under SQL Server's 2100 bound-parameter ceiling for the SOLine IN() chunks. */
+    protected int $lineFetchChunkSize = 2000;
 
     public function __construct(
         protected Apps $app,
@@ -91,6 +95,11 @@ class PullSalesOrdersAction
         return array_map(fn ($row): array => (array) $row, $query->get()->all());
     }
 
+    protected function readConnection(): ConnectionInterface
+    {
+        return SqlClient::connection($this->app);
+    }
+
     /**
      * @param array<int, string> $orderNbrs
      *
@@ -102,29 +111,34 @@ class PullSalesOrdersAction
             return [];
         }
 
-        $rows = SqlClient::connection($this->app)
-            ->table('SOLine as l')
-            ->whereIn('l.OrderNbr', $orderNbrs)
-            ->join('InventoryItem as i', function (JoinClause $join): void {
-                $join->on('i.InventoryID', '=', 'l.InventoryID')
-                    ->on('i.CompanyID', '=', 'l.CompanyID');
-            })
-            ->leftJoin('INSite as w', function (JoinClause $join): void {
-                $join->on('w.SiteID', '=', 'l.SiteID')
-                    ->on('w.CompanyID', '=', 'l.CompanyID');
-            })
-            ->where('l.CompanyID', $this->acumaticaCompanyId)
-            ->select([
-                'l.OrderType', 'l.OrderNbr', 'i.InventoryCD as sku', 'l.TranDesc',
-                'l.OrderQty', 'l.ShippedQty', 'l.UnitPrice', 'l.DiscAmt', 'w.SiteCD as warehouse',
-            ])
-            ->get();
-
         $grouped = [];
+        $connection = $this->readConnection();
 
-        foreach ($rows as $row) {
-            $key = trim((string) $row->OrderType) . '-' . trim((string) $row->OrderNbr);
-            $grouped[$key][] = (array) $row;
+        // SQL Server caps a statement at 2100 bound parameters; the CompanyID filter and the
+        // join conditions consume a few, so chunk the OrderNbr IN() well under that ceiling.
+        foreach (array_chunk($orderNbrs, $this->lineFetchChunkSize) as $chunk) {
+            $rows = $connection
+                ->table('SOLine as l')
+                ->whereIn('l.OrderNbr', $chunk)
+                ->join('InventoryItem as i', function (JoinClause $join): void {
+                    $join->on('i.InventoryID', '=', 'l.InventoryID')
+                        ->on('i.CompanyID', '=', 'l.CompanyID');
+                })
+                ->leftJoin('INSite as w', function (JoinClause $join): void {
+                    $join->on('w.SiteID', '=', 'l.SiteID')
+                        ->on('w.CompanyID', '=', 'l.CompanyID');
+                })
+                ->where('l.CompanyID', $this->acumaticaCompanyId)
+                ->select([
+                    'l.OrderType', 'l.OrderNbr', 'i.InventoryCD as sku', 'l.TranDesc',
+                    'l.OrderQty', 'l.ShippedQty', 'l.UnitPrice', 'l.DiscAmt', 'w.SiteCD as warehouse',
+                ])
+                ->get();
+
+            foreach ($rows as $row) {
+                $key = trim((string) $row->OrderType) . '-' . trim((string) $row->OrderNbr);
+                $grouped[$key][] = (array) $row;
+            }
         }
 
         return $grouped;
