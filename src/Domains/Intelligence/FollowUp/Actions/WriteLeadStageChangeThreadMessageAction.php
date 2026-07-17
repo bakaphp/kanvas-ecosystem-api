@@ -5,14 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\FollowUp\Actions;
 
 use Illuminate\Support\Carbon;
+use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Pipelines\Models\PipelineStage;
-use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
-use Kanvas\Social\Messages\Actions\CreateMessageAction as CreateSocialMessageAction;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
-use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Throwable;
 
 /**
@@ -31,51 +27,11 @@ final class WriteLeadStageChangeThreadMessageAction
 
     public function execute(): ?Message
     {
-        try {
-            $channel = $this->lead->systemNotes;
-            if ($channel === null) {
-                return null;
-            }
-
-            $body = $this->renderBody();
-            $user = $this->lead->company->getAiAgentUser() ?? $this->lead->user;
-            if ($user === null) {
-                return null;
-            }
-
-            $messageType = MessageTypeService::getOrCreate($this->lead->app, 'system');
-
-            $messagePayload = new AiChatMessagePayload(
-                content: $body,
-                from_me: true,
-                from_ia: true,
-                raw_data: $body,
+        return new RecordLeadNoteAction($this->lead)
+            ->execute(
+                $this->renderBody(),
+                'stage-change'
             );
-
-            $messageInput = MessageInput::from([
-                'app' => $this->lead->app,
-                'company' => $this->lead->company,
-                'user' => $user,
-                'type' => $messageType,
-                'message' => $messagePayload->toArray(),
-                'is_public' => 0,
-            ]);
-
-            $message = new CreateSocialMessageAction(
-                $messageInput,
-                SystemModulesRepository::getByModelName(Lead::class, $this->lead->app),
-                $this->lead->getId(),
-            )->execute();
-
-            $channel->addMessage($message);
-            $message->addTag('stage-change');
-
-            return $message;
-        } catch (Throwable $e) {
-            report($e);
-
-            return null;
-        }
     }
 
     private function renderBody(): string

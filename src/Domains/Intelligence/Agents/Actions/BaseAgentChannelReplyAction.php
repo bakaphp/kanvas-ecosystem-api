@@ -16,11 +16,11 @@ use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
-use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
+use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -88,7 +88,6 @@ class BaseAgentChannelReplyAction
 
         $this->dispatchAttachmentDescription($this->message, $this->agent, $this->channel);
     }
-
 
     protected function createMessage(
         string $text,

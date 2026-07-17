@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Actions\HandOffAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RecordsLeadNote;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use Kanvas\Intelligence\Enums\HandOffTypeEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
@@ -21,7 +21,6 @@ use Throwable;
 #[AgentTool(name: 'Stop Contact')]
 class StopContactTool extends Tool
 {
-    use RecordsLeadNote;
     use ResolvesLeadForTool;
 
     private const EMAIL_CONTACT_TYPES = [
@@ -96,7 +95,7 @@ class StopContactTool extends Tool
         $noteBody = 'Prospect opted out of contact'
             . ($reason !== null && trim($reason) !== '' ? ' — "' . trim($reason) . '"' : '')
             . '. Automated messaging disabled across channels.';
-        $noted = $this->recordLeadNote($lead, $noteBody, 'opt-out');
+        $noted = new RecordLeadNoteAction($lead)->execute($noteBody, 'opt-out') !== null;
 
         $handoffNotified = $this->notifyTeam($lead);
 

@@ -155,18 +155,6 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
         return $pullLead;
     }
 
-    /**
-     * Single-query lookup for the Reynolds branch. Matches leads by any of:
-     *   - REYNOLDS_CLIENT_ID custom field equal to the inbound lead id, OR
-     *   - any of the People's email contacts equal to the inbound email, OR
-     *   - any of the People's home/cell phone contacts equal to the inbound phone.
-     *
-     * All three predicates are OR'd inside a single filter block; the JOIN
-     * on leads_status limits results to whatever the company considers an
-     * "active" lead (mirrors LeadsRepository::getPeopleActiveLeads). Leads
-     * that already carry the CLIENT_ID matching the inbound id win the
-     * ORDER BY tiebreaker so we never demote an already-linked lead.
-     */
     private function findReynoldsLead(
         Apps $app,
         Companies $company,
@@ -242,7 +230,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 if (! empty($phone)) {
                     $q->orWhere(function ($sub) use ($phone, $phoneTypes) {
                         $sub->whereIn('pc.contacts_types_id', $phoneTypes)
-                            ->whereRaw('REGEXP_REPLACE(pc.value, "[^0-9]", "") = ?', $phone);
+                            ->whereRaw('REGEXP_REPLACE(pc.value, "[^0-9]", "") = ?', [$phone]);
                     });
                 }
             })

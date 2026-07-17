@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Sessions;
 
-use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
+use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
 use Tests\TestCase;
 
 /**
