@@ -93,9 +93,9 @@ final class SubmitCreditApplicationTest extends TestCase
         $capturedPayload = null;
 
         $mockClient = Mockery::mock('overload:' . Client::class);
-        $mockClient->shouldReceive('post')
-            ->with('/Request', Mockery::type('array'))
-            ->andReturnUsing(function (string $path, array $data) use (&$capturedPayload): array {
+        $mockClient->shouldReceive('postToXmlGateway')
+            ->with(Mockery::type('array'))
+            ->andReturnUsing(function (array $data) use (&$capturedPayload): array {
                 $capturedPayload = $data;
 
                 return [
@@ -134,8 +134,8 @@ final class SubmitCreditApplicationTest extends TestCase
         $app->set(ConfigurationEnum::CLIENT_SECRET->value, 'test_client_secret');
 
         $mockClient = Mockery::mock('overload:' . Client::class);
-        $mockClient->shouldReceive('post')
-            ->with('/Request', Mockery::type('array'))
+        $mockClient->shouldReceive('postToXmlGateway')
+            ->with(Mockery::type('array'))
             ->andReturn(['Creditsystem_Error' => ['@attributes' => ['id' => '101'], 'message' => 'Invalid account']]);
 
         $company = auth()->user()->getCurrentCompany();

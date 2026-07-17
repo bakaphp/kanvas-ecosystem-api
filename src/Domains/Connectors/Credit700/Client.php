@@ -16,6 +16,7 @@ use SimpleXMLElement;
 class Client
 {
     protected string $apiBaseUrl = 'https://gateway.700dealer.com'; // Production URL
+    protected string $xmlGatewayUrl = 'https://www.700Dealer.com/XCRS/Service.aspx'; // Production XML Gateway (SAVEONLY/RouteOne)
     protected GuzzleClient $httpClient;
     protected string $account;
     protected string $password;
@@ -32,6 +33,7 @@ class Client
 
         if (app()->environment() !== 'production') {
             $this->apiBaseUrl = 'https://gateway.700creditsolution.com';
+            $this->xmlGatewayUrl = 'https://www.700CreditSolution.com/XCRS/Service.aspx';
         }
 
         if (empty($this->clientId) || empty($this->clientSecret)) {
@@ -62,7 +64,30 @@ class Client
             'form_params' => $data, // Use form_params for x-www-form-urlencoded
         ]);
 
-        $responseBody = $response->getBody()->getContents();
+        return $this->decodeXmlResponse($response->getBody()->getContents());
+    }
+
+    /**
+     * Posts a SAVEONLY/RouteOne payload to the 700Credit XML Gateway.
+     *
+     * The XML Gateway lives on a different host/path than the OAuth gateway
+     * (www.700Dealer.com/XCRS/Service.aspx vs gateway.700dealer.com), and
+     * authenticates via ACCOUNT/PASSWD in the body — not a bearer token.
+     */
+    public function postToXmlGateway(array $data = []): array
+    {
+        $response = $this->httpClient->post($this->xmlGatewayUrl, [
+            'headers' => [
+                'Content-Type' => 'application/x-www-form-urlencoded',
+            ],
+            'form_params' => $data,
+        ]);
+
+        return $this->decodeXmlResponse($response->getBody()->getContents());
+    }
+
+    protected function decodeXmlResponse(string $responseBody): array
+    {
         $xml = new SimpleXMLElement($this->sanitizeXml($responseBody));
 
         return json_decode(json_encode($xml), true); // Return as an associative array
