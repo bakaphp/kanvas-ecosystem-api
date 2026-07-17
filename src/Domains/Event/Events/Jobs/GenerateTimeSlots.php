@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Jobs;
 
+use Baka\Contracts\AppInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Carbon;
+use Kanvas\Event\Events\Enums\ConfigurationEnum;
 use Kanvas\Event\Events\Models\ScheduleException;
 use Kanvas\Event\Events\Models\ScheduleRules;
 use Kanvas\Event\Events\Models\TimeSlots;
@@ -13,6 +15,8 @@ use RRule\RRule;
 
 class GenerateTimeSlots implements ShouldQueue
 {
+    public const DEFAULT_HORIZON_DAYS = 60;
+
     public function __construct(
         public int $resourceId,
         public int $ruleId,
@@ -22,20 +26,30 @@ class GenerateTimeSlots implements ShouldQueue
     }
 
     /**
-     * Resolve the [from, to] generation window for a rule: never backfill the past, and bound
-     * the upper end by end_at when set (otherwise a year out). Shared by both schedule mutations
-     * so they behave identically.
+     * Resolve the [from, to] generation window for a rule: never backfill the past, and cap
+     * the upper end at the booking horizon (never a year of mostly-unsold slots). The daily
+     * top-up command keeps rolling the window forward, so a short horizon doesn't starve
+     * long-lived rules — and re-upserting inside the horizon refreshes price snapshots.
+     * Shared by both schedule mutations so they behave identically.
      *
      * @return array{0: Carbon, 1: Carbon}
      */
-    public static function resolveWindow(?Carbon $startAt, ?Carbon $endAt): array
+    public static function resolveWindow(?Carbon $startAt, ?Carbon $endAt, ?int $horizonDays = null): array
     {
         $now = Carbon::now();
 
         $windowFrom = $startAt && $startAt->greaterThan($now) ? $startAt->clone() : $now;
-        $windowTo = $endAt?->clone() ?? $now->clone()->addYear();
+        $horizonEnd = $now->clone()->addDays($horizonDays ?? self::DEFAULT_HORIZON_DAYS);
+        $windowTo = $endAt && $endAt->lessThan($horizonEnd) ? $endAt->clone() : $horizonEnd;
 
         return [$windowFrom, $windowTo];
+    }
+
+    public static function horizonDaysForApp(AppInterface $app): int
+    {
+        $configured = (int) $app->get(ConfigurationEnum::BOOKING_HORIZON_DAYS->value);
+
+        return $configured > 0 ? $configured : self::DEFAULT_HORIZON_DAYS;
     }
 
     public function handle()
@@ -132,8 +146,10 @@ class GenerateTimeSlots implements ShouldQueue
             return;
         }
 
-        // Compute capacity & price
-        $capacity = $rule->capacity_override ?? $resource->default_capacity;
+        // Compute capacity & price. Variants have no default_capacity column, so a rule
+        // without capacity_override must still land on a non-null value — the column is
+        // NOT NULL and a null here fails the whole generation job.
+        $capacity = $rule->capacity_override ?? $resource->default_capacity ?? 1;
         $price = $resource?->getPriceInfoFromDefaultChannel()?->price;
 
         TimeSlots::upsert([[
