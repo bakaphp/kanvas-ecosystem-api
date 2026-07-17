@@ -14,6 +14,7 @@ use Kanvas\Social\Messages\Actions\CreateMessageFromTypeAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Workflow\Contracts\SilentWorkflowException;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\AddEntityIntegrationHistoryAction;
@@ -160,7 +161,9 @@ trait ActivityIntegrationTrait
         } catch (Throwable $exception) {
             $status = $this->getStatus(StatusEnum::FAILED);
 
-            report($exception);
+            if (! $exception instanceof SilentWorkflowException) {
+                report($exception);
+            }
         }
 
         // Record integration history

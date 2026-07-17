@@ -11,6 +11,7 @@ use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
@@ -79,11 +80,11 @@ class BaseAgentChannelReplyAction
 
         $mode = IntelligenceModeEnum::tryFrom((string) $lead->get($aiModeKey));
         if ($this->respectsLeadAiMode && $mode?->isOff()) {
-            throw new Exception('Ai Agent Off for this lead');
+            throw new AgentReplySkippedException('Ai Agent Off for this lead');
         }
 
         if ($message->is_un_response) {
-            throw new Exception('Message is responded previous');
+            throw new AgentReplySkippedException('Message is responded previous');
         }
 
         $this->dispatchAttachmentDescription($this->message, $this->agent, $this->channel);
