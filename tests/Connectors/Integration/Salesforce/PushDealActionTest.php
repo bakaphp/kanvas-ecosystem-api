@@ -45,7 +45,7 @@ final class PushDealActionTest extends TestCase
             ], 201),
         ]);
 
-        $result = new PushDealAction($app, $deal)->execute();
+        $result = new PushDealAction($deal)->execute();
 
         $this->assertSame('006xx000004TmXtAAK', $result['id']);
         $this->assertSame('006xx000004TmXtAAK', $deal->get(CustomFieldEnum::SALESFORCE_OPPORTUNITY_ID->value));
@@ -88,7 +88,7 @@ final class PushDealActionTest extends TestCase
             ], 201),
         ]);
 
-        new PushDealAction($app, $deal)->execute();
+        new PushDealAction($deal)->execute();
 
         $this->assertSame('001xx000003DHP0AAA', $organization->get(CustomFieldEnum::SALESFORCE_ACCOUNT_ID->value));
 

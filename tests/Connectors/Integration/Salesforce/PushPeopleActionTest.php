@@ -41,7 +41,7 @@ final class PushPeopleActionTest extends TestCase
             ], 201),
         ]);
 
-        $result = new PushPeopleAction($app, $people)->execute();
+        $result = new PushPeopleAction($people)->execute();
 
         $this->assertSame('003xx000004TmiQAAS', $result['id']);
         $this->assertSame('003xx000004TmiQAAS', $people->get(CustomFieldEnum::SALESFORCE_CONTACT_ID->value));
@@ -69,7 +69,7 @@ final class PushPeopleActionTest extends TestCase
                 ->push([], 204),
         ]);
 
-        $result = new PushPeopleAction($app, $people)->execute();
+        $result = new PushPeopleAction($people)->execute();
 
         $this->assertSame('003xx000004TmiQAAS', $result['id']);
 
@@ -113,7 +113,7 @@ final class PushPeopleActionTest extends TestCase
             ], 201),
         ]);
 
-        new PushPeopleAction($app, $people)->execute();
+        new PushPeopleAction($people)->execute();
 
         $this->assertSame('001xx000003DHP0AAA', $organization->get(CustomFieldEnum::SALESFORCE_ACCOUNT_ID->value));
 

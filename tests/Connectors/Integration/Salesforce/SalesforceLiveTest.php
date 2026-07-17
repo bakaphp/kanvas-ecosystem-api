@@ -76,7 +76,7 @@ final class SalesforceLiveTest extends TestCase
             ->withUserId($user->getId())
             ->create();
 
-        $result = new PushLeadAction($app, $lead)->execute();
+        $result = new PushLeadAction($lead)->execute();
         $this->createdLeadId = $result['id'] ?? null;
 
         $this->assertNotEmpty(

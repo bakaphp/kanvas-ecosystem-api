@@ -39,7 +39,7 @@ final class PushLeadActionTest extends TestCase
             ], 201),
         ]);
 
-        $result = new PushLeadAction($app, $lead)->execute();
+        $result = new PushLeadAction($lead)->execute();
 
         $this->assertSame('00Qxx0000004C92AAE', $result['id']);
         $this->assertSame('00Qxx0000004C92AAE', $lead->get(CustomFieldEnum::SALESFORCE_LEAD_ID->value));
@@ -71,7 +71,7 @@ final class PushLeadActionTest extends TestCase
                 ->push([], 204),
         ]);
 
-        $result = new PushLeadAction($app, $lead)->execute();
+        $result = new PushLeadAction($lead)->execute();
 
         $this->assertSame('00Qxx0000004C92AAE', $result['id']);
 

@@ -41,7 +41,7 @@ final class PushOrganizationActionTest extends TestCase
             ], 201),
         ]);
 
-        $result = new PushOrganizationAction($app, $organization)->execute();
+        $result = new PushOrganizationAction($organization)->execute();
 
         $this->assertSame('001xx000003DHP0AAA', $result['id']);
         $this->assertSame('001xx000003DHP0AAA', $organization->get(CustomFieldEnum::SALESFORCE_ACCOUNT_ID->value));
@@ -76,7 +76,7 @@ final class PushOrganizationActionTest extends TestCase
                 ->push([], 204),
         ]);
 
-        $result = new PushOrganizationAction($app, $organization)->execute();
+        $result = new PushOrganizationAction($organization)->execute();
 
         $this->assertSame('001xx000003DHP0AAA', $result['id']);
 
