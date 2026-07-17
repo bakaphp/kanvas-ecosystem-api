@@ -16,7 +16,6 @@ use SimpleXMLElement;
 class Client
 {
     protected string $apiBaseUrl = 'https://gateway.700dealer.com'; // Production URL
-    protected string $xmlGatewayUrl = 'https://www.700Dealer.com/XCRS/Service.aspx'; // Documented XML Gateway (fallback)
     protected GuzzleClient $httpClient;
     protected string $account;
     protected string $password;
@@ -33,7 +32,6 @@ class Client
 
         if (app()->environment() !== 'production') {
             $this->apiBaseUrl = 'https://gateway.700creditsolution.com';
-            $this->xmlGatewayUrl = 'https://www.700CreditSolution.com/XCRS/Service.aspx';
         }
 
         if (empty($this->clientId) || empty($this->clientSecret)) {
@@ -67,24 +65,6 @@ class Client
                 'Content-Type' => 'application/x-www-form-urlencoded',
             ],
             'form_params' => $data, // Use form_params for x-www-form-urlencoded
-        ]);
-
-        return $this->decodeXmlResponse($response->getBody()->getContents());
-    }
-
-    /**
-     * Fallback submission path: the XML Gateway URL documented in the 700Credit
-     * spec (www.700Dealer.com/XCRS/Service.aspx), which authenticates via
-     * ACCOUNT/PASSWD in the body — no OAuth bearer. Kept alongside post() until
-     * 700Credit confirms which endpoint this account is provisioned for.
-     */
-    public function postToXmlGateway(array $data = []): array
-    {
-        $response = $this->httpClient->post($this->xmlGatewayUrl, [
-            'headers' => [
-                'Content-Type' => 'application/x-www-form-urlencoded',
-            ],
-            'form_params' => $data,
         ]);
 
         return $this->decodeXmlResponse($response->getBody()->getContents());
