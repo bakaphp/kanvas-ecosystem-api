@@ -6,12 +6,12 @@ namespace Tests\Connectors\Integration\Salesforce;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Salesforce\Actions\SyncSalesforceAccountAction;
-use Kanvas\Connectors\Salesforce\Actions\SyncSalesforceContactAction;
+use Kanvas\Connectors\Salesforce\Actions\PullOrganizationAction;
+use Kanvas\Connectors\Salesforce\Actions\PullPeopleAction;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Tests\TestCase;
 
-final class SyncSalesforceContactActionTest extends TestCase
+final class PullPeopleActionTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -21,7 +21,7 @@ final class SyncSalesforceContactActionTest extends TestCase
         $user = static::$cachedUser;
         $company = $user->getCurrentCompany();
 
-        $people = new SyncSalesforceContactAction(
+        $people = new PullPeopleAction(
             $app,
             $company,
             ['FirstName' => 'John', 'LastName' => 'Appleseed', 'Email' => 'john@example.com'],
@@ -39,14 +39,14 @@ final class SyncSalesforceContactActionTest extends TestCase
         $user = static::$cachedUser;
         $company = $user->getCurrentCompany();
 
-        $existing = new SyncSalesforceContactAction(
+        $existing = new PullPeopleAction(
             $app,
             $company,
             ['FirstName' => 'John', 'LastName' => 'Appleseed'],
             '003xx000004TmiQAAS',
         )->execute();
 
-        $updated = new SyncSalesforceContactAction(
+        $updated = new PullPeopleAction(
             $app,
             $company,
             ['FirstName' => 'John', 'LastName' => 'Appleseed Jr'],
@@ -63,14 +63,14 @@ final class SyncSalesforceContactActionTest extends TestCase
         $user = static::$cachedUser;
         $company = $user->getCurrentCompany();
 
-        $organization = new SyncSalesforceAccountAction(
+        $organization = new PullOrganizationAction(
             $app,
             $company,
             ['Name' => 'Acme Corp'],
             '001xx000003DHP0AAA',
         )->execute();
 
-        $people = new SyncSalesforceContactAction(
+        $people = new PullPeopleAction(
             $app,
             $company,
             ['FirstName' => 'John', 'LastName' => 'Appleseed', 'AccountId' => '001xx000003DHP0AAA'],

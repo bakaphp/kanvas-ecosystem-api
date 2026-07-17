@@ -6,8 +6,8 @@ namespace Kanvas\Connectors\Salesforce\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Connectors\Salesforce\Actions\SyncDealToSalesforceAction;
-use Kanvas\Guild\Deals\Models\Deal;
+use Kanvas\Connectors\Salesforce\Actions\PushOrganizationAction;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -15,25 +15,25 @@ use Kanvas\Workflow\KanvasActivity;
 use Override;
 
 #[WorkflowAction]
-class SalesforceDealActivity extends KanvasActivity implements WorkflowActivityInterface
+class PushOrganizationActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public $tries = 3;
 
     /**
-     * @param Deal $deal
+     * @param Organization $organization
      */
     #[Override]
-    public function execute(Model $deal, AppInterface $app, array $params): array
+    public function execute(Model $organization, AppInterface $app, array $params): array
     {
         $this->overwriteAppService($app);
 
         return $this->executeIntegration(
-            entity: $deal,
+            entity: $organization,
             app: $app,
             integration: IntegrationsEnum::SALESFORCE,
             additionalParams: $params,
-            integrationOperation: fn ($deal, $app, $integrationCompany, $additionalParams) => new SyncDealToSalesforceAction($app, $deal)->execute(),
-            company: $deal->company,
+            integrationOperation: fn ($organization, $app, $integrationCompany, $additionalParams) => new PushOrganizationAction($app, $organization)->execute(),
+            company: $organization->company,
         );
     }
 }

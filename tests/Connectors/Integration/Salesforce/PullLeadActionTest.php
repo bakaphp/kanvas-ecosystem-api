@@ -6,12 +6,12 @@ namespace Tests\Connectors\Integration\Salesforce;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Salesforce\Actions\SyncSalesforceLeadAction;
+use Kanvas\Connectors\Salesforce\Actions\PullLeadAction;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Tests\TestCase;
 
-final class SyncSalesforceLeadActionTest extends TestCase
+final class PullLeadActionTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -21,7 +21,7 @@ final class SyncSalesforceLeadActionTest extends TestCase
         $user = static::$cachedUser;
         $company = $user->getCurrentCompany();
 
-        $lead = new SyncSalesforceLeadAction(
+        $lead = new PullLeadAction(
             $app,
             $company,
             [
@@ -45,14 +45,14 @@ final class SyncSalesforceLeadActionTest extends TestCase
         $user = static::$cachedUser;
         $company = $user->getCurrentCompany();
 
-        $existing = new SyncSalesforceLeadAction(
+        $existing = new PullLeadAction(
             $app,
             $company,
             ['FirstName' => 'Jane', 'LastName' => 'Doe'],
             '00Qxx0000004C92AAE',
         )->execute();
 
-        $updated = new SyncSalesforceLeadAction(
+        $updated = new PullLeadAction(
             $app,
             $company,
             ['FirstName' => 'Jane', 'LastName' => 'Smith', 'Description' => 'Updated from Salesforce'],
@@ -70,7 +70,7 @@ final class SyncSalesforceLeadActionTest extends TestCase
         $user = static::$cachedUser;
         $company = $user->getCurrentCompany();
 
-        $lead = new SyncSalesforceLeadAction(
+        $lead = new PullLeadAction(
             $app,
             $company,
             ['FirstName' => 'Jane', 'LastName' => 'Doe'],
@@ -82,7 +82,7 @@ final class SyncSalesforceLeadActionTest extends TestCase
         // — either way, fireWorkflow must short-circuit to null.
         $this->assertNull($lead->fireWorkflow(WorkflowEnum::CREATED->value));
 
-        $updated = new SyncSalesforceLeadAction(
+        $updated = new PullLeadAction(
             $app,
             $company,
             ['FirstName' => 'Jane', 'LastName' => 'Doe Updated'],

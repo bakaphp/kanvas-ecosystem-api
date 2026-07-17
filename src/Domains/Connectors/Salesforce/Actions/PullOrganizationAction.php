@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Guild\Organizations\Models\Organization;
 
-class SyncSalesforceAccountAction
+class PullOrganizationAction
 {
     public function __construct(
         protected AppInterface $app,
@@ -49,7 +49,7 @@ class SyncSalesforceAccountAction
 
                 // Never call fireWorkflow on this write — the anti-loop rule for inbound
                 // Salesforce sync: an Organization synced from Salesforce must not re-trigger the
-                // outbound SalesforceOrganizationActivity that syncs it right back.
+                // outbound PushOrganizationActivity that syncs it right back.
                 $organization->disableWorkflows();
                 $organization->saveOrFail();
 

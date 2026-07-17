@@ -6,13 +6,13 @@ namespace Tests\Connectors\Integration\Salesforce;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Salesforce\Actions\SyncSalesforceAccountAction;
-use Kanvas\Connectors\Salesforce\Actions\SyncSalesforceContactAction;
-use Kanvas\Connectors\Salesforce\Actions\SyncSalesforceOpportunityAction;
+use Kanvas\Connectors\Salesforce\Actions\PullDealAction;
+use Kanvas\Connectors\Salesforce\Actions\PullOrganizationAction;
+use Kanvas\Connectors\Salesforce\Actions\PullPeopleAction;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Tests\TestCase;
 
-final class SyncSalesforceOpportunityActionTest extends TestCase
+final class PullDealActionTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -22,7 +22,7 @@ final class SyncSalesforceOpportunityActionTest extends TestCase
         $user = static::$cachedUser;
         $company = $user->getCurrentCompany();
 
-        $deal = new SyncSalesforceOpportunityAction(
+        $deal = new PullDealAction(
             $app,
             $company,
             ['Name' => 'Big Opportunity', 'Description' => 'Closing soon'],
@@ -40,14 +40,14 @@ final class SyncSalesforceOpportunityActionTest extends TestCase
         $user = static::$cachedUser;
         $company = $user->getCurrentCompany();
 
-        $existing = new SyncSalesforceOpportunityAction(
+        $existing = new PullDealAction(
             $app,
             $company,
             ['Name' => 'Big Opportunity'],
             '006xx000004TmXtAAK',
         )->execute();
 
-        $updated = new SyncSalesforceOpportunityAction(
+        $updated = new PullDealAction(
             $app,
             $company,
             ['Name' => 'Big Opportunity Renamed'],
@@ -64,21 +64,21 @@ final class SyncSalesforceOpportunityActionTest extends TestCase
         $user = static::$cachedUser;
         $company = $user->getCurrentCompany();
 
-        $organization = new SyncSalesforceAccountAction(
+        $organization = new PullOrganizationAction(
             $app,
             $company,
             ['Name' => 'Acme Corp'],
             '001xx000003DHP0AAA',
         )->execute();
 
-        $people = new SyncSalesforceContactAction(
+        $people = new PullPeopleAction(
             $app,
             $company,
             ['FirstName' => 'John', 'LastName' => 'Appleseed'],
             '003xx000004TmiQAAS',
         )->execute();
 
-        $deal = new SyncSalesforceOpportunityAction(
+        $deal = new PullDealAction(
             $app,
             $company,
             [

@@ -17,7 +17,7 @@ use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Spatie\LaravelData\DataCollection;
 
-class SyncSalesforceLeadAction
+class PullLeadAction
 {
     public function __construct(
         protected AppInterface $app,

@@ -11,7 +11,7 @@ use Kanvas\Connectors\Salesforce\DataTransferObject\SalesforceLead;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 
-class SyncLeadToSalesforceAction
+class PushLeadAction
 {
     public function __construct(
         protected AppInterface $app,

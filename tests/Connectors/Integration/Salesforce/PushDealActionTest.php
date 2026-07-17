@@ -7,7 +7,7 @@ namespace Tests\Connectors\Integration\Salesforce;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Salesforce\Actions\SyncDealToSalesforceAction;
+use Kanvas\Connectors\Salesforce\Actions\PushDealAction;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Guild\Deals\Actions\CreateDealAction;
 use Kanvas\Guild\Deals\DataTransferObject\Deal as DealData;
@@ -15,7 +15,7 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Tests\Connectors\Traits\HasSalesforceConfiguration;
 use Tests\TestCase;
 
-final class SyncDealToSalesforceActionTest extends TestCase
+final class PushDealActionTest extends TestCase
 {
     use DatabaseTransactions;
     use HasSalesforceConfiguration;
@@ -45,7 +45,7 @@ final class SyncDealToSalesforceActionTest extends TestCase
             ], 201),
         ]);
 
-        $result = new SyncDealToSalesforceAction($app, $deal)->execute();
+        $result = new PushDealAction($app, $deal)->execute();
 
         $this->assertSame('006xx000004TmXtAAK', $result['id']);
         $this->assertSame('006xx000004TmXtAAK', $deal->get(CustomFieldEnum::SALESFORCE_OPPORTUNITY_ID->value));
@@ -88,7 +88,7 @@ final class SyncDealToSalesforceActionTest extends TestCase
             ], 201),
         ]);
 
-        new SyncDealToSalesforceAction($app, $deal)->execute();
+        new PushDealAction($app, $deal)->execute();
 
         $this->assertSame('001xx000003DHP0AAA', $organization->get(CustomFieldEnum::SALESFORCE_ACCOUNT_ID->value));
 

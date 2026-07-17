@@ -11,7 +11,7 @@ use Kanvas\Connectors\Salesforce\DataTransferObject\SalesforceAccount;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Guild\Organizations\Models\Organization;
 
-class SyncOrganizationToSalesforceAction
+class PushOrganizationAction
 {
     public function __construct(
         protected AppInterface $app,

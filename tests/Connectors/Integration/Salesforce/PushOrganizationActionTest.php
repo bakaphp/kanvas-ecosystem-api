@@ -7,13 +7,13 @@ namespace Tests\Connectors\Integration\Salesforce;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Salesforce\Actions\SyncOrganizationToSalesforceAction;
+use Kanvas\Connectors\Salesforce\Actions\PushOrganizationAction;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Tests\Connectors\Traits\HasSalesforceConfiguration;
 use Tests\TestCase;
 
-final class SyncOrganizationToSalesforceActionTest extends TestCase
+final class PushOrganizationActionTest extends TestCase
 {
     use DatabaseTransactions;
     use HasSalesforceConfiguration;
@@ -41,7 +41,7 @@ final class SyncOrganizationToSalesforceActionTest extends TestCase
             ], 201),
         ]);
 
-        $result = new SyncOrganizationToSalesforceAction($app, $organization)->execute();
+        $result = new PushOrganizationAction($app, $organization)->execute();
 
         $this->assertSame('001xx000003DHP0AAA', $result['id']);
         $this->assertSame('001xx000003DHP0AAA', $organization->get(CustomFieldEnum::SALESFORCE_ACCOUNT_ID->value));
@@ -76,7 +76,7 @@ final class SyncOrganizationToSalesforceActionTest extends TestCase
                 ->push([], 204),
         ]);
 
-        $result = new SyncOrganizationToSalesforceAction($app, $organization)->execute();
+        $result = new PushOrganizationAction($app, $organization)->execute();
 
         $this->assertSame('001xx000003DHP0AAA', $result['id']);
 

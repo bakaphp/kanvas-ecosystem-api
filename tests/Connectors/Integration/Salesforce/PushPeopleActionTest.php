@@ -7,14 +7,14 @@ namespace Tests\Connectors\Integration\Salesforce;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Salesforce\Actions\SyncPeopleToSalesforceAction;
+use Kanvas\Connectors\Salesforce\Actions\PushPeopleAction;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Tests\Connectors\Traits\HasSalesforceConfiguration;
 use Tests\TestCase;
 
-final class SyncPeopleToSalesforceActionTest extends TestCase
+final class PushPeopleActionTest extends TestCase
 {
     use DatabaseTransactions;
     use HasSalesforceConfiguration;
@@ -41,7 +41,7 @@ final class SyncPeopleToSalesforceActionTest extends TestCase
             ], 201),
         ]);
 
-        $result = new SyncPeopleToSalesforceAction($app, $people)->execute();
+        $result = new PushPeopleAction($app, $people)->execute();
 
         $this->assertSame('003xx000004TmiQAAS', $result['id']);
         $this->assertSame('003xx000004TmiQAAS', $people->get(CustomFieldEnum::SALESFORCE_CONTACT_ID->value));
@@ -69,7 +69,7 @@ final class SyncPeopleToSalesforceActionTest extends TestCase
                 ->push([], 204),
         ]);
 
-        $result = new SyncPeopleToSalesforceAction($app, $people)->execute();
+        $result = new PushPeopleAction($app, $people)->execute();
 
         $this->assertSame('003xx000004TmiQAAS', $result['id']);
 
@@ -113,7 +113,7 @@ final class SyncPeopleToSalesforceActionTest extends TestCase
             ], 201),
         ]);
 
-        new SyncPeopleToSalesforceAction($app, $people)->execute();
+        new PushPeopleAction($app, $people)->execute();
 
         $this->assertSame('001xx000003DHP0AAA', $organization->get(CustomFieldEnum::SALESFORCE_ACCOUNT_ID->value));
 

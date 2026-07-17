@@ -6,12 +6,12 @@ namespace Tests\Connectors\Integration\Salesforce;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Salesforce\Actions\SyncSalesforceAccountAction;
+use Kanvas\Connectors\Salesforce\Actions\PullOrganizationAction;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Tests\TestCase;
 
-final class SyncSalesforceAccountActionTest extends TestCase
+final class PullOrganizationActionTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -21,7 +21,7 @@ final class SyncSalesforceAccountActionTest extends TestCase
         $user = static::$cachedUser;
         $company = $user->getCurrentCompany();
 
-        $organization = new SyncSalesforceAccountAction(
+        $organization = new PullOrganizationAction(
             $app,
             $company,
             ['Name' => 'Acme Corp', 'Phone' => '555-1234', 'NumberOfEmployees' => 42],
@@ -39,14 +39,14 @@ final class SyncSalesforceAccountActionTest extends TestCase
         $user = static::$cachedUser;
         $company = $user->getCurrentCompany();
 
-        $existing = new SyncSalesforceAccountAction(
+        $existing = new PullOrganizationAction(
             $app,
             $company,
             ['Name' => 'Acme Corp'],
             '001xx000003DHP0AAA',
         )->execute();
 
-        $updated = new SyncSalesforceAccountAction(
+        $updated = new PullOrganizationAction(
             $app,
             $company,
             ['Name' => 'Acme Corp Renamed', 'NumberOfEmployees' => 99],
@@ -64,7 +64,7 @@ final class SyncSalesforceAccountActionTest extends TestCase
         $user = static::$cachedUser;
         $company = $user->getCurrentCompany();
 
-        $organization = new SyncSalesforceAccountAction(
+        $organization = new PullOrganizationAction(
             $app,
             $company,
             ['Name' => 'Acme Corp'],

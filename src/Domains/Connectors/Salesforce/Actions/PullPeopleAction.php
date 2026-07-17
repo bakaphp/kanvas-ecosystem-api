@@ -15,7 +15,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Spatie\LaravelData\DataCollection;
 
-class SyncSalesforceContactAction
+class PullPeopleAction
 {
     public function __construct(
         protected AppInterface $app,

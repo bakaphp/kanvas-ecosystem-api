@@ -7,13 +7,13 @@ namespace Tests\Connectors\Integration\Salesforce;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Salesforce\Actions\SyncLeadToSalesforceAction;
+use Kanvas\Connectors\Salesforce\Actions\PushLeadAction;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Tests\Connectors\Traits\HasSalesforceConfiguration;
 use Tests\TestCase;
 
-final class SyncLeadToSalesforceActionTest extends TestCase
+final class PushLeadActionTest extends TestCase
 {
     use DatabaseTransactions;
     use HasSalesforceConfiguration;
@@ -39,7 +39,7 @@ final class SyncLeadToSalesforceActionTest extends TestCase
             ], 201),
         ]);
 
-        $result = new SyncLeadToSalesforceAction($app, $lead)->execute();
+        $result = new PushLeadAction($app, $lead)->execute();
 
         $this->assertSame('00Qxx0000004C92AAE', $result['id']);
         $this->assertSame('00Qxx0000004C92AAE', $lead->get(CustomFieldEnum::SALESFORCE_LEAD_ID->value));
@@ -71,7 +71,7 @@ final class SyncLeadToSalesforceActionTest extends TestCase
                 ->push([], 204),
         ]);
 
-        $result = new SyncLeadToSalesforceAction($app, $lead)->execute();
+        $result = new PushLeadAction($app, $lead)->execute();
 
         $this->assertSame('00Qxx0000004C92AAE', $result['id']);
 

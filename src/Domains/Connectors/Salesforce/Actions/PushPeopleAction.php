@@ -11,7 +11,7 @@ use Kanvas\Connectors\Salesforce\DataTransferObject\SalesforceContact;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 
-class SyncPeopleToSalesforceAction
+class PushPeopleAction
 {
     public function __construct(
         protected AppInterface $app,
@@ -27,7 +27,7 @@ class SyncPeopleToSalesforceAction
 
             $organization = $people->organizations()->first();
             if ($organization !== null && ! $organization->get(CustomFieldEnum::SALESFORCE_ACCOUNT_ID->value)) {
-                new SyncOrganizationToSalesforceAction($this->app, $organization)->execute();
+                new PushOrganizationAction($this->app, $organization)->execute();
                 $organization->refresh();
             }
 

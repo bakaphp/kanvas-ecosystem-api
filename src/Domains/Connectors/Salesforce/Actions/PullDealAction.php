@@ -14,7 +14,7 @@ use Kanvas\Guild\Deals\DataTransferObject\Deal as DealData;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Organizations\Models\Organization;
 
-class SyncSalesforceOpportunityAction
+class PullDealAction
 {
     public function __construct(
         protected AppInterface $app,

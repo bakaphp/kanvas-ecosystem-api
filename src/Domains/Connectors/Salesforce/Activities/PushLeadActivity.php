@@ -6,7 +6,7 @@ namespace Kanvas\Connectors\Salesforce\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Connectors\Salesforce\Actions\SyncLeadToSalesforceAction;
+use Kanvas\Connectors\Salesforce\Actions\PushLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -15,7 +15,7 @@ use Kanvas\Workflow\KanvasActivity;
 use Override;
 
 #[WorkflowAction]
-class SalesforceLeadActivity extends KanvasActivity implements WorkflowActivityInterface
+class PushLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public $tries = 3;
 
@@ -32,7 +32,7 @@ class SalesforceLeadActivity extends KanvasActivity implements WorkflowActivityI
             app: $app,
             integration: IntegrationsEnum::SALESFORCE,
             additionalParams: $params,
-            integrationOperation: fn ($lead, $app, $integrationCompany, $additionalParams) => new SyncLeadToSalesforceAction($app, $lead)->execute(),
+            integrationOperation: fn ($lead, $app, $integrationCompany, $additionalParams) => new PushLeadAction($app, $lead)->execute(),
             company: $lead->company,
         );
     }
