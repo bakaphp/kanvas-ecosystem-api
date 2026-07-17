@@ -8,6 +8,7 @@ use Baka\Http\SafeUrlFetcher;
 use Illuminate\Mail\Mailable;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Notifications\KanvasMailable;
 
 trait NotificationMailTrait
@@ -59,7 +60,7 @@ trait NotificationMailTrait
 
                 $mailMessage->attachData(
                     $bytes,
-                    $options['as'] ?? $this->attachmentNameFromUrl($source),
+                    $options['as'] ?? $this->resolveRemoteAttachmentName($source),
                     array_filter(['mime' => $options['mime'] ?? $this->detectAttachmentMime($bytes)])
                 );
 
@@ -75,6 +76,16 @@ trait NotificationMailTrait
         $source = strtolower($source);
 
         return str_starts_with($source, 'http://') || str_starts_with($source, 'https://');
+    }
+
+    private function resolveRemoteAttachmentName(string $url): string
+    {
+        $name = Filesystem::query()
+            ->where('url', $url)
+            ->where('apps_id', $this->app->getId())
+            ->value('name');
+
+        return $name ?: $this->attachmentNameFromUrl($url);
     }
 
     private function attachmentNameFromUrl(string $url): string
