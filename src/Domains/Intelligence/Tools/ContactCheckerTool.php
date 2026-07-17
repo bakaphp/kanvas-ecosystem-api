@@ -48,7 +48,7 @@ class ContactCheckerTool implements ContextToolInterface
 
         /** @var StructuredAgentResponse $response */
         $response = agent(
-            instructions: Blade::render(implode(' ', $this->agent->role['background']), $data),
+            instructions: $this->renderRoleSection('background', ' ', $data),
             schema: fn ($schema) => [
                 'already_contacted' => $schema->boolean()->description('Whether the lead has been contacted by a representative')->required(),
                 'should_send_first_message' => $schema->boolean()->description('Whether a first message should be sent to the lead')->required(),
@@ -58,12 +58,26 @@ class ContactCheckerTool implements ContextToolInterface
                 '_thought_process' => $schema->string()->description('Internal reasoning and analysis process')->required(),
             ],
         )->prompt(
-            Blade::render(implode('\n', $this->agent->role['steps']), $data),
+            $this->renderRoleSection('steps', "\n", $data),
             provider: Lab::Gemini,
             model: 'gemini-2.5-pro',
         );
 
         return $response->structured;
+    }
+
+    /**
+     * Render a `role` section (background/steps) as a Blade-evaluated string. The section may be
+     * stored either as an array of lines (joined with $glue) or as a single string — normalize both
+     * so a string value doesn't blow up implode() with a TypeError.
+     */
+    protected function renderRoleSection(string $key, string $glue, array $data): string
+    {
+        $role = is_array($this->agent->role) ? $this->agent->role : [];
+        $section = $role[$key] ?? '';
+        $text = is_array($section) ? implode($glue, array_map('strval', $section)) : (string) $section;
+
+        return Blade::render($text, $data);
     }
 
     protected function getLeadFromMessage(Message $message): Model

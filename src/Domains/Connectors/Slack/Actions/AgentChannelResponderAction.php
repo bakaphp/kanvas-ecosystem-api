@@ -63,10 +63,11 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         );
 
         if (! $reply->is_locked) {
-            $client->updateMessage(
+            $client->updateMessageWithOverflow(
                 $slackChannelId,
                 $placeholderTs,
-                SlackMarkdownService::toMrkdwn($responseText)
+                SlackMarkdownService::toMrkdwn($responseText),
+                $threadTs !== '' ? $threadTs : null,
             );
         }
 
