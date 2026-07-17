@@ -63,15 +63,6 @@ class SendRoadsideChatMessagePushAction
         return $recipients->count();
     }
 
-    /**
-     * Resolve the roadside-assistance order behind this chat channel.
-     *
-     * Chat channels are not always linked to the order via entity_namespace/entity_id
-     * — the generic message flow auto-creates them linked to the Message instead
-     * (CreateMessageAction), which is why an entity_namespace check alone silently drops
-     * the push. So we fall back to the order reference in the channel metadata and, last,
-     * the order uuid embedded in the channel slug.
-     */
     private function resolveRoadsideOrder(Channel $channel): ?Order
     {
         $order = $this->resolveOrderCandidate($channel);
