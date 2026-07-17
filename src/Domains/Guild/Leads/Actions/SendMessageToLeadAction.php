@@ -26,6 +26,7 @@ use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
+use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\AgentEnum;
@@ -236,7 +237,7 @@ class SendMessageToLeadAction
             : $this->lead->people->getCellPhones()->first()?->value;
 
         if ($cellphone === null || $cellphone === '') {
-            throw new InvalidArgumentException('Lead does not have a cellphone number');
+            throw new LeadMissingContactException('Lead does not have a cellphone number');
         }
         $cellphone = $this->hijackPhoneNumber((string) $cellphone, '@s.whatsapp.net');
 
@@ -300,7 +301,7 @@ class SendMessageToLeadAction
             : $this->lead->people->getCellPhones()->first()?->value;
 
         if ($cellphone === null || $cellphone === '') {
-            throw new InvalidArgumentException('Lead does not have a cellphone number');
+            throw new LeadMissingContactException('Lead does not have a cellphone number');
         }
 
         $cellphone = $this->hijackPhoneNumber((string) $cellphone, '@s.whatsapp.net');
@@ -365,7 +366,7 @@ class SendMessageToLeadAction
             : $this->lead->people->getCellPhones()->first()?->value;
 
         if ($cellphone === null || $cellphone === '') {
-            throw new InvalidArgumentException('Lead does not have a cellphone number');
+            throw new LeadMissingContactException('Lead does not have a cellphone number');
         }
 
         $cellphone = $this->hijackPhoneNumber((string) $cellphone, 'twilio-');
@@ -537,7 +538,7 @@ class SendMessageToLeadAction
             ? $to
             : $this->lead->people->getEmails()->first()?->value;
         if (! $leadEmail) {
-            throw new Exception('Lead does not have an email address');
+            throw new LeadMissingContactException('Lead does not have an email address');
         }
         Notification::route('mail', $leadEmail)->notify($notification);
 

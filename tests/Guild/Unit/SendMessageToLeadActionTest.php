@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Unit;
 
-use InvalidArgumentException;
 use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Mockery;
 use Tests\TestCaseUnit;
@@ -118,7 +118,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $client = Mockery::mock(RespondIOClient::class);
         $action = $this->makeAction($lead, $client);
 
-        $this->expectException(InvalidArgumentException::class);
+        $this->expectException(LeadMissingContactException::class);
         $action->sendRespondIoMessageForTest('hello');
     }
 
