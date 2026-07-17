@@ -32,8 +32,7 @@ class CreditApplicationService
         $appOrCompany = $this->company ?? $this->app;
 
         try {
-            $responseArray = $this->client->post(
-                '/Request',
+            $responseArray = $this->client->postToXmlGateway(
                 $this->buildPayload($application, $appOrCompany)
             );
 

@@ -57,6 +57,51 @@ class MessageInteractionTest extends TestCase
         ]);
     }
 
+    /**
+     * The generic interactionMessage mutation regressed to a TypeError because it constructed the
+     * wrong action (CreateMessageAction instead of InteractionMessageAction) — KANVAS-ECOSYSTEM-5TN.
+     * Exercise the types that showed up in production: LIKE, SAVE, REPORT.
+     */
+    public function testInteractionMessage()
+    {
+        $messageType = MessageType::factory()->create();
+        $message = fake()->text();
+
+        $id = $this->graphQL(
+            '
+                mutation createMessage($input: MessageInput!) {
+                    createMessage(input: $input) { id }
+                }
+            ',
+            [
+                'input' => [
+                    'message' => $message,
+                    'message_verb' => $messageType->verb,
+                    'system_modules_id' => 1,
+                    'entity_id' => '1',
+                ],
+            ]
+        )->assertJsonPath('data.createMessage.id', fn ($v) => $v !== null)
+            ->json('data.createMessage.id');
+
+        foreach (['LIKE', 'SAVE', 'REPORT'] as $type) {
+            $this->graphQL(
+                '
+                    mutation interactionMessage($id: ID!, $type: InteractionType!) {
+                        interactionMessage(id: $id, type: $type) { id }
+                    }
+                ',
+                ['id' => $id, 'type' => $type]
+            )->assertJson([
+                'data' => [
+                    'interactionMessage' => [
+                        'id' => $id,
+                    ],
+                ],
+            ]);
+        }
+    }
+
     public function testViewMessage()
     {
         $messageType = MessageType::factory()->create();
