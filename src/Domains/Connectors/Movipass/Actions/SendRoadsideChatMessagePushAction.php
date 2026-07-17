@@ -14,6 +14,8 @@ use Kanvas\SystemModules\Models\SystemModules;
 
 class SendRoadsideChatMessagePushAction
 {
+    private const UUID_PATTERN = '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i';
+
     public function __construct(
         protected Channel $channel,
         protected Message $message,
@@ -29,10 +31,6 @@ class SendRoadsideChatMessagePushAction
      */
     public function execute(): int
     {
-        if (! $this->isOrderChannel($this->channel)) {
-            return 0;
-        }
-
         $order = $this->resolveRoadsideOrder($this->channel);
 
         if ($order === null) {
@@ -65,24 +63,58 @@ class SendRoadsideChatMessagePushAction
         return $recipients->count();
     }
 
-    private function isOrderChannel(Channel $channel): bool
-    {
-        if (empty($channel->entity_id) || empty($channel->entity_namespace)) {
-            return false;
-        }
-
-        return SystemModules::convertLegacySystemModules((string) $channel->entity_namespace) === Order::class;
-    }
-
     private function resolveRoadsideOrder(Channel $channel): ?Order
     {
-        $order = Order::find((int) $channel->entity_id);
+        $order = $this->resolveOrderCandidate($channel);
 
         if ($order === null) {
             return null;
         }
 
         return $order->orderType?->name === OrderTypeEnum::ROADSIDE_ASSISTANCE->value ? $order : null;
+    }
+
+    private function resolveOrderCandidate(Channel $channel): ?Order
+    {
+        // Channel linked directly to the order.
+        if (! empty($channel->entity_id)
+            && ! empty($channel->entity_namespace)
+            && SystemModules::convertLegacySystemModules((string) $channel->entity_namespace) === Order::class
+        ) {
+            $order = Order::find((int) $channel->entity_id);
+            if ($order !== null) {
+                return $order;
+            }
+        }
+
+        // Order reference carried in the channel metadata.
+        $metadata = $channel->metadata ?? [];
+        if (! empty($metadata['order_id'])) {
+            $order = Order::find((int) $metadata['order_id']);
+            if ($order !== null) {
+                return $order;
+            }
+        }
+        if (! empty($metadata['order_uuid'])) {
+            $order = $this->findOrderByUuid($channel, (string) $metadata['order_uuid']);
+            if ($order !== null) {
+                return $order;
+            }
+        }
+
+        // Order uuid embedded in the channel slug (e.g. "roadside-{uuid}").
+        if (preg_match(self::UUID_PATTERN, (string) $channel->slug, $matches) === 1) {
+            return $this->findOrderByUuid($channel, $matches[0]);
+        }
+
+        return null;
+    }
+
+    private function findOrderByUuid(Channel $channel, string $uuid): ?Order
+    {
+        return Order::where('uuid', $uuid)
+            ->where('apps_id', $channel->apps_id)
+            ->first();
     }
 
     private function resolveSenderName(Message $message): string
