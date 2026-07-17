@@ -133,11 +133,6 @@ class Agent extends BaseModel
         ];
     }
 
-    public function app(): BelongsTo
-    {
-        return $this->belongsTo(Apps::class, 'apps_id');
-    }
-
     public function company(): BelongsTo
     {
         return $this->belongsTo(Companies::class, 'companies_id');

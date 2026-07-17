@@ -179,7 +179,7 @@ class HermesProvider extends AbstractAgentRuntimeProvider
     #[Override]
     public function createWorkspaceBackupNow(AgentDeployment $deployment, AgentBackup $backup): AgentBackup
     {
-        return (new BackupAgentWorkspaceAction($deployment, $backup, includeWorkspace: true))->execute();
+        return new BackupAgentWorkspaceAction($deployment, $backup, includeWorkspace: true)->execute();
     }
 
     #[Override]
