@@ -7,11 +7,11 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RecordsLeadNote;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -27,7 +27,6 @@ use Throwable;
 #[AgentTool(name: 'Send Email')]
 class SendEmailTool extends Tool
 {
-    use RecordsLeadNote;
     use ResolvesLeadForTool;
 
     /** Lead custom field the Mailgun responder and the follow-up engine read as the email thread subject. */
@@ -141,8 +140,7 @@ class SendEmailTool extends Tool
             $lead->set(self::THREAD_SUBJECT_ANCHOR, $subject);
         }
 
-        $this->recordLeadNote(
-            $lead,
+        new RecordLeadNoteAction($lead)->execute(
             'Emailed the prospect at ' . $contact->value . ' — "' . $subject . '"' . "\n\n" . $body,
             'agent-email',
         );

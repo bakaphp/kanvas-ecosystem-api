@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
+use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RecordsLeadNote;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use Kanvas\Intelligence\Notifications\ReceptionistMessageNotification;
 use NeuronAI\Tools\PropertyType;
@@ -16,7 +16,6 @@ use Override;
 #[AgentTool(name: 'Take Message')]
 class TakeMessageTool extends Tool
 {
-    use RecordsLeadNote;
     use ResolvesLeadForTool;
 
     public function __construct()
@@ -89,7 +88,7 @@ class TakeMessageTool extends Tool
             . ': ' . trim($message)
             . ($callback !== null ? ' (callback: ' . $callback . ')' : '');
 
-        $recorded = $this->recordLeadNote($lead, $body, 'receptionist-note');
+        $recorded = new RecordLeadNoteAction($lead)->execute($body, 'receptionist-note') !== null;
 
         $owner = $lead->owner;
         $notified = false;
