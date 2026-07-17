@@ -60,6 +60,17 @@ class LeadsRepository
                         ->first();
     }
 
+    public static function getPeopleLastLead(People $people): ?Lead
+    {
+        /** @psalm-suppress LessSpecificReturnStatement */
+        return Lead::fromApp($people->app)
+                    ->fromCompany($people->company)
+                    ->notDeleted()
+                    ->where('people_id', $people->id)
+                    ->orderBy('id', 'desc')
+                    ->first();
+    }
+
     public static function getPeopleClosedLeads(People $people): Builder
     {
         return Lead::fromApp($people->app)

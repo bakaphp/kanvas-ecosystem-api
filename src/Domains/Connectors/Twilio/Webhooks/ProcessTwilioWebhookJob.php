@@ -249,6 +249,14 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             return $activeLead;
         }
 
+        if ((bool) $this->receiver->company->get('use_last_lead_on_responder')) {
+            $lastLead = LeadsRepository::getPeopleLastLead($people);
+
+            if ($lastLead) {
+                return $lastLead;
+            }
+        }
+
         $leadType = LeadType::fromApp($people->app)
         ->fromCompany($people->company)
         ->where('name', 'Warm')
