@@ -6,7 +6,7 @@ namespace Tests\Connectors\Integration\Salesforce;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Salesforce\Actions\SyncLeadToSalesforceAction;
+use Kanvas\Connectors\Salesforce\Actions\PushLeadAction;
 use Kanvas\Connectors\Salesforce\Client;
 use Kanvas\Connectors\Salesforce\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
@@ -76,7 +76,7 @@ final class SalesforceLiveTest extends TestCase
             ->withUserId($user->getId())
             ->create();
 
-        $result = new SyncLeadToSalesforceAction($app, $lead)->execute();
+        $result = new PushLeadAction($app, $lead)->execute();
         $this->createdLeadId = $result['id'] ?? null;
 
         $this->assertNotEmpty(

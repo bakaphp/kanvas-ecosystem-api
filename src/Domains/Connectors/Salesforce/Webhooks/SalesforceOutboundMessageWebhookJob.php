@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Salesforce\Webhooks;
 
-use Kanvas\Connectors\Salesforce\Actions\SyncSalesforceAccountAction;
-use Kanvas\Connectors\Salesforce\Actions\SyncSalesforceContactAction;
-use Kanvas\Connectors\Salesforce\Actions\SyncSalesforceLeadAction;
-use Kanvas\Connectors\Salesforce\Actions\SyncSalesforceOpportunityAction;
+use Kanvas\Connectors\Salesforce\Actions\PullDealAction;
+use Kanvas\Connectors\Salesforce\Actions\PullLeadAction;
+use Kanvas\Connectors\Salesforce\Actions\PullOrganizationAction;
+use Kanvas\Connectors\Salesforce\Actions\PullPeopleAction;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
@@ -102,10 +102,10 @@ class SalesforceOutboundMessageWebhookJob extends ProcessWebhookJob
         $company = $this->receiver->company;
 
         $entity = match ($salesforceObject) {
-            'Lead' => new SyncSalesforceLeadAction($app, $company, $fields, $salesforceId)->execute(),
-            'Contact' => new SyncSalesforceContactAction($app, $company, $fields, $salesforceId)->execute(),
-            'Account' => new SyncSalesforceAccountAction($app, $company, $fields, $salesforceId)->execute(),
-            'Opportunity' => new SyncSalesforceOpportunityAction($app, $company, $fields, $salesforceId)->execute(),
+            'Lead' => new PullLeadAction($app, $company, $fields, $salesforceId)->execute(),
+            'Contact' => new PullPeopleAction($app, $company, $fields, $salesforceId)->execute(),
+            'Account' => new PullOrganizationAction($app, $company, $fields, $salesforceId)->execute(),
+            'Opportunity' => new PullDealAction($app, $company, $fields, $salesforceId)->execute(),
             default => null,
         };
 

@@ -59,7 +59,7 @@ class Client
         return Cache::remember(
             self::tokenCacheKey($company),
             self::TOKEN_TTL_SECONDS,
-            fn () => self::requestAccessToken($config)
+            fn () => self::requestAccessToken($company, $config)
         );
     }
 
@@ -75,7 +75,7 @@ class Client
         return 'salesforce_token_' . $company->getId();
     }
 
-    private static function requestAccessToken(array $config): array
+    private static function requestAccessToken(CompanyInterface $company, array $config): array
     {
         $response = Http::asForm()->post($config['login_url'] . '/services/oauth2/token', [
             'grant_type' => 'refresh_token',
@@ -86,6 +86,14 @@ class Client
 
         if ($response->failed()) {
             throw new ValidationException('Unable to refresh Salesforce access token: ' . $response->body());
+        }
+
+        // Orgs with refresh token rotation enabled invalidate the refresh token just used and
+        // return a new one that must replace it — otherwise every following grant fails with
+        // invalid_grant even though nothing else changed.
+        $rotatedRefreshToken = $response->json('refresh_token');
+        if (is_string($rotatedRefreshToken) && $rotatedRefreshToken !== '' && $rotatedRefreshToken !== $config['refresh_token']) {
+            $company->set(ConfigurationEnum::REFRESH_TOKEN->value, $rotatedRefreshToken);
         }
 
         return [
