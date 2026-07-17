@@ -16,7 +16,7 @@ use SimpleXMLElement;
 class Client
 {
     protected string $apiBaseUrl = 'https://gateway.700dealer.com'; // Production URL
-    protected string $xmlGatewayUrl = 'https://www.700Dealer.com/XCRS/Service.aspx'; // Production XML Gateway (SAVEONLY/RouteOne)
+    protected string $xmlGatewayUrl = 'https://www.700Dealer.com/XCRS/Service.aspx'; // Documented XML Gateway (fallback)
     protected GuzzleClient $httpClient;
     protected string $account;
     protected string $password;
@@ -56,9 +56,14 @@ class Client
 
     public function post(string $path, array $data = []): array
     {
+        // The gateway sits behind an Azure App Gateway that rejects the request
+        // (403) unless a valid OAuth bearer token is present — creds in the body
+        // are not enough. Lazily mint one per client instance.
+        $accessToken = $this->accessToken ??= $this->generateToken();
+
         $response = $this->httpClient->post($this->apiBaseUrl . $path, [
             'headers' => [
-                //'Authorization' => 'Bearer ' . $this->accessToken,
+                'Authorization' => 'Bearer ' . $accessToken,
                 'Content-Type' => 'application/x-www-form-urlencoded',
             ],
             'form_params' => $data, // Use form_params for x-www-form-urlencoded
@@ -68,11 +73,10 @@ class Client
     }
 
     /**
-     * Posts a SAVEONLY/RouteOne payload to the 700Credit XML Gateway.
-     *
-     * The XML Gateway lives on a different host/path than the OAuth gateway
-     * (www.700Dealer.com/XCRS/Service.aspx vs gateway.700dealer.com), and
-     * authenticates via ACCOUNT/PASSWD in the body — not a bearer token.
+     * Fallback submission path: the XML Gateway URL documented in the 700Credit
+     * spec (www.700Dealer.com/XCRS/Service.aspx), which authenticates via
+     * ACCOUNT/PASSWD in the body — no OAuth bearer. Kept alongside post() until
+     * 700Credit confirms which endpoint this account is provisioned for.
      */
     public function postToXmlGateway(array $data = []): array
     {

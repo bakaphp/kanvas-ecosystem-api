@@ -30,11 +30,10 @@ class CreditApplicationService
     public function submitToRouteOne(CreditApplication $application): array
     {
         $appOrCompany = $this->company ?? $this->app;
+        $payload = $this->buildPayload($application, $appOrCompany);
 
         try {
-            $responseArray = $this->client->postToXmlGateway(
-                $this->buildPayload($application, $appOrCompany)
-            );
+            $responseArray = $this->submitWithFallback($payload);
 
             $transactionId = $responseArray['XML_Report']['Transid'] ?? null;
 
@@ -52,10 +51,31 @@ class CreditApplicationService
     }
 
     /**
+     * Primary path is the documented XML Gateway URL
+     * (www.700Dealer.com/XCRS/Service.aspx, creds in the body). If that transport
+     * fails (e.g. it 403s), fall back to the OAuth gateway
+     * (gateway.700dealer.com/Request + Bearer), which currently returns a Transid.
+     * This dual path is temporary until 700Credit confirms the correct endpoint.
+     *
+     * @param array<string, string> $payload
+     * @return array<string, mixed>
+     */
+    protected function submitWithFallback(array $payload): array
+    {
+        try {
+            return $this->client->postToXmlGateway($payload);
+        } catch (RequestException $e) {
+            return $this->client->post('/Request', $payload);
+        }
+    }
+
+    /**
      * @return array<string, string>
      */
-    protected function buildPayload(CreditApplication $application, AppInterface|CompanyInterface $appOrCompany): array
-    {
+    protected function buildPayload(
+        CreditApplication $application,
+        AppInterface|CompanyInterface $appOrCompany
+    ): array {
         $payload = [
             'ACCOUNT' => (string) $appOrCompany->get(ConfigurationEnum::ACCOUNT->value),
             'PASSWD' => (string) $appOrCompany->get(ConfigurationEnum::PASSWORD->value),

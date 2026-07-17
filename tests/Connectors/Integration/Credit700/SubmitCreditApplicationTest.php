@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Credit700;
 
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Psr7\Request;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Credit700\Client;
 use Kanvas\Connectors\Credit700\DataTransferObject\CreditApplication;
@@ -145,5 +147,40 @@ final class SubmitCreditApplicationTest extends TestCase
         $result = new CreditApplicationService($app)->submitToRouteOne($application);
 
         $this->assertFalse($result['success']);
+    }
+
+    public function testSubmitToRouteOneFallsBackToGatewayWhenXmlGatewayFails(): void
+    {
+        $app = app(Apps::class);
+
+        $app->set(ConfigurationEnum::ACCOUNT->value, 'test_account');
+        $app->set(ConfigurationEnum::PASSWORD->value, 'test_password');
+        $app->set(ConfigurationEnum::CLIENT_ID->value, 'test_client_id');
+        $app->set(ConfigurationEnum::CLIENT_SECRET->value, 'test_client_secret');
+
+        $mockClient = Mockery::mock('overload:' . Client::class);
+        // Primary XML gateway path fails at the transport level (e.g. 403).
+        $mockClient->shouldReceive('postToXmlGateway')
+            ->with(Mockery::type('array'))
+            ->andThrow(new RequestException('403 Forbidden', new Request('POST', 'xml-gateway')));
+        // Fallback OAuth gateway succeeds.
+        $mockClient->shouldReceive('post')
+            ->with('/Request', Mockery::type('array'))
+            ->andReturn([
+                'XML_Version' => 'Iframe 2.0',
+                'XML_Report' => [
+                    'Transid' => '700DSO-fallback-1',
+                    'Token' => '700DSO-fallback-token',
+                ],
+            ]);
+
+        $company = auth()->user()->getCurrentCompany();
+        $people = People::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+        $application = CreditApplication::from($this->formData(), $people);
+
+        $result = new CreditApplicationService($app)->submitToRouteOne($application);
+
+        $this->assertTrue($result['success']);
+        $this->assertSame('700DSO-fallback-1', $result['transaction_id']);
     }
 }
