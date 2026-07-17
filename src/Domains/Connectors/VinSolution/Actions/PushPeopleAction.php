@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\VinSolution\Actions;
 
 use Baka\Support\DateHelper;
 use Carbon\Carbon;
+use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\OCR\DataTransferObjects\DriversLicense;
@@ -16,6 +17,7 @@ use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Connectors\VinSolution\Services\ContactService;
 use Kanvas\Connectors\VinSolution\Support\Address;
 use Kanvas\Connectors\VinSolution\Support\Phone;
+use Kanvas\Guild\Customers\Models\Contact as CustomerContact;
 use Kanvas\Guild\Customers\Models\People;
 use Throwable;
 
@@ -37,6 +39,23 @@ class PushPeopleAction
      * Execute the action to push the person to VinSolutions.
      */
     public function execute(): Contact
+    {
+        try {
+            return $this->syncContact();
+        } catch (ClientException $e) {
+            // VinSolutions rejects an unverifiable address with a 400 (System.ArgumentException,
+            // "<email> is not valid") — tenant data quality, not our bug. Flag the address so we
+            // stop pushing it (see prepareEmails) and retry the sync without it. If nothing was
+            // flagged it's a genuine error — let it surface to Sentry.
+            if ($this->flagInvalidEmailsFromError($e) === 0) {
+                throw $e;
+            }
+
+            return $this->syncContact();
+        }
+    }
+
+    private function syncContact(): Contact
     {
         return DB::transaction(function () {
             $this->people->lockForUpdate();
@@ -119,26 +138,64 @@ class PushPeopleAction
     }
 
     /**
-     * Prepare emails for contact.
+     * Prepare emails for contact. Skips addresses already flagged undeliverable
+     * (hard bounce / invalid) so we never re-push one VinSolutions has rejected.
      */
     protected function prepareEmails(People $people, bool $isNew): array
     {
-        $emails = $people->getEmails();
+        $emails = $people->getEmails()->filter(
+            fn (CustomerContact $email): bool => $email->isDeliverable()
+        );
         $contactEmail = [];
 
-        if ($emails->count() > 0) {
-            $i = 1;
-            foreach ($emails as $email) {
-                $contactEmail[] = [
-                    'EmailId' => $isNew ? 0 : $i,
-                    'EmailAddress' => strtolower(trim((string)$email->value)),
-                    'EmailType' => 'primary',
-                ];
-                $i++;
-            }
+        $i = 1;
+        foreach ($emails as $email) {
+            $contactEmail[] = [
+                'EmailId' => $isNew ? 0 : $i,
+                'EmailAddress' => strtolower(trim((string) $email->value)),
+                'EmailType' => 'primary',
+            ];
+            $i++;
         }
 
         return $contactEmail;
+    }
+
+    /**
+     * VinSolutions returns a 400 (System.ArgumentException, "<email> is not valid") when it can't
+     * verify an address — stricter than RFC syntax, so we can't pre-validate it locally. Parse the
+     * rejected address out of the response, mark the matching contact INVALID (prepareEmails then
+     * stops sending it), and report how many we flagged so the caller knows whether a retry is worth
+     * it. Returns 0 for any other error so genuine failures still surface to Sentry.
+     */
+    protected function flagInvalidEmailsFromError(ClientException $e): int
+    {
+        $response = $e->getResponse();
+        if ($response === null) {
+            return 0;
+        }
+
+        $body = (string) $response->getBody();
+        if (! str_contains($body, 'is not valid')) {
+            return 0;
+        }
+
+        preg_match_all('/[\w.+-]+@[\w-]+\.[\w.-]+/', $body, $matches);
+        $rejected = array_map('strtolower', $matches[0] ?? []);
+        if ($rejected === []) {
+            return 0;
+        }
+
+        $flagged = 0;
+        foreach ($this->people->getEmails() as $email) {
+            $value = strtolower(trim((string) $email->value));
+            if (in_array($value, $rejected, true) && ! $email->validation_status->isPermanentFailure()) {
+                $email->markInvalid();
+                $flagged++;
+            }
+        }
+
+        return $flagged;
     }
 
     /**
