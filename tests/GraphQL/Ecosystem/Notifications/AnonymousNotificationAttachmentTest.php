@@ -8,6 +8,7 @@ use Baka\Http\Exceptions\SsrfException;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Notifications\KanvasMailable;
 use Kanvas\Notifications\Templates\Blank;
 use ReflectionMethod;
@@ -106,6 +107,45 @@ class AnonymousNotificationAttachmentTest extends TestCase
         $this->expectException(SsrfException::class);
 
         $this->applyAttachments($notification, $mailMessage);
+    }
+
+    /**
+     * A Kanvas upload stores objects under a random hashed key, so the attachment name
+     * must come from the original filename kept on the Filesystem row — not the URL.
+     * A URL we don't own falls back to the URL basename.
+     */
+    public function testRemoteAttachmentUsesOriginalFilenameFromFilesystemRecord(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $url = 'https://sipgoerp.s3.us-east-1.amazonaws.com/' . uniqid() . '.pdf';
+
+        $file = new Filesystem();
+        $file->name = 'PA51322.pdf';
+        $file->apps_id = $app->getId();
+        $file->companies_id = $user->getCurrentCompany()->getId();
+        $file->users_id = $user->getId();
+        $file->path = 'hashed-key.pdf';
+        $file->url = $url;
+        $file->size = '10';
+        $file->file_type = 'pdf';
+        $file->saveOrFail();
+
+        $notification = $this->makeBlankWithAttachments([$url]);
+
+        $this->assertSame('PA51322.pdf', $this->resolveRemoteName($notification, $url));
+        $this->assertSame(
+            'report-final.pdf',
+            $this->resolveRemoteName($notification, 'https://example.com/files/report-final.pdf')
+        );
+    }
+
+    private function resolveRemoteName(Blank $notification, string $url): string
+    {
+        $method = new ReflectionMethod($notification, 'resolveRemoteAttachmentName');
+        $method->setAccessible(true);
+
+        return $method->invoke($notification, $url);
     }
 
     private function makeBlankWithAttachments(array $attachments): Blank
