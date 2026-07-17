@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Hermes\Providers;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
+use Kanvas\Connectors\Hermes\Actions\BackupAgentWorkspaceAction;
 use Kanvas\Connectors\Hermes\Actions\ChatWithAgentAction;
 use Kanvas\Connectors\Hermes\Actions\CheckApiHealthAction;
 use Kanvas\Connectors\Hermes\Actions\CollectDeploymentUsageAction;
@@ -180,6 +181,12 @@ class HermesProvider extends AbstractAgentRuntimeProvider
     public function dispatchBackup(AgentDeployment $deployment, AgentBackup $backup, bool $includeWorkspace): void
     {
         BackupAgentWorkspaceJob::dispatch($deployment, $backup, $includeWorkspace);
+    }
+
+    #[Override]
+    public function createWorkspaceBackupNow(AgentDeployment $deployment, AgentBackup $backup): AgentBackup
+    {
+        return new BackupAgentWorkspaceAction($deployment, $backup, includeWorkspace: true)->execute();
     }
 
     #[Override]
