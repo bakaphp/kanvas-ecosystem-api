@@ -47,7 +47,7 @@ class PushPeopleAction
             // "<email> is not valid") — tenant data quality, not our bug. Flag the address so we
             // stop pushing it (see prepareEmails) and retry the sync without it. If nothing was
             // flagged it's a genuine error — let it surface to Sentry.
-            if ($this->flagInvalidEmailsFromError($e) === 0) {
+            if ($this->flagRejectedContactsFromError($e) === 0) {
                 throw $e;
             }
 
@@ -162,13 +162,13 @@ class PushPeopleAction
     }
 
     /**
-     * VinSolutions returns a 400 (System.ArgumentException, "<email> is not valid") when it can't
-     * verify an address — stricter than RFC syntax, so we can't pre-validate it locally. Parse the
-     * rejected address out of the response, mark the matching contact INVALID (prepareEmails then
-     * stops sending it), and report how many we flagged so the caller knows whether a retry is worth
-     * it. Returns 0 for any other error so genuine failures still surface to Sentry.
+     * VinSolutions returns a 400 (System.ArgumentException) when it can't verify an address or phone
+     * — stricter than what we can validate locally. Parse the rejected value out of the response,
+     * mark the matching contact INVALID (prepare{Emails,Phones} then stop sending it), and report how
+     * many we flagged so the caller knows whether a retry is worth it. Returns 0 for any other error
+     * so genuine failures still surface to Sentry.
      */
-    protected function flagInvalidEmailsFromError(ClientException $e): int
+    protected function flagRejectedContactsFromError(ClientException $e): int
     {
         $response = $e->getResponse();
         if ($response === null) {
@@ -176,6 +176,13 @@ class PushPeopleAction
         }
 
         $body = (string) $response->getBody();
+
+        return $this->flagRejectedEmails($body) + $this->flagRejectedPhones($body);
+    }
+
+    /** "<email> is not valid" — flag the matching email contact. */
+    private function flagRejectedEmails(string $body): int
+    {
         if (! str_contains($body, 'is not valid')) {
             return 0;
         }
@@ -199,23 +206,48 @@ class PushPeopleAction
     }
 
     /**
-     * Prepare phones for contact.
+     * "Not a valid Phone Number: <digits>" — match on the exact digits we submitted (country code
+     * stripped, same transform as preparePhones) and flag that phone contact INVALID.
+     */
+    private function flagRejectedPhones(string $body): int
+    {
+        preg_match_all('/Not a valid Phone Number:\s*(\d+)/', $body, $matches);
+        $rejected = $matches[1] ?? [];
+        if ($rejected === []) {
+            return 0;
+        }
+
+        $flagged = 0;
+        foreach ($this->people->getPhones()->merge($this->people->getCellPhones()) as $phone) {
+            $submitted = Phone::removeUSCountryCode($phone->getCleanPhone());
+            if (in_array($submitted, $rejected, true) && ! $phone->validation_status->isPermanentFailure()) {
+                $phone->markInvalid();
+                $flagged++;
+            }
+        }
+
+        return $flagged;
+    }
+
+    /**
+     * Prepare phones for contact. Skips numbers already flagged undeliverable (hard bounce /
+     * invalid) so we never re-push one VinSolutions has rejected.
      */
     protected function preparePhones(People $people, bool $isNew): array
     {
-        $phones = $people->getPhones()->merge($people->getCellPhones());
         $contactPhone = [];
 
-        if ($phones->count() > 0) {
-            $i = 1;
-            foreach ($phones as $phone) {
-                $contactPhone[] = [
-                    'PhoneId' => $isNew ? 0 : $i,
-                    'Number' => Phone::removeUSCountryCode($phone->getCleanPhone()),
-                    'PhoneType' => 'Cell',
-                ];
-                $i++;
+        $i = 1;
+        foreach ($people->getPhones()->merge($people->getCellPhones()) as $phone) {
+            if (! $phone->isDeliverable()) {
+                continue;
             }
+            $contactPhone[] = [
+                'PhoneId' => $isNew ? 0 : $i,
+                'Number' => Phone::removeUSCountryCode($phone->getCleanPhone()),
+                'PhoneType' => 'Cell',
+            ];
+            $i++;
         }
 
         return $contactPhone;

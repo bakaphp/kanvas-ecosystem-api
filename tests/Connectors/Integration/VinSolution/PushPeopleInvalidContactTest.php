@@ -14,11 +14,11 @@ use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Customers\Models\People;
 use Tests\TestCase;
 
-final class PushPeopleInvalidEmailTest extends TestCase
+final class PushPeopleInvalidContactTest extends TestCase
 {
     public function testInvalidEmailIsFlaggedAndFilteredFromPushPayload(): void
     {
-        $people = $this->createPersonWithEmails([
+        $people = $this->createPerson(emails: [
             'rebecca.dagouop@aol.com',
             'rebecca.k.dago@gmail.com',
         ]);
@@ -26,43 +26,50 @@ final class PushPeopleInvalidEmailTest extends TestCase
         $action = $this->makeAction($people);
 
         // VinSolutions rejects the whole PUT because one address fails its verifier.
-        $exception = $this->vinSolutionInvalidEmailException('rebecca.dagouop@aol.com');
-        $flagged = $action->flagInvalidEmailsFromErrorForTest($exception);
+        $exception = $this->vinSolutionRejection('rebecca.dagouop@aol.com is not valid.  Failed Format validation');
+        $flagged = $action->flagRejectedContactsFromErrorForTest($exception);
 
         $this->assertSame(1, $flagged, 'exactly the rejected email is flagged');
 
-        $rejected = $people->getEmails()
-            ->firstWhere('value', 'rebecca.dagouop@aol.com');
-        $this->assertSame(
-            ContactValidationStatusEnum::INVALID,
-            $rejected->validation_status,
-            'the rejected address is marked INVALID'
-        );
+        $rejected = $people->getEmails()->firstWhere('value', 'rebecca.dagouop@aol.com');
+        $this->assertSame(ContactValidationStatusEnum::INVALID, $rejected->validation_status);
 
-        // On the retry, the invalid address must no longer be in the payload,
-        // while the valid one still is.
-        $payload = $action->prepareEmailsForTest($people->fresh(), false);
-        $addresses = array_column($payload, 'EmailAddress');
-
+        $addresses = array_column($action->prepareEmailsForTest($people->fresh(), false), 'EmailAddress');
         $this->assertNotContains('rebecca.dagouop@aol.com', $addresses);
         $this->assertContains('rebecca.k.dago@gmail.com', $addresses);
     }
 
-    public function testUnrelatedClientErrorFlagsNothing(): void
+    public function testInvalidPhoneIsFlaggedAndFilteredFromPushPayload(): void
     {
-        $people = $this->createPersonWithEmails(['someone@example.com']);
+        // 612450182 is 9 digits — VinSolutions rejects it as "Not a valid Phone Number".
+        $people = $this->createPerson(phones: ['612450182', '2025550111']);
+
         $action = $this->makeAction($people);
 
-        $exception = new ClientException(
-            'Client error',
-            new Request('PUT', '/gateway/v1/contact/1'),
-            new Response(400, [], '{"ClassName":"System.Exception","Message":"Dealer not authorized"}')
-        );
+        $exception = $this->vinSolutionRejection('Not a valid Phone Number: 612450182.');
+        $flagged = $action->flagRejectedContactsFromErrorForTest($exception);
+
+        $this->assertSame(1, $flagged, 'exactly the rejected phone is flagged');
+
+        $rejected = $people->getPhones()->firstWhere('value', '612450182');
+        $this->assertSame(ContactValidationStatusEnum::INVALID, $rejected->validation_status);
+
+        $numbers = array_column($action->preparePhonesForTest($people->fresh(), false), 'Number');
+        $this->assertNotContains('612450182', $numbers);
+        $this->assertContains('2025550111', $numbers);
+    }
+
+    public function testUnrelatedClientErrorFlagsNothing(): void
+    {
+        $people = $this->createPerson(emails: ['someone@example.com']);
+        $action = $this->makeAction($people);
+
+        $exception = $this->vinSolutionRejection('Dealer not authorized', class: 'System.Exception');
 
         $this->assertSame(
             0,
-            $action->flagInvalidEmailsFromErrorForTest($exception),
-            'a non-email-validation 400 flags nothing, so it still surfaces to Sentry'
+            $action->flagRejectedContactsFromErrorForTest($exception),
+            'a non-validation 400 flags nothing, so it still surfaces to Sentry'
         );
         $this->assertSame(
             ContactValidationStatusEnum::VALID,
@@ -71,12 +78,9 @@ final class PushPeopleInvalidEmailTest extends TestCase
         );
     }
 
-    private function vinSolutionInvalidEmailException(string $email): ClientException
+    private function vinSolutionRejection(string $message, string $class = 'System.ArgumentException'): ClientException
     {
-        $body = json_encode([
-            'ClassName' => 'System.ArgumentException',
-            'Message' => $email . ' is not valid.  Failed Format validation',
-        ]);
+        $body = json_encode(['ClassName' => $class, 'Message' => $message]);
 
         return new ClientException(
             'Client error',
@@ -85,7 +89,7 @@ final class PushPeopleInvalidEmailTest extends TestCase
         );
     }
 
-    private function createPersonWithEmails(array $emails): People
+    private function createPerson(array $emails = [], array $phones = []): People
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -99,9 +103,13 @@ final class PushPeopleInvalidEmailTest extends TestCase
             ->create();
 
         $people->contacts()->delete();
+
         $weight = 100;
         foreach ($emails as $email) {
             $people->addEmail($email, 0, $weight--);
+        }
+        foreach ($phones as $phone) {
+            $people->addPhone($phone, 0, $weight--);
         }
 
         return $people->fresh();
@@ -110,21 +118,26 @@ final class PushPeopleInvalidEmailTest extends TestCase
     private function makeAction(People $people): PushPeopleAction
     {
         // Bypass the parent constructor (it resolves live VinSolutions credentials); we only
-        // exercise the email-flagging + payload-building logic, which needs just the People model.
+        // exercise the flag + payload-building logic, which needs just the People model.
         return new class ($people) extends PushPeopleAction {
             public function __construct(People $people)
             {
                 $this->people = $people;
             }
 
-            public function flagInvalidEmailsFromErrorForTest(ClientException $e): int
+            public function flagRejectedContactsFromErrorForTest(ClientException $e): int
             {
-                return $this->flagInvalidEmailsFromError($e);
+                return $this->flagRejectedContactsFromError($e);
             }
 
             public function prepareEmailsForTest(People $people, bool $isNew): array
             {
                 return $this->prepareEmails($people, $isNew);
+            }
+
+            public function preparePhonesForTest(People $people, bool $isNew): array
+            {
+                return $this->preparePhones($people, $isNew);
             }
         };
     }
