@@ -23,7 +23,7 @@ class PullOrganizationAction
 
     public function execute(): Organization
     {
-        $lockKey = 'salesforce_account_sync:' . $this->company->getId() . ':' . $this->salesforceId;
+        $lockKey = 'salesforce_account_sync:' . $this->app->getId() . ':' . $this->company->getId() . ':' . $this->salesforceId;
 
         return Cache::lock($lockKey, 10)->block(5, function () {
             return DB::connection('crm')->transaction(function () {
@@ -45,7 +45,7 @@ class PullOrganizationAction
                 $organization->phone = $this->payload['Phone'] ?? $organization->phone;
                 $organization->total_employees = isset($this->payload['NumberOfEmployees'])
                     ? (int) $this->payload['NumberOfEmployees']
-                    : $organization->total_employees;
+                    : ($organization->total_employees ?? 0);
 
                 // Never call fireWorkflow on this write — the anti-loop rule for inbound
                 // Salesforce sync: an Organization synced from Salesforce must not re-trigger the

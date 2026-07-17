@@ -32,7 +32,7 @@ class PushPeopleActivity extends KanvasActivity implements WorkflowActivityInter
             app: $app,
             integration: IntegrationsEnum::SALESFORCE,
             additionalParams: $params,
-            integrationOperation: fn ($people, $app, $integrationCompany, $additionalParams) => new PushPeopleAction($app, $people)->execute(),
+            integrationOperation: fn ($people, $app, $integrationCompany, $additionalParams) => new PushPeopleAction($people)->execute(),
             company: $people->company,
         );
     }

@@ -12,6 +12,7 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use SimpleXMLElement;
+use Throwable;
 
 /**
  * One job handles all four Salesforce objects — Salesforce Outbound Messages are configured per
@@ -66,7 +67,16 @@ class SalesforceOutboundMessageWebhookJob extends ProcessWebhookJob
                 continue;
             }
 
-            $results[] = $this->dispatchToAction($salesforceObject, $fields, $salesforceId);
+            try {
+                $results[] = $this->dispatchToAction($salesforceObject, $fields, $salesforceId);
+            } catch (Throwable $e) {
+                report($e);
+                $results[] = [
+                    'salesforce_id' => $salesforceId,
+                    'processed' => false,
+                    'error' => $e->getMessage(),
+                ];
+            }
         }
 
         return [

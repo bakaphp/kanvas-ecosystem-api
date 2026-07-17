@@ -28,7 +28,7 @@ class SalesforceAccount extends Data
         return new self(
             Name: $organization->name ?: 'Unknown',
             Phone: $organization->phone,
-            NumberOfEmployees: $organization->total_employees ?: null,
+            NumberOfEmployees: $organization->total_employees ?? null,
             additionalFields: self::mapAdditionalFields($fieldsMap, $organization->getAll()),
         );
     }

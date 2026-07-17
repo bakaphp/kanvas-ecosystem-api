@@ -32,7 +32,7 @@ class PushOrganizationActivity extends KanvasActivity implements WorkflowActivit
             app: $app,
             integration: IntegrationsEnum::SALESFORCE,
             additionalParams: $params,
-            integrationOperation: fn ($organization, $app, $integrationCompany, $additionalParams) => new PushOrganizationAction($app, $organization)->execute(),
+            integrationOperation: fn ($organization, $app, $integrationCompany, $additionalParams) => new PushOrganizationAction($organization)->execute(),
             company: $organization->company,
         );
     }

@@ -32,7 +32,7 @@ class PushLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
             app: $app,
             integration: IntegrationsEnum::SALESFORCE,
             additionalParams: $params,
-            integrationOperation: fn ($lead, $app, $integrationCompany, $additionalParams) => new PushLeadAction($app, $lead)->execute(),
+            integrationOperation: fn ($lead, $app, $integrationCompany, $additionalParams) => new PushLeadAction($lead)->execute(),
             company: $lead->company,
         );
     }

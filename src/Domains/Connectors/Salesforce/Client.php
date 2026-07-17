@@ -25,13 +25,13 @@ class Client
     public static function getInstance(AppInterface $app, CompanyInterface $company): SalesforceApiClient
     {
         $config = self::getKeys($company);
-        $token = self::getAccessToken($company, $config);
+        $token = self::getAccessToken($app, $company, $config);
 
         return new SalesforceApiClient(
             instanceUrl: $token['instance_url'],
             accessToken: $token['access_token'],
             apiVersion: $config['api_version'],
-            onUnauthorized: fn () => self::refreshAccessToken($company, $config),
+            onUnauthorized: fn () => self::refreshAccessToken($app, $company, $config),
         );
     }
 
@@ -54,25 +54,29 @@ class Client
         ];
     }
 
-    private static function getAccessToken(CompanyInterface $company, array $config): array
+    private static function getAccessToken(AppInterface $app, CompanyInterface $company, array $config): array
     {
         return Cache::remember(
-            self::tokenCacheKey($company),
+            self::tokenCacheKey($app, $company),
             self::TOKEN_TTL_SECONDS,
             fn () => self::requestAccessToken($company, $config)
         );
     }
 
-    private static function refreshAccessToken(CompanyInterface $company, array $config): array
+    private static function refreshAccessToken(AppInterface $app, CompanyInterface $company, array $config): array
     {
-        Cache::forget(self::tokenCacheKey($company));
+        Cache::forget(self::tokenCacheKey($app, $company));
 
-        return self::getAccessToken($company, $config);
+        return self::getAccessToken($app, $company, $config);
     }
 
-    private static function tokenCacheKey(CompanyInterface $company): string
+    // A Company can belong to more than one App (users_companies_apps has a composite
+    // (companies_id, apps_id) key), and each App's Salesforce integration is configured
+    // independently — keying the cache by companies_id alone would let one App's cached
+    // token leak into another App sharing the same Company.
+    private static function tokenCacheKey(AppInterface $app, CompanyInterface $company): string
     {
-        return 'salesforce_token_' . $company->getId();
+        return 'salesforce_token_' . $app->getId() . '_' . $company->getId();
     }
 
     private static function requestAccessToken(CompanyInterface $company, array $config): array

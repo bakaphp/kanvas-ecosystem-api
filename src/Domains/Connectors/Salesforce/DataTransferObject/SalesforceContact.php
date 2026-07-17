@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Salesforce\DataTransferObject;
 use Kanvas\Connectors\Salesforce\DataTransferObject\Concerns\MapsAdditionalFields;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Spatie\LaravelData\Data;
 
 class SalesforceContact extends Data
@@ -23,12 +24,11 @@ class SalesforceContact extends Data
     ) {
     }
 
-    public static function fromPeople(People $people): self
+    public static function fromPeople(People $people, ?Organization $organization = null): self
     {
         $company = $people->company;
         $fieldsMap = $company?->get(CustomFieldEnum::CONTACT_FIELDS_MAP->value);
 
-        $organization = $people->organizations()->first();
         $accountId = $organization?->get(CustomFieldEnum::SALESFORCE_ACCOUNT_ID->value);
 
         return new self(

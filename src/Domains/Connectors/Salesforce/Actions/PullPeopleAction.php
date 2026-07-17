@@ -27,7 +27,7 @@ class PullPeopleAction
 
     public function execute(): People
     {
-        $branch = $this->company->defaultBranch;
+        $branch = $this->company->defaultBranch ?? $this->company->user->getCurrentCompany()->branch;
         $firstName = (string) ($this->payload['FirstName'] ?? '');
         $lastName = (string) ($this->payload['LastName'] ?? 'Unknown');
 

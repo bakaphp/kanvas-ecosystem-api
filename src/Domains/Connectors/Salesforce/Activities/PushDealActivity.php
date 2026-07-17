@@ -32,7 +32,7 @@ class PushDealActivity extends KanvasActivity implements WorkflowActivityInterfa
             app: $app,
             integration: IntegrationsEnum::SALESFORCE,
             additionalParams: $params,
-            integrationOperation: fn ($deal, $app, $integrationCompany, $additionalParams) => new PushDealAction($app, $deal)->execute(),
+            integrationOperation: fn ($deal, $app, $integrationCompany, $additionalParams) => new PushDealAction($deal)->execute(),
             company: $deal->company,
         );
     }

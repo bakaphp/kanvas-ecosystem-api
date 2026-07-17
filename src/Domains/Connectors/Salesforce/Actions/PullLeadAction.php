@@ -29,7 +29,7 @@ class PullLeadAction
 
     public function execute(): Lead
     {
-        $branch = $this->company->defaultBranch;
+        $branch = $this->company->defaultBranch ?? $this->company->user->getCurrentCompany()->branch;
         $firstName = (string) ($this->payload['FirstName'] ?? '');
         $lastName = (string) ($this->payload['LastName'] ?? 'Unknown');
 
@@ -41,10 +41,14 @@ class PullLeadAction
             $contacts[] = ['value' => $this->payload['Phone'], 'contacts_types_id' => 2, 'weight' => 0];
         }
 
-        $leadStatus = LeadStatus::firstOrCreate(
-            ['name' => strtolower((string) ($this->payload['Status'] ?? 'new'))],
-            ['is_default' => 0],
-        );
+        $leadStatus = LeadStatus::query()
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
+            ->firstOrCreate(
+                ['name' => strtolower((string) ($this->payload['Status'] ?? 'new'))],
+                ['apps_id' => $this->app->getId(), 'companies_id' => $this->company->getId(), 'is_default' => 0],
+            );
 
         $pipelineStage = Pipeline::query()
             ->fromApp($this->app)
