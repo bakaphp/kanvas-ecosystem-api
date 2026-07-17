@@ -30,10 +30,12 @@ class CreditApplicationService
     public function submitToRouteOne(CreditApplication $application): array
     {
         $appOrCompany = $this->company ?? $this->app;
-        $payload = $this->buildPayload($application, $appOrCompany);
 
         try {
-            $responseArray = $this->submitWithFallback($payload);
+            $responseArray = $this->client->post(
+                '/Request',
+                $this->buildPayload($application, $appOrCompany)
+            );
 
             $transactionId = $responseArray['XML_Report']['Transid'] ?? null;
 
@@ -47,25 +49,6 @@ class CreditApplicationService
             throw new ValidationException('Failed to submit credit application to RouteOne: ' . $e->getMessage());
         } catch (Exception $e) {
             throw new ValidationException('An error occurred submitting the credit application: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Primary path is the documented XML Gateway URL
-     * (www.700Dealer.com/XCRS/Service.aspx, creds in the body). If that transport
-     * fails (e.g. it 403s), fall back to the OAuth gateway
-     * (gateway.700dealer.com/Request + Bearer), which currently returns a Transid.
-     * This dual path is temporary until 700Credit confirms the correct endpoint.
-     *
-     * @param array<string, string> $payload
-     * @return array<string, mixed>
-     */
-    protected function submitWithFallback(array $payload): array
-    {
-        try {
-            return $this->client->postToXmlGateway($payload);
-        } catch (RequestException $e) {
-            return $this->client->post('/Request', $payload);
         }
     }
 
