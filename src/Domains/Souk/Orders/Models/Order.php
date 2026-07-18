@@ -132,7 +132,6 @@ class Order extends BaseModel implements PayableInterface
         'private_metadata' => Json::class,
     ];
 
-
     public function region(): BelongsTo
     {
         return $this->belongsTo(Regions::class, 'region_id', 'id');
@@ -499,10 +498,51 @@ class Order extends BaseModel implements PayableInterface
         return $this->order_number;
     }
 
+    public function toSearchableArray(): array
+    {
+        $this->loadMissing(['items', 'people']);
+
+        return [
+            ...$this->toArray(),
+            'objectID' => $this->uuid,
+            'order_number_text' => (string) $this->order_number,
+            'customer_name' => (string) ($this->people?->name ?? ''),
+            'products_text' => $this->searchableProductsText(),
+            'metadata_text' => $this->searchableMetadataText(),
+            'created_at' => $this->created_at?->getTimestamp() ?? 0,
+            'updated_at' => $this->updated_at?->getTimestamp() ?? 0,
+        ];
+    }
+
+    /**
+     * order_number is an int and the order's items are nested objects, so neither is usable
+     * in Typesense `query_by` directly. Flatten product name / SKU / variant name into one
+     * searchable string so an operator can find an order by what's in it.
+     */
+    private function searchableProductsText(): string
+    {
+        return $this->items
+            ->flatMap(fn (OrderItem $item) => [$item->product_name, $item->product_sku, $item->variant_name])
+            ->filter()
+            ->unique()
+            ->implode(' ');
+    }
+
+    private function searchableMetadataText(): string
+    {
+        if (! is_array($this->metadata)) {
+            return '';
+        }
+
+        return collect($this->metadata)
+            ->flatten()
+            ->filter(fn ($value) => is_scalar($value))
+            ->map(fn ($value) => (string) $value)
+            ->implode(' ');
+    }
+
     /**
      * The Typesense schema to be created for the Order model.
-     * Note: Currently, Order model has shouldBeSearchable() set to return false.
-     * This schema would be used if that changes in the future.
      */
     public function typesenseCollectionSchema(): array
     {
@@ -695,6 +735,26 @@ class Order extends BaseModel implements PayableInterface
                     'optional' => true,
                 ],
                 [
+                    'name' => 'order_number_text',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'customer_name',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'products_text',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'metadata_text',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
                     'name' => 'created_at',
                     'type' => 'int64',
                     'sort' => true,
@@ -732,6 +792,12 @@ class Order extends BaseModel implements PayableInterface
             $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
         } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'order_number_text,user_email,user_phone,tracking_client_id,customer_name,products_text,metadata_text',
+            ]);
         }
 
         return $query;

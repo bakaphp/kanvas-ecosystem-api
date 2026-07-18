@@ -435,6 +435,12 @@ class Agent extends BaseModel
             $query->where('companies_id', $user->getCurrentCompany()->getId());
         }
 
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'name,slug,description',
+            ]);
+        }
+
         return $query;
     }
 }
