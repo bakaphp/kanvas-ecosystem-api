@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Ecosystem\Integration\AccessControl;
 
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -15,13 +14,6 @@ use Tests\TestCase;
 
 class ModulePermissionsTest extends TestCase
 {
-    // The base TestCase shares a static cached user across every test. Without rolling back, one
-    // method's direct grant persists onto that user and leaks into the next method (and, under
-    // paratest, across parallel processes on the shared DB) — which is why a later role-based can()
-    // check reads the wrong state and fails only when run alongside its siblings.
-    use DatabaseTransactions;
-
-    protected array $connectionsToTransact = ['mysql'];
 
     private const PERMISSION_VIEW = 'view-module-inventory';
     private const PERMISSION_CREATE = 'create-module-inventory';
@@ -38,12 +30,13 @@ class ModulePermissionsTest extends TestCase
     {
         parent::setUp();
 
-        // Bouncer caches abilities per user; across this file's methods that cache goes stale after a
-        // role/permission is granted, so a later can() reads pre-grant abilities and wrongly returns
-        // false. Resolve every ability from the DB so each method sees the state it just set up.
+        // Bouncer caches abilities per user; resolve from the DB so each method sees what it set up.
         Bouncer::dontCache();
 
-        $this->user = auth()->user();
+        // Use a dedicated user, NOT the base TestCase's static cached user which is shared across
+        // every test in the process — other tests' Bouncer grants/revokes on that shared user made
+        // these role checks non-deterministic under paratest.
+        $this->user = $this->createUser();
         $this->company = $this->user->getCurrentCompany();
         $this->appInstance = app(Apps::class);
         $this->scope = RolesEnums::getScope($this->appInstance, $this->company);
