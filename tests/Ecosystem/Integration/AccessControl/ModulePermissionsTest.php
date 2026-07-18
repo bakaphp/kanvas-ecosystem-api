@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Ecosystem\Integration\AccessControl;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -14,6 +15,14 @@ use Tests\TestCase;
 
 class ModulePermissionsTest extends TestCase
 {
+    // The base TestCase shares a static cached user across every test. Without rolling back, one
+    // method's direct grant persists onto that user and leaks into the next method (and, under
+    // paratest, across parallel processes on the shared DB) — which is why a later role-based can()
+    // check reads the wrong state and fails only when run alongside its siblings.
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql'];
+
     private const PERMISSION_VIEW = 'view-module-inventory';
     private const PERMISSION_CREATE = 'create-module-inventory';
     private const PERMISSION_EDIT = 'edit-module-inventory';

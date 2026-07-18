@@ -70,4 +70,37 @@ class OrderSearchableArrayTest extends TestCase
         $this->assertStringContainsString('PO-12345', $doc['metadata_text']);
         $this->assertIsString($doc['customer_name']);
     }
+
+    /**
+     * Algolia fails the whole batch when a single record is over its byte limit (Sentry
+     * KANVAS-ECOSYSTEM-5SS: an order with a huge integration metadata blob hit 101412/100000).
+     * The doc must be trimmed to fit while keeping the fields search actually queries on.
+     */
+    public function testToSearchableArrayTrimsOversizedOrderForAlgolia(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $app->set('search_engine', 'algolia');
+
+        $order = Order::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->create(['status' => 'completed']);
+
+        // A raw integration payload well over Algolia's 100KB record limit.
+        $order->metadata = ['integration_payload' => str_repeat('x', 120000)];
+        $order->private_metadata = ['raw' => str_repeat('y', 120000)];
+        $order->saveOrFail();
+
+        $doc = $order->fresh()->toSearchableArray();
+
+        $this->assertLessThanOrEqual(100000, strlen((string) json_encode($doc)), 'Record must fit under Algolia 100KB limit.');
+        $this->assertArrayNotHasKey('metadata', $doc, 'Raw metadata blob must be dropped when over budget.');
+        $this->assertArrayNotHasKey('private_metadata', $doc);
+        $this->assertSame($order->uuid, $doc['objectID']);
+        $this->assertSame((string) $order->order_number, $doc['order_number_text']);
+    }
 }
