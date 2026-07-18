@@ -82,8 +82,6 @@ class OrderSearchableArrayTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $app->set('search_engine', 'algolia');
-
         $order = Order::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
@@ -95,7 +93,11 @@ class OrderSearchableArrayTest extends TestCase
         $order->private_metadata = ['raw' => str_repeat('y', 120000)];
         $order->saveOrFail();
 
-        $doc = $order->fresh()->toSearchableArray();
+        // Force the Algolia record-limit path in-memory. Persisting search_engine=algolia would leak
+        // through shared Redis and make every other test index to Algolia with no creds.
+        $fresh = $order->fresh();
+        $fresh->setAlgolia(true);
+        $doc = $fresh->toSearchableArray();
 
         $this->assertLessThanOrEqual(100000, strlen((string) json_encode($doc)), 'Record must fit under Algolia 100KB limit.');
         $this->assertArrayNotHasKey('metadata', $doc, 'Raw metadata blob must be dropped when over budget.');

@@ -16,6 +16,8 @@ trait DynamicSearchableTrait
 
     protected bool $isTypesense = false;
 
+    protected bool $isAlgolia = false;
+
     public function searchableUsing()
     {
         $engine = app(SearchEngineResolver::class)->resolveEngine($this, $this->app);
@@ -32,6 +34,11 @@ trait DynamicSearchableTrait
         $this->isTypesense = $isTypesense;
     }
 
+    public function setAlgolia(bool $isAlgolia = true): void
+    {
+        $this->isAlgolia = $isAlgolia;
+    }
+
     public function isTypesense(): bool
     {
         if ($this->isTypesense) {
@@ -43,8 +50,10 @@ trait DynamicSearchableTrait
 
     public function isAlgolia(): bool
     {
-        // algolia is the default engine in config/scout.php, so an unset/null
-        // resolved engine still routes through the Algolia client.
+        if ($this->isAlgolia) {
+            return true;
+        }
+
         return $this->resolvedEngineName() === 'algolia';
     }
 
