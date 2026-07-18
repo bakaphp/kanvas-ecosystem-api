@@ -105,11 +105,10 @@ final class ManlyHondaFollowUpEngagementAction implements FollowUpTimeGateOverri
 
         $timezone = $this->lead->company->timezone ?? 'UTC';
         $minutesNoResponse = (int) (($stage->config['notification_engagement_rules'] ?? [])[self::MINUTES_NO_RESPONSE_KEY] ?? 0);
-        $lastMessageTime = $this->lastMessageTime($sessionsByChannel, $timezone);
+        $referenceTime = $this->lastMessageTime($sessionsByChannel, $timezone)
+            ?? Carbon::parse($this->lead->created_at, $timezone);
 
-        $timeDiff = $lastMessageTime
-            ? abs($lastMessageTime->diffInMinutes(Carbon::now($timezone)))
-            : PHP_INT_MAX;
+        $timeDiff = abs($referenceTime->diffInMinutes(Carbon::now($timezone)));
 
         if (! $this->ignoreTimeGate && $timeDiff < $minutesNoResponse) {
             $this->logSkip(
