@@ -58,12 +58,13 @@ trait DynamicSearchableTrait
 
         $app = $model->app ?? app(Apps::class);
 
-        $defaultEngine = $app->get('search_engine') ?? config('scout.driver', 'algolia');
-        // If there's a model, try to get model-specific engine setting
+        // config('scout.driver') is an explicit null when SCOUT_DRIVER=null, so the third arg
+        // default never fires — coalesce to 'null' (→ NullEngine) so this never returns null and
+        // TypeErrors the ": string" return on apps with no engine configured.
+        $defaultEngine = $app->get('search_engine') ?? config('scout.driver');
         $modelSpecificEngine = $app->get($this->getTable() . '_search_engine') ?? null;
 
-        // Use model-specific engine if available, otherwise use default
-        return $modelSpecificEngine ?? $defaultEngine;
+        return $modelSpecificEngine ?? $defaultEngine ?? 'null';
     }
 
     public function getRelations(?string $modelClass = null): array

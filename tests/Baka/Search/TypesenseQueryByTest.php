@@ -82,6 +82,33 @@ final class TypesenseQueryByTest extends TestCase
     }
 
     /**
+     * An app with no engine configured + global SCOUT_DRIVER=null must resolve to a string
+     * ('null' → NullEngine), not TypeError the ": string" return of resolvedEngineName(). search()
+     * calls isTypesense(), so a null return would crash search on every unconfigured app.
+     */
+    public function testSearchDoesNotBreakWhenNoEngineConfigured(): void
+    {
+        $realApp = app(Apps::class);
+        $app = Mockery::mock($realApp)->makePartial();
+        $app->shouldReceive('get')->andReturnUsing(
+            fn (string $name, mixed $default = null): mixed => str_ends_with($name, 'search_engine')
+                ? null
+                : $realApp->get($name, $default)
+        );
+        app()->instance(Apps::class, $app);
+        config(['scout.driver' => null]);
+
+        try {
+            $builder = Users::search('lookup');
+
+            $this->assertArrayNotHasKey('query_by', $builder->options);
+            $this->assertFalse($builder->model->isTypesense());
+        } finally {
+            app()->forgetInstance(Apps::class);
+        }
+    }
+
+    /**
      * Rebind app(Apps::class) to a partial mock whose `get()` reports the Typesense engine for any
      * *_search_engine key and passes everything else through to the real app. Process-local, so it
      * never touches shared Redis/DB.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Search;
 
 use Baka\Traits\KanvasJobsTrait;
+use Exception;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Users\Models\Users;
@@ -30,7 +31,7 @@ class ReindexUsersRecordsCommand extends Command
      * Execute the console command.
      *
      */
-    public function handle()
+    public function handle(): void
     {
         $app = Apps::getById($this->argument('app_id'));
         $this->overwriteAppService($app);
@@ -40,10 +41,11 @@ class ReindexUsersRecordsCommand extends Command
         return;
     }
 
-    public function reindex(Apps $app)
+    public function reindex(Apps $app): void
     {
         $this->info('Reindex scout index for user App ' . $app->name);
         $users = Users::query()
+            ->select('users.*')
             ->join('users_associated_apps', 'users.id', '=', 'users_associated_apps.users_id')
             ->where('users_associated_apps.apps_id', $app->getId())
             ->where('users_associated_apps.user_active', 1)
@@ -60,12 +62,12 @@ class ReindexUsersRecordsCommand extends Command
                     $this->info("Reindexing user ID: {$user->id}" . PHP_EOL);
                     $user->searchable();
                     $this->output->progressAdvance();
-                } catch (\Exception $e) {
+                } catch (Exception $e) {
                     $this->error("Error reindexing item ID: {$user->id} - " . $e->getMessage());
                 }
             }
         });
         $this->output->progressFinish();
-        $this->info('Total products to reindexed: ' . $totalUsers);
+        $this->info('Total users reindexed: ' . $totalUsers);
     }
 }
