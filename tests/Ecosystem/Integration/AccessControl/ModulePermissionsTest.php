@@ -14,7 +14,6 @@ use Tests\TestCase;
 
 class ModulePermissionsTest extends TestCase
 {
-
     private const PERMISSION_VIEW = 'view-module-inventory';
     private const PERMISSION_CREATE = 'create-module-inventory';
     private const PERMISSION_EDIT = 'edit-module-inventory';
