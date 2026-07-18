@@ -994,6 +994,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             $query->whereIn('companies', [$user->currentCompanyId()]);
         }
 
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'firstname,lastname,displayname,email',
+            ]);
+        }
+
         return $query;
     }
 

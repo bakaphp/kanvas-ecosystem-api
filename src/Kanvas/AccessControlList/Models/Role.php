@@ -7,6 +7,7 @@ namespace Kanvas\AccessControlList\Models;
 use Baka\Traits\DynamicSearchableTrait;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\Apps\Models\Apps;
 use Silber\Bouncer\Database\Role as SilberRole;
 
 /**
@@ -17,7 +18,9 @@ use Silber\Bouncer\Database\Role as SilberRole;
  */
 class Role extends SilberRole
 {
-    use DynamicSearchableTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     protected $connection = 'mysql';
 
     public function getUserCountAttribute(): int
@@ -68,5 +71,55 @@ class Role extends SilberRole
     public function isSystemRole(): bool
     {
         return RolesEnums::isEnumValue($this->name);
+    }
+
+    public function searchableAs(): string
+    {
+        $app = app(Apps::class);
+        $customIndex = $app->get('app_custom_roles_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'roles');
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => (string) $this->id,
+            'name' => $this->name,
+            'title' => $this->title,
+            'scope' => (string) $this->scope,
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return true;
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                ['name' => 'id', 'type' => 'string'],
+                ['name' => 'name', 'type' => 'string'],
+                ['name' => 'title', 'type' => 'string', 'optional' => true],
+                ['name' => 'scope', 'type' => 'string', 'facet' => true],
+            ],
+        ];
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)
+            ->where('scope', RolesEnums::getScope(app(Apps::class), null));
+
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'name,title',
+            ]);
+        }
+
+        return $query;
     }
 }

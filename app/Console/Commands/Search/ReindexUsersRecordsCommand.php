@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Connectors\PromptMine;
+namespace App\Console\Commands\Search;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;

@@ -591,6 +591,12 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             $query->where('company.id', auth()->user()->getCurrentCompany()->getId());
         }
 
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'name,sku,ean,barcode,description,short_description',
+            ]);
+        }
+
         return $query;
     }
 
