@@ -9,6 +9,7 @@ use Baka\Search\Jobs\TenantAwareRemoveFromSearch;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Apps\Models\Apps;
 use Laravel\Scout\Scout;
+use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
 
 /**
@@ -40,5 +41,20 @@ final class TenantAwareIndexingTest extends TestCase
         $job = new TenantAwareRemoveFromSearch(new Collection());
 
         $this->assertSame($app->getId(), $job->appId);
+    }
+
+    /**
+     * The job rebinds the app for engine resolution but must NOT touch the Bouncer scope — Scout can
+     * run inline on the sync queue while the caller holds a company-scoped scope (e.g. saving a Role
+     * during permission setup). overwriteAppService() would reset it to company 0 and corrupt them.
+     */
+    public function testHandleDoesNotResetTheBouncerScope(): void
+    {
+        $scope = 'app_' . app(Apps::class)->getId() . '_company_999';
+        Bouncer::scope()->to($scope);
+
+        new TenantAwareMakeSearchable(new Collection())->handle();
+
+        $this->assertSame($scope, Bouncer::scope()->get());
     }
 }

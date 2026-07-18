@@ -4,26 +4,21 @@ declare(strict_types=1);
 
 namespace Baka\Search\Jobs;
 
-use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Apps\Models\Apps;
 use Laravel\Scout\Jobs\RemoveFromSearch;
 use Override;
 
 /**
- * Tenant-aware counterpart to {@see TenantAwareMakeSearchable} for the delete path — same reason:
- * the worker's bound app is not the dispatching tenant, so unindexing must rebind first.
+ * Tenant-aware counterpart to {@see TenantAwareMakeSearchable} for the delete path — rebinds the app
+ * only (never the Bouncer scope) so unindexing resolves the right engine without corrupting a caller
+ * that runs it inline on the sync queue.
  */
 class TenantAwareRemoveFromSearch extends RemoveFromSearch
 {
-    use KanvasJobsTrait;
-
     public ?int $appId = null;
 
     /**
-     * Create a new job instance.
-     *
      * @param  \Illuminate\Database\Eloquent\Collection  $models
-     * @return void
      */
     public function __construct($models)
     {
@@ -35,10 +30,21 @@ class TenantAwareRemoveFromSearch extends RemoveFromSearch
     #[Override]
     public function handle(): void
     {
-        if ($this->appId !== null) {
-            $this->overwriteAppService(Apps::getById($this->appId));
+        if ($this->appId === null) {
+            parent::handle();
+
+            return;
         }
 
-        parent::handle();
+        $previous = app()->bound(Apps::class) ? app(Apps::class) : null;
+        app()->instance(Apps::class, Apps::getById($this->appId));
+
+        try {
+            parent::handle();
+        } finally {
+            $previous !== null
+                ? app()->instance(Apps::class, $previous)
+                : app()->forgetInstance(Apps::class);
+        }
     }
 }

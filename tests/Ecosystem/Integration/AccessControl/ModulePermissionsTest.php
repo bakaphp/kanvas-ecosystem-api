@@ -32,10 +32,7 @@ class ModulePermissionsTest extends TestCase
         // Bouncer caches abilities per user; resolve from the DB so each method sees what it set up.
         Bouncer::dontCache();
 
-        // Use a dedicated user, NOT the base TestCase's static cached user which is shared across
-        // every test in the process — other tests' Bouncer grants/revokes on that shared user made
-        // these role checks non-deterministic under paratest.
-        $this->user = $this->createUser();
+        $this->user = auth()->user();
         $this->company = $this->user->getCurrentCompany();
         $this->appInstance = app(Apps::class);
         $this->scope = RolesEnums::getScope($this->appInstance, $this->company);

@@ -4,28 +4,26 @@ declare(strict_types=1);
 
 namespace Baka\Search\Jobs;
 
-use Baka\Traits\KanvasJobsTrait;
 use Kanvas\Apps\Models\Apps;
 use Laravel\Scout\Jobs\MakeSearchable;
 use Override;
 
 /**
- * Scout's MakeSearchable resolves the engine via app(Apps::class), but the queue worker's bound app
- * is NOT the tenant that dispatched the job (and models like Users have no app relation to derive it
- * from). So queued indexing silently routes to the wrong / Null engine. We capture the tenant at
- * dispatch time and rebind it in the worker before Scout resolves the engine.
+ * Scout resolves the engine via app(Apps::class), but a queue worker's bound app is NOT the tenant
+ * that dispatched the job (and models like Users have no app relation to derive it from), so queued
+ * indexing silently routes to the wrong / Null engine. We capture the tenant at dispatch and rebind
+ * it before Scout resolves the engine.
+ *
+ * We rebind the APP ONLY — never overwriteAppService(), which also resets the Bouncer permission
+ * scope to company 0. Scout can run inline on the sync queue while the caller holds a company-scoped
+ * Bouncer scope (e.g. saving a Role mid permission-setup), and resetting it corrupts them.
  */
 class TenantAwareMakeSearchable extends MakeSearchable
 {
-    use KanvasJobsTrait;
-
     public ?int $appId = null;
 
     /**
-     * Create a new job instance.
-     *
      * @param  \Illuminate\Database\Eloquent\Collection  $models
-     * @return void
      */
     public function __construct($models)
     {
@@ -37,10 +35,21 @@ class TenantAwareMakeSearchable extends MakeSearchable
     #[Override]
     public function handle(): void
     {
-        if ($this->appId !== null) {
-            $this->overwriteAppService(Apps::getById($this->appId));
+        if ($this->appId === null) {
+            parent::handle();
+
+            return;
         }
 
-        parent::handle();
+        $previous = app()->bound(Apps::class) ? app(Apps::class) : null;
+        app()->instance(Apps::class, Apps::getById($this->appId));
+
+        try {
+            parent::handle();
+        } finally {
+            $previous !== null
+                ? app()->instance(Apps::class, $previous)
+                : app()->forgetInstance(Apps::class);
+        }
     }
 }
