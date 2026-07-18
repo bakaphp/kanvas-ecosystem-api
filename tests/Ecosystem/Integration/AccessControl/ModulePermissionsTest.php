@@ -29,6 +29,11 @@ class ModulePermissionsTest extends TestCase
     {
         parent::setUp();
 
+        // Bouncer caches abilities per user; across this file's methods that cache goes stale after a
+        // role/permission is granted, so a later can() reads pre-grant abilities and wrongly returns
+        // false. Resolve every ability from the DB so each method sees the state it just set up.
+        Bouncer::dontCache();
+
         $this->user = auth()->user();
         $this->company = $this->user->getCurrentCompany();
         $this->appInstance = app(Apps::class);
