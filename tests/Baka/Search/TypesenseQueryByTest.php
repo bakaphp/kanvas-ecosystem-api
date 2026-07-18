@@ -13,6 +13,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Templates\Models\Templates;
 use Kanvas\Users\Models\Users;
+use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -24,6 +25,10 @@ use Tests\TestCase;
  * per-model inside each `search()` override, behind `isTypesense()`. Every DynamicSearchableTrait
  * model that can run on Typesense must set it or its `@search` query 400s the moment the app (or
  * that module) is switched to Typesense.
+ *
+ * Engine resolution is forced in-memory by mocking the app's `get()` — the app's `search_engine`
+ * setting lives in shared Redis, so persisting it (even in a DB transaction) would leak Typesense
+ * into sibling tests running in parallel and blow them up with "api_key is not defined".
  */
 final class TypesenseQueryByTest extends TestCase
 {
@@ -46,9 +51,7 @@ final class TypesenseQueryByTest extends TestCase
     #[DataProvider('typesenseModelProvider')]
     public function testSearchSetsQueryByOnTypesense(string $modelClass, string $expectedQueryBy): void
     {
-        $app = app(Apps::class);
-        $original = $app->get('search_engine');
-        $app->set('search_engine', 'typesense');
+        $this->forceTypesense();
 
         try {
             $builder = $modelClass::search('lookup');
@@ -59,7 +62,7 @@ final class TypesenseQueryByTest extends TestCase
                 $modelClass . '::search() must set query_by on Typesense or it 400s with "No search fields specified for the query".'
             );
         } finally {
-            $original === null ? $app->del('search_engine') : $app->set('search_engine', $original);
+            app()->forgetInstance(Apps::class);
         }
     }
 
@@ -76,5 +79,23 @@ final class TypesenseQueryByTest extends TestCase
 
         $this->assertNotNull($scopeWhere, 'Role::search() must filter by Bouncer scope or it leaks roles across apps.');
         $this->assertSame($expectedScope, $scopeWhere['value']);
+    }
+
+    /**
+     * Rebind app(Apps::class) to a partial mock whose `get()` reports the Typesense engine for any
+     * *_search_engine key and passes everything else through to the real app. Process-local, so it
+     * never touches shared Redis/DB.
+     */
+    private function forceTypesense(): void
+    {
+        $realApp = app(Apps::class);
+        $app = Mockery::mock($realApp)->makePartial();
+        $app->shouldReceive('get')->andReturnUsing(
+            fn (string $name, mixed $default = null): mixed => str_ends_with($name, 'search_engine')
+                ? 'typesense'
+                : $realApp->get($name, $default)
+        );
+
+        app()->instance(Apps::class, $app);
     }
 }
