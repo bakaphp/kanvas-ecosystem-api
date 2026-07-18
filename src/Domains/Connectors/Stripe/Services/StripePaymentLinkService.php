@@ -84,12 +84,8 @@ class StripePaymentLinkService
             }
         }
 
-        // Add success and cancel URLs if provided
-        if (isset($options['success_url'])) {
-            $paymentLinkData['after_completion'] = [
-                'type' => 'redirect',
-                'redirect' => ['url' => $options['success_url']],
-            ];
+        if ($afterCompletion = $this->buildAfterCompletion($options)) {
+            $paymentLinkData['after_completion'] = $afterCompletion;
         }
 
         // Add automatic tax calculation if enabled
@@ -168,12 +164,8 @@ class StripePaymentLinkService
             $paymentLinkData['metadata'] = $options['metadata'];
         }
 
-        // Add success URL if provided
-        if (isset($options['success_url'])) {
-            $paymentLinkData['after_completion'] = [
-                'type' => 'redirect',
-                'redirect' => ['url' => $options['success_url']],
-            ];
+        if ($afterCompletion = $this->buildAfterCompletion($options)) {
+            $paymentLinkData['after_completion'] = $afterCompletion;
         }
 
         $paymentLink = $this->stripe->paymentLinks->create($paymentLinkData);
@@ -183,6 +175,24 @@ class StripePaymentLinkService
         $message->set('stripe_payment_link_url', $paymentLink->url);
 
         return $paymentLink;
+    }
+
+    /**
+     * Stripe rejects an empty `after_completion[redirect][url]`
+     * (`parameter_invalid_empty`): it reads "" as an attempt to unset the
+     * param, which cannot be unset. Return null when no non-empty success_url
+     * is supplied so the block is omitted entirely instead of failing the request.
+     */
+    protected function buildAfterCompletion(array $options): ?array
+    {
+        if (empty($options['success_url'])) {
+            return null;
+        }
+
+        return [
+            'type' => 'redirect',
+            'redirect' => ['url' => $options['success_url']],
+        ];
     }
 
     /**
