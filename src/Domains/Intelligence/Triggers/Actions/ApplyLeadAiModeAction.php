@@ -186,7 +186,7 @@ class ApplyLeadAiModeAction
         $aiModeKey = new LeadConfigurationService()->getAiModeKey($this->lead);
 
         $this->lead->set($aiModeKey, $aiMode);
-        $this->lead->set(LeadConfigurationEnum::AI_MODE->value, $aiMode);
+        // $this->lead->set(LeadConfigurationEnum::AI_MODE->value, $aiMode);
     }
 
     protected function setFollowUp(FollowUpValueEnum $followUpValue)
