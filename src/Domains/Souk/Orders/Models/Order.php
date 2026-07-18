@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Orders\Models;
 
 use Baka\Casts\Json;
 use Baka\Contracts\PayableInterface;
+use Baka\Support\Arr;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Companies\Models\Companies;
@@ -502,7 +504,7 @@ class Order extends BaseModel implements PayableInterface
     {
         $this->loadMissing(['items', 'people']);
 
-        return [
+        $order = [
             ...$this->toArray(),
             'objectID' => $this->uuid,
             'order_number_text' => (string) $this->order_number,
@@ -512,6 +514,42 @@ class Order extends BaseModel implements PayableInterface
             'created_at' => $this->created_at?->getTimestamp() ?? 0,
             'updated_at' => $this->updated_at?->getTimestamp() ?? 0,
         ];
+
+        if ($this->isAlgolia()) {
+            $order = $this->fitWithinAlgoliaRecordLimit($order);
+        }
+
+        return $order;
+    }
+
+    protected function fitWithinAlgoliaRecordLimit(array $order): array
+    {
+        $limit = 95000; // headroom under Algolia's 100,000-byte hard limit
+
+        if (Arr::sizeInBytes($order) <= $limit) {
+            return $order;
+        }
+
+        // Raw integration payloads; metadata_text already carries the searchable scalars.
+        unset($order['private_metadata'], $order['metadata']);
+        if (Arr::sizeInBytes($order) <= $limit) {
+            return $order;
+        }
+
+        $order['metadata_text'] = Str::limit((string) ($order['metadata_text'] ?? ''), 2000, '');
+        if (Arr::sizeInBytes($order) <= $limit) {
+            return $order;
+        }
+
+        // Item detail is re-hydrated from the DB; products_text keeps the searchable names/SKUs.
+        unset($order['items'], $order['allItems']);
+        if (Arr::sizeInBytes($order) <= $limit) {
+            return $order;
+        }
+
+        $order['products_text'] = Str::limit((string) ($order['products_text'] ?? ''), 2000, '');
+
+        return $order;
     }
 
     /**

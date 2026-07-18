@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Search;
+namespace App\Console\Commands\Social;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
@@ -30,7 +30,7 @@ class ScoutMessageReindexCommand extends Command
      * Execute the console command.
      *
      */
-    public function handle(): void
+    public function handle()
     {
         $app = Apps::getById($this->argument('app_id'));
         $this->overwriteAppService($app);

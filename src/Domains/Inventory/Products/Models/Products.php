@@ -590,15 +590,6 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         return $product;
     }
 
-    /**
-     * Algolia rejects any record over 10,000 bytes (and fails the whole batch),
-     * so trim the heaviest fields ONLY when the payload is actually over budget.
-     * Records that already fit are left untouched (variant images included).
-     * Trimming runs least-important first; variant files (images) and product
-     * images are sacrificed last so they survive whenever the record fits. The
-     * dropped detail is re-hydrated from the DB by the search/recommendation
-     * tools anyway.
-     */
     protected function fitWithinAlgoliaRecordLimit(array $product): array
     {
         $limit = 9500; // headroom under Algolia's 10,000-byte hard limit
