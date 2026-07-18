@@ -13,7 +13,7 @@ use App\Console\Commands\ImportPromptsFromDocsCommand;
 use App\Console\Commands\Lead\Schedules\LeadFollowUpSchedule;
 use App\Console\Commands\NervousSystem\Schedules\NervousSystemSchedule;
 use App\Console\Commands\Scribe\Schedules\ScribeSchedule;
-use App\Console\Commands\Social\ScoutMessageReindexCommand;
+use App\Console\Commands\Search\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
 use App\Console\Commands\Souk\CancelStalePaymentsCommand;
 use App\Console\Commands\Souk\OrderFinishExpiredCommand;

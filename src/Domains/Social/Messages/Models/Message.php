@@ -454,6 +454,7 @@ class Message extends BaseModel
         $data = [
             'objectID' => $this->uuid,
             ...$this->toArray(),
+            'message_text' => $this->contentText(),
             'user' => [
                 'id' => $this->users_id,
                 'name' => trim(($this->user->firstname ?? '') . ' ' . ($this->user->lastname ?? '')),
@@ -698,6 +699,12 @@ class Message extends BaseModel
     {
         $app = app(Apps::class);
         $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+
+        if ($searchQuery->model->isTypesense()) {
+            $searchQuery->options([
+                'query_by' => 'message_text',
+            ]);
+        }
 
         if (app()->bound(AppKey::class) && ! app()->bound(CompaniesBranches::class)) {
             return $searchQuery;
