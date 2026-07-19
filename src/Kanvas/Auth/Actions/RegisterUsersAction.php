@@ -46,7 +46,14 @@ class RegisterUsersAction extends CreateUserAction
                 throw new AuthenticationException('Email has already been taken.');
             } catch (ModelNotFoundException $e) {
                 $this->registerUserInApp($user);
-                $company = $this->createCompany($user);
+
+                if ($company === null) {
+                    $company = $this->createCompany($user);
+                } else {
+                    $this->assignCompany($user);
+                }
+
+                $this->assignUserRole($user);
             }
         } catch (ModelNotFoundException $e) {
             $newUser = true;

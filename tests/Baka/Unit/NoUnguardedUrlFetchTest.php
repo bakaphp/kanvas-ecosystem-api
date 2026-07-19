@@ -47,6 +47,9 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         'src/Baka/Helpers/MergePdf.php',
         // CLI: admin-configured WordPress endpoint.
         'app/Console/Commands/Connectors/WordPress/DownloadWordPressInventoryCommand.php',
+        // Reads a local temp file it created itself (tempnam()) to build a backup ZIP —
+        // never a remote or user-influenced path.
+        'src/Domains/Intelligence/Agents/Services/AgentConfigBackupService.php',
     ];
 
     public function testNoUnguardedRemoteUrlFetch(): void
