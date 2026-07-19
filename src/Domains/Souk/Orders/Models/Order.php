@@ -506,6 +506,7 @@ class Order extends BaseModel implements PayableInterface
 
         $order = [
             ...$this->toArray(),
+            'id' => (string) $this->id, // Typesense requires the document id to be a string
             'objectID' => $this->uuid,
             'order_number_text' => (string) $this->order_number,
             'customer_name' => (string) ($this->people?->name ?? ''),
@@ -593,7 +594,7 @@ class Order extends BaseModel implements PayableInterface
                 ],
                 [
                     'name' => 'id',
-                    'type' => 'int64',
+                    'type' => 'string',
                 ],
                 [
                     'name' => 'uuid',
