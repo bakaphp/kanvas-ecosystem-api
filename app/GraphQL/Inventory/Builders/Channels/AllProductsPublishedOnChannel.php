@@ -27,7 +27,6 @@ class AllProductsPublishedOnChannel
         ResolveInfo $resolveInfo
     ): Builder {
         $channelUuid = $args['id'];
-
         $channel = Channels::getByUuid($channelUuid);
         $variants = new ModelsVariants();
         $variantsChannel = new VariantsChannels();
@@ -57,8 +56,6 @@ class AllProductsPublishedOnChannel
                 ->where($variantsChannelTable . '.is_published', 1)
                 ->select('products.*')
                 ->distinct();
-
-            return $query;
         } else {
             $query = Products::query()
                 ->join($variantsTable, $variantsTable . '.products_id', '=', 'products.id')
@@ -68,8 +65,6 @@ class AllProductsPublishedOnChannel
                 ->where($variantsChannelTable . '.is_published', 1)
                 ->select('products.*')
                 ->distinct();
-
-            return $query;
         }
 
         return $query;

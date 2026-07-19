@@ -29,6 +29,9 @@ class ModulePermissionsTest extends TestCase
     {
         parent::setUp();
 
+        // Bouncer caches abilities per user; resolve from the DB so each method sees what it set up.
+        Bouncer::dontCache();
+
         $this->user = auth()->user();
         $this->company = $this->user->getCurrentCompany();
         $this->appInstance = app(Apps::class);
