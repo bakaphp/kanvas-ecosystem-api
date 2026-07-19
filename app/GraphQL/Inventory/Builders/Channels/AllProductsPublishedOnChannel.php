@@ -47,10 +47,7 @@ class AllProductsPublishedOnChannel
         $variantsTable = $variants->getTable();
 
         if (! empty($args['search'])) {
-            // NOT ->keys(): on Algolia (Scout Extended) that returns the objectID — here the product
-            // uuid — which never matches the numeric products.id. get()->modelKeys() hydrates so the
-            // engine maps back to the real primary keys.
-            $productIds = Products::search($args['search'])->get()->modelKeys();
+            $productIds = Products::search($args['search'])->keys();
             $query = Products::query()
                 ->whereIn('products.id', $productIds)
                 ->join($variantsTable, $variantsTable . '.products_id', '=', 'products.id')

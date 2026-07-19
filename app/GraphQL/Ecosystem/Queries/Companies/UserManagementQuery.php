@@ -64,19 +64,11 @@ class UserManagementQuery
         ->groupBy('users_associated_apps.users_id');
 
         if (! empty($args['search'])) {
-            $userSearch = Users::traitSearch((string) $args['search'])
-                ->whereIn('apps', [$app->getId()]);
+            $searchResults = Users::traitSearch((string) $args['search'])
+                ->whereIn('apps', [$app->getId()])
+                ->keys();
 
-            // traitSearch bypasses Users::search(), so query_by must be set here or Typesense 400s
-            // with "No search fields specified for the query" (KANVAS-ECOSYSTEM-626).
-            if ($userSearch->model->isTypesense()) {
-                $userSearch->options(['query_by' => 'firstname,lastname,displayname,email']);
-            }
-
-            // NOT ->keys(): on Algolia (Scout Extended) that returns composite objectIDs like
-            // "Kanvas\Users\Models\Users::27914", which never match users.id. get()->modelKeys()
-            // lets the engine decrypt the objectID back to the real primary key.
-            $query->whereIn('users.id', $userSearch->get()->modelKeys());
+            $query->whereIn('users.id', $searchResults->toArray());
         }
 
         return $query;
