@@ -13,9 +13,6 @@ use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class UserManagementQuery
 {
-    /**
-     * all.
-     */
     public function getAllCompanyUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
     {
         $companiesId = auth()->user()->isAdmin() && ! empty($args['companies_id']) ? $args['companies_id'] : auth()->user()->currentCompanyId();

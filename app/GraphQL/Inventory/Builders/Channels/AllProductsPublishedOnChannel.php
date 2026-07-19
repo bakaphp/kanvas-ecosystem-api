@@ -27,7 +27,6 @@ class AllProductsPublishedOnChannel
         ResolveInfo $resolveInfo
     ): Builder {
         $channelUuid = $args['id'];
-
         $channel = Channels::getByUuid($channelUuid);
         $variants = new ModelsVariants();
         $variantsChannel = new VariantsChannels();
