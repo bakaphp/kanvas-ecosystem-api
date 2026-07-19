@@ -454,6 +454,7 @@ class Message extends BaseModel
         $data = [
             'objectID' => $this->uuid,
             ...$this->toArray(),
+            'id' => (string) $this->id, // Typesense requires the document id to be a string
             'message_text' => $this->contentText(),
             'user' => [
                 'id' => $this->users_id,
