@@ -168,11 +168,13 @@ class PullSalesOrdersAction
                 continue;
             }
 
-            $exists = OrderModel::query()
-                ->fromApp($this->app)
-                ->fromCompany($this->company)
-                ->where('order_number', $order->orderNumber)
-                ->first();
+            // Acumatica OrderNbr is alphanumeric (e.g. "W61840011"), so it can't live in Souk's numeric
+            // order_number column — dedup on the stable Acumatica order GUID instead.
+            $acumaticaOrderId = (string) ($order->customFields[CustomFieldEnum::ORDER_ID->value] ?? '');
+
+            $exists = $acumaticaOrderId !== ''
+                ? OrderModel::getByCustomField(CustomFieldEnum::ORDER_ID->value, $acumaticaOrderId, $this->company)
+                : null;
 
             if ($exists !== null) {
                 $this->skipped['already_exists']++;
@@ -204,7 +206,7 @@ class PullSalesOrdersAction
                 people: $people,
                 user: $this->user,
                 token: $order->token,
-                orderNumber: $order->orderNumber,
+                orderNumber: $this->nextOrderNumber(),
                 shippingAddress: null,
                 billingAddress: null,
                 total: $order->total,
@@ -223,15 +225,26 @@ class PullSalesOrdersAction
             $createOrder->runWorkflow = false;
             $orderModel = $createOrder->execute();
 
-            $orderModel->set(
-                CustomFieldEnum::ORDER_ID->value,
-                (string) $order->customFields[CustomFieldEnum::ORDER_ID->value]
-            );
+            $orderModel->set(CustomFieldEnum::ORDER_ID->value, $acumaticaOrderId);
+            // The Acumatica order number (alphanumeric) is preserved here since it can't go in order_number.
+            $orderModel->set(CustomFieldEnum::ORDER_REF->value, $order->orderNumber);
 
             $count++;
         }
 
         return $count;
+    }
+
+    /**
+     * Next Souk order number for this tenant — the sequential MAX+1 Souk uses for its own orders.
+     * Acumatica's real order number lives in ORDER_REF + metadata; order_number is just the Souk id.
+     */
+    private function nextOrderNumber(): int
+    {
+        return (int) OrderModel::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('companies_id', $this->company->getId())
+            ->max('order_number') + 1;
     }
 
     /**
