@@ -13,8 +13,12 @@ use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class UserManagementQuery
 {
-    public function getAllCompanyUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
-    {
+    public function getAllCompanyUsers(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
         $companiesId = auth()->user()->isAdmin() && ! empty($args['companies_id']) ? $args['companies_id'] : auth()->user()->currentCompanyId();
         $app = app(Apps::class);
 
@@ -74,8 +78,12 @@ class UserManagementQuery
     /**
      * Get the current users from this branch.
      */
-    public function getAllCompanyBranchUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
-    {
+    public function getAllCompanyBranchUsers(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
         $branchId = auth()->user()->isAdmin() && ! empty($args['getCurrentBranch']) ? $args['getCurrentBranch'] : auth()->user()->currentBranchId();
         $app = app(Apps::class);
 
