@@ -47,7 +47,10 @@ class AllProductsPublishedOnChannel
         $variantsTable = $variants->getTable();
 
         if (! empty($args['search'])) {
-            $productIds = Products::search($args['search'])->keys();
+            // NOT ->keys(): on Algolia (Scout Extended) that returns the objectID — here the product
+            // uuid — which never matches the numeric products.id. get()->modelKeys() hydrates so the
+            // engine maps back to the real primary keys.
+            $productIds = Products::search($args['search'])->get()->modelKeys();
             $query = Products::query()
                 ->whereIn('products.id', $productIds)
                 ->join($variantsTable, $variantsTable . '.products_id', '=', 'products.id')
@@ -57,8 +60,6 @@ class AllProductsPublishedOnChannel
                 ->where($variantsChannelTable . '.is_published', 1)
                 ->select('products.*')
                 ->distinct();
-
-            return $query;
         } else {
             $query = Products::query()
                 ->join($variantsTable, $variantsTable . '.products_id', '=', 'products.id')
@@ -68,8 +69,6 @@ class AllProductsPublishedOnChannel
                 ->where($variantsChannelTable . '.is_published', 1)
                 ->select('products.*')
                 ->distinct();
-
-            return $query;
         }
 
         return $query;
