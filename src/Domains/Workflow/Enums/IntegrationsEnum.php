@@ -60,4 +60,5 @@ enum IntegrationsEnum: string
     case REYNOLDS = 'reynolds';
     case ACUMATICA = 'acumatica';
     case MERCURY = 'mercury';
+    case SALESFORCE = 'salesforce';
 }

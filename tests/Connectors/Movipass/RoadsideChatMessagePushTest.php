@@ -103,6 +103,77 @@ final class RoadsideChatMessagePushTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function testResolvesRoadsideOrderFromSlugWhenChannelNotOrderLinked(): void
+    {
+        $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
+        $mechanic = Users::factory()->create();
+        // Channel auto-created by the generic message flow: linked to the Message, not the Order.
+        $channel = $this->createOrderChannel(
+            $order,
+            [$this->authUser->getId(), $mechanic->getId()],
+            [
+                'slug' => 'roadside-' . $order->uuid,
+                'entity_id' => 999999,
+                'entity_namespace' => Message::class,
+            ],
+        );
+        $message = $this->createChannelMessage($channel, $this->authUser);
+
+        Notification::fake();
+
+        $notified = new SendRoadsideChatMessagePushAction($channel, $message)->execute();
+
+        $this->assertSame(1, $notified);
+        Notification::assertSentTo($mechanic, RoadsideChatMessageNotification::class);
+    }
+
+    public function testResolvesRoadsideOrderFromChannelMetadata(): void
+    {
+        $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
+        $mechanic = Users::factory()->create();
+        $channel = $this->createOrderChannel(
+            $order,
+            [$this->authUser->getId(), $mechanic->getId()],
+            [
+                'slug' => 'chat-' . $order->getId(),
+                'entity_id' => 888888,
+                'entity_namespace' => Message::class,
+                'metadata' => ['order_uuid' => $order->uuid],
+            ],
+        );
+        $message = $this->createChannelMessage($channel, $this->authUser);
+
+        Notification::fake();
+
+        $notified = new SendRoadsideChatMessagePushAction($channel, $message)->execute();
+
+        $this->assertSame(1, $notified);
+        Notification::assertSentTo($mechanic, RoadsideChatMessageNotification::class);
+    }
+
+    public function testReturnsZeroWhenNoOrderCanBeResolved(): void
+    {
+        $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
+        $mechanic = Users::factory()->create();
+        $channel = $this->createOrderChannel(
+            $order,
+            [$this->authUser->getId(), $mechanic->getId()],
+            [
+                'slug' => 'chat-no-order-ref',
+                'entity_id' => 777777,
+                'entity_namespace' => Message::class,
+            ],
+        );
+        $message = $this->createChannelMessage($channel, $this->authUser);
+
+        Notification::fake();
+
+        $notified = new SendRoadsideChatMessagePushAction($channel, $message)->execute();
+
+        $this->assertSame(0, $notified);
+        Notification::assertNothingSent();
+    }
+
     private function createOrder(string $type): Order
     {
         $orderType = OrderTypes::firstOrCreate([
@@ -126,7 +197,7 @@ final class RoadsideChatMessagePushTest extends TestCase
             ]);
     }
 
-    private function createOrderChannel(Order $order, array $memberIds): Channel
+    private function createOrderChannel(Order $order, array $memberIds, array $overrides = []): Channel
     {
         $channel = Channel::create([
             'apps_id' => $this->apps->getId(),
@@ -137,6 +208,7 @@ final class RoadsideChatMessagePushTest extends TestCase
             'entity_id' => $order->getId(),
             'entity_namespace' => Order::class,
             'users_id' => $this->authUser->getId(),
+            ...$overrides,
         ]);
 
         foreach ($memberIds as $memberId) {
