@@ -440,6 +440,7 @@ class Lead extends BaseModel implements EventResourceInterface
         $this->save();
     }
 
+    #[Override]
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted();
@@ -451,8 +452,8 @@ class Lead extends BaseModel implements EventResourceInterface
             'objectID' => "Kanvas\Guild\Leads\Models\Lead::{$this->id}",
             'id' => (string) $this->id,
             'uuid' => (string) $this->uuid,
-            'email' => (string) $this->email,
-            'phone' => (string) $this->phone,
+            'email' => (string) $this->email ?? $this->people?->email,
+            'phone' => (string) $this->phone ?? $this->people?->getAllPhones()->first()?->phone,
             'title' => (string) $this->title,
             'firstname' => (string) $this->firstname,
             'lastname' => (string) $this->lastname,
@@ -718,7 +719,7 @@ class Lead extends BaseModel implements EventResourceInterface
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
+                'query_by' => 'title,firstname,lastname,email,description,translations', 
             ]);
         }
 
