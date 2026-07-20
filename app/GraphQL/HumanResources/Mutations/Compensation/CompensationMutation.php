@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\HumanResources\Mutations\Compensation;
 
-use DateTimeInterface;
-use Kanvas\Apps\Models\Apps;
+use App\GraphQL\HumanResources\Concerns\ResolvesActingContext;
 use Kanvas\HumanResources\Compensation\Actions\RecordCompensationAction;
 use Kanvas\HumanResources\Compensation\DataTransferObject\EmployeeCompensation as EmployeeCompensationData;
 use Kanvas\HumanResources\Compensation\Models\EmployeeCompensation;
@@ -14,11 +13,11 @@ use Kanvas\HumanResources\Employees\Models\Employee;
 
 class CompensationMutation
 {
+    use ResolvesActingContext;
+
     public function record(mixed $rootValue, array $request): EmployeeCompensation
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [$user, $app, $company] = $this->actingContext();
         $input = $request['input'];
 
         /** @var Employee $employee */
@@ -43,10 +42,5 @@ class CompensationMutation
                 changeReason: $input['change_reason'] ?? null,
             ),
         )->execute();
-    }
-
-    private function normalizeDate(mixed $value): string
-    {
-        return $value instanceof DateTimeInterface ? $value->format('Y-m-d') : (string) $value;
     }
 }

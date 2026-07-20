@@ -21,33 +21,38 @@ class SyncAgentTypesCommand extends Command
         $created = [];
 
         foreach ($discovery->discover() as $entry) {
-            $agentType = AgentType::firstOrCreate(
-                [
-                    'handler' => $entry['class'],
-                    'apps_id' => 0,
-                ],
-                [
-                    'name' => $entry['name'],
-                    'description' => $entry['description'],
-                    'provider' => $entry['provider'],
-                    'soul' => $entry['soul'],
-                    'instructions' => $entry['instructions'],
-                    'output_format' => $entry['outputFormat'],
-                    'role' => $entry['role'] ?? json_encode([]),
-                    'config' => $entry['config'],
-                    'multi_agent_list' => [],
-                    'is_active' => true,
-                    'is_published' => $entry['isPublished'],
-                    'is_default' => $entry['isDefault'],
-                    'is_multi_agent' => $entry['isMultiAgent'],
-                    'weight' => $entry['weight'],
-                    'is_deleted' => false,
-                ],
-            );
+            $exists = AgentType::query()
+                ->where('handler', $entry['class'])
+                ->where('apps_id', 0)
+                ->exists();
 
-            if ($agentType->wasRecentlyCreated) {
-                $created[] = $agentType->name;
+            if ($exists) {
+                continue;
             }
+
+            $agentType = new AgentType([
+                'name' => $entry['name'],
+                'description' => $entry['description'],
+                'provider' => $entry['provider'],
+                'soul' => $entry['soul'],
+                'instructions' => $entry['instructions'],
+                'output_format' => $entry['outputFormat'],
+                'role' => $entry['role'] ?? json_encode([]),
+                'config' => $entry['config'],
+                'multi_agent_list' => [],
+                'is_active' => true,
+                'is_published' => $entry['isPublished'],
+                'is_default' => $entry['isDefault'],
+                'is_multi_agent' => $entry['isMultiAgent'],
+                'weight' => $entry['weight'],
+                'handler' => $entry['class'],
+            ]);
+            // apps_id is guarded (dropped from mass-assignment), and AppsIdTrait defaults it to the
+            // ambient app — so set it explicitly to keep the catalog global. (0 ?? appId) === 0.
+            $agentType->apps_id = 0;
+            $agentType->save();
+
+            $created[] = $agentType->name;
         }
 
         if ($created !== []) {

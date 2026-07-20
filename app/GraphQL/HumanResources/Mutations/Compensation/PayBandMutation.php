@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\HumanResources\Mutations\Compensation;
 
-use DateTimeInterface;
-use Kanvas\Apps\Models\Apps;
+use App\GraphQL\HumanResources\Concerns\ResolvesActingContext;
 use Kanvas\HumanResources\Compensation\Actions\CreatePayBandAction;
 use Kanvas\HumanResources\Compensation\Actions\UpdatePayBandAction;
 use Kanvas\HumanResources\Compensation\DataTransferObject\PayBand as PayBandData;
@@ -14,11 +13,11 @@ use Kanvas\HumanResources\Positions\Models\Position;
 
 class PayBandMutation
 {
+    use ResolvesActingContext;
+
     public function create(mixed $rootValue, array $request): PayBand
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [$user, $app, $company] = $this->actingContext();
         $input = $request['input'];
 
         /** @var Position|null $position */
@@ -46,9 +45,7 @@ class PayBandMutation
 
     public function update(mixed $rootValue, array $request): PayBand
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [$user, $app, $company] = $this->actingContext();
         $input = $request['input'];
 
         /** @var PayBand $band */
@@ -75,10 +72,5 @@ class PayBandMutation
                 midAmount: isset($input['mid_amount']) ? (float) $input['mid_amount'] : $band->mid_amount,
             ),
         )->execute();
-    }
-
-    private function normalizeDate(mixed $value): string
-    {
-        return $value instanceof DateTimeInterface ? $value->format('Y-m-d') : (string) $value;
     }
 }

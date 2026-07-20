@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\GraphQL\HumanResources\Mutations\Employee;
 
+use App\GraphQL\HumanResources\Concerns\ResolvesActingContext;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use DateTimeInterface;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\HumanResources\Departments\Models\Department;
 use Kanvas\HumanResources\Employees\Actions\CreateEmployeeAction;
@@ -21,11 +20,11 @@ use Kanvas\Users\Models\Users;
 
 class EmployeeMutation
 {
+    use ResolvesActingContext;
+
     public function create(mixed $rootValue, array $request): Employee
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [$user, $app, $company] = $this->actingContext();
         $input = $request['input'];
 
         return new CreateEmployeeAction(
@@ -35,9 +34,7 @@ class EmployeeMutation
 
     public function update(mixed $rootValue, array $request): Employee
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [$user, $app, $company] = $this->actingContext();
         $input = $request['input'];
 
         /** @var Employee $employee */
@@ -51,9 +48,7 @@ class EmployeeMutation
 
     public function delete(mixed $rootValue, array $request): bool
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [, $app, $company] = $this->actingContext();
 
         $employee = Employee::getByIdFromCompanyApp((int) $request['id'], $company, $app);
 
@@ -74,9 +69,7 @@ class EmployeeMutation
         $position = isset($input['position_id'])
             ? Position::getByIdFromCompanyApp((int) $input['position_id'], $company, $app)
             : $existing->position;
-        // The GraphQL Date scalar hydrates to a Carbon instance — normalize to a Y-m-d string for the DTO.
-        $hiredAtRaw = $input['hired_at'] ?? $existing->hired_at;
-        $hiredAt = $hiredAtRaw instanceof DateTimeInterface ? $hiredAtRaw->format('Y-m-d') : (string) $hiredAtRaw;
+        $hiredAt = $this->normalizeDate($input['hired_at'] ?? $existing->hired_at);
 
         return new EmployeeData(
             app: $app,

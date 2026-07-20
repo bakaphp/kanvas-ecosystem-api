@@ -11,7 +11,7 @@ class LeaveTypeCrudTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'hr', 'intelligence'];
+    protected array $connectionsToTransact = ['mysql', 'hr', 'intelligence', 'social'];
 
     public function testCreateLeaveType(): void
     {

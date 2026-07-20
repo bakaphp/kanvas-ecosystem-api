@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\HumanResources\Mutations\Leave;
 
-use DateTimeInterface;
-use Kanvas\Apps\Models\Apps;
+use App\GraphQL\HumanResources\Concerns\ResolvesActingContext;
 use Kanvas\HumanResources\Employees\Models\Employee;
 use Kanvas\HumanResources\Employees\Services\EmployeeIdentityResolver;
 use Kanvas\HumanResources\Exceptions\HumanResourcesException;
@@ -19,11 +18,11 @@ use Kanvas\HumanResources\Leave\Models\LeaveType;
 
 class LeaveRequestMutation
 {
+    use ResolvesActingContext;
+
     public function request(mixed $rootValue, array $request): LeaveRequest
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [$user, $app, $company] = $this->actingContext();
         $input = $request['input'];
 
         $own = new EmployeeIdentityResolver()->fromUser($user, $company, $app);
@@ -63,9 +62,7 @@ class LeaveRequestMutation
 
     public function decide(mixed $rootValue, array $request): LeaveRequest
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [$user, $app, $company] = $this->actingContext();
 
         /** @var LeaveRequest $leaveRequest */
         $leaveRequest = LeaveRequest::getByIdFromCompanyApp((int) $request['id'], $company, $app);
@@ -86,9 +83,7 @@ class LeaveRequestMutation
 
     public function cancel(mixed $rootValue, array $request): LeaveRequest
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [$user, $app, $company] = $this->actingContext();
 
         /** @var LeaveRequest $leaveRequest */
         $leaveRequest = LeaveRequest::getByIdFromCompanyApp((int) $request['id'], $company, $app);
@@ -107,10 +102,5 @@ class LeaveRequestMutation
         }
 
         return $manager->descendants()->where('id', $target->getId())->exists();
-    }
-
-    private function normalizeDate(mixed $value): string
-    {
-        return $value instanceof DateTimeInterface ? $value->format('Y-m-d') : (string) $value;
     }
 }

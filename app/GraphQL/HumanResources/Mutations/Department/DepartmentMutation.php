@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\HumanResources\Mutations\Department;
 
-use Kanvas\Apps\Models\Apps;
+use App\GraphQL\HumanResources\Concerns\ResolvesActingContext;
 use Kanvas\HumanResources\Departments\Actions\CreateDepartmentAction;
 use Kanvas\HumanResources\Departments\Actions\UpdateDepartmentAction;
 use Kanvas\HumanResources\Departments\DataTransferObject\Department as DepartmentData;
@@ -12,11 +12,11 @@ use Kanvas\HumanResources\Departments\Models\Department;
 
 class DepartmentMutation
 {
+    use ResolvesActingContext;
+
     public function create(mixed $rootValue, array $request): Department
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [$user, $app, $company] = $this->actingContext();
         $input = $request['input'];
 
         /** @var Department|null $parent */
@@ -41,9 +41,7 @@ class DepartmentMutation
 
     public function update(mixed $rootValue, array $request): Department
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [$user, $app, $company] = $this->actingContext();
         $input = $request['input'];
 
         /** @var Department $department */
@@ -71,9 +69,7 @@ class DepartmentMutation
 
     public function delete(mixed $rootValue, array $request): bool
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [, $app, $company] = $this->actingContext();
 
         $department = Department::getByIdFromCompanyApp((int) $request['id'], $company, $app);
 

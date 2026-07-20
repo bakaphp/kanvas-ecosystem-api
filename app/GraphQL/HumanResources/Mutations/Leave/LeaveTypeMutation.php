@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\HumanResources\Mutations\Leave;
 
-use Kanvas\Apps\Models\Apps;
+use App\GraphQL\HumanResources\Concerns\ResolvesActingContext;
 use Kanvas\HumanResources\Leave\Actions\CreateLeaveTypeAction;
 use Kanvas\HumanResources\Leave\Actions\UpdateLeaveTypeAction;
 use Kanvas\HumanResources\Leave\DataTransferObject\LeaveType as LeaveTypeData;
@@ -13,11 +13,11 @@ use Kanvas\HumanResources\Leave\Models\LeaveType;
 
 class LeaveTypeMutation
 {
+    use ResolvesActingContext;
+
     public function create(mixed $rootValue, array $request): LeaveType
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [$user, $app, $company] = $this->actingContext();
         $input = $request['input'];
 
         return new CreateLeaveTypeAction(
@@ -40,9 +40,7 @@ class LeaveTypeMutation
 
     public function update(mixed $rootValue, array $request): LeaveType
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [$user, $app, $company] = $this->actingContext();
         $input = $request['input'];
 
         /** @var LeaveType $type */

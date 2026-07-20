@@ -14,7 +14,7 @@ class LeaveRequestTest extends TestCase
     use DatabaseTransactions;
     use HrTestSetup;
 
-    protected array $connectionsToTransact = ['mysql', 'crm', 'hr', 'intelligence'];
+    protected array $connectionsToTransact = ['mysql', 'crm', 'hr', 'intelligence', 'social'];
 
     /**
      * Make the acting user an employee and create a leave type with the given annual allotment.

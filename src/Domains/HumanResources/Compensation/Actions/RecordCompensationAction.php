@@ -8,6 +8,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\HumanResources\Compensation\DataTransferObject\EmployeeCompensation as EmployeeCompensationData;
 use Kanvas\HumanResources\Compensation\Models\EmployeeCompensation;
+use Kanvas\HumanResources\Employees\Services\EmployeeActivityService;
 
 class RecordCompensationAction
 {
@@ -46,6 +47,14 @@ class RecordCompensationAction
                 'currency' => $comp->currency,
                 'change_reason' => $comp->change_reason,
             ], actorType: 'User', actorId: $this->data->user->getId());
+
+            new EmployeeActivityService()->record(
+                $this->data->employee,
+                'compensation.changed',
+                'Compensation updated' . ($comp->change_reason !== null && $comp->change_reason !== '' ? ': ' . $comp->change_reason : ''),
+                actor: $this->data->user,
+                context: ['currency' => $comp->currency, 'change_reason' => $comp->change_reason],
+            );
 
             return $comp;
         });

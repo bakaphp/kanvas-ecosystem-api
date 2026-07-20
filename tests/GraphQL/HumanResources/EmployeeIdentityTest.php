@@ -15,7 +15,7 @@ class EmployeeIdentityTest extends TestCase
     use DatabaseTransactions;
     use HrTestSetup;
 
-    protected array $connectionsToTransact = ['mysql', 'crm', 'hr', 'intelligence'];
+    protected array $connectionsToTransact = ['mysql', 'crm', 'hr', 'intelligence', 'social'];
 
     public function testResolveEmployeeFromUser(): void
     {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\HumanResources\Mutations\Position;
 
+use App\GraphQL\HumanResources\Concerns\ResolvesActingContext;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\HumanResources\Departments\Models\Department;
@@ -14,11 +15,11 @@ use Kanvas\HumanResources\Positions\Models\Position;
 
 class PositionMutation
 {
+    use ResolvesActingContext;
+
     public function create(mixed $rootValue, array $request): Position
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [$user, $app, $company] = $this->actingContext();
         $input = $request['input'];
 
         return new CreatePositionAction(
@@ -36,9 +37,7 @@ class PositionMutation
 
     public function update(mixed $rootValue, array $request): Position
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [$user, $app, $company] = $this->actingContext();
         $input = $request['input'];
 
         /** @var Position $position */
@@ -65,9 +64,7 @@ class PositionMutation
 
     public function delete(mixed $rootValue, array $request): bool
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [, $app, $company] = $this->actingContext();
 
         $position = Position::getByIdFromCompanyApp((int) $request['id'], $company, $app);
 

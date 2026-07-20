@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\HumanResources\Leave\Actions;
 
 use Illuminate\Support\Facades\DB;
+use Kanvas\HumanResources\Employees\Services\EmployeeActivityService;
 use Kanvas\HumanResources\Exceptions\HumanResourcesException;
 use Kanvas\HumanResources\Leave\Enums\LeaveRequestStatusEnum;
 use Kanvas\HumanResources\Leave\Models\LeaveRequest;
@@ -39,6 +40,14 @@ class CancelLeaveRequestAction
 
             $this->request->status = LeaveRequestStatusEnum::CANCELLED->value;
             $this->request->saveOrFail();
+
+            new EmployeeActivityService()->record(
+                $this->request->employee,
+                'leave.cancelled',
+                sprintf('Leave request cancelled (%d day(s))', $this->request->days),
+                actor: $this->request->employee->user,
+                context: ['days' => $this->request->days],
+            );
 
             return $this->request;
         });

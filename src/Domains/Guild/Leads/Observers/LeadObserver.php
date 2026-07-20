@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Observers;
 
 use Baka\Support\Str;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Guild\Customers\Actions\CreatePeopleByEmailAction;
 use Kanvas\Guild\Leads\Events\LeadCompanyUpdateEvent;
 use Kanvas\Guild\Leads\Events\LeadUpdateEvent;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -29,12 +29,12 @@ class LeadObserver
 
         // auto create new email
         if (empty($lead->people_id) && ! empty($lead->email)) {
-            $lead->people_id = PeoplesRepository::findByEmailOrCreate(
+            $lead->people_id = new CreatePeopleByEmailAction(
                 $lead->email,
                 $lead->user,
                 $lead->company,
                 $lead->firstname
-            )->getId();
+            )->execute()->getId();
         }
 
         if (empty($lead->title)) {

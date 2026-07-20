@@ -6,6 +6,7 @@ namespace Kanvas\HumanResources\Leave\Actions;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Kanvas\HumanResources\Employees\Services\EmployeeActivityService;
 use Kanvas\HumanResources\Exceptions\HumanResourcesException;
 use Kanvas\HumanResources\Leave\DataTransferObject\LeaveRequest as LeaveRequestData;
 use Kanvas\HumanResources\Leave\Enums\LeaveRequestStatusEnum;
@@ -62,6 +63,14 @@ class RequestLeaveAction
                 'days' => $days,
                 'leave_type' => $this->data->leaveType->name,
             ], actorType: 'User', actorId: $this->data->employee->users_id);
+
+            new EmployeeActivityService()->record(
+                $this->data->employee,
+                'leave.requested',
+                sprintf('Requested %d day(s) of %s (%s → %s)', $days, $this->data->leaveType->name, $start->toDateString(), $end->toDateString()),
+                actor: $this->data->employee->user,
+                context: ['days' => $days, 'leave_type' => $this->data->leaveType->name],
+            );
 
             return $request;
         });

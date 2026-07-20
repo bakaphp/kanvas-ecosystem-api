@@ -20,7 +20,7 @@ class DepartmentModuleAccessTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'hr', 'intelligence'];
+    protected array $connectionsToTransact = ['mysql', 'hr', 'intelligence', 'social'];
 
     private function createDepartmentId(): string
     {

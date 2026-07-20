@@ -6,6 +6,7 @@ namespace Kanvas\HumanResources\Leave\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Kanvas\HumanResources\Employees\Models\Employee;
+use Kanvas\HumanResources\Employees\Services\EmployeeActivityService;
 use Kanvas\HumanResources\Exceptions\HumanResourcesException;
 use Kanvas\HumanResources\Leave\Enums\LeaveDecisionEnum;
 use Kanvas\HumanResources\Leave\Enums\LeaveRequestStatusEnum;
@@ -51,6 +52,15 @@ class DecideLeaveRequestAction
             $this->request->emitLedgerEvent($eventType, payload: [
                 'days' => $this->request->days,
             ], actorType: 'User', actorId: $this->approver?->users_id);
+
+            $verb = $this->decision === LeaveDecisionEnum::APPROVE ? 'approved' : 'rejected';
+            new EmployeeActivityService()->record(
+                $this->request->employee,
+                $eventType,
+                sprintf('Leave request %s (%d day(s))', $verb, $this->request->days),
+                actor: $this->approver?->user,
+                context: ['days' => $this->request->days, 'note' => $this->note],
+            );
 
             return $this->request;
         });

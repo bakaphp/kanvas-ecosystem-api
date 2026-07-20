@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\HumanResources\Mutations\Access;
 
-use Kanvas\Apps\Models\Apps;
+use App\GraphQL\HumanResources\Concerns\ResolvesActingContext;
 use Kanvas\HumanResources\Access\Actions\SetDepartmentModuleAccessAction;
 use Kanvas\HumanResources\Access\DataTransferObject\DepartmentModuleAccess as DepartmentModuleAccessData;
 use Kanvas\HumanResources\Access\Enums\AccessLevelEnum;
@@ -13,11 +13,11 @@ use Kanvas\HumanResources\Departments\Models\Department;
 
 class AccessMutation
 {
+    use ResolvesActingContext;
+
     public function set(mixed $rootValue, array $request): DepartmentModuleAccess
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [$user, $app, $company] = $this->actingContext();
         $input = $request['input'];
 
         /** @var Department $department */

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\HumanResources\Mutations\Seat;
 
-use Kanvas\Apps\Models\Apps;
+use App\GraphQL\HumanResources\Concerns\ResolvesActingContext;
 use Kanvas\HumanResources\Departments\Models\Department;
 use Kanvas\HumanResources\Employees\Models\Employee;
 use Kanvas\HumanResources\Seats\Actions\AssignSeatAction;
@@ -14,11 +14,11 @@ use Kanvas\HumanResources\Seats\Models\SeatAssignment;
 
 class SeatMutation
 {
+    use ResolvesActingContext;
+
     public function assign(mixed $rootValue, array $request): SeatAssignment
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [$user, $app, $company] = $this->actingContext();
         $input = $request['input'];
 
         /** @var Employee $employee */
@@ -42,9 +42,7 @@ class SeatMutation
 
     public function end(mixed $rootValue, array $request): SeatAssignment
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
-        $company = $user->getCurrentCompany();
+        [, $app, $company] = $this->actingContext();
 
         /** @var SeatAssignment $seat */
         $seat = SeatAssignment::getByIdFromCompanyApp((int) $request['id'], $company, $app);
