@@ -9,6 +9,7 @@ enum ConfigurationEnum: string
     case CLIENT_ID = 'salesforce_client_id';
     case CLIENT_SECRET = 'salesforce_client_secret';
     case REFRESH_TOKEN = 'salesforce_refresh_token';
+    case GRANT_TYPE = 'salesforce_grant_type';
     case LOGIN_URL = 'salesforce_login_url';
     case API_VERSION = 'salesforce_api_version';
 }
