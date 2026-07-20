@@ -50,6 +50,7 @@ extend type Mutation @guard {
 
 extend type Query @guard {
     leadsRotations(
+        search: String @search
         where: _
             @whereConditions(
                 columns: ["id", "name", "leads_rotations_email", "hits"]

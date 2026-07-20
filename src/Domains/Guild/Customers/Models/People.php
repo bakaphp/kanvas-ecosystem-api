@@ -596,6 +596,8 @@ class People extends BaseModel
             'middlename' => $this->middlename,
             'lastname' => $this->lastname,
             'companies_id' => $this->companies_id,
+            'email' => $this->getEmails()->first()?->value,
+            'phone' => $this->getAllPhones()->first()?->value,
             'dob' => $this->dob,
             'apps_id' => $this->apps_id,
             'users_id' => $this->users_id,
@@ -676,6 +678,16 @@ class People extends BaseModel
                     'type' => 'string',
                     'sort' => true,
                     'facet' => true,
+                ],
+                [
+                    'name' => 'email',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'phone',
+                    'type' => 'string',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'firstname',
@@ -791,7 +803,7 @@ class People extends BaseModel
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
+                'query_by' => 'name,description,translations,firstname,lastname,email,phone', // Use just 'message' instead of 'message.name'
             ]);
         }
 

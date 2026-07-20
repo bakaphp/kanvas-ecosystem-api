@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Leads\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\NoAppRelationshipTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Leads\Observers\LeadTypeObserver;
 use Kanvas\Guild\Models\BaseModel;
 
@@ -31,6 +35,7 @@ use Kanvas\Guild\Models\BaseModel;
 #[ObservedBy([LeadTypeObserver::class])]
 class LeadType extends BaseModel
 {
+    use DatabaseSearchableTrait;
     use NoAppRelationshipTrait;
     use UuidTrait;
 
@@ -52,5 +57,33 @@ class LeadType extends BaseModel
     public function isActive(): bool
     {
         return (bool) $this->is_active;
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'description' => $this->description,
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }
