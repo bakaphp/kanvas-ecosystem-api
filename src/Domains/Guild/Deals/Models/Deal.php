@@ -64,6 +64,7 @@ class Deal extends BaseModel
     use FollowersTrait;
     use HasLightHouseCache;
     use EventResourceTrait;
+
     protected $observables = [
         'softDeleting',
         'softDeleted',

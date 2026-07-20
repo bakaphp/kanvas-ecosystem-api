@@ -21,6 +21,15 @@ class OrderTypeTest extends OrderBase
         Bouncer::allow('Admins')->to(['create', 'edit', 'delete'], OrderTypes::class);
     }
 
+    public function testTypesenseSchemaIdIsString(): void
+    {
+        $schema = new OrderTypes()->typesenseCollectionSchema();
+        $idField = collect($schema['fields'])->firstWhere('name', 'id');
+
+        $this->assertNotNull($idField, 'OrderTypes typesense schema must declare an id field');
+        $this->assertSame('string', $idField['type'], 'Typesense requires the document id field to be a string');
+    }
+
     public function testListOrderTypes(): void
     {
         OrderTypes::firstOrCreate([

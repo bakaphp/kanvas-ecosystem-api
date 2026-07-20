@@ -304,4 +304,60 @@ class LeadReceiverTest extends TestCase
             ],
         ]);
     }
+
+    public function testSearchLeadReceivers()
+    {
+        $leadRotation = LeadRotation::create([
+            'apps_id' => app(Apps::class)->getId(),
+            'companies_id' => auth()->user()->getCurrentCompany()->getId(),
+            'name' => 'Lead Rotation',
+            'hits' => 1,
+            'leads_rotations_email' => '',
+        ]);
+        $leadType = LeadType::create([
+            'apps_id' => app(Apps::class)->getId(),
+            'companies_id' => auth()->user()->getCurrentCompany()->getId(),
+            'name' => 'Lead Type',
+            'description' => 'Lead Type Description',
+            'is_active' => true,
+            'uuid' => Str::uuid(),
+        ]);
+        $leadSource = LeadSource::create([
+            'apps_id' => app(Apps::class)->getId(),
+            'companies_id' => auth()->user()->getCurrentCompany()->getId(),
+            'name' => 'Lead Source',
+            'description' => 'Lead Source Description',
+            'is_active' => true,
+            'uuid' => Str::uuid(),
+            'leads_types_id' => $leadType->getId(),
+        ]);
+        $name = 'LeadReceiver-' . fake()->unique()->uuid();
+        $input = [
+            'name' => $name,
+            'agents_id' => auth()->user()->getId(),
+            'is_default' => true,
+            'rotations_id' => $leadRotation->getId(),
+            'source_name' => 'source',
+            'lead_sources_id' => $leadSource->getId(),
+            'lead_types_id' => $leadType->getId(),
+            'template' => 'template',
+        ];
+        $this->graphQL(
+            'mutation createLeadReceiver($input: LeadReceiverInput!) {
+                createLeadReceiver(input: $input){
+                    id
+                }
+            }',
+            [
+                'input' => $input,
+            ]
+        );
+        $response = $this->graphQL(
+            'query leadReceivers($search: String){ leadReceivers(search:$search){ data { name } } }',
+            ['search' => $name]
+        )->assertJsonStructure(['data' => ['leadReceivers' => ['data' => ['*' => ['name']]]]])
+            ->decodeResponseJson()->json;
+        $names = array_column(json_decode($response, true)['data']['leadReceivers']['data'], 'name');
+        $this->assertContains($name, $names);
+    }
 }

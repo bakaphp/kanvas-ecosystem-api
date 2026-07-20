@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Agents\Models;
 
 use Baka\Contracts\CompanyInterface;
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Agents\Enums\AgentFilterEnum;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Users\Models\Users;
@@ -33,6 +35,8 @@ use Kanvas\Users\Models\Users;
  */
 class Agent extends BaseModel
 {
+    use DatabaseSearchableTrait;
+
     protected $table = 'agents';
     protected $guarded = [];
 
@@ -131,5 +135,35 @@ class Agent extends BaseModel
     public function sponsor(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'sponsor_user_id', 'id');
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'member_id' => $this->member_id,
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        // agents is company-scoped only (nullable apps_id, no fromApp on the list query),
+        // so companies_id is the tenant boundary here — do not filter by apps_id.
+        $query = self::traitSearch($query, $callback)->where('status_id', 1);
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }

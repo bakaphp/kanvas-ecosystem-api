@@ -247,6 +247,15 @@ class ChannelTest extends TestCase
         $this->assertEquals(0, (int) $updatedRecord->is_published);
     }
 
+    public function testTypesenseSchemaIdIsString(): void
+    {
+        $schema = new Channels()->typesenseCollectionSchema();
+        $idField = collect($schema['fields'])->firstWhere('name', 'id');
+
+        $this->assertNotNull($idField);
+        $this->assertSame('string', $idField['type'], 'Typesense requires the document id field to be a string');
+    }
+
     public function testChannelRegionsResolvesFromVariantChannels(): void
     {
         $user = auth()->user();

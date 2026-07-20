@@ -7,10 +7,12 @@ namespace Kanvas\Souk\Orders\Models;
 use Baka\Casts\Json;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\SlugTrait;
+use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Traits\DefaultTrait;
 
@@ -25,7 +27,9 @@ use Kanvas\Souk\Traits\DefaultTrait;
 class OrderTypes extends BaseModel
 {
     use DefaultTrait;
-    use DynamicSearchableTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     use SlugTrait;
 
     protected $table = 'order_types';
@@ -72,6 +76,59 @@ class OrderTypes extends BaseModel
             'apps_id' => $this->apps_id,
             'companies_id' => $this->companies_id,
         ];
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'name',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+            ],
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options(['query_by' => 'name']);
+        }
+
+        return $query;
     }
 
     public function nextStatus(Order $order): OrderStatus

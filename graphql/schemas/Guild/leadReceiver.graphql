@@ -44,6 +44,7 @@ extend type Mutation {
 
 extend type Query {
     leadReceivers(
+        search: String @search
         where: _
             @whereConditions(
                 columns: ["id", "uuid", "name", "source_name", "is_default"]

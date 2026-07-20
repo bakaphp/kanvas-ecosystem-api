@@ -24,6 +24,7 @@ enum AgentStatusEnum {
 
 extend type Query @guard {
     agents(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
