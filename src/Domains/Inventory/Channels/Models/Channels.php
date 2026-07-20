@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Channels\Models;
 
 use Baka\Support\Str;
-use Baka\Traits\DatabaseSearchableTrait;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -42,7 +42,9 @@ class Channels extends BaseModel
 {
     use UuidTrait;
     use SlugTrait;
-    use DatabaseSearchableTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     use DefaultTrait;
     use HasTagsTrait;
 
@@ -142,13 +144,39 @@ class Channels extends BaseModel
             ->get();
     }
 
+    public function searchableAs(): string
+    {
+        $app = $this->app ?? app(Apps::class);
+
+        return config('scout.prefix') . ($app->get('app_custom_channel_index') ?? 'channel_index');
+    }
+
     public function toSearchableArray(): array
     {
         return [
-            'id' => $this->id,
+            'objectID' => $this->id,
+            'id' => (string) $this->id,
             'name' => $this->name,
             'description' => $this->description,
             'slug' => $this->slug,
+            'apps_id' => $this->apps_id,
+            'companies_id' => $this->companies_id,
+        ];
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                ['name' => 'objectID', 'type' => 'string'],
+                ['name' => 'id', 'type' => 'string'],
+                ['name' => 'name', 'type' => 'string'],
+                ['name' => 'description', 'type' => 'string', 'optional' => true],
+                ['name' => 'slug', 'type' => 'string', 'optional' => true],
+                ['name' => 'apps_id', 'type' => 'int64'],
+                ['name' => 'companies_id', 'type' => 'int64', 'facet' => true],
+            ],
         ];
     }
 
@@ -166,6 +194,10 @@ class Channels extends BaseModel
             $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
         } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options(['query_by' => 'name,description,slug']);
         }
 
         return $query;

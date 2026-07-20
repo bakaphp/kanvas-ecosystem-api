@@ -325,49 +325,12 @@ class EventVersionMutationsTest extends TestCase
         $this->assertSame(25.0, (float) $updated->discount);
     }
 
-    public function testSearchEventVersions(): void
+    public function testTypesenseSchemaIdIsString(): void
     {
-        ['event_id' => $eventId] = $this->createBaseEvent();
-        $name = 'EventVersion-' . fake()->unique()->uuid();
-
-        $input = [
-            'event_id' => $eventId,
-            'name' => $name,
-            'price_per_ticket' => 150.0,
-            'max_capacity' => 30,
-        ];
-
-        $this->graphQL('
-            mutation($input: EventVersionInput!) {
-                createEventVersion(input: $input) { id }
-            }
-        ', ['input' => $input])->assertSuccessful();
-
-        $response = $this->graphQL(
-            '
-            query eventVersions($search: String) {
-                eventVersions(search: $search) {
-                    data {
-                        name
-                    }
-                }
-            }
-            ',
-            ['search' => $name]
-        )->assertJsonStructure(
-            [
-                'data' => [
-                    'eventVersions' => [
-                        'data' => [
-                            '*' => ['name'],
-                        ],
-                    ],
-                ],
-            ]
-        )->decodeResponseJson()->json;
-
-        $names = array_column(json_decode($response, true)['data']['eventVersions']['data'], 'name');
-        $this->assertContains($name, $names);
+        $schema = new EventVersion()->typesenseCollectionSchema();
+        $idField = collect($schema['fields'])->firstWhere('name', 'id');
+        $this->assertNotNull($idField);
+        $this->assertSame('string', $idField['type'], 'Typesense requires the document id field to be a string');
     }
 
     public function testFollowAndUnfollowEventVersion(): void

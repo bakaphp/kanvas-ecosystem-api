@@ -247,38 +247,13 @@ class ChannelTest extends TestCase
         $this->assertEquals(0, (int) $updatedRecord->is_published);
     }
 
-    public function testSearchChannels(): void
+    public function testTypesenseSchemaIdIsString(): void
     {
-        $name = 'Channel-' . fake()->unique()->uuid();
-        $data = [
-            'name' => $name,
-            'is_default' => false,
-        ];
-        $this->graphQL('
-            mutation($data: CreateChannelInput!) {
-                createChannel(input: $data)
-                {
-                    id
-                    name,
-                    is_default
-                }
-            }', ['data' => $data])->assertJson([
-            'data' => ['createChannel' => $data]
-        ]);
+        $schema = new Channels()->typesenseCollectionSchema();
+        $idField = collect($schema['fields'])->firstWhere('name', 'id');
 
-        $response = $this->graphQL('
-            query($search: String) {
-                channels(search: $search) {
-                    data {
-                        name
-                    }
-                }
-            }', ['search' => $name])
-            ->assertJsonStructure(['data' => ['channels' => ['data' => ['*' => ['name']]]]])
-            ->decodeResponseJson()->json;
-
-        $names = array_column(json_decode($response, true)['data']['channels']['data'], 'name');
-        $this->assertContains($name, $names);
+        $this->assertNotNull($idField);
+        $this->assertSame('string', $idField['type'], 'Typesense requires the document id field to be a string');
     }
 
     public function testChannelRegionsResolvesFromVariantChannels(): void

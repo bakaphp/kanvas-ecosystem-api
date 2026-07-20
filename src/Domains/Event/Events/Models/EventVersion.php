@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Models;
 
 use Baka\Casts\Json;
-use Baka\Traits\DatabaseSearchableTrait;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
@@ -36,7 +36,9 @@ use Spatie\LaravelData\DataCollection;
 class EventVersion extends BaseModel
 {
     use CanUseWorkflow;
-    use DatabaseSearchableTrait;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     use FollowersTrait;
     use HasLightHouseCache;
     use HasTagsTrait;
@@ -239,11 +241,58 @@ class EventVersion extends BaseModel
     public function toSearchableArray(): array
     {
         return [
-            'id' => $this->id,
+            'objectID' => $this->id,
+            'id' => (string) $this->id,
             'uuid' => $this->uuid,
             'name' => $this->name,
             'slug' => $this->slug,
             'description' => $this->description,
+            'apps_id' => $this->apps_id,
+            'companies_id' => $this->companies_id,
+        ];
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'uuid',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'name',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'slug',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'description',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+            ],
         ];
     }
 
@@ -262,6 +311,10 @@ class EventVersion extends BaseModel
             $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
         } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options(['query_by' => 'name,slug,description']);
         }
 
         return $query;

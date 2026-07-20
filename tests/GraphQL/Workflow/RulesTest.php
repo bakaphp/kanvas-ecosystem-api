@@ -375,4 +375,12 @@ class RulesTest extends TestCase
         $deletedRule = Rule::find($rule->getId());
         $this->assertEquals(1, $deletedRule->is_deleted);
     }
+
+    public function testTypesenseSchemaIdIsString(): void
+    {
+        $schema = new Rule()->typesenseCollectionSchema();
+        $idField = collect($schema['fields'])->firstWhere('name', 'id');
+        $this->assertNotNull($idField);
+        $this->assertSame('string', $idField['type'], 'Typesense requires the document id field to be a string');
+    }
 }
