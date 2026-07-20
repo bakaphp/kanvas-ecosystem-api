@@ -2880,16 +2880,16 @@
         },
         {
             "name": "guzzlehttp/guzzle",
-            "version": "7.15.0",
+            "version": "7.15.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/guzzle.git",
-                "reference": "90bd104afeb0fcc2190c9eb6fd8a441447e4b30d"
+                "reference": "61443dfb33c62f308ee8add20f45b4d6e4bf8d2f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/90bd104afeb0fcc2190c9eb6fd8a441447e4b30d",
-                "reference": "90bd104afeb0fcc2190c9eb6fd8a441447e4b30d",
+                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/61443dfb33c62f308ee8add20f45b4d6e4bf8d2f",
+                "reference": "61443dfb33c62f308ee8add20f45b4d6e4bf8d2f",
                 "shasum": ""
             },
             "require": {
@@ -2988,7 +2988,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/guzzle/issues",
-                "source": "https://github.com/guzzle/guzzle/tree/7.15.0"
+                "source": "https://github.com/guzzle/guzzle/tree/7.15.1"
             },
             "funding": [
                 {
@@ -3004,7 +3004,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-07-17T12:26:48+00:00"
+            "time": "2026-07-18T11:23:11+00:00"
         },
         {
             "name": "guzzlehttp/promises",
@@ -7347,16 +7347,16 @@
         },
         {
             "name": "nette/utils",
-            "version": "v4.1.4",
+            "version": "v4.1.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nette/utils.git",
-                "reference": "7da6c396d7ebe142bc857c20479d5e70a5e1aac7"
+                "reference": "b043439dbdf954e6c28b5ea7e34b0100f83165e0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nette/utils/zipball/7da6c396d7ebe142bc857c20479d5e70a5e1aac7",
-                "reference": "7da6c396d7ebe142bc857c20479d5e70a5e1aac7",
+                "url": "https://api.github.com/repos/nette/utils/zipball/b043439dbdf954e6c28b5ea7e34b0100f83165e0",
+                "reference": "b043439dbdf954e6c28b5ea7e34b0100f83165e0",
                 "shasum": ""
             },
             "require": {
@@ -7376,7 +7376,7 @@
             },
             "suggest": {
                 "ext-gd": "to use Image",
-                "ext-iconv": "to use Strings::webalize(), toAscii(), chr() and reverse()",
+                "ext-iconv": "to use Strings::chr(), ord() and reverse()",
                 "ext-intl": "to use Strings::webalize(), toAscii(), normalize() and compare()",
                 "ext-json": "to use Nette\\Utils\\Json",
                 "ext-mbstring": "to use Strings::lower() etc...",
@@ -7432,9 +7432,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nette/utils/issues",
-                "source": "https://github.com/nette/utils/tree/v4.1.4"
+                "source": "https://github.com/nette/utils/tree/v4.1.5"
             },
-            "time": "2026-05-11T20:49:54+00:00"
+            "time": "2026-07-17T23:02:45+00:00"
         },
         {
             "name": "neuron-core/neuron-ai",
@@ -7722,16 +7722,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.68.0",
+            "version": "v6.69.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "a29ff8eba68f79b80f7206b83ee570d95b28e3d8"
+                "reference": "d9ecb9cae8d29ef0ed6d6d7cd60693a3df5a7bde"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/a29ff8eba68f79b80f7206b83ee570d95b28e3d8",
-                "reference": "a29ff8eba68f79b80f7206b83ee570d95b28e3d8",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/d9ecb9cae8d29ef0ed6d6d7cd60693a3df5a7bde",
+                "reference": "d9ecb9cae8d29ef0ed6d6d7cd60693a3df5a7bde",
                 "shasum": ""
             },
             "require": {
@@ -7754,10 +7754,11 @@
             "require-dev": {
                 "algolia/algoliasearch-client-php": "^3",
                 "bensampo/laravel-enum": "^5 || ^6",
+                "composer-runtime-api": "^2",
                 "ergebnis/composer-normalize": "^2.2.2",
                 "fakerphp/faker": "^1.21",
                 "google/protobuf": "^3.21 || ^4.33.6",
-                "larastan/larastan": "^2.9.14 || ^3.0.4",
+                "larastan/larastan": "^2.9.14 || ^3.10",
                 "laravel/framework": "^9 || ^10 || ^11 || ^12 || ^13",
                 "laravel/legacy-factories": "^1.1.1",
                 "laravel/pennant": "^1",
@@ -7776,7 +7777,7 @@
                 "phpunit/phpunit": "^9.6.4 || ^10 || ^11 || ^12",
                 "predis/predis": "^1.1 || ^2.1",
                 "pusher/pusher-php-server": "^5 || ^6 || ^7.0.2",
-                "rector/rector": "^1 || ^2",
+                "rector/rector": "^1.2.10 || ^2.5.7",
                 "thecodingmachine/phpstan-safe-rule": "^1.2"
             },
             "suggest": {
@@ -7848,7 +7849,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2026-07-02T09:45:18+00:00"
+            "time": "2026-07-20T07:25:22+00:00"
         },
         {
             "name": "nyholm/psr7",
