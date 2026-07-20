@@ -2880,16 +2880,16 @@
         },
         {
             "name": "guzzlehttp/guzzle",
-            "version": "7.15.0",
+            "version": "7.15.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/guzzle.git",
-                "reference": "90bd104afeb0fcc2190c9eb6fd8a441447e4b30d"
+                "reference": "61443dfb33c62f308ee8add20f45b4d6e4bf8d2f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/90bd104afeb0fcc2190c9eb6fd8a441447e4b30d",
-                "reference": "90bd104afeb0fcc2190c9eb6fd8a441447e4b30d",
+                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/61443dfb33c62f308ee8add20f45b4d6e4bf8d2f",
+                "reference": "61443dfb33c62f308ee8add20f45b4d6e4bf8d2f",
                 "shasum": ""
             },
             "require": {
@@ -2988,7 +2988,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/guzzle/issues",
-                "source": "https://github.com/guzzle/guzzle/tree/7.15.0"
+                "source": "https://github.com/guzzle/guzzle/tree/7.15.1"
             },
             "funding": [
                 {
@@ -3004,7 +3004,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-07-17T12:26:48+00:00"
+            "time": "2026-07-18T11:23:11+00:00"
         },
         {
             "name": "guzzlehttp/promises",
@@ -7438,16 +7438,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.15.24",
+            "version": "3.15.26",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "367fa1fdeb66bb50f5741eb2c4e1a00dc6bb6552"
+                "reference": "ae5be8f065b19c9b7a5adff596b1d04fc07daf67"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/367fa1fdeb66bb50f5741eb2c4e1a00dc6bb6552",
-                "reference": "367fa1fdeb66bb50f5741eb2c4e1a00dc6bb6552",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/ae5be8f065b19c9b7a5adff596b1d04fc07daf67",
+                "reference": "ae5be8f065b19c9b7a5adff596b1d04fc07daf67",
                 "shasum": ""
             },
             "require": {
@@ -7498,7 +7498,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.15.24"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.15.26"
             },
             "funding": [
                 {
@@ -7506,7 +7506,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-07-16T13:37:47+00:00"
+            "time": "2026-07-20T07:37:30+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
