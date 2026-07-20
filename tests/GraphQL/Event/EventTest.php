@@ -13,6 +13,14 @@ use Tests\TestCase;
 
 class EventTest extends TestCase
 {
+    public function testTypesenseSchemaIdIsString(): void
+    {
+        $schema = new Event()->typesenseCollectionSchema();
+        $idField = collect($schema['fields'])->firstWhere('name', 'id');
+        $this->assertNotNull($idField);
+        $this->assertSame('string', $idField['type'], 'Typesense requires the document id field to be a string');
+    }
+
     public function testCreateEvent()
     {
         $user = auth()->user();
