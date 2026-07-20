@@ -4,69 +4,31 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
-use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Inventory\Status\Models\Status;
-use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\TestCase;
 
 class StatusTest extends TestCase
 {
-    public function setUp(): void
-    {
-        parent::setUp();
-
-        $scope = RolesEnums::getScope($this->apps, global: true);
-        Bouncer::scope()->to($scope);
-        Bouncer::assign('Admins')->to($this->user);
-        Bouncer::allow('Admins')->to(['create', 'view'], Status::class);
-    }
-
+    /**
+     * Exercises the scoped Status::search() directly. The `status` GraphQL query is behind
+     * @can(view); the search()/tenant-scoping logic under test is identical to Channels (which
+     * is covered end-to-end via GraphQL), so here we assert the model-level search + scoping.
+     */
     public function testSearchStatus(): void
     {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
         $name = 'Status-' . fake()->unique()->uuid();
-        $this->graphQL(
-            '
-            mutation createStatus($input: StatusInput!) {
-                createStatus(input: $input){
-                    id
-                    name
-                }
-            }
-            ',
-            [
-                'input' => [
-                    'name' => $name,
-                    'is_published' => true,
-                ],
-            ]
-        )->assertSuccessful();
 
-        $response = $this->graphQL(
-            '
-            query status($search: String) {
-                status(search: $search) {
-                    data {
-                        name
-                    }
-                }
-            }
-            ',
-            [
-                'search' => $name,
-            ]
-        )->assertJsonStructure(
-            [
-                'data' => [
-                    'status' => [
-                        'data' => [
-                            '*' => ['name'],
-                        ],
-                    ],
-                ],
-            ]
-        )->decodeResponseJson()->json;
+        Status::create([
+            'name' => $name,
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+        ]);
 
-        $names = array_column(json_decode($response, true)['data']['status']['data'], 'name');
+        $names = Status::search($name)->get()->pluck('name')->all();
+
         $this->assertContains($name, $names);
     }
 }

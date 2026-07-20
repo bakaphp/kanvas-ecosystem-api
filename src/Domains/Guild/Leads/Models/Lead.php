@@ -719,7 +719,7 @@ class Lead extends BaseModel implements EventResourceInterface
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'title,firstname,lastname,email,description,translations', 
+                'query_by' => 'title,firstname,lastname,email,description,translations',
             ]);
         }
 
