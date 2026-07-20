@@ -180,7 +180,9 @@ class Message extends BaseModel
                 $value = substr(stripslashes($value), 1, -1);
             }
 
-            return json_decode($value, true);
+            $decoded = json_decode($value, true);
+
+            return is_array($decoded) ? $decoded : [];
         }
 
         return is_array($value) ? $value : [];
