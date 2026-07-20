@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Expenses\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Payments\Models\PaymentMethods;
@@ -20,6 +23,7 @@ use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Payments\Models\Payment as ScribePayment;
 use Kanvas\Users\Models\Users;
+use Override;
 
 /**
  * Scribe.Expense — non-bill spending (company card, employee-paid travel, direct bank debit, petty cash).
@@ -73,6 +77,9 @@ use Kanvas\Users\Models\Users;
  */
 class Expense extends BaseModel
 {
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     use EmitsLedgerEventsForEntity;
     use UuidTrait;
 
@@ -153,5 +160,103 @@ class Expense extends BaseModel
     protected function sourceDomainForLedger(): string
     {
         return 'Scribe';
+    }
+
+    public function searchableAs(): string
+    {
+        $model = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        $app = $model->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_scribe_expense_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'scribe_expense_index');
+    }
+
+    #[Override]
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'objectID' => "Kanvas\Scribe\Expenses\Models\Expense::{$this->id}",
+            'id' => (string) $this->id,
+            'uuid' => (string) $this->uuid,
+            'apps_id' => $this->apps_id,
+            'companies_id' => $this->companies_id,
+            'users_id' => $this->users_id,
+            'vendor_organization_id' => $this->vendor_organization_id,
+            'expense_number' => (string) $this->expense_number,
+            'vendor_display_name' => (string) $this->vendor_display_name,
+            'vendor_legal_name' => (string) $this->vendor_legal_name,
+            'vendor_email' => (string) $this->vendor_email,
+            'vendor_tax_id' => (string) $this->vendor_tax_id,
+            'external_id' => (string) $this->external_id,
+            'notes' => (string) $this->notes,
+            'status' => $this->status?->value,
+            'paid_by' => $this->paid_by?->value,
+            'reimbursement_status' => $this->reimbursement_status?->value,
+            'source' => (string) $this->source,
+            'currency' => (string) $this->currency,
+            'total_native' => (float) $this->total_native,
+            'total_base' => (float) $this->total_base,
+            'expense_date' => $this->expense_date?->timestamp,
+            'created_at' => $this->created_at?->timestamp,
+            'updated_at' => $this->updated_at?->timestamp,
+        ];
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                ['name' => 'objectID', 'type' => 'string'],
+                ['name' => 'id', 'type' => 'string'],
+                ['name' => 'uuid', 'type' => 'string'],
+                ['name' => 'apps_id', 'type' => 'int64', 'facet' => true],
+                ['name' => 'companies_id', 'type' => 'int64', 'facet' => true],
+                ['name' => 'users_id', 'type' => 'int64', 'optional' => true],
+                ['name' => 'vendor_organization_id', 'type' => 'int64', 'optional' => true, 'facet' => true],
+                ['name' => 'expense_number', 'type' => 'string', 'optional' => true],
+                ['name' => 'vendor_display_name', 'type' => 'string', 'optional' => true],
+                ['name' => 'vendor_legal_name', 'type' => 'string', 'optional' => true],
+                ['name' => 'vendor_email', 'type' => 'string', 'optional' => true],
+                ['name' => 'vendor_tax_id', 'type' => 'string', 'optional' => true],
+                ['name' => 'external_id', 'type' => 'string', 'optional' => true],
+                ['name' => 'notes', 'type' => 'string', 'optional' => true],
+                ['name' => 'status', 'type' => 'string', 'optional' => true, 'facet' => true],
+                ['name' => 'paid_by', 'type' => 'string', 'optional' => true, 'facet' => true],
+                ['name' => 'reimbursement_status', 'type' => 'string', 'optional' => true, 'facet' => true],
+                ['name' => 'source', 'type' => 'string', 'optional' => true, 'facet' => true],
+                ['name' => 'currency', 'type' => 'string', 'optional' => true, 'facet' => true],
+                ['name' => 'total_native', 'type' => 'float', 'optional' => true],
+                ['name' => 'total_base', 'type' => 'float', 'optional' => true, 'sort' => true],
+                ['name' => 'expense_date', 'type' => 'int64', 'optional' => true, 'sort' => true],
+                ['name' => 'created_at', 'type' => 'int64', 'sort' => true],
+                ['name' => 'updated_at', 'type' => 'int64', 'optional' => true],
+            ],
+            'default_sorting_field' => 'created_at',
+        ];
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $app = app(Apps::class);
+        $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $searchQuery->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        if ($searchQuery->model->isTypesense()) {
+            $searchQuery->options([
+                'query_by' => 'expense_number,vendor_display_name,vendor_legal_name,vendor_email,vendor_tax_id,external_id',
+            ]);
+        }
+
+        return $searchQuery;
     }
 }

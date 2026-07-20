@@ -182,6 +182,7 @@ input ScribeBillInput {
 
 extend type Query @guard {
     scribeBills(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
