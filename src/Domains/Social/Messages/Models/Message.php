@@ -470,6 +470,9 @@ class Message extends BaseModel
             ] : null,
             'is_public' => $this->is_public,
             'is_deleted' => $this->is_deleted,
+            // Typesense schema declares these as int64; toArray() emits ISO-8601 strings, so cast to Unix timestamps
+            'created_at' => $this->created_at?->getTimestamp(),
+            'updated_at' => $this->updated_at?->getTimestamp(),
         ];
 
         // Add parent reference for child messages
