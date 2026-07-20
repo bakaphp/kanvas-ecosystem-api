@@ -468,8 +468,10 @@ class Message extends BaseModel
                 'name' => $this->messageType->name,
                 'verb' => $this->messageType->verb,
             ] : null,
-            'is_public' => $this->is_public,
-            'is_deleted' => $this->is_deleted,
+            'is_public' => (bool) $this->is_public,
+            'is_premium' => (bool) $this->is_premium,
+            'is_locked' => (bool) $this->is_locked,
+            'is_deleted' => (bool) $this->is_deleted,
         ];
 
         // Add parent reference for child messages

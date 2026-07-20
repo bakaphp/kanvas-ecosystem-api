@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\HumanResources\Mutations\Department;
 
-use App\GraphQL\HumanResources\Concerns\ResolvesActingContext;
+use App\GraphQL\Concerns\ResolvesActingContext;
 use Kanvas\HumanResources\Departments\Actions\CreateDepartmentAction;
 use Kanvas\HumanResources\Departments\Actions\UpdateDepartmentAction;
 use Kanvas\HumanResources\Departments\DataTransferObject\Department as DepartmentData;
@@ -16,19 +16,19 @@ class DepartmentMutation
 
     public function create(mixed $rootValue, array $request): Department
     {
-        [$user, $app, $company] = $this->actingContext();
+        $context = $this->actingContext();
         $input = $request['input'];
 
         /** @var Department|null $parent */
         $parent = isset($input['parent_id'])
-            ? Department::getByIdFromCompanyApp((int) $input['parent_id'], $company, $app)
+            ? Department::getByIdFromCompanyApp((int) $input['parent_id'], $context->company, $context->app)
             : null;
 
         return new CreateDepartmentAction(
             new DepartmentData(
-                app: $app,
-                company: $company,
-                user: $user,
+                app: $context->app,
+                company: $context->company,
+                user: $context->user,
                 name: $input['name'],
                 code: $input['code'] ?? null,
                 outcomeLine: $input['outcome_line'] ?? null,
@@ -41,22 +41,22 @@ class DepartmentMutation
 
     public function update(mixed $rootValue, array $request): Department
     {
-        [$user, $app, $company] = $this->actingContext();
+        $context = $this->actingContext();
         $input = $request['input'];
 
         /** @var Department $department */
-        $department = Department::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+        $department = Department::getByIdFromCompanyApp((int) $request['id'], $context->company, $context->app);
 
         $parent = isset($input['parent_id'])
-            ? Department::getByIdFromCompanyApp((int) $input['parent_id'], $company, $app)
+            ? Department::getByIdFromCompanyApp((int) $input['parent_id'], $context->company, $context->app)
             : $department->parent;
 
         return new UpdateDepartmentAction(
             $department,
             new DepartmentData(
-                app: $app,
-                company: $company,
-                user: $user,
+                app: $context->app,
+                company: $context->company,
+                user: $context->user,
                 name: $input['name'] ?? $department->name,
                 code: $input['code'] ?? $department->code,
                 outcomeLine: $input['outcome_line'] ?? $department->outcome_line,
@@ -69,9 +69,9 @@ class DepartmentMutation
 
     public function delete(mixed $rootValue, array $request): bool
     {
-        [, $app, $company] = $this->actingContext();
+        $context = $this->actingContext();
 
-        $department = Department::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+        $department = Department::getByIdFromCompanyApp((int) $request['id'], $context->company, $context->app);
 
         return $department->softDelete();
     }

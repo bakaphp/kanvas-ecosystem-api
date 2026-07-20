@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\HumanResources\Mutations\Compensation;
 
-use App\GraphQL\HumanResources\Concerns\ResolvesActingContext;
+use App\GraphQL\Concerns\ResolvesActingContext;
 use Kanvas\HumanResources\Compensation\Actions\CreatePayBandAction;
 use Kanvas\HumanResources\Compensation\Actions\UpdatePayBandAction;
 use Kanvas\HumanResources\Compensation\DataTransferObject\PayBand as PayBandData;
@@ -17,19 +17,19 @@ class PayBandMutation
 
     public function create(mixed $rootValue, array $request): PayBand
     {
-        [$user, $app, $company] = $this->actingContext();
+        $context = $this->actingContext();
         $input = $request['input'];
 
         /** @var Position|null $position */
         $position = isset($input['position_id'])
-            ? Position::getByIdFromCompanyApp((int) $input['position_id'], $company, $app)
+            ? Position::getByIdFromCompanyApp((int) $input['position_id'], $context->company, $context->app)
             : null;
 
         return new CreatePayBandAction(
             new PayBandData(
-                app: $app,
-                company: $company,
-                user: $user,
+                app: $context->app,
+                company: $context->company,
+                user: $context->user,
                 minAmount: (float) $input['min_amount'],
                 maxAmount: (float) $input['max_amount'],
                 effectiveFrom: $this->normalizeDate($input['effective_from']),
@@ -45,22 +45,22 @@ class PayBandMutation
 
     public function update(mixed $rootValue, array $request): PayBand
     {
-        [$user, $app, $company] = $this->actingContext();
+        $context = $this->actingContext();
         $input = $request['input'];
 
         /** @var PayBand $band */
-        $band = PayBand::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+        $band = PayBand::getByIdFromCompanyApp((int) $request['id'], $context->company, $context->app);
 
         $position = isset($input['position_id'])
-            ? Position::getByIdFromCompanyApp((int) $input['position_id'], $company, $app)
+            ? Position::getByIdFromCompanyApp((int) $input['position_id'], $context->company, $context->app)
             : $band->position;
 
         return new UpdatePayBandAction(
             $band,
             new PayBandData(
-                app: $app,
-                company: $company,
-                user: $user,
+                app: $context->app,
+                company: $context->company,
+                user: $context->user,
                 minAmount: isset($input['min_amount']) ? (float) $input['min_amount'] : $band->min_amount,
                 maxAmount: isset($input['max_amount']) ? (float) $input['max_amount'] : $band->max_amount,
                 effectiveFrom: isset($input['effective_from']) ? $this->normalizeDate($input['effective_from']) : $band->effective_from->toDateString(),

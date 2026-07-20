@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\HumanResources\Mutations\Compensation;
 
-use App\GraphQL\HumanResources\Concerns\ResolvesActingContext;
+use App\GraphQL\Concerns\ResolvesActingContext;
 use Kanvas\HumanResources\Compensation\Actions\RecordCompensationAction;
 use Kanvas\HumanResources\Compensation\DataTransferObject\EmployeeCompensation as EmployeeCompensationData;
 use Kanvas\HumanResources\Compensation\Models\EmployeeCompensation;
@@ -17,22 +17,22 @@ class CompensationMutation
 
     public function record(mixed $rootValue, array $request): EmployeeCompensation
     {
-        [$user, $app, $company] = $this->actingContext();
+        $context = $this->actingContext();
         $input = $request['input'];
 
         /** @var Employee $employee */
-        $employee = Employee::getByIdFromCompanyApp((int) $input['employee_id'], $company, $app);
+        $employee = Employee::getByIdFromCompanyApp((int) $input['employee_id'], $context->company, $context->app);
 
         /** @var PayBand|null $payBand */
         $payBand = isset($input['pay_band_id'])
-            ? PayBand::getByIdFromCompanyApp((int) $input['pay_band_id'], $company, $app)
+            ? PayBand::getByIdFromCompanyApp((int) $input['pay_band_id'], $context->company, $context->app)
             : null;
 
         return new RecordCompensationAction(
             new EmployeeCompensationData(
-                app: $app,
-                company: $company,
-                user: $user,
+                app: $context->app,
+                company: $context->company,
+                user: $context->user,
                 employee: $employee,
                 amount: (float) $input['amount'],
                 effectiveFrom: $this->normalizeDate($input['effective_from']),

@@ -13,12 +13,6 @@ use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 
-/**
- * Targeted profile edit on a People record — name, date of birth, a cellphone contact and the default
- * address. Only the fields passed are touched; existing contacts/addresses are upserted, not rebuilt,
- * so nothing unrelated is wiped. This is the People-side of HR employee editing (the login user account
- * is never touched here).
- */
 class UpdatePeopleProfileAction
 {
     public function __construct(

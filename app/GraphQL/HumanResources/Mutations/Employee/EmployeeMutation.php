@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\HumanResources\Mutations\Employee;
 
-use App\GraphQL\HumanResources\Concerns\ResolvesActingContext;
+use App\GraphQL\Concerns\ResolvesActingContext;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Guild\Customers\Models\People;
@@ -24,39 +24,41 @@ class EmployeeMutation
 
     public function create(mixed $rootValue, array $request): Employee
     {
-        [$user, $app, $company] = $this->actingContext();
-        $input = $request['input'];
+        $context = $this->actingContext();
 
         return new CreateEmployeeAction(
-            $this->buildData($input, $app, $company),
+            $this->buildData($request['input'], $context->app, $context->company),
         )->execute();
     }
 
     public function update(mixed $rootValue, array $request): Employee
     {
-        [$user, $app, $company] = $this->actingContext();
-        $input = $request['input'];
+        $context = $this->actingContext();
 
         /** @var Employee $employee */
-        $employee = Employee::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+        $employee = Employee::getByIdFromCompanyApp((int) $request['id'], $context->company, $context->app);
 
         return new UpdateEmployeeAction(
             $employee,
-            $this->buildData($input, $app, $company, $employee),
+            $this->buildData($request['input'], $context->app, $context->company, $employee),
         )->execute();
     }
 
     public function delete(mixed $rootValue, array $request): bool
     {
-        [, $app, $company] = $this->actingContext();
+        $context = $this->actingContext();
 
-        $employee = Employee::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+        $employee = Employee::getByIdFromCompanyApp((int) $request['id'], $context->company, $context->app);
 
         return $employee->softDelete();
     }
 
-    private function buildData(array $input, AppInterface $app, CompanyInterface $company, ?Employee $existing = null): EmployeeData
-    {
+    private function buildData(
+        array $input,
+        AppInterface $app,
+        CompanyInterface $company,
+        ?Employee $existing = null
+    ): EmployeeData {
         /** @var Users $loginUser */
         $loginUser = isset($input['users_id'])
             ? Users::getById((int) $input['users_id'], $app)
@@ -93,8 +95,12 @@ class EmployeeMutation
         );
     }
 
-    private function lookup(string $model, mixed $id, CompanyInterface $company, AppInterface $app): mixed
-    {
+    private function lookup(
+        string $model,
+        mixed $id,
+        CompanyInterface $company,
+        AppInterface $app
+    ): mixed {
         if ($id === null) {
             return null;
         }

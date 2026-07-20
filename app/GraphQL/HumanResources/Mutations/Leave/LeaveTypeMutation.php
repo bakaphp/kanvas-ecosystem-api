@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\HumanResources\Mutations\Leave;
 
-use App\GraphQL\HumanResources\Concerns\ResolvesActingContext;
+use App\GraphQL\Concerns\ResolvesActingContext;
 use Kanvas\HumanResources\Leave\Actions\CreateLeaveTypeAction;
 use Kanvas\HumanResources\Leave\Actions\UpdateLeaveTypeAction;
 use Kanvas\HumanResources\Leave\DataTransferObject\LeaveType as LeaveTypeData;
@@ -17,14 +17,14 @@ class LeaveTypeMutation
 
     public function create(mixed $rootValue, array $request): LeaveType
     {
-        [$user, $app, $company] = $this->actingContext();
+        $context = $this->actingContext();
         $input = $request['input'];
 
         return new CreateLeaveTypeAction(
             new LeaveTypeData(
-                app: $app,
-                company: $company,
-                user: $user,
+                app: $context->app,
+                company: $context->company,
+                user: $context->user,
                 name: $input['name'],
                 isPaid: $input['is_paid'] ?? true,
                 accrualMethod: isset($input['accrual_method'])
@@ -40,18 +40,18 @@ class LeaveTypeMutation
 
     public function update(mixed $rootValue, array $request): LeaveType
     {
-        [$user, $app, $company] = $this->actingContext();
+        $context = $this->actingContext();
         $input = $request['input'];
 
         /** @var LeaveType $type */
-        $type = LeaveType::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+        $type = LeaveType::getByIdFromCompanyApp((int) $request['id'], $context->company, $context->app);
 
         return new UpdateLeaveTypeAction(
             $type,
             new LeaveTypeData(
-                app: $app,
-                company: $company,
-                user: $user,
+                app: $context->app,
+                company: $context->company,
+                user: $context->user,
                 name: $input['name'] ?? $type->name,
                 isPaid: $input['is_paid'] ?? $type->is_paid,
                 accrualMethod: isset($input['accrual_method'])

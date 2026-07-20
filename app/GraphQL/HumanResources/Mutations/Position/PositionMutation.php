@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\HumanResources\Mutations\Position;
 
-use App\GraphQL\HumanResources\Concerns\ResolvesActingContext;
+use App\GraphQL\Concerns\ResolvesActingContext;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\HumanResources\Departments\Models\Department;
@@ -19,16 +19,16 @@ class PositionMutation
 
     public function create(mixed $rootValue, array $request): Position
     {
-        [$user, $app, $company] = $this->actingContext();
+        $context = $this->actingContext();
         $input = $request['input'];
 
         return new CreatePositionAction(
             new PositionData(
-                app: $app,
-                company: $company,
-                user: $user,
+                app: $context->app,
+                company: $context->company,
+                user: $context->user,
                 title: $input['title'],
-                department: $this->resolveDepartment($input, $company, $app),
+                department: $this->resolveDepartment($input, $context->company, $context->app),
                 level: $input['level'] ?? null,
                 description: $input['description'] ?? null,
             ),
@@ -37,22 +37,22 @@ class PositionMutation
 
     public function update(mixed $rootValue, array $request): Position
     {
-        [$user, $app, $company] = $this->actingContext();
+        $context = $this->actingContext();
         $input = $request['input'];
 
         /** @var Position $position */
-        $position = Position::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+        $position = Position::getByIdFromCompanyApp((int) $request['id'], $context->company, $context->app);
 
         $department = isset($input['department_id'])
-            ? $this->resolveDepartment($input, $company, $app)
+            ? $this->resolveDepartment($input, $context->company, $context->app)
             : $position->department;
 
         return new UpdatePositionAction(
             $position,
             new PositionData(
-                app: $app,
-                company: $company,
-                user: $user,
+                app: $context->app,
+                company: $context->company,
+                user: $context->user,
                 title: $input['title'] ?? $position->title,
                 department: $department,
                 level: $input['level'] ?? $position->level,
@@ -64,9 +64,9 @@ class PositionMutation
 
     public function delete(mixed $rootValue, array $request): bool
     {
-        [, $app, $company] = $this->actingContext();
+        $context = $this->actingContext();
 
-        $position = Position::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+        $position = Position::getByIdFromCompanyApp((int) $request['id'], $context->company, $context->app);
 
         return $position->softDelete();
     }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\HumanResources\Mutations\Leave;
 
-use App\GraphQL\HumanResources\Concerns\ResolvesActingContext;
+use App\GraphQL\Concerns\ResolvesActingContext;
 use Kanvas\HumanResources\Employees\Models\Employee;
 use Kanvas\HumanResources\Employees\Services\EmployeeIdentityResolver;
 use Kanvas\HumanResources\Exceptions\HumanResourcesException;
@@ -22,17 +22,17 @@ class LeaveRequestMutation
 
     public function request(mixed $rootValue, array $request): LeaveRequest
     {
-        [$user, $app, $company] = $this->actingContext();
+        $context = $this->actingContext();
         $input = $request['input'];
 
-        $own = new EmployeeIdentityResolver()->fromUser($user, $company, $app);
+        $own = new EmployeeIdentityResolver()->fromUser($context->user, $context->company, $context->app);
 
         if (isset($input['employee_id'])) {
             /** @var Employee $employee */
-            $employee = Employee::getByIdFromCompanyApp((int) $input['employee_id'], $company, $app);
+            $employee = Employee::getByIdFromCompanyApp((int) $input['employee_id'], $context->company, $context->app);
 
             // Filing for someone else is an HR/admin action.
-            if (! $user->isAdmin() && ($own === null || $own->getId() !== $employee->getId())) {
+            if (! $context->user->isAdmin() && ($own === null || $own->getId() !== $employee->getId())) {
                 throw new HumanResourcesException('You can only request leave for yourself.');
             }
         } else {
@@ -44,13 +44,13 @@ class LeaveRequestMutation
         }
 
         /** @var LeaveType $leaveType */
-        $leaveType = LeaveType::getByIdFromCompanyApp((int) $input['leave_type_id'], $company, $app);
+        $leaveType = LeaveType::getByIdFromCompanyApp((int) $input['leave_type_id'], $context->company, $context->app);
 
         return new RequestLeaveAction(
             new LeaveRequestData(
-                app: $app,
-                company: $company,
-                user: $user,
+                app: $context->app,
+                company: $context->company,
+                user: $context->user,
                 employee: $employee,
                 leaveType: $leaveType,
                 startDate: $this->normalizeDate($input['start_date']),
@@ -62,14 +62,14 @@ class LeaveRequestMutation
 
     public function decide(mixed $rootValue, array $request): LeaveRequest
     {
-        [$user, $app, $company] = $this->actingContext();
+        $context = $this->actingContext();
 
         /** @var LeaveRequest $leaveRequest */
-        $leaveRequest = LeaveRequest::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+        $leaveRequest = LeaveRequest::getByIdFromCompanyApp((int) $request['id'], $context->company, $context->app);
 
-        $approver = new EmployeeIdentityResolver()->fromUser($user, $company, $app);
+        $approver = new EmployeeIdentityResolver()->fromUser($context->user, $context->company, $context->app);
 
-        if (! $user->isAdmin() && ! $this->canManage($approver, $leaveRequest->employee)) {
+        if (! $context->user->isAdmin() && ! $this->canManage($approver, $leaveRequest->employee)) {
             throw new HumanResourcesException('You are not authorized to decide this leave request.');
         }
 
@@ -83,12 +83,12 @@ class LeaveRequestMutation
 
     public function cancel(mixed $rootValue, array $request): LeaveRequest
     {
-        [$user, $app, $company] = $this->actingContext();
+        $context = $this->actingContext();
 
         /** @var LeaveRequest $leaveRequest */
-        $leaveRequest = LeaveRequest::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+        $leaveRequest = LeaveRequest::getByIdFromCompanyApp((int) $request['id'], $context->company, $context->app);
 
-        if (! $user->isAdmin() && $leaveRequest->employee->users_id !== $user->getId()) {
+        if (! $context->user->isAdmin() && $leaveRequest->employee->users_id !== $context->user->getId()) {
             throw new HumanResourcesException('You can only cancel your own leave request.');
         }
 
