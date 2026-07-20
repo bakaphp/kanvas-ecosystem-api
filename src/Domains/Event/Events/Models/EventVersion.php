@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\Observers\EventVersionObserver;
 use Kanvas\Event\Models\BaseModel;
@@ -31,12 +35,13 @@ use Spatie\LaravelData\DataCollection;
 #[ObservedBy([EventVersionObserver::class])]
 class EventVersion extends BaseModel
 {
-    use UuidTrait;
-    use SlugTrait;
     use CanUseWorkflow;
+    use DatabaseSearchableTrait;
     use FollowersTrait;
-    use HasTagsTrait;
     use HasLightHouseCache;
+    use HasTagsTrait;
+    use SlugTrait;
+    use UuidTrait;
 
     protected $table = 'event_versions';
     protected $guarded = [];
@@ -221,5 +226,44 @@ class EventVersion extends BaseModel
         }
 
         return isset($metadata['max_capacity']) ? (int) $metadata['max_capacity'] : null;
+    }
+
+    public function searchableAs(): string
+    {
+        $app = $this->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_event_version_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'event_version_index');
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'uuid' => $this->uuid,
+            'name' => $this->name,
+            'slug' => $this->slug,
+            'description' => $this->description,
+        ];
+    }
+
+    #[Override]
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }

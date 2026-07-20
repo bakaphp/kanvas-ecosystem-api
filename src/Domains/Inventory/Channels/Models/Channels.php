@@ -8,9 +8,12 @@ use Baka\Support\Str;
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Inventory\Channels\Actions\UnPublishAllVariantsAction;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Traits\DefaultTrait;
@@ -137,5 +140,34 @@ class Channels extends BaseModel
             ->whereIn(Regions::getTableName() . '.id', $regionIds->all())
             ->where('is_deleted', 0)
             ->get();
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'description' => $this->description,
+            'slug' => $this->slug,
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }

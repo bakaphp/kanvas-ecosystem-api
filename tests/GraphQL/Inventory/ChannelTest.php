@@ -247,6 +247,40 @@ class ChannelTest extends TestCase
         $this->assertEquals(0, (int) $updatedRecord->is_published);
     }
 
+    public function testSearchChannels(): void
+    {
+        $name = 'Channel-' . fake()->unique()->uuid();
+        $data = [
+            'name' => $name,
+            'is_default' => false,
+        ];
+        $this->graphQL('
+            mutation($data: CreateChannelInput!) {
+                createChannel(input: $data)
+                {
+                    id
+                    name,
+                    is_default
+                }
+            }', ['data' => $data])->assertJson([
+            'data' => ['createChannel' => $data]
+        ]);
+
+        $response = $this->graphQL('
+            query($search: String) {
+                channels(search: $search) {
+                    data {
+                        name
+                    }
+                }
+            }', ['search' => $name])
+            ->assertJsonStructure(['data' => ['channels' => ['data' => ['*' => ['name']]]]])
+            ->decodeResponseJson()->json;
+
+        $names = array_column(json_decode($response, true)['data']['channels']['data'], 'name');
+        $this->assertContains($name, $names);
+    }
+
     public function testChannelRegionsResolvesFromVariantChannels(): void
     {
         $user = auth()->user();

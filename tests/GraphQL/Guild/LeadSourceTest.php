@@ -237,6 +237,58 @@ class LeadSourceTest extends TestCase
         ]);
     }
 
+    public function testSearchLeadSources(): void
+    {
+        $input = [
+            'name' => fake()->name,
+            'description' => fake()->text,
+            'is_active' => fake()->boolean,
+        ];
+        $leadType = $this->graphQL(
+            '
+                mutation createLeadType($input: LeadTypeInput!) {
+                    createLeadType(input: $input){
+                       uuid
+                    }
+                }
+                ',
+            [
+                'input' => $input,
+            ]
+        );
+        $leadType = json_decode($leadType->decodeResponseJson()->json);
+        $leadType = $leadType->data->createLeadType->uuid;
+
+        $name = 'LeadSource-' . fake()->unique()->uuid();
+        $input = [
+            'leads_types_id' => $leadType,
+            'name' => $name,
+            'description' => fake()->text,
+            'is_active' => fake()->boolean,
+        ];
+        $this->graphQL(
+            '
+                mutation createLeadSource($input: LeadSourceInput!) {
+                    createLeadSource(input: $input){
+                        name,
+                        description,
+                    }
+                }
+                ',
+            [
+                'input' => $input,
+            ]
+        );
+
+        $response = $this->graphQL(
+            'query leadSources($search: String){ leadSources(search:$search){ data { name } } }',
+            ['search' => $name]
+        )->assertJsonStructure(['data' => ['leadSources' => ['data' => ['*' => ['name']]]]])->decodeResponseJson()->json;
+
+        $names = array_column(json_decode($response, true)['data']['leadSources']['data'], 'name');
+        $this->assertContains($name, $names);
+    }
+
     public function testNotDeletedLeadSourceInUse(): void
     {
         $leadRotation = LeadRotation::create([

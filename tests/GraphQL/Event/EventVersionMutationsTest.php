@@ -325,6 +325,51 @@ class EventVersionMutationsTest extends TestCase
         $this->assertSame(25.0, (float) $updated->discount);
     }
 
+    public function testSearchEventVersions(): void
+    {
+        ['event_id' => $eventId] = $this->createBaseEvent();
+        $name = 'EventVersion-' . fake()->unique()->uuid();
+
+        $input = [
+            'event_id' => $eventId,
+            'name' => $name,
+            'price_per_ticket' => 150.0,
+            'max_capacity' => 30,
+        ];
+
+        $this->graphQL('
+            mutation($input: EventVersionInput!) {
+                createEventVersion(input: $input) { id }
+            }
+        ', ['input' => $input])->assertSuccessful();
+
+        $response = $this->graphQL(
+            '
+            query eventVersions($search: String) {
+                eventVersions(search: $search) {
+                    data {
+                        name
+                    }
+                }
+            }
+            ',
+            ['search' => $name]
+        )->assertJsonStructure(
+            [
+                'data' => [
+                    'eventVersions' => [
+                        'data' => [
+                            '*' => ['name'],
+                        ],
+                    ],
+                ],
+            ]
+        )->decodeResponseJson()->json;
+
+        $names = array_column(json_decode($response, true)['data']['eventVersions']['data'], 'name');
+        $this->assertContains($name, $names);
+    }
+
     public function testFollowAndUnfollowEventVersion(): void
     {
         ['version_id' => $versionId] = $this->createBaseEvent();

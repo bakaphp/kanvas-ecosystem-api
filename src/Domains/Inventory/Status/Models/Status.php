@@ -6,7 +6,10 @@ namespace Kanvas\Inventory\Status\Models;
 
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\SlugTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Traits\DefaultTrait;
@@ -57,5 +60,33 @@ class Status extends BaseModel
     public function hasDependencies(): bool
     {
         return $this->products()->exists() || $this->variants()->exists();
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'slug' => $this->slug,
+        ];
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        return $query;
     }
 }

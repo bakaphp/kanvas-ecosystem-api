@@ -207,4 +207,53 @@ class LeadRotationTest extends TestCase
             ],
         ]);
     }
+
+    public function testSearchLeadRotations(): void
+    {
+        $name = 'LeadRotation-' . fake()->unique()->uuid();
+        $this->graphQL(
+            '
+            mutation createLeadRotation($input: LeadRotationInput!) {
+                createLeadRotation(input: $input){
+                    id
+                }
+            }
+            ',
+            [
+                'input' => [
+                    'name' => $name,
+                    'leads_rotations_email' => fake()->email,
+                    'hits' => fake()->numberBetween(1, 100),
+                ],
+            ]
+        );
+
+        $response = $this->graphQL(
+            '
+            query leadsRotations($search: String) {
+                leadsRotations(search: $search) {
+                    data {
+                        name
+                    }
+                }
+            }
+            ',
+            [
+                'search' => $name,
+            ]
+        )->assertJsonStructure(
+            [
+                'data' => [
+                    'leadsRotations' => [
+                        'data' => [
+                            '*' => ['name'],
+                        ],
+                    ],
+                ],
+            ]
+        )->decodeResponseJson()->json;
+
+        $names = array_column(json_decode($response, true)['data']['leadsRotations']['data'], 'name');
+        $this->assertContains($name, $names);
+    }
 }
