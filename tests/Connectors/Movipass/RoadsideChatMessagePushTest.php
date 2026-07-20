@@ -9,12 +9,14 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\SendRoadsideChatMessagePushAction;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideChatMessageNotification;
+use Kanvas\Connectors\Movipass\Workflows\Activities\SendRoadsideChatMessagePushActivity;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\TestCase;
 
 final class RoadsideChatMessagePushTest extends TestCase
@@ -171,6 +173,52 @@ final class RoadsideChatMessagePushTest extends TestCase
         $notified = new SendRoadsideChatMessagePushAction($channel, $message)->execute();
 
         $this->assertSame(0, $notified);
+        Notification::assertNothingSent();
+    }
+
+    public function testActivityNotifiesCounterpartyWhenMessageCreated(): void
+    {
+        $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
+        $mechanic = Users::factory()->create();
+        $channel = $this->createOrderChannel($order, [$this->authUser->getId(), $mechanic->getId()]);
+        $message = $this->createChannelMessage($channel, $this->authUser);
+        $channel->messages()->attach($message->getKey(), ['users_id' => $this->authUser->getId()]);
+
+        Notification::fake();
+
+        $result = new SendRoadsideChatMessagePushActivity(
+            0,
+            now()->toDateTimeString(),
+            StoredWorkflow::make(),
+            []
+        )->execute($message, $this->apps, []);
+
+        $this->assertTrue($result['result']);
+        $this->assertSame(1, $result['recipients_notified']);
+        Notification::assertSentTo($mechanic, RoadsideChatMessageNotification::class);
+        // The sender never gets pushed for their own message.
+        Notification::assertNotSentTo($this->authUser, RoadsideChatMessageNotification::class);
+    }
+
+    public function testActivityIgnoresNonRoadsideMessage(): void
+    {
+        $order = $this->createOrder(OrderTypeEnum::MOVIPASS->value);
+        $mechanic = Users::factory()->create();
+        $channel = $this->createOrderChannel($order, [$this->authUser->getId(), $mechanic->getId()]);
+        $message = $this->createChannelMessage($channel, $this->authUser);
+        $channel->messages()->attach($message->getKey(), ['users_id' => $this->authUser->getId()]);
+
+        Notification::fake();
+
+        $result = new SendRoadsideChatMessagePushActivity(
+            0,
+            now()->toDateTimeString(),
+            StoredWorkflow::make(),
+            []
+        )->execute($message, $this->apps, []);
+
+        $this->assertFalse($result['result']);
+        $this->assertSame(0, $result['recipients_notified']);
         Notification::assertNothingSent();
     }
 

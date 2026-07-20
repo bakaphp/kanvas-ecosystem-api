@@ -24,8 +24,9 @@ class SendRoadsideChatMessagePushAction
 
     /**
      * Push the new chat message to every channel member except the sender.
-     * Self-guards: only fires for roadside-assistance order channels, so it is
-     * safe to bind on a broad Channel/updated workflow rule.
+     * Self-guards: returns 0 for anything that isn't a roadside-assistance order
+     * channel, so SendRoadsideChatMessagePushActivity can call it for every channel a
+     * newly created message lands in without pre-filtering.
      *
      * @return int number of recipients notified
      */
