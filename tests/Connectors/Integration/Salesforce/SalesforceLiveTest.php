@@ -10,18 +10,21 @@ use Kanvas\Connectors\Salesforce\Actions\PushLeadAction;
 use Kanvas\Connectors\Salesforce\Client;
 use Kanvas\Connectors\Salesforce\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Salesforce\Enums\GrantTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Tests\TestCase;
 
 /**
  * Hits a real Salesforce org — no Http::fake() here, unlike every other test in this directory.
- * Requires a Connected App + refresh token from a Salesforce Developer Org, set in .env (the base
- * TestCase loads .env, not .env.testing — see tests/CLAUDE.md):
+ * Set in .env (the base TestCase loads .env, not .env.testing — see tests/CLAUDE.md):
  *
  *   TEST_SALESFORCE_CLIENT_ID=...
  *   TEST_SALESFORCE_CLIENT_SECRET=...
- *   TEST_SALESFORCE_REFRESH_TOKEN=...
- *   TEST_SALESFORCE_LOGIN_URL=https://login.salesforce.com   # or https://test.salesforce.com for a sandbox
+ *   TEST_SALESFORCE_LOGIN_URL=...      # the org's own domain, e.g. https://gagroup.my.salesforce.com
+ *
+ * Plus ONE of these two, depending on how the org's Connected App is set up:
+ *   TEST_SALESFORCE_GRANT_TYPE=refresh_token (default) + TEST_SALESFORCE_REFRESH_TOKEN=...
+ *   TEST_SALESFORCE_GRANT_TYPE=client_credentials        (no refresh token needed at all)
  *
  * Skipped in CI and whenever those variables aren't set, so it never fires accidental real API
  * calls — same pattern as tests/Connectors/Integration/NetSuite/CustomerTest.php and
@@ -41,12 +44,23 @@ final class SalesforceLiveTest extends TestCase
             $this->markTestSkipped('Salesforce live integration test is skipped in CI.');
         }
 
-        if (! env('TEST_SALESFORCE_CLIENT_ID') || ! env('TEST_SALESFORCE_CLIENT_SECRET') || ! env('TEST_SALESFORCE_REFRESH_TOKEN')) {
+        if (! env('TEST_SALESFORCE_CLIENT_ID') || ! env('TEST_SALESFORCE_CLIENT_SECRET')) {
             $this->markTestSkipped(
-                'Set TEST_SALESFORCE_CLIENT_ID, TEST_SALESFORCE_CLIENT_SECRET and TEST_SALESFORCE_REFRESH_TOKEN in .env '
-                . '(a Connected App + refresh token from a Salesforce Developer Org) to run this test.'
+                'Set TEST_SALESFORCE_CLIENT_ID and TEST_SALESFORCE_CLIENT_SECRET in .env to run this test.'
             );
         }
+
+        if ($this->resolveGrantType() === GrantTypeEnum::REFRESH_TOKEN && ! env('TEST_SALESFORCE_REFRESH_TOKEN')) {
+            $this->markTestSkipped(
+                'Set TEST_SALESFORCE_REFRESH_TOKEN in .env, or set TEST_SALESFORCE_GRANT_TYPE=client_credentials '
+                . 'if the org\'s Connected App uses that flow instead, to run this test.'
+            );
+        }
+    }
+
+    private function resolveGrantType(): GrantTypeEnum
+    {
+        return GrantTypeEnum::tryFrom((string) env('TEST_SALESFORCE_GRANT_TYPE', '')) ?? GrantTypeEnum::REFRESH_TOKEN;
     }
 
     protected function tearDown(): void
@@ -65,10 +79,16 @@ final class SalesforceLiveTest extends TestCase
         $user = static::$cachedUser;
         $company = $user->getCurrentCompany();
 
+        $grantType = $this->resolveGrantType();
+
         $company->set(ConfigurationEnum::CLIENT_ID->value, env('TEST_SALESFORCE_CLIENT_ID'));
         $company->set(ConfigurationEnum::CLIENT_SECRET->value, env('TEST_SALESFORCE_CLIENT_SECRET'));
-        $company->set(ConfigurationEnum::REFRESH_TOKEN->value, env('TEST_SALESFORCE_REFRESH_TOKEN'));
+        $company->set(ConfigurationEnum::GRANT_TYPE->value, $grantType->value);
         $company->set(ConfigurationEnum::LOGIN_URL->value, env('TEST_SALESFORCE_LOGIN_URL', 'https://login.salesforce.com'));
+
+        if ($grantType === GrantTypeEnum::REFRESH_TOKEN) {
+            $company->set(ConfigurationEnum::REFRESH_TOKEN->value, env('TEST_SALESFORCE_REFRESH_TOKEN'));
+        }
 
         $lead = Lead::factory()
             ->withAppId($app->getId())
