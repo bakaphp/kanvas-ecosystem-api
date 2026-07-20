@@ -183,6 +183,8 @@ jobs:
             processes: 1
           - testsuite: Scribe
             processes: 1
+          - testsuite: GraphQL-HumanResources
+            processes: 1
     services:
       mysql:
         image: mysql:8.0
