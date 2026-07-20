@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\SendRoadsideChatMessagePushAction;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideChatMessageNotification;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SendRoadsideChatMessagePushActivity;
 use Kanvas\Social\Channels\Models\Channel;
@@ -16,11 +17,15 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\TestCase;
 
 final class RoadsideChatMessagePushTest extends TestCase
 {
+    use HasIntegrationCompany;
+
     protected Apps $apps;
     protected Users $authUser;
 
@@ -183,6 +188,15 @@ final class RoadsideChatMessagePushTest extends TestCase
         $channel = $this->createOrderChannel($order, [$this->authUser->getId(), $mechanic->getId()]);
         $message = $this->createChannelMessage($channel, $this->authUser);
         $channel->messages()->attach($message->getKey(), ['users_id' => $this->authUser->getId()]);
+
+        // Gate integration for the executeIntegration wrapper (integration-history logging).
+        $this->setIntegration(
+            $this->apps,
+            IntegrationsEnum::MOVIPASS,
+            MovipassHandler::class,
+            $order->company,
+            $this->authUser
+        );
 
         Notification::fake();
 

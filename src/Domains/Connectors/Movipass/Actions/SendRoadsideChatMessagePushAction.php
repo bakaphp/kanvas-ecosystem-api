@@ -16,10 +16,23 @@ class SendRoadsideChatMessagePushAction
 {
     private const UUID_PATTERN = '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i';
 
+    private ?Order $roadsideOrder = null;
+    private bool $roadsideOrderResolved = false;
+
     public function __construct(
         protected Channel $channel,
         protected Message $message,
     ) {
+    }
+
+    public function getRoadsideOrder(): ?Order
+    {
+        if (! $this->roadsideOrderResolved) {
+            $this->roadsideOrder = $this->resolveRoadsideOrder($this->channel);
+            $this->roadsideOrderResolved = true;
+        }
+
+        return $this->roadsideOrder;
     }
 
     /**
@@ -31,7 +44,7 @@ class SendRoadsideChatMessagePushAction
      */
     public function execute(): int
     {
-        $order = $this->resolveRoadsideOrder($this->channel);
+        $order = $this->getRoadsideOrder();
 
         if ($order === null) {
             return 0;
