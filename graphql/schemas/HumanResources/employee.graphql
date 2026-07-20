@@ -1,0 +1,119 @@
+enum HrEmploymentTypeEnum {
+    EMPLOYEE @enum(value: "employee")
+    CONTRACTOR @enum(value: "contractor")
+    SHARED @enum(value: "shared")
+}
+
+enum HrEmployeeStatusEnum {
+    ONBOARDING @enum(value: "onboarding")
+    ACTIVE @enum(value: "active")
+    ON_LEAVE @enum(value: "on_leave")
+    SUSPENDED @enum(value: "suspended")
+    DEPARTED @enum(value: "departed")
+}
+
+type HrEmployee {
+    id: ID!
+    uuid: String!
+    employee_number: String
+    description: String
+    employment_type: HrEmploymentTypeEnum!
+    home_entity: String
+    status: HrEmployeeStatusEnum!
+    hired_at: Date
+    terminated_at: Date
+    user: User @belongsTo(relation: "user")
+    people: People @belongsTo(relation: "people")
+    department: HrDepartment @belongsTo(relation: "department")
+    position: HrPosition @belongsTo(relation: "position")
+    manager: HrEmployee @belongsTo(relation: "parent")
+    reports: [HrEmployee!]! @hasMany(relation: "children")
+    seatAssignments: [HrSeatAssignment!]! @hasMany(relation: "seatAssignments")
+    leaveBalances: [HrLeaveBalance!]! @hasMany(relation: "leaveBalances")
+    leaveRequests: [HrLeaveRequest!]! @hasMany(relation: "leaveRequests")
+    compensations: [HrEmployeeCompensation!]!
+        @hasMany(relation: "compensations")
+        @hrFieldTier(tier: COMPENSATION)
+    currentCompensation: HrEmployeeCompensation
+        @hasOne(relation: "currentCompensation")
+        @hrFieldTier(tier: COMPENSATION)
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    company: Company! @belongsTo(relation: "company")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input HrEmployeeInput {
+    users_id: ID!
+    people_id: ID!
+    position_id: ID!
+    hired_at: Date!
+    department_id: ID
+    manager_employee_id: ID
+    employee_number: String
+    description: String
+    employment_type: HrEmploymentTypeEnum
+    home_entity: String
+    status: HrEmployeeStatusEnum
+}
+
+input UpdateHrEmployeeInput {
+    people_id: ID
+    department_id: ID
+    position_id: ID
+    manager_employee_id: ID
+    employee_number: String
+    description: String
+    employment_type: HrEmploymentTypeEnum
+    home_entity: String
+    status: HrEmployeeStatusEnum
+    hired_at: Date
+    end_is_voluntary: Boolean
+}
+
+extend type Mutation @guardByAdmin {
+    createHrEmployee(input: HrEmployeeInput!): HrEmployee!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Employee\\EmployeeMutation@create"
+        )
+    updateHrEmployee(id: ID!, input: UpdateHrEmployeeInput!): HrEmployee!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Employee\\EmployeeMutation@update"
+        )
+    deleteHrEmployee(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Employee\\EmployeeMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    hrEmployees(
+        search: String @search
+        where: _
+            @whereConditions(
+                columns: [
+                    "status"
+                    "department_id"
+                    "position_id"
+                    "employment_type"
+                ]
+            )
+        orderBy: _ @orderBy(columns: ["hired_at", "created_at"])
+    ): [HrEmployee!]!
+        @paginate(
+            model: "Kanvas\\HumanResources\\Employees\\Models\\Employee"
+            scopes: ["fromApp", "fromCompany", "notDeleted", "visibleToActor"]
+            defaultCount: 25
+        )
+
+    # The acting user's own HR record — self-service ("how many vacation days do I have?").
+    myHrProfile: HrEmployee
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Queries\\MeQuery@employee"
+        )
+}

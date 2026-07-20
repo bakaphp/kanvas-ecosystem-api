@@ -7,7 +7,6 @@ namespace Kanvas\Guild\Customers\Repositories;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Traits\SearchableTrait;
-use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -16,7 +15,6 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
-use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleRelationship;
 use Override;
@@ -124,30 +122,6 @@ class PeoplesRepository
         ->where('apps_id', $app->getId())
         ->notDeleted()
         ->get();
-    }
-
-    public static function findByEmailOrCreate(string $email, UserInterface $user, CompanyInterface $company, ?string $name): People
-    {
-        $people = self::getByEmail($email, $company);
-
-        if (! $people) {
-            $people = new People();
-            $people->companies_id = $company->getId();
-            $people->name = $name ?? explode('@', $email)[0];
-            $people->users_id = $user->getId();
-
-            $people->saveOrFail();
-
-            $people->contacts()->save(
-                new Contact([
-                    'contacts_types_id' => ContactTypeEnum::EMAIL->value,
-                    'value' => $email,
-                    'weight' => 100,
-                ])
-            );
-        }
-
-        return $people;
     }
 
     /**

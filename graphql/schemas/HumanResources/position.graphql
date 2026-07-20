@@ -1,0 +1,59 @@
+type HrPosition {
+    id: ID!
+    uuid: String!
+    title: String!
+    level: String
+    description: String
+    is_active: Boolean!
+    department: HrDepartment @belongsTo(relation: "department")
+    payBands: [HrPayBand!]!
+        @hasMany(relation: "payBands")
+        @hrFieldTier(tier: COMPENSATION_BAND)
+    company: Company! @belongsTo(relation: "company")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input HrPositionInput {
+    title: String!
+    department_id: ID
+    level: String
+    description: String
+}
+
+input UpdateHrPositionInput {
+    title: String
+    department_id: ID
+    level: String
+    description: String
+    is_active: Boolean
+}
+
+extend type Mutation @guardByAdmin {
+    createHrPosition(input: HrPositionInput!): HrPosition!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Position\\PositionMutation@create"
+        )
+    updateHrPosition(id: ID!, input: UpdateHrPositionInput!): HrPosition!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Position\\PositionMutation@update"
+        )
+    deleteHrPosition(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Position\\PositionMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    hrPositions(
+        search: String @search
+        where: _
+            @whereConditions(columns: ["title", "department_id", "is_active"])
+        orderBy: _ @orderBy(columns: ["title", "created_at"])
+    ): [HrPosition!]!
+        @paginate(
+            model: "Kanvas\\HumanResources\\Positions\\Models\\Position"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+}
