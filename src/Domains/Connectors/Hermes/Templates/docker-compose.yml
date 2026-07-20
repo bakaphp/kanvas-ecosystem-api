@@ -9,7 +9,6 @@ services:
     restart: unless-stopped
     stdin_open: true
     tty: true
-    entrypoint: ["/opt/hermes/docker/entrypoint.sh"]
     command: ["gateway", "run", "--accept-hooks"]
     volumes:
       - {{HERMES_DIR}}:/opt/data

@@ -54,6 +54,22 @@ return [
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
             'throw' => true, // with that you enabled the exception when you are writing a file
         ],
+
+        // Agent config backups (AgentConfigBackupService) can live in their own bucket —
+        // separate retention/lifecycle rules than the main app bucket, or a dedicated
+        // account entirely. Falls back to the main AWS_* credentials when the
+        // AGENT_CONFIG_BACKUP_* vars are unset, so this disk is a no-op change by default.
+        'agent-config-backups' => [
+            'driver' => 's3',
+            'key' => env('AGENT_CONFIG_BACKUP_AWS_ACCESS_KEY_ID', env('AWS_ACCESS_KEY_ID')),
+            'secret' => env('AGENT_CONFIG_BACKUP_AWS_SECRET_ACCESS_KEY', env('AWS_SECRET_ACCESS_KEY')),
+            'region' => env('AGENT_CONFIG_BACKUP_AWS_DEFAULT_REGION', env('AWS_DEFAULT_REGION')),
+            'bucket' => env('AGENT_CONFIG_BACKUP_AWS_BUCKET', env('AWS_BUCKET')),
+            'url' => env('AGENT_CONFIG_BACKUP_AWS_URL', env('AWS_URL')),
+            'path' => '/',
+            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'throw' => true,
+        ],
     ],
 
     /*
