@@ -133,6 +133,7 @@ input ScribeAttachExpenseReceiptInput {
 
 extend type Query @guard {
     scribeExpenses(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
