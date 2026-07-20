@@ -23,7 +23,11 @@ return new class () extends Migration {
         $config = [
             'client_id' => ['type' => 'text', 'required' => true],
             'client_secret' => ['type' => 'text', 'required' => true],
-            'refresh_token' => ['type' => 'text', 'required' => true],
+            // 'refresh_token' grant (default, Authorization Code flow done once) or
+            // 'client_credentials' (server-to-server, no user context, no refresh_token at all —
+            // see SalesforceHandler::setup()/Client.php for how each is validated/used).
+            'grant_type' => ['type' => 'text', 'required' => false],
+            'refresh_token' => ['type' => 'text', 'required' => false],
             'login_url' => ['type' => 'text', 'required' => false],
         ];
 
