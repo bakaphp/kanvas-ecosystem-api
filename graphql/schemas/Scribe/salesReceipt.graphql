@@ -95,6 +95,7 @@ input ScribeSalesReceiptInput {
 
 extend type Query @guard {
     scribeSalesReceipts(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
