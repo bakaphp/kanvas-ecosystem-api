@@ -197,6 +197,7 @@ input ScribeAmendInvoiceInput {
 
 extend type Query @guard {
     scribeInvoices(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [
