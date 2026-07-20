@@ -1,0 +1,68 @@
+enum HrLeaveRequestStatusEnum {
+    PENDING @enum(value: "pending")
+    APPROVED @enum(value: "approved")
+    REJECTED @enum(value: "rejected")
+    CANCELLED @enum(value: "cancelled")
+}
+
+enum HrLeaveDecisionEnum {
+    APPROVE @enum(value: "approve")
+    REJECT @enum(value: "reject")
+}
+
+type HrLeaveRequest {
+    id: ID!
+    uuid: String!
+    start_date: Date!
+    end_date: Date!
+    days: Float!
+    reason: String
+    status: HrLeaveRequestStatusEnum!
+    decided_at: DateTime
+    employee: HrEmployee! @belongsTo(relation: "employee")
+    leaveType: HrLeaveType! @belongsTo(relation: "leaveType")
+    approver: HrEmployee @belongsTo(relation: "approver")
+    created_at: DateTime
+}
+
+input HrLeaveRequestInput {
+    employee_id: ID
+    leave_type_id: ID!
+    start_date: Date!
+    end_date: Date!
+    reason: String
+}
+
+extend type Mutation @guard {
+    requestHrLeave(input: HrLeaveRequestInput!): HrLeaveRequest!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Leave\\LeaveRequestMutation@request"
+        )
+    decideHrLeaveRequest(
+        id: ID!
+        decision: HrLeaveDecisionEnum!
+        note: String
+    ): HrLeaveRequest!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Leave\\LeaveRequestMutation@decide"
+        )
+    cancelHrLeaveRequest(id: ID!): HrLeaveRequest!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Leave\\LeaveRequestMutation@cancel"
+        )
+}
+
+extend type Query @guard {
+    hrLeaveRequests(
+        where: _
+            @whereConditions(
+                columns: ["status", "employee_id", "leave_type_id"]
+            )
+        orderBy: _ @orderBy(columns: ["start_date", "created_at"])
+    ): [HrLeaveRequest!]!
+        @paginate(
+            model: "Kanvas\\HumanResources\\Leave\\Models\\LeaveRequest"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+}

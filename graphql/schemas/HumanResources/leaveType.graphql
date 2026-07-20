@@ -1,0 +1,65 @@
+enum HrAccrualMethodEnum {
+    ANNUAL_ALLOTMENT @enum(value: "annual_allotment")
+    MONTHLY_ACCRUAL @enum(value: "monthly_accrual")
+    UNLIMITED @enum(value: "unlimited")
+}
+
+type HrLeaveType {
+    id: ID!
+    uuid: String!
+    name: String!
+    slug: String!
+    is_paid: Boolean!
+    accrual_method: HrAccrualMethodEnum!
+    default_annual_days: Float
+    carryover_max_days: Float
+    requires_approval: Boolean!
+    color: String
+    is_active: Boolean!
+    company: Company! @belongsTo(relation: "company")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input HrLeaveTypeInput {
+    name: String!
+    is_paid: Boolean
+    accrual_method: HrAccrualMethodEnum
+    default_annual_days: Float
+    carryover_max_days: Float
+    requires_approval: Boolean
+    color: String
+}
+
+input UpdateHrLeaveTypeInput {
+    name: String
+    is_paid: Boolean
+    accrual_method: HrAccrualMethodEnum
+    default_annual_days: Float
+    carryover_max_days: Float
+    requires_approval: Boolean
+    color: String
+    is_active: Boolean
+}
+
+extend type Mutation @guardByAdmin {
+    createHrLeaveType(input: HrLeaveTypeInput!): HrLeaveType!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Leave\\LeaveTypeMutation@create"
+        )
+    updateHrLeaveType(id: ID!, input: UpdateHrLeaveTypeInput!): HrLeaveType!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Leave\\LeaveTypeMutation@update"
+        )
+}
+
+extend type Query @guard {
+    hrLeaveTypes(
+        where: _ @whereConditions(columns: ["name", "is_active"])
+    ): [HrLeaveType!]!
+        @paginate(
+            model: "Kanvas\\HumanResources\\Leave\\Models\\LeaveType"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 50
+        )
+}

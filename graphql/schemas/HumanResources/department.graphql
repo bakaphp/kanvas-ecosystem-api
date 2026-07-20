@@ -1,0 +1,61 @@
+type HrDepartment {
+    id: ID!
+    uuid: String!
+    name: String!
+    slug: String!
+    code: String
+    outcome_line: String
+    description: String
+    parent: HrDepartment @belongsTo(relation: "parent")
+    children: [HrDepartment!]! @hasMany(relation: "children")
+    employees: [HrEmployee!]! @hasMany(relation: "employees")
+    seatAssignments: [HrSeatAssignment!]! @hasMany(relation: "seatAssignments")
+    company: Company! @belongsTo(relation: "company")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input HrDepartmentInput {
+    name: String!
+    parent_id: ID
+    code: String
+    outcome_line: String
+    description: String
+    companies_branches_id: ID
+}
+
+input UpdateHrDepartmentInput {
+    name: String
+    parent_id: ID
+    code: String
+    outcome_line: String
+    description: String
+}
+
+extend type Mutation @guardByAdmin {
+    createHrDepartment(input: HrDepartmentInput!): HrDepartment!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Department\\DepartmentMutation@create"
+        )
+    updateHrDepartment(id: ID!, input: UpdateHrDepartmentInput!): HrDepartment!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Department\\DepartmentMutation@update"
+        )
+    deleteHrDepartment(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Department\\DepartmentMutation@delete"
+        )
+}
+
+extend type Query @guard {
+    hrDepartments(
+        search: String @search
+        where: _ @whereConditions(columns: ["name", "code", "parent_id"])
+        orderBy: _ @orderBy(columns: ["name", "created_at"])
+    ): [HrDepartment!]!
+        @paginate(
+            model: "Kanvas\\HumanResources\\Departments\\Models\\Department"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+}

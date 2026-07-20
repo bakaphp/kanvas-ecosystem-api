@@ -25,6 +25,9 @@
         <testsuite name="GraphQL-Inventory">
             <directory suffix="Test.php">./tests/GraphQL/Inventory</directory>
         </testsuite>
+        <testsuite name="GraphQL-HumanResources">
+            <directory suffix="Test.php">./tests/GraphQL/HumanResources</directory>
+        </testsuite>
         <testsuite name="GraphQL-Other">
             <directory suffix="Test.php">./tests/GraphQL/ActionEngine</directory>
             <directory suffix="Test.php">./tests/GraphQL/Connector</directory>
