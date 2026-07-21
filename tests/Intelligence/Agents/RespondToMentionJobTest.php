@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput as RegisterPostDataDto;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Jobs\RespondToMentionJob;
 use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
@@ -28,6 +29,11 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Enums\MessageRole;
+use NeuronAI\Chat\Messages\ContentBlocks\AudioContent;
+use NeuronAI\Chat\Messages\ContentBlocks\FileContent;
+use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
+use Tests\Stubs\Intelligence\CapturingNeuronProvider;
+use Tests\Stubs\Intelligence\CapturingSystemUserAgentStub;
 use Tests\Stubs\Intelligence\SystemUserAgentStub;
 use Tests\TestCase;
 
@@ -343,5 +349,111 @@ class RespondToMentionJobTest extends TestCase
         );
 
         Bus::assertNotDispatched(RespondToMentionJob::class);
+    }
+
+    public function testAFileAttachedToTheMentionIsForwardedToTheAgentAsAContentBlock(): void
+    {
+        // Regression: the @mention job used to hardcode media: [] into RunNeuronChatAction, so a PDF a
+        // user attached to the comment never reached the model — the agent replied "I can't read the
+        // file." The job must now collect the message's files and hand them over as native content
+        // blocks (RunNeuronChatAction sniffs the bytes → FileContent for a PDF).
+        CapturingNeuronProvider::$lastMessages = [];
+
+        $human = auth()->user();
+        $agentUser = $this->makeAgentUser('ContractBot');
+        $agent = $this->makeCapturingAgent($agentUser);
+
+        $channel = $this->makeChannel($human);
+        $mention = $this->makeMessage($human, '@ContractBot the signed contract is attached, please review');
+        $channel->addMessage($mention, $human);
+        $this->attachPdf($mention, $agent->app);
+
+        new RespondToMentionJob($agent, $mention)->handle();
+
+        $this->assertNotEmpty(
+            CapturingNeuronProvider::$lastMessages,
+            'The agent must have been invoked with the mention turn',
+        );
+
+        $sawPdfBlock = false;
+        foreach (CapturingNeuronProvider::$lastMessages as $message) {
+            foreach ($message->getContentBlocks() as $block) {
+                if ($block instanceof FileContent && $block->mediaType === 'application/pdf') {
+                    $sawPdfBlock = true;
+                }
+            }
+        }
+
+        $this->assertTrue(
+            $sawPdfBlock,
+            'The PDF attached to the @mention must reach the model as a native FileContent block',
+        );
+    }
+
+    public function testMentionWithNoFilesAttachesNoMediaBlock(): void
+    {
+        // The collection must be inert when there's nothing attached — a plain @mention still rides
+        // its text (NeuronAI wraps it as a TextContent block), but no media block is ever attached.
+        CapturingNeuronProvider::$lastMessages = [];
+
+        $human = auth()->user();
+        $agentUser = $this->makeAgentUser('ContractBot');
+        $agent = $this->makeCapturingAgent($agentUser);
+
+        $channel = $this->makeChannel($human);
+        $mention = $this->makeMessage($human, '@ContractBot just a plain question');
+        $channel->addMessage($mention, $human);
+
+        new RespondToMentionJob($agent, $mention)->handle();
+
+        $mediaBlocks = [];
+        foreach (CapturingNeuronProvider::$lastMessages as $message) {
+            foreach ($message->getContentBlocks() as $block) {
+                if ($block instanceof FileContent
+                    || $block instanceof ImageContent
+                    || $block instanceof AudioContent
+                ) {
+                    $mediaBlocks[] = $block;
+                }
+            }
+        }
+
+        $this->assertSame([], $mediaBlocks, 'A text-only mention must not attach any media content block');
+    }
+
+    private function makeCapturingAgent(Users $agentUser): Agent
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $agentType = AgentType::factory()
+            ->withAppId($app->getId())
+            ->create(['provider' => 'neuron', 'handler' => CapturingSystemUserAgentStub::class]);
+
+        return Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['agent_type_id' => $agentType->getId(), 'user_id' => $agentUser->getId()]);
+    }
+
+    private function attachPdf(Message $message, Apps $app): void
+    {
+        // A data: URL keeps the fetch local — RunNeuronChatAction reads non-http URLs with
+        // file_get_contents(), so no network / SSRF fetcher is involved and the bytes sniff as a PDF.
+        $bytes = "%PDF-1.4\n1 0 obj<< /Type /Catalog >>endobj\ntrailer<< /Root 1 0 R >>\n%%EOF";
+
+        $file = new Filesystem();
+        $file->apps_id = $app->getId();
+        $file->companies_id = $message->companies_id;
+        $file->users_id = $message->users_id;
+        $file->name = 'signed-contract.pdf';
+        $file->path = 'contracts/signed-contract.pdf';
+        $file->url = 'data://application/pdf;base64,' . base64_encode($bytes);
+        $file->file_type = 'pdf';
+        $file->size = strlen($bytes);
+        $file->is_deleted = 0;
+        $file->saveOrFail();
+
+        $message->addFile($file, 'attachment');
     }
 }

@@ -94,6 +94,11 @@ final class RespondToMentionJob implements ShouldQueue
 
         $mentionText = $this->mentionMessage->contentText();
 
+        // RunNeuronChatAction sniffs each URL's bytes and rides image/audio/PDF/text natively, so the
+        // image/document split doesn't matter here — hand it the merged list. Without this the file the
+        // user attached to the @mention is dropped and the agent answers "I can't read the file."
+        ['images' => $images, 'documents' => $documents] = $this->mentionMessage->attachmentUrls();
+
         $reply = new RunNeuronChatAction(
             agent: $this->agent,
             session: null,
@@ -101,7 +106,7 @@ final class RespondToMentionJob implements ShouldQueue
             app: $app,
             user: $agentUser,
             handler: $handler,
-            media: [],
+            media: [...$images, ...$documents],
         )->execute();
 
         if (trim($reply) === '') {

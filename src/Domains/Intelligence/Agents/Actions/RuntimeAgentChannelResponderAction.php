@@ -44,7 +44,7 @@ class RuntimeAgentChannelResponderAction
             return $this->message;
         }
 
-        ['images' => $imageUrls, 'documents' => $documentUrls] = $this->collectAttachmentUrls();
+        ['images' => $imageUrls, 'documents' => $documentUrls] = $this->message->attachmentUrls();
 
         $messageContent = AttachmentPromptBuilder::withAttachments(
             (string) ($payload['content'] ?? ''),
@@ -106,35 +106,6 @@ class RuntimeAgentChannelResponderAction
     protected function resolveProvider(): AgentRuntimeProvider
     {
         return AgentRuntimeProviderFactory::forRunningAgent($this->agent);
-    }
-
-    /**
-     * Split the inbound message's attachments by what the runtime can actually accept:
-     * image URLs go through as native multimodal content, every other file (PDF, doc, ...)
-     * comes back under `documents` so its link can be folded into the message text — the
-     * runtime chat APIs reject non-image content uploads with `400 unsupported_content_type`.
-     *
-     * @return array{images: list<string>, documents: list<string>}
-     */
-    private function collectAttachmentUrls(): array
-    {
-        $images = [];
-        $documents = [];
-
-        foreach ($this->message->files as $file) {
-            $url = $file->url;
-            if ($url === '') {
-                continue;
-            }
-
-            if ($file->mediaType()->isImage()) {
-                $images[] = $url;
-            } else {
-                $documents[] = $url;
-            }
-        }
-
-        return ['images' => $images, 'documents' => $documents];
     }
 
     private function createReplyMessage(string $reply): Message

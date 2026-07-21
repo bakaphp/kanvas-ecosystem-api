@@ -60,7 +60,7 @@ class InternalAgentChannelResponderAction
 
         $this->dispatchAttachmentDescription($this->message, $this->agent, $this->channel);
 
-        ['images' => $imageUrls, 'documents' => $documentUrls] = $this->collectAttachmentUrls();
+        ['images' => $imageUrls, 'documents' => $documentUrls] = $this->message->attachmentUrls();
 
         $messageContent = AttachmentPromptBuilder::withAttachments(
             (string) ($payload['content'] ?? ''),
@@ -148,30 +148,6 @@ class InternalAgentChannelResponderAction
                 $this->agent->user
             )
         );
-    }
-
-    /**
-     * @return array{images: list<string>, documents: list<string>}
-     */
-    private function collectAttachmentUrls(): array
-    {
-        $images = [];
-        $documents = [];
-
-        foreach ($this->message->files as $file) {
-            $url = $file->url;
-            if ($url === '') {
-                continue;
-            }
-
-            if ($file->mediaType()->isImage()) {
-                $images[] = $url;
-            } else {
-                $documents[] = $url;
-            }
-        }
-
-        return ['images' => $images, 'documents' => $documents];
     }
 
     private function createReplyMessage(string $reply): Message

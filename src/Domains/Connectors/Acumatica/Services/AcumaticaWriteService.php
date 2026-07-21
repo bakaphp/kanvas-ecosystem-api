@@ -61,8 +61,13 @@ class AcumaticaWriteService
      *
      * @return array<array-key, mixed> the persisted record (includes the `id` GUID)
      */
-    public function push(string $entity, array $body, bool $release = false, array $files = [], ?array $findQuery = null): array
-    {
+    public function push(
+        string $entity,
+        array $body,
+        bool $release = false,
+        array $files = [],
+        ?array $findQuery = null
+    ): array {
         $this->assertWriteEnabled();
 
         $client = $this->client();
