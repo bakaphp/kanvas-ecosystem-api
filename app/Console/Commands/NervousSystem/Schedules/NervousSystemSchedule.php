@@ -156,9 +156,9 @@ final class NervousSystemSchedule
 
         // End-of-day config backup — runs hourly and dispatches only for agents
         // whose company's local time is 23:xx, so each timezone gets its own EOD backup.
-        $schedule->command(DailyAgentConfigBackupCommand::class)
-            ->hourly()
-            ->withoutOverlapping()
-            ->onOneServer();
+        /*  $schedule->command(DailyAgentConfigBackupCommand::class)
+             ->hourly()
+             ->withoutOverlapping()
+             ->onOneServer(); */
     }
 }

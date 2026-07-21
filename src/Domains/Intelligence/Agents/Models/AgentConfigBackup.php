@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Kanvas\Intelligence\Models\BaseModel;
+use Override;
 
 /**
  * @property int $id
@@ -43,6 +44,7 @@ class AgentConfigBackup extends BaseModel
         'completed_at',
     ];
 
+    #[Override]
     protected function casts(): array
     {
         return [

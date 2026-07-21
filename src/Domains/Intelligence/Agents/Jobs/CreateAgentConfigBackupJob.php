@@ -33,6 +33,10 @@ class CreateAgentConfigBackupJob implements ShouldQueue
 
     public function handle(): void
     {
-        (new CreateAgentConfigBackupAction($this->agent, $this->app, $this->notes))->execute();
+        new CreateAgentConfigBackupAction(
+            $this->agent,
+            $this->app,
+            $this->notes
+        )->execute();
     }
 }
