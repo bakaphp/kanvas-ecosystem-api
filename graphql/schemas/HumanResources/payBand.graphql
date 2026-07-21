@@ -1,0 +1,70 @@
+enum HrFieldTierEnum {
+    IDENTITY
+    PERFORMANCE
+    COMPENSATION
+    COMPENSATION_BAND
+    PII
+    MEDICAL
+    ONBOARDING
+}
+
+type HrPayBand {
+    id: ID!
+    uuid: String!
+    name: String
+    level: String
+    currency: String!
+    pay_frequency: String!
+    min_amount: Float!
+    mid_amount: Float
+    max_amount: Float!
+    effective_from: Date!
+    effective_to: Date
+    position: HrPosition @belongsTo(relation: "position")
+}
+
+input HrPayBandInput {
+    position_id: ID
+    name: String
+    level: String
+    currency: String
+    pay_frequency: String
+    min_amount: Float!
+    mid_amount: Float
+    max_amount: Float!
+    effective_from: Date!
+}
+
+input UpdateHrPayBandInput {
+    position_id: ID
+    name: String
+    level: String
+    currency: String
+    pay_frequency: String
+    min_amount: Float
+    mid_amount: Float
+    max_amount: Float
+    effective_from: Date
+}
+
+extend type Mutation @guardByAdmin {
+    createHrPayBand(input: HrPayBandInput!): HrPayBand!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Compensation\\PayBandMutation@create"
+        )
+    updateHrPayBand(id: ID!, input: UpdateHrPayBandInput!): HrPayBand!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Compensation\\PayBandMutation@update"
+        )
+}
+
+extend type Query @guard {
+    hrPayBands(
+        where: _ @whereConditions(columns: ["position_id", "level"])
+    ): [HrPayBand!]!
+        @paginate(
+            model: "Kanvas\\HumanResources\\Compensation\\Models\\PayBand"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 50
+        )
+}

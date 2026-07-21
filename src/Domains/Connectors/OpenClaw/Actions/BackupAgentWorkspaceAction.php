@@ -24,9 +24,16 @@ class BackupAgentWorkspaceAction extends BaseBackupAgentWorkspaceAction
     {
         $backupFlags = $this->includeWorkspace ? '' : ' --no-include-workspace';
 
+        // Invoke the CLI as `node /app/openclaw.mjs` (the provider's mjsPath), not a bare
+        // `openclaw`. The container's `openclaw` on PATH isn't reliably executable — on some
+        // base images it's a non-exec file, so `sh -c 'openclaw ...'` dies with
+        // "Permission denied" (exit 127). Every other working action uses mjsPath; the entrypoint
+        // itself runs `node /app/openclaw.mjs`, so this is the canonical, always-executable path.
+        $mjsPath = $client::makeProviderConfig()->mjsPath;
+
         $result = $client->exec(
             'sudo docker exec ' . escapeshellarg($containerName)
-            . ' sh -c ' . escapeshellarg('openclaw backup create --output /tmp' . $backupFlags . ' 2>&1')
+            . ' sh -c ' . escapeshellarg($mjsPath . ' backup create --output /tmp' . $backupFlags . ' 2>&1')
             . '; echo "EXIT_CODE:$?"',
             1800
         );

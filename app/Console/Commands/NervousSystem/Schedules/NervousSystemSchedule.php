@@ -6,6 +6,7 @@ namespace App\Console\Commands\NervousSystem\Schedules;
 
 use App\Console\Commands\Intelligence\CollectAgentDeploymentUsageCommand;
 use App\Console\Commands\Intelligence\CollectAgentSessionTranscriptsCommand;
+use App\Console\Commands\Intelligence\DailyAgentConfigBackupCommand;
 use App\Console\Commands\Intelligence\RollupLocalAgentUsageCommand;
 use App\Console\Commands\NervousSystem\ArchiveOldLedgerEventsCommand;
 use App\Console\Commands\NervousSystem\CheckAgentRuntimeHealthCommand;
@@ -152,5 +153,12 @@ final class NervousSystemSchedule
             ->timezone('America/New_York')
             ->withoutOverlapping()
             ->onOneServer();
+
+        // End-of-day config backup — runs hourly and dispatches only for agents
+        // whose company's local time is 23:xx, so each timezone gets its own EOD backup.
+        /*  $schedule->command(DailyAgentConfigBackupCommand::class)
+             ->hourly()
+             ->withoutOverlapping()
+             ->onOneServer(); */
     }
 }

@@ -1,0 +1,39 @@
+enum HrAccessLevelEnum {
+    NONE @enum(value: "none")
+    VIEW @enum(value: "view")
+    MANAGE @enum(value: "manage")
+}
+
+type HrDepartmentModuleAccess {
+    id: ID!
+    module_slug: String!
+    level: HrAccessLevelEnum!
+    department: HrDepartment! @belongsTo(relation: "department")
+}
+
+input HrDepartmentModuleAccessInput {
+    department_id: ID!
+    module_slug: String!
+    level: HrAccessLevelEnum!
+}
+
+extend type Mutation @guardByAdmin {
+    setHrDepartmentModuleAccess(
+        input: HrDepartmentModuleAccessInput!
+    ): HrDepartmentModuleAccess!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Access\\AccessMutation@set"
+        )
+}
+
+extend type Query @guard {
+    hrDepartmentModuleAccess(
+        where: _
+            @whereConditions(columns: ["department_id", "module_slug", "level"])
+    ): [HrDepartmentModuleAccess!]!
+        @paginate(
+            model: "Kanvas\\HumanResources\\Access\\Models\\DepartmentModuleAccess"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 50
+        )
+}

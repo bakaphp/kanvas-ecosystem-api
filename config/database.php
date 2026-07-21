@@ -202,6 +202,34 @@ return [
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
+        'hr' => [
+            'driver' => 'mysql',
+            'read' => [
+                'host' => [
+                    env('DB_HR_HOST_READ', env('DB_HR_HOST', env('DB_HOST', '127.0.0.1'))),
+                ],
+            ],
+            'write' => [
+                'host' => [
+                    env('DB_HR_HOST', env('DB_HOST', '127.0.0.1')),
+                ],
+            ],
+            'sticky' => true,
+            'port' => env('DB_HR_PORT', env('DB_PORT', '3306')),
+            'database' => env('DB_HR_DATABASE', 'hr'),
+            'username' => env('DB_HR_USERNAME', env('DB_USERNAME', 'kanvas')),
+            'password' => env('DB_HR_PASSWORD', env('DB_PASSWORD', '')),
+            'unix_socket' => env('DB_HR_SOCKET', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_520_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => 'InnoDB',
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
         'workflow' => [
             'driver' => 'mysql',
             'read' => [

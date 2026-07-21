@@ -1,0 +1,30 @@
+type HrSeatAssignment {
+    id: ID!
+    allocation_pct: Int!
+    is_primary: Boolean!
+    effective_from: Date!
+    effective_to: Date
+    employee: HrEmployee! @belongsTo(relation: "employee")
+    department: HrDepartment! @belongsTo(relation: "department")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input HrSeatAssignmentInput {
+    employee_id: ID!
+    department_id: ID!
+    allocation_pct: Int
+    is_primary: Boolean
+    effective_from: Date
+}
+
+extend type Mutation @guardByAdmin {
+    assignHrSeat(input: HrSeatAssignmentInput!): HrSeatAssignment!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Seat\\SeatMutation@assign"
+        )
+    endHrSeat(id: ID!, effective_to: Date): HrSeatAssignment!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Seat\\SeatMutation@end"
+        )
+}

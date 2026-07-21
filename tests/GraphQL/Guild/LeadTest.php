@@ -686,6 +686,66 @@ class LeadTest extends TestCase
         ]);
     }
 
+    public function testUpdateLeadPreservesDescriptionWhenOmitted(): void
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $description = 'DNC - Do Not Contact solicitado por Beno ' . fake()->word();
+
+        $input = [
+            'branch_id' => $branch->getId(),
+            'title' => 'Lead ' . fake()->word(),
+            'pipeline_stage_id' => 0,
+            'description' => $description,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                ],
+            ],
+            'custom_fields' => [],
+            'files' => [],
+        ];
+
+        $response = $this->createLeadAndGetResponse($input);
+        $leadId = $response['data']['createLead']['id'];
+        $peopleId = $response['data']['createLead']['people']['id'];
+
+        // Update WITHOUT a description (partial update, e.g. an owner change) must NOT blank it.
+        $updateInput = [
+            'branch_id' => $branch->getId(),
+            'title' => $input['title'],
+            'people_id' => $peopleId,
+            'custom_fields' => [],
+            'files' => [],
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: LeadUpdateInput!) {
+                updateLead(id: $id, input: $input) {
+                    id
+                    description
+                }
+            }
+        ', [
+            'id' => $leadId,
+            'input' => $updateInput,
+        ])->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateLead' => [
+                    'id' => $leadId,
+                    'description' => $description,
+                ],
+            ],
+        ]);
+    }
+
     public function testDeleteLead()
     {
         $user = auth()->user();
