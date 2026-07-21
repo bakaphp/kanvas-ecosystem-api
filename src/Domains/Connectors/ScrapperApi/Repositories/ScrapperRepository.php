@@ -83,4 +83,44 @@ class ScrapperRepository
             return $result['value'] ?? null;
         }, $results);
     }
+
+    /**
+     * Render any Amazon page (e.g. a Best Sellers list) through the generic endpoint.
+     * There is no structured best-sellers endpoint, so this returns the page as
+     * markdown/HTML text — parse it (see extractAsins) before hydrating products.
+     */
+    public function getRenderedPage(string $url, string $outputFormat = 'markdown'): string
+    {
+        $query = array_merge($this->defaultParams, [
+            'url' => $url,
+            'output_format' => $outputFormat,
+        ]);
+
+        return $this->client->get('/', ['query' => $query])->getBody()->getContents();
+    }
+
+    /**
+     * Best Sellers pages have no structured endpoint: render to markdown, pull the
+     * ASINs in ranked order, then reuse the structured product endpoint for clean data.
+     */
+    public function getTopBestSellers(string $bestSellersUrl, int $limit = 50): array
+    {
+        $asins = self::extractAsins($this->getRenderedPage($bestSellersUrl), $limit);
+
+        return empty($asins) ? [] : $this->getMultipleByAsin($asins);
+    }
+
+    /**
+     * Pull ASINs from rendered Amazon page text, preserving page (rank) order.
+     *
+     * @return array<int, string>
+     */
+    public static function extractAsins(string $content, int $limit = 50): array
+    {
+        preg_match_all('#/(?:dp|gp/product)/([A-Z0-9]{10})#', $content, $matches);
+
+        $asins = array_values(array_unique($matches[1]));
+
+        return array_slice($asins, 0, $limit);
+    }
 }

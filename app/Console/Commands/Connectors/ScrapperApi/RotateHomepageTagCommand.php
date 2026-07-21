@@ -6,7 +6,6 @@ namespace App\Console\Commands\Connectors\ScrapperApi;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Categories\Models\Categories;
@@ -28,6 +27,7 @@ class RotateHomepageTagCommand extends Command
 
     public function handle(): int
     {
+        /** @var Apps $app */
         $app = Apps::getById((int) $this->argument('app_id'));
         $company = Companies::getById((int) $this->argument('company_id'));
 
@@ -41,6 +41,15 @@ class RotateHomepageTagCommand extends Command
             ->fromApp($app)
             ->whereRaw('LOWER(name) = ?', ['homepage'])
             ->pluck('id')
+            ->all();
+
+        // App-wide set of products currently featured — small (only the tagged ones), loaded once.
+        $taggedProductIds = empty($homepageTagIds) ? [] : TagEntity::query()
+            ->where('taggable_type', Products::class)
+            ->where('is_deleted', 0)
+            ->whereIn('tags_id', $homepageTagIds)
+            ->pluck('entity_id')
+            ->unique()
             ->all();
 
         $categories = Categories::query()
@@ -58,51 +67,49 @@ class RotateHomepageTagCommand extends Command
         $rotatedCategories = 0;
 
         foreach ($categories as $category) {
-            $products = Products::query()
+            $inCategory = fn () => Products::query()
                 ->fromApp($app)
                 ->fromCompany($company)
                 ->notDeleted()
-                ->whereHas('categories', fn ($query) => $query->where('categories.id', $category->getId()))
-                ->get();
+                ->whereHas('categories', fn ($query) => $query->where('categories.id', $category->getId()));
 
-            $productIds = $products->pluck('id')->all();
+            $taggedInCategory = empty($taggedProductIds)
+                ? []
+                : $inCategory()->whereIn('id', $taggedProductIds)->pluck('id')->all();
 
-            $taggedIds = empty($homepageTagIds) ? [] : TagEntity::query()
-                ->where('taggable_type', Products::class)
-                ->where('is_deleted', 0)
-                ->whereIn('tags_id', $homepageTagIds)
-                ->whereIn('entity_id', $productIds)
-                ->pluck('entity_id')
-                ->unique()
-                ->all();
+            // Candidates exclude anything featured anywhere so the rotation lands on fresh products.
+            $candidateCount = $inCategory()->whereNotIn('id', $taggedProductIds)->count();
 
-            /** @var Collection<int, Products> $candidates */
-            $candidates = $products->whereNotIn('id', $taggedIds)->values();
-
-            if ($candidates->count() < $countToAssign) {
+            if ($candidateCount < $countToAssign) {
                 $this->warn(sprintf(
                     'Skipping category "%s" (id %d): only %d product(s) available to tag, need %d.',
                     $category->name,
                     $category->getId(),
-                    $candidates->count(),
+                    $candidateCount,
                     $countToAssign
                 ));
 
                 continue;
             }
 
-            if (! empty($homepageTagIds) && ! empty($taggedIds)) {
+            if (! empty($taggedInCategory)) {
                 TagEntity::query()
                     ->where('taggable_type', Products::class)
                     ->whereIn('tags_id', $homepageTagIds)
-                    ->whereIn('entity_id', $taggedIds)
+                    ->whereIn('entity_id', $taggedInCategory)
                     ->delete();
             }
 
-            $toTag = $candidates->shuffle()->take($countToAssign);
-
-            foreach ($toTag as $product) {
+            $assigned = 0;
+            foreach (
+                $inCategory()
+                    ->whereNotIn('id', $taggedProductIds)
+                    ->inRandomOrder()
+                    ->limit($countToAssign)
+                    ->cursor() as $product
+            ) {
                 $product->addTag($canonicalTag, $app, company: $company);
+                $assigned++;
             }
 
             $rotatedCategories++;
@@ -111,8 +118,8 @@ class RotateHomepageTagCommand extends Command
                 'Category "%s" (id %d): removed Homepage tag from %d, assigned to %d.',
                 $category->name,
                 $category->getId(),
-                count($taggedIds),
-                $toTag->count()
+                count($taggedInCategory),
+                $assigned
             ));
         }
 
