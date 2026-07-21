@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Queries\Payments;
 
-use Baka\Contracts\AppInterface;
 use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use GuzzleHttp\Exception\RequestException;
@@ -12,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Connectors\Movipass\Jobs\SyncVehicleTagDataJob;
 use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Souk\Wallet\Transaction;
@@ -170,11 +170,13 @@ class WalletManagementQuery
         return $query;
     }
 
-    private function getPasoRapidoBalance(AppInterface $app, Companies $company, string $tag): array
+    private function getPasoRapidoBalance(Apps $app, Companies $company, string $tag): array
     {
         try {
             $pasoRapidoService = new PasoRapidoService($app, $company);
             $customer = $pasoRapidoService->verifyCustomer($tag);
+
+            SyncVehicleTagDataJob::dispatch($app, $tag, $customer);
 
             return [
                 'message' => 'success',
