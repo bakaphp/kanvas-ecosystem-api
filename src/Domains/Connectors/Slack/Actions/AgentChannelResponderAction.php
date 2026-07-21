@@ -84,5 +84,4 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             'message_id' => $reply->getId(),
         ];
     }
-
 }
