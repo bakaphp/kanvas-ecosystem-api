@@ -19,6 +19,10 @@ class Client
     // ~4000 chars cleanly, so we split below that and send the overflow as follow-up messages.
     private const int MAX_TEXT_LENGTH = 3900;
 
+    // Slack's file download 302-chains through a couple of hosts (workspace host → signed CDN); a
+    // handful of hops is plenty, and the cap stops a redirect loop from hanging the worker.
+    private const int MAX_DOWNLOAD_REDIRECTS = 5;
+
     public function __construct(
         private readonly string $botToken
     ) {
@@ -139,26 +143,79 @@ class Client
     /**
      * Download a Slack-hosted file (url_private / url_private_download). These require the bot token as
      * a bearer header — a plain GET (e.g. SafeUrlFetcher, which sends no auth) gets Slack's HTML login
-     * page instead of the bytes. We still SSRF-guard the URL first as defense-in-depth against a
-     * spoofed file URL pointing at an internal host.
+     * page instead of the bytes.
+     *
+     * We follow redirects manually because Slack answers files.slack.com with a cross-host 302 (to
+     * another *.slack.com host, or a signed CDN URL), and Guzzle strips the Authorization header on any
+     * cross-host redirect — the followed request then arrives unauthenticated and Slack serves the HTML
+     * login page. So we re-send the bot token to Slack's own hosts across each hop, follow non-Slack
+     * (already-signed) redirects WITHOUT the token, and SSRF-guard every hop.
      */
     public function downloadFile(string $url): string
     {
-        SafeUrl::assertSafe($url);
+        $current = $url;
 
-        /** @var Response $response */
-        $response = Http::withToken($this->botToken)
-            ->timeout(30)
-            ->throw()
-            ->get($url);
+        for ($hop = 0; $hop <= self::MAX_DOWNLOAD_REDIRECTS; $hop++) {
+            SafeUrl::assertSafe($current);
 
-        // An unauthorized url_private answers 200 with the HTML login page, not the file — treat that
-        // as a failure so we never persist the login page as though it were the attachment.
-        if (str_contains((string) $response->header('Content-Type'), 'text/html')) {
-            throw new ValidationException('Slack file download was not authorized (received an HTML page, not file bytes).');
+            $request = Http::timeout(30)->withOptions(['allow_redirects' => false]);
+
+            // Forward the bot token only to Slack's own hosts; a redirect to a signed CDN/S3 URL must
+            // not carry our credentials (it doesn't need them, and leaking them is the SSRF footgun).
+            if ($this->isSlackHost($current)) {
+                $request = $request->withToken($this->botToken);
+            }
+
+            /** @var Response $response */
+            $response = $request->get($current);
+            $status = $response->status();
+
+            if ($status >= 300 && $status < 400) {
+                $location = $response->header('Location');
+                if ($location === '') {
+                    throw new ValidationException('Slack file download redirected without a Location header.');
+                }
+                $current = $this->resolveRedirectUrl($current, $location);
+
+                continue;
+            }
+
+            if ($status !== 200) {
+                throw new ValidationException('Slack file download failed with HTTP ' . $status . '.');
+            }
+
+            // An unauthorized url_private answers 200 with the HTML login page, not the file — treat
+            // that as a failure so we never persist the login page as though it were the attachment.
+            if (str_contains($response->header('Content-Type'), 'text/html')) {
+                throw new ValidationException('Slack file download was not authorized (received an HTML page, not file bytes).');
+            }
+
+            return $response->body();
         }
 
-        return $response->body();
+        throw new ValidationException('Slack file download exceeded the redirect limit.');
+    }
+
+    private function isSlackHost(string $url): bool
+    {
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+
+        return $host === 'slack.com' || str_ends_with($host, '.slack.com');
+    }
+
+    private function resolveRedirectUrl(string $from, string $location): string
+    {
+        // Slack sends absolute Location headers, but tolerate a relative one by resolving it against
+        // the current host.
+        if (preg_match('#^https?://#i', $location)) {
+            return $location;
+        }
+
+        $scheme = (string) parse_url($from, PHP_URL_SCHEME) ?: 'https';
+        $host = (string) parse_url($from, PHP_URL_HOST);
+        $path = str_starts_with($location, '/') ? $location : '/' . $location;
+
+        return $scheme . '://' . $host . $path;
     }
 
     private function call(string $method, array $params): array
