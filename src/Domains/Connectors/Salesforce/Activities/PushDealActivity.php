@@ -14,7 +14,7 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(name: 'SalesforcePushDealActivity')]
 class PushDealActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public $tries = 3;
