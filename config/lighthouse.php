@@ -282,11 +282,8 @@ return [
             'App\\GraphQL\\NervousSystem\\Mutations',
         ],
         'subscriptions' => [
-            // 'App\\GraphQL\\Ecosystem\\Subscriptions',
-            // 'App\\GraphQL\\CRM\\Subscriptions',
-            // 'App\\GraphQL\\Social\\Subscriptions',
-            // 'App\\GraphQL\\Subscription\\Subscriptions',
-            // 'App\\GraphQL\\Inventory\\Subscriptions',
+            'App\\GraphQL\\Guild\\Subscriptions',
+            'App\\GraphQL\\Intelligence\\Subscriptions',
         ],
         'interfaces' => [
             'App\\GraphQL\\Ecosystem\\Interfaces',
