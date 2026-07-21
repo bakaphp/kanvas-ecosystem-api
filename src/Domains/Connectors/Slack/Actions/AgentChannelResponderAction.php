@@ -8,6 +8,7 @@ use Kanvas\Connectors\Slack\Client;
 use Kanvas\Connectors\Slack\Services\SlackMarkdownService;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Override;
 use Throwable;
@@ -32,6 +33,11 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         $threadTs = (string) ($this->message->message['slack_thread_ts'] ?? '');
         $inboundText = (string) ($this->message->message['content'] ?? '');
 
+        // Files the user dropped in Slack were re-hosted on the message at ingest — split them into the
+        // native image bucket and the audio/PDF/doc bucket so the agent can actually see them.
+        ['images' => $imageUrls, 'documents' => $documentUrls] = $this->collectAttachmentUrls();
+        $inboundText = AttachmentPromptBuilder::withAttachments($inboundText, $documentUrls);
+
         // Slack was ack'd the moment the event arrived; a turn with tool calls runs 10-30s after
         // that. Post a placeholder and edit it, so the thread shows the agent working, not silence.
         $placeholderTs = $client->postMessage($slackChannelId, self::WORKING, $threadTs);
@@ -44,8 +50,10 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
                 // The human is the actor here, not the AI service user: Slack is an internal
                 // surface, so the agent is talking to a teammate it should be able to name.
                 user: $this->message->user,
+                images: $imageUrls,
                 sourceChannel: $this->channel,
                 sourceMessage: $this->message,
+                documents: $documentUrls,
                 persistConversation: false,
             )->execute();
         } catch (Throwable $e) {
@@ -75,5 +83,32 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             'response' => $responseText,
             'message_id' => $reply->getId(),
         ];
+    }
+
+    /**
+     * Split the message's re-hosted Slack attachments into images (native on every backend) and the
+     * rest (audio/PDF/doc — native only on the in-process backends). Mirrors the Internal responder.
+     *
+     * @return array{images: list<string>, documents: list<string>}
+     */
+    private function collectAttachmentUrls(): array
+    {
+        $images = [];
+        $documents = [];
+
+        foreach ($this->message->files as $file) {
+            $url = $file->url;
+            if ($url === '') {
+                continue;
+            }
+
+            if ($file->mediaType()->isImage()) {
+                $images[] = $url;
+            } else {
+                $documents[] = $url;
+            }
+        }
+
+        return ['images' => $images, 'documents' => $documents];
     }
 }

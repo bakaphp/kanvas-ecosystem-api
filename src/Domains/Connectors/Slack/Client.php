@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Slack;
 
+use Baka\Http\SafeUrl;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Exceptions\ValidationException;
@@ -133,6 +134,31 @@ class Client
     public function authTest(): array
     {
         return $this->call('auth.test', []);
+    }
+
+    /**
+     * Download a Slack-hosted file (url_private / url_private_download). These require the bot token as
+     * a bearer header — a plain GET (e.g. SafeUrlFetcher, which sends no auth) gets Slack's HTML login
+     * page instead of the bytes. We still SSRF-guard the URL first as defense-in-depth against a
+     * spoofed file URL pointing at an internal host.
+     */
+    public function downloadFile(string $url): string
+    {
+        SafeUrl::assertSafe($url);
+
+        /** @var Response $response */
+        $response = Http::withToken($this->botToken)
+            ->timeout(30)
+            ->throw()
+            ->get($url);
+
+        // An unauthorized url_private answers 200 with the HTML login page, not the file — treat that
+        // as a failure so we never persist the login page as though it were the attachment.
+        if (str_contains((string) $response->header('Content-Type'), 'text/html')) {
+            throw new ValidationException('Slack file download was not authorized (received an HTML page, not file bytes).');
+        }
+
+        return $response->body();
     }
 
     private function call(string $method, array $params): array
