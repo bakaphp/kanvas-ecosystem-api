@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use Illuminate\Contracts\Container\BindingResolutionException;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\App;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class ReceiverController extends BaseController
 {
@@ -21,7 +22,7 @@ class ReceiverController extends BaseController
      *
      * @throws BindingResolutionException
      */
-    public function store(string $uuid, Request $request): JsonResponse
+    public function store(string $uuid, Request $request): SymfonyResponse
     {
         $receiver = ReceiverWebhook::where('uuid', $uuid)->notDeleted()->first();
 
@@ -74,11 +75,22 @@ class ReceiverController extends BaseController
             // Providers that expect a specific ack body (rather than our default) declare it on the
             // receiver, so they can stay async instead of running the job inline just to shape a response.
             $configuration = $receiver->configuration ?? [];
+            $asyncResponse = $configuration['async_response'] ?? ['message' => 'Receiver processed'];
+            $status = (int) ($configuration['async_response_status'] ?? 200);
 
-            return response()->json(
-                $configuration['async_response'] ?? ['message' => 'Receiver processed'],
-                (int) ($configuration['async_response_status'] ?? 200),
-            );
+            // A string ack (e.g. Salesforce Outbound Messages need a literal SOAP XML envelope) is
+            // sent as the raw body — response()->json() would JSON-encode it into a quoted string,
+            // which the provider's parser won't accept. The receiver declares its own content type;
+            // this controller has no opinion on what shape any given provider's ack takes.
+            if (is_string($asyncResponse)) {
+                return response(
+                    $asyncResponse,
+                    $status,
+                    ['Content-Type' => $configuration['async_response_content_type'] ?? 'text/plain'],
+                );
+            }
+
+            return response()->json($asyncResponse, $status);
         }
 
         $response = $job->handle();
