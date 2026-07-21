@@ -35,7 +35,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
         // Files the user dropped in Slack were re-hosted on the message at ingest — split them into the
         // native image bucket and the audio/PDF/doc bucket so the agent can actually see them.
-        ['images' => $imageUrls, 'documents' => $documentUrls] = $this->collectAttachmentUrls();
+        ['images' => $imageUrls, 'documents' => $documentUrls] = $this->message->attachmentUrls();
         $inboundText = AttachmentPromptBuilder::withAttachments($inboundText, $documentUrls);
 
         // Slack was ack'd the moment the event arrived; a turn with tool calls runs 10-30s after
@@ -83,32 +83,5 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             'response' => $responseText,
             'message_id' => $reply->getId(),
         ];
-    }
-
-    /**
-     * Split the message's re-hosted Slack attachments into images (native on every backend) and the
-     * rest (audio/PDF/doc — native only on the in-process backends). Mirrors the Internal responder.
-     *
-     * @return array{images: list<string>, documents: list<string>}
-     */
-    private function collectAttachmentUrls(): array
-    {
-        $images = [];
-        $documents = [];
-
-        foreach ($this->message->files as $file) {
-            $url = $file->url;
-            if ($url === '') {
-                continue;
-            }
-
-            if ($file->mediaType()->isImage()) {
-                $images[] = $url;
-            } else {
-                $documents[] = $url;
-            }
-        }
-
-        return ['images' => $images, 'documents' => $documents];
     }
 }
