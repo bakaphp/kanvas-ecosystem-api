@@ -20,7 +20,7 @@ class SalesforceHandler extends BaseIntegration
         $clientSecret = $this->data['client_secret'] ?? null;
         $refreshToken = $this->data['refresh_token'] ?? null;
         $loginUrl = $this->data['login_url'] ?? null;
-        $grantType = GrantTypeEnum::tryFrom((string) ($this->data['grant_type'] ?? '')) ?? GrantTypeEnum::REFRESH_TOKEN;
+        $grantType = GrantTypeEnum::tryFrom((string) ($this->data['grant_type'] ?? '')) ?? GrantTypeEnum::CLIENT_CREDENTIALS;
 
         if (empty($clientId) || empty($clientSecret)) {
             throw new ValidationException('Salesforce client_id/client_secret are not set for ' . $this->company->name);

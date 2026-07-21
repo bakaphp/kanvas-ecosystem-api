@@ -217,6 +217,35 @@ class Message extends BaseModel
         return '';
     }
 
+    /**
+     * Attachment URLs on this message, split by how far they travel: images ride natively on every
+     * agent backend; audio/PDF/doc ride natively only on the in-process backends (Neuron, Laravel).
+     * Single source of truth for the agent channel responders and the @mention job — each was
+     * duplicating this loop.
+     *
+     * @return array{images: list<string>, documents: list<string>}
+     */
+    public function attachmentUrls(): array
+    {
+        $images = [];
+        $documents = [];
+
+        foreach ($this->files as $file) {
+            $url = (string) $file->url;
+            if ($url === '') {
+                continue;
+            }
+
+            if ($file->mediaType()->isImage()) {
+                $images[] = $url;
+            } else {
+                $documents[] = $url;
+            }
+        }
+
+        return ['images' => $images, 'documents' => $documents];
+    }
+
     public function addMessage(array $message): void
     {
         $this->message = array_merge($this->getMessage(), $message);
