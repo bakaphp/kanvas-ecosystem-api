@@ -96,13 +96,18 @@ final class SlackInboundAttachmentTest extends TestCase
     public function testInboundPdfIsDownloadedWithTheBotTokenAndForwardedToTheAgent(): void
     {
         $fileUrl = 'https://files.slack.com/files-pri/' . $this->teamId . '-FPDF1/download/report.pdf';
+        // Slack answers files.slack.com with a cross-host 302 (Sentry KANVAS-ECOSYSTEM-62N). Guzzle
+        // would strip the bearer on that hop and land on the HTML login page; the client must re-send
+        // the token to the Slack redirect host and come back with the bytes.
+        $redirectUrl = 'https://files-edge.slack.com/download/' . $this->teamId . '/report.pdf';
 
         Http::fake([
             'slack.com/api/users.info' => Http::response([
                 'ok' => true,
                 'user' => ['profile' => ['email' => $this->user->email]],
             ]),
-            'files.slack.com/*' => Http::response(
+            'files.slack.com/*' => Http::response('', 302, ['Location' => $redirectUrl]),
+            'files-edge.slack.com/*' => Http::response(
                 $this->pdfBytes(),
                 200,
                 ['Content-Type' => 'application/pdf'],
@@ -127,6 +132,11 @@ final class SlackInboundAttachmentTest extends TestCase
         // The private Slack URL was fetched with the bot token as a bearer header — a plain GET would
         // have returned Slack's HTML login page.
         Http::assertSent(fn ($request) => str_contains($request->url(), 'files.slack.com')
+            && $request->hasHeader('Authorization', 'Bearer ' . self::BOT_TOKEN));
+
+        // And the token survived Slack's cross-host redirect (the actual Sentry bug) — it was
+        // re-sent to the redirect host rather than dropped, so the bytes came back.
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'files-edge.slack.com')
             && $request->hasHeader('Authorization', 'Bearer ' . self::BOT_TOKEN));
 
         $inbound = $this->messagesOn(self::DM_CHANNEL)->first();

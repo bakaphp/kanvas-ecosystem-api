@@ -29,10 +29,20 @@ class GenerateSlackManifestAction
         'im:history',
         'im:read',
         'im:write',
+        'mpim:history',
+        'mpim:read',
+        'channels:history',
+        'channels:read',
+        'groups:history',
+        'groups:read',
+        'files:read',
+        'remote_files:read',
+        'files:write',
+        'reactions:read',
+        'reactions:write',
         'users:read',
-        // Without this users.info returns no email, and an email is the only thing tying a Slack
-        // member to a Kanvas user.
         'users:read.email',
+        'users.profile:read',
     ];
 
     private const array BOT_EVENTS = [

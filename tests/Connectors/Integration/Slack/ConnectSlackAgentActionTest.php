@@ -58,9 +58,30 @@ final class ConnectSlackAgentActionTest extends TestCase
         $this->assertFalse($manifest['settings']['socket_mode_enabled']);
         // The DM surface — without it, clicking the agent gives the user nowhere to type.
         $this->assertTrue($manifest['features']['app_home']['messages_tab_enabled']);
-        // Without users:read.email, users.info returns no email — and email is the only thing
-        // tying a Slack member to a Kanvas user.
-        $this->assertContains('users:read.email', $manifest['oauth_config']['scopes']['bot']);
+        // The agent's operating scopes. users:read.email is the identity linchpin (users.info returns
+        // no email without it); files:read is what un-breaks url_private downloads (Sentry
+        // KANVAS-ECOSYSTEM-62N — otherwise Slack serves an HTML login page instead of the bytes).
+        $botScopes = $manifest['oauth_config']['scopes']['bot'];
+        foreach ([
+            'chat:write',
+            'app_mentions:read',
+            'im:history',
+            'mpim:history',
+            'channels:history',
+            'channels:read',
+            'groups:history',
+            'files:read',
+            'remote_files:read',
+            // Provisioned ahead of the outbound-file-sending feature so it needs no reinstall later.
+            'files:write',
+            'reactions:read',
+            'reactions:write',
+            'users:read',
+            'users:read.email',
+            'users.profile:read',
+        ] as $scope) {
+            $this->assertContains($scope, $botScopes, "Manifest is missing bot scope {$scope}");
+        }
         $this->assertStringContainsString('api.slack.com/apps?new_app=1', $result['install_url']);
     }
 
