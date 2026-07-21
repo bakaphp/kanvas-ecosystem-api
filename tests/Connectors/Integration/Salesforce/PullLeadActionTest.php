@@ -94,6 +94,25 @@ final class PullLeadActionTest extends TestCase
         $this->assertNull($updated->fireWorkflow(WorkflowEnum::UPDATED->value));
     }
 
+    public function testEmbeddedPeopleNeverFiresOutboundWorkflowEither(): void
+    {
+        $app = app(Apps::class);
+        $user = static::$cachedUser;
+        $company = $user->getCurrentCompany();
+
+        $lead = new PullLeadAction(
+            $app,
+            $company,
+            ['FirstName' => 'Jane', 'LastName' => 'Doe', 'Email' => 'jane.doe@example.com'],
+            '00Qxx0000004C92EEE',
+        )->execute();
+
+        // The People embedded in the Lead's DTO defaults to runWorkflow:true — without its own
+        // explicit override, this Person would push right back out to Salesforce as a Contact
+        // the moment a Rule exists for People (exactly what a "Push People" Rule does).
+        $this->assertNull($lead->people->fireWorkflow(WorkflowEnum::CREATED->value));
+    }
+
     public function testLinksConvertedOrganizationWhenLeadIsConverted(): void
     {
         $app = app(Apps::class);

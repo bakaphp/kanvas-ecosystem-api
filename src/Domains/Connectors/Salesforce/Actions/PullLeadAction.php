@@ -81,6 +81,7 @@ class PullLeadAction
                 custom_fields: [
                     CustomFieldEnum::SALESFORCE_LEAD_ID->value => $this->salesforceId,
                 ],
+                runWorkflow: false,
             ),
             status_id: $leadStatus->getId(),
             description: $this->payload['Description'] ?? null,
