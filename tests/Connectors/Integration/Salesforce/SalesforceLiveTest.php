@@ -60,7 +60,7 @@ final class SalesforceLiveTest extends TestCase
 
     private function resolveGrantType(): GrantTypeEnum
     {
-        return GrantTypeEnum::tryFrom((string) env('TEST_SALESFORCE_GRANT_TYPE', '')) ?? GrantTypeEnum::REFRESH_TOKEN;
+        return GrantTypeEnum::tryFrom((string) env('TEST_SALESFORCE_GRANT_TYPE', '')) ?? GrantTypeEnum::CLIENT_CREDENTIALS;
     }
 
     protected function tearDown(): void
