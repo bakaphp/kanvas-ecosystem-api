@@ -47,7 +47,7 @@ class Client
         $clientId = (string) $company->get(ConfigurationEnum::CLIENT_ID->value);
         $clientSecret = (string) $company->get(ConfigurationEnum::CLIENT_SECRET->value);
         $grantType = GrantTypeEnum::tryFrom((string) $company->get(ConfigurationEnum::GRANT_TYPE->value))
-            ?? GrantTypeEnum::REFRESH_TOKEN;
+            ?? GrantTypeEnum::CLIENT_CREDENTIALS;
         $refreshToken = (string) $company->get(ConfigurationEnum::REFRESH_TOKEN->value);
 
         if ($clientId === '' || $clientSecret === '') {
