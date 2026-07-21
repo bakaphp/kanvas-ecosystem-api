@@ -24,6 +24,7 @@ use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
+use Throwable;
 
 class CreateMessageFromSlackEventAction
 {
@@ -133,7 +134,37 @@ class CreateMessageFromSlackEventAction
         $message->addTag('engagement');
         $channel->addCategory('ai-agent', $app, $author, $company);
 
+        $this->attachFiles($message, $client);
+
         return $message;
+    }
+
+    /**
+     * Pull any files the user attached in Slack into Kanvas Filesystem so the agent can actually read
+     * them — once on the message, the responder forwards them to the kernel, which turns image/PDF/
+     * audio/CSV into native content blocks. Slack's url_private needs the bot token to fetch, so we
+     * download-with-auth and re-upload rather than pass the raw URL through. One bad file must not sink
+     * the turn: the text still gets answered.
+     */
+    private function attachFiles(Message $message, Client $client): void
+    {
+        $files = $this->event['files'] ?? null;
+
+        if (! is_array($files)) {
+            return;
+        }
+
+        foreach ($files as $file) {
+            if (! is_array($file)) {
+                continue;
+            }
+
+            try {
+                new DownloadMessageFileAction($message, $client, $file)->execute();
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
     }
 
     /**

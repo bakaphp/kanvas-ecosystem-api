@@ -15,6 +15,7 @@ use NeuronAI\Chat\Messages\ContentBlocks\AudioContent;
 use NeuronAI\Chat\Messages\ContentBlocks\ContentBlockInterface;
 use NeuronAI\Chat\Messages\ContentBlocks\FileContent;
 use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
+use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Providers\AIProviderInterface;
 use Throwable;
@@ -30,6 +31,13 @@ use Throwable;
 class AttachmentDescriptionService
 {
     private const int MAX_DESCRIPTION_LENGTH = 600;
+
+    /**
+     * Ceiling for a text/CSV attachment embedded inline as a TextContent block. Text files carry no
+     * native-multimodal cap the way images do, so a runaway CSV would otherwise blow the context
+     * window (and the token bill). Past this we truncate with a marker.
+     */
+    public const int MAX_TEXT_ATTACHMENT_BYTES = 200_000;
 
     public function __construct(
         private readonly AIProviderInterface $provider,
@@ -61,8 +69,9 @@ class AttachmentDescriptionService
 
     /**
      * The native multimodal kind a MIME type maps to, or null when the model can't take it as a
-     * content block (docx/xlsx, video, etc. — those stay URL-in-prompt). Images, audio and PDF are
-     * the formats Gemini accepts inline.
+     * content block (docx/xlsx, video, etc. — those stay URL-in-prompt). Images, audio and PDF ride
+     * as binary blocks the model reads natively; text/CSV rides as a TextContent block (finfo reports
+     * CSV/TSV as text/plain, so we key on the whole text/* family plus the odd application/csv label).
      */
     public static function nativeKind(string $mimeType): ?string
     {
@@ -70,8 +79,25 @@ class AttachmentDescriptionService
             str_starts_with($mimeType, 'image/') => 'image',
             str_starts_with($mimeType, 'audio/') => 'audio',
             $mimeType === 'application/pdf' => 'pdf',
+            str_starts_with($mimeType, 'text/'), $mimeType === 'application/csv' => 'text',
             default => null,
         };
+    }
+
+    /**
+     * Wrap a text/CSV attachment's raw bytes for inline inclusion as a TextContent block, capped so a
+     * large file can't blow the context window. Shared by the live-turn runner and the memory describer
+     * so both embed text the same way.
+     */
+    public static function wrapTextForBlock(string $binary, string $mimeType): string
+    {
+        $text = $binary;
+
+        if (strlen($text) > self::MAX_TEXT_ATTACHMENT_BYTES) {
+            $text = substr($text, 0, self::MAX_TEXT_ATTACHMENT_BYTES) . "\n… [truncated]";
+        }
+
+        return "Attached file ({$mimeType}):\n\n{$text}";
     }
 
     /**
@@ -148,6 +174,7 @@ class AttachmentDescriptionService
             'image' => 'Image',
             'audio' => 'Audio',
             'pdf' => 'PDF',
+            'text' => 'File',
             default => 'File',
         };
 
@@ -164,6 +191,7 @@ class AttachmentDescriptionService
             'image' => new ImageContent($base64, SourceType::BASE64, $mimeType),
             'audio' => new AudioContent($base64, SourceType::BASE64, $mimeType),
             'pdf' => new FileContent($base64, SourceType::BASE64, $mimeType),
+            'text' => new TextContent(self::wrapTextForBlock($binary, $mimeType)),
             default => null,
         };
     }
@@ -176,6 +204,9 @@ class AttachmentDescriptionService
             'pdf' => 'Summarize this document for an assistant\'s memory in 1-3 sentences so it can '
                 . 'recall the content later. Capture the title, purpose, and any key figures or names. '
                 . 'Output only the summary.',
+            'text' => 'Summarize this text/CSV file for an assistant\'s memory in 1-3 sentences so it '
+                . 'can recall the content later. Capture what the data is, its columns/structure, and '
+                . 'any notable values. Output only the summary.',
             default => 'Describe this image in ONE concise sentence for an assistant\'s memory, so it '
                 . 'can recall the image later when the user refers back to it. Capture the key subject '
                 . 'and any text, numbers, or food/product details visible. Output only the description.',
