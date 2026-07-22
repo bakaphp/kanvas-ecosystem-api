@@ -57,7 +57,7 @@ class CreatePasoRapidoOrderAction
 
         $company = $this->order->company;
 
-        // en compras corporativas la orden se factura a la empresa proveedora, no a la del branch
+        // corporate purchases are invoiced to the provider company, not the branch one
         $fiscalCompany = $this->order->providerCompanies
             ->first(fn (Companies $providerCompany) => (bool) $providerCompany->get('is_corporate'))
             ?? $company;
@@ -70,7 +70,7 @@ class CreatePasoRapidoOrderAction
             $rnc = trim((string) ($this->order->metadata['data']['rnc'] ?? ''));
         }
 
-        // tener RNC (corporativo o en la orden) implica querer credito fiscal; la cedula no
+        // having a RNC (corporate or on the order) means fiscal credit is wanted; a cedula does not
         $fiscalCredit = $rnc !== '' || (bool) ($this->order->metadata['data']['fiscal_credit'] ?? false);
         $dni = $rnc !== ''
             ? $rnc

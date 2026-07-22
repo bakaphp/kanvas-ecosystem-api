@@ -53,7 +53,7 @@ class BulkRechargeOrderTagsAction
         }
 
         $bankTransaction = $this->resolveBankTransaction();
-        // tener RNC implica querer credito fiscal
+        // having a RNC means fiscal credit is wanted
         $fiscalCredit = $dni !== '' || (bool) ($this->order->metadata['data']['fiscal_credit'] ?? false);
 
         $service = $this->injectedService;

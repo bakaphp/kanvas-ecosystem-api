@@ -16,7 +16,7 @@ class PaymentConfirmData extends Data
         public readonly bool $fiscalCredit,
         public readonly string $dni
     ) {
-        // el spec marca rnc_Cedula como requerido solo si creditoFiscal es true
+        // the spec marks rnc_Cedula as required only when creditoFiscal is true
         if ($fiscalCredit && trim($dni) === '') {
             throw new InvalidArgumentException('PasoRapido requires a RNC/cedula when fiscal credit is requested');
         }
