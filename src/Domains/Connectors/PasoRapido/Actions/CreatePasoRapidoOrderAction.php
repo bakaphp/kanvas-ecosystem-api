@@ -54,7 +54,6 @@ class CreatePasoRapidoOrderAction
         }
 
         $tag = $this->order->metadata['data']['paso_rapido_tag'];
-        $fiscalCredit = (bool) ($this->order->metadata['data']['fiscal_credit'] ?? false);
 
         $company = $this->order->company;
 
@@ -63,16 +62,19 @@ class CreatePasoRapidoOrderAction
             ->first(fn (Companies $providerCompany) => (bool) $providerCompany->get('is_corporate'))
             ?? $company;
 
-        $dni = (bool) $fiscalCompany->get('is_corporate')
+        $rnc = (bool) $fiscalCompany->get('is_corporate')
             ? trim((string) ($fiscalCompany->get('rnc') ?? ''))
             : '';
 
-        if ($dni === '') {
-            $metadataRnc = trim((string) ($this->order->metadata['data']['rnc'] ?? ''));
-            $dni = $metadataRnc !== ''
-                ? $metadataRnc
-                : trim((string) ($this->order->get(CustomFieldEnum::PASO_RAPIDO_DNI->value) ?? ''));
+        if ($rnc === '') {
+            $rnc = trim((string) ($this->order->metadata['data']['rnc'] ?? ''));
         }
+
+        // tener RNC (corporativo o en la orden) implica querer credito fiscal; la cedula no
+        $fiscalCredit = $rnc !== '' || (bool) ($this->order->metadata['data']['fiscal_credit'] ?? false);
+        $dni = $rnc !== ''
+            ? $rnc
+            : trim((string) ($this->order->get(CustomFieldEnum::PASO_RAPIDO_DNI->value) ?? ''));
 
         try {
             $pasoRapidoService = $this->pasoRapidoService ?? new PasoRapidoService($this->app, $company);

@@ -19,6 +19,7 @@ use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Mockery;
 use Tests\Connectors\Traits\HasIntegrationCompany;
@@ -475,6 +476,46 @@ final class PasoRapidoOrderTest extends TestCase
 
         $this->assertSame('success', $result['status']);
         $this->assertSame($corporateRnc, $capturedConfirmData->dni);
+        $this->assertTrue($capturedConfirmData->fiscalCredit);
+    }
+
+    public function testCreatePasoRapidoOrderFailsWhenFiscalCreditHasNoDocument(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->create();
+
+        $order = Order::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->withPeopleId($people->getId())
+            ->create([
+                'metadata' => [
+                    'data' => [
+                        'paso_rapido_tag' => '317169',
+                        'fiscal_credit' => true,
+                    ],
+                ],
+            ]);
+
+        $order->set(EnumsCustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value, 'intentId:7478925724996114' . rand(100000, 999999));
+
+        $serviceMock = Mockery::mock(PasoRapidoService::class);
+        $serviceMock->shouldNotReceive('confirmPayment');
+
+        $result = new CreatePasoRapidoOrderAction($app, $order, $serviceMock)->execute();
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('RNC', (string) $result['message']);
+        $this->assertSame(PaymentStatusEnum::FAILED->value, $order->fresh()->get(CustomFieldEnum::PASO_RAPIDO_PAYMENT_STATUS->value));
+        $this->assertSame('0', (string) $order->fresh()->get(EnumsCustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value));
     }
 
     public function testCreatePasoRapidoOrderRejectsBulkRechargeOrders(): void
