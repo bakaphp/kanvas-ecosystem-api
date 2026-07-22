@@ -14,6 +14,10 @@ class AmazonBestSellersParser
      */
     private const string PRODUCT_PATTERN = '/#(\d+)\s+\[!\[[^\]]*\]\(([^)]+)\)\]\([^)]*?\/dp\/([A-Z0-9]{10})[^)]*\)\s+\[([^\]]+)\]\([^)]*?\/dp\/\3[^)]*\)\s+\[_([\d.]+) out of 5 stars_\s*([\d,]+)\]\([^)]*\)\s+\[\$([\d,.]+)\]/u';
 
+    private const string CATEGORY_LINK_PATTERN = '/\[([^\]]+)\]\((\/[^)]*\/zgbs\/([^\/)]+)\/[^)]*ref=zg%5Fbs%5Fnav[^)]*)\)/u';
+
+    private const string AMAZON_BASE_URL = 'https://www.amazon.com';
+
     /**
      * Parse the Amazon Best Sellers markdown into products grouped by the
      * "## Best Sellers in <Category>" sections.
@@ -51,9 +55,38 @@ class AmazonBestSellersParser
     }
 
     /**
+     * Extract the department links from the Best Sellers landing nav so each
+     * category's full page (~30 ranked products) can be scraped one by one.
+     *
+     * @return array<int, array{name: string, slug: string, url: string}>
+     */
+    public static function parseCategoryLinks(string $markdown): array
+    {
+        preg_match_all(self::CATEGORY_LINK_PATTERN, $markdown, $matches, PREG_SET_ORDER);
+
+        $links = [];
+        $seen = [];
+        foreach ($matches as $match) {
+            $slug = $match[3];
+            if (isset($seen[$slug])) {
+                continue;
+            }
+            $seen[$slug] = true;
+
+            $links[] = [
+                'name' => trim($match[1]),
+                'slug' => $slug,
+                'url' => self::AMAZON_BASE_URL . urldecode($match[2]),
+            ];
+        }
+
+        return $links;
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
-    private static function parseProducts(string $section): array
+    public static function parseProducts(string $section): array
     {
         preg_match_all(self::PRODUCT_PATTERN, $section, $matches, PREG_SET_ORDER);
 

@@ -79,4 +79,45 @@ class AmazonBestSellersParserTest extends TestCase
     {
         $this->assertSame([], AmazonBestSellersParser::parse('# Just a page with no best sellers'));
     }
+
+    public function testParsesCategoryNavLinksIntoAbsoluteUrls(): void
+    {
+        $markdown = <<<'MD'
+        * [Electronics](/Best-Sellers-Electronics/zgbs/electronics/ref=zg%5Fbs%5Fnav%5Felectronics%5F0)
+        * [Cell Phones & Accessories](/Best-Sellers-Cell-Phones-Accessories/zgbs/wireless/ref=zg%5Fbs%5Fnav%5Fwireless%5F0)
+        * [Best Sellers](/Best-Sellers/zgbs/ref=zg%5Fbs%5Ftab%5Fbs)
+        MD;
+
+        $links = AmazonBestSellersParser::parseCategoryLinks($markdown);
+
+        // The "Best Sellers" tab (no nav ref / no slug segment) must not be treated as a category.
+        $this->assertCount(2, $links);
+        $this->assertSame('electronics', $links[0]['slug']);
+        $this->assertSame('Electronics', $links[0]['name']);
+        $this->assertSame(
+            'https://www.amazon.com/Best-Sellers-Electronics/zgbs/electronics/ref=zg_bs_nav_electronics_0',
+            $links[0]['url']
+        );
+        $this->assertSame('wireless', $links[1]['slug']);
+    }
+
+    public function testParsesProductsFromASingleCategoryPage(): void
+    {
+        // Category pages carry alt text inside the image and a single "#" heading.
+        $markdown = <<<'MD'
+        # Best Sellers in Electronics
+
+        1. #1
+        [![blink plus plan with monthly auto-renewal](https://img/1.png)](/Blink-Plus/dp/B08JHCVHTY/ref=zg)
+        [blink plus plan with monthly auto-renewal](/Blink-Plus/dp/B08JHCVHTY/ref=zg)
+        [_4.4 out of 5 stars_ 278,200](/product-reviews/B08JHCVHTY/ref=zg)
+        [$11.99](/Blink-Plus/dp/B08JHCVHTY/ref=zg)
+        MD;
+
+        $products = AmazonBestSellersParser::parseProducts($markdown);
+
+        $this->assertCount(1, $products);
+        $this->assertSame('B08JHCVHTY', $products[0]['asin']);
+        $this->assertSame(11.99, $products[0]['price']);
+    }
 }
