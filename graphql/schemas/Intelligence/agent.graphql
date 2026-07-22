@@ -20,6 +20,7 @@ type AgentAi {
     identity: Mixed
     user_context: String
     tools_config: String
+    voice_config: Mixed
     deployment_status: String!
     activeDeployment: AgentDeploymentType @hasOne
     agent_model_id: ID
@@ -312,5 +313,74 @@ extend type Mutation @guardByAppKey {
     removeAgentKanvasModule(agent_id: ID!, kanvas_module_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentKanvasModuleMutation@remove"
+        )
+}
+
+"""
+Compiled agent spec consumed by the external voice runtime (Pipecat / Cloud Run)
+at the start of each call. Read-only, server-to-server (@guardByAppKey).
+"""
+type VoiceAgentSpec {
+    "The agent uuid; the runtime caches by agent_id + version."
+    agent_id: String!
+    "Changes whenever the agent is edited, so the runtime refreshes its cache."
+    version: String!
+    language: String
+    prompts: VoiceAgentPrompts!
+    models: VoiceAgentModels!
+    telephony: VoiceAgentTelephony
+    context_schema: [VoiceAgentContextField!]!
+}
+
+type VoiceAgentPrompts {
+    system_instruction: String!
+    greeting: String
+    voicemail_message: String
+}
+
+type VoiceAgentModels {
+    stt: VoiceAgentSttModel
+    llm: VoiceAgentLlmModel!
+    tts: VoiceAgentTtsModel
+}
+
+type VoiceAgentSttModel {
+    provider: String
+    model: String
+    language: String
+}
+
+type VoiceAgentLlmModel {
+    provider: String
+    model: String
+}
+
+type VoiceAgentTtsModel {
+    provider: String
+    voice_id: String
+    model: String
+    stability: Float
+    similarity: Float
+    style: Float
+    speed: Float
+    use_speaker_boost: Boolean
+}
+
+"Dealership caller-id number. Credentials are intentionally excluded."
+type VoiceAgentTelephony {
+    from_number: String
+}
+
+type VoiceAgentContextField {
+    key: String!
+    required: Boolean
+    default: String
+}
+
+extend type Query @guardByAppKey {
+    "Fetch the compiled voice spec for an agent by uuid (voice runtime → Kanvas)."
+    voiceAgentSpec(uuid: String!): VoiceAgentSpec!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\VoiceAgentSpecQuery"
         )
 }
