@@ -184,6 +184,71 @@ class ProjectCrudTest extends TestCase
         )->execute();
     }
 
+    public function testProjectTreeParentChildAndPathViaAsTree(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $parent = new CreateProjectAction(
+            ProjectData::from(
+                $app,
+                $user,
+                $company,
+                ['title' => 'Parent program', 'agent_id' => $agent->id],
+            ),
+        )->execute();
+
+        $child = new CreateProjectAction(
+            ProjectData::from(
+                $app,
+                $user,
+                $company,
+                [
+                    'title' => 'Child project',
+                    'agent_id' => $agent->id,
+                    'parent_project_id' => $parent->id,
+                ],
+            ),
+        )->execute();
+
+        // Trait-provided relations resolve off parent_project_id (overridden parent key).
+        $this->assertSame((int) $parent->id, (int) $child->parent->id);
+        $this->assertTrue($parent->children->pluck('id')->contains($child->id));
+
+        // Materialized path is assigned by AsTree and encodes the ancestry.
+        $this->assertNotNull($child->path);
+        $this->assertTrue($parent->descendants()->pluck('id')->contains($child->id));
+        $this->assertTrue($child->ancestors()->pluck('id')->contains($parent->id));
+    }
+
+    public function testChildrenRelationExcludesSoftDeleted(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $parent = new CreateProjectAction(
+            ProjectData::from(
+                $app,
+                $user,
+                $company,
+                ['title' => 'Parent', 'agent_id' => $agent->id],
+            ),
+        )->execute();
+
+        $child = new CreateProjectAction(
+            ProjectData::from(
+                $app,
+                $user,
+                $company,
+                ['title' => 'Child', 'agent_id' => $agent->id, 'parent_project_id' => $parent->id],
+            ),
+        )->execute();
+
+        $child->softDelete();
+
+        $this->assertFalse($parent->children()->pluck('id')->contains($child->id));
+    }
+
     public function testListProjects(): void
     {
         [$app, $company, $user] = $this->context();

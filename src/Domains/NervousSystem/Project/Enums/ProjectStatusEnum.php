@@ -21,7 +21,12 @@ enum ProjectStatusEnum: string
      */
     public static function openStatuses(): array
     {
-        return [self::DRAFT, self::ACTIVE, self::ON_HOLD, self::BLOCKED];
+        return [
+            self::DRAFT,
+            self::ACTIVE,
+            self::ON_HOLD,
+            self::BLOCKED,
+        ];
     }
 
     /**
@@ -31,7 +36,11 @@ enum ProjectStatusEnum: string
      */
     public static function terminalStatuses(): array
     {
-        return [self::DONE, self::ARCHIVED, self::CANCELLED];
+        return [
+            self::DONE,
+            self::ARCHIVED,
+            self::CANCELLED,
+        ];
     }
 
     /**

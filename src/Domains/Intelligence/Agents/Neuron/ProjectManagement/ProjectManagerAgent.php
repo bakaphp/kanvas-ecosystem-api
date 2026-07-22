@@ -21,12 +21,6 @@ use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\InMemoryChatHistory;
 use Override;
 
-/**
- * The default per-project PM agent — the orchestrator. It reads incoming project context
- * (transcripts, messages), decomposes it into plans/tasks, assigns each task to the best-fit member
- * agent, monitors progress and keeps the project moving. Contributor agents execute individual tasks;
- * the PM orchestrates. Its task-manipulation tools (assign/move/create) land with PR0/PR4.
- */
 #[AgentTypeDefinition(
     name: 'Project Manager',
     description: 'The default per-project orchestrator: triages project context, breaks it into plans/tasks, assigns work to member agents, and keeps the project moving.',
@@ -156,6 +150,10 @@ class ProjectManagerAgent extends BaseKanvasAgent
             new DeleteNervousSystemTaskTool()->withContext($app, $company, $user),
         ];
 
-        return $this->mergeRegisteredTools($core, $agent, CapabilityFrameworkEnum::NEURON);
+        return $this->mergeRegisteredTools(
+            $core,
+            $agent,
+            CapabilityFrameworkEnum::NEURON
+        );
     }
 }

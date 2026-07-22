@@ -13,9 +13,6 @@ class DeleteWorkspaceAction
     ) {
     }
 
-    /**
-     * Soft-delete via SoftDeletesTrait so CascadeSoftDeletes fans out to the workspace's projects.
-     */
     public function execute(): bool
     {
         return (bool) $this->workspace->delete();

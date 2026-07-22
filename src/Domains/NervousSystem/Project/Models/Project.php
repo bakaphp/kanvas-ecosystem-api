@@ -21,6 +21,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\ReceiverWebhook;
+use Nevadskiy\Tree\AsTree;
 use Override;
 
 /**
@@ -37,6 +38,7 @@ use Override;
  * @property int $agent_id
  * @property int|null $swarm_id
  * @property int|null $parent_project_id
+ * @property string|null $path
  * @property string $title
  * @property string $slug
  * @property string|null $objective
@@ -61,6 +63,7 @@ use Override;
 #[ObservedBy([ProjectObserver::class])]
 class Project extends BaseModel
 {
+    use AsTree;
     use CascadeSoftDeletes;
     use EmitsLedgerEventsForEntity;
     use HasLightHouseCache;
@@ -131,14 +134,23 @@ class Project extends BaseModel
         return $this->belongsTo(AgentSwarm::class, 'swarm_id', 'id');
     }
 
-    public function parent(): BelongsTo
+    /**
+     * The project tree uses nevadskiy/laravel-tree (AsTree) — parent()/ancestors()/descendants()
+     * and materialized-path maintenance come from the trait. Our adjacency FK is parent_project_id
+     * (not the trait's default parent_id), so point the trait at it.
+     */
+    public function getParentKeyName(): string
     {
-        return $this->belongsTo(self::class, 'parent_project_id', 'id');
+        return 'parent_project_id';
     }
 
+    /**
+     * Override the trait's children() only to drop soft-deleted rows — the relation is exposed as a
+     * non-null GraphQL list and drives cascade soft-deletes, so deleted sub-projects must not leak.
+     */
     public function children(): HasMany
     {
-        return $this->hasMany(self::class, 'parent_project_id', 'id')->where('is_deleted', 0);
+        return $this->hasMany(self::class, $this->getParentKeyName(), 'id')->where('is_deleted', 0);
     }
 
     public function plans(): HasMany

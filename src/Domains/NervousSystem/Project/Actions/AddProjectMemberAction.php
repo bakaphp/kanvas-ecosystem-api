@@ -39,12 +39,12 @@ class AddProjectMemberAction
             /** @var ProjectMember $member */
             $member = ProjectMember::query()->withTrashed()->updateOrCreate(
                 [
+                    'apps_id' => $this->project->apps_id,
+                    'companies_id' => $this->project->companies_id,
                     'project_id' => $this->project->getId(),
                     'users_id' => $usersId,
                 ],
                 [
-                    'apps_id' => $this->project->apps_id,
-                    'companies_id' => $this->project->companies_id,
                     'member_type' => $memberType->value,
                     'agent_id' => $agentId,
                     'role' => $this->role->value,

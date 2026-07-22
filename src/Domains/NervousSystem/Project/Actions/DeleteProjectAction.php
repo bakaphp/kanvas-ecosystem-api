@@ -13,10 +13,6 @@ class DeleteProjectAction
     ) {
     }
 
-    /**
-     * Soft-delete via SoftDeletesTrait so CascadeSoftDeletes fans out to the project's plans and
-     * sub-projects. Emits the ledger event before deletion so the actor/entity are still resolvable.
-     */
     public function execute(): bool
     {
         $this->project->emitLedgerEvent('project.deleted', payload: [
