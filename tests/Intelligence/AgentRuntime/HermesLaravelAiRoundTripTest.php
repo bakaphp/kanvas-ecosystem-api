@@ -73,7 +73,7 @@ class HermesLaravelAiRoundTripTest extends TestCase
         // The Hermes-imported conversation has user_id = null. A user that
         // doesn't own it should not see it as their "latest" conversation.
         $someUserId = (int) auth()->user()->getId();
-        $latest = new KanvasConversationStore()->latestConversationId($someUserId);
+        $latest = new KanvasConversationStore()->latestConversationId('user', $someUserId);
 
         // The current user might have other conversations from other tests; what
         // we care about is that the Hermes-imported one (user_id=null) is not it.
