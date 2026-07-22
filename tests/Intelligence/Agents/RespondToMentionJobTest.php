@@ -23,15 +23,19 @@ use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Actions\ParseMessageMentionsAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use NeuronAI\Chat\Enums\MessageRole;
+use NeuronAI\Chat\Enums\SourceType;
 use NeuronAI\Chat\Messages\ContentBlocks\AudioContent;
 use NeuronAI\Chat\Messages\ContentBlocks\FileContent;
 use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
+use NeuronAI\Chat\Messages\UserMessage;
 use Tests\Stubs\Intelligence\CapturingNeuronProvider;
 use Tests\Stubs\Intelligence\CapturingSystemUserAgentStub;
 use Tests\Stubs\Intelligence\SystemUserAgentStub;
@@ -419,6 +423,140 @@ class RespondToMentionJobTest extends TestCase
         }
 
         $this->assertSame([], $mediaBlocks, 'A text-only mention must not attach any media content block');
+    }
+
+    public function testEndToEndRealHandleResolvesAndDeliversTheFileToTheAgent(): void
+    {
+        // Closest reproduction of the production incident: a human @mentions the agent in a comment
+        // that carries a PDF. Drives the REAL mention parser (@handle → UsersAssociatedApps.displayname)
+        // then the job body as the worker runs it, and asserts the PDF reaches the model.
+        CapturingNeuronProvider::$lastMessages = [];
+
+        $app = app(Apps::class);
+        $human = auth()->user();
+
+        // Unique, space-free handle so the parser's regex matches and the shared test DB can't collide.
+        $agentUser = $this->makeAgentUser('ContractBot');
+        $handle = 'contractbot' . $agentUser->getId();
+        UsersAssociatedApps::where('users_id', $agentUser->getId())
+            ->where('apps_id', $app->getId())
+            ->update(['displayname' => $handle]);
+
+        $agent = $this->makeCapturingAgent($agentUser);
+
+        $channel = $this->makeChannel($human);
+        $mention = $this->makeMessage($human, "hey @{$handle} the signed contract is attached, please review");
+        $channel->addMessage($mention, $human);
+        $this->attachPdf($mention, $app);
+
+        $mentionedIds = new ParseMessageMentionsAction($mention)->execute();
+        $this->assertContains(
+            $agentUser->getId(),
+            $mentionedIds,
+            'the real mention parser must resolve the @handle to the agent user',
+        );
+
+        new RespondToMentionJob($agent, $mention)->handle();
+
+        $sawPdf = false;
+        foreach (CapturingNeuronProvider::$lastMessages as $message) {
+            foreach ($message->getContentBlocks() as $block) {
+                if ($block instanceof FileContent && $block->mediaType === 'application/pdf') {
+                    $sawPdf = true;
+                }
+            }
+        }
+
+        $this->assertTrue(
+            $sawPdf,
+            'End-to-end: an @mention comment carrying a PDF must deliver the PDF to the model as a FileContent block',
+        );
+    }
+
+    public function testChannelHistoryPreservesAPdfBlockWhenTheMentionCoalescesIntoThePriorTurn(): void
+    {
+        // Regression: ChannelMessageHistory coalesces consecutive same-role turns via setContents(),
+        // which resets the block list to text only. A PDF on the incoming @mention (a user turn folding
+        // into the prior user turn) was silently dropped before reaching the model — so a capable model
+        // that CAN read the PDF still answered "I can't see the file". The media block must survive.
+        $human = auth()->user();
+        $channel = $this->makeChannel($human);
+        // A prior human turn so the incoming mention (same USER role) coalesces into it.
+        $channel->addMessage($this->makeMessage($human, 'here is some background on the deal'), $human);
+
+        $history = new ChannelMessageHistory($channel);
+
+        $mention = new UserMessage('please review the attached contract');
+        $mention->addContent(
+            new FileContent(base64_encode('%PDF-1.4 signed'), SourceType::BASE64, 'application/pdf'),
+        );
+        $history->addMessage($mention);
+
+        $messages = $history->getMessages();
+        $last = end($messages);
+
+        $pdfBlocks = array_filter(
+            $last->getContentBlocks(),
+            static fn ($block): bool => $block instanceof FileContent && $block->mediaType === 'application/pdf',
+        );
+
+        $this->assertNotEmpty(
+            $pdfBlocks,
+            'A PDF on the folded-in mention must survive same-role coalescing and reach the model',
+        );
+        $this->assertStringContainsString(
+            'review the attached contract',
+            (string) $last->getContent(),
+            'The mention text must still be merged into the coalesced turn',
+        );
+    }
+
+    public function testListenerDelaysTheAgentReplyWhenTheMentionHasNoFileYet(): void
+    {
+        // The comment UI uploads attachments in a separate request that lands a few seconds after the
+        // message. When the mention has no file yet, the reply must be delayed so the upload can settle.
+        Bus::fake([RespondToMentionJob::class]);
+
+        $human = auth()->user();
+        $agentUser = $this->makeAgentUser('DelayBot');
+        $this->makeAgent($agentUser);
+
+        $channel = $this->makeChannel($human);
+        $mention = $this->makeMessage($human, '@DelayBot can you see the file now?');
+        $channel->addMessage($mention, $human);
+
+        new RespondToAgentMentionListener()->handle(
+            new MessageMentionsStoredEvent($mention, [$agentUser->getId()]),
+        );
+
+        Bus::assertDispatched(
+            RespondToMentionJob::class,
+            static fn (RespondToMentionJob $job): bool => $job->delay !== null,
+        );
+    }
+
+    public function testListenerDoesNotDelayWhenTheMentionAlreadyHasAFile(): void
+    {
+        // A mention that already carries its file (or a plain text mention) must not eat the delay.
+        Bus::fake([RespondToMentionJob::class]);
+
+        $human = auth()->user();
+        $agentUser = $this->makeAgentUser('DelayBot');
+        $agent = $this->makeAgent($agentUser);
+
+        $channel = $this->makeChannel($human);
+        $mention = $this->makeMessage($human, '@DelayBot here is the signed contract');
+        $channel->addMessage($mention, $human);
+        $this->attachPdf($mention, $agent->app);
+
+        new RespondToAgentMentionListener()->handle(
+            new MessageMentionsStoredEvent($mention, [$agentUser->getId()]),
+        );
+
+        Bus::assertDispatched(
+            RespondToMentionJob::class,
+            static fn (RespondToMentionJob $job): bool => $job->delay === null,
+        );
     }
 
     private function makeCapturingAgent(Users $agentUser): Agent
