@@ -9,14 +9,18 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\ScrapperApi\Enums\ConfigEnum;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
 use Kanvas\Connectors\ScrapperApi\Services\AmazonBestSellersParser;
+use Kanvas\Connectors\ScrapperApi\Services\ProductService;
+use Kanvas\Connectors\ScrapperApi\Services\ProductVariantService;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
-use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Social\Tags\Models\Tag;
+use Kanvas\Social\Tags\Models\TagEntity;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -29,12 +33,13 @@ class ScrapeAmazonBestSellersCommand extends Command
                             {company_id : The company ID}
                             {userId : The user ID}
                             {region_id : The region ID}
-                            {--url= : Amazon Best Sellers URL to scrape (defaults to the Best Sellers landing)}
+                            {--url= : Best Sellers landing URL (defaults to the Amazon Best Sellers landing)}
+                            {--categories= : Comma-separated category slugs to limit (empty = all departments)}
+                            {--limit=0 : Max products per category (0 = all)}
                             {--warehouse_id= : Warehouse ID (defaults to the region default warehouse)}
-                            {--tag=Homepage : Tag applied to every imported product}
-                            {--limit=0 : Max products per category (0 = all)}';
+                            {--tag=Homepage : Tag applied to every imported best seller}';
 
-    protected $description = 'Scrape the Amazon Best Sellers page via ScraperAPI, parse it per category and import the products';
+    protected $description = 'Scrape Amazon Best Sellers department by department, enrich each ASIN via the structured product endpoint and import them';
 
     public function handle(): int
     {
@@ -58,30 +63,65 @@ class ScrapeAmazonBestSellersCommand extends Command
         $channel = Channels::getDefault($company);
         $tag = (string) $this->option('tag');
         $limit = (int) $this->option('limit');
+        $onlySlugs = array_filter(array_map('trim', explode(',', (string) $this->option('categories'))));
 
-        $url = $this->option('url') ?: 'https://www.amazon.com/gp/bestsellers/?ref_=nav_cs_bestsellers';
+        $repository = new ScrapperRepository($app);
+        $productService = new ProductService($channel, $warehouse, $user);
+        $variantService = new ProductVariantService($channel, $warehouse, $user);
 
-        $this->info('Scraping ' . $url);
-        $markdown = new ScrapperRepository($app)->getRenderedPage($url);
-        $categories = AmazonBestSellersParser::parse($markdown);
+        $landingUrl = $this->option('url') ?: 'https://www.amazon.com/gp/bestsellers/?ref_=nav_cs_bestsellers';
+
+        $this->info('Scraping landing: ' . $landingUrl);
+        $categories = AmazonBestSellersParser::parseCategoryLinks($repository->getRenderedPage($landingUrl));
+
+        if (! empty($onlySlugs)) {
+            $categories = array_values(array_filter($categories, fn ($c) => in_array($c['slug'], $onlySlugs, true)));
+        }
 
         if (empty($categories)) {
-            $this->error('No best-seller products parsed from the page.');
+            $this->error('No category links parsed from the landing page.');
 
             return self::FAILURE;
         }
+
+        // Reset the current homepage selection: the scraped best sellers become the new one.
+        $this->clearHomepageTag($app, $tag);
 
         $success = 0;
         $failed = 0;
 
         foreach ($categories as $category) {
-            $products = $limit > 0 ? array_slice($category['products'], 0, $limit) : $category['products'];
-            $this->info(sprintf('Category "%s": %d product(s)', $category['category'], count($products)));
+            $products = AmazonBestSellersParser::parseProducts($repository->getRenderedPage($category['url']));
+            if ($limit > 0) {
+                $products = array_slice($products, 0, $limit);
+            }
+
+            $this->info(sprintf('Category "%s" (%s): %d product(s)', $category['name'], $category['slug'], count($products)));
 
             foreach ($products as $item) {
-                $mapped = $this->mapProduct($item, $category['category'], $warehouse, $channel, $tag);
-
                 try {
+                    // Un-delete a previously removed product so the importer reuses it instead of leaving it hidden.
+                    Products::withTrashed()->where('slug', Str::slug($item['asin']))->update(['is_deleted' => 0]);
+
+                    $structured = $repository->getByAsin($item['asin']);
+                    $merged = array_merge($structured, $item);
+
+                    if (empty($merged['price']) && empty($merged['pricing'])) {
+                        $this->warn('  Skipping ' . $item['asin'] . ': no price');
+
+                        continue;
+                    }
+
+                    $mapped = $productService->mapProduct($merged);
+                    $mapped['variants'] = $variantService->mapVariant($merged);
+                    // Always land it under the best-seller department (getByAsin's breadcrumb can be empty).
+                    $mapped['categories'][] = [
+                        'name' => $category['name'],
+                        'slug' => Str::slug($category['name']),
+                        'code' => Str::slug($category['name']),
+                        'position' => 0,
+                    ];
+
                     $product = new ProductImporterAction(
                         ProductImporter::from($mapped),
                         $company,
@@ -91,19 +131,11 @@ class ScrapeAmazonBestSellersCommand extends Command
                         true
                     )->execute();
 
-                    // CreateProductAction reuses an existing product by slug even if it was
-                    // soft-deleted, without clearing the flag — restore it so the best-seller
-                    // isn't left invisible (is_deleted stays 1 and it never indexes).
-                    if ($product->is_deleted) {
-                        $product->is_deleted = 0;
-                        $product->is_published = true;
-                        $product->save();
-                    }
-
+                    $product->addTag($tag, $app, company: $company);
                     $product->searchable();
                     $success++;
                 } catch (Throwable $e) {
-                    $this->error('Failed "' . $item['name'] . '" (' . $item['asin'] . '): ' . $e->getMessage());
+                    $this->error('  Failed ' . $item['asin'] . ': ' . $e->getMessage());
                     $failed++;
                 }
             }
@@ -119,96 +151,23 @@ class ScrapeAmazonBestSellersCommand extends Command
         return self::SUCCESS;
     }
 
-    private function mapProduct(array $item, string $categoryName, Warehouses $warehouse, ?Channels $channel, string $tag): array
+    private function clearHomepageTag(Apps $app, string $tag): void
     {
-        $files = [
-            [
-                'url' => $item['image'],
-                'name' => 'main_image',
-                'field_name' => 'product_image',
-            ],
-        ];
+        $homepageTagIds = Tag::query()
+            ->fromApp($app)
+            ->whereRaw('LOWER(name) = ?', [Str::lower($tag)])
+            ->pluck('id')
+            ->all();
 
-        $warehouseRow = [
-            'id' => $warehouse->id,
-            'price' => $item['price'],
-            'warehouse' => $warehouse->name,
-            'quantity' => 1,
-            'sku' => $item['asin'],
-            'is_new' => true,
-            'channel' => $channel?->name ?? 'Default',
-        ];
+        if (empty($homepageTagIds)) {
+            return;
+        }
 
-        $variant = [
-            'name' => $item['name'],
-            'slug' => Str::slug($item['asin']),
-            'sku' => $item['asin'],
-            'price' => $item['price'],
-            'quantity' => 1,
-            'files' => $files,
-            'warehouses' => [
-                [
-                    'id' => $warehouse->id,
-                    'price' => $item['price'],
-                    'quantity' => 1,
-                    'sku' => $item['asin'],
-                    'is_new' => true,
-                ],
-            ],
-            'channels' => [
-                [
-                    'price' => $item['price'],
-                    'discounted_price' => null,
-                    'is_published' => true,
-                    'warehouses_id' => $warehouse->id,
-                    'channels_id' => $channel?->id ?? 0,
-                ],
-            ],
-        ];
+        $cleared = TagEntity::query()
+            ->where('taggable_type', Products::class)
+            ->whereIn('tags_id', $homepageTagIds)
+            ->delete();
 
-        return [
-            'name' => $item['name'],
-            'description' => $item['name'],
-            'slug' => Str::slug($item['asin']),
-            'sku' => $item['asin'],
-            'source' => 'amazon',
-            'source_id' => $item['asin'],
-            'isPublished' => true,
-            'position' => $item['rank'],
-            'files' => $files,
-            'categories' => [
-                [
-                    'name' => $categoryName,
-                    'slug' => Str::slug($categoryName),
-                    'code' => Str::slug($categoryName),
-                    'position' => 0,
-                ],
-            ],
-            'tags' => [
-                ['name' => $tag],
-            ],
-            'warehouses' => [$warehouseRow],
-            'attributes' => [
-                [
-                    'name' => ConfigEnum::SCRAPPER_RATING->value,
-                    'value' => $item['rating'],
-                ],
-            ],
-            'custom_fields' => [
-                [
-                    'name' => ConfigEnum::AMAZON_ID->value,
-                    'data' => $item['asin'],
-                ],
-                [
-                    'name' => ConfigEnum::AMAZON_PRICE->value,
-                    'data' => $item['price'],
-                ],
-                [
-                    'name' => ConfigEnum::SCRAPPER_RATING->value,
-                    'data' => $item['rating'],
-                ],
-            ],
-            'variants' => [$variant],
-        ];
+        $this->info(sprintf('Cleared "%s" tag from %d product(s).', $tag, $cleared));
     }
 }
