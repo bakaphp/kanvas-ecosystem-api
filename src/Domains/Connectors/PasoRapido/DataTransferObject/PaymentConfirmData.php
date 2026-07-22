@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PasoRapido\DataTransferObject;
 
+use InvalidArgumentException;
 use Spatie\LaravelData\Data;
 
 class PaymentConfirmData extends Data
@@ -15,6 +16,10 @@ class PaymentConfirmData extends Data
         public readonly bool $fiscalCredit,
         public readonly string $dni
     ) {
+        // the spec marks rnc_Cedula as required only when creditoFiscal is true
+        if ($fiscalCredit && trim($dni) === '') {
+            throw new InvalidArgumentException('PasoRapido requires a RNC/cedula when fiscal credit is requested');
+        }
     }
 
     public static function fromArray(array $data): self
