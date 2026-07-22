@@ -29,7 +29,7 @@ class ScrapeAmazonBestSellersCommand extends Command
                             {company_id : The company ID}
                             {userId : The user ID}
                             {region_id : The region ID}
-                            {--url=https://www.amazon.com/gp/bestsellers/?ref_=nav_cs_bestsellers : Amazon Best Sellers URL to scrape}
+                            {--url= : Amazon Best Sellers URL to scrape (defaults to the Best Sellers landing)}
                             {--warehouse_id= : Warehouse ID (defaults to the region default warehouse)}
                             {--tag=Homepage : Tag applied to every imported product}
                             {--limit=0 : Max products per category (0 = all)}';
@@ -59,8 +59,10 @@ class ScrapeAmazonBestSellersCommand extends Command
         $tag = (string) $this->option('tag');
         $limit = (int) $this->option('limit');
 
-        $this->info('Scraping ' . $this->option('url'));
-        $markdown = new ScrapperRepository($app)->getRenderedPage($this->option('url'));
+        $url = $this->option('url') ?: 'https://www.amazon.com/gp/bestsellers/?ref_=nav_cs_bestsellers';
+
+        $this->info('Scraping ' . $url);
+        $markdown = new ScrapperRepository($app)->getRenderedPage($url);
         $categories = AmazonBestSellersParser::parse($markdown);
 
         if (empty($categories)) {
