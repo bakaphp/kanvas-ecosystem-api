@@ -181,6 +181,55 @@ final class RoadsideChatMessagePushTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function testActionIgnoresMessageWithoutAssistanceChatVerb(): void
+    {
+        $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
+        $mechanic = Users::factory()->create();
+        $channel = $this->createOrderChannel($order, [$this->authUser->getId(), $mechanic->getId()]);
+        $message = $this->createChannelMessage($channel, $this->authUser, 'some-other-verb');
+
+        Notification::fake();
+
+        $notified = new SendRoadsideChatMessagePushAction($channel, $message)->execute();
+
+        $this->assertSame(0, $notified);
+        Notification::assertNothingSent();
+    }
+
+    public function testResolvesRoadsideOrderFromDirectMessageChannelMembers(): void
+    {
+        $mechanic = Users::factory()->create();
+        $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
+        // Stamp the assigned mechanic on the case: that's what ties the memberless DM channel
+        // (dm-{userId}-{userId}, the real client payload) back to this roadside order.
+        $order->metadata = [
+            'assistance_case' => [
+                ...$order->metadata['assistance_case'],
+                'mechanic' => ['user_id' => $mechanic->getId()],
+            ],
+        ];
+        $order->saveQuietly();
+
+        $channel = $this->createOrderChannel(
+            $order,
+            [$this->authUser->getId(), $mechanic->getId()],
+            [
+                'slug' => 'dm-' . $this->authUser->getId() . '-' . $mechanic->getId(),
+                'entity_id' => $mechanic->getId(),
+                'entity_namespace' => Users::class,
+            ],
+        );
+        $message = $this->createChannelMessage($channel, $this->authUser);
+
+        Notification::fake();
+
+        $notified = new SendRoadsideChatMessagePushAction($channel, $message)->execute();
+
+        $this->assertSame(1, $notified);
+        Notification::assertSentTo($mechanic, RoadsideChatMessageNotification::class);
+        Notification::assertNotSentTo($this->authUser, RoadsideChatMessageNotification::class);
+    }
+
     public function testActivityNotifiesCounterpartyWhenMessageCreated(): void
     {
         $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
@@ -214,16 +263,17 @@ final class RoadsideChatMessagePushTest extends TestCase
         Notification::assertNotSentTo($this->authUser, RoadsideChatMessageNotification::class);
     }
 
-    public function testActivityIgnoresNonRoadsideMessage(): void
+    public function testActivityIgnoresMessageWithoutAssistanceChatVerb(): void
     {
-        $order = $this->createOrder(OrderTypeEnum::MOVIPASS->value);
+        $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
         $mechanic = Users::factory()->create();
         $channel = $this->createOrderChannel($order, [$this->authUser->getId(), $mechanic->getId()]);
-        $message = $this->createChannelMessage($channel, $this->authUser);
+        $message = $this->createChannelMessage($channel, $this->authUser, 'some-other-verb');
         $channel->messages()->attach($message->getKey(), ['users_id' => $this->authUser->getId()]);
 
         Notification::fake();
 
+        // Guards on the verb before executeIntegration, so no MOVIPASS integration row is needed.
         $result = new SendRoadsideChatMessagePushActivity(
             0,
             now()->toDateTimeString(),
@@ -280,9 +330,15 @@ final class RoadsideChatMessagePushTest extends TestCase
         return $channel;
     }
 
-    private function createChannelMessage(Channel $channel, Users $sender): Message
-    {
-        $messageType = MessageType::factory()->create();
+    private function createChannelMessage(
+        Channel $channel,
+        Users $sender,
+        string $verb = SendRoadsideChatMessagePushAction::ROADSIDE_CHAT_VERB
+    ): Message {
+        $messageType = MessageType::where('apps_id', $this->apps->getId())
+            ->where('verb', $verb)
+            ->first()
+            ?? MessageType::factory()->create(['verb' => $verb]);
 
         return Message::create([
             'apps_id' => $this->apps->getId(),

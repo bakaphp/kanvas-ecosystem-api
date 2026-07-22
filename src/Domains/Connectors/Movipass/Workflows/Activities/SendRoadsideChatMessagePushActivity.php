@@ -23,18 +23,12 @@ class SendRoadsideChatMessagePushActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        $pendingPushes = [];
-        foreach ($entity->channels as $channel) {
-            $push = new SendRoadsideChatMessagePushAction($channel, $entity);
-            if ($push->getRoadsideOrder() !== null) {
-                $pendingPushes[] = $push;
-            }
-        }
-
-        if ($pendingPushes === []) {
+        // Guard first on the verb — the only reliable roadside-chat signal the client sends —
+        // so an unrelated in-app message never opens an empty integration-history row.
+        if ($entity->messageType?->verb !== SendRoadsideChatMessagePushAction::ROADSIDE_CHAT_VERB) {
             return [
                 'result' => false,
-                'message' => 'Message is not part of a roadside-assistance channel',
+                'message' => 'Message is not a roadside-assistance chat message',
                 'recipients_notified' => 0,
                 'message_id' => $entity->getId(),
             ];
@@ -45,11 +39,11 @@ class SendRoadsideChatMessagePushActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::MOVIPASS,
             additionalParams: $params,
-            integrationOperation: function () use ($pendingPushes, $entity): array {
+            integrationOperation: function () use ($entity): array {
                 $notified = 0;
 
-                foreach ($pendingPushes as $push) {
-                    $notified += $push->execute();
+                foreach ($entity->channels as $channel) {
+                    $notified += new SendRoadsideChatMessagePushAction($channel, $entity)->execute();
                 }
 
                 return [

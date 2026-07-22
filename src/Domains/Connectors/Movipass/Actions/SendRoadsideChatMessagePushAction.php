@@ -16,6 +16,8 @@ class SendRoadsideChatMessagePushAction
 {
     private const UUID_PATTERN = '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i';
 
+    public const ROADSIDE_CHAT_VERB = 'assistance-chat';
+
     private ?Order $roadsideOrder = null;
     private bool $roadsideOrderResolved = false;
 
@@ -36,14 +38,27 @@ class SendRoadsideChatMessagePushAction
     }
 
     /**
+     * The message verb is the only reliable roadside-chat signal the client sends — the DM
+     * channel it posts to (dm-{userId}-{userId}) carries no order reference at all.
+     */
+    public function isRoadsideChatMessage(): bool
+    {
+        return $this->message->messageType?->verb === self::ROADSIDE_CHAT_VERB;
+    }
+
+    /**
      * Push the new chat message to every channel member except the sender.
-     * Self-guards: only fires for roadside-assistance order channels, so it is
-     * safe to bind on a broad Channel/updated workflow rule.
+     * Self-guards on the 'assistance-chat' verb and a resolvable roadside order, so it is
+     * safe to bind on a broad Message/created workflow rule.
      *
      * @return int number of recipients notified
      */
     public function execute(): int
     {
+        if (! $this->isRoadsideChatMessage()) {
+            return 0;
+        }
+
         $order = $this->getRoadsideOrder();
 
         if ($order === null) {
@@ -117,7 +132,37 @@ class SendRoadsideChatMessagePushAction
 
         // Order uuid embedded in the channel slug (e.g. "roadside-{uuid}").
         if (preg_match(self::UUID_PATTERN, (string) $channel->slug, $matches) === 1) {
-            return $this->findOrderByUuid($channel, $matches[0]);
+            $order = $this->findOrderByUuid($channel, $matches[0]);
+            if ($order !== null) {
+                return $order;
+            }
+        }
+
+        // Real client channels are plain DMs (dm-{userId}-{userId}) with no order link, so
+        // fall back to the case whose customer and assigned mechanic are both DM members.
+        return $this->resolveOrderFromChannelMembers($channel);
+    }
+
+    private function resolveOrderFromChannelMembers(Channel $channel): ?Order
+    {
+        $memberIds = $channel->users->map(fn ($user) => $user->getId())->all();
+
+        if (count($memberIds) < 2) {
+            return null;
+        }
+
+        $orders = Order::query()
+            ->where('apps_id', $channel->apps_id)
+            ->whereIn('users_id', $memberIds)
+            ->whereHas('orderType', fn ($query) => $query->where('name', OrderTypeEnum::ROADSIDE_ASSISTANCE->value))
+            ->orderByDesc('id')
+            ->get();
+
+        foreach ($orders as $order) {
+            $mechanicId = (int) ($order->metadata['assistance_case']['mechanic']['user_id'] ?? 0);
+            if ($mechanicId > 0 && in_array($mechanicId, $memberIds, true)) {
+                return $order;
+            }
         }
 
         return null;
