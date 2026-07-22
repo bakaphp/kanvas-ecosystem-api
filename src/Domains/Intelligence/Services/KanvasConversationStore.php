@@ -21,13 +21,16 @@ use Override;
 
 class KanvasConversationStore implements ConversationStore
 {
+    // laravel/ai v0.10 generalized "user" to a "participant" (type + id). Kanvas conversations are
+    // always user-scoped, so we map $participantId onto the existing user_id column and ignore
+    // $participantType — the behavior is identical to the pre-0.10 user-only contract.
     #[Override]
-    public function latestConversationId(string|int $userId): ?string
+    public function latestConversationId(string $participantType, string|int $participantId): ?string
     {
         [$appsId, $companiesId] = $this->tenantIds();
 
         return DB::connection('intelligence')->table('agent_conversations')
-            ->where('user_id', $userId)
+            ->where('user_id', $participantId)
             ->where('apps_id', $appsId)
             ->where('companies_id', $companiesId)
             ->orderBy('updated_at', 'desc')
@@ -35,10 +38,10 @@ class KanvasConversationStore implements ConversationStore
     }
 
     #[Override]
-    public function storeConversation(string|int|null $userId, string $title): string
+    public function storeConversation(?string $participantType, string|int|null $participantId, string $title): string
     {
         return $this->storeConversationForAgent(
-            $userId,
+            $participantId,
             null,
             $title
         );
@@ -77,7 +80,8 @@ class KanvasConversationStore implements ConversationStore
     #[Override]
     public function storeUserMessage(
         string $conversationId,
-        string|int|null $userId,
+        ?string $participantType,
+        string|int|null $participantId,
         AgentPrompt $prompt
     ): string {
         $messageId = (string) Str::uuid7();
@@ -85,7 +89,7 @@ class KanvasConversationStore implements ConversationStore
         DB::connection('intelligence')->table('agent_conversation_messages')->insert([
             'id' => $messageId,
             'conversation_id' => $conversationId,
-            'user_id' => $userId,
+            'user_id' => $participantId,
             'agent' => $prompt->agent::class,
             'role' => 'user',
             'content' => $prompt->prompt,
@@ -106,16 +110,17 @@ class KanvasConversationStore implements ConversationStore
     #[Override]
     public function storeAssistantMessage(
         string $conversationId,
-        string|int|null $userId,
+        ?string $participantType,
+        string|int|null $participantId,
         AgentPrompt $prompt,
         AgentResponse $response
-    ): string {
+    ): ?string {
         $messageId = (string) Str::uuid7();
 
         DB::connection('intelligence')->table('agent_conversation_messages')->insert([
             'id' => $messageId,
             'conversation_id' => $conversationId,
-            'user_id' => $userId,
+            'user_id' => $participantId,
             'agent' => $prompt->agent::class,
             'role' => 'assistant',
             'content' => $response->text,
@@ -131,6 +136,24 @@ class KanvasConversationStore implements ConversationStore
         $this->backfillConversationAgentId($conversationId, $prompt);
 
         return $messageId;
+    }
+
+    /**
+     * Persist resolved tool-approval results on a paused turn (laravel/ai v0.10). Kanvas doesn't use
+     * Laravel AI's native pause/resume approval flow — human approval is handled at the Social message
+     * layer (message locking in BaseAgentChannelReplyAction), so no agent ever pauses here and this is
+     * never invoked. Kept as a no-op to satisfy the contract; wire it to a paused-turn table only if
+     * Kanvas ever adopts the native approval mechanism.
+     *
+     * @param array<int, ToolResult> $toolResults
+     */
+    #[Override]
+    public function storeApprovalResults(
+        string $conversationId,
+        ?string $participantType,
+        string|int|null $participantId,
+        array $toolResults
+    ): void {
     }
 
     /**
