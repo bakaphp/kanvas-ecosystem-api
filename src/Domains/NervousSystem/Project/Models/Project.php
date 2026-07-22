@@ -20,6 +20,7 @@ use Kanvas\NervousSystem\Project\Observers\ProjectObserver;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
 
 /**
@@ -155,6 +156,24 @@ class Project extends BaseModel
         return $this->belongsTo(Channel::class, 'default_channel_id', 'id');
     }
 
+    public function receiverWebhook(): BelongsTo
+    {
+        return $this->belongsTo(ReceiverWebhook::class, 'receiver_webhook_id', 'id');
+    }
+
+    /**
+     * The project's inbound ingest endpoint — external providers POST context here (§4.3). Null until
+     * the webhook is provisioned.
+     */
+    public function getWebhookUrlAttribute(): ?string
+    {
+        $webhook = $this->receiverWebhook;
+
+        return $webhook !== null
+            ? rtrim((string) config('app.url'), '/') . '/receiver/' . $webhook->uuid
+            : null;
+    }
+
     /**
      * All Social channels bound to this project (the unified message feed) — polymorphic on the
      * varchar entity_id, the same pattern Lead::notes() / Plan::socialChannels() use. Project is a
@@ -187,5 +206,21 @@ class Project extends BaseModel
     protected function resolveDefaultActorId(): ?int
     {
         return $this->agent_id;
+    }
+
+    /**
+     * Roll the project's completion up from its (non-deleted) plans — the average of their
+     * completion_pct — and persist it. Returns the new percentage.
+     */
+    public function recomputeCompletionPct(): int
+    {
+        $plans = $this->plans()->get();
+
+        $pct = $plans->isEmpty() ? 0 : (int) round((float) $plans->avg('completion_pct'));
+
+        $this->completion_pct = $pct;
+        $this->saveOrFail();
+
+        return $pct;
     }
 }

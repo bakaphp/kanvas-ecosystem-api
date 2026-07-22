@@ -65,7 +65,11 @@ class Workspace extends BaseModel
 
     public function projects(): HasMany
     {
-        return $this->hasMany(Project::class, 'workspace_id', 'id')->where('is_deleted', 0);
+        return $this->hasMany(
+            Project::class,
+            'workspace_id',
+            'id'
+        )->where('is_deleted', 0);
     }
 
     public function owner(): BelongsTo

@@ -23,6 +23,7 @@ type NervousSystemProject {
     priority: Int!
     completion_pct: Int!
     heartbeat_interval_minutes: Int!
+    webhook_url: String
     deadline_at: DateTime
     started_at: DateTime
     completed_at: DateTime
@@ -34,6 +35,8 @@ type NervousSystemProject {
     children: [NervousSystemProject!]! @hasMany(relation: "children")
     plans: [NervousSystemPlan!]! @hasMany(relation: "plans")
     members: [NervousSystemProjectMember!]! @hasMany(relation: "members")
+    defaultChannel: SocialChannel @belongsTo(relation: "defaultChannel")
+    channels: [SocialChannel!]! @hasMany(relation: "channels")
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -191,6 +194,15 @@ extend type Mutation @guard {
     deleteNervousSystemProject(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMutation@delete"
+        )
+
+    attachMessageToProject(
+        project_id: ID!
+        content: String!
+        type: String
+    ): Message!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMutation@attachMessage"
         )
 
     addNervousSystemProjectMember(
