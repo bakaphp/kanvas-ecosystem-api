@@ -13,10 +13,14 @@ use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
 use Kanvas\Connectors\ScrapperApi\Services\AmazonBestSellersParser;
 use Kanvas\Connectors\ScrapperApi\Services\ProductService;
 use Kanvas\Connectors\ScrapperApi\Services\ProductVariantService;
+use Kanvas\Inventory\Bundles\Models\Bundle;
+use Kanvas\Inventory\Bundles\Models\BundleItem;
+use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Tags\Models\Tag;
@@ -162,7 +166,154 @@ class ScrapeAmazonBestSellersCommand extends Command
         $this->info('Failed: ' . $failed);
         $this->info('======================');
 
+        $this->refreshBundles($app, $company, $tag);
+
         return self::SUCCESS;
+    }
+
+    /**
+     * Refresh every bundle whose name/slug matches a category with the freshly scraped
+     * (tagged) products of that category: add the new variants, soft-delete the stale ones.
+     */
+    private function refreshBundles(Apps $app, Companies $company, string $tag): void
+    {
+        $bundles = Bundle::query()->fromApp($app)->fromCompany($company)->notDeleted()->get();
+
+        if ($bundles->isEmpty()) {
+            return;
+        }
+
+        $refreshed = 0;
+
+        foreach ($bundles as $bundle) {
+            $category = Categories::query()
+                ->fromApp($app)
+                ->fromCompany($company)
+                ->notDeleted()
+                ->where(
+                    fn ($query) => $query->where('slug', $bundle->slug)->orWhere('name', $bundle->name)
+                )
+                ->first();
+
+            if (! $category) {
+                continue;
+            }
+
+            $variantIds = $this->categoryVariantIds($app, $company, $category, $tag);
+
+            // Guard: never strip a bundle unless the replacement products actually exist.
+            if (empty($variantIds)) {
+                $this->warn(sprintf('Bundle "%s": no scraped products in its category, left untouched.', $bundle->name));
+
+                continue;
+            }
+
+            $added = $this->assignVariantsToBundle($bundle, $variantIds);
+            $removed = $this->softDeleteMissingBundleItems($bundle, $variantIds);
+            $refreshed++;
+
+            $this->info(sprintf(
+                'Bundle "%s": %d active, %d added, %d soft-deleted.',
+                $bundle->name,
+                count($variantIds),
+                $added,
+                $removed
+            ));
+        }
+
+        $this->info('');
+        $this->info('=== Bundle Refresh Summary ===');
+        $this->info('Bundles processed: ' . $bundles->count());
+        $this->info('Bundles refreshed: ' . $refreshed);
+        $this->info('==============================');
+    }
+
+    /**
+     * Variants of the products living in the category, narrowed to the scraped tag.
+     *
+     * @return array<int, int>
+     */
+    private function categoryVariantIds(Apps $app, Companies $company, Categories $category, string $tag): array
+    {
+        $productIds = Products::query()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->whereHas('categories', fn ($query) => $query->where('categories.id', $category->getId()))
+            ->pluck('id')
+            ->all();
+
+        if (empty($productIds)) {
+            return [];
+        }
+
+        if ($tag !== '') {
+            $tagIds = Tag::query()
+                ->fromApp($app)
+                ->whereRaw('LOWER(name) = ?', [Str::lower($tag)])
+                ->pluck('id')
+                ->all();
+
+            $productIds = empty($tagIds) ? [] : TagEntity::query()
+                ->where('taggable_type', Products::class)
+                ->where('is_deleted', 0)
+                ->whereIn('tags_id', $tagIds)
+                ->whereIn('entity_id', $productIds)
+                ->pluck('entity_id')
+                ->unique()
+                ->all();
+        }
+
+        if (empty($productIds)) {
+            return [];
+        }
+
+        return Variants::query()
+            ->whereIn('products_id', $productIds)
+            ->where('is_deleted', 0)
+            ->pluck('id')
+            ->all();
+    }
+
+    /**
+     * @param array<int, int> $variantIds
+     */
+    private function assignVariantsToBundle(Bundle $bundle, array $variantIds): int
+    {
+        $added = 0;
+        foreach ($variantIds as $variantId) {
+            // withTrashed so a previously soft-deleted item is reactivated, not duplicated
+            // (the global soft-delete scope would otherwise hide it and firstOrNew would insert a dup).
+            $item = BundleItem::withTrashed()->firstOrNew([
+                'bundle_id' => $bundle->getId(),
+                'variant_id' => $variantId,
+            ]);
+
+            if (! $item->exists) {
+                $item->quantity = 1;
+                $item->unit = 'unit';
+                $added++;
+            } elseif ($item->is_deleted) {
+                $added++;
+            }
+
+            $item->is_deleted = 0;
+            $item->save();
+        }
+
+        return $added;
+    }
+
+    /**
+     * @param array<int, int> $keepVariantIds
+     */
+    private function softDeleteMissingBundleItems(Bundle $bundle, array $keepVariantIds): int
+    {
+        return BundleItem::query()
+            ->where('bundle_id', $bundle->getId())
+            ->where('is_deleted', 0)
+            ->whereNotIn('variant_id', $keepVariantIds)
+            ->update(['is_deleted' => 1]);
     }
 
     private function clearHomepageTag(Apps $app, string $tag): void
