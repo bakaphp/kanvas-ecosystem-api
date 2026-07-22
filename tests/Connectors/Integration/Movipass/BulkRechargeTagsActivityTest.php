@@ -266,6 +266,50 @@ final class BulkRechargeTagsActivityTest extends TestCase
         $this->assertTrue($entry['reversed'] ?? false);
     }
 
+    public function testBulkRechargeRequestsFiscalCreditWhenCompanyHasRnc(): void
+    {
+        $company = $this->kanvasUser->getCurrentCompany();
+        $rnc = '130987654';
+        $company->set('rnc', $rnc);
+
+        [$tag1] = $this->createTagVariants(1);
+        $order = $this->createBulkRechargeOrder([
+            ['variant' => $tag1, 'tag_number' => '941001', 'amount' => 500.00],
+        ]);
+
+        $captured = [];
+        $mockService = Mockery::mock(PasoRapidoService::class);
+        $mockService->shouldReceive('confirmPayment')
+            ->andReturnUsing(function (PaymentConfirmData $data) use (&$captured) {
+                $captured[] = $data;
+
+                return PaymentConfirmResponse::from([
+                    'message' => 'ok',
+                    'amount' => (int) round($data->amount),
+                    'order' => 'ord-' . $data->reference,
+                    'tag' => $data->reference,
+                    'account' => '1234',
+                    'creditDate' => '2026-06-01',
+                    'invoiceDetails' => InvoiceDetails::from([
+                        'commercialName' => '',
+                        'document' => $data->dni,
+                        'fiscalCredit' => $data->fiscalCredit,
+                        'invoice' => '',
+                        'pdf' => '',
+                        'reference' => '',
+                    ]),
+                ]);
+            });
+
+        new BulkRechargeOrderTagsAction($order, $this->kanvasApp, $mockService)->execute();
+
+        $this->assertNotEmpty($captured, 'PasoRapidoService::confirmPayment was never called');
+        $this->assertTrue($captured[0]->fiscalCredit);
+        $this->assertSame($rnc, $captured[0]->dni);
+
+        $company->del('rnc');
+    }
+
     public function testBankTransactionStaysWithinPasoRapidoFiftyCharLimit(): void
     {
         // PasoRapido rejects transaccionBanco > 50 chars. The wallet-paid bulk path

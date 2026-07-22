@@ -12,6 +12,8 @@ use NeuronAI\Chat\Enums\MessageRole;
 use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\ChatHistoryInterface;
 use NeuronAI\Chat\Messages\AssistantMessage;
+use NeuronAI\Chat\Messages\ContentBlocks\ContentBlockInterface;
+use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\UserMessage;
 use Override;
@@ -45,13 +47,41 @@ class ChannelMessageHistory extends AbstractChatHistory
         $last = $this->history === [] ? null : $this->history[array_key_last($this->history)];
 
         if ($last !== null && $last->getRole() === $message->getRole()) {
+            // setContents() resets the block list to a single TextContent, so capture the media blocks
+            // (image / PDF / audio) from both turns first and re-attach them. Otherwise an attachment on
+            // the folded-in turn — e.g. a PDF on the incoming @mention — is silently dropped and the
+            // model answers "I can't see the file" even though the runner built the content block.
+            $mediaBlocks = [
+                ...$this->mediaBlocks($last),
+                ...$this->mediaBlocks($message),
+            ];
+
             $last->setContents((string) $last->getContent() . "\n\n" . (string) $message->getContent());
+
+            foreach ($mediaBlocks as $block) {
+                $last->addContent($block);
+            }
+
             $this->trimHistory();
 
             return $this;
         }
 
         return parent::addMessage($message);
+    }
+
+    /**
+     * The non-text content blocks on a message (image / PDF / audio) — the parts a text-only merge via
+     * setContents() would drop.
+     *
+     * @return list<ContentBlockInterface>
+     */
+    private function mediaBlocks(Message $message): array
+    {
+        return array_values(array_filter(
+            $message->getContentBlocks(),
+            static fn (ContentBlockInterface $block): bool => ! $block instanceof TextContent,
+        ));
     }
 
     private function load(): void

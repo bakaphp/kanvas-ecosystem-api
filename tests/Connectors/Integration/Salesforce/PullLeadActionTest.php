@@ -6,7 +6,9 @@ namespace Tests\Connectors\Integration\Salesforce;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Salesforce\Actions\PullDealAction;
 use Kanvas\Connectors\Salesforce\Actions\PullLeadAction;
+use Kanvas\Connectors\Salesforce\Actions\PullOrganizationAction;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Tests\TestCase;
@@ -90,5 +92,131 @@ final class PullLeadActionTest extends TestCase
         )->execute();
 
         $this->assertNull($updated->fireWorkflow(WorkflowEnum::UPDATED->value));
+    }
+
+    public function testEmbeddedPeopleNeverFiresOutboundWorkflowEither(): void
+    {
+        $app = app(Apps::class);
+        $user = static::$cachedUser;
+        $company = $user->getCurrentCompany();
+
+        $lead = new PullLeadAction(
+            $app,
+            $company,
+            ['FirstName' => 'Jane', 'LastName' => 'Doe', 'Email' => 'jane.doe@example.com'],
+            '00Qxx0000004C92EEE',
+        )->execute();
+
+        // The People embedded in the Lead's DTO defaults to runWorkflow:true — without its own
+        // explicit override, this Person would push right back out to Salesforce as a Contact
+        // the moment a Rule exists for People (exactly what a "Push People" Rule does).
+        $this->assertNull($lead->people->fireWorkflow(WorkflowEnum::CREATED->value));
+    }
+
+    public function testLinksConvertedOrganizationWhenLeadIsConverted(): void
+    {
+        $app = app(Apps::class);
+        $user = static::$cachedUser;
+        $company = $user->getCurrentCompany();
+
+        $organization = new PullOrganizationAction(
+            $app,
+            $company,
+            ['Name' => 'Acme Corp'],
+            '001xx000003DHP0AAA',
+        )->execute();
+
+        $lead = new PullLeadAction(
+            $app,
+            $company,
+            [
+                'FirstName' => 'Jane',
+                'LastName' => 'Doe',
+                'IsConverted' => 'true',
+                'ConvertedAccountId' => '001xx000003DHP0AAA',
+            ],
+            '00Qxx0000004C92AAE',
+        )->execute();
+
+        $this->assertSame($organization->getId(), $lead->organization_id);
+    }
+
+    public function testDoesNotLinkOrganizationWhenLeadIsNotConverted(): void
+    {
+        $app = app(Apps::class);
+        $user = static::$cachedUser;
+        $company = $user->getCurrentCompany();
+
+        new PullOrganizationAction(
+            $app,
+            $company,
+            ['Name' => 'Acme Corp Unconverted'],
+            '001xx000003DHP0BBB',
+        )->execute();
+
+        $lead = new PullLeadAction(
+            $app,
+            $company,
+            [
+                'FirstName' => 'John',
+                'LastName' => 'Smith',
+                'ConvertedAccountId' => '001xx000003DHP0BBB',
+            ],
+            '00Qxx0000004C92BBB',
+        )->execute();
+
+        $this->assertNull($lead->organization_id);
+    }
+
+    public function testLinksConvertedContactWhenLeadIsConverted(): void
+    {
+        $app = app(Apps::class);
+        $user = static::$cachedUser;
+        $company = $user->getCurrentCompany();
+
+        $lead = new PullLeadAction(
+            $app,
+            $company,
+            [
+                'FirstName' => 'Jane',
+                'LastName' => 'Doe',
+                'IsConverted' => 'true',
+                'ConvertedContactId' => '003xx000004TmiQCCC',
+            ],
+            '00Qxx0000004C92CCC',
+        )->execute();
+
+        $this->assertSame(
+            '003xx000004TmiQCCC',
+            $lead->people->get(CustomFieldEnum::SALESFORCE_CONTACT_ID->value),
+        );
+    }
+
+    public function testLinksConvertedOpportunityWhenLeadIsConverted(): void
+    {
+        $app = app(Apps::class);
+        $user = static::$cachedUser;
+        $company = $user->getCurrentCompany();
+
+        $deal = new PullDealAction(
+            $app,
+            $company,
+            ['Name' => 'Converted Opportunity'],
+            '006xx000004TmXtDDD',
+        )->execute();
+
+        $lead = new PullLeadAction(
+            $app,
+            $company,
+            [
+                'FirstName' => 'Jane',
+                'LastName' => 'Doe',
+                'IsConverted' => 'true',
+                'ConvertedOpportunityId' => '006xx000004TmXtDDD',
+            ],
+            '00Qxx0000004C92DDD',
+        )->execute();
+
+        $this->assertSame($lead->getId(), $deal->refresh()->leads_id);
     }
 }

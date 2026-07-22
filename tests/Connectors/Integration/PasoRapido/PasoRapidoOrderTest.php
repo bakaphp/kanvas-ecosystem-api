@@ -6,6 +6,7 @@ namespace Tests\Connectors\Integration\PasoRapido;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Connectors\PasoRapido\Actions\CreatePasoRapidoOrderAction;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\InvoiceDetails;
@@ -18,6 +19,7 @@ use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Mockery;
 use Tests\Connectors\Traits\HasIntegrationCompany;
@@ -407,6 +409,113 @@ final class PasoRapidoOrderTest extends TestCase
         $this->assertInstanceOf(PaymentConfirmData::class, $capturedConfirmData);
         $this->assertFalse($capturedConfirmData->fiscalCredit);
         $this->assertSame($legacyDni, $capturedConfirmData->dni);
+    }
+
+    public function testCreatePasoRapidoOrderUsesRncOfCorporateProviderCompany(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+
+        $corporateRnc = '130123456';
+        $corporateCompany = Companies::factory()->create();
+        $corporateCompany->set('is_corporate', true);
+        $corporateCompany->set('rnc', $corporateRnc);
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->create();
+
+        $order = Order::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->withPeopleId($people->getId())
+            ->create([
+                'metadata' => [
+                    'data' => [
+                        'paso_rapido_tag' => '317169',
+                        'rnc' => '99999999',
+                    ],
+                ],
+            ]);
+
+        $order->providerCompanies()->attach($corporateCompany->getId());
+        $order->set(EnumsCustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value, 'intentId:7478925724996114' . rand(100000, 999999));
+        $order->set(CustomFieldEnum::PASO_RAPIDO_DNI->value, '40212345678');
+
+        $capturedConfirmData = null;
+        $serviceMock = Mockery::mock(PasoRapidoService::class);
+        $serviceMock->shouldReceive('confirmPayment')
+            ->once()
+            ->with(Mockery::on(function (PaymentConfirmData $data) use (&$capturedConfirmData) {
+                $capturedConfirmData = $data;
+
+                return true;
+            }))
+            ->andReturn(new PaymentConfirmResponse(
+                message: 'OK',
+                amount: 100.0,
+                order: 1,
+                tag: '317169',
+                account: 1,
+                creditDate: now()->toDateTimeString(),
+                invoiceDetails: new InvoiceDetails(
+                    commercialName: 'Test',
+                    document: $corporateRnc,
+                    fiscalCredit: true,
+                    invoice: 'INV-1',
+                    pdf: 'http://example.com/inv.pdf',
+                    reference: '317169',
+                ),
+            ));
+
+        $result = new CreatePasoRapidoOrderAction($app, $order, $serviceMock)->execute();
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame($corporateRnc, $capturedConfirmData->dni);
+        $this->assertTrue($capturedConfirmData->fiscalCredit);
+    }
+
+    public function testCreatePasoRapidoOrderFailsWhenFiscalCreditHasNoDocument(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+        $company = $user->getCurrentCompany();
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->create();
+
+        $order = Order::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->withPeopleId($people->getId())
+            ->create([
+                'metadata' => [
+                    'data' => [
+                        'paso_rapido_tag' => '317169',
+                        'fiscal_credit' => true,
+                    ],
+                ],
+            ]);
+
+        $order->set(EnumsCustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value, 'intentId:7478925724996114' . rand(100000, 999999));
+
+        $serviceMock = Mockery::mock(PasoRapidoService::class);
+        $serviceMock->shouldNotReceive('confirmPayment');
+
+        $result = new CreatePasoRapidoOrderAction($app, $order, $serviceMock)->execute();
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('RNC', (string) $result['message']);
+        $this->assertSame(PaymentStatusEnum::FAILED->value, $order->fresh()->get(CustomFieldEnum::PASO_RAPIDO_PAYMENT_STATUS->value));
+        $this->assertSame('0', (string) $order->fresh()->get(EnumsCustomFieldEnum::ECHO_PAY_SHOULD_CAPTURE->value));
     }
 
     public function testCreatePasoRapidoOrderRejectsBulkRechargeOrders(): void

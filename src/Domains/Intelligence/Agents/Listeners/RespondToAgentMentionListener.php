@@ -14,15 +14,31 @@ use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
  */
 class RespondToAgentMentionListener
 {
+    private const int ATTACHMENT_SETTLE_SECONDS = 6;
+
     public function handle(MessageMentionsStoredEvent $event): void
     {
         $message = $event->message;
 
-        foreach ($event->mentionedUserIds as $userId) {
-            $agent = Agent::fromUser($userId, $message->app, $message->company);
+        $awaitingUpload = ! $message->files()->exists();
 
-            if ($agent !== null) {
-                RespondToMentionJob::dispatch($agent, $message);
+        foreach ($event->mentionedUserIds as $userId) {
+            $agent = Agent::fromUser(
+                $userId,
+                $message->app,
+                $message->company
+            );
+
+            if ($agent === null) {
+                continue;
+            }
+
+            $job = RespondToMentionJob::dispatch($agent, $message);
+
+            if ($awaitingUpload) {
+                $job->delay(
+                    now()->addSeconds(self::ATTACHMENT_SETTLE_SECONDS)
+                );
             }
         }
     }
