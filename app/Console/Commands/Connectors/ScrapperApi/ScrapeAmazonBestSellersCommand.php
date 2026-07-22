@@ -17,8 +17,8 @@ use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Social\Tags\Models\TagEntity;
 use Kanvas\Users\Models\Users;
@@ -106,6 +106,12 @@ class ScrapeAmazonBestSellersCommand extends Command
                     $structured = $repository->getByAsin($item['asin']);
                     $merged = array_merge($structured, $item);
 
+                    // getByAsin's breadcrumb is sometimes empty — fall back to the department
+                    // we scraped it from, which always exists in the best-seller list.
+                    if (empty($merged['product_category'])) {
+                        $merged['product_category'] = $category['name'];
+                    }
+
                     if (empty($merged['price']) && empty($merged['pricing'])) {
                         $this->warn('  Skipping ' . $item['asin'] . ': no price');
 
@@ -132,7 +138,15 @@ class ScrapeAmazonBestSellersCommand extends Command
                     )->execute();
 
                     $product->addTag($tag, $app, company: $company);
-                    $product->searchable();
+
+                    // The product is already imported with its category; a search-index hiccup
+                    // (e.g. Typesense indexing it before categories attach) must not fail it.
+                    try {
+                        $product->searchable();
+                    } catch (Throwable $indexError) {
+                        $this->warn('  Imported but not indexed (' . $item['asin'] . '): ' . $indexError->getMessage());
+                    }
+
                     $success++;
                 } catch (Throwable $e) {
                     $this->error('  Failed ' . $item['asin'] . ': ' . $e->getMessage());
