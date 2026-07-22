@@ -100,13 +100,22 @@ class RotateHomepageTagCommand extends Command
                     ->delete();
             }
 
+            // Resolve only N ids in SQL (memory stays bounded), then tag those N — no open
+            // cursor while addTag writes across the social/inventory connections.
+            $selectedIds = $inCategory()
+                ->whereNotIn('id', $taggedProductIds)
+                ->inRandomOrder()
+                ->limit($countToAssign)
+                ->pluck('id')
+                ->all();
+
             $assigned = 0;
             foreach (
-                $inCategory()
-                    ->whereNotIn('id', $taggedProductIds)
-                    ->inRandomOrder()
-                    ->limit($countToAssign)
-                    ->cursor() as $product
+                Products::query()
+                    ->fromApp($app)
+                    ->fromCompany($company)
+                    ->whereIn('id', $selectedIds)
+                    ->get() as $product
             ) {
                 $product->addTag($canonicalTag, $app, company: $company);
                 $assigned++;
