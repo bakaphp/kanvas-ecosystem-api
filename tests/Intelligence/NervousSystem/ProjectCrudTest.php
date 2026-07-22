@@ -171,11 +171,16 @@ class ProjectCrudTest extends TestCase
         $this->expectException(ValidationException::class);
 
         new CreateProjectAction(
-            ProjectData::from($app, $user, $company, [
-                'title' => 'Bad cadence',
-                'agent_id' => $agent->id,
-                'heartbeat_interval_minutes' => 7,
-            ]),
+            ProjectData::from(
+                $app,
+                $user,
+                $company,
+                [
+                    'title' => 'Bad cadence',
+                    'agent_id' => $agent->id,
+                    'heartbeat_interval_minutes' => 7,
+                ],
+            ),
         )->execute();
     }
 
@@ -184,7 +189,12 @@ class ProjectCrudTest extends TestCase
         [$app, $company, $user] = $this->context();
         $agent = $this->makeAgent($app, $company, $user);
         new CreateProjectAction(
-            ProjectData::from($app, $user, $company, ['title' => 'Listed project', 'agent_id' => $agent->id]),
+            ProjectData::from(
+                $app,
+                $user,
+                $company,
+                ['title' => 'Listed project', 'agent_id' => $agent->id],
+            ),
         )->execute();
 
         $this->graphQL('

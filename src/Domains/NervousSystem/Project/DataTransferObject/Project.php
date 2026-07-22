@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Project\DataTransferObject;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
@@ -19,8 +19,8 @@ use Spatie\LaravelData\Data;
 class Project extends Data
 {
     public function __construct(
-        public readonly Apps $app,
-        public readonly Companies $company,
+        public readonly AppInterface $app,
+        public readonly CompanyInterface $company,
         public readonly Users $owner,
         public readonly string $title,
         public readonly Agent $pmAgent,
@@ -39,9 +39,9 @@ class Project extends Data
     }
 
     public static function fromMultiple(
-        Apps $app,
+        AppInterface $app,
         Users $requestingUser,
-        Companies $company,
+        CompanyInterface $company,
         array $data,
     ): self {
         if (! isset($data['agent_id'])) {
@@ -90,8 +90,8 @@ class Project extends Data
 
     public static function forUpdate(
         ProjectModel $project,
-        Apps $app,
-        Companies $company,
+        AppInterface $app,
+        CompanyInterface $company,
         Users $owner,
         array $data,
     ): self {

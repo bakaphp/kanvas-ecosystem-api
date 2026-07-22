@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Project\DataTransferObject;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Project\Enums\WorkspaceStatusEnum;
 use Kanvas\NervousSystem\Project\Models\Workspace as WorkspaceModel;
@@ -15,8 +15,8 @@ use Spatie\LaravelData\Data;
 class Workspace extends Data
 {
     public function __construct(
-        public readonly Apps $app,
-        public readonly Companies $company,
+        public readonly AppInterface $app,
+        public readonly CompanyInterface $company,
         public readonly Users $owner,
         public readonly string $name,
         public readonly ?string $description = null,
@@ -26,9 +26,9 @@ class Workspace extends Data
     }
 
     public static function fromMultiple(
-        Apps $app,
+        AppInterface $app,
         Users $requestingUser,
-        Companies $company,
+        CompanyInterface $company,
         array $data,
     ): self {
         /** @var Agent|null $oversightAgent */
@@ -51,8 +51,8 @@ class Workspace extends Data
 
     public static function forUpdate(
         WorkspaceModel $workspace,
-        Apps $app,
-        Companies $company,
+        AppInterface $app,
+        CompanyInterface $company,
         Users $owner,
         array $data,
     ): self {

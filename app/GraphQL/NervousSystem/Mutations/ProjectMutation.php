@@ -4,29 +4,26 @@ declare(strict_types=1);
 
 namespace App\GraphQL\NervousSystem\Mutations;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use App\GraphQL\Concerns\ResolvesActingContext;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
 use Kanvas\NervousSystem\Project\Actions\DeleteProjectAction;
 use Kanvas\NervousSystem\Project\Actions\UpdateProjectAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Models\Project;
-use Kanvas\Users\Models\Users;
 
 class ProjectMutation
 {
+    use ResolvesActingContext;
+
     public function create(mixed $rootValue, array $request): Project
     {
-        $app = app(Apps::class);
-        /** @var Users $user */
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $ctx = $this->actingContext();
 
         return new CreateProjectAction(
             ProjectData::from(
-                $app,
-                $user,
-                $company,
+                $ctx->app,
+                $ctx->user,
+                $ctx->company,
                 $request['input'],
             ),
         )->execute();
@@ -34,22 +31,18 @@ class ProjectMutation
 
     public function update(mixed $rootValue, array $request): Project
     {
-        $app = app(Apps::class);
-        /** @var Users $user */
-        $user = auth()->user();
-        /** @var Companies $company */
-        $company = $user->getCurrentCompany();
+        $ctx = $this->actingContext();
 
         /** @var Project $project */
-        $project = Project::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+        $project = Project::getByIdFromCompanyApp((int) $request['id'], $ctx->company, $ctx->app);
 
         return new UpdateProjectAction(
             $project,
             ProjectData::forUpdate(
                 $project,
-                $app,
-                $company,
-                $user,
+                $ctx->app,
+                $ctx->company,
+                $ctx->user,
                 $request['input'],
             ),
         )->execute();
@@ -57,14 +50,10 @@ class ProjectMutation
 
     public function delete(mixed $rootValue, array $request): bool
     {
-        $app = app(Apps::class);
-        /** @var Users $user */
-        $user = auth()->user();
-        /** @var Companies $company */
-        $company = $user->getCurrentCompany();
+        $ctx = $this->actingContext();
 
         /** @var Project $project */
-        $project = Project::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+        $project = Project::getByIdFromCompanyApp((int) $request['id'], $ctx->company, $ctx->app);
 
         return new DeleteProjectAction($project)->execute();
     }

@@ -33,6 +33,7 @@ type NervousSystemProject {
     parent: NervousSystemProject @belongsTo(relation: "parent")
     children: [NervousSystemProject!]! @hasMany(relation: "children")
     plans: [NervousSystemPlan!]! @hasMany(relation: "plans")
+    members: [NervousSystemProjectMember!]! @hasMany(relation: "members")
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -46,6 +47,23 @@ type NervousSystemProject {
         )
     created_at: DateTime!
     updated_at: DateTime
+}
+
+type NervousSystemProjectMember {
+    id: ID!
+    member_type: String!
+    role: String!
+    is_active: Boolean!
+    user: User! @belongsTo(relation: "user")
+    agent: AgentAi @belongsTo(relation: "agent")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+input AddNervousSystemProjectMemberInput {
+    role: String
+    users_id: Int
+    agent_id: Int
 }
 
 input CreateNervousSystemWorkspaceInput {
@@ -173,5 +191,26 @@ extend type Mutation @guard {
     deleteNervousSystemProject(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMutation@delete"
+        )
+
+    addNervousSystemProjectMember(
+        project_id: ID!
+        input: AddNervousSystemProjectMemberInput!
+    ): NervousSystemProjectMember!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMemberMutation@add"
+        )
+
+    updateNervousSystemProjectMemberRole(
+        id: ID!
+        role: String!
+    ): NervousSystemProjectMember!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMemberMutation@updateRole"
+        )
+
+    removeNervousSystemProjectMember(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMemberMutation@remove"
         )
 }

@@ -71,7 +71,7 @@ class Project extends BaseModel
 
     protected $table = 'nervous_system_projects';
 
-    protected $cascadeDeletes = ['plans', 'children'];
+    protected $cascadeDeletes = ['plans', 'children', 'members'];
 
     public $timestamps = true;
 
@@ -143,6 +143,11 @@ class Project extends BaseModel
     public function plans(): HasMany
     {
         return $this->hasMany(Plan::class, 'project_id', 'id')->where('is_deleted', 0);
+    }
+
+    public function members(): HasMany
+    {
+        return $this->hasMany(ProjectMember::class, 'project_id', 'id')->where('is_deleted', 0);
     }
 
     public function defaultChannel(): BelongsTo

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Project\Actions;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Kanvas\NervousSystem\Project\DataTransferObject\Workspace as WorkspaceData;
 use Kanvas\NervousSystem\Project\Models\Workspace;
 use Kanvas\Users\Models\Users;
@@ -19,8 +19,8 @@ class EnsureDefaultWorkspaceAction
     private const string DEFAULT_NAME = 'General';
 
     public function __construct(
-        private readonly Apps $app,
-        private readonly Companies $company,
+        private readonly AppInterface $app,
+        private readonly CompanyInterface $company,
         private readonly Users $owner,
     ) {
     }
