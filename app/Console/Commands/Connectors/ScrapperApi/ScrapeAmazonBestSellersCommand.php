@@ -91,6 +91,15 @@ class ScrapeAmazonBestSellersCommand extends Command
                         true
                     )->execute();
 
+                    // CreateProductAction reuses an existing product by slug even if it was
+                    // soft-deleted, without clearing the flag — restore it so the best-seller
+                    // isn't left invisible (is_deleted stays 1 and it never indexes).
+                    if ($product->is_deleted) {
+                        $product->is_deleted = 0;
+                        $product->is_published = true;
+                        $product->save();
+                    }
+
                     $product->searchable();
                     $success++;
                 } catch (Throwable $e) {
