@@ -90,12 +90,18 @@ class ProjectContextService
             ->get()
             ->toBase()
             ->map(fn (Plan $plan): array => [
+                'plan_id' => $plan->getId(),
                 'title' => $plan->title,
                 'status' => $plan->status,
                 'completion_pct' => $plan->completion_pct,
                 'tasks' => $plan->tasks
                     ->toBase()
-                    ->map(fn (Task $task): array => ['title' => $task->title, 'status' => $task->status])
+                    ->map(fn (Task $task): array => [
+                        'task_id' => $task->getId(),
+                        'title' => $task->title,
+                        'status' => $task->status,
+                        'agent_id' => $task->agent_id,
+                    ])
                     ->all(),
             ])
             ->all();

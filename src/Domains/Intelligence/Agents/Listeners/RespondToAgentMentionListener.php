@@ -6,7 +6,10 @@ namespace Kanvas\Intelligence\Agents\Listeners;
 
 use Kanvas\Intelligence\Agents\Jobs\RespondToMentionJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
+use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
+use Kanvas\Social\Messages\Models\Message;
 
 /**
  * Social parsed the mentions; here we react to the ones that are agent-users. Each mentioned
@@ -19,6 +22,13 @@ class RespondToAgentMentionListener
     public function handle(MessageMentionsStoredEvent $event): void
     {
         $message = $event->message;
+
+        // Project-ingest messages (transcript/email/mention) already wake the PM via
+        // IngestToProjectAction — don't let a mention inside their content wake it a second time.
+        $payload = $message->message;
+        if (is_array($payload) && isset($payload['ingest_type'])) {
+            return;
+        }
 
         $awaitingUpload = ! $message->files()->exists();
 
@@ -33,6 +43,20 @@ class RespondToAgentMentionListener
                 continue;
             }
 
+            // If the mention is on a project channel whose PM is this agent, drive it through the
+            // project's execution loop (full context + board tools + ledger) instead of a plain
+            // mention reply — and skip the generic responder so the PM never double-answers.
+            $project = $this->projectForPmMention($message, $agent);
+            if ($project !== null) {
+                WakeAgentForProjectJob::dispatch(
+                    $project,
+                    WakeAgentForProjectJob::REASON_MENTION,
+                    $this->mentionText($message),
+                );
+
+                continue;
+            }
+
             $job = RespondToMentionJob::dispatch($agent, $message);
 
             if ($awaitingUpload) {
@@ -41,5 +65,43 @@ class RespondToAgentMentionListener
                 );
             }
         }
+    }
+
+    /**
+     * The project whose default/any channel this message is on AND whose PM is the mentioned agent —
+     * null when the mention isn't a project-PM mention.
+     */
+    private function projectForPmMention(Message $message, Agent $agent): ?Project
+    {
+        $entityIds = $message->channels()
+            ->where('entity_namespace', Project::class)
+            ->pluck('entity_id')
+            ->all();
+
+        foreach ($entityIds as $entityId) {
+            $project = Project::query()->where('id', (int) $entityId)->notDeleted()->first();
+
+            if ($project !== null && (int) $project->agent_id === (int) $agent->getId()) {
+                return $project;
+            }
+        }
+
+        return null;
+    }
+
+    private function mentionText(Message $message): string
+    {
+        $payload = $message->message;
+        if (! is_array($payload)) {
+            return is_scalar($payload) ? (string) $payload : '';
+        }
+
+        foreach (['content', 'text', 'message', 'body'] as $key) {
+            if (isset($payload[$key]) && is_string($payload[$key])) {
+                return $payload[$key];
+            }
+        }
+
+        return '';
     }
 }

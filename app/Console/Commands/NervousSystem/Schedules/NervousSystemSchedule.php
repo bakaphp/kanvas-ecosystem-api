@@ -12,6 +12,7 @@ use App\Console\Commands\NervousSystem\ArchiveOldLedgerEventsCommand;
 use App\Console\Commands\NervousSystem\CheckAgentRuntimeHealthCommand;
 use App\Console\Commands\NervousSystem\DetectStalledPlanTasksCommand;
 use App\Console\Commands\NervousSystem\ExpireCapabilitiesCommand;
+use App\Console\Commands\NervousSystem\ProjectHeartbeatCommand;
 use App\Console\Commands\NervousSystem\RecordAgentDailyCyclesCommand;
 use App\Console\Commands\NervousSystem\RefreshAgentLiveCountersCommand;
 use App\Console\Commands\NervousSystem\SendDailyLearningDigestCommand;
@@ -69,6 +70,12 @@ final class NervousSystemSchedule
         // it's a cheap UPDATE that's unlikely to contend with the every-5/10
         // min checks that also fire there.
         $schedule->command(DetectStalledPlanTasksCommand::class)
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
+
+        // Project heartbeat — the proactive pulse. Runs every 5 min; each project only ticks when
+        // its own heartbeat_interval_minutes has elapsed.
+        $schedule->command(ProjectHeartbeatCommand::class)
             ->everyFiveMinutes()
             ->withoutOverlapping();
         $schedule->command(ExpireCapabilitiesCommand::class)

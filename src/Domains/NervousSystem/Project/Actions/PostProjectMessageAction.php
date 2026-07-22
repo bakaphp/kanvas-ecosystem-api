@@ -32,6 +32,7 @@ class PostProjectMessageAction
         private readonly ?Users $author = null,
         private readonly array $files = [],
         private readonly array $extraPayload = [],
+        private readonly bool $fromIa = false,
     ) {
     }
 
@@ -62,7 +63,10 @@ class PostProjectMessageAction
                 company: $this->project->company,
                 user: $author,
                 type: $messageType,
-                message: array_merge(['content' => $this->content], $this->extraPayload),
+                message: array_merge(
+                    ['content' => $this->content, 'from_ia' => $this->fromIa],
+                    $this->extraPayload,
+                ),
                 channel_slug: $this->project->defaultChannel?->slug ?? $this->project->uuid,
                 files: $this->files,
             ),

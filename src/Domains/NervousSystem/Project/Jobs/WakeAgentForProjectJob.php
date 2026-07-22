@@ -9,6 +9,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
@@ -39,6 +40,7 @@ class WakeAgentForProjectJob implements ShouldQueue
     public const string REASON_INGEST = 'ingest';
     public const string REASON_HEARTBEAT = 'heartbeat';
     public const string REASON_ASSIGNED = 'assigned';
+    public const string REASON_MENTION = 'mention';
 
     public function __construct(
         public readonly Project $project,
@@ -46,6 +48,21 @@ class WakeAgentForProjectJob implements ShouldQueue
         public readonly ?string $triggerMessage = null,
     ) {
         $this->onQueue('nervous-system-project');
+    }
+
+    /**
+     * Serialize wakes per project: an ingest and a heartbeat can fire near-simultaneously, and two
+     * concurrent PM turns waste an LLM call and can race. dontRelease drops the duplicate rather than
+     * re-queuing it — the in-flight wake already reads fresh state, and the heartbeat is the safety
+     * net for anything that lands mid-run.
+     *
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        return [
+            new WithoutOverlapping('project-wake-' . $this->project->getId())->dontRelease(),
+        ];
     }
 
     public function handle(): void
@@ -110,6 +127,7 @@ class WakeAgentForProjectJob implements ShouldQueue
             verb: 'project-agent-reply',
             content: $response,
             author: $agent->user,
+            fromIa: true,
         )->execute();
 
         $this->project->emitLedgerEvent(

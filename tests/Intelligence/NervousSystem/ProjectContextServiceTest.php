@@ -78,6 +78,10 @@ class ProjectContextServiceTest extends TestCase
         $planTitles = array_column($bundle->plans, 'title');
         $this->assertContains('Design phase', $planTitles);
 
+        // The PM needs ids to act on existing work.
+        $this->assertArrayHasKey('plan_id', $bundle->plans[0]);
+        $this->assertSame((int) $plan->id, (int) $bundle->plans[0]['plan_id']);
+
         $eventTypes = array_column($bundle->recentEvents, 'event_type');
         $this->assertContains('project.created', $eventTypes);
 
