@@ -98,4 +98,51 @@ class ScrapingDogRepository
             return null;
         }, $results);
     }
+
+    /**
+     * Scrape any page and let ScrapingDog's AI extraction return structured JSON.
+     *
+     * @return array<int|string, mixed>
+     */
+    public function scrapeWithAi(string $url, string $aiQuery): array
+    {
+        $response = $this->client->get('/scrape', [
+            'query' => [
+                'api_key' => $this->defaultParams['api_key'],
+                'url' => $url,
+                'dynamic' => 'false',
+                'ai_query' => $aiQuery,
+            ],
+        ]);
+
+        $data = json_decode($response->getBody()->getContents(), true);
+
+        return is_array($data) ? $data : [];
+    }
+
+    /**
+     * Best Sellers landing → the department categories with their page url.
+     *
+     * @return array<int, array{name: string, url: string}>
+     */
+    public function getBestSellerCategories(string $landingUrl): array
+    {
+        return $this->scrapeWithAi(
+            $landingUrl,
+            'Return a JSON array of the best seller department categories, each with its name and relative url path'
+        );
+    }
+
+    /**
+     * A department best-sellers page → the ranked products (name, sku/asin, price, image, rating).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getCategoryProducts(string $url): array
+    {
+        return $this->scrapeWithAi(
+            $url,
+            'Return a JSON array of the ranked products, each with name, sku (asin), price, image url and rating'
+        );
+    }
 }
