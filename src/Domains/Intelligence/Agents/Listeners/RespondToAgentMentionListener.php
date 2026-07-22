@@ -22,10 +22,17 @@ class RespondToAgentMentionListener
     public function handle(MessageMentionsStoredEvent $event): void
     {
         $message = $event->message;
+        $payload = $message->message;
+
+        // Agent-authored (from_ia) messages are parsed so an agent can @mention a human to notify
+        // them (NotifyMentionedUsersListener), but they must never wake another agent — delegation
+        // is via assign_task, not by one agent tagging another. This is the anti-loop guard.
+        if (is_array($payload) && ($payload['from_ia'] ?? false)) {
+            return;
+        }
 
         // Project-ingest messages (transcript/email/mention) already wake the PM via
         // IngestToProjectAction — don't let a mention inside their content wake it a second time.
-        $payload = $message->message;
         if (is_array($payload) && isset($payload['ingest_type'])) {
             return;
         }

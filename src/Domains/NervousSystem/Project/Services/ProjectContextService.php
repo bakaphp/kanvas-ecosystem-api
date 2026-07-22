@@ -12,6 +12,7 @@ use Kanvas\NervousSystem\Project\DataTransferObject\ProjectContextBundle;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Models\ProjectMember;
 use Kanvas\Social\Messages\Models\Message;
+use Throwable;
 
 /**
  * Assembles a project's full situational-awareness bundle — objective, members, open work, recent
@@ -61,6 +62,9 @@ class ProjectContextService
                 'type' => $member->member_type,
                 'role' => $member->role,
                 'name' => $this->memberName($member),
+                // The exact @handle the mention parser resolves (app displayname). Null when the
+                // member has no resolvable handle — the PM can't notify them, so don't offer one.
+                'handle' => $this->memberHandle($project, $member),
                 'agent_id' => $member->agent_id,
             ])
             ->all();
@@ -76,6 +80,26 @@ class ProjectContextService
         $full = trim((string) $user->firstname . ' ' . (string) $user->lastname);
 
         return $full !== '' ? $full : (string) $user->displayname;
+    }
+
+    /**
+     * The member's mentionable handle as `@displayname` — the same app-scoped value
+     * ParseMessageMentionsAction resolves. Null when it can't be resolved (no app profile / blank).
+     */
+    private function memberHandle(Project $project, ProjectMember $member): ?string
+    {
+        $user = $member->user;
+        if ($user === null) {
+            return null;
+        }
+
+        try {
+            $displayname = trim((string) $user->getAppProfile($project->app)->displayname);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return $displayname !== '' ? '@' . $displayname : null;
     }
 
     /**

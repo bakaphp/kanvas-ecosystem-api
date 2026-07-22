@@ -75,6 +75,11 @@ class ProjectContextServiceTest extends TestCase
         $this->assertSame('manager', $bundle->members[0]['role']);
         $this->assertSame('user', $bundle->members[0]['type']);
 
+        // The PM needs a resolvable @handle to notify a human — present, and either null or @-prefixed.
+        $this->assertArrayHasKey('handle', $bundle->members[0]);
+        $handle = $bundle->members[0]['handle'];
+        $this->assertTrue($handle === null || str_starts_with((string) $handle, '@'));
+
         $planTitles = array_column($bundle->plans, 'title');
         $this->assertContains('Design phase', $planTitles);
 

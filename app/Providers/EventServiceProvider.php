@@ -42,6 +42,7 @@ use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Notifications\Listeners\NotificationsListener;
 use Kanvas\Social\Messages\Events\AppModuleMessageCreatedEvent;
 use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
+use Kanvas\Social\Messages\Listeners\NotifyMentionedUsersListener;
 use Kanvas\Social\Messages\Models\UserMessageActivity;
 use Kanvas\Social\Messages\Observers\UserMessageActivityObserver;
 use Kanvas\Social\UsersLists\Models\UserList;
@@ -88,6 +89,7 @@ class EventServiceProvider extends ServiceProvider
         ],
         MessageMentionsStoredEvent::class => [
             RespondToAgentMentionListener::class,
+            NotifyMentionedUsersListener::class,
         ],
     ];
 
