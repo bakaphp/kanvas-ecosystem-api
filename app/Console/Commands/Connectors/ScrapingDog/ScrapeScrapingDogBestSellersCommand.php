@@ -7,13 +7,13 @@ namespace App\Console\Commands\Connectors\ScrapingDog;
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\ScrapingDog\Repositories\ScrapingDogRepository;
 use Kanvas\Connectors\ScrapingDog\Services\ProductService;
 use Kanvas\Connectors\ScrapingDog\Services\ProductVariantService;
 use Kanvas\Inventory\Bundles\Models\Bundle;
-use Kanvas\Inventory\Bundles\Models\BundleItem;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
@@ -90,7 +90,8 @@ class ScrapeScrapingDogBestSellersCommand extends Command
         // Reset the current homepage selection: the scraped best sellers become the new one.
         $this->clearHomepageTag($app, $tag);
 
-        $success = 0;
+        $imported = 0;
+        $updated = 0;
         $failed = 0;
 
         foreach ($categories as $category) {
@@ -107,9 +108,16 @@ class ScrapeScrapingDogBestSellersCommand extends Command
                     continue;
                 }
 
+                $price = (float) ($item['price'] ?? 0);
+
                 try {
-                    // Un-delete a previously removed product so the importer reuses it instead of leaving it hidden.
-                    Products::withTrashed()->where('slug', Str::slug($asin))->update(['is_deleted' => 0]);
+                    // Already downloaded before: just refresh its price + homepage flag, no re-import.
+                    if ($existing = $this->findExistingProduct($app, $company, $asin)) {
+                        $this->refreshExistingProduct($existing, $price, $tag, $app, $company);
+                        $updated++;
+
+                        continue;
+                    }
 
                     $structured = $repository->getByAsin($asin);
                     if (empty($structured)) {
@@ -118,22 +126,24 @@ class ScrapeScrapingDogBestSellersCommand extends Command
                         continue;
                     }
 
-                    $merged = array_merge($structured, $item);
-
-                    // getByAsin's breadcrumb is sometimes empty — fall back to the department
-                    // we scraped it from, which always exists in the best-seller list.
-                    if (empty($merged['product_category'])) {
-                        $merged['product_category'] = $category['name'];
+                    // mapProduct/mapVariant read the raw getByAsin shape — never pollute it with the
+                    // list payload (a float `price` there breaks extractPrice's preg_match).
+                    $structured['asin'] = $asin;
+                    if (empty($structured['product_category'])) {
+                        $structured['product_category'] = $category['name'];
                     }
 
-                    $mapped = $productService->mapProduct($merged);
-                    $mapped['variants'] = $variantService->mapVariant($merged);
+                    $mapped = $productService->mapProduct($structured);
+                    $mapped['variants'] = $variantService->mapVariant($structured);
                     $mapped['categories'][] = [
                         'name' => $category['name'],
                         'slug' => Str::slug($category['name']),
                         'code' => Str::slug($category['name']),
                         'position' => 0,
                     ];
+
+                    // The best-seller list price is the reliable one — force it onto the import.
+                    $this->applyPrice($mapped, $price);
 
                     if (empty($mapped['price'])) {
                         $this->warn('  Skipping ' . $asin . ': no price');
@@ -158,8 +168,21 @@ class ScrapeScrapingDogBestSellersCommand extends Command
                         $this->warn('  Imported but not indexed (' . $asin . '): ' . $indexError->getMessage());
                     }
 
-                    $success++;
+                    $imported++;
                 } catch (Throwable $e) {
+                    // A duplicate sku means we already had it — treat as downloaded and reprice.
+                    if (Str::contains($e->getMessage(), 'already been taken')
+                        && ($existing = $this->findExistingProduct($app, $company, $asin)) !== null) {
+                        try {
+                            $this->refreshExistingProduct($existing, $price, $tag, $app, $company);
+                            $updated++;
+
+                            continue;
+                        } catch (Throwable) {
+                            // fall through to the failure path
+                        }
+                    }
+
                     $this->error('  Failed ' . $asin . ': ' . $e->getMessage());
                     $failed++;
                 }
@@ -169,18 +192,134 @@ class ScrapeScrapingDogBestSellersCommand extends Command
         $this->info('');
         $this->info('=== Import Summary ===');
         $this->info('Categories: ' . count($categories));
-        $this->info('Imported: ' . $success);
+        $this->info('New imported: ' . $imported);
+        $this->info('Existing updated: ' . $updated);
         $this->info('Failed: ' . $failed);
         $this->info('======================');
 
+        $this->clearCategoriesCache($app, $company, $categories);
         $this->refreshBundles($app, $company, $tag);
 
         return self::SUCCESS;
     }
 
     /**
-     * Normalise the AI-extracted categories into absolute urls + a stable slug.
+     * The productsTags(tag:) field lives on the Category type (@cacheRedis). Product-level
+     * invalidation doesn't touch it, so clear each scraped department's cache directly.
      *
+     * @param array<int, array{name: string, url: string, slug: string}> $categories
+     */
+    private function clearCategoriesCache(Apps $app, Companies $company, array $categories): void
+    {
+        foreach ($categories as $category) {
+            $model = Categories::query()
+                ->fromApp($app)
+                ->fromCompany($company)
+                ->notDeleted()
+                ->where(
+                    fn ($query) => $query->where('name', $category['name'])->orWhere('slug', Str::slug($category['name']))
+                )
+                ->first();
+
+            $model?->clearLightHouseCache(withKanvasConfiguration: false);
+        }
+    }
+
+    /**
+     * The importer rejects a duplicate variant sku, so match on that first — the product slug
+     * may differ from the asin when it was imported by another flow.
+     */
+    private function findExistingProduct(Apps $app, Companies $company, string $asin): ?Products
+    {
+        $variant = Variants::withTrashed()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->where('sku', $asin)
+            ->first();
+
+        if ($variant) {
+            $product = Products::withTrashed()->find($variant->products_id);
+            if ($product) {
+                return $product;
+            }
+        }
+
+        return Products::withTrashed()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->where('slug', Str::slug($asin))
+            ->first();
+    }
+
+    /**
+     * Restore + reprice an already-imported product and keep it on the homepage,
+     * without going through the importer (which rejects a duplicate sku).
+     */
+    private function refreshExistingProduct(Products $product, float $price, string $tag, Apps $app, Companies $company): void
+    {
+        if ($product->is_deleted) {
+            DB::connection('inventory')->table('products')
+                ->where('id', $product->getId())
+                ->update(['is_deleted' => 0]);
+            $product->is_deleted = false;
+        }
+
+        if ($price > 0) {
+            $variants = Variants::query()->where('products_id', $product->getId())->get();
+            if ($variants->isNotEmpty()) {
+                DB::connection('inventory')->table('products_variants_channels')
+                    ->whereIn('products_variants_id', $variants->pluck('id')->all())
+                    ->update(['price' => $price]);
+
+                // DB::table bypasses model events, so invalidate the @cacheRedis manually or the
+                // product/variant graph queries keep serving the stale price.
+                foreach ($variants as $variant) {
+                    $variant->clearLightHouseCache(withKanvasConfiguration: false);
+                }
+            }
+        }
+
+        $product->clearLightHouseCache(withKanvasConfiguration: false);
+        $product->addTag($tag, $app, company: $company);
+
+        try {
+            $product->searchable();
+        } catch (Throwable) {
+            // indexing is best-effort
+        }
+    }
+
+    /**
+     * Force the scraped list price onto the mapped product/variants/warehouses/channels.
+     */
+    private function applyPrice(array &$mapped, float $price): void
+    {
+        if ($price <= 0) {
+            return;
+        }
+
+        $mapped['price'] = $price;
+
+        foreach ($mapped['warehouses'] ?? [] as &$warehouse) {
+            $warehouse['price'] = $price;
+        }
+        unset($warehouse);
+
+        foreach ($mapped['variants'] ?? [] as &$variant) {
+            $variant['price'] = $price;
+            foreach ($variant['warehouses'] ?? [] as &$variantWarehouse) {
+                $variantWarehouse['price'] = $price;
+            }
+            unset($variantWarehouse);
+            foreach ($variant['channels'] ?? [] as &$variantChannel) {
+                $variantChannel['price'] = $price;
+            }
+            unset($variantChannel);
+        }
+        unset($variant);
+    }
+
+    /**
      * @param array<int, array<string, mixed>> $rawCategories
      * @return array<int, array{name: string, url: string, slug: string}>
      */
@@ -245,8 +384,8 @@ class ScrapeScrapingDogBestSellersCommand extends Command
                 continue;
             }
 
-            $added = $this->assignVariantsToBundle($bundle, $variantIds);
-            $removed = $this->softDeleteMissingBundleItems($bundle, $variantIds);
+            $added = $this->assignVariantsToBundle($bundle->getId(), $variantIds);
+            $removed = $this->softDeleteMissingBundleItems($bundle->getId(), $variantIds);
             $refreshed++;
 
             $this->info(sprintf(
@@ -311,28 +450,34 @@ class ScrapeScrapingDogBestSellersCommand extends Command
     }
 
     /**
+     * bundle_items is written via the query builder on purpose: the Eloquent model boots
+     * CompaniesIdTrait/AppsIdTrait which need an authed user + columns the table doesn't have.
+     *
      * @param array<int, int> $variantIds
      */
-    private function assignVariantsToBundle(Bundle $bundle, array $variantIds): int
+    private function assignVariantsToBundle(int $bundleId, array $variantIds): int
     {
+        $table = DB::connection('inventory')->table('bundle_items');
         $added = 0;
-        foreach ($variantIds as $variantId) {
-            // withTrashed so a previously soft-deleted item is reactivated, not duplicated.
-            $item = BundleItem::withTrashed()->firstOrNew([
-                'bundle_id' => $bundle->getId(),
-                'variant_id' => $variantId,
-            ]);
 
-            if (! $item->exists) {
-                $item->quantity = 1;
-                $item->unit = 'unit';
+        foreach ($variantIds as $variantId) {
+            $row = $table->where('bundle_id', $bundleId)->where('variant_id', $variantId)->first();
+
+            if ($row === null) {
+                DB::connection('inventory')->table('bundle_items')->insert([
+                    'bundle_id' => $bundleId,
+                    'variant_id' => $variantId,
+                    'quantity' => 1,
+                    'unit' => 'unit',
+                    'is_deleted' => 0,
+                ]);
                 $added++;
-            } elseif ($item->is_deleted) {
+            } elseif ((int) $row->is_deleted === 1) {
+                DB::connection('inventory')->table('bundle_items')
+                    ->where('id', $row->id)
+                    ->update(['is_deleted' => 0]);
                 $added++;
             }
-
-            $item->is_deleted = 0;
-            $item->save();
         }
 
         return $added;
@@ -341,10 +486,10 @@ class ScrapeScrapingDogBestSellersCommand extends Command
     /**
      * @param array<int, int> $keepVariantIds
      */
-    private function softDeleteMissingBundleItems(Bundle $bundle, array $keepVariantIds): int
+    private function softDeleteMissingBundleItems(int $bundleId, array $keepVariantIds): int
     {
-        return BundleItem::query()
-            ->where('bundle_id', $bundle->getId())
+        return DB::connection('inventory')->table('bundle_items')
+            ->where('bundle_id', $bundleId)
             ->where('is_deleted', 0)
             ->whereNotIn('variant_id', $keepVariantIds)
             ->update(['is_deleted' => 1]);

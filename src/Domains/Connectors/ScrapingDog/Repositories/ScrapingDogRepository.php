@@ -140,9 +140,10 @@ class ScrapingDogRepository
      */
     public function getCategoryProducts(string $url): array
     {
+        // Keep the field set small — asking for many fields makes the AI truncate the list.
         return $this->scrapeWithAi(
             $url,
-            'Return a JSON array of the ranked products, each with name, sku (asin), price, image url and rating'
+            'List all products, each with name, sku and price'
         );
     }
 }
