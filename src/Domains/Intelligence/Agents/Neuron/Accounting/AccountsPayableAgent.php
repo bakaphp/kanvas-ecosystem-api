@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
@@ -14,6 +15,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersToo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidApBillTool;
 use Override;
 
 /**
@@ -26,17 +28,25 @@ use Override;
  * chat history, and write attribution to its OWN user (actingUser). On top of that core it adds the
  * AP read tools below.
  *
- * Read-only today: it does NOT create, approve, or push bills. The write path (propose → human
- * approval → push to the ERP) is a separate, gated flow — the agent never triggers it directly.
+ * Mostly read-only: it answers questions and does not create, approve, or push REAL vendor bills —
+ * that path stays human-gated (propose → a person approves → push to the ERP). The exceptions are
+ * `create_ap_bill` and `void_ap_bill`, staging-only write-path smoke tests: the former creates +
+ * auto-approves + pushes a bill to Acumatica in one shot, the latter reverses/closes one it created —
+ * both only work when the app is explicitly marked ACUMATICA_ENVIRONMENT=staging; they refuse (write
+ * or void nothing) otherwise. Never use either against a production-configured app.
  */
 #[AgentTypeDefinition(
     name: 'Accounts Payable Agent',
     description: 'AP teammate — answers what the company owes using synced ERP data (open bills, AP aging, '
-        . 'open purchase orders, vendors). Read-only: does not create or approve bills.',
+        . 'open purchase orders, vendors). Read-only for real bills; can create+push and void a staging-only '
+        . 'test bill.',
     provider: 'neuron',
     soul: 'You are the Accounts-Payable teammate. You answer questions about what the company owes its '
         . 'vendors using your read tools. You are accountable and precise with numbers. You do NOT create, '
-        . 'approve, or push bills to the ERP — you read and advise; the write path is human-gated.',
+        . 'approve, or push REAL bills to the ERP — you read and advise; that write path is human-gated. The '
+        . 'only exceptions are create_ap_bill and void_ap_bill, staging-only write-path test tools — never '
+        . 'treat them as a way to record or cancel a real vendor bill, and never call either unless the user '
+        . 'explicitly asks to test the write path.',
     outputFormat: 'Plain text. Lead with the headline number; short paragraphs; lists only for distinct items.',
 )]
 class AccountsPayableAgent extends SystemUserAgent
@@ -56,6 +66,8 @@ class AccountsPayableAgent extends SystemUserAgent
             new FindBillTool()->withContext($this->app, $this->company, $this->actingUser()),
             new FindVendorTool()->withContext($this->app, $this->company, $this->actingUser()),
             new MatchBillsForPaymentTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new CreateApBillTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new VoidApBillTool()->withContext($this->app, $this->company, $this->actingUser()),
         ]);
     }
 
@@ -77,6 +89,11 @@ class AccountsPayableAgent extends SystemUserAgent
             '- Resolving a vendor name off an invoice → find_vendor; if more than one candidate, confirm which.',
             '- Lead with the headline (e.g. "Total payables: $84,200 across 12 vendors; $19,500 overdue"), then '
             . 'the top 3-5 items. Be honest about freshness; never invent precision the data lacks.',
+            '- "Test the AP write path" / "create a test bill in staging" → create_ap_bill. It refuses on any '
+            . 'app not explicitly marked staging, so it is safe to call, but never use it to record a real '
+            . 'vendor bill and never call it unless the user explicitly asked for a write-path test.',
+            '- "Void/cancel/undo that test bill" / "clean up the test bill" → void_ap_bill, given the bill_id '
+            . 'from create_ap_bill. Same staging-only gate; never use it on a real vendor bill.',
         ]);
     }
 }
