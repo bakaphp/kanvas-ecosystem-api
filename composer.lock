@@ -12054,16 +12054,16 @@
         },
         {
             "name": "spatie/laravel-health",
-            "version": "1.40.0",
+            "version": "1.40.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-health.git",
-                "reference": "6fa735589c04fd99970b434fc22dddbdc716a264"
+                "reference": "e66c00d430a0f7a5b179b48b8d09149e18fa2232"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/6fa735589c04fd99970b434fc22dddbdc716a264",
-                "reference": "6fa735589c04fd99970b434fc22dddbdc716a264",
+                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/e66c00d430a0f7a5b179b48b8d09149e18fa2232",
+                "reference": "e66c00d430a0f7a5b179b48b8d09149e18fa2232",
                 "shasum": ""
             },
             "require": {
@@ -12135,7 +12135,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-health/issues",
-                "source": "https://github.com/spatie/laravel-health/tree/1.40.0"
+                "source": "https://github.com/spatie/laravel-health/tree/1.40.1"
             },
             "funding": [
                 {
@@ -12143,7 +12143,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-05-28T08:55:40+00:00"
+            "time": "2026-07-22T07:01:14+00:00"
         },
         {
             "name": "spatie/laravel-image-optimizer",
