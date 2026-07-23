@@ -101,6 +101,30 @@ class AcumaticaWriteService
     }
 
     /**
+     * Run an arbitrary sequence of calls against a single authenticated session — for write flows that
+     * don't fit the single create[+release] shape `push()` covers (e.g. an action invocation followed
+     * by a natural-key update and a second action). The callback receives the raw `Client`.
+     */
+    public function withSession(callable $callback): mixed
+    {
+        $this->assertWriteEnabled();
+
+        $client = $this->client();
+
+        try {
+            $client->login();
+
+            return $callback($client);
+        } catch (AcumaticaWriteException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            throw AcumaticaWriteException::fromThrowable($e, 'session');
+        } finally {
+            $this->safeLogout();
+        }
+    }
+
+    /**
      * @param array<string, mixed> $query      OData query, e.g. ['$filter' => "VendorName eq 'X'", '$top' => 1]
      * @param array<string, mixed> $createBody `{value:}`-wrapped payload for the create branch
      *

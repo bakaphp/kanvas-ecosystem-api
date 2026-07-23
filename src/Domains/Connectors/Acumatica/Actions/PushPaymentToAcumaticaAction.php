@@ -178,6 +178,9 @@ class PushPaymentToAcumaticaAction
             'PaymentRef' => $this->payment->reference,
             'ApplicationDate' => $this->payment->payment_date->toDateString(),
             'CurrencyID' => $this->payment->currency,
+            // Defaults to Hold=true in this tenant, which disables Release entirely (confirmed
+            // against a live push) — mirrors the explicit Hold=false already used on bills/invoices.
+            'Hold' => false,
         ]);
 
         $header['DocumentsToApply'] = $documents;
