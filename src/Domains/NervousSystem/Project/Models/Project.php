@@ -180,10 +180,17 @@ class Project extends BaseModel
     public function getWebhookUrlAttribute(): ?string
     {
         $webhook = $this->receiverWebhook;
+        if ($webhook === null) {
+            return null;
+        }
 
-        return $webhook !== null
-            ? rtrim((string) config('app.url'), '/') . '/receiver/' . $webhook->uuid
-            : null;
+        // The receiver route lives under the app's API prefix (e.g. "v1"), so it must be part of the
+        // URL — without it the endpoint 404s. Derive it from config so it can't drift from the route.
+        $base = rtrim((string) config('app.url'), '/');
+        $prefix = trim((string) config('kanvas.application.routes.prefix'), '/');
+        $path = ($prefix !== '' ? "/{$prefix}" : '') . '/receiver/';
+
+        return $base . $path . (string) $webhook->uuid;
     }
 
     /**
@@ -204,6 +211,15 @@ class Project extends BaseModel
     public function getStringIdAttribute(): string
     {
         return (string) $this->id;
+    }
+
+    /**
+     * A Project is an agent-conversation entity (the PM is woken with the Project in scope), and the
+     * chat/context path calls getName() on the entity as it does for a Lead/People. Expose the title.
+     */
+    public function getName(): string
+    {
+        return $this->title ?? '';
     }
 
     /**

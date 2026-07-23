@@ -6,6 +6,7 @@ namespace Tests\Intelligence\NervousSystem;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Enums\StateEnums;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Project\Actions\AddProjectMemberAction;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
@@ -178,6 +179,66 @@ class ProjectMemberCrudTest extends TestCase
         $this->assertSame((int) $member->id, (int) $restored->id);
         $this->assertFalse((bool) $restored->is_deleted);
         $this->assertSame('manager', $restored->role);
+    }
+
+    public function testAddingTwoDistinctPeopleKeepsBoth(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+
+        $alice = Users::factory()->create();
+        $bob = Users::factory()->create();
+        $company->associateUserApp($alice, $app, StateEnums::YES->getValue());
+        $company->associateUserApp($bob, $app, StateEnums::YES->getValue());
+
+        foreach ([$alice, $bob] as $person) {
+            $this->graphQL('
+                mutation ($project_id: ID!, $input: AddNervousSystemProjectMemberInput!) {
+                    addNervousSystemProjectMember(project_id: $project_id, input: $input) { id user { id } }
+                }
+            ', ['project_id' => $project->id, 'input' => ['users_id' => $person->getId(), 'role' => 'contributor']])
+                ->assertSuccessful();
+        }
+
+        $memberUserIds = ProjectMember::query()
+            ->where('project_id', $project->id)
+            ->pluck('users_id')
+            ->all();
+
+        $this->assertContains((int) $alice->getId(), array_map('intval', $memberUserIds));
+        $this->assertContains((int) $bob->getId(), array_map('intval', $memberUserIds));
+        $this->assertCount(2, $memberUserIds);
+    }
+
+    public function testAddingTwoAgentsSharingAUserKeepsBoth(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+
+        // Two distinct agents that share one underlying Kanvas user (common — many agents don't have
+        // a dedicated user). Membership identity is the AGENT, not its user.
+        $sharedUser = Users::factory()->create();
+        $agentA = $this->makeAgent($app, $company, $sharedUser);
+        $agentB = $this->makeAgent($app, $company, $sharedUser);
+
+        foreach ([$agentA, $agentB] as $agent) {
+            new AddProjectMemberAction(
+                project: $project,
+                role: ProjectMemberRoleEnum::CONTRIBUTOR,
+                agent: $agent,
+            )->execute();
+        }
+
+        $agentIds = ProjectMember::query()
+            ->where('project_id', $project->id)
+            ->pluck('agent_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $this->assertContains((int) $agentA->id, $agentIds);
+        $this->assertContains((int) $agentB->id, $agentIds);
+        $this->assertCount(2, $agentIds);
     }
 
     public function testProjectMembersRelation(): void

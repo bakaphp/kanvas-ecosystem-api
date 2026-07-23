@@ -163,6 +163,58 @@ class ProjectCrudTest extends TestCase
         );
     }
 
+    public function testReassignPmAgentViaGraphQL(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $original = $this->makeAgent($app, $company, $user);
+        $replacement = $this->makeAgent($app, $company, $user);
+
+        $project = new CreateProjectAction(
+            ProjectData::from(
+                $app,
+                $user,
+                $company,
+                ['title' => 'Reassign PM', 'agent_id' => $original->id],
+            ),
+        )->execute();
+
+        $this->assertSame((int) $original->id, (int) $project->agent_id);
+
+        $this->graphQL('
+            mutation ($id: ID!, $input: UpdateNervousSystemProjectInput!) {
+                updateNervousSystemProject(id: $id, input: $input) { id pmAgent { id } }
+            }
+        ', ['id' => $project->id, 'input' => ['agent_id' => (int) $replacement->id]])
+            ->assertSuccessful()
+            ->assertJson(['data' => ['updateNervousSystemProject' => [
+                'pmAgent' => ['id' => (string) $replacement->id],
+            ]]]);
+
+        $this->assertSame(
+            (int) $replacement->id,
+            (int) Project::query()->where('id', $project->id)->value('agent_id'),
+        );
+    }
+
+    public function testUpdateWithoutAgentIdKeepsCurrentPm(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+        $project = new CreateProjectAction(
+            ProjectData::from($app, $user, $company, ['title' => 'Keep PM', 'agent_id' => $agent->id]),
+        )->execute();
+
+        $this->graphQL('
+            mutation ($id: ID!, $input: UpdateNervousSystemProjectInput!) {
+                updateNervousSystemProject(id: $id, input: $input) { id pmAgent { id } }
+            }
+        ', ['id' => $project->id, 'input' => ['title' => 'Renamed only']])
+            ->assertSuccessful()
+            ->assertJson(['data' => ['updateNervousSystemProject' => [
+                'pmAgent' => ['id' => (string) $agent->id],
+            ]]]);
+    }
+
     public function testInvalidHeartbeatIntervalIsRejected(): void
     {
         [$app, $company, $user] = $this->context();

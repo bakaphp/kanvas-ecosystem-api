@@ -100,6 +100,7 @@ input CreateNervousSystemProjectInput {
 
 input UpdateNervousSystemProjectInput {
     title: String
+    agent_id: Int
     workspace_id: Int
     swarm_id: Int
     objective: String

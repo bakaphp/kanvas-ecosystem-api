@@ -85,6 +85,9 @@ class WakeAgentForTaskJob implements ShouldQueue
                 session: $session,
                 message: $this->buildMessage($project),
                 user: $owner,
+                // Reply is posted explicitly below; don't persist the scaffolded prompt (avoids the
+                // re-ingested-prompt growth loop — see WakeAgentForProjectJob).
+                persistConversation: false,
             )->execute();
         } catch (Throwable $e) {
             $project->emitLedgerEvent(

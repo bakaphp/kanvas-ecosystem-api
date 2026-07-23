@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Project\Services;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
@@ -152,16 +153,30 @@ class ProjectContextService
                 'content' => $this->messageContent($message),
                 'at' => $message->created_at?->toIso8601String(),
             ])
+            ->reject(fn (array $row): bool => $row['content'] === '')
+            ->values()
             ->all();
     }
 
     private function messageContent(Message $message): string
     {
         $payload = $message->message;
-        if (! is_array($payload)) {
-            return is_scalar($payload) ? (string) $payload : '';
+        $raw = is_array($payload) ? $this->firstStringValue($payload) : '';
+
+        // Never feed an agent wake PROMPT back in as "context" — that's the growth loop. Drop any
+        // scaffolded prompt, and hard-cap every message so one long reply can't bloat the bundle.
+        if (str_starts_with(ltrim($raw), '[NS:')) {
+            return '';
         }
 
+        return Str::limit($raw, 1200);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function firstStringValue(array $payload): string
+    {
         foreach (['content', 'text', 'message', 'body'] as $key) {
             if (isset($payload[$key]) && is_string($payload[$key])) {
                 return $payload[$key];

@@ -89,6 +89,10 @@ class WakeAgentForProjectJob implements ShouldQueue
                 session: $session,
                 message: $message,
                 user: $owner,
+                // The reply is posted explicitly below; never persist the (large, scaffolded) wake
+                // PROMPT to the channel — it would be re-read as "context" on the next wake and
+                // re-trigger this same wake, growing unboundedly (a 700KB+ nested-prompt runaway).
+                persistConversation: false,
             )->execute();
         } catch (Throwable $e) {
             $this->project->emitLedgerEvent(
@@ -178,8 +182,10 @@ class WakeAgentForProjectJob implements ShouldQueue
             $this->project->uuid,
         );
 
+        // Cap the trigger text — a mention/ingest could quote a huge prior message; never let it
+        // balloon the prompt (belt-and-braces with persistConversation:false).
         $trigger = $this->triggerMessage !== null && $this->triggerMessage !== ''
-            ? "New context on the project:\n\"\"\"\n{$this->triggerMessage}\n\"\"\"\n\n"
+            ? "New context on the project:\n\"\"\"\n" . Str::limit($this->triggerMessage, 4000) . "\n\"\"\"\n\n"
             : '';
 
         return $header

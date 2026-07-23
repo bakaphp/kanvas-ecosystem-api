@@ -70,6 +70,15 @@ class Task extends BaseModel
         return $this->belongsTo(Plan::class, 'plan_id', 'id');
     }
 
+    /**
+     * A Task is an agent-conversation entity (an assignee is woken with the Task in scope), and the
+     * chat/context path calls getName() on the entity as it does for a Lead/People. Expose the title.
+     */
+    public function getName(): string
+    {
+        return $this->title ?? '';
+    }
+
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class, 'agent_id', 'id');

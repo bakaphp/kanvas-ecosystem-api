@@ -127,6 +127,16 @@ class Plan extends BaseModel
         return $this->hasMany(Task::class, 'plan_id', 'id')->where('is_deleted', 0);
     }
 
+    /**
+     * A Plan is a valid agent-conversation entity (a worker is woken with the Plan in scope), and the
+     * chat/context path calls getName() on the entity the way it does for a Lead/People. Expose the
+     * title so a Plan-scoped run doesn't fatal on the missing method.
+     */
+    public function getName(): string
+    {
+        return $this->title ?? '';
+    }
+
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_plan_id', 'id');

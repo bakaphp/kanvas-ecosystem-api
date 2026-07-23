@@ -22,6 +22,7 @@ class UpdateProjectAction
         $this->assertValidHeartbeatInterval();
 
         return DB::connection('intelligence')->transaction(function (): Project {
+            $this->project->agent_id = $this->data->pmAgent->getId();
             $this->project->workspace_id = $this->data->workspace?->getId();
             $this->project->swarm_id = $this->data->swarm?->getId();
             $this->project->title = $this->data->title;

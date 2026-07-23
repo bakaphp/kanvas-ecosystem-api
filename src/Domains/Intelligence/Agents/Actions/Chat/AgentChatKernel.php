@@ -58,6 +58,7 @@ class AgentChatKernel
         protected readonly ?Message $sourceMessage = null,
         protected readonly bool $persistConversation = true,
         protected readonly array $documents = [],
+        protected readonly array $additionalTools = [],
     ) {
     }
 
@@ -201,6 +202,13 @@ class AgentChatKernel
             // Plumb the turn's attachment URLs so the conversation history can persist a reference
             // for describing — the handler itself only ever sees the base64 content blocks.
             $handler->setTurnMedia($this->nativeMedia());
+        }
+
+        // Per-run tools injected by the caller — e.g. a worker woken for a plan gets the NS board
+        // tools scoped to that plan, without those tools being part of its own persona. Additive:
+        // no caller that omits them is affected.
+        if ($this->additionalTools !== [] && $handler instanceof BaseKanvasAgent) {
+            $handler->addTool($this->additionalTools);
         }
 
         return new RunNeuronChatAction(

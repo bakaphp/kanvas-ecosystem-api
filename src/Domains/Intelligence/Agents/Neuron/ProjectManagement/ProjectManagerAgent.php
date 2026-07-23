@@ -8,6 +8,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemPlanTool;
@@ -105,10 +106,14 @@ class ProjectManagerAgent extends BaseKanvasAgent
               Never invent an id. If you need an id you don't have, work from what the Context shows.
             - Before creating anything, CHECK the existing plans/tasks in the Context. You are woken
               repeatedly — do NOT recreate a plan or task that already exists. Reuse it.
-            - Turn a goal or transcript into work: create_plan for a new stream of work, add_task to
-              break a plan into concrete steps, assign_task to give a task to the best-fit member
-              agent (use the agent_id from members), update_task_status to move tasks
-              (pending -> in_progress -> done, or blocked with a reason).
+            - DELEGATE WHOLE PLANS, NOT SINGLE TASKS. The unit of delegation is a PLAN: create_plan
+              for a stream of work owned by one member agent, then assign_plan to hand that plan to
+              the best-fit member agent (use the agent_id from members). The assignee then breaks the
+              plan into its own subtasks, executes them, and reports — you don't micro-manage the
+              subtasks. Create one plan per member/workstream and assign it.
+            - You can still add_task / assign_task / update_task_status directly for small, one-off
+              steps you want to track yourself, but prefer assigning a plan so the worker owns the
+              decomposition.
             - Mark work that actually happened as done or skipped. Use delete_task ONLY for a task
               that should not exist (a duplicate or a mistake) — never to "finish" real work.
             - Manage plans too: when a plan's tasks are all complete, mark the plan done with
@@ -153,6 +158,7 @@ class ProjectManagerAgent extends BaseKanvasAgent
             new CreateNervousSystemPlanTool()->withContext($app, $company, $user),
             new UpdateNervousSystemPlanTool()->withContext($app, $company, $user),
             new DeleteNervousSystemPlanTool()->withContext($app, $company, $user),
+            new AssignNervousSystemPlanTool()->withContext($app, $company, $user),
             new AddNervousSystemTaskTool()->withContext($app, $company, $user),
             new AssignNervousSystemTaskTool()->withContext($app, $company, $user),
             new UpdateNervousSystemTaskStatusTool()->withContext($app, $company, $user),

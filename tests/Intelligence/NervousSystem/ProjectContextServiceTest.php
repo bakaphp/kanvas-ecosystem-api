@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Actions\AddProjectMemberAction;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
+use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Enums\ProjectMemberRoleEnum;
 use Kanvas\NervousSystem\Project\Models\Project;
@@ -92,5 +93,41 @@ class ProjectContextServiceTest extends TestCase
 
         $this->assertIsArray($bundle->recentMessages);
         $this->assertArrayHasKey('project', $bundle->toArray());
+    }
+
+    public function testContextExcludesScaffoldingPromptsAndCapsLength(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+        $project = new CreateProjectAction(
+            ProjectData::from($app, $user, $company, ['title' => 'Ctx', 'agent_id' => $agent->id]),
+        )->execute();
+
+        // A scaffolded wake prompt — must NOT be fed back as context (that's the growth loop).
+        new PostProjectMessageAction(
+            project: $project,
+            verb: 'ai-chat',
+            content: '[NS:project reason=mention project_id=1] You are the PM ...',
+            author: $user,
+        )->execute();
+
+        // A very long normal message — must be capped.
+        new PostProjectMessageAction(
+            project: $project,
+            verb: 'note',
+            content: str_repeat('x', 5000),
+            author: $user,
+        )->execute();
+
+        $bundle = new ProjectContextService()->buildContextBundle($project);
+        $contents = array_column($bundle->recentMessages, 'content');
+
+        foreach ($contents as $content) {
+            $this->assertFalse(str_starts_with((string) $content, '[NS:'), 'scaffolding leaked into context');
+            $this->assertLessThanOrEqual(1210, strlen((string) $content), 'message content not capped');
+        }
     }
 }

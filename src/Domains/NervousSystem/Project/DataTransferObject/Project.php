@@ -113,8 +113,13 @@ class Project extends Data
                 ? AgentSwarm::getByIdFromCompanyApp($project->swarm_id, $company, $app)
                 : null);
 
+        // The PM can be reassigned on update; fall back to the current PM when agent_id isn't sent.
         /** @var Agent $pmAgent */
-        $pmAgent = Agent::getByIdFromCompanyApp($project->agent_id, $company, $app);
+        $pmAgent = Agent::getByIdFromCompanyApp(
+            isset($data['agent_id']) ? (int) $data['agent_id'] : $project->agent_id,
+            $company,
+            $app,
+        );
 
         return new self(
             app: $app,
