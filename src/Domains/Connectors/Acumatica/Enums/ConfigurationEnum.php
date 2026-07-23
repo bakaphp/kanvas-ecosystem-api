@@ -11,15 +11,6 @@ enum ConfigurationEnum: string
     case ACUMATICA_WRITE_ENABLED = 'ACUMATICA_WRITE_ENABLED';
 
     /**
-     * Explicit, manually-set marker of which Acumatica tenant this app's ACUMATICA_CONFIG points at:
-     * 'staging' or 'production'. Nothing about the connection itself (base URL, credentials) implies
-     * this — it must be set deliberately per app. Tools that are only safe to run against a sandbox
-     * (e.g. agent-initiated writes) must assert this equals 'staging' before doing anything and fail
-     * closed (unset/anything else = not staging) rather than infer it from the URL.
-     */
-    case ACUMATICA_ENVIRONMENT = 'ACUMATICA_ENVIRONMENT';
-
-    /**
      * Fallback subaccount code for an AP bill line when neither the Kanvas line carries one nor the
      * replica can derive the account's dominant historical subaccount. Tenants that make Subaccount
      * required on AP lines set this so a push never fails for a missing dimension.

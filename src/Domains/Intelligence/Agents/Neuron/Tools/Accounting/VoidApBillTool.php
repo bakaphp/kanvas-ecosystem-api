@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Connectors\Acumatica\Actions\VoidApBillAction;
-use Kanvas\Connectors\Acumatica\Enums\ConfigurationEnum as AcumaticaConfigurationEnum;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -22,9 +21,6 @@ use Throwable;
  * and releases a Debit Adjustment applied against the bill's full outstanding balance, closing both
  * documents (the API equivalent of the manual Reverse -> APPLY -> Load Documents -> Release flow).
  *
- * STAGING ONLY, same hard gate as CreateApBillTool: refuses to run — and voids nothing — unless the
- * app's ACUMATICA_ENVIRONMENT config is exactly 'staging'.
- *
  * @see \Kanvas\Connectors\Acumatica\Actions\VoidApBillAction — the actual void.
  */
 #[AgentTool(name: 'Void AP Bill')]
@@ -36,10 +32,9 @@ class VoidApBillTool extends Tool
     {
         parent::__construct(
             name: 'void_ap_bill',
-            description: 'STAGING ONLY. Voids a previously-pushed AP bill in Acumatica by creating and releasing '
-                . 'a Debit Adjustment against its full outstanding balance, closing both documents. Only works '
-                . 'when this app is explicitly configured as a staging tenant — otherwise it refuses and voids '
-                . 'nothing. Use only to clean up bills created by create_ap_bill, never on a real vendor bill.',
+            description: 'Voids a previously-pushed AP bill in Acumatica by creating and releasing a Debit '
+                . 'Adjustment against its full outstanding balance, closing both documents. Bypasses the normal '
+                . 'human approval gate — use only when the user explicitly asks to void a bill this way.',
         );
     }
 
@@ -65,17 +60,6 @@ class VoidApBillTool extends Tool
     public function __invoke(int $bill_id): array
     {
         $app = $this->app;
-
-        $environment = (string) $app->get(AcumaticaConfigurationEnum::ACUMATICA_ENVIRONMENT->value, '');
-
-        if ($environment !== 'staging') {
-            return [
-                'voided' => false,
-                'reason' => 'not_staging',
-                'message' => 'This app is not marked as an Acumatica staging tenant '
-                    . '(ACUMATICA_ENVIRONMENT must equal "staging") — refusing to void anything.',
-            ];
-        }
 
         $bill = Bill::query()
             ->where('id', $bill_id)
@@ -108,8 +92,8 @@ class VoidApBillTool extends Tool
             'bill_id' => $bill->getId(),
             'bill_ref' => (string) $bill->get(AcumaticaCustomFieldEnum::BILL_REF->value, ''),
             'void_ref' => $voidRef,
-            'next' => 'A Debit Adjustment was created and released against the bill in Acumatica staging — '
-                . 'both documents should now show Closed with a zero balance.',
+            'next' => 'A Debit Adjustment was created and released against the bill in Acumatica — both '
+                . 'documents should now show Closed with a zero balance.',
         ];
     }
 }

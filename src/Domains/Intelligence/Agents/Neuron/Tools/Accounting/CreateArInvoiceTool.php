@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Actions\PushInvoiceToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Actions\PushPaymentToAcumaticaAction;
-use Kanvas\Connectors\Acumatica\Enums\ConfigurationEnum as AcumaticaConfigurationEnum;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -33,9 +32,6 @@ use Throwable;
  * cash receipt against it and pushes that too — returning both the invoice and payment ERP refs in
  * one call. The AR mirror of CreateApBillTool.
  *
- * STAGING ONLY, same hard gate as CreateApBillTool: refuses to run — and creates nothing — unless
- * the app's ACUMATICA_ENVIRONMENT config is exactly 'staging'.
- *
  * Invoices have no human-approval gate (unlike bills): CreateInvoiceAction -> IssueInvoiceAction is a
  * straight 2-step lifecycle, so there's no submit/approve step to call here.
  *
@@ -52,11 +48,10 @@ class CreateArInvoiceTool extends Tool
     {
         parent::__construct(
             name: 'create_ar_invoice',
-            description: 'STAGING ONLY. Creates a one-line AR invoice for a customer, issues it, pushes it to '
-                . 'Acumatica, then applies a cash receipt against it and pushes that too — returning the invoice '
-                . 'ref and payment ref. Only works when this app is explicitly configured as a staging tenant — '
-                . 'otherwise it refuses and creates nothing. Use only for deliberate write-path testing, never to '
-                . 'record a real customer invoice or payment.',
+            description: 'Creates a one-line AR invoice for a customer, issues it, pushes it to Acumatica, then '
+                . 'applies a cash receipt against it and pushes that too — returning the invoice ref and payment '
+                . 'ref. Bypasses the normal human approval gate — use only when the user explicitly asks to '
+                . 'create an invoice this way, never on a whim.',
         );
     }
 
@@ -106,17 +101,6 @@ class CreateArInvoiceTool extends Tool
     ): array {
         $app = $this->app;
         $company = $this->company;
-
-        $environment = (string) $app->get(AcumaticaConfigurationEnum::ACUMATICA_ENVIRONMENT->value, '');
-
-        if ($environment !== 'staging') {
-            return [
-                'created' => false,
-                'reason' => 'not_staging',
-                'message' => 'This app is not marked as an Acumatica staging tenant '
-                    . '(ACUMATICA_ENVIRONMENT must equal "staging") — refusing to create or push anything.',
-            ];
-        }
 
         $customerQuery = Organization::query()
             ->where('apps_id', $app->getId())
@@ -231,8 +215,8 @@ class CreateArInvoiceTool extends Tool
             'acumatica_invoice_id' => (string) $invoice->get(AcumaticaCustomFieldEnum::INVOICE_ID->value, ''),
             'payment_ref' => $paymentRef,
             'acumatica_payment_id' => (string) $payment->get(AcumaticaCustomFieldEnum::PAYMENT_ID->value, ''),
-            'next' => 'Invoice and cash receipt both pushed to Acumatica staging. Use invoice_ref and '
-                . 'payment_ref to find and void/reverse the test records when done.',
+            'next' => 'Invoice and cash receipt both pushed to Acumatica. Use invoice_ref and payment_ref to '
+                . 'find the records.',
         ];
     }
 

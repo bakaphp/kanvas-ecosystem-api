@@ -6,7 +6,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Actions\PushBillToAcumaticaAction;
-use Kanvas\Connectors\Acumatica\Enums\ConfigurationEnum as AcumaticaConfigurationEnum;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -29,12 +28,9 @@ use Throwable;
  * Creates a one-line AP bill, auto-approves it (acting as the agent's own user), and pushes it to
  * Acumatica synchronously — returning the ERP bill reference in the same call.
  *
- * This bypasses the normal human-in-the-loop gate (draft -> pending_approval -> a person approves)
- * on purpose, so it is HARD-GATED to a tenant explicitly marked as staging: the app's
- * ACUMATICA_ENVIRONMENT config must equal exactly 'staging', checked FIRST, before anything is
- * created in Kanvas. Nothing about the connection itself (base URL, credentials) is trusted to imply
- * this — it must be a deliberate, manually-set flag. If it isn't set, or is anything else, this tool
- * refuses to run and creates nothing.
+ * This bypasses the normal human-in-the-loop gate (draft -> pending_approval -> a person approves) on
+ * purpose. The only gate is AcumaticaWriteService::assertWriteEnabled() (ACUMATICA_WRITE_ENABLED per
+ * app) — whichever Acumatica tenant that app's connection points to is where this writes.
  *
  * @see \Kanvas\Scribe\Bills\Actions\SubmitBillForApprovalAction — still recorded in the approval queue
  *      for traceability even though approval here is automatic, not human.
@@ -49,10 +45,9 @@ class CreateApBillTool extends Tool
     {
         parent::__construct(
             name: 'create_ap_bill',
-            description: 'STAGING ONLY. Creates a one-line AP bill, auto-approves it, and pushes it to Acumatica '
-                . 'in one step, returning the Acumatica bill reference. Only works when this app is explicitly '
-                . 'configured as a staging tenant — otherwise it refuses and creates nothing. Use only for '
-                . 'deliberate write-path testing, never to record a real vendor bill.',
+            description: 'Creates a one-line AP bill, auto-approves it, and pushes it to Acumatica in one step, '
+                . 'returning the Acumatica bill reference. Bypasses the normal human approval gate — use only '
+                . 'when the user explicitly asks to create a bill this way, never on a whim.',
         );
     }
 
@@ -109,17 +104,6 @@ class CreateApBillTool extends Tool
     ): array {
         $app = $this->app;
         $company = $this->company;
-
-        $environment = (string) $app->get(AcumaticaConfigurationEnum::ACUMATICA_ENVIRONMENT->value, '');
-
-        if ($environment !== 'staging') {
-            return [
-                'created' => false,
-                'reason' => 'not_staging',
-                'message' => 'This app is not marked as an Acumatica staging tenant '
-                    . '(ACUMATICA_ENVIRONMENT must equal "staging") — refusing to create or push anything.',
-            ];
-        }
 
         $vendorQuery = Organization::query()
             ->where('apps_id', $app->getId())
@@ -217,8 +201,7 @@ class CreateApBillTool extends Tool
             'memo' => $memo,
             'bill_ref' => $reference,
             'acumatica_bill_id' => (string) $bill->get(AcumaticaCustomFieldEnum::BILL_ID->value, ''),
-            'next' => 'Pushed to Acumatica staging. bill_ref is the ERP reference — use it to find and void the '
-                . 'test record when done.',
+            'next' => 'Pushed to Acumatica. bill_ref is the ERP reference.',
         ];
     }
 }

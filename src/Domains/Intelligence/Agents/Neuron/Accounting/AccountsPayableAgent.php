@@ -28,25 +28,22 @@ use Override;
  * chat history, and write attribution to its OWN user (actingUser). On top of that core it adds the
  * AP read tools below.
  *
- * Mostly read-only: it answers questions and does not create, approve, or push REAL vendor bills —
- * that path stays human-gated (propose → a person approves → push to the ERP). The exceptions are
- * `create_ap_bill` and `void_ap_bill`, staging-only write-path smoke tests: the former creates +
- * auto-approves + pushes a bill to Acumatica in one shot, the latter reverses/closes one it created —
- * both only work when the app is explicitly marked ACUMATICA_ENVIRONMENT=staging; they refuse (write
- * or void nothing) otherwise. Never use either against a production-configured app.
+ * Mostly read-only for day-to-day questions, but it can also write for real: `create_ap_bill` creates +
+ * auto-approves + pushes a bill to Acumatica in one shot, bypassing the normal human-approval path
+ * (propose → a person approves → push to the ERP), and `void_ap_bill` reverses/closes one. Both write
+ * to whichever Acumatica tenant the app's connection points to — there is no separate staging/prod
+ * switch in this code, so only call either when the user explicitly asks for it.
  */
 #[AgentTypeDefinition(
     name: 'Accounts Payable Agent',
     description: 'AP teammate — answers what the company owes using synced ERP data (open bills, AP aging, '
-        . 'open purchase orders, vendors). Read-only for real bills; can create+push and void a staging-only '
-        . 'test bill.',
+        . 'open purchase orders, vendors), and can create+push or void a bill on explicit request.',
     provider: 'neuron',
     soul: 'You are the Accounts-Payable teammate. You answer questions about what the company owes its '
-        . 'vendors using your read tools. You are accountable and precise with numbers. You do NOT create, '
-        . 'approve, or push REAL bills to the ERP — you read and advise; that write path is human-gated. The '
-        . 'only exceptions are create_ap_bill and void_ap_bill, staging-only write-path test tools — never '
-        . 'treat them as a way to record or cancel a real vendor bill, and never call either unless the user '
-        . 'explicitly asks to test the write path.',
+        . 'vendors using your read tools. You are accountable and precise with numbers. create_ap_bill and '
+        . 'void_ap_bill bypass the normal human-approval path and write straight to whichever Acumatica '
+        . 'tenant is configured — only call either when the user explicitly asks you to create or void a bill '
+        . 'this way, never on your own initiative.',
     outputFormat: 'Plain text. Lead with the headline number; short paragraphs; lists only for distinct items.',
 )]
 class AccountsPayableAgent extends SystemUserAgent
@@ -89,11 +86,9 @@ class AccountsPayableAgent extends SystemUserAgent
             '- Resolving a vendor name off an invoice → find_vendor; if more than one candidate, confirm which.',
             '- Lead with the headline (e.g. "Total payables: $84,200 across 12 vendors; $19,500 overdue"), then '
             . 'the top 3-5 items. Be honest about freshness; never invent precision the data lacks.',
-            '- "Test the AP write path" / "create a test bill in staging" → create_ap_bill. It refuses on any '
-            . 'app not explicitly marked staging, so it is safe to call, but never use it to record a real '
-            . 'vendor bill and never call it unless the user explicitly asked for a write-path test.',
-            '- "Void/cancel/undo that test bill" / "clean up the test bill" → void_ap_bill, given the bill_id '
-            . 'from create_ap_bill. Same staging-only gate; never use it on a real vendor bill.',
+            '- "Create a bill for vendor X" → create_ap_bill, only when the user explicitly asks for it — it '
+            . 'writes straight to Acumatica, bypassing human approval.',
+            '- "Void/cancel/undo that bill" → void_ap_bill, given the bill_id from create_ap_bill.',
         ]);
     }
 }

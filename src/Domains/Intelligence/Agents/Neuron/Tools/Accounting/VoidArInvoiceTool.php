@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Connectors\Acumatica\Actions\VoidArInvoiceAction;
-use Kanvas\Connectors\Acumatica\Enums\ConfigurationEnum as AcumaticaConfigurationEnum;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -18,12 +17,10 @@ use Override;
 use Throwable;
 
 /**
- * Voids a previously-pushed AR invoice (and its cash receipt) in Acumatica — the cleanup counterpart to
- * CreateArInvoiceTool. Voids the payment, then creates and applies a Credit Memo against the invoice's
- * outstanding balance, closing both documents.
- *
- * STAGING ONLY, same hard gate as CreateArInvoiceTool: refuses to run — and voids nothing — unless the
- * app's ACUMATICA_ENVIRONMENT config is exactly 'staging'.
+ * Voids a previously-pushed AR invoice's cash receipt in Acumatica — the cleanup counterpart to
+ * CreateArInvoiceTool. Creates and releases a Refund for the same customer/amount, which nets the
+ * customer's cash position back to zero (the invoice and payment stay Closed — that's their normal
+ * end state once Arc pays the invoice in the same call that creates it).
  *
  * @see \Kanvas\Connectors\Acumatica\Actions\VoidArInvoiceAction — the actual void.
  */
@@ -36,11 +33,9 @@ class VoidArInvoiceTool extends Tool
     {
         parent::__construct(
             name: 'void_ar_invoice',
-            description: 'STAGING ONLY. Voids a previously-pushed AR invoice in Acumatica by voiding its cash '
-                . 'receipt and applying a Credit Memo against the remaining balance, closing both documents. '
-                . 'Only works when this app is explicitly configured as a staging tenant — otherwise it refuses '
-                . 'and voids nothing. Use only to clean up invoices created by create_ar_invoice, never on a '
-                . 'real customer invoice.',
+            description: 'Voids a previously-pushed AR invoice\'s cash receipt in Acumatica by creating and '
+                . 'releasing a Refund for the same amount, reversing the cash impact. Bypasses the normal human '
+                . 'approval gate — use only when the user explicitly asks to void an invoice this way.',
         );
     }
 
@@ -67,17 +62,6 @@ class VoidArInvoiceTool extends Tool
     {
         $app = $this->app;
 
-        $environment = (string) $app->get(AcumaticaConfigurationEnum::ACUMATICA_ENVIRONMENT->value, '');
-
-        if ($environment !== 'staging') {
-            return [
-                'voided' => false,
-                'reason' => 'not_staging',
-                'message' => 'This app is not marked as an Acumatica staging tenant '
-                    . '(ACUMATICA_ENVIRONMENT must equal "staging") — refusing to void anything.',
-            ];
-        }
-
         $invoice = Invoice::query()
             ->where('id', $invoice_id)
             ->where('apps_id', $app->getId())
@@ -93,7 +77,7 @@ class VoidArInvoiceTool extends Tool
         }
 
         try {
-            $creditMemoRef = new VoidArInvoiceAction($invoice)->execute();
+            $refundRef = new VoidArInvoiceAction($invoice)->execute();
         } catch (AcumaticaWriteException|Throwable $e) {
             return [
                 'voided' => false,
@@ -108,9 +92,9 @@ class VoidArInvoiceTool extends Tool
             'voided' => true,
             'invoice_id' => $invoice->getId(),
             'invoice_ref' => (string) $invoice->get(AcumaticaCustomFieldEnum::INVOICE_REF->value, ''),
-            'credit_memo_ref' => $creditMemoRef,
-            'next' => 'The cash receipt was voided and a Credit Memo was created and released against the '
-                . 'invoice in Acumatica staging — both documents should now show Closed with a zero balance.',
+            'refund_ref' => $refundRef,
+            'next' => 'A Refund was created and released for the cash receipt amount — the customer\'s cash '
+                . 'position is back to zero. The invoice and payment stay Closed, which is their normal state.',
         ];
     }
 }
