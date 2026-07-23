@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Connectors\ScrapperApi;
+namespace App\Console\Commands\Connectors\ScrapingDog;
 
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
@@ -10,10 +10,9 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
-use Kanvas\Connectors\ScrapperApi\Services\AmazonBestSellersParser;
-use Kanvas\Connectors\ScrapperApi\Services\ProductService;
-use Kanvas\Connectors\ScrapperApi\Services\ProductVariantService;
+use Kanvas\Connectors\ScrapingDog\Repositories\ScrapingDogRepository;
+use Kanvas\Connectors\ScrapingDog\Services\ProductService;
+use Kanvas\Connectors\ScrapingDog\Services\ProductVariantService;
 use Kanvas\Inventory\Bundles\Models\Bundle;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -28,11 +27,11 @@ use Kanvas\Social\Tags\Models\TagEntity;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
-class ScrapeAmazonBestSellersCommand extends Command
+class ScrapeScrapingDogBestSellersCommand extends Command
 {
     use KanvasJobsTrait;
 
-    protected $signature = 'kanvas:scrapper-amazon-bestsellers
+    protected $signature = 'kanvas:scrapingdog-amazon-bestsellers
                             {app_id : The application ID}
                             {company_id : The company ID}
                             {userId : The user ID}
@@ -43,7 +42,7 @@ class ScrapeAmazonBestSellersCommand extends Command
                             {--warehouse_id= : Warehouse ID (defaults to the region default warehouse)}
                             {--tag=Homepage : Tag applied to every imported best seller}';
 
-    protected $description = 'Scrape Amazon Best Sellers department by department, enrich each ASIN via the structured product endpoint and import them';
+    protected $description = 'Scrape Amazon Best Sellers via ScrapingDog department by department, enrich each ASIN and import them';
 
     public function handle(): int
     {
@@ -69,21 +68,21 @@ class ScrapeAmazonBestSellersCommand extends Command
         $limit = (int) $this->option('limit');
         $onlySlugs = array_filter(array_map('trim', explode(',', (string) $this->option('categories'))));
 
-        $repository = new ScrapperRepository($app);
+        $repository = new ScrapingDogRepository($app);
         $productService = new ProductService($channel, $warehouse, $user);
         $variantService = new ProductVariantService($channel, $warehouse, $user);
 
         $landingUrl = $this->option('url') ?: 'https://www.amazon.com/gp/bestsellers/?ref_=nav_cs_bestsellers';
 
         $this->info('Scraping landing: ' . $landingUrl);
-        $categories = AmazonBestSellersParser::parseCategoryLinks($repository->getRenderedPage($landingUrl));
+        $categories = $this->resolveCategories($repository->getBestSellerCategories($landingUrl));
 
         if (! empty($onlySlugs)) {
             $categories = array_values(array_filter($categories, fn ($c) => in_array($c['slug'], $onlySlugs, true)));
         }
 
         if (empty($categories)) {
-            $this->error('No category links parsed from the landing page.');
+            $this->error('No categories returned from the landing page.');
 
             return self::FAILURE;
         }
@@ -91,46 +90,66 @@ class ScrapeAmazonBestSellersCommand extends Command
         // Reset the current homepage selection: the scraped best sellers become the new one.
         $this->clearHomepageTag($app, $tag);
 
-        $success = 0;
+        $imported = 0;
+        $updated = 0;
         $failed = 0;
 
         foreach ($categories as $category) {
-            $products = AmazonBestSellersParser::parseProducts($repository->getRenderedPage($category['url']));
+            $items = $repository->getCategoryProducts($category['url']);
             if ($limit > 0) {
-                $products = array_slice($products, 0, $limit);
+                $items = array_slice($items, 0, $limit);
             }
 
-            $this->info(sprintf('Category "%s" (%s): %d product(s)', $category['name'], $category['slug'], count($products)));
+            $this->info(sprintf('Category "%s" (%s): %d product(s)', $category['name'], $category['slug'], count($items)));
 
-            foreach ($products as $item) {
+            foreach ($items as $item) {
+                $asin = (string) ($item['sku'] ?? $item['asin'] ?? '');
+                if ($asin === '') {
+                    continue;
+                }
+
+                $price = (float) ($item['price'] ?? 0);
+
                 try {
-                    // Un-delete a previously removed product so the importer reuses it instead of leaving it hidden.
-                    Products::withTrashed()->where('slug', Str::slug($item['asin']))->update(['is_deleted' => 0]);
-
-                    $structured = $repository->getByAsin($item['asin']);
-                    $merged = array_merge($structured, $item);
-
-                    // getByAsin's breadcrumb is sometimes empty — fall back to the department
-                    // we scraped it from, which always exists in the best-seller list.
-                    if (empty($merged['product_category'])) {
-                        $merged['product_category'] = $category['name'];
-                    }
-
-                    if (empty($merged['price']) && empty($merged['pricing'])) {
-                        $this->warn('  Skipping ' . $item['asin'] . ': no price');
+                    // Already downloaded before: just refresh its price + homepage flag, no re-import.
+                    if ($existing = $this->findExistingProduct($app, $company, $asin)) {
+                        $this->refreshExistingProduct($existing, $price, $tag, $app, $company);
+                        $updated++;
 
                         continue;
                     }
 
-                    $mapped = $productService->mapProduct($merged);
-                    $mapped['variants'] = $variantService->mapVariant($merged);
-                    // Always land it under the best-seller department (getByAsin's breadcrumb can be empty).
+                    $structured = $repository->getByAsin($asin);
+                    if (empty($structured)) {
+                        $this->warn('  Skipping ' . $asin . ': no product data');
+
+                        continue;
+                    }
+
+                    // mapProduct/mapVariant read the raw getByAsin shape — never pollute it with the
+                    // list payload (a float `price` there breaks extractPrice's preg_match).
+                    $structured['asin'] = $asin;
+                    if (empty($structured['product_category'])) {
+                        $structured['product_category'] = $category['name'];
+                    }
+
+                    $mapped = $productService->mapProduct($structured);
+                    $mapped['variants'] = $variantService->mapVariant($structured);
                     $mapped['categories'][] = [
                         'name' => $category['name'],
                         'slug' => Str::slug($category['name']),
                         'code' => Str::slug($category['name']),
                         'position' => 0,
                     ];
+
+                    // The best-seller list price is the reliable one — force it onto the import.
+                    $this->applyPrice($mapped, $price);
+
+                    if (empty($mapped['price'])) {
+                        $this->warn('  Skipping ' . $asin . ': no price');
+
+                        continue;
+                    }
 
                     $product = new ProductImporterAction(
                         ProductImporter::from($mapped),
@@ -143,17 +162,28 @@ class ScrapeAmazonBestSellersCommand extends Command
 
                     $product->addTag($tag, $app, company: $company);
 
-                    // The product is already imported with its category; a search-index hiccup
-                    // (e.g. Typesense indexing it before categories attach) must not fail it.
                     try {
                         $product->searchable();
                     } catch (Throwable $indexError) {
-                        $this->warn('  Imported but not indexed (' . $item['asin'] . '): ' . $indexError->getMessage());
+                        $this->warn('  Imported but not indexed (' . $asin . '): ' . $indexError->getMessage());
                     }
 
-                    $success++;
+                    $imported++;
                 } catch (Throwable $e) {
-                    $this->error('  Failed ' . $item['asin'] . ': ' . $e->getMessage());
+                    // A duplicate sku means we already had it — treat as downloaded and reprice.
+                    if (Str::contains($e->getMessage(), 'already been taken')
+                        && ($existing = $this->findExistingProduct($app, $company, $asin)) !== null) {
+                        try {
+                            $this->refreshExistingProduct($existing, $price, $tag, $app, $company);
+                            $updated++;
+
+                            continue;
+                        } catch (Throwable) {
+                            // fall through to the failure path
+                        }
+                    }
+
+                    $this->error('  Failed ' . $asin . ': ' . $e->getMessage());
                     $failed++;
                 }
             }
@@ -162,19 +192,165 @@ class ScrapeAmazonBestSellersCommand extends Command
         $this->info('');
         $this->info('=== Import Summary ===');
         $this->info('Categories: ' . count($categories));
-        $this->info('Imported: ' . $success);
+        $this->info('New imported: ' . $imported);
+        $this->info('Existing updated: ' . $updated);
         $this->info('Failed: ' . $failed);
         $this->info('======================');
 
+        $this->clearCategoriesCache($app, $company, $categories);
         $this->refreshBundles($app, $company, $tag);
 
         return self::SUCCESS;
     }
 
     /**
-     * Refresh every bundle whose name/slug matches a category with the freshly scraped
-     * (tagged) products of that category: add the new variants, soft-delete the stale ones.
+     * The productsTags(tag:) field lives on the Category type (@cacheRedis). Product-level
+     * invalidation doesn't touch it, so clear each scraped department's cache directly.
+     *
+     * @param array<int, array{name: string, url: string, slug: string}> $categories
      */
+    private function clearCategoriesCache(Apps $app, Companies $company, array $categories): void
+    {
+        foreach ($categories as $category) {
+            $model = Categories::query()
+                ->fromApp($app)
+                ->fromCompany($company)
+                ->notDeleted()
+                ->where(
+                    fn ($query) => $query->where('name', $category['name'])->orWhere('slug', Str::slug($category['name']))
+                )
+                ->first();
+
+            $model?->clearLightHouseCache(withKanvasConfiguration: false);
+        }
+    }
+
+    /**
+     * The importer rejects a duplicate variant sku, so match on that first — the product slug
+     * may differ from the asin when it was imported by another flow.
+     */
+    private function findExistingProduct(Apps $app, Companies $company, string $asin): ?Products
+    {
+        $variant = Variants::withTrashed()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->where('sku', $asin)
+            ->first();
+
+        if ($variant) {
+            $product = Products::withTrashed()->find($variant->products_id);
+            if ($product) {
+                return $product;
+            }
+        }
+
+        return Products::withTrashed()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->where('slug', Str::slug($asin))
+            ->first();
+    }
+
+    /**
+     * Restore + reprice an already-imported product and keep it on the homepage,
+     * without going through the importer (which rejects a duplicate sku).
+     */
+    private function refreshExistingProduct(Products $product, float $price, string $tag, Apps $app, Companies $company): void
+    {
+        if ($product->is_deleted) {
+            DB::connection('inventory')->table('products')
+                ->where('id', $product->getId())
+                ->update(['is_deleted' => 0]);
+            $product->is_deleted = false;
+        }
+
+        if ($price > 0) {
+            $variants = Variants::query()->where('products_id', $product->getId())->get();
+            if ($variants->isNotEmpty()) {
+                DB::connection('inventory')->table('products_variants_channels')
+                    ->whereIn('products_variants_id', $variants->pluck('id')->all())
+                    ->update(['price' => $price]);
+
+                // DB::table bypasses model events, so invalidate the @cacheRedis manually or the
+                // product/variant graph queries keep serving the stale price.
+                foreach ($variants as $variant) {
+                    $variant->clearLightHouseCache(withKanvasConfiguration: false);
+                }
+            }
+        }
+
+        $product->clearLightHouseCache(withKanvasConfiguration: false);
+        $product->addTag($tag, $app, company: $company);
+
+        try {
+            $product->searchable();
+        } catch (Throwable) {
+            // indexing is best-effort
+        }
+    }
+
+    /**
+     * Force the scraped list price onto the mapped product/variants/warehouses/channels.
+     */
+    private function applyPrice(array &$mapped, float $price): void
+    {
+        if ($price <= 0) {
+            return;
+        }
+
+        $mapped['price'] = $price;
+
+        foreach ($mapped['warehouses'] ?? [] as &$warehouse) {
+            $warehouse['price'] = $price;
+        }
+        unset($warehouse);
+
+        foreach ($mapped['variants'] ?? [] as &$variant) {
+            $variant['price'] = $price;
+            foreach ($variant['warehouses'] ?? [] as &$variantWarehouse) {
+                $variantWarehouse['price'] = $price;
+            }
+            unset($variantWarehouse);
+            foreach ($variant['channels'] ?? [] as &$variantChannel) {
+                $variantChannel['price'] = $price;
+            }
+            unset($variantChannel);
+        }
+        unset($variant);
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rawCategories
+     * @return array<int, array{name: string, url: string, slug: string}>
+     */
+    private function resolveCategories(array $rawCategories): array
+    {
+        $categories = [];
+        $seen = [];
+
+        foreach ($rawCategories as $raw) {
+            $name = trim((string) ($raw['name'] ?? ''));
+            $path = (string) ($raw['url'] ?? '');
+            if ($name === '' || $path === '') {
+                continue;
+            }
+
+            $slug = preg_match('#/zgbs/([^/]+)#', $path, $match) ? $match[1] : Str::slug($name);
+            if (isset($seen[$slug])) {
+                continue;
+            }
+            $seen[$slug] = true;
+
+            $categories[] = [
+                'name' => $name,
+                'url' => str_starts_with($path, 'http') ? $path : 'https://www.amazon.com' . $path,
+                'slug' => $slug,
+            ];
+        }
+
+        return $categories;
+    }
+
     private function refreshBundles(Apps $app, Companies $company, string $tag): void
     {
         $bundles = Bundle::query()->fromApp($app)->fromCompany($company)->notDeleted()->get();
@@ -229,8 +405,6 @@ class ScrapeAmazonBestSellersCommand extends Command
     }
 
     /**
-     * Variants of the products living in the category, narrowed to the scraped tag.
-     *
      * @return array<int, int>
      */
     private function categoryVariantIds(Apps $app, Companies $company, Categories $category, string $tag): array
