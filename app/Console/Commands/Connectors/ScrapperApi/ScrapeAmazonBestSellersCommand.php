@@ -7,6 +7,7 @@ namespace App\Console\Commands\Connectors\ScrapperApi;
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\ScrapperApi\Repositories\ScrapperRepository;
@@ -14,7 +15,6 @@ use Kanvas\Connectors\ScrapperApi\Services\AmazonBestSellersParser;
 use Kanvas\Connectors\ScrapperApi\Services\ProductService;
 use Kanvas\Connectors\ScrapperApi\Services\ProductVariantService;
 use Kanvas\Inventory\Bundles\Models\Bundle;
-use Kanvas\Inventory\Bundles\Models\BundleItem;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
@@ -208,8 +208,8 @@ class ScrapeAmazonBestSellersCommand extends Command
                 continue;
             }
 
-            $added = $this->assignVariantsToBundle($bundle, $variantIds);
-            $removed = $this->softDeleteMissingBundleItems($bundle, $variantIds);
+            $added = $this->assignVariantsToBundle($bundle->getId(), $variantIds);
+            $removed = $this->softDeleteMissingBundleItems($bundle->getId(), $variantIds);
             $refreshed++;
 
             $this->info(sprintf(
@@ -276,29 +276,34 @@ class ScrapeAmazonBestSellersCommand extends Command
     }
 
     /**
+     * bundle_items is written via the query builder on purpose: the Eloquent model boots
+     * CompaniesIdTrait/AppsIdTrait which need an authed user + columns the table doesn't have.
+     *
      * @param array<int, int> $variantIds
      */
-    private function assignVariantsToBundle(Bundle $bundle, array $variantIds): int
+    private function assignVariantsToBundle(int $bundleId, array $variantIds): int
     {
+        $table = DB::connection('inventory')->table('bundle_items');
         $added = 0;
-        foreach ($variantIds as $variantId) {
-            // withTrashed so a previously soft-deleted item is reactivated, not duplicated
-            // (the global soft-delete scope would otherwise hide it and firstOrNew would insert a dup).
-            $item = BundleItem::withTrashed()->firstOrNew([
-                'bundle_id' => $bundle->getId(),
-                'variant_id' => $variantId,
-            ]);
 
-            if (! $item->exists) {
-                $item->quantity = 1;
-                $item->unit = 'unit';
+        foreach ($variantIds as $variantId) {
+            $row = $table->where('bundle_id', $bundleId)->where('variant_id', $variantId)->first();
+
+            if ($row === null) {
+                DB::connection('inventory')->table('bundle_items')->insert([
+                    'bundle_id' => $bundleId,
+                    'variant_id' => $variantId,
+                    'quantity' => 1,
+                    'unit' => 'unit',
+                    'is_deleted' => 0,
+                ]);
                 $added++;
-            } elseif ($item->is_deleted) {
+            } elseif ((int) $row->is_deleted === 1) {
+                DB::connection('inventory')->table('bundle_items')
+                    ->where('id', $row->id)
+                    ->update(['is_deleted' => 0]);
                 $added++;
             }
-
-            $item->is_deleted = 0;
-            $item->save();
         }
 
         return $added;
@@ -307,10 +312,10 @@ class ScrapeAmazonBestSellersCommand extends Command
     /**
      * @param array<int, int> $keepVariantIds
      */
-    private function softDeleteMissingBundleItems(Bundle $bundle, array $keepVariantIds): int
+    private function softDeleteMissingBundleItems(int $bundleId, array $keepVariantIds): int
     {
-        return BundleItem::query()
-            ->where('bundle_id', $bundle->getId())
+        return DB::connection('inventory')->table('bundle_items')
+            ->where('bundle_id', $bundleId)
             ->where('is_deleted', 0)
             ->whereNotIn('variant_id', $keepVariantIds)
             ->update(['is_deleted' => 1]);

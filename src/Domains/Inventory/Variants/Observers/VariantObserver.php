@@ -11,10 +11,11 @@ class VariantObserver
 {
     public function saved(Variants $variant): void
     {
-        $variant->product->clearLightHouseCache(withKanvasConfiguration: false);
+        // product() is null when the variant is orphaned or its product is soft-deleted.
+        $variant->product?->clearLightHouseCache(withKanvasConfiguration: false);
         $variant->clearLightHouseCache(withKanvasConfiguration: false);
 
-        if ($variant->app->get('product_increase_weight_by_image_count')) {
+        if ($variant->product && $variant->app->get('product_increase_weight_by_image_count')) {
             $variant->product->weight += 0.5;
             $variant->product->save();
         }
@@ -34,6 +35,6 @@ class VariantObserver
 
     public function deleted(Variants $variant): void
     {
-        $variant->product->clearLightHouseCache(withKanvasConfiguration: false);
+        $variant->product?->clearLightHouseCache(withKanvasConfiguration: false);
     }
 }
