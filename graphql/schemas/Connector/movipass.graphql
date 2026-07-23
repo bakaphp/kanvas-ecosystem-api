@@ -45,6 +45,14 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\EnableCorporateModeMutation@enable"
         )
+
+    setMechanicServiceType(
+        id: ID!
+        service_type: String!
+    ): User!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\MechanicMutation@setServiceType"
+        )
 }
 
 enum MechanicAvailabilityEnum {
@@ -64,6 +72,7 @@ extend type Query @guard {
     mechanics(
         company_id: ID
         availability: MechanicAvailabilityEnum
+        service_type: String
         where: _
             @whereConditions(columnsEnum: MechanicWhereColumn)
         orderBy: _
@@ -142,6 +151,7 @@ extend type Query @guard {
         format: ExportFormat!
         company_id: ID
         availability: MechanicAvailabilityEnum
+        service_type: String
         field_mapper: Mixed
         metadata: ExportMetadataInput
         timezone: String
