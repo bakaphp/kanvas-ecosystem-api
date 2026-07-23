@@ -15,30 +15,7 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Throwable;
 
-/**
- * Voids a previously-pushed AP bill in Acumatica — the API equivalent of the manual UI flow (Actions ->
- * Reverse -> release the Debit Adj. -> APPLY into Checks and Payments -> Load Documents -> Release).
- *
- * Reverse-engineered against a live staging tenant: there is no single "void" action, so this drives
- * the same five steps Acumatica's own screens perform, across one authenticated session:
- *   1. `Bill/ReverseBill` on the original bill's id — creates a new Debit Adj. (Type='Debit Adj.')
- *      document against the same vendor. The action itself returns no entity data, so the new
- *      document is identified by diffing the vendor's Debit Adj. set before/after (see
- *      findNewDebitAdjustment()).
- *   2. Clear the Debit Adj.'s Hold flag (it's created On Hold) and release it via `Bill/ReleaseBill` —
- *      both against the SAME `Bill` entity the original bill lives on, since AP301000 (Bills and
- *      Adjustments) treats Bill/Debit Adj./Credit Adj. as one entity distinguished only by Type.
- *   3. Apply it against the original bill via the `Check` entity — NOT `Payment` (that entity is
- *      AR-only: its schema has no `Vendor` field at all, confirmed against this tenant's swagger; the
- *      AP-side equivalent, matching AP302000 Checks and Payments, is `Check`). Critically, `Check` must
- *      be addressed by its NATURAL KEY (Type + ReferenceNbr) here, not by `id` — the same GUID that
- *      works for step 2's `Bill`-entity calls returns "No entity satisfies the condition" when used
- *      against `Check`; these are distinct contract entities over the same underlying document.
- *   4. `Check/ReleaseCheck` on the same id — commits the application, closing both documents.
- *
- * Releases in this tenant come back as HTTP 202 (async), so each release is followed by a short poll
- * rather than trusted to have taken effect immediately.
- */
+/** Voids a previously-pushed AP bill in Acumatica by reversing it: ReverseBill -> release -> apply via the Check entity -> ReleaseCheck. */
 class VoidApBillAction
 {
     use HasAcumaticaWriter;
@@ -92,11 +69,7 @@ class VoidApBillAction
             function (Client $client) use ($billGuid, $billRef, $vendorCode, $vendorRef, $amount): string {
                 $before = $this->debitAdjustmentsByVendorRef($client, $vendorCode, $vendorRef);
 
-                // This tenant sometimes takes long enough on ReverseBill that the HTTP client gives up
-                // before Acumatica replies, even though the reversal completed server-side (confirmed
-                // against a live run: the new Debit Adj. showed up despite a client-side timeout here).
-                // The poll below is the real source of truth either way, so a timeout on this call alone
-                // isn't fatal — only a poll that never finds a new document is.
+                // A client timeout here doesn't mean it failed server-side; the poll below is the real check.
                 try {
                     $client->invokeAction('Bill', 'ReverseBill', ['entity' => ['id' => $billGuid]]);
                 } catch (Throwable) {
@@ -207,10 +180,7 @@ class VoidApBillAction
         throw new AcumaticaWriteException("Debit Adj. {$id} did not reach an applicable status in time.");
     }
 
-    /**
-     * Confirms ReleaseCheck actually committed the application — a Check that's still Open (not Closed)
-     * means the release didn't take, whether or not the invokeAction call itself came back in time.
-     */
+    /** Confirms ReleaseCheck actually committed the application (Status = Closed). */
     private function waitForCheckClosed(Client $client, string $id): void
     {
         for ($attempt = 1; $attempt <= self::MAX_POLL_ATTEMPTS; $attempt++) {

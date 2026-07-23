@@ -24,18 +24,7 @@ use Override;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
-/**
- * Creates a one-line AP bill, auto-approves it (acting as the agent's own user), and pushes it to
- * Acumatica synchronously — returning the ERP bill reference in the same call.
- *
- * This bypasses the normal human-in-the-loop gate (draft -> pending_approval -> a person approves) on
- * purpose. The only gate is AcumaticaWriteService::assertWriteEnabled() (ACUMATICA_WRITE_ENABLED per
- * app) — whichever Acumatica tenant that app's connection points to is where this writes.
- *
- * @see \Kanvas\Scribe\Bills\Actions\SubmitBillForApprovalAction — still recorded in the approval queue
- *      for traceability even though approval here is automatic, not human.
- * @see \Kanvas\Connectors\Acumatica\Actions\PushBillToAcumaticaAction — the actual outbound push.
- */
+/** Creates a one-line AP bill, auto-approves it, and pushes it to Acumatica, bypassing the normal human-approval gate. */
 #[AgentTool(name: 'Create AP Bill')]
 class CreateApBillTool extends Tool
 {

@@ -16,14 +16,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-/**
- * Voids a previously-pushed AR invoice's cash receipt in Acumatica — the cleanup counterpart to
- * CreateArInvoiceTool. Creates and releases a Refund for the same customer/amount, which nets the
- * customer's cash position back to zero (the invoice and payment stay Closed — that's their normal
- * end state once Arc pays the invoice in the same call that creates it).
- *
- * @see \Kanvas\Connectors\Acumatica\Actions\VoidArInvoiceAction — the actual void.
- */
+/** Voids a previously-pushed AR invoice's cash receipt in Acumatica — the cleanup counterpart to CreateArInvoiceTool. */
 #[AgentTool(name: 'Void AR Invoice')]
 class VoidArInvoiceTool extends Tool
 {

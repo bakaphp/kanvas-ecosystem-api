@@ -30,11 +30,7 @@ use Override;
  * order #X" over receivables (Scribe invoices) + customer orders (Souk).
  *
  * Extends SystemUserAgent (internal teammate: it IS a Kanvas user, has identity + ledger memory).
- * Mostly read-only for day-to-day questions, but it can also write for real: `create_ar_invoice`
- * creates + issues + pushes an invoice to Acumatica, then applies and pushes a cash receipt against it,
- * in one shot; `void_ar_invoice` reverses one it created. Both write to whichever Acumatica tenant the
- * app's connection points to — there is no separate staging/prod switch in this code, so only call
- * either when the user explicitly asks for it.
+ * Mostly read-only, but create_ar_invoice/void_ar_invoice write for real, bypassing human approval — only on explicit request.
  *
  * Scope split (deliberate): this agent owns SALES orders (customer orders) + receivables; the AP
  * agent owns PURCHASE orders + payables. A sales order is a CUSTOMER order (revenue side), never an

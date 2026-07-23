@@ -16,22 +16,7 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoiceLine;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 
-/**
- * Pushes a Kanvas-issued Invoice out to Acumatica as an AR Invoice (create + Release) — the AR mirror
- * of PushBillToAcumaticaAction.
- *
- * Idempotent — an invoice already carrying its ACUMATICA_INVOICE_ID custom field is not re-pushed.
- *
- * Unlike bills, InvoiceLine carries no expense/revenue account or subaccount at all (Scribe doesn't
- * model revenue-side GL coding per line), so there's no per-account subaccount derivation to run —
- * every line falls back to the tenant's ACUMATICA_DEFAULT_SUBACCOUNT unconditionally.
- *
- * IMPORTANT: PushPaymentToAcumaticaAction::arApplications() matches a payment's DocumentsToApply
- * against the Kanvas invoice's OWN `invoice_number` field, not a separately-tracked Acumatica
- * reference. For a payment applied later to actually match in Acumatica, the caller MUST overwrite
- * the Kanvas invoice's `invoice_number` with the ReferenceNbr this action returns, once it returns,
- * before allocating/pushing a payment against it.
- */
+/** Pushes a Kanvas invoice to Acumatica as an AR Invoice (create + Release), the AR mirror of PushBillToAcumaticaAction. */
 class PushInvoiceToAcumaticaAction
 {
     use HasAcumaticaWriter;
@@ -93,18 +78,7 @@ class PushInvoiceToAcumaticaAction
         return $referenceNbr;
     }
 
-    /**
-     * OData filter to adopt an Acumatica invoice this push may have already created on a prior,
-     * partially failed attempt.
-     *
-     * Disabled for now: "CustomerRef" is writable on Invoice but is not a valid $filter-able EDM
-     * property on this endpoint version — attempting it throws a raw KeyNotFoundException deep in
-     * Acumatica's OData filter binder (confirmed against a live push), not a clean 400. Skipping the
-     * pre-check just means a retry-after-partial-failure creates a second invoice instead of adopting
-     * the first — acceptable until a real filterable field is confirmed.
-     *
-     * @return array<string, mixed>|null
-     */
+    /** Disabled — CustomerRef isn't $filter-able on this endpoint's Invoice entity (throws a raw KeyNotFoundException). */
     private function existingInvoiceQuery(string $customerCode): ?array
     {
         return null;
@@ -123,17 +97,11 @@ class PushInvoiceToAcumaticaAction
             'Date' => $this->invoice->issued_date?->toDateString(),
             'DueDate' => $this->invoice->due_date?->toDateString(),
             'CurrencyID' => $this->invoice->currency,
-            // A bare API-created customer (no Customer Class) has no default Location/Terms for
-            // Acumatica to derive — without these, the invoice comes back with "Location cannot be
-            // empty" / "Terms cannot be empty" (confirmed against a live push). MAIN + NET60 mirror
-            // the defaults this tenant already uses elsewhere (e.g. the AP vendor side).
+            // A bare API-created customer has no default Location/Terms for Acumatica to derive.
             'LocationID' => 'MAIN',
             'Terms' => 'NET60',
             'Hold' => false,
-            // This tenant's credit verification intermittently flags brand-new customers into Credit
-            // Hold regardless of CreditLimit (confirmed against live pushes — some invoices for the
-            // same customer at the same limit landed Open, others Credit Hold). Explicitly clearing it
-            // here is the reliable override, matching the manual checkbox on the Invoice screen.
+            // Intermittently flags brand-new customers into Credit Hold regardless of CreditLimit.
             'CreditHold' => false,
         ]);
 
@@ -163,11 +131,7 @@ class PushInvoiceToAcumaticaAction
         return $lines;
     }
 
-    /**
-     * Find-or-create the customer in Acumatica (push path). Creates the ERP customer lazily when the
-     * org has no code yet — only reached on a real push, so a draft invoice never spawns a junk
-     * customer. Mirrors EnsureAcumaticaVendorAction's shape for the AP side.
-     */
+    /** Find-or-create the customer in Acumatica, mirroring EnsureAcumaticaVendorAction for the AP side. */
     private function ensureCustomerCode(): string
     {
         $customer = $this->customerOrg();
@@ -190,9 +154,7 @@ class PushInvoiceToAcumaticaAction
             AcumaticaPayload::wrap([
                 'CustomerName' => $name,
                 'Email' => $this->invoice->billable_email,
-                // A bare API-created customer with CreditLimit=0 lands every invoice in Credit Hold,
-                // and Release doesn't handle that gracefully (confirmed against a live push) — give
-                // new customers enough headroom that a normal invoice never trips the hold.
+                // CreditLimit=0 lands every invoice in Credit Hold — give new customers headroom.
                 'CreditLimit' => 999999.0,
             ]),
         );

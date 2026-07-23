@@ -16,13 +16,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-/**
- * Voids a previously-pushed AP bill in Acumatica — the cleanup counterpart to CreateApBillTool. Creates
- * and releases a Debit Adjustment applied against the bill's full outstanding balance, closing both
- * documents (the API equivalent of the manual Reverse -> APPLY -> Load Documents -> Release flow).
- *
- * @see \Kanvas\Connectors\Acumatica\Actions\VoidApBillAction — the actual void.
- */
+/** Voids a previously-pushed AP bill in Acumatica — the cleanup counterpart to CreateApBillTool. */
 #[AgentTool(name: 'Void AP Bill')]
 class VoidApBillTool extends Tool
 {

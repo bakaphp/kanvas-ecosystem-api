@@ -17,22 +17,7 @@ use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Payments\Models\Payment;
 use Throwable;
 
-/**
- * Voids a previously-pushed AR invoice's cash receipt in Acumatica — the AR mirror of
- * VoidApBillAction. Once a cash receipt (`Payment` entity, Type='Payment') is Released/Closed, its
- * application is read-only: `VoidPayment` is a no-op against a Closed payment (confirmed against a
- * live push — 204 response, zero effect after repeated polling), and re-PUTting the application with
- * AmountPaid=0 is silently ignored the same way (confirmed live too). Acumatica's own accounting model
- * doesn't delete a Closed cash receipt anyway — the correct reversal is a `Refund` (same `Payment`
- * entity, Type='Refund') for the same customer/amount, which nets the customer's cash position back to
- * zero without touching the original (now-historical) invoice or payment records. This mirrors how
- * VoidApBillAction handles the AP side: the original documents stay Closed, and an offsetting document
- * does the reversal.
- *
- * `OrigTransaction` looked like the natural link back to the original payment, but the API silently
- * drops it (confirmed live — it comes back empty on the created record), so the link between the
- * refund and what it's reversing is carried only in `Description`/`PaymentRef`, not a queryable field.
- */
+/** Voids a previously-pushed AR invoice's cash receipt in Acumatica via an offsetting Refund — VoidPayment is a no-op on an already-Closed receipt. */
 class VoidArInvoiceAction
 {
     use HasAcumaticaWriter;

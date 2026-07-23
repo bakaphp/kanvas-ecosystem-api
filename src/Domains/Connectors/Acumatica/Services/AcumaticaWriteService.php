@@ -100,11 +100,7 @@ class AcumaticaWriteService
         }
     }
 
-    /**
-     * Run an arbitrary sequence of calls against a single authenticated session — for write flows that
-     * don't fit the single create[+release] shape `push()` covers (e.g. an action invocation followed
-     * by a natural-key update and a second action). The callback receives the raw `Client`.
-     */
+    /** Runs a callback (receiving the raw Client) against a single authenticated session, for multi-call write flows push() doesn't cover. */
     public function withSession(callable $callback): mixed
     {
         $this->assertWriteEnabled();

@@ -28,11 +28,7 @@ use Override;
  * chat history, and write attribution to its OWN user (actingUser). On top of that core it adds the
  * AP read tools below.
  *
- * Mostly read-only for day-to-day questions, but it can also write for real: `create_ap_bill` creates +
- * auto-approves + pushes a bill to Acumatica in one shot, bypassing the normal human-approval path
- * (propose → a person approves → push to the ERP), and `void_ap_bill` reverses/closes one. Both write
- * to whichever Acumatica tenant the app's connection points to — there is no separate staging/prod
- * switch in this code, so only call either when the user explicitly asks for it.
+ * Mostly read-only, but create_ap_bill/void_ap_bill write for real, bypassing human approval — only on explicit request.
  */
 #[AgentTypeDefinition(
     name: 'Accounts Payable Agent',

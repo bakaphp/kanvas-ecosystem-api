@@ -27,18 +27,7 @@ use Override;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
-/**
- * Creates a one-line AR invoice, issues it (posts the JE), pushes it to Acumatica, then applies a
- * cash receipt against it and pushes that too — returning both the invoice and payment ERP refs in
- * one call. The AR mirror of CreateApBillTool.
- *
- * Invoices have no human-approval gate (unlike bills): CreateInvoiceAction -> IssueInvoiceAction is a
- * straight 2-step lifecycle, so there's no submit/approve step to call here.
- *
- * @see \Kanvas\Connectors\Acumatica\Actions\PushInvoiceToAcumaticaAction — pushing the payment
- *      afterward relies on the Kanvas invoice_number matching the ReferenceNbr Acumatica assigned to
- *      the invoice, so this tool overwrites invoice_number with that ref before allocating payment.
- */
+/** Creates a one-line AR invoice, issues it, pushes it to Acumatica, then applies and pushes a cash receipt — the AR mirror of CreateApBillTool. */
 #[AgentTool(name: 'Create AR Invoice')]
 class CreateArInvoiceTool extends Tool
 {
@@ -164,17 +153,13 @@ class CreateArInvoiceTool extends Tool
             ];
         }
 
-        // PushPaymentToAcumaticaAction matches applications against the invoice's OWN invoice_number,
-        // so it must equal the ReferenceNbr Acumatica just assigned before we allocate the payment.
+        // Payment application matches against the invoice's own invoice_number.
         $invoice->invoice_number = $invoiceRef;
         $invoice->saveQuietly();
 
         $allocation = new AllocateInvoicePaymentAction(
             invoice: $invoice,
             amountNative: $amount,
-            // 'MANUAL' isn't a configured Payment Method code in this tenant, and Acumatica rejects an
-            // empty PaymentRef outright (confirmed against a live push) — CHECK is a real, active,
-            // AR-enabled code here, and the reference must be non-empty for the push to succeed.
             method: PaymentMethodEnum::CHECK,
             cashAccountSubType: AccountSubTypeEnum::CASH_CHECKING,
             reference: 'TEST-' . $invoiceRef,
@@ -227,13 +212,7 @@ class CreateArInvoiceTool extends Tool
         );
     }
 
-    /**
-     * This tenant's Acumatica credit verification intermittently flags a brand-new customer into
-     * Credit Hold regardless of CreditLimit — the same customer at the same limit has landed both
-     * Open and Credit Hold across separate pushes (confirmed live). That looks like a race between the
-     * credit check and Release on Acumatica's own side, not something a payload field controls. Retry
-     * a few times with a short pause rather than failing on the first hit.
-     */
+    /** Retries a push a few times on "Release button is disabled" — intermittent on this tenant's Credit Hold check. */
     private function retryOnReleaseDisabled(callable $push, int $maxAttempts = 3): string
     {
         $lastException = null;
