@@ -32,10 +32,9 @@ class Client
         $this->client = new GuzzleClient([
             'base_uri' => rtrim((string) $config['baseUrl'], '/') . '/',
             'cookies' => $this->cookieJar,
-            // This tenant's action invocations (Release, Reverse, etc.) intermittently run well past
-            // 60s server-side before responding — a short client timeout aborts the connection while
-            // the action still completes, leaving the caller unable to see the result. 180s mirrors the
-            // patience already given at the nginx layer (proxy_read_timeout).
+            // Action invocations (Release, Reverse, etc.) on this tenant intermittently run past 60s
+            // before responding, even though they complete server-side — a short client timeout would
+            // abort the connection while the caller loses visibility into the actual result.
             'timeout' => 180,
             'headers' => [
                 'Content-Type' => 'application/json',
