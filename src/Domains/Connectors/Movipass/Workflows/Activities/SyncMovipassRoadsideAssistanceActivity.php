@@ -14,12 +14,14 @@ use Kanvas\Connectors\Movipass\Actions\CheckMechanicArrivalAction;
 use Kanvas\Connectors\Movipass\Actions\GenerateRoadsideAssistancePinAction;
 use Kanvas\Connectors\Movipass\Actions\NotifyAvailableMechanicsAction;
 use Kanvas\Connectors\Movipass\Actions\PrepareRoadsideAssistanceCaseAction;
+use Kanvas\Connectors\Movipass\Actions\SendRoadsideChatMessagePushAction;
 use Kanvas\Connectors\Movipass\Actions\ValidateRoadsideAssistancePinAction;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -49,6 +51,11 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                         'message' => 'Order is not a roadside assistance type',
                     ];
                 }
+
+                // The client's chat message never touches the order, but this sync fires on every
+                // roadside order change — so use it to detect and push any new chat message. A
+                // last-pushed tracker in the metadata keeps it idempotent across syncs.
+                $this->pushPendingRoadsideChat($order);
 
                 $eventName = $additionalParams['currentEventTypeName'] ?? null;
 
@@ -572,6 +579,58 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             'data' => $order->toArray(),
             'response' => $order->toArray(),
         ];
+    }
+
+    /**
+     * The roadside chat is a Social Message in a dm-{customer}-{mechanic} channel; it never lands
+     * on the order. Since this sync fires on every roadside order change, resolve that channel from
+     * the order's participants, and push the latest chat message to the counterparty if it hasn't
+     * been pushed yet. The last-pushed id is tracked in the assistance_case metadata for idempotency.
+     */
+    private function pushPendingRoadsideChat($order): void
+    {
+        $metadata = $order->metadata ?? [];
+        $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
+
+        $customerId = (int) $order->users_id;
+        $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
+
+        if ($customerId <= 0 || $mechanicId <= 0) {
+            return;
+        }
+
+        $channel = Channel::query()
+            ->where('apps_id', $order->apps_id)
+            ->whereIn('slug', [
+                'dm-' . $customerId . '-' . $mechanicId,
+                'dm-' . $mechanicId . '-' . $customerId,
+            ])
+            ->where('is_deleted', 0)
+            ->first();
+
+        if ($channel === null) {
+            return;
+        }
+
+        $message = $channel->messages()
+            ->whereHas('messageType', fn ($query) => $query->where('verb', SendRoadsideChatMessagePushAction::ROADSIDE_CHAT_VERB))
+            ->orderByDesc('messages.id')
+            ->first();
+
+        if ($message === null) {
+            return;
+        }
+
+        $lastPushed = (int) ($assistanceCase['last_pushed_chat_message_id'] ?? 0);
+
+        if ((int) $message->id <= $lastPushed) {
+            return;
+        }
+
+        new SendRoadsideChatMessagePushAction($channel, $message)->execute();
+
+        $assistanceCase['last_pushed_chat_message_id'] = (int) $message->id;
+        $this->saveAssistanceCaseMetadata($order, $metadata, $assistanceCase);
     }
 
     private function saveAssistanceCaseMetadata($order, array $metadata, array $assistanceCase): void
