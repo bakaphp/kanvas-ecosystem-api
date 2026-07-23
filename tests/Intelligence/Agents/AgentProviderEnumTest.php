@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
-use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
+use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Tests\TestCase;
 
 class AgentProviderEnumTest extends TestCase
