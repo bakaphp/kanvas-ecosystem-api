@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\ProjectManagement\ProjectManagerAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
@@ -47,10 +48,16 @@ class ProjectPmToolsTest extends TestCase
 
     private function makeAgent(Apps $app, Companies $company, Users $user): Agent
     {
+        // Executor-capable agents run on a BaseKanvasAgent handler (what canExecuteBoardWork checks).
+        $type = AgentType::factory()->create([
+            'apps_id' => $app->getId(),
+            'handler' => ProjectManagerAgent::class,
+        ]);
+
         return Agent::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
-            ->create(['user_id' => $user->getId(), 'is_active' => true]);
+            ->create(['user_id' => $user->getId(), 'agent_type_id' => $type->id, 'is_active' => true]);
     }
 
     private function makeProject(Apps $app, Companies $company, Users $user): Project

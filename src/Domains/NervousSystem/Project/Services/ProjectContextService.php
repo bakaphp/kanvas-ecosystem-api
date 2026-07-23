@@ -13,6 +13,7 @@ use Kanvas\NervousSystem\Project\DataTransferObject\ProjectContextBundle;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Models\ProjectMember;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 use Throwable;
 
 /**
@@ -47,7 +48,24 @@ class ProjectContextService
             'priority' => $project->priority,
             'completion_pct' => $project->completion_pct,
             'deadline_at' => $project->deadline_at?->toIso8601String(),
+            // The human to escalate to (@mention) when work can't be assigned automatically.
+            'owner_handle' => $this->userHandle($project, $project->owner),
         ];
+    }
+
+    private function userHandle(Project $project, ?Users $user): ?string
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        try {
+            $displayname = trim($user->getAppProfile($project->app)->displayname);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return $displayname !== '' ? '@' . $displayname : null;
     }
 
     /**
@@ -67,6 +85,11 @@ class ProjectContextService
                 // member has no resolvable handle — the PM can't notify them, so don't offer one.
                 'handle' => $this->memberHandle($project, $member),
                 'agent_id' => $member->agent_id,
+                // What this agent is for — so the PM assigns by fit, not by name.
+                'description' => $member->agent?->description ?? $member->agent?->type?->description,
+                // Only agents that can actually own a plan / move the board. Never assign executable
+                // work (assign_plan/assign_task) to a member where this is false — they'll stall or fail.
+                'can_execute' => (bool) $member->agent?->canExecuteBoardWork(),
             ])
             ->all();
     }
@@ -89,18 +112,7 @@ class ProjectContextService
      */
     private function memberHandle(Project $project, ProjectMember $member): ?string
     {
-        $user = $member->user;
-        if ($user === null) {
-            return null;
-        }
-
-        try {
-            $displayname = trim((string) $user->getAppProfile($project->app)->displayname);
-        } catch (Throwable) {
-            return null;
-        }
-
-        return $displayname !== '' ? '@' . $displayname : null;
+        return $this->userHandle($project, $member->user);
     }
 
     /**

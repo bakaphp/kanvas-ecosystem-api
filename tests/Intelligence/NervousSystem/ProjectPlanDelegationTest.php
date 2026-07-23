@@ -8,9 +8,11 @@ use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\ProjectManagement\ProjectManagerAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CommentOnNervousSystemPlanTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSystemMemberTool;
 use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
@@ -19,6 +21,7 @@ use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Jobs\WakeWorkerForPlanJob;
 use Kanvas\NervousSystem\Project\Models\Project;
+use Kanvas\NervousSystem\Project\Models\ProjectMember;
 use Kanvas\Users\Models\Users;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -41,10 +44,16 @@ class ProjectPlanDelegationTest extends TestCase
 
     private function makeAgent(Apps $app, Companies $company, Users $user, bool $active = true): Agent
     {
+        // Executor-capable agents run on a BaseKanvasAgent handler (what canExecuteBoardWork checks).
+        $type = AgentType::factory()->create([
+            'apps_id' => $app->getId(),
+            'handler' => ProjectManagerAgent::class,
+        ]);
+
         return Agent::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
-            ->create(['user_id' => $user->getId(), 'is_active' => $active]);
+            ->create(['user_id' => $user->getId(), 'agent_type_id' => $type->id, 'is_active' => $active]);
     }
 
     private function makeProject(Apps $app, Companies $company, Users $user): Project
@@ -99,6 +108,25 @@ class ProjectPlanDelegationTest extends TestCase
         );
     }
 
+    public function testAssignPlanRejectsNonExecutorAgent(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+
+        // A plain factory agent has no BaseKanvasAgent handler → can't execute board work.
+        $nonExecutor = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId(), 'is_active' => true]);
+
+        $tool = new AssignNervousSystemPlanTool()->withContext($app, $company, $user);
+        $result = $tool((int) $plan->id, (int) $nonExecutor->id);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertNull(Plan::query()->where('id', $plan->id)->value('agent_id'));
+    }
+
     public function testAssignPlanReturnsErrorForUnknownIds(): void
     {
         [$app, $company, $user] = $this->context();
@@ -120,6 +148,48 @@ class ProjectPlanDelegationTest extends TestCase
         $this->assertSame((int) $plan->id, (int) $result['plan_id']);
     }
 
+    public function testFindAndAddMemberByNameAddsExecutorAgent(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+
+        $type = AgentType::factory()->create([
+            'apps_id' => $app->getId(),
+            'handler' => ProjectManagerAgent::class,
+        ]);
+        $named = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create([
+                'user_id' => $user->getId(),
+                'agent_type_id' => $type->id,
+                'is_active' => true,
+                'name' => 'Roberlina Builder',
+            ]);
+
+        $tool = new FindAndAddNervousSystemMemberTool()->withContext($app, $company, $user);
+        $result = $tool((int) $project->id, 'Roberlina');
+
+        $this->assertTrue($result['found']);
+        $this->assertSame((int) $named->id, (int) $result['agent_id']);
+        $this->assertTrue($result['can_execute']);
+        $this->assertSame(
+            1,
+            (int) ProjectMember::query()->where('project_id', $project->id)->where('agent_id', $named->id)->count(),
+        );
+    }
+
+    public function testFindAndAddMemberReturnsNotFoundForUnknownName(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+
+        $tool = new FindAndAddNervousSystemMemberTool()->withContext($app, $company, $user);
+        $result = $tool((int) $project->id, 'Zxqwtnobody12345');
+
+        $this->assertFalse($result['found']);
+    }
+
     public function testPmExposesAssignPlanTool(): void
     {
         [$app, $company, $user] = $this->context();
@@ -134,6 +204,7 @@ class ProjectPlanDelegationTest extends TestCase
         $names = array_map(fn (object $t): string => (string) $t->getName(), $tools);
 
         $this->assertContains('assign_nervous_system_plan', $names);
+        $this->assertContains('find_and_add_nervous_system_member', $names);
     }
 
     public function testPlanIsANamedAgentEntity(): void

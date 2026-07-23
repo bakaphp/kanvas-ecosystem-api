@@ -47,6 +47,7 @@ use Throwable;
  * @property bool $is_swarm_mission
  * @property int|null $users_id
  * @property int|null $parent_plan_id
+ * @property int|null $project_id
  * @property string|null $entity_namespace
  * @property int|null $entity_id
  * @property string $plan_type

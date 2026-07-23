@@ -61,8 +61,11 @@ class WakeWorkerForPlanJob implements ShouldQueue
             return;
         }
 
-        // Container agents self-drive via their own runtime; inactive agents don't run.
-        if (! $agent->is_active || $agent->isContainerRuntime()) {
+        // Only run agents that can actually execute board work: active, in-process, tool-capable
+        // Neuron agents. Container/ADK self-drive elsewhere; CRM/Lead-context agents would fatal on a
+        // Plan/Task entity. A non-executor should never have been assigned (assign_plan guards it) —
+        // this is the safety net.
+        if (! $agent->is_active || ! $agent->canExecuteBoardWork()) {
             return;
         }
 

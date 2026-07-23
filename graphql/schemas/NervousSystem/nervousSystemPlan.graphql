@@ -77,6 +77,7 @@ input CreateNervousSystemPlanInput {
     plan_type: String!
     agent_id: Int
     users_id: Int
+    project_id: Int
     parent_plan_id: Int
     swarm_id: Int
     is_swarm_mission: Boolean
@@ -98,6 +99,7 @@ input CreateNervousSystemPlanInput {
 
 input UpdateNervousSystemPlanInput {
     title: String
+    project_id: Int
     description: String
     status: String
     priority: Int
@@ -141,6 +143,7 @@ extend type Query @guard {
                     "status"
                     "priority"
                     "parent_plan_id"
+                    "project_id"
                 ]
             )
         orderBy: _

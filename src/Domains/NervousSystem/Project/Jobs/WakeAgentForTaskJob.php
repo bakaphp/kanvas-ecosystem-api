@@ -59,8 +59,10 @@ class WakeAgentForTaskJob implements ShouldQueue
             return;
         }
 
-        // Container agents self-drive via their own runtime; inactive agents don't run.
-        if (! $agent->is_active || $agent->isContainerRuntime()) {
+        // Only active, in-process, tool-capable Neuron agents can execute board work. Container/ADK
+        // self-drive elsewhere; CRM/Lead-context agents would fatal on a Task entity. assign_task
+        // guards this; this is the safety net.
+        if (! $agent->is_active || ! $agent->canExecuteBoardWork()) {
             return;
         }
 

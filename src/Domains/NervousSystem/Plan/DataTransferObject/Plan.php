@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan as PlanModel;
+use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\Data;
 
@@ -40,6 +41,7 @@ class Plan extends Data
         public readonly ?string $statusPill = null,
         /** @var array<int, array<string, mixed>> */
         public readonly array $files = [],
+        public readonly ?Project $project = null,
     ) {
     }
 
@@ -62,6 +64,11 @@ class Plan extends Data
         /** @var AgentSwarm|null $swarm */
         $swarm = isset($data['swarm_id'])
             ? AgentSwarm::getByIdFromCompanyApp((int) $data['swarm_id'], $company, $app)
+            : null;
+
+        /** @var Project|null $project */
+        $project = isset($data['project_id'])
+            ? Project::getByIdFromCompanyApp((int) $data['project_id'], $company, $app)
             : null;
 
         return new self(
@@ -89,6 +96,7 @@ class Plan extends Data
             impactSummary: $data['impact_summary'] ?? null,
             statusPill: $data['status_pill'] ?? null,
             files: (array) ($data['files'] ?? []),
+            project: $project,
         );
     }
 
@@ -105,6 +113,15 @@ class Plan extends Data
                 : null)
             : ($plan->swarm_id !== null
                 ? AgentSwarm::getByIdFromCompanyApp((int) $plan->swarm_id, $company, $app)
+                : null);
+
+        /** @var Project|null $project */
+        $project = array_key_exists('project_id', $data)
+            ? ($data['project_id'] !== null
+                ? Project::getByIdFromCompanyApp((int) $data['project_id'], $company, $app)
+                : null)
+            : ($plan->project_id !== null
+                ? Project::getByIdFromCompanyApp((int) $plan->project_id, $company, $app)
                 : null);
 
         return new self(
@@ -144,6 +161,7 @@ class Plan extends Data
                 ? $data['status_pill']
                 : $plan->getRawOriginal('status_pill'),
             files: (array) ($data['files'] ?? []),
+            project: $project,
         );
     }
 }

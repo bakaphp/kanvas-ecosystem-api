@@ -81,6 +81,11 @@ class AssignNervousSystemTaskTool extends Tool
             return ['error' => "Agent {$agent_id} was not found — pick an agent_id from the project members."];
         }
 
+        if (! $agent->canExecuteBoardWork()) {
+            return ['error' => "Agent '{$agent->name}' can't execute task work (it's a remote/container or "
+                . 'non-executor agent). Assign to a member whose can_execute is true.'];
+        }
+
         $task->agent_id = $agent->getId();
         $task->saveQuietly();
 

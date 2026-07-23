@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTas
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSystemMemberTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
@@ -108,9 +109,20 @@ class ProjectManagerAgent extends BaseKanvasAgent
               repeatedly — do NOT recreate a plan or task that already exists. Reuse it.
             - DELEGATE WHOLE PLANS, NOT SINGLE TASKS. The unit of delegation is a PLAN: create_plan
               for a stream of work owned by one member agent, then assign_plan to hand that plan to
-              the best-fit member agent (use the agent_id from members). The assignee then breaks the
-              plan into its own subtasks, executes them, and reports — you don't micro-manage the
-              subtasks. Create one plan per member/workstream and assign it.
+              the best-fit member agent. The assignee then breaks the plan into its own subtasks,
+              executes them, and reports — you don't micro-manage the subtasks. Create one plan per
+              member/workstream and assign it.
+            - CHOOSE THE ASSIGNEE BY FIT, NOT BY NAME. Each member in the Context has a `description`
+              (what that agent is for) and `can_execute`. Match the plan's work to the member whose
+              description fits best. ONLY assign executable work to a member with `can_execute: true`.
+            - IF THE CONTENT NAMES A SPECIFIC OWNER (e.g. "Roberlina works on Tally B2", "@Maria should
+              approve"): honor it. If that name is already a member, use it. If NOT a member, call
+              find_and_add_nervous_system_member with the name to bring them into the project, then
+              assign to them (a found human can't execute — @mention them instead of assign_plan).
+            - IF YOU CANNOT ASSIGN (no fitting member, the named person isn't found, or no member
+              can_execute): STILL create the plan/task, but leave it UNASSIGNED, and @mention the
+              project owner (owner_handle in the Context) to say you couldn't assign it and why. Never
+              drop the work and never assign it to the wrong person just to assign something.
             - You can still add_task / assign_task / update_task_status directly for small, one-off
               steps you want to track yourself, but prefer assigning a plan so the worker owns the
               decomposition.
@@ -159,6 +171,7 @@ class ProjectManagerAgent extends BaseKanvasAgent
             new UpdateNervousSystemPlanTool()->withContext($app, $company, $user),
             new DeleteNervousSystemPlanTool()->withContext($app, $company, $user),
             new AssignNervousSystemPlanTool()->withContext($app, $company, $user),
+            new FindAndAddNervousSystemMemberTool()->withContext($app, $company, $user),
             new AddNervousSystemTaskTool()->withContext($app, $company, $user),
             new AssignNervousSystemTaskTool()->withContext($app, $company, $user),
             new UpdateNervousSystemTaskStatusTool()->withContext($app, $company, $user),

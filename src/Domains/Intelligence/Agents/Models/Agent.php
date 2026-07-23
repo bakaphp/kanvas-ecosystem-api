@@ -29,6 +29,7 @@ use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
+use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Models\BaseModel;
@@ -332,6 +333,22 @@ class Agent extends BaseModel
         }
 
         return $this->type?->handler === OpenClawAgentHandler::class;
+    }
+
+    /**
+     * Can this agent execute Nervous System board work (own a plan, create/move tasks)? Only in-process
+     * Neuron agents (BaseKanvasAgent) can — they're the ones the kernel injects the board toolset into.
+     * Container/ADK agents run remotely (no local tools), and other in-process types (e.g. CRMAgent)
+     * assume a Lead/People entity and fatal when handed a Plan/Task. Use this to keep those out of the
+     * executor role instead of assigning work they can't do (or that crashes them).
+     */
+    public function canExecuteBoardWork(): bool
+    {
+        $handler = $this->type?->handler;
+
+        return is_string($handler)
+            && ! $this->isContainerRuntime()
+            && is_a($handler, BaseKanvasAgent::class, true);
     }
 
     /**
