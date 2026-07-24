@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a6c3476e3e28279c09758345be0d70be",
+    "content-hash": "29a953ffbc92a38a20558021af73c2bf",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -1095,6 +1095,78 @@
             "time": "2023-12-20T15:40:13+00:00"
         },
         {
+            "name": "composer/ca-bundle",
+            "version": "1.5.13",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/composer/ca-bundle.git",
+                "reference": "c008272789979f709f7fcb32c2ecf1d2db5e84e5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/composer/ca-bundle/zipball/c008272789979f709f7fcb32c2ecf1d2db5e84e5",
+                "reference": "c008272789979f709f7fcb32c2ecf1d2db5e84e5",
+                "shasum": ""
+            },
+            "require": {
+                "ext-openssl": "*",
+                "ext-pcre": "*",
+                "php": "^7.2 || ^8.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^1.10",
+                "phpunit/phpunit": "^8 || ^9",
+                "psr/log": "^1.0 || ^2.0 || ^3.0",
+                "symfony/process": "^4.0 || ^5.0 || ^6.0 || ^7.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Composer\\CaBundle\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Jordi Boggiano",
+                    "email": "j.boggiano@seld.be",
+                    "homepage": "http://seld.be"
+                }
+            ],
+            "description": "Lets you find a path to the system CA bundle, and includes a fallback to the Mozilla CA bundle.",
+            "keywords": [
+                "cabundle",
+                "cacert",
+                "certificate",
+                "ssl",
+                "tls"
+            ],
+            "support": {
+                "irc": "irc://irc.freenode.org/composer",
+                "issues": "https://github.com/composer/ca-bundle/issues",
+                "source": "https://github.com/composer/ca-bundle/tree/1.5.13"
+            },
+            "funding": [
+                {
+                    "url": "https://packagist.com",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/composer",
+                    "type": "github"
+                }
+            ],
+            "time": "2026-07-18T12:35:13+00:00"
+        },
+        {
             "name": "composer/pcre",
             "version": "3.4.0",
             "source": {
@@ -1374,16 +1446,16 @@
         },
         {
             "name": "doctrine/dbal",
-            "version": "4.4.3",
+            "version": "4.4.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/dbal.git",
-                "reference": "61e730f1658814821a85f2402c945f3883407dec"
+                "reference": "fb9e0ffe15e1590e24dc61c0c0a23f9a33ee42ce"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/dbal/zipball/61e730f1658814821a85f2402c945f3883407dec",
-                "reference": "61e730f1658814821a85f2402c945f3883407dec",
+                "url": "https://api.github.com/repos/doctrine/dbal/zipball/fb9e0ffe15e1590e24dc61c0c0a23f9a33ee42ce",
+                "reference": "fb9e0ffe15e1590e24dc61c0c0a23f9a33ee42ce",
                 "shasum": ""
             },
             "require": {
@@ -1460,7 +1532,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/dbal/issues",
-                "source": "https://github.com/doctrine/dbal/tree/4.4.3"
+                "source": "https://github.com/doctrine/dbal/tree/4.4.4"
             },
             "funding": [
                 {
@@ -1476,7 +1548,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-03-20T08:52:12+00:00"
+            "time": "2026-07-21T14:34:40+00:00"
         },
         {
             "name": "doctrine/deprecations",
@@ -4581,16 +4653,16 @@
         },
         {
             "name": "laravel/octane",
-            "version": "v2.17.5",
+            "version": "v2.18.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/octane.git",
-                "reference": "058ae4d7109eed40836dc42960f9388b9bf71f73"
+                "reference": "404a2f98370c5dea7fb65ecce03c807e8d324074"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/octane/zipball/058ae4d7109eed40836dc42960f9388b9bf71f73",
-                "reference": "058ae4d7109eed40836dc42960f9388b9bf71f73",
+                "url": "https://api.github.com/repos/laravel/octane/zipball/404a2f98370c5dea7fb65ecce03c807e8d324074",
+                "reference": "404a2f98370c5dea7fb65ecce03c807e8d324074",
                 "shasum": ""
             },
             "require": {
@@ -4666,7 +4738,7 @@
                 "issues": "https://github.com/laravel/octane/issues",
                 "source": "https://github.com/laravel/octane"
             },
-            "time": "2026-06-04T09:05:08+00:00"
+            "time": "2026-07-21T13:23:39+00:00"
         },
         {
             "name": "laravel/prompts",
@@ -4729,16 +4801,16 @@
         },
         {
             "name": "laravel/reverb",
-            "version": "v1.10.2",
+            "version": "v1.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/reverb.git",
-                "reference": "43a5c0a99b1aaba33dc32f97fcf51f182dd8c8ac"
+                "reference": "dca414f38e0f7acc237890ca18edfb5f3d535f86"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/reverb/zipball/43a5c0a99b1aaba33dc32f97fcf51f182dd8c8ac",
-                "reference": "43a5c0a99b1aaba33dc32f97fcf51f182dd8c8ac",
+                "url": "https://api.github.com/repos/laravel/reverb/zipball/dca414f38e0f7acc237890ca18edfb5f3d535f86",
+                "reference": "dca414f38e0f7acc237890ca18edfb5f3d535f86",
                 "shasum": ""
             },
             "require": {
@@ -4802,9 +4874,9 @@
             ],
             "support": {
                 "issues": "https://github.com/laravel/reverb/issues",
-                "source": "https://github.com/laravel/reverb/tree/v1.10.2"
+                "source": "https://github.com/laravel/reverb/tree/v1.11.0"
             },
-            "time": "2026-05-10T15:47:52+00:00"
+            "time": "2026-06-25T02:41:17+00:00"
         },
         {
             "name": "laravel/sanctum",
@@ -5077,16 +5149,16 @@
         },
         {
             "name": "laravel/socialite",
-            "version": "v5.28.0",
+            "version": "v5.29.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/socialite.git",
-                "reference": "4c131ff4b24d8881a9c8fe4eecb5ffeff9803f26"
+                "reference": "cd343a5841f02292af119ee607edc71300c9ae4f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/socialite/zipball/4c131ff4b24d8881a9c8fe4eecb5ffeff9803f26",
-                "reference": "4c131ff4b24d8881a9c8fe4eecb5ffeff9803f26",
+                "url": "https://api.github.com/repos/laravel/socialite/zipball/cd343a5841f02292af119ee607edc71300c9ae4f",
+                "reference": "cd343a5841f02292af119ee607edc71300c9ae4f",
                 "shasum": ""
             },
             "require": {
@@ -5145,7 +5217,7 @@
                 "issues": "https://github.com/laravel/socialite/issues",
                 "source": "https://github.com/laravel/socialite"
             },
-            "time": "2026-06-12T03:24:05+00:00"
+            "time": "2026-07-01T13:50:23+00:00"
         },
         {
             "name": "laravel/tinker",
@@ -6744,19 +6816,20 @@
         },
         {
             "name": "mindee/mindee",
-            "version": "v2.9.0",
+            "version": "v3.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mindee/mindee-api-php.git",
-                "reference": "1719007baa7b4a20d8854fade053b361d1657be5"
+                "reference": "12c7fd32a28752155dbea0da78eede915dbb83dd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/1719007baa7b4a20d8854fade053b361d1657be5",
-                "reference": "1719007baa7b4a20d8854fade053b361d1657be5",
+                "url": "https://api.github.com/repos/mindee/mindee-api-php/zipball/12c7fd32a28752155dbea0da78eede915dbb83dd",
+                "reference": "12c7fd32a28752155dbea0da78eede915dbb83dd",
                 "shasum": ""
             },
             "require": {
+                "composer/ca-bundle": "^1.5",
                 "ext-curl": "*",
                 "ext-fileinfo": "*",
                 "ext-json": "*",
@@ -6769,8 +6842,11 @@
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.38",
                 "madewithlove/license-checker": "^v1.0",
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-deprecation-rules": "^2.0",
                 "phpunit/phpunit": "^9.6",
-                "squizlabs/php_codesniffer": "^3.7"
+                "projektgopher/whisky": "^0.7.4",
+                "rector/rector": "^2.4"
             },
             "suggest": {
                 "ext-imagick": "Required for PDF rasterization and image processing features",
@@ -6793,9 +6869,9 @@
             "description": "Mindee Client Library for PHP",
             "support": {
                 "issues": "https://github.com/mindee/mindee-api-php/issues",
-                "source": "https://github.com/mindee/mindee-api-php/tree/v2.9.0"
+                "source": "https://github.com/mindee/mindee-api-php/tree/v3.1.0"
             },
-            "time": "2026-05-11T08:25:44+00:00"
+            "time": "2026-07-22T13:47:36+00:00"
         },
         {
             "name": "mll-lab/graphql-php-scalars",
@@ -7724,16 +7800,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.69.0",
+            "version": "v6.69.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "d9ecb9cae8d29ef0ed6d6d7cd60693a3df5a7bde"
+                "reference": "b893131e33e2304646695369efd27a22599d1dc3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/d9ecb9cae8d29ef0ed6d6d7cd60693a3df5a7bde",
-                "reference": "d9ecb9cae8d29ef0ed6d6d7cd60693a3df5a7bde",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/b893131e33e2304646695369efd27a22599d1dc3",
+                "reference": "b893131e33e2304646695369efd27a22599d1dc3",
                 "shasum": ""
             },
             "require": {
@@ -7851,7 +7927,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2026-07-20T07:25:22+00:00"
+            "time": "2026-07-23T07:10:50+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -12054,16 +12130,16 @@
         },
         {
             "name": "spatie/laravel-health",
-            "version": "1.40.0",
+            "version": "1.40.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-health.git",
-                "reference": "6fa735589c04fd99970b434fc22dddbdc716a264"
+                "reference": "e66c00d430a0f7a5b179b48b8d09149e18fa2232"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/6fa735589c04fd99970b434fc22dddbdc716a264",
-                "reference": "6fa735589c04fd99970b434fc22dddbdc716a264",
+                "url": "https://api.github.com/repos/spatie/laravel-health/zipball/e66c00d430a0f7a5b179b48b8d09149e18fa2232",
+                "reference": "e66c00d430a0f7a5b179b48b8d09149e18fa2232",
                 "shasum": ""
             },
             "require": {
@@ -12135,7 +12211,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-health/issues",
-                "source": "https://github.com/spatie/laravel-health/tree/1.40.0"
+                "source": "https://github.com/spatie/laravel-health/tree/1.40.1"
             },
             "funding": [
                 {
@@ -12143,7 +12219,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-05-28T08:55:40+00:00"
+            "time": "2026-07-22T07:01:14+00:00"
         },
         {
             "name": "spatie/laravel-image-optimizer",
@@ -17416,16 +17492,16 @@
         },
         {
             "name": "webonyx/graphql-php",
-            "version": "v15.34.0",
+            "version": "v15.35.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/webonyx/graphql-php.git",
-                "reference": "c72fd0f82e7b992aaf35516ebf860a4729be206f"
+                "reference": "b67de08a46d42a5f606e455851882c27d3a3aba8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/c72fd0f82e7b992aaf35516ebf860a4729be206f",
-                "reference": "c72fd0f82e7b992aaf35516ebf860a4729be206f",
+                "url": "https://api.github.com/repos/webonyx/graphql-php/zipball/b67de08a46d42a5f606e455851882c27d3a3aba8",
+                "reference": "b67de08a46d42a5f606e455851882c27d3a3aba8",
                 "shasum": ""
             },
             "require": {
@@ -17438,14 +17514,14 @@
                 "amphp/http-server": "^2.1 || ^3",
                 "dms/phpunit-arraysubset-asserts": "dev-master",
                 "ergebnis/composer-normalize": "^2.28",
-                "friendsofphp/php-cs-fixer": "3.95.11",
+                "friendsofphp/php-cs-fixer": "3.95.15",
                 "mll-lab/php-cs-fixer-config": "5.13.0",
                 "nyholm/psr7": "^1.5",
                 "phpbench/phpbench": "^1.2",
                 "phpstan/extension-installer": "^1.1",
                 "phpstan/phpstan": "2.2.5",
                 "phpstan/phpstan-phpunit": "2.0.18",
-                "phpstan/phpstan-strict-rules": "2.0.11",
+                "phpstan/phpstan-strict-rules": "2.0.12",
                 "phpunit/phpunit": "^9.5 || ^10.5.21 || ^11",
                 "psr/http-message": "^1 || ^2",
                 "react/http": "^1.6",
@@ -17480,7 +17556,7 @@
             ],
             "support": {
                 "issues": "https://github.com/webonyx/graphql-php/issues",
-                "source": "https://github.com/webonyx/graphql-php/tree/v15.34.0"
+                "source": "https://github.com/webonyx/graphql-php/tree/v15.35.0"
             },
             "funding": [
                 {
@@ -17492,7 +17568,7 @@
                     "type": "open_collective"
                 }
             ],
-            "time": "2026-07-05T18:03:26+00:00"
+            "time": "2026-07-23T06:59:54+00:00"
         },
         {
             "name": "yakovenko/laravel-lighthouse-graphql-multi-schema",

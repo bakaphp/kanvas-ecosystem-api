@@ -14,12 +14,14 @@ use Kanvas\Connectors\Movipass\Actions\CheckMechanicArrivalAction;
 use Kanvas\Connectors\Movipass\Actions\GenerateRoadsideAssistancePinAction;
 use Kanvas\Connectors\Movipass\Actions\NotifyAvailableMechanicsAction;
 use Kanvas\Connectors\Movipass\Actions\PrepareRoadsideAssistanceCaseAction;
+use Kanvas\Connectors\Movipass\Actions\SendRoadsideChatMessagePushAction;
 use Kanvas\Connectors\Movipass\Actions\ValidateRoadsideAssistancePinAction;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -53,22 +55,20 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 $eventName = $additionalParams['currentEventTypeName'] ?? null;
 
                 if ($eventName === WorkflowEnum::CREATED->value) {
-                    return $this->handleCreated($order, $app);
+                    $result = $this->handleCreated($order, $app);
+                } elseif ($eventName === WorkflowEnum::STATUS_TRANSITION->value) {
+                    $result = $this->handleStatusTransition($order, $params['to_status'] ?? null);
+                } elseif ($eventName === WorkflowEnum::UPDATED->value) {
+                    $result = $this->handleUpdated($order, $app);
+                } else {
+                    $result = [
+                        'order' => $order->getId(),
+                        'status' => 'success',
+                        'message' => 'No roadside assistance processing required for this event',
+                    ];
                 }
 
-                if ($eventName === WorkflowEnum::STATUS_TRANSITION->value) {
-                    return $this->handleStatusTransition($order, $params['to_status'] ?? null);
-                }
-
-                if ($eventName === WorkflowEnum::UPDATED->value) {
-                    return $this->handleUpdated($order, $app);
-                }
-
-                return [
-                    'order' => $order->getId(),
-                    'status' => 'success',
-                    'message' => 'No roadside assistance processing required for this event',
-                ];
+                return [...$result, ...$this->pushPendingRoadsideChat($order)];
             },
             company: $order->company,
         );
@@ -571,6 +571,72 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             'message' => 'Roadside assistance status transitioned to ' . $toStatus,
             'data' => $order->toArray(),
             'response' => $order->toArray(),
+        ];
+    }
+
+    /**
+     * The roadside chat is a Social Message in a dm-{customer}-{mechanic} channel; it never lands
+     * on the order. Since this sync fires on every roadside order change, resolve that channel from
+     * the order's participants, and push the latest chat message to the counterparty if it hasn't
+     * been pushed yet. The last-pushed id is tracked in the assistance_case metadata for idempotency.
+     */
+    private function pushPendingRoadsideChat($order): array
+    {
+        $metadata = $order->metadata ?? [];
+        $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
+
+        $customerId = (int) $order->users_id;
+        $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
+
+        if ($customerId <= 0 || $mechanicId <= 0) {
+            return ['chat_push' => 'skipped', 'chat_push_reason' => 'no mechanic assigned'];
+        }
+
+        $channel = Channel::query()
+            ->where('apps_id', $order->apps_id)
+            ->whereIn('slug', [
+                'dm-' . $customerId . '-' . $mechanicId,
+                'dm-' . $mechanicId . '-' . $customerId,
+            ])
+            ->where('is_deleted', 0)
+            ->first();
+
+        if ($channel === null) {
+            return ['chat_push' => 'skipped', 'chat_push_reason' => 'chat channel not found'];
+        }
+
+        $message = $channel->messages()
+            ->whereHas('messageType', fn ($query) => $query->where('verb', SendRoadsideChatMessagePushAction::ROADSIDE_CHAT_VERB))
+            ->orderByDesc('messages.id')
+            ->first();
+
+        if ($message === null) {
+            return ['chat_push' => 'skipped', 'chat_push_reason' => 'no chat message in channel'];
+        }
+
+        $lastPushed = (int) ($assistanceCase['last_pushed_chat_message_id'] ?? 0);
+
+        if ((int) $message->id <= $lastPushed) {
+            return ['chat_push' => 'skipped', 'chat_push_reason' => 'already pushed'];
+        }
+
+        $notified = new SendRoadsideChatMessagePushAction($channel, $message)->execute();
+
+        if ($notified === 0) {
+            return $this->failWorkflow([
+                'chat_push' => 'failed',
+                'chat_push_reason' => 'resolved a new chat message but notified 0 recipients',
+                'chat_push_message_id' => (int) $message->id,
+            ]);
+        }
+
+        $assistanceCase['last_pushed_chat_message_id'] = (int) $message->id;
+        $this->saveAssistanceCaseMetadata($order, $metadata, $assistanceCase);
+
+        return [
+            'chat_push' => 'sent',
+            'chat_push_message_id' => (int) $message->id,
+            'chat_push_recipients' => $notified,
         ];
     }
 

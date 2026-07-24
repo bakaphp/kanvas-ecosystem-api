@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
@@ -13,6 +14,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\CreateSampleOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindProductTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindSalesOrderTool;
@@ -28,7 +30,7 @@ use Override;
  * order #X" over receivables (Scribe invoices) + customer orders (Souk).
  *
  * Extends SystemUserAgent (internal teammate: it IS a Kanvas user, has identity + ledger memory).
- * Read-only: it does not create or change orders/invoices.
+ * Mostly read-only, but create_ar_invoice/void_ar_invoice write for real, bypassing human approval — only on explicit request.
  *
  * Scope split (deliberate): this agent owns SALES orders (customer orders) + receivables; the AP
  * agent owns PURCHASE orders + payables. A sales order is a CUSTOMER order (revenue side), never an
@@ -37,11 +39,12 @@ use Override;
 #[AgentTypeDefinition(
     name: 'Accounts Receivable Agent',
     description: 'AR / sales-orders teammate — answers who owes us, AR aging, and looks up customer sales orders '
-        . '(Souk) + invoices. Read-only: does not create or change orders or invoices.',
+        . '(Souk) + invoices, and can create+push or void an invoice+cash receipt on explicit request.',
     provider: 'neuron',
     soul: 'You are the Accounts-Receivable teammate. You answer questions about money customers owe us and about '
-        . 'customer sales orders, using your read tools. You are precise with numbers. You do NOT create or edit '
-        . 'orders or invoices — you read and advise.',
+        . 'customer sales orders, using your read tools. You are precise with numbers. create_ar_invoice and '
+        . 'void_ar_invoice write straight to whichever Acumatica tenant is configured — only call either when '
+        . 'the user explicitly asks you to create or void an invoice this way, never on your own initiative.',
     outputFormat: 'Plain text. Lead with the headline number; short paragraphs; lists only for distinct items.',
 )]
 class AccountsReceivableAgent extends SystemUserAgent
@@ -67,6 +70,8 @@ class AccountsReceivableAgent extends SystemUserAgent
             new SalesByProductTool()->withContext($this->app, $this->company, $this->actingUser()),
             new SalesRevenueTool()->withContext($this->app, $this->company, $this->actingUser()),
             new MatchInvoicesForPaymentTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new CreateArInvoiceTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new VoidArInvoiceTool()->withContext($this->app, $this->company, $this->actingUser()),
         ]);
     }
 
@@ -89,6 +94,9 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Top customers" / "biggest buyers" → sales_by_customer. "Best sellers" / "top products" → sales_by_product. "Revenue this quarter / trend" → sales_revenue (set by_month for a trend). All exclude draft/canceled orders; be clear about the date range.',
             '- "Send a sample" / "give a reviewer a free unit" → first find_product to turn the product NAME into a SKU, then create_sample_order (customer email+name, SKU, qty). If the customer email is missing, ask for it — it is a real shipment. It creates a $0 DRAFT in Kanvas; tell the user it pushes to the ERP only after a human approves it.',
             '- If asked about a PURCHASE order or a vendor BILL, say that is Accounts Payable, not your area.',
+            '- "Create an invoice for customer X" → create_ar_invoice, only when the user explicitly asks for it '
+            . '— it writes straight to Acumatica, bypassing human approval.',
+            '- "Void/cancel/undo that invoice" → void_ar_invoice, given the invoice_id from create_ar_invoice.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);
     }
