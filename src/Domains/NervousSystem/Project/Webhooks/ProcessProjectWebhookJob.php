@@ -45,14 +45,15 @@ class ProcessProjectWebhookJob extends ProcessWebhookJob
             return ['status' => 'ignored', 'reason' => 'empty content'];
         }
 
-        $message = new IngestToProjectAction(
+        $ingest = new IngestToProjectAction(
             project: $project,
             type: $type,
             content: $content,
-        )->execute();
+        );
+        $message = $ingest->execute();
 
         return [
-            'status' => 'success',
+            'status' => $ingest->wasDuplicate() ? 'duplicate' : 'success',
             'type' => $type->value,
             'message_id' => $message->getId(),
         ];

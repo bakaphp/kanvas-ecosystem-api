@@ -10,6 +10,7 @@ use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
 use Kanvas\Social\Messages\Models\Message;
+use Throwable;
 
 /**
  * Social parsed the mentions; here we react to the ones that are agent-users. Each mentioned
@@ -39,6 +40,12 @@ class RespondToAgentMentionListener
 
         $awaitingUpload = ! $message->files()->exists();
 
+        // The thread as [self, parent, …, root] via AsTree's materialized path (one query): the mention
+        // resolves to a project via this message OR any ancestor, and the PM's reply threads under the
+        // root (last element) so it stays flat.
+        $ancestors = $message->joinAncestors();
+        $threadRootId = (int) $ancestors->last()->getId();
+
         foreach ($event->mentionedUserIds as $userId) {
             $agent = Agent::fromUser(
                 $userId,
@@ -53,12 +60,13 @@ class RespondToAgentMentionListener
             // If the mention is on a project channel whose PM is this agent, drive it through the
             // project's execution loop (full context + board tools + ledger) instead of a plain
             // mention reply — and skip the generic responder so the PM never double-answers.
-            $project = $this->projectForPmMention($message, $agent);
+            $project = $this->projectForPmMention($ancestors, $agent);
             if ($project !== null) {
                 WakeAgentForProjectJob::dispatch(
                     $project,
                     WakeAgentForProjectJob::REASON_MENTION,
-                    $this->mentionText($message),
+                    $this->mentionTriggerWithAuthor($message),
+                    $threadRootId,
                 );
 
                 continue;
@@ -75,10 +83,26 @@ class RespondToAgentMentionListener
     }
 
     /**
-     * The project whose default/any channel this message is on AND whose PM is the mentioned agent —
-     * null when the mention isn't a project-PM mention.
+     * The project whose channel this message — or any thread ancestor — is on AND whose PM is the
+     * mentioned agent; null otherwise. Ancestors count because a threaded reply carries only parent_id
+     * and often isn't re-tagged onto the project channel.
+     *
+     * @param iterable<Message> $ancestors the mention message followed by its parent chain up to the root
      */
-    private function projectForPmMention(Message $message, Agent $agent): ?Project
+    private function projectForPmMention(iterable $ancestors, Agent $agent): ?Project
+    {
+        foreach ($ancestors as $node) {
+            $project = $this->projectOnMessageChannels($node, $agent);
+
+            if ($project !== null) {
+                return $project;
+            }
+        }
+
+        return null;
+    }
+
+    private function projectOnMessageChannels(Message $message, Agent $agent): ?Project
     {
         $entityIds = $message->channels()
             ->where('entity_namespace', Project::class)
@@ -94,6 +118,63 @@ class RespondToAgentMentionListener
         }
 
         return null;
+    }
+
+    /**
+     * The mention text prefixed with WHO sent it, so the PM can resolve "me"/"I"/"my" to the actual
+     * requester and reply to them — otherwise it only sees the bare text and guesses the wrong person.
+     */
+    private function mentionTriggerWithAuthor(Message $message): string
+    {
+        $text = $this->mentionText($message);
+        $author = $message->user;
+        if ($author === null) {
+            return $text;
+        }
+
+        $name = trim((string) ($author->firstname ?? '') . ' ' . (string) ($author->lastname ?? ''));
+        if ($name === '') {
+            $name = (string) ($author->displayname ?? 'a member');
+        }
+
+        try {
+            $displayname = trim($author->getAppProfile($message->app)->displayname);
+            $handle = $displayname !== '' ? '@' . $displayname : null;
+        } catch (Throwable) {
+            $handle = null;
+        }
+
+        $label = $handle !== null ? " ({$handle})" : '';
+
+        // Authoritative agent-vs-human check: the sender's user IS an agent iff an Agent record points
+        // at it. Tell the PM which id to assign to so a name shared by a human and an agent can't get
+        // it wrong (e.g. human "kaioken" users_id=667 vs agent "Kaioken" agent_id=2631).
+        $senderAgent = Agent::fromUser($author->getId(), $message->app, $message->company);
+
+        if ($senderAgent !== null) {
+            return sprintf(
+                'This message was sent by the AGENT %s%s (agent_id=%d). If they say "me"/"I"/"my", they '
+                . 'mean THIS agent — to assign it a plan use assign_nervous_system_plan with agent_id=%d.'
+                . "\n\n%s",
+                $name,
+                $label,
+                $senderAgent->getId(),
+                $senderAgent->getId(),
+                $text,
+            );
+        }
+
+        return sprintf(
+            'This message was sent by the HUMAN member %s%s, users_id=%d. If they say "me"/"I"/"my", they '
+            . 'mean THIS person — act on their request and reply to them. To assign a plan to them use '
+            . 'assign_nervous_system_plan with users_id=%d (they are a HUMAN, NOT an agent — never assign '
+            . "to an agent that merely shares their name).\n\n%s",
+            $name,
+            $label,
+            $author->getId(),
+            $author->getId(),
+            $text,
+        );
     }
 
     private function mentionText(Message $message): string

@@ -6,9 +6,9 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\NervousSystem\Plan\Actions\UpdatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
-use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Models\Project;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -24,6 +24,7 @@ use Override;
 class UpdateNervousSystemPlanTool extends Tool
 {
     use HasKanvasContext;
+    use ResolvesPlanForTool;
 
     public function __construct()
     {
@@ -85,15 +86,10 @@ class UpdateNervousSystemPlanTool extends Tool
         ?string $status = null,
         ?int $priority = null,
     ): array {
-        $plan = Plan::query()
-            ->where('id', $plan_id)
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->first();
+        $plan = $this->resolvePlanOrError($plan_id, "Plan {$plan_id} was not found in this project.");
 
-        if ($plan === null) {
-            return ['error' => "Plan {$plan_id} was not found in this project."];
+        if (is_array($plan)) {
+            return $plan;
         }
 
         $data = [];
@@ -112,7 +108,12 @@ class UpdateNervousSystemPlanTool extends Tool
 
         $updated = new UpdatePlanAction(
             $plan,
-            PlanData::forUpdate($plan, $this->app, $this->company, $data),
+            PlanData::forUpdate(
+                $plan,
+                $this->app,
+                $this->company,
+                $data
+            ),
         )->execute();
 
         if ($updated->project_id !== null) {

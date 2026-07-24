@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\NervousSystem\Plan\Actions\AddTaskAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
 use Kanvas\NervousSystem\Plan\Models\Plan;
@@ -25,6 +26,7 @@ use Override;
 class AddNervousSystemTaskTool extends Tool
 {
     use HasKanvasContext;
+    use ResolvesPlanForTool;
 
     public function __construct()
     {
@@ -78,15 +80,13 @@ class AddNervousSystemTaskTool extends Tool
         ?string $description = null,
         ?int $sequence = null,
     ): array {
-        $plan = Plan::query()
-            ->where('id', $plan_id)
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->first();
+        $plan = $this->resolvePlanOrError(
+            $plan_id,
+            "Plan {$plan_id} was not found. Create a plan first, or use a plan_id from the context.",
+        );
 
-        if ($plan === null) {
-            return ['error' => "Plan {$plan_id} was not found. Create a plan first, or use a plan_id from the context."];
+        if (is_array($plan)) {
+            return $plan;
         }
 
         // Idempotency: don't re-add a task that already exists in this plan on a repeated wake.
@@ -103,6 +103,8 @@ class AddNervousSystemTaskTool extends Tool
                 'title' => $existing->title,
                 'status' => $existing->status,
                 'reused' => true,
+                'message' => 'This task already exists on the plan. Do NOT call add_nervous_system_task '
+                    . 'again for it — move on to a different task, or finish if the plan is fully broken down.',
             ];
         }
 

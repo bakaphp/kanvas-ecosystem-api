@@ -6,11 +6,8 @@ namespace Kanvas\NervousSystem\Project\Actions;
 
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\NervousSystem\Project\Models\Project;
-use Kanvas\Social\Messages\Actions\CreateMessageAction;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Actions\PostChannelMessageAction;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
-use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -33,6 +30,7 @@ class PostProjectMessageAction
         private readonly array $files = [],
         private readonly array $extraPayload = [],
         private readonly bool $fromIa = false,
+        private readonly ?int $parentMessageId = null,
     ) {
     }
 
@@ -48,31 +46,21 @@ class PostProjectMessageAction
             $this->project->refresh();
         }
 
-        $messageType = new CreateMessageTypeAction(
-            new MessageTypeInput(
-                $this->project->apps_id,
-                0,
-                $this->verb,
-                $this->verb,
-            ),
+        $channel = $this->project->defaultChannel;
+        if ($channel === null) {
+            throw new ValidationException('Project has no channel to post the message to.');
+        }
+
+        return new PostChannelMessageAction(
+            channel: $channel,
+            author: $author,
+            verb: $this->verb,
+            content: $this->content,
+            extraPayload: array_merge(['from_ia' => $this->fromIa], $this->extraPayload),
+            files: $this->files,
+            parentId: $this->parentMessageId,
+            runWorkflow: false,
+            messageTypeName: $this->verb,
         )->execute();
-
-        $createMessage = new CreateMessageAction(
-            new MessageInput(
-                app: $this->project->app,
-                company: $this->project->company,
-                user: $author,
-                type: $messageType,
-                message: array_merge(
-                    ['content' => $this->content, 'from_ia' => $this->fromIa],
-                    $this->extraPayload,
-                ),
-                channel_slug: $this->project->defaultChannel?->slug ?? $this->project->uuid,
-                files: $this->files,
-            ),
-        );
-        $createMessage->runWorkflow = false;
-
-        return $createMessage->execute();
     }
 }

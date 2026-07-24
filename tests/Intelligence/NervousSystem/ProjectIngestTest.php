@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -88,6 +89,63 @@ class ProjectIngestTest extends TestCase
 
         // Ingest wakes the PM agent to act on the new context.
         Queue::assertPushed(WakeAgentForProjectJob::class);
+    }
+
+    public function testResubmittingSameContentIsDedupedAndWakesOnce(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        // Unique per run so the Redis dedup key can't collide with a previous test run.
+        $content = 'Kickoff transcript ' . fake()->unique()->uuid();
+
+        $first = new IngestToProjectAction(
+            project: $project,
+            type: ProjectIngestTypeEnum::TRANSCRIPT,
+            content: $content,
+        );
+        $firstMessage = $first->execute();
+        $this->assertFalse($first->wasDuplicate());
+
+        $second = new IngestToProjectAction(
+            project: $project,
+            type: ProjectIngestTypeEnum::TRANSCRIPT,
+            content: $content,
+        );
+        $secondMessage = $second->execute();
+
+        // Same content re-submitted → no new message, flagged duplicate, no second wake.
+        $this->assertTrue($second->wasDuplicate());
+        $this->assertSame((int) $firstMessage->getId(), (int) $secondMessage->getId());
+        Queue::assertPushed(WakeAgentForProjectJob::class, 1);
+    }
+
+    public function testDedupSurvivesCacheFlushViaDurableLedger(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $content = 'Durable kickoff ' . fake()->unique()->uuid();
+
+        $first = new IngestToProjectAction(
+            project: $project,
+            type: ProjectIngestTypeEnum::TRANSCRIPT,
+            content: $content,
+        );
+        $firstMessage = $first->execute();
+        $this->assertFalse($first->wasDuplicate());
+
+        // Simulate the Redis fast-path being wiped — the durable ledger must still catch the dupe.
+        Cache::flush();
+
+        $second = new IngestToProjectAction(
+            project: $project,
+            type: ProjectIngestTypeEnum::TRANSCRIPT,
+            content: $content,
+        );
+        $secondMessage = $second->execute();
+
+        $this->assertTrue($second->wasDuplicate());
+        $this->assertSame((int) $firstMessage->getId(), (int) $secondMessage->getId());
+        Queue::assertPushed(WakeAgentForProjectJob::class, 1);
     }
 
     public function testAttachMessageToProjectViaGraphQL(): void

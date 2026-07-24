@@ -84,6 +84,30 @@ class ProjectHeartbeatTest extends TestCase
         $this->assertTrue(new ProjectHeartbeatService()->needsAttention($project));
     }
 
+    public function testNeedsAttentionForBlockedPlanWithNoTasks(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+
+        // A worker that flagged "I can't do this" blocks its plan and may leave no pending subtasks —
+        // the PM must still be woken to reassign/escalate.
+        $plan = new CreatePlanAction(
+            new PlanData(
+                app: $app,
+                company: $company,
+                title: 'Blocked work',
+                planType: 'project_work',
+                user: $user,
+                status: PlanStatusEnum::BLOCKED,
+            ),
+        )->execute();
+        $plan->project_id = $project->id;
+        $plan->status = PlanStatusEnum::BLOCKED->value;
+        $plan->saveQuietly();
+
+        $this->assertTrue(new ProjectHeartbeatService()->needsAttention($project));
+    }
+
     public function testNoAttentionForEmptyProject(): void
     {
         [$app, $company, $user] = $this->context();

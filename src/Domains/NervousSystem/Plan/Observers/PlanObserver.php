@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Plan\Observers;
 
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Project\Jobs\NotifyProjectOwnerOfBlockedPlanJob;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelData;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
@@ -15,6 +17,35 @@ class PlanObserver
     public function updating(Plan $plan): void
     {
         $plan->clearLightHouseCache(withKanvasConfiguration: false);
+
+        // Record the assignee that just blocked this plan so the PM can't re-hand it to the same agent
+        // (which would only re-block). Folded into this same UPDATE — no extra write. See NS-6909.
+        if ($plan->isDirty('status')
+            && $plan->status === PlanStatusEnum::BLOCKED->value
+            && $plan->agent_id !== null
+        ) {
+            $declined = $plan->capability_declined_agent_ids ?? [];
+
+            if (! in_array($plan->agent_id, $declined, true)) {
+                $declined[] = $plan->agent_id;
+                $plan->capability_declined_agent_ids = $declined;
+            }
+        }
+    }
+
+    public function updated(Plan $plan): void
+    {
+        // Fire only on the TRANSITION into blocked (state-change, so it doesn't re-alert every save/
+        // heartbeat while the plan sits blocked) and only for project plans — deterministically tell
+        // the project owner rather than hoping the PM @mentions them.
+        if ($plan->project_id !== null
+            && $plan->wasChanged('status')
+            && $plan->status === PlanStatusEnum::BLOCKED->value
+        ) {
+            // Delay so a burst of near-simultaneous blocks settles — the first job to run then digests
+            // ALL of them into ONE alert, and the rest are suppressed by the per-project throttle.
+            NotifyProjectOwnerOfBlockedPlanJob::dispatch($plan)->delay(now()->addSeconds(45));
+        }
     }
 
     public function created(Plan $plan): void

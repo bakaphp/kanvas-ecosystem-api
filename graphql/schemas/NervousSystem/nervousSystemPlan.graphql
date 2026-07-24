@@ -5,6 +5,7 @@ type NervousSystemPlan {
     parent: NervousSystemPlan @belongsTo(relation: "parent")
     children: [NervousSystemPlan!]! @hasMany(relation: "children")
     agent: AgentAi @belongsTo(relation: "agent")
+    assignedUser: User @belongsTo(relation: "assignedUser")
     swarm: AgentSwarm @belongsTo(relation: "swarm")
     is_swarm_mission: Boolean!
     user: User @belongsTo(relation: "user")

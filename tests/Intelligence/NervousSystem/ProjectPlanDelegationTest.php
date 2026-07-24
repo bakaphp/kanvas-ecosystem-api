@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Tests\Intelligence\NervousSystem;
 
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Enums\StateEnums;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\ProjectManagement\ProjectManagerAgent;
@@ -19,6 +21,7 @@ use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
+use Kanvas\NervousSystem\Project\Jobs\NotifyProjectOwnerOfBlockedPlanJob;
 use Kanvas\NervousSystem\Project\Jobs\WakeWorkerForPlanJob;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Models\ProjectMember;
@@ -108,13 +111,15 @@ class ProjectPlanDelegationTest extends TestCase
         );
     }
 
-    public function testAssignPlanRejectsNonExecutorAgent(): void
+    public function testAssignPlanToNonExecutorAgentRecordsButDoesNotAutoRun(): void
     {
+        Bus::fake([WakeWorkerForPlanJob::class]);
+
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
         $plan = $this->planUnderProject($project, $app, $company, $user);
 
-        // A plain factory agent has no BaseKanvasAgent handler → can't execute board work.
+        // A plain factory agent has no BaseKanvasAgent handler → can't board-execute. Still assignable.
         $nonExecutor = Agent::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
@@ -123,8 +128,30 @@ class ProjectPlanDelegationTest extends TestCase
         $tool = new AssignNervousSystemPlanTool()->withContext($app, $company, $user);
         $result = $tool((int) $plan->id, (int) $nonExecutor->id);
 
-        $this->assertArrayHasKey('error', $result);
-        $this->assertNull(Plan::query()->where('id', $plan->id)->value('agent_id'));
+        $this->assertFalse($result['auto_run']);
+        $this->assertSame((int) $nonExecutor->id, (int) Plan::query()->where('id', $plan->id)->value('agent_id'));
+        Bus::assertNotDispatched(WakeWorkerForPlanJob::class);
+    }
+
+    public function testAssignPlanToHumanRecordsOwnerWithoutAutoRun(): void
+    {
+        Bus::fake([WakeWorkerForPlanJob::class]);
+
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+
+        $human = Users::factory()->create();
+
+        $tool = new AssignNervousSystemPlanTool()->withContext($app, $company, $user);
+        $result = $tool((int) $plan->id, null, (int) $human->id);
+
+        $this->assertSame('user', $result['assignee_type']);
+        $this->assertFalse($result['auto_run']);
+        $fresh = Plan::query()->where('id', $plan->id)->first();
+        $this->assertSame((int) $human->id, (int) $fresh->assigned_users_id);
+        $this->assertNull($fresh->agent_id);
+        Bus::assertNotDispatched(WakeWorkerForPlanJob::class);
     }
 
     public function testAssignPlanReturnsErrorForUnknownIds(): void
@@ -133,6 +160,58 @@ class ProjectPlanDelegationTest extends TestCase
         $tool = new AssignNervousSystemPlanTool()->withContext($app, $company, $user);
 
         $this->assertArrayHasKey('error', $tool(999999999, 888888888));
+    }
+
+    public function testBlockingAProjectPlanNotifiesTheOwner(): void
+    {
+        Bus::fake([NotifyProjectOwnerOfBlockedPlanJob::class]);
+
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+
+        $plan->status = PlanStatusEnum::BLOCKED->value;
+        $plan->save();
+
+        Bus::assertDispatched(
+            NotifyProjectOwnerOfBlockedPlanJob::class,
+            fn (NotifyProjectOwnerOfBlockedPlanJob $job): bool => (int) $job->plan->id === (int) $plan->id,
+        );
+    }
+
+    public function testBlockedAlertIsThrottledPerPlan(): void
+    {
+        Notification::fake();
+
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+        $plan->status = PlanStatusEnum::BLOCKED->value;
+        $plan->saveQuietly();
+
+        $channel = $project->channels()->first();
+        $before = (int) ($channel?->messages()->count() ?? 0);
+
+        // Two runs (e.g. it re-blocked) within the window → the owner is alerted only ONCE.
+        new NotifyProjectOwnerOfBlockedPlanJob($plan)->handle();
+        new NotifyProjectOwnerOfBlockedPlanJob($plan)->handle();
+
+        $after = (int) ($channel?->messages()->count() ?? 0);
+        $this->assertSame(1, $after - $before);
+    }
+
+    public function testNonBlockedStatusChangeDoesNotNotifyOwner(): void
+    {
+        Bus::fake([NotifyProjectOwnerOfBlockedPlanJob::class]);
+
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+
+        $plan->status = PlanStatusEnum::DONE->value;
+        $plan->save();
+
+        Bus::assertNotDispatched(NotifyProjectOwnerOfBlockedPlanJob::class);
     }
 
     public function testCommentOnPlanToolPosts(): void
@@ -186,6 +265,23 @@ class ProjectPlanDelegationTest extends TestCase
 
         $tool = new FindAndAddNervousSystemMemberTool()->withContext($app, $company, $user);
         $result = $tool((int) $project->id, 'Zxqwtnobody12345');
+
+        $this->assertFalse($result['found']);
+    }
+
+    public function testFindMemberIsScopedToTheGroupNotGlobal(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+
+        // A user who belongs to a DIFFERENT company must NEVER be found — a global search would
+        // cross tenants and add the wrong person into the project.
+        $otherCompany = Companies::factory()->create();
+        $outsider = Users::factory()->create(['firstname' => 'Mariazzzoutsider']);
+        $otherCompany->associateUserApp($outsider, $app, StateEnums::YES->getValue());
+
+        $tool = new FindAndAddNervousSystemMemberTool()->withContext($app, $company, $user);
+        $result = $tool((int) $project->id, 'Mariazzzoutsider');
 
         $this->assertFalse($result['found']);
     }

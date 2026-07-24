@@ -9,16 +9,15 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use DateTimeInterface;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
-use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Sessions\Models\Session;
-use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
+use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Services\ProjectContextService;
-use Throwable;
 
 /**
  * Wake the project's PM agent to advance the work. Called by:
@@ -32,6 +31,7 @@ use Throwable;
 class WakeAgentForProjectJob implements ShouldQueue
 {
     use Dispatchable;
+    use DrivesAgentWake;
     use InteractsWithQueue;
     use KanvasJobsTrait;
     use Queueable;
@@ -42,26 +42,56 @@ class WakeAgentForProjectJob implements ShouldQueue
     public const string REASON_ASSIGNED = 'assigned';
     public const string REASON_MENTION = 'mention';
 
+    // A held wake lock auto-expires after this so a crashed/timed-out holder can't wedge the project.
+    private const int WAKE_LOCK_TTL_SECONDS = 600;
+
+    // A mention that collides with an in-flight wake re-queues after this delay instead of being dropped.
+    private const int MENTION_RETRY_SECONDS = 15;
+
+    // Space out exception-driven retries so a genuinely-failing wake doesn't hammer the LLM/ledger.
+    // (WithoutOverlapping's releaseAfter for a mention lock-collision sets its own delay independently.)
+    public int $backoff = 30;
+
     public function __construct(
         public readonly Project $project,
         public readonly string $reason,
         public readonly ?string $triggerMessage = null,
+        public readonly ?int $triggerMessageId = null,
     ) {
         $this->onQueue('nervous-system-project');
     }
 
     /**
-     * Serialize wakes per project: an ingest and a heartbeat can fire near-simultaneously, and two
-     * concurrent PM turns waste an LLM call and can race. dontRelease drops the duplicate rather than
-     * re-queuing it — the in-flight wake already reads fresh state, and the heartbeat is the safety
-     * net for anything that lands mid-run.
+     * Bound retries by TIME, not attempt count. A mention re-queues (releaseAfter) every collision
+     * until the in-flight PM turn frees the lock — give it the full lock-TTL window so a long turn
+     * never drops the question. Other reasons don't self-release; this just caps their failure retries.
+     */
+    public function retryUntil(): DateTimeInterface
+    {
+        return now()->addSeconds(
+            $this->reason === self::REASON_MENTION ? self::WAKE_LOCK_TTL_SECONDS : 90,
+        );
+    }
+
+    /**
+     * Serialize wakes per project: two concurrent PM turns waste an LLM call and can race.
+     *
+     * Automated wakes (ingest/heartbeat/assigned) DROP on collision — the in-flight wake already reads
+     * fresh state and the heartbeat mops up anything mid-run. A human @mention is a DIRECT question,
+     * so it must never be silently dropped: on collision it re-queues and answers as soon as the
+     * in-flight turn frees the lock. The lock TTL guards against a crashed holder wedging the project.
      *
      * @return array<int, object>
      */
     public function middleware(): array
     {
+        $lock = new WithoutOverlapping('project-wake-' . $this->project->getId())
+            ->expireAfter(self::WAKE_LOCK_TTL_SECONDS);
+
         return [
-            new WithoutOverlapping('project-wake-' . $this->project->getId())->dontRelease(),
+            $this->reason === self::REASON_MENTION
+                ? $lock->releaseAfter(self::MENTION_RETRY_SECONDS)
+                : $lock->dontRelease(),
         ];
     }
 
@@ -79,50 +109,25 @@ class WakeAgentForProjectJob implements ShouldQueue
         }
 
         $session = $this->resolveSession();
-        $message = $this->buildMessage();
+        $failurePayload = [
+            'agent_id' => $this->project->agent_id,
+            'session_id' => $session->getId(),
+            'reason' => $this->reason,
+        ];
 
-        $startedAt = microtime(true);
-
-        try {
-            $response = new AgentChatKernel(
-                agent: $agent,
-                session: $session,
-                message: $message,
-                user: $owner,
-                // The reply is posted explicitly below; never persist the (large, scaffolded) wake
-                // PROMPT to the channel — it would be re-read as "context" on the next wake and
-                // re-trigger this same wake, growing unboundedly (a 700KB+ nested-prompt runaway).
-                persistConversation: false,
-            )->execute();
-        } catch (Throwable $e) {
-            $this->project->emitLedgerEvent(
-                eventType: 'project.agent.invocation_failed',
-                status: EventStatusEnum::ERROR,
-                payload: [
-                    'agent_id' => $this->project->agent_id,
-                    'session_id' => $session->getId(),
-                    'reason' => $this->reason,
-                ],
-                error: [
-                    'message' => $e->getMessage(),
-                    'class' => $e::class,
-                ],
-                durationMs: (int) ((microtime(true) - $startedAt) * 1000),
-            );
-
-            throw $e;
-        }
-
-        $durationMs = (int) ((microtime(true) - $startedAt) * 1000);
+        [$response, $durationMs] = $this->runAgentWake(
+            $agent,
+            $session,
+            $owner,
+            $this->buildMessage(),
+            $this->project,
+            'project.agent',
+            $failurePayload,
+        );
 
         $this->project->emitLedgerEvent(
             'project.agent.invoked',
-            payload: [
-                'agent_id' => $this->project->agent_id,
-                'session_id' => $session->getId(),
-                'reason' => $this->reason,
-                'response_length' => strlen($response),
-            ],
+            payload: $failurePayload + ['response_length' => strlen($response)],
             durationMs: $durationMs,
         );
 
@@ -132,6 +137,7 @@ class WakeAgentForProjectJob implements ShouldQueue
             content: $response,
             author: $agent->user,
             fromIa: true,
+            parentMessageId: $this->triggerMessageId,
         )->execute();
 
         $this->project->emitLedgerEvent(
@@ -147,19 +153,11 @@ class WakeAgentForProjectJob implements ShouldQueue
     {
         $owner = $this->project->user ?? $this->project->pmAgent?->user;
 
-        /** @var Session $session */
-        $session = Session::firstOrCreate(
-            [
-                'apps_id' => $this->project->apps_id,
-                'companies_id' => $this->project->companies_id,
-                'entity_namespace' => Project::class,
-                'entity_id' => $this->project->getId(),
-            ],
-            [
-                'uuid' => Str::uuid()->toString(),
+        return $this->firstOrCreateWakeSession(
+            $this->project,
+            create: [
                 'agents_id' => $this->project->agent_id,
                 'channel_id' => $this->project->default_channel_id,
-                'content' => '',
                 'user' => $owner !== null ? [
                     'id' => $owner->getId(),
                     'name' => trim(($owner->firstname ?? '') . ' ' . ($owner->lastname ?? '')),
@@ -167,8 +165,6 @@ class WakeAgentForProjectJob implements ShouldQueue
                 ] : [],
             ],
         );
-
-        return $session;
     }
 
     protected function buildMessage(): string

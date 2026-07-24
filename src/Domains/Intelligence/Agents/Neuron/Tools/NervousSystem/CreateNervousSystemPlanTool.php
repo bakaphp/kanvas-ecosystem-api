@@ -95,6 +95,8 @@ class CreateNervousSystemPlanTool extends Tool
                 'title' => $existing->title,
                 'status' => $existing->status,
                 'reused' => true,
+                'message' => 'This plan already exists on the project. Do NOT call create_nervous_system_plan '
+                    . 'again for it — use this plan_id, or move on.',
             ];
         }
 

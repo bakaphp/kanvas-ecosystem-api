@@ -56,8 +56,7 @@ class QueryPnlTool extends Tool
     public function __invoke(string $period_start, string $period_end, ?string $currency = null): array
     {
         $app = $this->app;
-        $user = $this->user;
-        $company = $user->getCurrentCompany();
+        $company = $this->company;
 
         $data = new ProfitAndLossRepository()->generate(
             app: $app,

@@ -142,20 +142,27 @@ class FindAndAddNervousSystemMemberTool extends Tool
         ];
     }
 
+    /**
+     * Search ONLY users that belong to this project's group — the app + company — never a global
+     * users search, which would cross tenants and could add someone from another company. Scoped via
+     * the users_associated_apps membership row (apps_id + companies_id); matches app displayname or
+     * first/last name.
+     */
     private function findUserByName(string $name): ?Users
     {
+        $like = '%' . $name . '%';
+
         $usersId = UsersAssociatedApps::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('displayname', 'like', '%' . $name . '%')
-            ->value('users_id');
+            ->join('users', 'users.id', '=', 'users_associated_apps.users_id')
+            ->where('users_associated_apps.apps_id', $this->app->getId())
+            ->where('users_associated_apps.companies_id', $this->company->getId())
+            ->where(function ($query) use ($like): void {
+                $query->where('users_associated_apps.displayname', 'like', $like)
+                    ->orWhere('users.firstname', 'like', $like)
+                    ->orWhere('users.lastname', 'like', $like);
+            })
+            ->value('users_associated_apps.users_id');
 
-        if ($usersId === null) {
-            return Users::query()
-                ->where(fn ($q) => $q->where('firstname', 'like', '%' . $name . '%')
-                    ->orWhere('lastname', 'like', '%' . $name . '%'))
-                ->first();
-        }
-
-        return Users::getById((int) $usersId);
+        return $usersId !== null ? Users::getById((int) $usersId) : null;
     }
 }

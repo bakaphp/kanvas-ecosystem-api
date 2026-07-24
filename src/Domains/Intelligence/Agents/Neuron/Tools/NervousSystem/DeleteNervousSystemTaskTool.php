@@ -6,9 +6,9 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
 use Kanvas\NervousSystem\Plan\Actions\DeleteTaskAction;
 use Kanvas\NervousSystem\Plan\Models\Plan;
-use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Models\Project;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -23,6 +23,7 @@ use Override;
 class DeleteNervousSystemTaskTool extends Tool
 {
     use HasKanvasContext;
+    use ResolvesTaskForTool;
 
     public function __construct()
     {
@@ -55,15 +56,10 @@ class DeleteNervousSystemTaskTool extends Tool
      */
     public function __invoke(int $task_id): array
     {
-        $task = Task::query()
-            ->where('id', $task_id)
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->first();
+        $task = $this->resolveTaskOrError($task_id, "Task {$task_id} was not found in this project.");
 
-        if ($task === null) {
-            return ['error' => "Task {$task_id} was not found in this project."];
+        if (is_array($task)) {
+            return $task;
         }
 
         $planId = $task->plan_id;

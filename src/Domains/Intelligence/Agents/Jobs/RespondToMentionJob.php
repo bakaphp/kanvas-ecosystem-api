@@ -23,10 +23,8 @@ use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Social\Messages\Actions\CreateMessageAction;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Actions\PostChannelMessageAction;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Throwable;
@@ -114,8 +112,6 @@ final class RespondToMentionJob implements ShouldQueue
         }
 
         $replyMessage = $this->persistChildReply(
-            $app,
-            $company,
             $channel,
             $reply,
             $agentUser,
@@ -133,32 +129,22 @@ final class RespondToMentionJob implements ShouldQueue
     }
 
     private function persistChildReply(
-        Apps $app,
-        Companies $company,
         Channel $channel,
         string $reply,
         Users $agentUser,
         ?Model $subjectEntity,
     ): Message {
-        $replyMessage = new CreateMessageAction(
-            new MessageInput(
-                app: $app,
-                company: $company,
-                user: $agentUser,
-                type: MessageTypeService::getOrCreate($app, 'agent'),
-                message: ['content' => $reply, 'from_ia' => true, 'from_me' => true],
-                parent_id: $this->threadRootId(),
-                is_public: 1,
-            ),
+        return new PostChannelMessageAction(
+            channel: $channel,
+            author: $agentUser,
+            verb: 'agent',
+            content: $reply,
+            extraPayload: ['from_ia' => true, 'from_me' => true],
+            // Thread stays flat: anchor the reply to the thread root (AsTree self+ancestors, root last).
+            parentId: $this->mentionMessage->joinAncestors()->last()->getId(),
+            runWorkflow: true,
+            entity: $subjectEntity,
         )->execute();
-
-        $channel->addMessage($replyMessage, $agentUser);
-
-        if ($subjectEntity !== null) {
-            $replyMessage->addEntity($subjectEntity);
-        }
-
-        return $replyMessage;
     }
 
     /**
@@ -226,18 +212,4 @@ final class RespondToMentionJob implements ShouldQueue
         }
     }
 
-    /**
-     * The thread stays one level deep: a reply always anchors to the root message, even when
-     * the @mention arrives inside an existing child reply.
-     */
-    private function threadRootId(): int
-    {
-        $message = $this->mentionMessage;
-
-        while (! empty($message->parent_id) && $message->parent instanceof Message) {
-            $message = $message->parent;
-        }
-
-        return $message->getId();
-    }
 }

@@ -6,8 +6,9 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
-use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,6 +24,10 @@ use Throwable;
 class CommentOnNervousSystemPlanTool extends Tool
 {
     use HasKanvasContext;
+    use ResolvesPlanForTool;
+
+    // How many of the plan's most recent notes to scan for an identical comment before posting.
+    private const int DEDUP_LOOKBACK = 15;
 
     public function __construct()
     {
@@ -60,15 +65,28 @@ class CommentOnNervousSystemPlanTool extends Tool
      */
     public function __invoke(int $plan_id, string $comment): array
     {
-        $plan = Plan::query()
-            ->where('id', $plan_id)
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->first();
+        $plan = $this->resolvePlanOrError($plan_id);
 
-        if ($plan === null) {
-            return ['error' => "Plan {$plan_id} was not found."];
+        if (is_array($plan)) {
+            return $plan;
+        }
+
+        // Deterministic anti-spam backstop: skip if this exact note is already among the plan's recent
+        // notes (scan several, not just the last — another message may have landed in between).
+        $needle = trim($comment);
+
+        $alreadyPosted = $needle !== '' && $plan->recentActivityMessages(self::DEDUP_LOOKBACK)
+            ->contains(fn (Message $msg): bool => is_array($msg->message)
+                && trim((string) ($msg->message['content'] ?? '')) === $needle);
+
+        if ($alreadyPosted) {
+            return [
+                'plan_id' => $plan->getId(),
+                'posted' => false,
+                'skipped' => 'duplicate',
+                'message' => 'This exact note is already on the plan — not re-posting. Do NOT call '
+                    . 'comment_on_nervous_system_plan again with the same text unless something changed.',
+            ];
         }
 
         try {

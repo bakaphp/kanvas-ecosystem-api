@@ -10,13 +10,16 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\ProjectManagement\ProjectManagerAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CommentOnNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
 use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
+use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
@@ -27,13 +30,17 @@ use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
+use Kanvas\NervousSystem\Project\Jobs\WakeWorkerForPlanJob;
 use Kanvas\NervousSystem\Project\Models\Project;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use ReflectionMethod;
 use Tests\TestCase;
 
 class ProjectPmToolsTest extends TestCase
 {
+    protected array $connectionsToTransact = ['mysql', 'intelligence', 'social', 'workflow'];
+
     /**
      * @return array{0: Apps, 1: Companies, 2: Users}
      */
@@ -90,6 +97,136 @@ class ProjectPmToolsTest extends TestCase
         $plan->saveQuietly();
 
         return $plan;
+    }
+
+    public function testAssignRefusesAgentThatAlreadyBlockedButAllowsAnother(): void
+    {
+        Bus::fake([WakeWorkerForPlanJob::class]);
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $blocker = $project->pmAgent;
+
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+        $plan->agent_id = $blocker->getId();
+        $plan->status = PlanStatusEnum::BLOCKED->value;
+        $plan->save(); // observer records the blocking agent as capability-declined
+
+        $this->assertContains($blocker->getId(), $plan->refresh()->capability_declined_agent_ids ?? []);
+
+        $tool = new AssignNervousSystemPlanTool()->withContext($app, $company, $user);
+
+        // Re-handing the plan to the agent that already blocked it is refused.
+        $refused = ($tool)(plan_id: $plan->id, agent_id: $blocker->getId());
+        $this->assertArrayHasKey('error', $refused);
+        $this->assertStringContainsString('already blocked', $refused['error']);
+
+        // A different agent is accepted.
+        $other = $this->makeAgent($app, $company, Users::factory()->create());
+        $ok = ($tool)(plan_id: $plan->id, agent_id: $other->getId());
+        $this->assertArrayNotHasKey('error', $ok);
+        $this->assertSame($other->getId(), $plan->refresh()->agent_id);
+    }
+
+    public function testWorkerSessionIsPerAgentSoReassignmentStartsFresh(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $agentA = $project->pmAgent;
+        $agentB = $this->makeAgent($app, $company, Users::factory()->create());
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+
+        $resolve = new ReflectionMethod(WakeWorkerForPlanJob::class, 'resolveSession');
+
+        $plan->agent_id = $agentA->getId();
+        $plan->saveQuietly();
+        $sessionA = $resolve->invoke(new WakeWorkerForPlanJob($plan->refresh()));
+
+        $plan->agent_id = $agentB->getId();
+        $plan->saveQuietly();
+        $sessionB = $resolve->invoke(new WakeWorkerForPlanJob($plan->refresh()));
+
+        // Reassignment yields a NEW session keyed to the new agent — it doesn't inherit A's thread.
+        $this->assertNotSame($sessionA->getId(), $sessionB->getId());
+        $this->assertSame($agentA->getId(), (int) $sessionA->agents_id);
+        $this->assertSame($agentB->getId(), (int) $sessionB->agents_id);
+    }
+
+    public function testWorkerWakeSkipsAlreadyBlockedPlanWhenNothingChanged(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+
+        // The worker's OWN last note (posted by the provisioned $user — the worker's user).
+        new PostPlanActivityMessageAction($plan, 'Blocked: no deploy tool.', author: $user)->execute();
+        $plan->refresh();
+
+        // The guard skips iff the last note on the plan is the worker's own — nothing changed since it
+        // blocked. A different author having the last word (a human/PM reply) does NOT match → it runs.
+        $someoneElse = Users::factory()->create();
+        $this->assertTrue($this->lastNoteIsFrom($plan, $user));
+        $this->assertFalse($this->lastNoteIsFrom($plan, $someoneElse));
+    }
+
+    private function lastNoteIsFrom(Plan $plan, Users $worker): bool
+    {
+        return new ReflectionMethod(WakeWorkerForPlanJob::class, 'lastNoteIsFrom')
+            ->invoke(new WakeWorkerForPlanJob($plan), $worker);
+    }
+
+    public function testWorkerWakeContextIncludesStatusAndRecentNotes(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+        $plan->status = PlanStatusEnum::BLOCKED->value;
+        $plan->saveQuietly();
+
+        new PostPlanActivityMessageAction($plan, 'I am blocked: I have no tool to deploy code.', author: $user)->execute();
+
+        $plan->refresh();
+        $message = new ReflectionMethod(WakeWorkerForPlanJob::class, 'buildMessage')
+            ->invoke(new WakeWorkerForPlanJob($plan));
+
+        // Worker sees the current status, its prior note, and the do-not-repeat guardrail.
+        $this->assertStringContainsString('status=blocked', $message);
+        $this->assertStringContainsString('Recent activity on this plan', $message);
+        $this->assertStringContainsString('no tool to deploy code', $message);
+        $this->assertStringContainsString('DO NOT REPEAT YOURSELF', $message);
+    }
+
+    public function testCommentToolSkipsDuplicateNoteOnBlockedPlan(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+
+        $tool = new CommentOnNervousSystemPlanTool()->withContext($app, $company, $user);
+        $note = 'I am blocking this plan because it requires capabilities I do not have.';
+
+        $first = ($tool)(plan_id: $plan->id, comment: $note);
+        $this->assertTrue($first['posted'] ?? false);
+
+        // Re-posting the identical note is skipped — deterministic, not left to the LLM.
+        $second = ($tool)(plan_id: $plan->id, comment: $note);
+        $this->assertFalse($second['posted'] ?? true);
+        $this->assertSame('duplicate', $second['skipped'] ?? null);
+
+        // Skips even when another note landed AFTER it (scans recent, not just the very last).
+        ($tool)(plan_id: $plan->id, comment: 'Some other progress note.');
+        $third = ($tool)(plan_id: $plan->id, comment: $note);
+        $this->assertFalse($third['posted'] ?? true);
+
+        // A genuinely-new note still posts.
+        $fourth = ($tool)(plan_id: $plan->id, comment: $note . ' Update: still stuck.');
+        $this->assertTrue($fourth['posted'] ?? false);
+
+        // The plan channel holds exactly the 3 distinct notes — no duplicates.
+        $contents = $plan->socialChannels()->first()?->messages()->get()
+            ->map(fn (Message $m): string => is_array($m->message) ? trim((string) ($m->message['content'] ?? '')) : '')
+            ->filter()
+            ->values();
+        $this->assertSame(3, $contents?->count());
     }
 
     public function testCreatePlanToolCreatesPlanUnderProject(): void

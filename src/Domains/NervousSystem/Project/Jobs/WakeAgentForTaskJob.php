@@ -11,14 +11,11 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Str;
-use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Sessions\Models\Session;
-use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
+use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
 use Kanvas\NervousSystem\Project\Models\Project;
-use Throwable;
 
 /**
  * Wake the agent a task was ASSIGNED to, so it actually executes the work — the "and agents execute"
@@ -29,6 +26,7 @@ use Throwable;
 class WakeAgentForTaskJob implements ShouldQueue
 {
     use Dispatchable;
+    use DrivesAgentWake;
     use InteractsWithQueue;
     use KanvasJobsTrait;
     use Queueable;
@@ -79,34 +77,22 @@ class WakeAgentForTaskJob implements ShouldQueue
         }
 
         $session = $this->resolveSession();
-        $startedAt = microtime(true);
+        $basePayload = ['task_id' => $this->task->getId(), 'agent_id' => $agent->getId()];
 
-        try {
-            $response = new AgentChatKernel(
-                agent: $agent,
-                session: $session,
-                message: $this->buildMessage($project),
-                user: $owner,
-                // Reply is posted explicitly below; don't persist the scaffolded prompt (avoids the
-                // re-ingested-prompt growth loop — see WakeAgentForProjectJob).
-                persistConversation: false,
-            )->execute();
-        } catch (Throwable $e) {
-            $project->emitLedgerEvent(
-                eventType: 'task.agent.invocation_failed',
-                status: EventStatusEnum::ERROR,
-                payload: ['task_id' => $this->task->getId(), 'agent_id' => $agent->getId()],
-                error: ['message' => $e->getMessage(), 'class' => $e::class],
-                durationMs: (int) ((microtime(true) - $startedAt) * 1000),
-            );
-
-            throw $e;
-        }
+        [$response, $durationMs] = $this->runAgentWake(
+            $agent,
+            $session,
+            $owner,
+            $this->buildMessage($project),
+            $project,
+            'task.agent',
+            $basePayload,
+        );
 
         $project->emitLedgerEvent(
             'task.agent.invoked',
-            payload: ['task_id' => $this->task->getId(), 'agent_id' => $agent->getId()],
-            durationMs: (int) ((microtime(true) - $startedAt) * 1000),
+            payload: $basePayload,
+            durationMs: $durationMs,
         );
 
         $reply = new PostProjectMessageAction(
@@ -126,24 +112,10 @@ class WakeAgentForTaskJob implements ShouldQueue
 
     protected function resolveSession(): Session
     {
-        /** @var Session $session */
-        $session = Session::firstOrCreate(
-            [
-                'apps_id' => $this->task->apps_id,
-                'companies_id' => $this->task->companies_id,
-                'entity_namespace' => Task::class,
-                'entity_id' => $this->task->getId(),
-            ],
-            [
-                'uuid' => Str::uuid()->toString(),
-                'agents_id' => $this->task->agent_id,
-                'channel_id' => null,
-                'content' => '',
-                'user' => [],
-            ],
+        return $this->firstOrCreateWakeSession(
+            $this->task,
+            create: ['agents_id' => $this->task->agent_id],
         );
-
-        return $session;
     }
 
     protected function buildMessage(Project $project): string
@@ -152,8 +124,12 @@ class WakeAgentForTaskJob implements ShouldQueue
 
         return sprintf(
             "[NS:task_assigned task_id=%d]\n\n"
-            . 'You have been assigned this task. Do the work, then report clearly what you did (and if '
-            . "you have the tool to, set the task status to done or blocked with a reason).\n\n"
+            . 'You have been assigned this task. FIRST check your capability: you can only do what your '
+            . 'available tools allow. If this task needs an ability you have no tool for (writing/deploying '
+            . 'code, changing a database, sending email, calling an external system, files/servers), DO NOT '
+            . 'pretend to do it or mark it done — set the task status to blocked with a clear reason naming '
+            . 'the missing capability so the PM can reassign it. Otherwise do the work and set the task done. '
+            . "Only mark done what you ACTUALLY completed with your tools.\n\n"
             . "Task: %s\n%s\nPlan: %s\nProject objective: %s\n",
             $this->task->getId(),
             $this->task->title,

@@ -10,6 +10,7 @@ use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
@@ -48,12 +49,14 @@ use Throwable;
  * @property int|null $users_id
  * @property int|null $parent_plan_id
  * @property int|null $project_id
+ * @property int|null $assigned_users_id
  * @property string|null $entity_namespace
  * @property int|null $entity_id
  * @property string $plan_type
  * @property string $title
  * @property string|null $description
  * @property string $status
+ * @property array|null $capability_declined_agent_ids
  * @property int $priority
  * @property \Illuminate\Support\Carbon|null $deadline_at
  * @property int $completion_pct
@@ -113,6 +116,7 @@ class Plan extends BaseModel
             'approved_by_user_id' => 'integer',
             'input' => Json::class,
             'output' => Json::class,
+            'capability_declined_agent_ids' => Json::class,
             'requires_human_approval' => 'boolean',
             'is_swarm_mission' => 'boolean',
             'is_deleted' => 'boolean',
@@ -151,6 +155,11 @@ class Plan extends BaseModel
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class, 'agent_id', 'id');
+    }
+
+    public function assignedUser(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'assigned_users_id', 'id');
     }
 
     /**
@@ -257,6 +266,15 @@ class Plan extends BaseModel
                 ],
             )
             ->where('is_deleted', 0);
+    }
+
+    public function recentActivityMessages(int $limit = 15): Collection
+    {
+        $channel = $this->socialChannels()->first();
+
+        return $channel === null
+            ? new Collection()
+            : $channel->messages()->orderByDesc('messages.id')->limit($limit)->get();
     }
 
     public function scopeOpen(Builder $query): Builder

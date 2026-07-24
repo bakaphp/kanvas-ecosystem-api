@@ -54,8 +54,7 @@ class ListOverdueInvoicesTool extends Tool
     public function __invoke(?int $limit = null, ?int $min_days_overdue = null): array
     {
         $app = $this->app;
-        $user = $this->user;
-        $company = $user->getCurrentCompany();
+        $company = $this->company;
         $limit = max(1, min(100, $limit ?? 25));
         $minDays = max(1, $min_days_overdue ?? 1);
         $today = Carbon::today();

@@ -7,6 +7,7 @@ namespace Kanvas\NervousSystem\Project\Services;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Enums\ProjectStatusEnum;
@@ -76,6 +77,15 @@ class ProjectHeartbeatService
      */
     public function needsAttention(Project $project): bool
     {
+        // A worker that blocked its plan (e.g. "I don't have the tools to do this") is waiting on the
+        // PM to reassign/escalate — pick it up even if it left no pending subtasks behind.
+        $hasBlockedPlan = $project->plans()
+            ->where('status', PlanStatusEnum::BLOCKED->value)
+            ->exists();
+        if ($hasBlockedPlan) {
+            return true;
+        }
+
         $planIds = $project->plans()->pluck('id')->all();
         if ($planIds === []) {
             return false;

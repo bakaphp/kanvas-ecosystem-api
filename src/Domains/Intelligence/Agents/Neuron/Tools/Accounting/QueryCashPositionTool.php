@@ -46,8 +46,7 @@ class QueryCashPositionTool extends Tool
     public function __invoke(?string $as_of = null): array
     {
         $app = $this->app;
-        $user = $this->user;
-        $company = $user->getCurrentCompany();
+        $company = $this->company;
         $date = $as_of !== null ? Carbon::parse($as_of) : Carbon::today();
 
         // Cash accounts are ASSET account_type rows whose sub_type starts with 'cash_'.
