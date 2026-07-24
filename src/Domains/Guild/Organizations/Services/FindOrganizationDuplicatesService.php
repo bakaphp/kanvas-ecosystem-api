@@ -8,15 +8,20 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Connectors\Contracts\Enums\ThirdPartyOrganizationIdFieldEnum;
 use Kanvas\Guild\Organizations\DataTransferObject\OrganizationDuplicateGroup;
+use Kanvas\Guild\Organizations\Models\Organization;
 
 /**
  * Returns groups of Organizations that are likely duplicates within a single tenant, so an
  * operator can merge them in batches via `MergeOrganizationsAction`.
  *
- * Two SQL dimensions, run independently:
- *   1. exact_name  — GROUP BY LOWER(TRIM(name)) HAVING COUNT > 1
- *   2. email_match — GROUP BY LOWER(TRIM(email)) HAVING COUNT > 1   (organizations.email column)
+ * Dimensions, run independently, in descending order of confidence:
+ *   1. external_id_conflict — same exact name, but each member carries its OWN distinct
+ *                             third-party id (Salesforce Account Id, Intras Company Id, etc.) —
+ *                             the only reason an agent may auto-merge without human approval.
+ *   2. exact_name           — GROUP BY LOWER(TRIM(name)) HAVING COUNT > 1
+ *   3. email_match          — GROUP BY LOWER(TRIM(email)) HAVING COUNT > 1 (organizations.email)
  *
  * Each dimension's HAVING-clause queries are O(n) in the number of Organizations. We do NOT do
  * O(n²) fuzzy name matching here — the ingest-time vendor resolver already does that and
@@ -48,6 +53,10 @@ class FindOrganizationDuplicatesService
 
         $groups = array_merge(
             $groups,
+            $this->groupsByExternalIdConflict($appId, $companyId),
+        );
+        $groups = array_merge(
+            $groups,
             $this->groupsByExactName($appId, $companyId),
         );
         $groups = array_merge(
@@ -55,8 +64,8 @@ class FindOrganizationDuplicatesService
             $this->groupsByEmailMatch($appId, $companyId),
         );
 
-        // Stable dedup: an Org can appear in multiple groups (same name AND same email). For each
-        // member-set signature, keep only the first reason that surfaced it.
+        // Stable dedup: an Org can appear in multiple groups (same name AND same email). Dimensions
+        // are merged above in descending confidence order, so external_id_conflict wins ties.
         $deduped = [];
         foreach ($groups as $group) {
             $signature = implode('|', $group->member_ids);
@@ -109,6 +118,80 @@ class FindOrganizationDuplicatesService
             ->get();
 
         return $this->mapRowsToGroups($rows, 'normalized_name');
+    }
+
+    /**
+     * Two queries instead of a cross-connection JOIN — a JOIN from `crm` straight into
+     * `ecosystem`'s apps_custom_fields is pinned to `crm`'s REPEATABLE READ snapshot, so a custom
+     * field written earlier in the same transaction (on `ecosystem`) can be invisible to it.
+     *
+     * @return list<OrganizationDuplicateGroup>
+     */
+    private function groupsByExternalIdConflict(int $appId, int $companyId): array
+    {
+        $customFields = DB::connection('ecosystem')
+            ->table('apps_custom_fields')
+            ->select('entity_id', 'value')
+            ->where('companies_id', $companyId)
+            ->where('model_name', Organization::class)
+            ->where('is_deleted', false)
+            ->whereIn('name', ThirdPartyOrganizationIdFieldEnum::fieldNames())
+            ->get();
+
+        if ($customFields->isEmpty()) {
+            return [];
+        }
+
+        $valuesByOrgId = [];
+        foreach ($customFields as $row) {
+            $valuesByOrgId[(int) $row->entity_id][] = (string) $row->value;
+        }
+
+        $organizations = DB::connection('crm')
+            ->table('organizations')
+            ->select('id', 'name')
+            ->whereIn('id', array_keys($valuesByOrgId))
+            ->where('apps_id', $appId)
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', false)
+            ->whereNotNull('name')
+            ->where('name', '!=', '')
+            ->get();
+
+        $byName = [];
+        foreach ($organizations as $row) {
+            $normName = strtolower(trim($row->name));
+            $byName[$normName]['ids'][] = (int) $row->id;
+            $byName[$normName]['sample'] = $row->name;
+        }
+
+        $out = [];
+        foreach ($byName as $data) {
+            $ids = $data['ids'];
+            if (count($ids) < 2) {
+                continue;
+            }
+
+            $distinctValues = [];
+            foreach ($ids as $id) {
+                foreach ($valuesByOrgId[$id] ?? [] as $value) {
+                    $distinctValues[$value] = true;
+                }
+            }
+            if (count($distinctValues) < 2) {
+                continue;
+            }
+
+            sort($ids);
+            $out[] = new OrganizationDuplicateGroup(
+                canonical_id: $ids[0],
+                member_ids: $ids,
+                reason: 'external_id_conflict',
+                sample_name: $data['sample'],
+            );
+        }
+
+        return $out;
     }
 
     /**
