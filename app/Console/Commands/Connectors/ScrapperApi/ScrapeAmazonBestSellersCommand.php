@@ -92,6 +92,7 @@ class ScrapeAmazonBestSellersCommand extends Command
         $this->clearHomepageTag($app, $tag);
 
         $success = 0;
+        $duplicates = 0;
         $failed = 0;
 
         foreach ($categories as $category) {
@@ -102,7 +103,21 @@ class ScrapeAmazonBestSellersCommand extends Command
 
             $this->info(sprintf('Category "%s" (%s): %d product(s)', $category['name'], $category['slug'], count($products)));
 
+            // Amazon lists the same product under different ASINs — keep only the first per
+            // normalized name in a department so the homepage/bundle don't show duplicates.
+            $seenNames = [];
+
             foreach ($products as $item) {
+                $nameKey = Str::slug((string) ($item['name'] ?? ''));
+                if ($nameKey !== '' && isset($seenNames[$nameKey])) {
+                    $duplicates++;
+
+                    continue;
+                }
+                if ($nameKey !== '') {
+                    $seenNames[$nameKey] = true;
+                }
+
                 try {
                     // Un-delete a previously removed product so the importer reuses it instead of leaving it hidden.
                     Products::withTrashed()->where('slug', Str::slug($item['asin']))->update(['is_deleted' => 0]);
@@ -163,6 +178,7 @@ class ScrapeAmazonBestSellersCommand extends Command
         $this->info('=== Import Summary ===');
         $this->info('Categories: ' . count($categories));
         $this->info('Imported: ' . $success);
+        $this->info('Duplicates skipped: ' . $duplicates);
         $this->info('Failed: ' . $failed);
         $this->info('======================');
 
@@ -268,10 +284,15 @@ class ScrapeAmazonBestSellersCommand extends Command
             return [];
         }
 
+        // One variant per product so a multi-variant product doesn't flood the bundle.
         return Variants::query()
             ->whereIn('products_id', $productIds)
             ->where('is_deleted', 0)
-            ->pluck('id')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('products_id')
+            ->map(fn ($group) => $group->first()->getKey())
+            ->values()
             ->all();
     }
 
