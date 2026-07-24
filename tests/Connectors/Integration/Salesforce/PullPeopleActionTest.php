@@ -57,6 +57,37 @@ final class PullPeopleActionTest extends TestCase
         $this->assertSame('Appleseed Jr', $updated->lastname);
     }
 
+    public function testDoesNotMergeIntoAnUnrelatedPeopleSharingPhoneOrEmail(): void
+    {
+        $app = app(Apps::class);
+        $user = static::$cachedUser;
+        $company = $user->getCurrentCompany();
+
+        // Real-world case this guards: two distinct Salesforce Contacts (different Ids) that
+        // happen to share a phone number. CreatePeopleAction::checkIfPeopleExist() would normally
+        // fold the second one into the first — that's a duplicate for the merge/dedup flow to
+        // catch, not something the pull itself should silently resolve.
+        $first = new PullPeopleAction(
+            $app,
+            $company,
+            ['FirstName' => 'Andres', 'LastName' => 'Pina', 'Email' => 'pina@pina.com', 'Phone' => '8299992211'],
+            '003xx0000000001AAA',
+        )->execute();
+
+        $second = new PullPeopleAction(
+            $app,
+            $company,
+            ['FirstName' => 'Arfenis', 'LastName' => 'Puello', 'Email' => 'arfen@mctekk.com', 'Phone' => '8299992211'],
+            '003xx0000000002AAA',
+        )->execute();
+
+        $this->assertNotSame($first->getId(), $second->getId());
+        $this->assertSame('Pina', $first->lastname);
+        $this->assertSame('Puello', $second->lastname);
+        $this->assertSame('003xx0000000001AAA', $first->get(CustomFieldEnum::SALESFORCE_CONTACT_ID->value));
+        $this->assertSame('003xx0000000002AAA', $second->get(CustomFieldEnum::SALESFORCE_CONTACT_ID->value));
+    }
+
     public function testLinksToOrganizationResolvedByAccountId(): void
     {
         $app = app(Apps::class);
