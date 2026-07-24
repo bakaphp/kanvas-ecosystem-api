@@ -23,7 +23,6 @@ trait DrivesAgentWake
 {
     /**
      * @param object $ledgerEntity a model using EmitsLedgerEventsForEntity (Project or Plan)
-     * @param array<string, mixed> $failurePayload payload for the failure event
      * @param array<int, object> $tools board tools injected for this run only
      *
      * @return array{0: string, 1: int} the agent's response and the elapsed milliseconds

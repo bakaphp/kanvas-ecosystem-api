@@ -14,9 +14,6 @@ enum ProjectIngestTypeEnum: string
     case EMAIL = 'email';
     case MENTION = 'mention';
 
-    /**
-     * The Social MessageType verb the ingested item is stored under.
-     */
     public function messageVerb(): string
     {
         return match ($this) {

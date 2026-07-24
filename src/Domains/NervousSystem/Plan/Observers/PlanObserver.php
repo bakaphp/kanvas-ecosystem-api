@@ -35,9 +35,6 @@ class PlanObserver
 
     public function updated(Plan $plan): void
     {
-        // Fire only on the TRANSITION into blocked (state-change, so it doesn't re-alert every save/
-        // heartbeat while the plan sits blocked) and only for project plans — deterministically tell
-        // the project owner rather than hoping the PM @mentions them.
         if ($plan->project_id !== null
             && $plan->wasChanged('status')
             && $plan->status === PlanStatusEnum::BLOCKED->value

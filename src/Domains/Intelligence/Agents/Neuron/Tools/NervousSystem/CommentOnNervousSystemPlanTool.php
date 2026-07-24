@@ -26,7 +26,6 @@ class CommentOnNervousSystemPlanTool extends Tool
     use HasKanvasContext;
     use ResolvesPlanForTool;
 
-    // How many of the plan's most recent notes to scan for an identical comment before posting.
     private const int DEDUP_LOOKBACK = 15;
 
     public function __construct()

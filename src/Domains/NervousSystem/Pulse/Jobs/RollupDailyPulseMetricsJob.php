@@ -23,9 +23,6 @@ class RollupDailyPulseMetricsJob extends AbstractRollupDailyMetricsJob
     #[Override]
     protected function tenantTuplesForDay(Carbon $start, Carbon $end): Collection
     {
-        // Tenants that had ANY ledger activity in the day — pulse metrics
-        // only make sense for tenants where the nervous system actually
-        // saw events.
         return DB::connection('intelligence')
             ->table('nervous_system_events')
             ->whereBetween('occurred_at', [$start, $end])

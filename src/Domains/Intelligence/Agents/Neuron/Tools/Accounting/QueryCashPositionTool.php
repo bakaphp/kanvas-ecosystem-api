@@ -49,7 +49,6 @@ class QueryCashPositionTool extends Tool
         $company = $this->company;
         $date = $as_of !== null ? Carbon::parse($as_of) : Carbon::today();
 
-        // Cash accounts are ASSET account_type rows whose sub_type starts with 'cash_'.
         $cashAccounts = Account::query()
             ->where('apps_id', $app->getId())
             ->where('companies_id', $company->getId())

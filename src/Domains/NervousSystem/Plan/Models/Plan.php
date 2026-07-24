@@ -324,10 +324,6 @@ class Plan extends BaseModel
         }
     }
 
-    /**
-     * Recompute completion_pct from the current task state and persist it.
-     * Returns the new percentage.
-     */
     public function recomputeCompletionPct(): int
     {
         $total = (int) $this->tasks()->where('is_deleted', 0)->count();

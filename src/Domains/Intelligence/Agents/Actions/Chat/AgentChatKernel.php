@@ -204,9 +204,6 @@ class AgentChatKernel
             $handler->setTurnMedia($this->nativeMedia());
         }
 
-        // Per-run tools injected by the caller — e.g. a worker woken for a plan gets the NS board
-        // tools scoped to that plan, without those tools being part of its own persona. Additive:
-        // no caller that omits them is affected.
         if ($this->additionalTools !== [] && $handler instanceof BaseKanvasAgent) {
             $handler->addTool($this->additionalTools);
         }

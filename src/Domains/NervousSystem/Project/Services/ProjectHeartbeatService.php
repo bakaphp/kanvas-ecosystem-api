@@ -26,8 +26,6 @@ class ProjectHeartbeatService
     private const int STALL_MINUTES = 30;
 
     /**
-     * Open projects in this app whose cadence has elapsed (due for a tick).
-     *
      * @return Collection<int, Project>
      */
     public function dueProjects(Apps $app): Collection
@@ -107,7 +105,6 @@ class ProjectHeartbeatService
         $hasInFlight = $tasks->contains(fn (Task $task): bool => $task->status === TaskStatusEnum::IN_PROGRESS->value);
         $hasPending = $tasks->contains(fn (Task $task): bool => $task->status === TaskStatusEnum::PENDING->value);
 
-        // Work waiting with nothing moving → the PM should pick it up.
         return $hasPending && ! $hasInFlight;
     }
 
