@@ -92,7 +92,7 @@ class AgentConfigBackupService
     public function upload(Agent $agent, Apps $app, array $data, ?AgentBackup $workspaceBackup = null): string
     {
         $timestamp = now()->format('Y-m-d_H-i-s');
-        $s3Path = "config-backups/{$app->uuid}/{$agent->uuid}/{$timestamp}.zip";
+        $s3Path = "config-backups/{$app->key}/{$agent->uuid}/{$timestamp}.zip";
 
         $tempPath = tempnam(sys_get_temp_dir(), 'agent_config_backup_') . '.zip';
 

@@ -105,7 +105,11 @@ class PullLeadAction
         }
 
         if (! empty($entity->potentialTrade)) {
-            $customFields[CustomFieldEnum::TRADE_IN->value] = $this->buildTradeInCustomField($entity->potentialTrade);
+            $data = $entity->potentialTrade;
+            $data['firstName'] = $entity->customer->firstName;
+            $data['lastName'] = $entity->customer->lastName;
+            $data['fullName'] = $entity->customer->firstName . ' ' . $entity->customer->lastName;
+            $customFields[CustomFieldEnum::TRADE_IN->value] = $this->buildTradeInCustomField($data);
         }
 
         $leadData = LeadData::from([
@@ -279,6 +283,9 @@ class PullLeadAction
             'condition' => 'UNKNOWN',
             'description' => null,
             'payOff' => 0.0,
+            'firstName' => $trade['firstName'],
+            'lastName' => $trade['lastName'],
+            'fullName' => $trade['firstName'] . ' ' . $trade['lastName'],
         ];
     }
 

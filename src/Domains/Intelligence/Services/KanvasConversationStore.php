@@ -18,16 +18,18 @@ use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\Data\ToolCall;
 use Laravel\Ai\Responses\Data\ToolResult;
 use Override;
+use stdClass;
 
 class KanvasConversationStore implements ConversationStore
 {
+    // Kanvas conversations are user-scoped: $participantId maps to user_id, $participantType is unused.
     #[Override]
-    public function latestConversationId(string|int $userId): ?string
+    public function latestConversationId(string $participantType, string|int $participantId): ?string
     {
         [$appsId, $companiesId] = $this->tenantIds();
 
         return DB::connection('intelligence')->table('agent_conversations')
-            ->where('user_id', $userId)
+            ->where('user_id', $participantId)
             ->where('apps_id', $appsId)
             ->where('companies_id', $companiesId)
             ->orderBy('updated_at', 'desc')
@@ -35,21 +37,21 @@ class KanvasConversationStore implements ConversationStore
     }
 
     #[Override]
-    public function storeConversation(string|int|null $userId, string $title): string
-    {
+    public function storeConversation(
+        ?string $participantType,
+        string|int|null $participantId,
+        string $title
+    ): string {
         return $this->storeConversationForAgent(
-            $userId,
+            $participantId,
             null,
             $title
         );
     }
 
     /**
-     * Agent-aware conversation insert. The interface `storeConversation` is
-     * called by Laravel AI itself and has no place to receive the Kanvas
-     * Agent id; explicit callers (the three Run*ChatAction classes via
-     * logTurn) must pass `$agentId` here so the row is filterable from the
-     * `agentConversations` query.
+     * The interface `storeConversation` has no slot for the Kanvas agent id; logTurn callers use this
+     * variant to set it so the `agentConversations` query can filter by agent.
      */
     public function storeConversationForAgent(
         string|int|null $userId,
@@ -77,7 +79,8 @@ class KanvasConversationStore implements ConversationStore
     #[Override]
     public function storeUserMessage(
         string $conversationId,
-        string|int|null $userId,
+        ?string $participantType,
+        string|int|null $participantId,
         AgentPrompt $prompt
     ): string {
         $messageId = (string) Str::uuid7();
@@ -85,7 +88,7 @@ class KanvasConversationStore implements ConversationStore
         DB::connection('intelligence')->table('agent_conversation_messages')->insert([
             'id' => $messageId,
             'conversation_id' => $conversationId,
-            'user_id' => $userId,
+            'user_id' => $participantId,
             'agent' => $prompt->agent::class,
             'role' => 'user',
             'content' => $prompt->prompt,
@@ -106,16 +109,17 @@ class KanvasConversationStore implements ConversationStore
     #[Override]
     public function storeAssistantMessage(
         string $conversationId,
-        string|int|null $userId,
+        ?string $participantType,
+        string|int|null $participantId,
         AgentPrompt $prompt,
         AgentResponse $response
-    ): string {
+    ): ?string {
         $messageId = (string) Str::uuid7();
 
         DB::connection('intelligence')->table('agent_conversation_messages')->insert([
             'id' => $messageId,
             'conversation_id' => $conversationId,
-            'user_id' => $userId,
+            'user_id' => $participantId,
             'agent' => $prompt->agent::class,
             'role' => 'assistant',
             'content' => $response->text,
@@ -134,15 +138,24 @@ class KanvasConversationStore implements ConversationStore
     }
 
     /**
-     * Wire a conversation row to its Kanvas Agent the first time a message
-     * arrives. Laravel AI's `ConversationStore::storeConversation` interface
-     * doesn't take the agent — but the very next call (storeUserMessage)
-     * carries `$prompt->agent`, which on every Kanvas flow is a
-     * KanvasLaravelAgent with the Kanvas Agent model attached. We close that
-     * gap here so the `linkedToAgent` scope + `@eq` filter on the
-     * `agentConversations` query work for the middleware path too — not just
-     * the explicit logTurn callers. `whereNull('agent_id')` makes this a
-     * once-per-conversation write; later messages are no-ops at the DB level.
+     * No-op: Kanvas handles human approval at the Social message layer (message locking), not via
+     * Laravel AI's native pause/resume, so no agent ever pauses here for this to persist.
+     *
+     * @param array<int, ToolResult> $toolResults
+     */
+    #[Override]
+    public function storeApprovalResults(
+        string $conversationId,
+        ?string $participantType,
+        string|int|null $participantId,
+        array $toolResults
+    ): void {
+    }
+
+    /**
+     * storeConversation can't receive the agent, but the next storeUserMessage carries $prompt->agent
+     * (a KanvasLaravelAgent). Backfill it here so the `agentConversations` query filters by agent on the
+     * middleware path too. `whereNull('agent_id')` keeps it a once-per-conversation write.
      */
     protected function backfillConversationAgentId(string $conversationId, AgentPrompt $prompt): void
     {
@@ -178,7 +191,7 @@ class KanvasConversationStore implements ConversationStore
             ->get()
             ->reverse()
             ->values()
-            ->flatMap(function ($record) {
+            ->flatMap(function (stdClass $record): array {
                 $toolCalls = collect(json_decode($record->tool_calls, true));
                 $toolResults = collect(json_decode($record->tool_results, true));
 
@@ -219,19 +232,10 @@ class KanvasConversationStore implements ConversationStore
     }
 
     /**
-     * Log a single user+assistant turn for any agent framework.
+     * A non-empty $sessionId reuses (or creates) the conversation for that session; empty creates a
+     * standalone one. The same sessionId under two different agents must not collide —
+     * findOrCreateConversationBySession scopes by agent_id to enforce that.
      *
-     * When $sessionId is non-empty, the turn is appended to an existing
-     * conversation identified by that session UUID (or a new one is created
-     * scoped to the same session). When empty, a standalone conversation is
-     * created for this turn only.
-     *
-     * $agentId is the Kanvas Agent row id; pass it so the conversation row
-     * is filterable from the `agentConversations` GraphQL query by agent.
-     * Same sessionId across two different agents must NOT collide — that's
-     * what the agent_id scoping in findOrCreateConversationBySession enforces.
-     */
-    /**
      * @param array<int, mixed> $toolCalls
      * @param array<int, mixed> $toolResults
      * @param array<string, mixed> $usage
@@ -324,8 +328,6 @@ class KanvasConversationStore implements ConversationStore
     }
 
     /**
-     * Returns [apps_id, companies_id] for the current request context.
-     *
      * @return array{int, int}
      */
     protected function tenantIds(): array

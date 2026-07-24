@@ -5,6 +5,7 @@ namespace Kanvas\Connectors\PasoRapido\Actions;
 use Exception;
 use GuzzleHttp\Exception\RequestException;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum as EchoPayCustomFieldEnum;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\PaymentConfirmData;
 use Kanvas\Connectors\PasoRapido\Enums\CustomFieldEnum;
@@ -53,19 +54,27 @@ class CreatePasoRapidoOrderAction
         }
 
         $tag = $this->order->metadata['data']['paso_rapido_tag'];
-        $fiscalCredit = (bool) ($this->order->metadata['data']['fiscal_credit'] ?? false);
 
         $company = $this->order->company;
-        $isCorporate = (bool) ($company->get('is_corporate') ?? false);
 
-        if ($isCorporate) {
-            $dni = trim((string) ($company->get('rnc') ?? ''));
-        } else {
-            $metadataRnc = trim((string) ($this->order->metadata['data']['rnc'] ?? ''));
-            $dni = $metadataRnc !== ''
-                ? $metadataRnc
-                : (string) ($this->order->get(CustomFieldEnum::PASO_RAPIDO_DNI->value) ?? '');
+        // corporate purchases are invoiced to the provider company, not the branch one
+        $fiscalCompany = $this->order->providerCompanies
+            ->first(fn (Companies $providerCompany) => (bool) $providerCompany->get('is_corporate'))
+            ?? $company;
+
+        $rnc = (bool) $fiscalCompany->get('is_corporate')
+            ? trim((string) ($fiscalCompany->get('rnc') ?? ''))
+            : '';
+
+        if ($rnc === '') {
+            $rnc = trim((string) ($this->order->metadata['data']['rnc'] ?? ''));
         }
+
+        // having a RNC (corporate or on the order) means fiscal credit is wanted; a cedula does not
+        $fiscalCredit = $rnc !== '' || (bool) ($this->order->metadata['data']['fiscal_credit'] ?? false);
+        $dni = $rnc !== ''
+            ? $rnc
+            : trim((string) ($this->order->get(CustomFieldEnum::PASO_RAPIDO_DNI->value) ?? ''));
 
         try {
             $pasoRapidoService = $this->pasoRapidoService ?? new PasoRapidoService($this->app, $company);

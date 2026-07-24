@@ -52,6 +52,17 @@ class MechanicsBuilder
             });
         }
 
+        if (isset($args['service_type'])) {
+            $serviceType = $args['service_type'];
+            $query->whereExists(function ($q) use ($serviceType) {
+                $q->select(DB::raw(1))
+                    ->from('user_config')
+                    ->whereRaw('user_config.users_id = users.id')
+                    ->where('user_config.name', CustomFieldEnum::MECHANIC_SERVICE_TYPE->value)
+                    ->where('user_config.value', $serviceType);
+            });
+        }
+
         return $query;
     }
 }
