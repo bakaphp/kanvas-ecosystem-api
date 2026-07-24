@@ -211,5 +211,4 @@ final class RespondToMentionJob implements ShouldQueue
             report($e);
         }
     }
-
 }
