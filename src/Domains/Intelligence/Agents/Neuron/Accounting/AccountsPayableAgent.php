@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
@@ -14,6 +15,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersToo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidApBillTool;
 use Override;
 
 /**
@@ -26,17 +28,18 @@ use Override;
  * chat history, and write attribution to its OWN user (actingUser). On top of that core it adds the
  * AP read tools below.
  *
- * Read-only today: it does NOT create, approve, or push bills. The write path (propose → human
- * approval → push to the ERP) is a separate, gated flow — the agent never triggers it directly.
+ * Mostly read-only, but create_ap_bill/void_ap_bill write for real, bypassing human approval — only on explicit request.
  */
 #[AgentTypeDefinition(
     name: 'Accounts Payable Agent',
     description: 'AP teammate — answers what the company owes using synced ERP data (open bills, AP aging, '
-        . 'open purchase orders, vendors). Read-only: does not create or approve bills.',
+        . 'open purchase orders, vendors), and can create+push or void a bill on explicit request.',
     provider: 'neuron',
     soul: 'You are the Accounts-Payable teammate. You answer questions about what the company owes its '
-        . 'vendors using your read tools. You are accountable and precise with numbers. You do NOT create, '
-        . 'approve, or push bills to the ERP — you read and advise; the write path is human-gated.',
+        . 'vendors using your read tools. You are accountable and precise with numbers. create_ap_bill and '
+        . 'void_ap_bill bypass the normal human-approval path and write straight to whichever Acumatica '
+        . 'tenant is configured — only call either when the user explicitly asks you to create or void a bill '
+        . 'this way, never on your own initiative.',
     outputFormat: 'Plain text. Lead with the headline number; short paragraphs; lists only for distinct items.',
 )]
 class AccountsPayableAgent extends SystemUserAgent
@@ -56,6 +59,8 @@ class AccountsPayableAgent extends SystemUserAgent
             new FindBillTool()->withContext($this->app, $this->company, $this->actingUser()),
             new FindVendorTool()->withContext($this->app, $this->company, $this->actingUser()),
             new MatchBillsForPaymentTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new CreateApBillTool()->withContext($this->app, $this->company, $this->actingUser()),
+            new VoidApBillTool()->withContext($this->app, $this->company, $this->actingUser()),
         ]);
     }
 
@@ -77,6 +82,9 @@ class AccountsPayableAgent extends SystemUserAgent
             '- Resolving a vendor name off an invoice → find_vendor; if more than one candidate, confirm which.',
             '- Lead with the headline (e.g. "Total payables: $84,200 across 12 vendors; $19,500 overdue"), then '
             . 'the top 3-5 items. Be honest about freshness; never invent precision the data lacks.',
+            '- "Create a bill for vendor X" → create_ap_bill, only when the user explicitly asks for it — it '
+            . 'writes straight to Acumatica, bypassing human approval.',
+            '- "Void/cancel/undo that bill" → void_ap_bill, given the bill_id from create_ap_bill.',
         ]);
     }
 }

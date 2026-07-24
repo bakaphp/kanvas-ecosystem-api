@@ -105,6 +105,26 @@ class AcumaticaWriteService
         }
     }
 
+    /** Runs a callback (receiving the raw Client) against a single authenticated session, for multi-call write flows push() doesn't cover. */
+    public function withSession(callable $callback): mixed
+    {
+        $this->assertWriteEnabled();
+
+        $client = $this->client();
+
+        try {
+            $client->login();
+
+            return $callback($client);
+        } catch (AcumaticaWriteException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            throw AcumaticaWriteException::fromThrowable($e, 'session');
+        } finally {
+            $this->safeLogout();
+        }
+    }
+
     /**
      * @param array<string, mixed> $query      OData query, e.g. ['$filter' => "VendorName eq 'X'", '$top' => 1]
      * @param array<string, mixed> $createBody `{value:}`-wrapped payload for the create branch
