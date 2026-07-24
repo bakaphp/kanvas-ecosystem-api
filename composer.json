@@ -50,7 +50,7 @@
         "maatwebsite/excel": "4.x-dev",
         "meilisearch/meilisearch-php": "^1.4",
         "mike-bronner/laravel-model-caching": "^13.0",
-        "mindee/mindee": "^2.0",
+        "mindee/mindee": "^3.1",
         "mll-lab/graphql-php-scalars": "^6.0",
         "mll-lab/laravel-graphiql": "^4.0.1",
         "neuron-core/neuron-ai": "^3.0",
