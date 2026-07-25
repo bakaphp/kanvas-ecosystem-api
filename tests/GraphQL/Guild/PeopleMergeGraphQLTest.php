@@ -34,7 +34,7 @@ class PeopleMergeGraphQLTest extends TestCase
 
         $response = $this->graphQL('
             query {
-                findGuildPeopleDuplicates(max_groups: 50) {
+                findPeopleDuplicates(max_groups: 50) {
                     canonical_id
                     member_ids
                     reason
@@ -48,7 +48,7 @@ class PeopleMergeGraphQLTest extends TestCase
             }
         ')->assertSuccessful();
 
-        $groups = $response->json('data.findGuildPeopleDuplicates');
+        $groups = $response->json('data.findPeopleDuplicates');
         $this->assertIsArray($groups);
 
         $matching = array_filter($groups, function (array $g) use ($a, $b): bool {
@@ -76,7 +76,7 @@ class PeopleMergeGraphQLTest extends TestCase
 
         $response = $this->graphQL('
             mutation($sources: [Int!]!, $target: Int!) {
-                mergeGuildPeople(source_ids: $sources, target_id: $target) {
+                mergePeople(source_ids: $sources, target_id: $target) {
                     id
                     firstname
                 }
@@ -86,7 +86,7 @@ class PeopleMergeGraphQLTest extends TestCase
             'target' => (int) $target->id,
         ])->assertSuccessful();
 
-        $payload = $response->json('data.mergeGuildPeople');
+        $payload = $response->json('data.mergePeople');
         $this->assertSame((int) $target->id, (int) $payload['id'], 'Mutation should return the TARGET row.');
 
         $source->refresh();
@@ -101,7 +101,7 @@ class PeopleMergeGraphQLTest extends TestCase
 
         $response = $this->graphQL('
             mutation($sources: [Int!]!, $target: Int!) {
-                mergeGuildPeople(source_ids: $sources, target_id: $target) {
+                mergePeople(source_ids: $sources, target_id: $target) {
                     id
                 }
             }
@@ -110,7 +110,7 @@ class PeopleMergeGraphQLTest extends TestCase
             'target' => (int) $target->id,
         ])->assertSuccessful();
 
-        $payload = $response->json('data.mergeGuildPeople');
+        $payload = $response->json('data.mergePeople');
         $this->assertSame((int) $target->id, (int) $payload['id']);
 
         $sourceA->refresh();
@@ -127,7 +127,7 @@ class PeopleMergeGraphQLTest extends TestCase
 
         $response = $this->graphQL('
             mutation($sources: [Int!]!, $target: Int!) {
-                mergeGuildPeople(source_ids: $sources, target_id: $target) {
+                mergePeople(source_ids: $sources, target_id: $target) {
                     id
                 }
             }

@@ -12,8 +12,8 @@ use Tests\TestCase;
 
 /**
  * GraphQL surface tests for the duplicate-cleanup operator UI:
- *   - `findGuildOrganizationDuplicates` query → returns clusters as JSON
- *   - `mergeGuildOrganizations` mutation → executes the merge + returns the target
+ *   - `findOrganizationDuplicates` query → returns clusters as JSON
+ *   - `mergeOrganizations` mutation → executes the merge + returns the target
  *
  * The underlying business logic is covered by FindOrganizationDuplicatesServiceTest +
  * MergeOrganizationsActionTest. This test verifies the GraphQL adapter layer wires inputs/outputs
@@ -43,7 +43,7 @@ class OrganizationMergeGraphQLTest extends TestCase
 
         $response = $this->graphQL('
             query {
-                findGuildOrganizationDuplicates(max_groups: 50) {
+                findOrganizationDuplicates(max_groups: 50) {
                     canonical_id
                     member_ids
                     reason
@@ -56,7 +56,7 @@ class OrganizationMergeGraphQLTest extends TestCase
             }
         ')->assertSuccessful();
 
-        $groups = $response->json('data.findGuildOrganizationDuplicates');
+        $groups = $response->json('data.findOrganizationDuplicates');
         $this->assertIsArray($groups);
 
         // Our cluster should be among the returned groups
@@ -83,7 +83,7 @@ class OrganizationMergeGraphQLTest extends TestCase
 
         $response = $this->graphQL('
             mutation($sources: [Int!]!, $target: Int!) {
-                mergeGuildOrganizations(source_ids: $sources, target_id: $target) {
+                mergeOrganizations(source_ids: $sources, target_id: $target) {
                     id
                     name
                 }
@@ -93,7 +93,7 @@ class OrganizationMergeGraphQLTest extends TestCase
             'target' => (int) $target->id,
         ])->assertSuccessful();
 
-        $payload = $response->json('data.mergeGuildOrganizations');
+        $payload = $response->json('data.mergeOrganizations');
         $this->assertSame((int) $target->id, (int) $payload['id'], 'Mutation should return the TARGET row.');
         $this->assertSame($target->name, $payload['name']);
 
@@ -110,7 +110,7 @@ class OrganizationMergeGraphQLTest extends TestCase
 
         $response = $this->graphQL('
             mutation($sources: [Int!]!, $target: Int!) {
-                mergeGuildOrganizations(source_ids: $sources, target_id: $target) {
+                mergeOrganizations(source_ids: $sources, target_id: $target) {
                     id
                 }
             }
@@ -119,7 +119,7 @@ class OrganizationMergeGraphQLTest extends TestCase
             'target' => (int) $target->id,
         ])->assertSuccessful();
 
-        $payload = $response->json('data.mergeGuildOrganizations');
+        $payload = $response->json('data.mergeOrganizations');
         $this->assertSame((int) $target->id, (int) $payload['id']);
 
         $sourceA->refresh();
@@ -136,7 +136,7 @@ class OrganizationMergeGraphQLTest extends TestCase
 
         $response = $this->graphQL('
             mutation($sources: [Int!]!, $target: Int!) {
-                mergeGuildOrganizations(source_ids: $sources, target_id: $target) {
+                mergeOrganizations(source_ids: $sources, target_id: $target) {
                     id
                 }
             }

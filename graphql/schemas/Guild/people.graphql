@@ -258,8 +258,7 @@ extend type Query @guard {
             resolver: "App\\GraphQL\\Guild\\Queries\\PeopleManagementQueries@getBySubscriptionType"
         )
 
-    "List clusters of likely-duplicate People for review + merge."
-    findGuildPeopleDuplicates(
+    findPeopleDuplicates(
         max_groups: Int
     ): [PeopleDuplicateGroup!]!
         @field(
@@ -330,7 +329,7 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleEmploymentHistoryMutation@delete"
         )
 
-    mergeGuildPeople(source_ids: [Int!]!, target_id: Int!): People!
+    mergePeople(source_ids: [Int!]!, target_id: Int!): People!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleMergeMutation@merge"
         )
