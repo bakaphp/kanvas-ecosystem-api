@@ -178,11 +178,24 @@ class WakeAgentForProjectJob implements ShouldQueue
             $this->project->uuid,
         );
 
-        // Cap the trigger text — a mention/ingest could quote a huge prior message; never let it
-        // balloon the prompt (belt-and-braces with persistConversation:false).
-        $trigger = $this->triggerMessage !== null && $this->triggerMessage !== ''
-            ? "New context on the project:\n\"\"\"\n" . Str::limit($this->triggerMessage, 4000) . "\n\"\"\"\n\n"
-            : '';
+        $trigger = '';
+        if ($this->triggerMessage !== null && $this->triggerMessage !== '') {
+            // Ingested transcripts/emails are far larger than any prompt should hold. Hand the PM a short
+            // preview plus the message id and make it pull the FULL content with read_message_content — so
+            // it decomposes the whole thing, not just the opening (the old 4000-char truncation is exactly
+            // why plans came out thin on long meetings).
+            $isIngest = $this->reason === self::REASON_INGEST;
+            $preview = Str::limit($this->triggerMessage, $isIngest ? 1500 : 4000);
+            $label = $this->triggerMessageId !== null
+                ? "New context on the project (message #{$this->triggerMessageId})"
+                : 'New context on the project';
+            $readFull = $isIngest && $this->triggerMessageId !== null
+                ? "\nThis is only a PREVIEW. Call read_message_content(message_id={$this->triggerMessageId}) and "
+                    . 'page with next_offset until has_more is false to read the ENTIRE content, then decompose '
+                    . 'all of it — not just this preview.'
+                : '';
+            $trigger = "{$label}:\n\"\"\"\n{$preview}\n\"\"\"{$readFull}\n\n";
+        }
 
         return $header
             . 'You are the PM of this project. Read the context below, decide what needs to happen, '

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\ProjectManagement;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
-use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
+use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
@@ -17,7 +17,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSyste
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
-use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\InMemoryChatHistory;
@@ -30,9 +30,8 @@ use Override;
     soul: 'You are a project manager agent inside Kanvas. You own a single project end to end: you read everything happening on it (meeting transcripts, emails, chat), turn it into concrete plans and tasks, assign each task to the right teammate or agent, and follow up until the work is done. You are accountable for the project moving forward.',
     outputFormat: 'Plain text. Short paragraphs; use lists only when enumerating tasks or assignments.',
 )]
-class ProjectManagerAgent extends BaseKanvasAgent
+class ProjectManagerAgent extends SystemUserAgent
 {
-    use MergesRegisteredTools;
 
     #[Override]
     protected function chatHistory(): AbstractChatHistory
@@ -188,6 +187,7 @@ class ProjectManagerAgent extends BaseKanvasAgent
         }
 
         $core = [
+            new ReadMessageContentTool()->withContext($app, $company, $user),
             new UpdateNervousSystemProjectTool()->withContext($app, $company, $user),
             new CreateNervousSystemPlanTool()->withContext($app, $company, $user),
             new UpdateNervousSystemPlanTool()->withContext($app, $company, $user),
@@ -200,8 +200,10 @@ class ProjectManagerAgent extends BaseKanvasAgent
             new DeleteNervousSystemTaskTool()->withContext($app, $company, $user),
         ];
 
+        // identityTools() (from SystemUserAgent) gives the PM who_is_user — correctly pointed at the
+        // human it's talking to — plus its own ledger memory, without re-listing them here.
         return $this->mergeRegisteredTools(
-            $core,
+            [...$this->identityTools(), ...$core],
             $agent,
             CapabilityFrameworkEnum::NEURON
         );
