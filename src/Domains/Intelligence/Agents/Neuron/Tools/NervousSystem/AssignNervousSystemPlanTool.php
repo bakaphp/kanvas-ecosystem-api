@@ -9,7 +9,10 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Plan\Notifications\PlanProgressNotification;
+use Kanvas\NervousSystem\Project\Enums\ProjectMemberTypeEnum;
 use Kanvas\NervousSystem\Project\Jobs\WakeWorkerForPlanJob;
+use Kanvas\NervousSystem\Project\Models\ProjectMember;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -117,13 +120,31 @@ class AssignNervousSystemPlanTool extends Tool
             ];
         }
 
+        // Only an executor agent auto-runs. A non-executor (remote/container/Lead-context) is recorded
+        // as owner but not woken here — its own runtime drives it, or the PM @mentions it.
+        $autoRun = $agent->canExecuteBoardWork();
+
+        // Idempotent: the plan is already this agent's. Re-assigning would re-dispatch the worker and,
+        // for a non-executor (auto_run=false), the model can read the unchanged result as "didn't work"
+        // and call the identical args again until it trips ToolRunsExceededException. Short-circuit with
+        // an explicit "already done, stop" so the model moves on instead of looping.
+        if ((int) $plan->agent_id === $agent->getId()) {
+            return [
+                'plan_id' => $plan->getId(),
+                'assignee_type' => 'agent',
+                'agent_id' => $agent->getId(),
+                'name' => $agent->name,
+                'auto_run' => $autoRun,
+                'already_assigned' => true,
+                'message' => 'This plan is ALREADY assigned to this agent — assignment is complete. Do '
+                    . 'NOT call assign again for this plan; move on.',
+            ];
+        }
+
         $plan->agent_id = $agent->getId();
         $plan->assigned_users_id = null;
         $plan->saveQuietly();
 
-        // Only an executor agent auto-runs. A non-executor (remote/container/Lead-context) is recorded
-        // as owner but not woken here — its own runtime drives it, or the PM @mentions it.
-        $autoRun = $agent->canExecuteBoardWork();
         if ($autoRun) {
             WakeWorkerForPlanJob::dispatch($plan);
         }
@@ -134,6 +155,10 @@ class AssignNervousSystemPlanTool extends Tool
             'agent_id' => $agent->getId(),
             'name' => $agent->name,
             'auto_run' => $autoRun,
+            'message' => $autoRun
+                ? 'Assigned. The agent will auto-run this plan. Assignment is complete — do not assign again.'
+                : 'Assigned as owner (this agent does not auto-run). Assignment is complete — do not assign '
+                    . 'again; @mention them if you need them to act.',
         ];
     }
 
@@ -142,25 +167,72 @@ class AssignNervousSystemPlanTool extends Tool
      */
     private function assignToHuman(Plan $plan, int $usersId): array
     {
-        $user = Users::query()
-            ->where('id', $usersId)
+        // Only a HUMAN member of THIS plan's project can own it. Scoping through project membership
+        // (not a bare global Users lookup) both keeps the assignment tenant-safe and forces the PM to
+        // pick a real "type: user" member — never a same-named agent's user or a cross-tenant id.
+        $member = ProjectMember::query()
+            ->where('project_id', $plan->project_id)
+            ->where('member_type', ProjectMemberTypeEnum::USER->value)
+            ->where('users_id', $usersId)
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
+            ->with('user')
             ->first();
 
+        /** @var Users|null $user */
+        $user = $member?->user;
         if ($user === null) {
-            return ['error' => "User {$usersId} was not found — pick a users_id from the project members."];
+            return [
+                'error' => "User {$usersId} is not a human (type: user) member of this project — pick a "
+                    . 'users_id from a member whose type is "user".',
+            ];
+        }
+
+        // Idempotent: already this human's. Short-circuit BEFORE re-notifying — otherwise a model that
+        // repeats the identical call fires a duplicate push/email on every retry (and can loop to the
+        // tool-run cap). Tell it the assignment is done so it stops.
+        if ((int) $plan->assigned_users_id === $user->getId() && $plan->agent_id === null) {
+            return [
+                'plan_id' => $plan->getId(),
+                'assignee_type' => 'user',
+                'users_id' => $user->getId(),
+                'name' => trim($user->firstname . ' ' . $user->lastname) ?: $user->displayname,
+                'auto_run' => false,
+                'notified' => false,
+                'already_assigned' => true,
+                'message' => 'This plan is ALREADY assigned to this person — assignment is complete. Do '
+                    . 'NOT call assign again for this plan; move on.',
+            ];
         }
 
         $plan->agent_id = null;
         $plan->assigned_users_id = $user->getId();
         $plan->saveQuietly();
 
+        // Notify the new owner directly — don't rely on the PM remembering to @mention them. A human
+        // assignee doesn't auto-run, so this is the only signal that the plan is now theirs.
+        $user->notify(new PlanProgressNotification(
+            $plan,
+            'You were assigned a plan',
+            sprintf('You were assigned the plan "%s".', $plan->title),
+            [
+                'plan_id' => $plan->getId(),
+                'plan_uuid' => $plan->uuid,
+                'change_type' => 'assigned',
+                'status' => $plan->status,
+            ],
+        ));
+
         return [
             'plan_id' => $plan->getId(),
             'assignee_type' => 'user',
             'users_id' => $user->getId(),
-            'name' => trim(($user->firstname ?? '') . ' ' . ($user->lastname ?? '')) ?: $user->displayname,
+            'name' => trim($user->firstname . ' ' . $user->lastname) ?: $user->displayname,
             'auto_run' => false,
-            'note' => 'Human owner — not auto-run. @mention them so they know the plan is theirs.',
+            'notified' => true,
+            'note' => 'Human owner — not auto-run. They were notified of the assignment; @mention them '
+                . 'only if you also need something from them now.',
         ];
     }
 }

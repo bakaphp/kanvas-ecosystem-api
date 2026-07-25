@@ -107,6 +107,7 @@ class Plan extends BaseModel
             'apps_id' => 'integer',
             'companies_id' => 'integer',
             'agent_id' => 'integer',
+            'assigned_users_id' => 'integer',
             'swarm_id' => 'integer',
             'users_id' => 'integer',
             'parent_plan_id' => 'integer',

@@ -25,9 +25,15 @@ class ReadMessageContentTool extends Tool
     use HasKanvasContext;
     use ResolvesMessageForTool;
 
-    // Chars returned per read — big enough to make progress on a transcript, small enough not to blow
-    // the model's context in one call. The agent pages with offset for the rest.
-    private const int CHUNK = 12000;
+    // Chars returned per read. NeuronAI caps a single tool at getMaxRuns() executions per turn, so the
+    // chunk has to be large enough that even a long transcript pages out within that cap: at 40k chars ×
+    // MAX_RUNS pages we cover ~1M chars, far beyond any real meeting. Too small a chunk (the old 12k)
+    // needs 11+ pages on a 130k transcript and throws ToolRunsExceededException mid-read.
+    private const int CHUNK = 40000;
+
+    // Paging headroom above NeuronAI's default of 10 — CHUNK × MAX_RUNS is the largest message the agent
+    // can fully read in one turn.
+    private const int MAX_RUNS = 25;
 
     public function __construct()
     {
@@ -38,6 +44,8 @@ class ReadMessageContentTool extends Tool
                 . 'next_offset to keep reading until has_more is false. Always read the ENTIRE content before '
                 . 'you plan — the trigger preview is only the opening.',
         );
+
+        $this->setMaxRuns(self::MAX_RUNS);
     }
 
     /**

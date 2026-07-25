@@ -76,6 +76,11 @@ class ProjectContextServiceTest extends TestCase
         $this->assertSame('manager', $bundle->members[0]['role']);
         $this->assertSame('user', $bundle->members[0]['type']);
 
+        // The PM needs each member's users_id to assign a plan/task to a HUMAN — without it, it can
+        // only ever assign to agents and mislabels the owner (the live bug this fixes).
+        $this->assertArrayHasKey('users_id', $bundle->members[0]);
+        $this->assertSame((int) $user->getId(), (int) $bundle->members[0]['users_id']);
+
         // The PM needs a resolvable @handle to notify a human — present, and either null or @-prefixed.
         $this->assertArrayHasKey('handle', $bundle->members[0]);
         $handle = $bundle->members[0]['handle'];

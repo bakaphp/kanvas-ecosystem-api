@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\NervousSystem;
 
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -27,8 +28,11 @@ use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
+use Kanvas\NervousSystem\Plan\Notifications\PlanProgressNotification;
+use Kanvas\NervousSystem\Project\Actions\AddProjectMemberAction;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
+use Kanvas\NervousSystem\Project\Enums\ProjectMemberRoleEnum;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use Kanvas\NervousSystem\Project\Jobs\WakeWorkerForPlanJob;
 use Kanvas\NervousSystem\Project\Models\Project;
@@ -125,6 +129,116 @@ class ProjectPmToolsTest extends TestCase
         $ok = ($tool)(plan_id: $plan->id, agent_id: $other->getId());
         $this->assertArrayNotHasKey('error', $ok);
         $this->assertSame($other->getId(), $plan->refresh()->agent_id);
+    }
+
+    public function testAssignPlanToHumanMemberSetsAssignedUserClearsAgentAndNotifies(): void
+    {
+        Notification::fake();
+
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+
+        // Pre-seed an agent owner so the human assignment must visibly CLEAR it (the exact state
+        // that broke live: plan left owned by an agent while claiming a human owner).
+        $plan->agent_id = $project->pmAgent->getId();
+        $plan->saveQuietly();
+
+        $human = Users::factory()->create();
+        new AddProjectMemberAction(
+            project: $project,
+            role: ProjectMemberRoleEnum::CONTRIBUTOR,
+            user: $human,
+        )->execute();
+
+        $tool = new AssignNervousSystemPlanTool()->withContext($app, $company, $user);
+        $result = $tool(plan_id: (int) $plan->id, users_id: (int) $human->getId());
+
+        $this->assertArrayNotHasKey('error', $result);
+        $this->assertSame('user', $result['assignee_type']);
+        $this->assertSame((int) $human->getId(), (int) $result['users_id']);
+        $this->assertTrue($result['notified'] ?? false);
+
+        $fresh = $plan->refresh();
+        $this->assertSame((int) $human->getId(), (int) $fresh->assigned_users_id);
+        $this->assertNull($fresh->agent_id);
+
+        // The assigned human is notified directly — not left to depend on the PM @mentioning them.
+        Notification::assertSentTo(
+            $human,
+            PlanProgressNotification::class,
+            fn (PlanProgressNotification $n): bool => ($n->getData()['metadata']['change_type'] ?? null) === 'assigned',
+        );
+    }
+
+    public function testAssignPlanToHumanIsIdempotentAndDoesNotReNotify(): void
+    {
+        Notification::fake();
+
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+
+        $human = Users::factory()->create();
+        new AddProjectMemberAction(
+            project: $project,
+            role: ProjectMemberRoleEnum::CONTRIBUTOR,
+            user: $human,
+        )->execute();
+
+        $tool = new AssignNervousSystemPlanTool()->withContext($app, $company, $user);
+
+        $first = $tool(plan_id: (int) $plan->id, users_id: (int) $human->getId());
+        $this->assertTrue($first['notified'] ?? false);
+        $this->assertArrayNotHasKey('already_assigned', $first);
+
+        // A repeat of the identical call is a no-op: flagged already_assigned, NOT notified again — this
+        // is what breaks the retry loop that trips ToolRunsExceededException.
+        $second = $tool(plan_id: (int) $plan->id, users_id: (int) $human->getId());
+        $this->assertTrue($second['already_assigned'] ?? false);
+        $this->assertFalse($second['notified'] ?? true);
+
+        // Exactly ONE notification total, despite two assign calls.
+        Notification::assertSentToTimes($human, PlanProgressNotification::class, 1);
+    }
+
+    public function testAssignPlanToAgentIsIdempotentAndDoesNotReDispatch(): void
+    {
+        Bus::fake([WakeWorkerForPlanJob::class]);
+
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+        $executor = $project->pmAgent; // ProjectManagerAgent handler → canExecuteBoardWork() true
+
+        $tool = new AssignNervousSystemPlanTool()->withContext($app, $company, $user);
+
+        $first = $tool(plan_id: (int) $plan->id, agent_id: (int) $executor->getId());
+        $this->assertArrayNotHasKey('already_assigned', $first);
+
+        // Repeat: no-op, flagged already_assigned, and the worker is NOT dispatched a second time.
+        $second = $tool(plan_id: (int) $plan->id, agent_id: (int) $executor->getId());
+        $this->assertTrue($second['already_assigned'] ?? false);
+
+        Bus::assertDispatchedTimes(WakeWorkerForPlanJob::class, 1);
+    }
+
+    public function testAssignPlanToNonMemberUserIsRefused(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+
+        // A real user, but NOT a member of this project — must be rejected, not silently assigned
+        // (the old bare global Users lookup would have accepted any id).
+        $stranger = Users::factory()->create();
+
+        $tool = new AssignNervousSystemPlanTool()->withContext($app, $company, $user);
+        $result = $tool(plan_id: (int) $plan->id, users_id: (int) $stranger->getId());
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertStringContainsString('type: user', $result['error']);
+        $this->assertNull($plan->refresh()->assigned_users_id);
     }
 
     public function testWorkerSessionIsPerAgentSoReassignmentStartsFresh(): void

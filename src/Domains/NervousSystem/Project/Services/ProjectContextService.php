@@ -84,6 +84,9 @@ class ProjectContextService
                 // The exact @handle the mention parser resolves (app displayname). Null when the
                 // member has no resolvable handle — the PM can't notify them, so don't offer one.
                 'handle' => $this->memberHandle($project, $member),
+                // Every member is a Kanvas user — this is the id assign_plan/assign_task need to hand
+                // work to a HUMAN. Without it the PM can only ever assign to agents (agent_id below).
+                'users_id' => $member->users_id,
                 'agent_id' => $member->agent_id,
                 // What this agent is for — so the PM assigns by fit, not by name.
                 'description' => $member->agent?->description ?? $member->agent?->type?->description,
