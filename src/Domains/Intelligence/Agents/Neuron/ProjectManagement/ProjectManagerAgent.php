@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\ProjectManagement;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
@@ -17,7 +18,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSyste
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\InMemoryChatHistory;
@@ -32,7 +32,6 @@ use Override;
 )]
 class ProjectManagerAgent extends SystemUserAgent
 {
-
     #[Override]
     protected function chatHistory(): AbstractChatHistory
     {
