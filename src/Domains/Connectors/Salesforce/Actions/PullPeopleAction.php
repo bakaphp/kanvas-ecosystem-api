@@ -51,6 +51,10 @@ class PullPeopleAction
                 CustomFieldEnum::SALESFORCE_CONTACT_ID->value => $this->salesforceId,
             ],
             runWorkflow: false,
+            // Matching is already handled above by Salesforce Contact Id — a shared phone/email
+            // with an unrelated existing People is a duplicate for the merge/dedup flow to catch,
+            // not a reason to silently fold this Contact into that other record.
+            skipDuplicateContactCheck: true,
         );
 
         $people = new SyncPeopleByThirdPartyCustomFieldAction($peopleData)->execute();
