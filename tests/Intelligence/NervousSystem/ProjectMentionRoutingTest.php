@@ -12,6 +12,11 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Jobs\RespondToMentionJob;
 use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
+use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
+use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
@@ -23,6 +28,7 @@ use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Users\Models\Users;
+use ReflectionMethod;
 use Tests\TestCase;
 
 class ProjectMentionRoutingTest extends TestCase
@@ -92,6 +98,154 @@ class ProjectMentionRoutingTest extends TestCase
         );
         // The generic mention responder must NOT also fire — no double answer.
         Bus::assertNotDispatched(RespondToMentionJob::class);
+    }
+
+    public function testMentioningPmOnPlanChannelRoutesToProjectLoopFocusedOnThePlan(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user)->refresh();
+
+        // A plan under the project — its `created` observer makes a Plan-namespace Activities channel.
+        $plan = new CreatePlanAction(
+            new PlanData(
+                app: $app,
+                company: $company,
+                title: 'GA Group Proposal & Sales Cycle',
+                planType: 'project_work',
+                user: $user,
+                status: PlanStatusEnum::BLOCKED,
+                project: $project,
+            ),
+        )->execute();
+
+        // Someone @mentions the PM on the PLAN's activity thread — NOT the project channel.
+        $message = new PostPlanActivityMessageAction(
+            plan: $plan,
+            content: '@pm thoughts?',
+            author: $user,
+            verb: 'note',
+        )->execute();
+
+        $this->assertNotNull($message, 'precondition: plan activity message posted');
+        $this->assertTrue(
+            $message->channels()->where('entity_namespace', Plan::class)->exists(),
+            'Precondition: the mention is on the plan channel.',
+        );
+        $this->assertFalse(
+            $message->channels()->where('entity_namespace', Project::class)->exists(),
+            'Precondition: the mention is NOT on the project channel (that path is already covered).',
+        );
+
+        $pmUserId = (int) $project->pmAgent->user_id;
+
+        Bus::fake([WakeAgentForProjectJob::class, RespondToMentionJob::class]);
+
+        new RespondToAgentMentionListener()->handle(
+            new MessageMentionsStoredEvent($message, [$pmUserId]),
+        );
+
+        Bus::assertDispatched(
+            WakeAgentForProjectJob::class,
+            fn (WakeAgentForProjectJob $job): bool =>
+                $job->project->id === $project->id
+                && $job->reason === WakeAgentForProjectJob::REASON_MENTION
+                // The trigger pins the reply to THIS plan so the PM answers about it, not the whole board.
+                && str_contains((string) $job->triggerMessage, 'PLAN #' . $plan->getId()),
+        );
+        // The generic mention responder (project-blind) must NOT also fire — no double, unfocused answer.
+        Bus::assertNotDispatched(RespondToMentionJob::class);
+    }
+
+    public function testMentionWakeRepliesOnTheTriggerMessageChannelNotTheProjectDefault(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user)->refresh();
+
+        $plan = new CreatePlanAction(
+            new PlanData(
+                app: $app,
+                company: $company,
+                title: 'Channel-scoped plan',
+                planType: 'project_work',
+                user: $user,
+                status: PlanStatusEnum::ACTIVE,
+                project: $project,
+            ),
+        )->execute();
+
+        $mention = new PostPlanActivityMessageAction(
+            plan: $plan,
+            content: '@pm thoughts?',
+            author: $user,
+            verb: 'note',
+        )->execute();
+
+        $planChannelId = (int) $plan->socialChannels->first()->getId();
+        $this->assertNotSame($planChannelId, (int) $project->default_channel_id, 'Precondition: plan channel differs from project default.');
+
+        $resolve = new ReflectionMethod(WakeAgentForProjectJob::class, 'resolveReplyChannel');
+
+        // A mention wake answers on the trigger message's channel — the plan thread, so the person sees it.
+        $channel = $resolve->invoke(new WakeAgentForProjectJob(
+            $project,
+            WakeAgentForProjectJob::REASON_MENTION,
+            'trigger',
+            (int) $mention->getId(),
+        ));
+        $this->assertNotNull($channel);
+        $this->assertSame($planChannelId, (int) $channel->getId());
+
+        // Non-mention wakes (ingest/heartbeat/assigned) keep posting to the project default channel.
+        $ingest = $resolve->invoke(new WakeAgentForProjectJob(
+            $project,
+            WakeAgentForProjectJob::REASON_INGEST,
+            'trigger',
+            (int) $mention->getId(),
+        ));
+        $this->assertNull($ingest);
+
+        // A mention with no trigger message also falls back to the default channel.
+        $noTrigger = $resolve->invoke(new WakeAgentForProjectJob(
+            $project,
+            WakeAgentForProjectJob::REASON_MENTION,
+            null,
+            null,
+        ));
+        $this->assertNull($noTrigger);
+    }
+
+    public function testMentioningANonPmAgentOnProjectChannelFallsThroughToGenericResponder(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user)->refresh();
+
+        // A different agent (NOT the project's PM) is mentioned on the project channel. The Project's
+        // own eligibility gate (agent_id must match) must decline, so it uses the default reply.
+        $otherUser = Users::factory()->create();
+        $otherAgent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $otherUser->getId(), 'is_active' => true]);
+
+        $message = new PostProjectMessageAction(
+            project: $project,
+            verb: 'note',
+            content: '@someone can you help?',
+            author: $user,
+        )->execute();
+
+        Bus::fake([WakeAgentForProjectJob::class, RespondToMentionJob::class]);
+
+        new RespondToAgentMentionListener()->handle(
+            new MessageMentionsStoredEvent($message, [(int) $otherAgent->user_id]),
+        );
+
+        // Not the PM → the project loop must NOT fire; the generic responder answers instead.
+        Bus::assertNotDispatched(WakeAgentForProjectJob::class);
+        Bus::assertDispatched(
+            RespondToMentionJob::class,
+            fn (RespondToMentionJob $job): bool => (int) $job->agent->getId() === (int) $otherAgent->getId(),
+        );
     }
 
     public function testMentioningPmInsideAThreadStillRoutesToProjectLoop(): void

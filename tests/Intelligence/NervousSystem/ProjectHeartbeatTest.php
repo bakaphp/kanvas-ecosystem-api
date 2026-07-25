@@ -178,4 +178,29 @@ class ProjectHeartbeatTest extends TestCase
 
         Bus::assertNotDispatched(WakeAgentForProjectJob::class);
     }
+
+    public function testForceWakesProjectEvenWhenNotDueAndWithNoPendingWork(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+
+        // Both gates would normally skip it: not due for an hour, and no plans at all (no attention).
+        $project->next_heartbeat_at = now()->addHour();
+        $project->saveQuietly();
+
+        Bus::fake([WakeAgentForProjectJob::class]);
+
+        Artisan::call('kanvas:nervous-system:project-heartbeat', [
+            '--force' => true,
+            '--project' => $project->id,
+        ]);
+
+        // --force bypasses BOTH the cadence timer and the needs-attention gate — the PM is woken now.
+        Bus::assertDispatched(
+            WakeAgentForProjectJob::class,
+            fn (WakeAgentForProjectJob $job): bool =>
+                $job->project->id === $project->id
+                && $job->reason === WakeAgentForProjectJob::REASON_HEARTBEAT,
+        );
+    }
 }

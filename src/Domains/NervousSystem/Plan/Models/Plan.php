@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Kanvas\Intelligence\Agents\Contracts\HandlesAgentMention;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\NervousSystem\Ledger\Enums\LedgerConfigurationEnum;
@@ -25,7 +26,11 @@ use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Observers\PlanObserver;
 use Kanvas\NervousSystem\Plan\Traits\TruncatesTitleTrait;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
+use Kanvas\NervousSystem\Project\Models\Project;
+use Kanvas\NervousSystem\Project\Services\ProjectMentionTriggerService;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
@@ -75,9 +80,10 @@ use Throwable;
  * @property bool $is_deleted
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read Project|null $project
  */
 #[ObservedBy([PlanObserver::class])]
-class Plan extends BaseModel
+class Plan extends BaseModel implements HandlesAgentMention
 {
     use CascadeSoftDeletes;
     use EmitsLedgerEventsForEntity;
@@ -161,6 +167,40 @@ class Plan extends BaseModel
     public function assignedUser(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'assigned_users_id', 'id');
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class, 'project_id', 'id');
+    }
+
+    #[Override]
+    public function handleAgentMention(Agent $agent, Message $mention, int $threadRootId): ?object
+    {
+        if ($this->is_deleted) {
+            return null;
+        }
+
+        $project = $this->project;
+        if ($project === null || $project->is_deleted || $project->agent_id !== $agent->getId()) {
+            return null;
+        }
+
+        $focus = sprintf(
+            'You were @mentioned on the thread of PLAN #%d "%s" (status: %s). The person is asking about '
+            . 'THIS plan specifically — read this plan and its tasks in the Context and answer about it '
+            . 'directly. Do NOT give a whole-project status unless they ask for one.',
+            $this->getId(),
+            $this->title,
+            $this->status,
+        );
+
+        return new WakeAgentForProjectJob(
+            $project,
+            WakeAgentForProjectJob::REASON_MENTION,
+            new ProjectMentionTriggerService()->buildTrigger($mention, $focus),
+            $threadRootId,
+        );
     }
 
     /**

@@ -12,6 +12,7 @@ use App\Console\Commands\NervousSystem\ArchiveOldLedgerEventsCommand;
 use App\Console\Commands\NervousSystem\CheckAgentRuntimeHealthCommand;
 use App\Console\Commands\NervousSystem\DetectStalledPlanTasksCommand;
 use App\Console\Commands\NervousSystem\ExpireCapabilitiesCommand;
+use App\Console\Commands\NervousSystem\NudgeInactivePlansCommand;
 use App\Console\Commands\NervousSystem\ProjectHeartbeatCommand;
 use App\Console\Commands\NervousSystem\RecordAgentDailyCyclesCommand;
 use App\Console\Commands\NervousSystem\RefreshAgentLiveCountersCommand;
@@ -81,6 +82,15 @@ final class NervousSystemSchedule
         $schedule->command(ExpireCapabilitiesCommand::class)
             ->hourly()
             ->withoutOverlapping();
+
+        // Inactive-plan nudge — once a day, ping owners of open plans that have gone silent past the
+        // 24h threshold. Daily (not the 5-min heartbeat cadence) because the signal is day-scale and the
+        // action posts a comment / notifies a human; the action's own ledger guard prevents re-nudging.
+        $schedule->command(NudgeInactivePlansCommand::class)
+            ->dailyAt('08:00')
+            ->timezone('America/New_York')
+            ->withoutOverlapping()
+            ->onOneServer();
 
         // Daily rollups feed dashboard + pulse cards before operators log in.
         // Staggered by 5min so they don't slam the DB simultaneously.

@@ -26,31 +26,44 @@ class ProjectHeartbeatService
     private const int STALL_MINUTES = 30;
 
     /**
+     * Open projects to evaluate this run. Normally only those whose cadence has elapsed; $ignoreCadence
+     * (the command's --force) drops that timer so every open project is evaluated now, and $projectId
+     * narrows it to a single project — both for manual/testing triggers.
+     *
      * @return Collection<int, Project>
      */
-    public function dueProjects(Apps $app): Collection
+    public function dueProjects(Apps $app, bool $ignoreCadence = false, ?int $projectId = null): Collection
     {
         return Project::query()
             ->fromApp($app)
             ->notDeleted()
             ->whereIn('status', $this->openStatusValues())
-            ->where(
-                fn (Builder $query): Builder => $query
-                    ->whereNull('next_heartbeat_at')
-                    ->orWhere('next_heartbeat_at', '<=', now()),
+            ->when(
+                $projectId !== null,
+                fn (Builder $query): Builder => $query->where('id', $projectId),
+            )
+            ->when(
+                ! $ignoreCadence,
+                fn (Builder $query): Builder => $query->where(
+                    fn (Builder $inner): Builder => $inner
+                        ->whereNull('next_heartbeat_at')
+                        ->orWhere('next_heartbeat_at', '<=', now()),
+                ),
             )
             ->get();
     }
 
     /**
-     * Evaluate + (maybe) wake, then advance the cadence. Returns whether the PM was woken.
+     * Evaluate + (maybe) wake, then advance the cadence. Returns whether the PM was woken. $forceWake
+     * (the command's --force) wakes the PM even with nothing obviously waiting — a manual trigger —
+     * but still never double-drives a container-runtime PM.
      */
-    public function tick(Project $project): bool
+    public function tick(Project $project, bool $forceWake = false): bool
     {
         $needsAttention = $this->needsAttention($project);
         $woke = false;
 
-        if ($needsAttention && ! $this->pmSelfDrives($project)) {
+        if (($needsAttention || $forceWake) && ! $this->pmSelfDrives($project)) {
             WakeAgentForProjectJob::dispatch($project, WakeAgentForProjectJob::REASON_HEARTBEAT);
             $woke = true;
         }
@@ -64,6 +77,7 @@ class ProjectHeartbeatService
         $project->emitLedgerEvent('project.heartbeat.tick', payload: [
             'needs_attention' => $needsAttention,
             'woke' => $woke,
+            'forced' => $forceWake,
         ]);
 
         return $woke;

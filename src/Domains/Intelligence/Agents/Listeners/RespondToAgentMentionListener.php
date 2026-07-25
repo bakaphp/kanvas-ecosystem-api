@@ -4,17 +4,24 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Listeners;
 
+use Illuminate\Database\Eloquent\Model;
+use Kanvas\Intelligence\Agents\Contracts\HandlesAgentMention;
 use Kanvas\Intelligence\Agents\Jobs\RespondToMentionJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
-use Kanvas\NervousSystem\Project\Models\Project;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\SystemModules\Models\SystemModules;
 use Throwable;
 
 /**
- * Social parsed the mentions; here we react to the ones that are agent-users. Each mentioned
- * user that resolves to an agent in the message's tenant gets its own reply job.
+ * Social parsed the mentions; here we react to the ones that are agent-users. Each mentioned user that
+ * resolves to an agent in the message's tenant gets its own reply.
+ *
+ * The entity the mention lives on decides how the agent is woken: if that entity implements
+ * HandlesAgentMention (e.g. a Project or Plan running its own PM loop) we dispatch the wake it returns;
+ * everything else falls through to the default per-channel reply (RespondToMentionJob). This keeps the
+ * listener domain-agnostic — a new mentionable entity (Order, Product, …) needs no change here.
  */
 class RespondToAgentMentionListener
 {
@@ -40,11 +47,12 @@ class RespondToAgentMentionListener
 
         $awaitingUpload = ! $message->files()->exists();
 
-        // The thread as [self, parent, …, root] via AsTree's materialized path (one query): the mention
-        // resolves to a project via this message OR any ancestor, and the PM's reply threads under the
-        // root (last element) so it stays flat.
+        // The thread as [self, parent, …, root] via AsTree's materialized path (one query). The entity
+        // the mention routes to may be on THIS message OR any ancestor, and a routed reply threads under
+        // the root (last element) so it stays flat.
         $ancestors = $message->joinAncestors();
         $threadRootId = (int) $ancestors->last()->getId();
+        $routableEntities = $this->routableEntities($ancestors);
 
         foreach ($event->mentionedUserIds as $userId) {
             $agent = Agent::fromUser(
@@ -57,17 +65,17 @@ class RespondToAgentMentionListener
                 continue;
             }
 
-            // If the mention is on a project channel whose PM is this agent, drive it through the
-            // project's execution loop (full context + board tools + ledger) instead of a plain
-            // mention reply — and skip the generic responder so the PM never double-answers.
-            $project = $this->projectForPmMention($ancestors, $agent);
-            if ($project !== null) {
-                WakeAgentForProjectJob::dispatch(
-                    $project,
-                    WakeAgentForProjectJob::REASON_MENTION,
-                    $this->mentionTriggerWithAuthor($message),
-                    $threadRootId,
-                );
+            // Let the mentioned entity own the routing (e.g. a Project/Plan drives its PM loop with full
+            // context + board tools + ledger). The generic responder is skipped so the agent never
+            // double-answers. Only the entity decides eligibility (a Project routes only for its PM).
+            $entityRoute = $this->routeThroughEntities(
+                $routableEntities,
+                $agent,
+                $message,
+                $threadRootId
+            );
+            if ($entityRoute !== null) {
+                dispatch($entityRoute);
 
                 continue;
             }
@@ -83,37 +91,23 @@ class RespondToAgentMentionListener
     }
 
     /**
-     * The project whose channel this message — or any thread ancestor — is on AND whose PM is the
-     * mentioned agent; null otherwise. Ancestors count because a threaded reply carries only parent_id
-     * and often isn't re-tagged onto the project channel.
+     * The first route an entity along the thread wants for this agent, or null to use the default
+     * responder. Entities are tried in thread order (self before ancestors, project channel before any
+     * other on the same message).
      *
-     * @param iterable<Message> $ancestors the mention message followed by its parent chain up to the root
+     * @param list<HandlesAgentMention> $entities
      */
-    private function projectForPmMention(iterable $ancestors, Agent $agent): ?Project
+    private function routeThroughEntities(array $entities, Agent $agent, Message $mention, int $threadRootId): ?object
     {
-        foreach ($ancestors as $node) {
-            $project = $this->projectOnMessageChannels($node, $agent);
+        foreach ($entities as $entity) {
+            $route = $entity->handleAgentMention(
+                $agent,
+                $mention,
+                $threadRootId
+            );
 
-            if ($project !== null) {
-                return $project;
-            }
-        }
-
-        return null;
-    }
-
-    private function projectOnMessageChannels(Message $message, Agent $agent): ?Project
-    {
-        $entityIds = $message->channels()
-            ->where('entity_namespace', Project::class)
-            ->pluck('entity_id')
-            ->all();
-
-        foreach ($entityIds as $entityId) {
-            $project = Project::query()->where('id', (int) $entityId)->notDeleted()->first();
-
-            if ($project !== null && (int) $project->agent_id === (int) $agent->getId()) {
-                return $project;
+            if ($route !== null) {
+                return $route;
             }
         }
 
@@ -121,75 +115,64 @@ class RespondToAgentMentionListener
     }
 
     /**
-     * The mention text prefixed with WHO sent it, so the PM can resolve "me"/"I"/"my" to the actual
-     * requester and reply to them — otherwise it only sees the bare text and guesses the wrong person.
+     * Every entity carried by the channels of the mention message or any thread ancestor that opts into
+     * mention routing — deduped, in thread order. Ancestors count because a threaded reply carries only
+     * parent_id and often isn't re-tagged onto the entity's channel.
+     *
+     * @param iterable<Message> $ancestors
+     *
+     * @return list<HandlesAgentMention>
      */
-    private function mentionTriggerWithAuthor(Message $message): string
+    private function routableEntities(iterable $ancestors): array
     {
-        $text = $this->mentionText($message);
-        $author = $message->user;
-        if ($author === null) {
-            return $text;
-        }
+        $entities = [];
+        $seen = [];
 
-        $name = trim((string) ($author->firstname ?? '') . ' ' . (string) ($author->lastname ?? ''));
-        if ($name === '') {
-            $name = (string) ($author->displayname ?? 'a member');
-        }
+        foreach ($ancestors as $node) {
+            /** @var Channel $channel */
+            foreach ($node->channels()->get() as $channel) {
+                $entity = $this->resolveChannelEntity($channel);
 
-        try {
-            $displayname = trim($author->getAppProfile($message->app)->displayname);
-            $handle = $displayname !== '' ? '@' . $displayname : null;
-        } catch (Throwable) {
-            $handle = null;
-        }
+                if (! $entity instanceof HandlesAgentMention) {
+                    continue;
+                }
 
-        $label = $handle !== null ? " ({$handle})" : '';
+                $key = $entity::class . ':' . (string) $entity->getKey();
+                if (isset($seen[$key])) {
+                    continue;
+                }
 
-        // Authoritative agent-vs-human check: the sender's user IS an agent iff an Agent record points
-        // at it. Tell the PM which id to assign to so a name shared by a human and an agent can't get
-        // it wrong (e.g. human "kaioken" users_id=667 vs agent "Kaioken" agent_id=2631).
-        $senderAgent = Agent::fromUser($author->getId(), $message->app, $message->company);
-
-        if ($senderAgent !== null) {
-            return sprintf(
-                'This message was sent by the AGENT %s%s (agent_id=%d). If they say "me"/"I"/"my", they '
-                . 'mean THIS agent — to assign it a plan use assign_nervous_system_plan with agent_id=%d.'
-                . "\n\n%s",
-                $name,
-                $label,
-                $senderAgent->getId(),
-                $senderAgent->getId(),
-                $text,
-            );
-        }
-
-        return sprintf(
-            'This message was sent by the HUMAN member %s%s, users_id=%d. If they say "me"/"I"/"my", they '
-            . 'mean THIS person — act on their request and reply to them. To assign a plan to them use '
-            . 'assign_nervous_system_plan with users_id=%d (they are a HUMAN, NOT an agent — never assign '
-            . "to an agent that merely shares their name).\n\n%s",
-            $name,
-            $label,
-            $author->getId(),
-            $author->getId(),
-            $text,
-        );
-    }
-
-    private function mentionText(Message $message): string
-    {
-        $payload = $message->message;
-        if (! is_array($payload)) {
-            return is_scalar($payload) ? (string) $payload : '';
-        }
-
-        foreach (['content', 'text', 'message', 'body'] as $key) {
-            if (isset($payload[$key]) && is_string($payload[$key])) {
-                return $payload[$key];
+                $seen[$key] = true;
+                $entities[] = $entity;
             }
         }
 
-        return '';
+        return $entities;
+    }
+
+    /**
+     * The model a channel is bound to (its entity_namespace + entity_id), or null when the channel has
+     * no entity or the class no longer resolves.
+     */
+    private function resolveChannelEntity(Channel $channel): ?Model
+    {
+        $namespace = $channel->entity_namespace;
+        $id = $channel->entity_id;
+
+        if ($namespace === null || $namespace === '' || $id === null) {
+            return null;
+        }
+
+        $class = SystemModules::convertLegacySystemModules($namespace);
+
+        if (! class_exists($class) || ! is_subclass_of($class, Model::class)) {
+            return null;
+        }
+
+        try {
+            return $class::query()->where('id', $id)->first();
+        } catch (Throwable) {
+            return null;
+        }
     }
 }

@@ -18,6 +18,8 @@ use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
 use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Services\ProjectContextService;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Models\Message;
 
 /**
  * Wake the project's PM agent to advance the work. Called by:
@@ -138,6 +140,7 @@ class WakeAgentForProjectJob implements ShouldQueue
             author: $agent->user,
             fromIa: true,
             parentMessageId: $this->triggerMessageId,
+            channel: $this->resolveReplyChannel(),
         )->execute();
 
         $this->project->emitLedgerEvent(
@@ -147,6 +150,26 @@ class WakeAgentForProjectJob implements ShouldQueue
                 'message_id' => $reply->getId(),
             ],
         );
+    }
+
+    /**
+     * A @mention must be answered on the SAME channel it came from — the plan's activity thread, the
+     * project channel, wherever the person asked — otherwise the reply lands on the project's default
+     * channel and they never see it. Only mentions carry a specific originating thread; every other
+     * wake (ingest, heartbeat, assigned) posts to the default channel as before.
+     */
+    private function resolveReplyChannel(): ?Channel
+    {
+        if ($this->reason !== self::REASON_MENTION || $this->triggerMessageId === null) {
+            return null;
+        }
+
+        $message = Message::query()->where('id', $this->triggerMessageId)->first();
+
+        /** @var Channel|null $channel */
+        $channel = $message?->channels()->first();
+
+        return $channel;
     }
 
     protected function resolveSession(): Session

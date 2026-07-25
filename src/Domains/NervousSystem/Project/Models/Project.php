@@ -11,13 +11,17 @@ use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Intelligence\Agents\Contracts\HandlesAgentMention;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Observers\ProjectObserver;
+use Kanvas\NervousSystem\Project\Services\ProjectMentionTriggerService;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\ReceiverWebhook;
@@ -61,7 +65,7 @@ use Override;
  * @property \Illuminate\Support\Carbon|null $updated_at
  */
 #[ObservedBy([ProjectObserver::class])]
-class Project extends BaseModel
+class Project extends BaseModel implements HandlesAgentMention
 {
     use AsTree;
     use CascadeSoftDeletes;
@@ -134,33 +138,51 @@ class Project extends BaseModel
         return $this->belongsTo(AgentSwarm::class, 'swarm_id', 'id');
     }
 
-    /**
-     * The project tree uses nevadskiy/laravel-tree (AsTree) — parent()/ancestors()/descendants()
-     * and materialized-path maintenance come from the trait. Our adjacency FK is parent_project_id
-     * (not the trait's default parent_id), so point the trait at it.
-     */
+    #[Override]
+    public function handleAgentMention(Agent $agent, Message $mention, int $threadRootId): ?object
+    {
+        if ($this->is_deleted || $this->agent_id !== $agent->getId()) {
+            return null;
+        }
+
+        return new WakeAgentForProjectJob(
+            $this,
+            WakeAgentForProjectJob::REASON_MENTION,
+            new ProjectMentionTriggerService()->buildTrigger($mention),
+            $threadRootId,
+        );
+    }
+
     public function getParentKeyName(): string
     {
         return 'parent_project_id';
     }
 
-    /**
-     * Override the trait's children() only to drop soft-deleted rows — the relation is exposed as a
-     * non-null GraphQL list and drives cascade soft-deletes, so deleted sub-projects must not leak.
-     */
     public function children(): HasMany
     {
-        return $this->hasMany(self::class, $this->getParentKeyName(), 'id')->where('is_deleted', 0);
+        return $this->hasMany(
+            self::class,
+            $this->getParentKeyName(),
+            'id'
+        )->where('is_deleted', 0);
     }
 
     public function plans(): HasMany
     {
-        return $this->hasMany(Plan::class, 'project_id', 'id')->where('is_deleted', 0);
+        return $this->hasMany(
+            Plan::class,
+            'project_id',
+            'id'
+        )->where('is_deleted', 0);
     }
 
     public function members(): HasMany
     {
-        return $this->hasMany(ProjectMember::class, 'project_id', 'id')->where('is_deleted', 0);
+        return $this->hasMany(
+            ProjectMember::class,
+            'project_id',
+            'id'
+        )->where('is_deleted', 0);
     }
 
     public function defaultChannel(): BelongsTo
