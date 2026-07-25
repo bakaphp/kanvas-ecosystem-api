@@ -75,7 +75,7 @@ Rules:
 - Output the result in the expected format.
 PROMPT,
                 provider: Lab::Gemini,
-                model: 'gemini-2.5-flash',
+                model: 'gemini-3.5-flash',
             );
 
             // Parse the response to extract tax information
