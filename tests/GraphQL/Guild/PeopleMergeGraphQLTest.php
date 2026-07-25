@@ -2,28 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Tests\Guild\Organizations;
+namespace Tests\GraphQL\Guild;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Customers\Models\People;
 use Tests\TestCase;
 
-/**
- * GraphQL surface tests for the duplicate-cleanup operator UI:
- *   - `findGuildOrganizationDuplicates` query → returns clusters as JSON
- *   - `mergeGuildOrganizations` mutation → executes the merge + returns the target
- *
- * The underlying business logic is covered by FindOrganizationDuplicatesServiceTest +
- * MergeOrganizationsActionTest. This test verifies the GraphQL adapter layer wires inputs/outputs
- * correctly and that Bouncer authorization isn't accidentally gating them.
- */
-class OrganizationMergeGraphQLTest extends TestCase
+class PeopleMergeGraphQLTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'crm', 'accounting'];
+    protected array $connectionsToTransact = ['mysql', 'crm', 'ecosystem'];
 
     private Apps $kanvasApp;
     private Companies $company;
@@ -37,29 +28,29 @@ class OrganizationMergeGraphQLTest extends TestCase
 
     public function test_find_duplicates_query_returns_clusters(): void
     {
-        $cluster = 'GraphCluster' . uniqid();
-        $a = $this->seedOrganization($cluster);
-        $b = $this->seedOrganization(strtolower($cluster));
+        $lastname = 'Pina' . uniqid();
+        $a = $this->seedPeople('Andres', $lastname);
+        $b = $this->seedPeople('andres', strtolower($lastname));
 
         $response = $this->graphQL('
             query {
-                findGuildOrganizationDuplicates(max_groups: 50) {
+                findGuildPeopleDuplicates(max_groups: 50) {
                     canonical_id
                     member_ids
                     reason
                     sample_name
-                    organizations {
+                    peoples {
                         id
-                        name
+                        firstname
+                        lastname
                     }
                 }
             }
         ')->assertSuccessful();
 
-        $groups = $response->json('data.findGuildOrganizationDuplicates');
+        $groups = $response->json('data.findGuildPeopleDuplicates');
         $this->assertIsArray($groups);
 
-        // Our cluster should be among the returned groups
         $matching = array_filter($groups, function (array $g) use ($a, $b): bool {
             $ids = array_map('intval', $g['member_ids']);
             sort($ids);
@@ -72,20 +63,22 @@ class OrganizationMergeGraphQLTest extends TestCase
         $this->assertSame((int) $a->id, $group['canonical_id'], 'Canonical = oldest id.');
         $this->assertSame('exact_name', $group['reason']);
 
-        $memberIds = array_map(fn ($m) => (int) $m['id'], $group['organizations']);
+        $memberIds = array_map(fn ($m) => (int) $m['id'], $group['peoples']);
         $this->assertEqualsCanonicalizing([(int) $a->id, (int) $b->id], $memberIds);
+        $memberA = array_values(array_filter($group['peoples'], fn ($m) => (int) $m['id'] === (int) $a->id))[0];
+        $this->assertSame('Andres', $memberA['firstname']);
     }
 
     public function test_merge_mutation_collapses_a_single_source_into_target(): void
     {
-        $source = $this->seedOrganization('Source ' . uniqid());
-        $target = $this->seedOrganization('Target ' . uniqid());
+        $source = $this->seedPeople('Source', 'Person' . uniqid());
+        $target = $this->seedPeople('Target', 'Person' . uniqid());
 
         $response = $this->graphQL('
             mutation($sources: [Int!]!, $target: Int!) {
-                mergeGuildOrganizations(source_ids: $sources, target_id: $target) {
+                mergeGuildPeople(source_ids: $sources, target_id: $target) {
                     id
-                    name
+                    firstname
                 }
             }
         ', [
@@ -93,24 +86,22 @@ class OrganizationMergeGraphQLTest extends TestCase
             'target' => (int) $target->id,
         ])->assertSuccessful();
 
-        $payload = $response->json('data.mergeGuildOrganizations');
+        $payload = $response->json('data.mergeGuildPeople');
         $this->assertSame((int) $target->id, (int) $payload['id'], 'Mutation should return the TARGET row.');
-        $this->assertSame($target->name, $payload['name']);
 
-        // Source is soft-deleted
         $source->refresh();
         $this->assertTrue((bool) $source->is_deleted, 'Source must be soft-deleted post-merge.');
     }
 
     public function test_merge_mutation_collapses_multiple_sources_into_one_target(): void
     {
-        $target = $this->seedOrganization('Target ' . uniqid());
-        $sourceA = $this->seedOrganization('SourceA ' . uniqid());
-        $sourceB = $this->seedOrganization('SourceB ' . uniqid());
+        $target = $this->seedPeople('Target', 'Person' . uniqid());
+        $sourceA = $this->seedPeople('SourceA', 'Person' . uniqid());
+        $sourceB = $this->seedPeople('SourceB', 'Person' . uniqid());
 
         $response = $this->graphQL('
             mutation($sources: [Int!]!, $target: Int!) {
-                mergeGuildOrganizations(source_ids: $sources, target_id: $target) {
+                mergeGuildPeople(source_ids: $sources, target_id: $target) {
                     id
                 }
             }
@@ -119,46 +110,45 @@ class OrganizationMergeGraphQLTest extends TestCase
             'target' => (int) $target->id,
         ])->assertSuccessful();
 
-        $payload = $response->json('data.mergeGuildOrganizations');
+        $payload = $response->json('data.mergeGuildPeople');
         $this->assertSame((int) $target->id, (int) $payload['id']);
 
         $sourceA->refresh();
         $sourceB->refresh();
         $this->assertTrue((bool) $sourceA->is_deleted);
         $this->assertTrue((bool) $sourceB->is_deleted);
-        $this->assertSame((int) $target->id, (int) $sourceA->merged_into_organization_id);
-        $this->assertSame((int) $target->id, (int) $sourceB->merged_into_organization_id);
+        $this->assertSame((int) $target->id, (int) $sourceA->merged_into_people_id);
+        $this->assertSame((int) $target->id, (int) $sourceB->merged_into_people_id);
     }
 
     public function test_merge_mutation_returns_graphql_error_on_self_merge(): void
     {
-        $org = $this->seedOrganization('SelfMerge ' . uniqid());
+        $people = $this->seedPeople('SelfMerge', 'Person' . uniqid());
 
         $response = $this->graphQL('
             mutation($sources: [Int!]!, $target: Int!) {
-                mergeGuildOrganizations(source_ids: $sources, target_id: $target) {
+                mergeGuildPeople(source_ids: $sources, target_id: $target) {
                     id
                 }
             }
         ', [
-            'sources' => [(int) $org->id],
-            'target' => (int) $org->id,
+            'sources' => [(int) $people->id],
+            'target' => (int) $people->id,
         ]);
 
-        // GraphQL surfaces RuntimeException as an errors array
         $errors = $response->json('errors');
         $this->assertNotEmpty($errors, 'Self-merge should produce a GraphQL error rather than silently returning data.');
     }
 
-    private function seedOrganization(string $name): Organization
+    private function seedPeople(string $firstname, string $lastname): People
     {
-        return Organization::create([
+        return People::create([
             'apps_id' => $this->kanvasApp->getId(),
             'companies_id' => $this->company->getId(),
             'users_id' => static::$cachedUser->getId(),
-            'name' => $name,
-            'address' => '',
-            'total_employees' => 0,
+            'firstname' => $firstname,
+            'lastname' => $lastname,
+            'name' => $firstname . ' ' . $lastname,
         ]);
     }
 }
