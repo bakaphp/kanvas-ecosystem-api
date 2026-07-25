@@ -8,6 +8,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection as SupportCollection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
@@ -42,18 +43,34 @@ class StalePlanNudgeService
     {
         $cutoff = now()->subHours($thresholdHours);
 
-        return Plan::query()
+        return $this->nudgeableQuery($projectId)
             ->fromApp($app)
+            ->get()
+            ->filter(fn (Plan $plan): bool => $this->lastActivityAt($plan)->lessThan($cutoff))
+            ->values();
+    }
+
+    /**
+     * The apps that own a nudgeable plan — so a caller only rebinds scope for apps with candidates.
+     * Shares nudgeableQuery() with stalePlans() so the two can't drift on which plans "count".
+     *
+     * @return SupportCollection<int, int>
+     */
+    public function candidateAppIds(?int $projectId = null): SupportCollection
+    {
+        return $this->nudgeableQuery($projectId)->distinct()->pluck('apps_id');
+    }
+
+    private function nudgeableQuery(?int $projectId): Builder
+    {
+        return Plan::query()
             ->notDeleted()
             ->whereNotNull('project_id')
             ->whereIn('status', $this->nudgeableStatusValues())
             ->when(
                 $projectId !== null,
                 fn (Builder $query): Builder => $query->where('project_id', $projectId),
-            )
-            ->get()
-            ->filter(fn (Plan $plan): bool => $this->lastActivityAt($plan)->lessThan($cutoff))
-            ->values();
+            );
     }
 
     /**

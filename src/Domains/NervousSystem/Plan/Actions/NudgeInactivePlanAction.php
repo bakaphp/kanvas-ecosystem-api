@@ -14,16 +14,11 @@ use Kanvas\Users\Models\Users;
 use Throwable;
 
 /**
- * Acts on ONE plan that's gone silent past the threshold. What it does depends on who owns the plan:
- *  - human owner       → post a comment @mentioning them to ask for a status;
- *  - executor agent    → re-wake it (it stopped and never reported); if a prior re-wake already went
- *                        unanswered, escalate to the project owner instead of re-waking a dead agent;
- *  - unassigned        → @mention the project owner to assign or unblock it.
- * In every case the project's human PM is notified so oversight always knows work went quiet.
- *
- * Anti-spam is deliberate (we've been bitten before): a plan.staleness.detected ledger event gates each
- * plan to at most ONE nudge per threshold window, and the re-wake→escalate progression is tracked by a
- * plan.staleness.rewoke event so a dead agent isn't re-woken forever.
+ * Acts on ONE plan that's gone silent past the threshold — pings the human owner, re-wakes (then
+ * escalates) a stalled agent, or nudges the owner of unassigned work; the project's human PM is always
+ * notified. Anti-spam is deliberate (we've been bitten before): a plan.staleness.detected event caps it
+ * to one nudge per window, and a plan.staleness.rewoke event marks a re-wake so a dead agent isn't
+ * re-woken forever — the next window escalates to a human instead.
  */
 class NudgeInactivePlanAction
 {
@@ -60,25 +55,8 @@ class NudgeInactivePlanAction
         $owner = $project->user;
         $pmUser = $project->pmAgent?->user ?? $owner;
 
-        $mentionedHumanId = null;
-        $result = $this->act($owner, $pmUser, $mentionedHumanId);
-
-        // Notify the project's human PM (owner) — unless they're the exact person we just @mentioned in
-        // the plan comment, who already got a mention notification.
-        if ($owner !== null && $owner->getId() !== $mentionedHumanId) {
-            $owner->notify(new PlanProgressNotification(
-                $this->plan,
-                'Plan inactive',
-                sprintf('The plan "%s" has had no activity in over %dh.', $this->plan->title, $this->thresholdHours),
-                [
-                    'plan_id' => $this->plan->getId(),
-                    'plan_uuid' => $this->plan->uuid,
-                    'change_type' => 'stale',
-                    'inactive_hours' => $this->thresholdHours,
-                    'action' => $result,
-                ],
-            ));
-        }
+        $result = $this->act($owner, $pmUser);
+        $this->notifyOwner($owner, $result);
 
         $this->plan->emitLedgerEvent(self::EVENT_DETECTED, payload: [
             'action' => $result,
@@ -88,34 +66,30 @@ class NudgeInactivePlanAction
         return $result;
     }
 
-    private function act(?Users $owner, ?Users $pmUser, ?int &$mentionedHumanId): string
+    private function act(?Users $owner, ?Users $pmUser): string
     {
-        if ($this->plan->assigned_users_id !== null) {
-            $human = $this->plan->assignedUser;
-            if ($human !== null) {
-                $mentionedHumanId = $human->getId();
-                $this->postComment(
-                    $pmUser,
-                    sprintf(
-                        '%s this plan has had no activity in over %dh. What\'s the current status — is '
-                        . 'anything blocking you?',
-                        $this->handleFor($human),
-                        $this->thresholdHours,
-                    ),
-                );
+        $human = $this->plan->assigned_users_id !== null ? $this->plan->assignedUser : null;
+        if ($human !== null) {
+            $this->postComment(
+                $pmUser,
+                sprintf(
+                    '%s this plan has had no activity in over %dh. What\'s the current status — is '
+                    . 'anything blocking you?',
+                    $this->handleFor($human),
+                    $this->thresholdHours,
+                ),
+            );
 
-                return self::RESULT_PINGED_HUMAN;
-            }
+            return self::RESULT_PINGED_HUMAN;
         }
 
         if ($this->plan->agent_id !== null) {
-            return $this->handleAgentAssigned($owner, $pmUser, $mentionedHumanId);
+            return $this->handleAgentAssigned($owner, $pmUser);
         }
 
         return $this->pingOwner(
             $pmUser,
             $owner,
-            $mentionedHumanId,
             sprintf(
                 'this plan is unassigned and has had no activity in over %dh. Can you assign it or say '
                 . 'what it\'s waiting on?',
@@ -124,7 +98,7 @@ class NudgeInactivePlanAction
         );
     }
 
-    private function handleAgentAssigned(?Users $owner, ?Users $pmUser, ?int &$mentionedHumanId): string
+    private function handleAgentAssigned(?Users $owner, ?Users $pmUser): string
     {
         // A re-wake produces no channel message, so if one already fired since the last real activity
         // and the plan is STILL silent, the agent is dead — escalate to a human instead of re-waking it.
@@ -135,7 +109,6 @@ class NudgeInactivePlanAction
             return $this->pingOwner(
                 $pmUser,
                 $owner,
-                $mentionedHumanId,
                 sprintf(
                     'the assigned agent has been silent on this plan for over %dh even after a re-wake. '
                     . 'It looks stuck — please reassign it or bring in a capable agent/human.',
@@ -153,19 +126,52 @@ class NudgeInactivePlanAction
         return self::RESULT_REWOKE_AGENT;
     }
 
-    private function pingOwner(?Users $pmUser, ?Users $owner, ?int &$mentionedHumanId, string $ask): string
+    private function pingOwner(?Users $pmUser, ?Users $owner, string $ask): string
     {
         if ($owner === null) {
             return self::RESULT_PINGED_OWNER;
         }
 
-        $mentionedHumanId = $owner->getId();
         $this->postComment(
             $pmUser,
             sprintf('%s the plan "%s" %s', $this->handleFor($owner), $this->plan->title, $ask),
         );
 
         return $this->plan->agent_id !== null ? self::RESULT_ESCALATED_AGENT : self::RESULT_PINGED_OWNER;
+    }
+
+    /**
+     * The human PM (project owner) always gets a heads-up — except when the nudge already @mentioned
+     * them in the plan comment (they'd get the mention notification too).
+     */
+    private function notifyOwner(?Users $owner, string $result): void
+    {
+        if ($owner === null) {
+            return;
+        }
+
+        $alreadyMentioned = match ($result) {
+            self::RESULT_PINGED_HUMAN => (int) $this->plan->assigned_users_id,
+            self::RESULT_PINGED_OWNER, self::RESULT_ESCALATED_AGENT => $owner->getId(),
+            default => null,
+        };
+
+        if ($owner->getId() === $alreadyMentioned) {
+            return;
+        }
+
+        $owner->notify(new PlanProgressNotification(
+            $this->plan,
+            'Plan inactive',
+            sprintf('The plan "%s" has had no activity in over %dh.', $this->plan->title, $this->thresholdHours),
+            [
+                'plan_id' => $this->plan->getId(),
+                'plan_uuid' => $this->plan->uuid,
+                'change_type' => 'stale',
+                'inactive_hours' => $this->thresholdHours,
+                'action' => $result,
+            ],
+        ));
     }
 
     private function postComment(?Users $author, string $content): void

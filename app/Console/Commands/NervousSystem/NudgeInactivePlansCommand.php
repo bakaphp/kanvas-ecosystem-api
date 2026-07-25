@@ -6,12 +6,8 @@ namespace App\Console\Commands\NervousSystem;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\NervousSystem\Plan\Actions\NudgeInactivePlanAction;
-use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
-use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Services\StalePlanNudgeService;
 
 /**
@@ -41,7 +37,7 @@ class NudgeInactivePlansCommand extends Command
 
         $nudged = 0;
 
-        foreach ($this->targetAppIds($projectId) as $appId) {
+        foreach ($service->candidateAppIds($projectId) as $appId) {
             /** @var Apps $app */
             $app = Apps::getById($appId);
 
@@ -65,29 +61,5 @@ class NudgeInactivePlansCommand extends Command
         $this->info(sprintf('Inactive-plan sweep (>%dh) nudged %d plan(s).', $hours, $nudged));
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Apps that own an open, project-bound plan — so we only rebind scope for apps with candidates.
-     *
-     * @return Collection<int, int>
-     */
-    private function targetAppIds(?int $projectId): Collection
-    {
-        $statuses = array_map(
-            fn (PlanStatusEnum $status): string => $status->value,
-            PlanStatusEnum::openStatuses(),
-        );
-
-        return Plan::query()
-            ->notDeleted()
-            ->whereNotNull('project_id')
-            ->whereIn('status', $statuses)
-            ->when(
-                $projectId !== null,
-                fn (Builder $query): Builder => $query->where('project_id', $projectId),
-            )
-            ->distinct()
-            ->pluck('apps_id');
     }
 }
