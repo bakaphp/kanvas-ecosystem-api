@@ -94,6 +94,9 @@ type GuildOrganizationDuplicateGroup {
     reason: String!
     "A representative `name` from the group (for display)."
     sample_name: String!
+    "The full Organization rows for member_ids."
+    organizations: [Organization!]!
+        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMergeMutation@organizations")
 }
 
 extend type Mutation @guard {
@@ -122,8 +125,8 @@ extend type Mutation @guard {
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\PeopleOrganizationMutation@remove"
         )
 
-    "Merge `source` Organization into `target` — rewrites Scribe + Guild FKs then soft-deletes source. Used to clean up duplicates created by the auto-resolve-vendor PDF-ingest flow."
-    mergeGuildOrganizations(source_id: Int!, target_id: Int!): Organization!
+    "Merge one or more `source_ids` Organizations into `target` — rewrites Scribe + Guild FKs then soft-deletes each source. Used to clean up duplicates created by the auto-resolve-vendor PDF-ingest flow."
+    mergeGuildOrganizations(source_ids: [Int!]!, target_id: Int!): Organization!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMergeMutation@merge"
         )

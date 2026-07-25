@@ -77,6 +77,21 @@ input EmploymentPeopleHistoryInput {
     income_type: String
 }
 
+"One cluster of likely-duplicate People the duplicate-finder grouped together."
+type PeopleDuplicateGroup {
+    "Recommended merge target — oldest id in the group."
+    canonical_id: Int!
+    "All member people ids, including canonical_id, ascending."
+    member_ids: [Int!]!
+    "Which dimension flagged this cluster: external_id_conflict | exact_name | lastname_match | email_match"
+    reason: String!
+    "A representative full name from the group (for display)."
+    sample_name: String!
+    "The full People rows for member_ids."
+    peoples: [People!]!
+        @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleMergeMutation@peoples")
+}
+
 type PeopleRelationship {
     id: ID!
     name: String!
@@ -242,6 +257,14 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Guild\\Queries\\PeopleManagementQueries@getBySubscriptionType"
         )
+
+    "List clusters of likely-duplicate People for review + merge."
+    findGuildPeopleDuplicates(
+        max_groups: Int
+    ): [PeopleDuplicateGroup!]!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleMergeMutation@findDuplicates"
+        )
 }
 
 extend type Mutation @guard {
@@ -305,5 +328,10 @@ extend type Mutation @guard {
     deletePeopleEmploymentHistory(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleEmploymentHistoryMutation@delete"
+        )
+
+    mergeGuildPeople(source_ids: [Int!]!, target_id: Int!): People!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleMergeMutation@merge"
         )
 }
