@@ -19,8 +19,10 @@ use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Project\Actions\AddProjectMemberAction;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
+use Kanvas\NervousSystem\Project\Enums\ProjectMemberRoleEnum;
 use Kanvas\NervousSystem\Project\Jobs\NotifyProjectOwnerOfBlockedPlanJob;
 use Kanvas\NervousSystem\Project\Jobs\WakeWorkerForPlanJob;
 use Kanvas\NervousSystem\Project\Models\Project;
@@ -142,6 +144,8 @@ class ProjectPlanDelegationTest extends TestCase
         $plan = $this->planUnderProject($project, $app, $company, $user);
 
         $human = Users::factory()->create();
+        // A plan can only be assigned to a HUMAN member of its project — register the human first.
+        new AddProjectMemberAction($project, ProjectMemberRoleEnum::CONTRIBUTOR, user: $human)->execute();
 
         $tool = new AssignNervousSystemPlanTool()->withContext($app, $company, $user);
         $result = $tool((int) $plan->id, null, (int) $human->id);
