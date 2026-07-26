@@ -43,11 +43,8 @@ class WakeAgentForProjectJob implements ShouldQueue
     public const string REASON_HEARTBEAT = 'heartbeat';
     public const string REASON_ASSIGNED = 'assigned';
     public const string REASON_MENTION = 'mention';
-
-    // A held wake lock auto-expires after this so a crashed/timed-out holder can't wedge the project.
+    public const string NO_UPDATE_SENTINEL = 'NO_UPDATE';
     private const int WAKE_LOCK_TTL_SECONDS = 600;
-
-    // A mention that collides with an in-flight wake re-queues after this delay instead of being dropped.
     private const int MENTION_RETRY_SECONDS = 15;
 
     // Space out exception-driven retries so a genuinely-failing wake doesn't hammer the LLM/ledger.
@@ -133,6 +130,16 @@ class WakeAgentForProjectJob implements ShouldQueue
             durationMs: $durationMs,
         );
 
+        if ($this->isNoOpResponse($response)) {
+            $this->project->emitLedgerEvent(
+                'project.agent.noop',
+                payload: $failurePayload,
+                durationMs: $durationMs,
+            );
+
+            return;
+        }
+
         $reply = new PostProjectMessageAction(
             project: $this->project,
             verb: 'project-agent-reply',
@@ -150,6 +157,18 @@ class WakeAgentForProjectJob implements ShouldQueue
                 'message_id' => $reply->getId(),
             ],
         );
+    }
+
+    /**
+     * The PM decided there's nothing new to post — an empty turn, or the NO_UPDATE sentinel (allowing
+     * for the model wrapping it in markdown/punctuation). Suppressing these is what makes the heartbeat
+     * quiet when nothing changed.
+     */
+    private function isNoOpResponse(string $response): bool
+    {
+        $normalized = strtoupper(trim($response, " \t\n\r\0\x0B*#`.\"'"));
+
+        return $normalized === '' || str_starts_with($normalized, self::NO_UPDATE_SENTINEL);
     }
 
     /**
@@ -223,7 +242,25 @@ class WakeAgentForProjectJob implements ShouldQueue
         return $header
             . 'You are the PM of this project. Read the context below, decide what needs to happen, '
             . "then use your tools to create/assign/move tasks and keep the project moving.\n\n"
+            . $this->noUpdateGuidance()
             . $trigger
             . 'Context: ' . (string) json_encode($bundle->toArray());
+    }
+
+    /**
+     * Automated wakes (heartbeat especially) fire on a timer, not because something happened — so the
+     * PM must be free to say nothing. Without this it dumps a near-identical status update every tick.
+     */
+    private function noUpdateGuidance(): string
+    {
+        if ($this->reason !== self::REASON_HEARTBEAT && $this->reason !== self::REASON_ASSIGNED) {
+            return '';
+        }
+
+        return "This is a periodic check-in, not a new event. Look at the recent messages/events below: "
+            . 'if NOTHING has changed since your last status update — no new messages, no task/plan '
+            . 'status changes, nothing a human needs — then DO NOT post another update. Reply with '
+            . 'exactly ' . self::NO_UPDATE_SENTINEL . " and nothing else. Only post when there is a real "
+            . "change to report, a real ask, or work to move. Do not repeat what you already said.\n\n";
     }
 }

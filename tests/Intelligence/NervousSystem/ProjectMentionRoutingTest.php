@@ -330,6 +330,36 @@ class ProjectMentionRoutingTest extends TestCase
         $this->assertSame(600, $ingestLock->expiresAfter);
     }
 
+    public function testHeartbeatWakePromptInvitesNoUpdateButMentionDoesNot(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user)->refresh();
+
+        $build = new ReflectionMethod(WakeAgentForProjectJob::class, 'buildMessage');
+
+        $heartbeat = $build->invoke(new WakeAgentForProjectJob($project, WakeAgentForProjectJob::REASON_HEARTBEAT));
+        $this->assertStringContainsString('NO_UPDATE', $heartbeat, 'heartbeat wake must let the PM stay silent');
+        $this->assertStringContainsString('periodic check-in', $heartbeat);
+
+        // A human @mention is a direct question — never invite a no-op there.
+        $mention = $build->invoke(new WakeAgentForProjectJob($project, WakeAgentForProjectJob::REASON_MENTION, 'hi', 1));
+        $this->assertStringNotContainsString('NO_UPDATE', $mention);
+    }
+
+    public function testNoOpResponseDetectionSuppressesEmptyAndSentinelOnly(): void
+    {
+        $isNoOp = new ReflectionMethod(WakeAgentForProjectJob::class, 'isNoOpResponse');
+        $job = new WakeAgentForProjectJob(new Project(), WakeAgentForProjectJob::REASON_HEARTBEAT);
+
+        foreach (['NO_UPDATE', '**NO_UPDATE**', "NO_UPDATE.\n", '  no_update  ', '', '   '] as $silent) {
+            $this->assertTrue($isNoOp->invoke($job, $silent), "should suppress: '{$silent}'");
+        }
+
+        // A real status update still posts.
+        $this->assertFalse($isNoOp->invoke($job, 'Plan 34 moved to done. Task 12 assigned to Max.'));
+        $this->assertFalse($isNoOp->invoke($job, 'Everything is synchronized and ready for the workweek.'));
+    }
+
     public function testMentionRetryWindowOutlastsAutomatedWakes(): void
     {
         [$app, $company, $user] = $this->context();
