@@ -6,11 +6,8 @@ namespace Kanvas\NervousSystem\Plan\Actions;
 
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Social\Messages\Actions\CreateMessageAction;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Actions\PostChannelMessageAction;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
-use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -48,36 +45,18 @@ class PostPlanActivityMessageAction
                 return null;
             }
 
-            $messageType = new CreateMessageTypeAction(
-                new MessageTypeInput(
-                    apps_id: $this->plan->app->getId(),
-                    languages_id: 1,
-                    name: $this->verb,
-                    verb: $this->verb,
-                    template: '{{message}}',
-                    templates_plura: '{{message}}',
-                ),
+            return new PostChannelMessageAction(
+                channel: $channel,
+                author: $author,
+                verb: $this->verb,
+                content: $this->content,
+                extraPayload: array_merge(['from_me' => true], $this->extraPayload),
+                runWorkflow: true,
+                messageTypeName: $this->verb,
+                template: '{{message}}',
+                templatesPlura: '{{message}}',
+                languagesId: 1,
             )->execute();
-
-            $message = new CreateMessageAction(
-                new MessageInput(
-                    app: $this->plan->app,
-                    company: $this->plan->company,
-                    user: $author,
-                    type: $messageType,
-                    message: [
-                        'content' => $this->content,
-                        'from_me' => true,
-                        ...$this->extraPayload,
-                    ],
-                ),
-            )->execute();
-
-            // attach via addMessage, never via MessageInput channel_slug — channel_slug forces
-            // CreateChannelAction which trips on an 'Admin' role lookup with a null company.
-            $channel->addMessage($message, $author);
-
-            return $message;
         } catch (Throwable $e) {
             report($e);
 

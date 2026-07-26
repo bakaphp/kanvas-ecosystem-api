@@ -7,48 +7,48 @@ namespace Kanvas\NervousSystem\Dashboard\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
+use Kanvas\NervousSystem\Dashboard\DataTransferObject\DashboardAggregateRow;
 use Kanvas\NervousSystem\Dashboard\Models\DashboardMetricsDaily;
 use Kanvas\NervousSystem\Dashboard\Services\DashboardMetricsAggregatorService;
 use Kanvas\NervousSystem\Dashboard\Support\DashboardMetricsCache;
-use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
-use Kanvas\NervousSystem\Ledger\DataTransferObject\Event;
+use Kanvas\NervousSystem\Metrics\Actions\AbstractRollupMetricsAction;
+use Override;
 
 /**
- * Snapshot one (app, company, date) tuple. Idempotent — re-running the
- * same triple upserts the existing row. The unique key on
- * (apps_id, companies_id, metric_date) enforces this at the DB level.
- *
- * The aggregator is the single source of truth for the formula; passing
- * the day's [start, end] window makes this action a thin wrapper that
- * just persists the result + emits an audit event.
+ * Snapshot one (app, company, date) tuple. The idempotent-upsert +
+ * ledger-emit + cache-bust shape lives in AbstractRollupMetricsAction;
+ * this class supplies only what's Dashboard-specific — the aggregator,
+ * snapshot columns, event type/payload, model, and cache.
  */
-class RollupDashboardMetricsAction
+class RollupDashboardMetricsAction extends AbstractRollupMetricsAction
 {
     private const string FORMULA_VERSION = '1.0';
 
     public function __construct(
-        protected readonly AppInterface $app,
-        protected readonly CompanyInterface $company,
-        protected readonly Carbon $date,
+        AppInterface $app,
+        CompanyInterface $company,
+        Carbon $date,
         protected readonly DashboardMetricsAggregatorService $aggregator = new DashboardMetricsAggregatorService(),
     ) {
+        parent::__construct($app, $company, $date);
     }
 
-    public function execute(): DashboardMetricsDaily
+    #[Override]
+    protected function aggregate(Carbon $start, Carbon $end): DashboardAggregateRow
     {
-        $start = $this->date->copy()->startOfDay();
-        $end = $this->date->copy()->endOfDay();
+        return $this->aggregator->aggregate(
+            $this->app,
+            $this->company,
+            $start,
+            $end
+        );
+    }
 
-        $aggregate = $this->aggregator->aggregate($this->app, $this->company, $start, $end);
-
-        $attributes = [
-            'apps_id' => $this->app->getId(),
-            'companies_id' => $this->company->getId(),
-            'metric_date' => $start->toDateString(),
-        ];
-
-        $values = [
+    #[Override]
+    protected function snapshotValues(object $aggregate): array
+    {
+        /** @var DashboardAggregateRow $aggregate */
+        return [
             'plans_completed' => $aggregate->plans_completed,
             'mistakes_auto_corrected' => $aggregate->mistakes_auto_corrected,
             'mistakes_escalated' => $aggregate->mistakes_escalated,
@@ -56,36 +56,40 @@ class RollupDashboardMetricsAction
             'time_recovered_hours' => $aggregate->time_recovered_hours,
             'value_delivered_cents' => $aggregate->value_delivered_cents,
             'estimated_human_hours' => $aggregate->estimated_human_hours,
-            'computed_at' => Carbon::now(),
-            'formula_version' => self::FORMULA_VERSION,
         ];
+    }
 
-        $snapshot = DB::connection('intelligence')->transaction(function () use ($attributes, $values): DashboardMetricsDaily {
-            return DashboardMetricsDaily::updateOrCreate($attributes, $values);
-        });
+    #[Override]
+    protected function eventMetricPayload(object $aggregate): array
+    {
+        /** @var DashboardAggregateRow $aggregate */
+        return [
+            'plans_completed' => $aggregate->plans_completed,
+            'mistakes_caught' => $aggregate->mistakes_auto_corrected + $aggregate->mistakes_escalated,
+        ];
+    }
 
-        new AppendEventAction(
-            new Event(
-                app: $this->app,
-                company: $this->company,
-                sourceDomain: 'NervousSystem',
-                eventType: 'dashboard.metrics_rolled_up',
-                sourceEntityType: DashboardMetricsDaily::class,
-                sourceEntityId: $snapshot->id,
-                actorType: 'System',
-                payload: [
-                    'metric_date' => $start->toDateString(),
-                    'plans_completed' => $aggregate->plans_completed,
-                    'mistakes_caught' => $aggregate->mistakes_auto_corrected + $aggregate->mistakes_escalated,
-                    'formula_version' => self::FORMULA_VERSION,
-                ],
-            ),
-        )->execute();
+    #[Override]
+    protected function modelClass(): string
+    {
+        return DashboardMetricsDaily::class;
+    }
 
-        // Bust cached metric responses for this tenant so the next read
-        // sees the freshly-rolled-up day instead of waiting for TTL.
-        DashboardMetricsCache::forget($this->app->getId(), $this->company->getId());
+    #[Override]
+    protected function eventType(): string
+    {
+        return 'dashboard.metrics_rolled_up';
+    }
 
-        return $snapshot;
+    #[Override]
+    protected function cacheClass(): string
+    {
+        return DashboardMetricsCache::class;
+    }
+
+    #[Override]
+    protected function formulaVersion(): string
+    {
+        return self::FORMULA_VERSION;
     }
 }

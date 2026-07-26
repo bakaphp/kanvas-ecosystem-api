@@ -11,6 +11,8 @@ use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideChatMessageNotification;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SendRoadsideChatMessagePushActivity;
+use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassRoadsideAssistanceActivity;
+use Kanvas\Enums\StateEnums;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -18,6 +20,7 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\TestCase;
@@ -181,7 +184,133 @@ final class RoadsideChatMessagePushTest extends TestCase
         Notification::assertNothingSent();
     }
 
-    public function testActivityNotifiesCounterpartyWhenMessageCreated(): void
+    public function testActionIgnoresMessageWithoutAssistanceChatVerb(): void
+    {
+        $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
+        $mechanic = Users::factory()->create();
+        $channel = $this->createOrderChannel($order, [$this->authUser->getId(), $mechanic->getId()]);
+        $message = $this->createChannelMessage($channel, $this->authUser, 'some-other-verb');
+
+        Notification::fake();
+
+        $notified = new SendRoadsideChatMessagePushAction($channel, $message)->execute();
+
+        $this->assertSame(0, $notified);
+        Notification::assertNothingSent();
+    }
+
+    public function testResolvesRoadsideOrderFromDirectMessageChannelMembers(): void
+    {
+        $mechanic = Users::factory()->create();
+        $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
+        // Stamp the assigned mechanic on the case: that's what ties the memberless DM channel
+        // (dm-{userId}-{userId}, the real client payload) back to this roadside order.
+        $order->metadata = [
+            'assistance_case' => [
+                ...$order->metadata['assistance_case'],
+                'mechanic' => ['user_id' => $mechanic->getId()],
+            ],
+        ];
+        $order->saveQuietly();
+
+        $channel = $this->createOrderChannel(
+            $order,
+            [$this->authUser->getId(), $mechanic->getId()],
+            [
+                'slug' => 'dm-' . $this->authUser->getId() . '-' . $mechanic->getId(),
+                'entity_id' => $mechanic->getId(),
+                'entity_namespace' => Users::class,
+            ],
+        );
+        $message = $this->createChannelMessage($channel, $this->authUser);
+
+        Notification::fake();
+
+        $notified = new SendRoadsideChatMessagePushAction($channel, $message)->execute();
+
+        $this->assertSame(1, $notified);
+        Notification::assertSentTo($mechanic, RoadsideChatMessageNotification::class);
+        Notification::assertNotSentTo($this->authUser, RoadsideChatMessageNotification::class);
+    }
+
+    public function testNotifiesMechanicOnSingleMemberDirectMessageChannel(): void
+    {
+        $mechanic = Users::factory()->create();
+        $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
+        $order->metadata = [
+            'assistance_case' => [
+                ...$order->metadata['assistance_case'],
+                'mechanic' => ['user_id' => $mechanic->getId()],
+            ],
+        ];
+        $order->saveQuietly();
+
+        // Real client payload: dm-{customer}-{mechanic}, ONLY the sender (customer) in the users
+        // pivot (CreateChannelAction attaches the creator alone), entity points at the mechanic User,
+        // no order reference anywhere. Order resolves from the slug/entity ids; recipient from the order.
+        $channel = Channel::create([
+            'apps_id' => $this->apps->getId(),
+            'companies_id' => $order->companies_id,
+            'slug' => 'dm-' . $this->authUser->getId() . '-' . $mechanic->getId(),
+            'name' => 'DM',
+            'description' => 'DM',
+            'entity_id' => $mechanic->getId(),
+            'entity_namespace' => Users::class,
+            'users_id' => $this->authUser->getId(),
+        ]);
+        $channel->users()->attach($this->authUser->getId(), ['roles_id' => 2]);
+
+        $message = $this->createChannelMessage($channel, $this->authUser);
+
+        Notification::fake();
+
+        $notified = new SendRoadsideChatMessagePushAction($channel, $message)->execute();
+
+        $this->assertSame(1, $notified);
+        Notification::assertSentTo($mechanic, RoadsideChatMessageNotification::class);
+        Notification::assertNotSentTo($this->authUser, RoadsideChatMessageNotification::class);
+    }
+
+    public function testNotifiesCustomerWhenMechanicWritesOnSingleMemberDirectMessageChannel(): void
+    {
+        $mechanic = Users::factory()->create();
+        // The mechanic is the message SENDER here, so it needs an app profile — the message observer
+        // increments the sender's total_messages_count via getAppProfile().
+        $this->apps->associateUser($mechanic, StateEnums::YES->getValue());
+        $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
+        $order->metadata = [
+            'assistance_case' => [
+                ...$order->metadata['assistance_case'],
+                'mechanic' => ['user_id' => $mechanic->getId()],
+            ],
+        ];
+        $order->saveQuietly();
+
+        $channel = Channel::create([
+            'apps_id' => $this->apps->getId(),
+            'companies_id' => $order->companies_id,
+            'slug' => 'dm-' . $this->authUser->getId() . '-' . $mechanic->getId(),
+            'name' => 'DM',
+            'description' => 'DM',
+            'entity_id' => $mechanic->getId(),
+            'entity_namespace' => Users::class,
+            'users_id' => $this->authUser->getId(),
+        ]);
+        // Only the customer is in the pivot; the mechanic writes anyway.
+        $channel->users()->attach($this->authUser->getId(), ['roles_id' => 2]);
+
+        $message = $this->createChannelMessage($channel, $mechanic);
+
+        Notification::fake();
+
+        $notified = new SendRoadsideChatMessagePushAction($channel, $message)->execute();
+
+        $this->assertSame(1, $notified);
+        Notification::assertSentTo($this->authUser, RoadsideChatMessageNotification::class);
+        Notification::assertNotSentTo($mechanic, RoadsideChatMessageNotification::class);
+    }
+
+    public function testActivityNotifiesCounterpartyWhenMessageAddedToChannel(): void
     {
         $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
         $mechanic = Users::factory()->create();
@@ -200,12 +329,13 @@ final class RoadsideChatMessagePushTest extends TestCase
 
         Notification::fake();
 
+        // Mirrors Channel::addMessage() firing Channel/updated with the new message in params.
         $result = new SendRoadsideChatMessagePushActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),
             []
-        )->execute($message, $this->apps, []);
+        )->execute($channel, $this->apps, ['message' => $message]);
 
         $this->assertTrue($result['result']);
         $this->assertSame(1, $result['recipients_notified']);
@@ -214,25 +344,107 @@ final class RoadsideChatMessagePushTest extends TestCase
         Notification::assertNotSentTo($this->authUser, RoadsideChatMessageNotification::class);
     }
 
-    public function testActivityIgnoresNonRoadsideMessage(): void
+    public function testActivityIgnoresMessageWithoutAssistanceChatVerb(): void
     {
-        $order = $this->createOrder(OrderTypeEnum::MOVIPASS->value);
+        $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
         $mechanic = Users::factory()->create();
         $channel = $this->createOrderChannel($order, [$this->authUser->getId(), $mechanic->getId()]);
-        $message = $this->createChannelMessage($channel, $this->authUser);
+        $message = $this->createChannelMessage($channel, $this->authUser, 'some-other-verb');
         $channel->messages()->attach($message->getKey(), ['users_id' => $this->authUser->getId()]);
 
         Notification::fake();
 
+        // Guards on the verb before executeIntegration, so no MOVIPASS integration row is needed.
         $result = new SendRoadsideChatMessagePushActivity(
             0,
             now()->toDateTimeString(),
             StoredWorkflow::make(),
             []
-        )->execute($message, $this->apps, []);
+        )->execute($channel, $this->apps, ['message' => $message]);
 
         $this->assertFalse($result['result']);
         $this->assertSame(0, $result['recipients_notified']);
+        Notification::assertNothingSent();
+    }
+
+    public function testActivityIgnoresChannelUpdateWithoutMessage(): void
+    {
+        $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
+        $mechanic = Users::factory()->create();
+        $channel = $this->createOrderChannel($order, [$this->authUser->getId(), $mechanic->getId()]);
+
+        Notification::fake();
+
+        // A plain Channel/updated (rename, last_message_id, etc.) carries no message in params.
+        $result = new SendRoadsideChatMessagePushActivity(
+            0,
+            now()->toDateTimeString(),
+            StoredWorkflow::make(),
+            []
+        )->execute($channel, $this->apps, []);
+
+        $this->assertFalse($result['result']);
+        $this->assertSame(0, $result['recipients_notified']);
+        Notification::assertNothingSent();
+    }
+
+    public function testSyncPushesLatestRoadsideChatMessageToCounterparty(): void
+    {
+        $mechanic = Users::factory()->create();
+        $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
+        $order->metadata = [
+            'assistance_case' => [
+                ...$order->metadata['assistance_case'],
+                'mechanic' => ['user_id' => $mechanic->getId()],
+            ],
+        ];
+        $order->saveQuietly();
+
+        $channel = Channel::create([
+            'apps_id' => $this->apps->getId(),
+            'companies_id' => $order->companies_id,
+            'slug' => 'dm-' . $this->authUser->getId() . '-' . $mechanic->getId(),
+            'name' => 'DM',
+            'description' => 'DM',
+            'entity_id' => 1,
+            'entity_namespace' => Message::class,
+            'users_id' => $this->authUser->getId(),
+        ]);
+        $channel->users()->attach($this->authUser->getId(), ['roles_id' => 2]);
+        $message = $this->createChannelMessage($channel, $this->authUser);
+        $channel->messages()->attach($message->getKey(), ['users_id' => $this->authUser->getId()]);
+
+        $this->setIntegration(
+            $this->apps,
+            IntegrationsEnum::MOVIPASS,
+            MovipassHandler::class,
+            $order->company,
+            $this->authUser
+        );
+
+        Notification::fake();
+
+        new SyncMovipassRoadsideAssistanceActivity(
+            0,
+            now()->toDateTimeString(),
+            StoredWorkflow::make(),
+            []
+        )->execute($order, $this->apps, ['currentEventTypeName' => WorkflowEnum::UPDATED->value]);
+
+        Notification::assertSentTo($mechanic, RoadsideChatMessageNotification::class);
+        Notification::assertNotSentTo($this->authUser, RoadsideChatMessageNotification::class);
+
+        // Idempotent: a second sync with no new chat message pushes nothing.
+        $order->refresh();
+        Notification::fake();
+
+        new SyncMovipassRoadsideAssistanceActivity(
+            0,
+            now()->toDateTimeString(),
+            StoredWorkflow::make(),
+            []
+        )->execute($order, $this->apps, ['currentEventTypeName' => WorkflowEnum::UPDATED->value]);
+
         Notification::assertNothingSent();
     }
 
@@ -280,9 +492,15 @@ final class RoadsideChatMessagePushTest extends TestCase
         return $channel;
     }
 
-    private function createChannelMessage(Channel $channel, Users $sender): Message
-    {
-        $messageType = MessageType::factory()->create();
+    private function createChannelMessage(
+        Channel $channel,
+        Users $sender,
+        string $verb = SendRoadsideChatMessagePushAction::ROADSIDE_CHAT_VERB
+    ): Message {
+        $messageType = MessageType::where('apps_id', $this->apps->getId())
+            ->where('verb', $verb)
+            ->first()
+            ?? MessageType::factory()->create(['verb' => $verb]);
 
         return Message::create([
             'apps_id' => $this->apps->getId(),

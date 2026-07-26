@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsTenantRecordForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Ledger\Models\Account;
@@ -22,6 +23,7 @@ use Override;
 #[AgentTool(name: 'Find Bill')]
 class FindBillTool extends Tool
 {
+    use FindsTenantRecordForTool;
     use HasKanvasContext;
 
     public function __construct()
@@ -56,24 +58,19 @@ class FindBillTool extends Tool
      */
     public function __invoke(string $bill_number): array
     {
-        $app = $this->app;
-        $company = $this->company;
+        $result = $this->findTenantRecordOrNotFound(
+            Bill::class,
+            'bill_number',
+            $bill_number,
+            'bill'
+        );
 
-        /** @var Bill|null $bill */
-        $bill = Bill::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('bill_number', trim($bill_number))
-            ->where('is_deleted', false)
-            ->first();
-
-        if ($bill === null) {
-            return [
-                'found' => false,
-                'bill_number' => $bill_number,
-                'message' => 'No bill with that number in the synced data — it may not have been synced yet.',
-            ];
+        if (is_array($result)) {
+            return $result;
         }
+
+        /** @var Bill $bill */
+        $bill = $result;
 
         return [
             'found' => true,

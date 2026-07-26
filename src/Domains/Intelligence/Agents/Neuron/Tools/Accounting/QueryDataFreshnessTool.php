@@ -36,8 +36,7 @@ class QueryDataFreshnessTool extends Tool
     public function __invoke(): array
     {
         $app = $this->app;
-        $user = $this->user;
-        $company = $user->getCurrentCompany();
+        $company = $this->company;
         $appId = $app->getId();
         $companyId = $company->getId();
         $today = Carbon::today();

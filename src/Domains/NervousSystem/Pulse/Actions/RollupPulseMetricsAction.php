@@ -6,49 +6,50 @@ namespace Kanvas\NervousSystem\Pulse\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
-use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
-use Kanvas\NervousSystem\Ledger\DataTransferObject\Event;
+use Kanvas\NervousSystem\Metrics\Actions\AbstractRollupMetricsAction;
+use Kanvas\NervousSystem\Pulse\DataTransferObject\PulseAggregateRow;
 use Kanvas\NervousSystem\Pulse\Models\PulseMetricsDaily;
 use Kanvas\NervousSystem\Pulse\Services\PulseMetricsAggregatorService;
 use Kanvas\NervousSystem\Pulse\Support\PulseMetricsCache;
+use Override;
 
 /**
- * Snapshot one (app, company, date) tuple of Pulse metrics. Idempotent
- * — re-running upserts the existing row. Single source of truth for
- * the formula via PulseMetricsAggregatorService.
- *
- * Emits `pulse.metrics_rolled_up` ledger event for audit + flushes the
- * tenant cache so the next dashboard read sees fresh numbers.
+ * Snapshot one (app, company, date) tuple of Pulse metrics. The
+ * idempotent-upsert + ledger-emit + cache-bust shape lives in
+ * AbstractRollupMetricsAction; this class supplies only what's
+ * Pulse-specific — the aggregator, snapshot columns, event type/payload,
+ * model, and cache.
  */
-class RollupPulseMetricsAction
+class RollupPulseMetricsAction extends AbstractRollupMetricsAction
 {
     private const string FORMULA_VERSION = '1.0';
 
     public function __construct(
-        protected readonly AppInterface $app,
-        protected readonly CompanyInterface $company,
-        protected readonly Carbon $date,
+        AppInterface $app,
+        CompanyInterface $company,
+        Carbon $date,
         protected readonly PulseMetricsAggregatorService $aggregator = new PulseMetricsAggregatorService(),
     ) {
+        parent::__construct($app, $company, $date);
     }
 
-    public function execute(): PulseMetricsDaily
+    #[Override]
+    protected function aggregate(Carbon $start, Carbon $end): PulseAggregateRow
     {
-        $start = $this->date->copy()->startOfDay();
-        $end = $this->date->copy()->endOfDay();
+        return $this->aggregator->aggregate(
+            $this->app,
+            $this->company,
+            $start,
+            $end
+        );
+    }
 
-        $aggregate = $this->aggregator->aggregate($this->app, $this->company, $start, $end);
-
-        $attributes = [
-            'apps_id' => $this->app->getId(),
-            'companies_id' => $this->company->getId(),
-            'metric_date' => $start->toDateString(),
-        ];
-
-        $values = [
+    #[Override]
+    protected function snapshotValues(object $aggregate): array
+    {
+        /** @var PulseAggregateRow $aggregate */
+        return [
             'signals_count' => $aggregate->signals_count,
             'understand_count' => $aggregate->understand_count,
             'decide_count' => $aggregate->decide_count,
@@ -56,44 +57,41 @@ class RollupPulseMetricsAction
             'warnings_count' => $aggregate->warnings_count,
             'prevented_issues' => $aggregate->prevented_issues,
             'system_confidence_pct' => $aggregate->system_confidence_pct,
-            'computed_at' => Carbon::now(),
-            'formula_version' => self::FORMULA_VERSION,
         ];
+    }
 
-        $snapshot = DB::connection('intelligence')->transaction(function () use ($attributes, $values): PulseMetricsDaily {
-            try {
-                return PulseMetricsDaily::updateOrCreate($attributes, $values);
-            } catch (UniqueConstraintViolationException) {
-                // A concurrent rollup inserted this (app, company, date) row
-                // between our SELECT and INSERT. The row exists now — update it.
-                $snapshot = PulseMetricsDaily::query()->where($attributes)->firstOrFail();
-                $snapshot->update($values);
+    #[Override]
+    protected function eventMetricPayload(object $aggregate): array
+    {
+        /** @var PulseAggregateRow $aggregate */
+        return [
+            'signals_count' => $aggregate->signals_count,
+            'actions_executed' => $aggregate->actions_executed,
+            'prevented_issues' => $aggregate->prevented_issues,
+        ];
+    }
 
-                return $snapshot;
-            }
-        });
+    #[Override]
+    protected function modelClass(): string
+    {
+        return PulseMetricsDaily::class;
+    }
 
-        new AppendEventAction(
-            new Event(
-                app: $this->app,
-                company: $this->company,
-                sourceDomain: 'NervousSystem',
-                eventType: 'pulse.metrics_rolled_up',
-                sourceEntityType: PulseMetricsDaily::class,
-                sourceEntityId: $snapshot->id,
-                actorType: 'System',
-                payload: [
-                    'metric_date' => $start->toDateString(),
-                    'signals_count' => $aggregate->signals_count,
-                    'actions_executed' => $aggregate->actions_executed,
-                    'prevented_issues' => $aggregate->prevented_issues,
-                    'formula_version' => self::FORMULA_VERSION,
-                ],
-            ),
-        )->execute();
+    #[Override]
+    protected function eventType(): string
+    {
+        return 'pulse.metrics_rolled_up';
+    }
 
-        PulseMetricsCache::forget($this->app->getId(), $this->company->getId());
+    #[Override]
+    protected function cacheClass(): string
+    {
+        return PulseMetricsCache::class;
+    }
 
-        return $snapshot;
+    #[Override]
+    protected function formulaVersion(): string
+    {
+        return self::FORMULA_VERSION;
     }
 }

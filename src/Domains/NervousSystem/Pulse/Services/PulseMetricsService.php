@@ -6,62 +6,48 @@ namespace Kanvas\NervousSystem\Pulse\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Kanvas\NervousSystem\Dashboard\Enums\DashboardPeriodEnum;
 use Kanvas\NervousSystem\Dashboard\Support\DashboardPeriodResolver;
+use Kanvas\NervousSystem\Metrics\Services\AbstractMetricsReaderService;
 use Kanvas\NervousSystem\Pulse\DataTransferObject\PulseAggregateRow;
 use Kanvas\NervousSystem\Pulse\DataTransferObject\PulseMetrics;
 use Kanvas\NervousSystem\Pulse\Models\PulseMetricsDaily;
 use Kanvas\NervousSystem\Pulse\Support\PulseMetricsCache;
+use Override;
 
 /**
- * Reader orchestrator for the Pulse KPI strip. Walks each day in the
- * requested window: snapshot for past, live aggregate for today,
- * fallback to live if a past-day snapshot is missing (cron failure
- * shouldn't blank the dashboard).
- *
- * Period semantics reuse DashboardPeriodResolver — TODAY, YESTERDAY,
- * THIS_WEEK + their prior windows for delta arrows.
- *
- * Cached 1h per (app, company, period); the rollup action busts the
- * tenant's cache after each snapshot write.
+ * Reader orchestrator for the Pulse KPI strip. The cache-remember +
+ * day-by-day snapshot/live walk lives in AbstractMetricsReaderService;
+ * this class supplies the Pulse aggregator, model, cache, and the final
+ * PulseMetrics assembly (including the confidence rounding).
  */
-class PulseMetricsService
+class PulseMetricsService extends AbstractMetricsReaderService
 {
     public function __construct(
         protected readonly PulseMetricsAggregatorService $aggregator = new PulseMetricsAggregatorService(),
-        protected readonly DashboardPeriodResolver $periodResolver = new DashboardPeriodResolver(),
+        DashboardPeriodResolver $periodResolver = new DashboardPeriodResolver(),
     ) {
+        parent::__construct($periodResolver);
     }
 
-    public function compute(
-        AppInterface $app,
-        CompanyInterface $company,
-        DashboardPeriodEnum $period,
-    ): PulseMetrics {
-        $cacheKey = PulseMetricsCache::key($app->getId(), $company->getId(), $period);
-
-        return Cache::remember(
-            $cacheKey,
-            PulseMetricsCache::TTL_SECONDS,
-            fn (): PulseMetrics => $this->computeFresh($app, $company, $period),
-        );
-    }
-
-    private function computeFresh(
+    #[Override]
+    protected function computeFresh(
         AppInterface $app,
         CompanyInterface $company,
         DashboardPeriodEnum $period,
     ): PulseMetrics {
         $window = $this->periodResolver->resolve($period);
 
+        /** @var PulseAggregateRow $current */
         $current = $this->sumWindow(
             $app,
             $company,
             $window['starts_at'],
             $window['ends_at']
         );
+        /** @var PulseAggregateRow $prior */
         $prior = $this->sumWindow(
             $app,
             $company,
@@ -85,63 +71,55 @@ class PulseMetricsService
         );
     }
 
-    private function sumWindow(
+    #[Override]
+    protected function newAggregateRow(): PulseAggregateRow
+    {
+        return new PulseAggregateRow();
+    }
+
+    #[Override]
+    protected function aggregateLive(
         AppInterface $app,
         CompanyInterface $company,
         Carbon $start,
         Carbon $end,
     ): PulseAggregateRow {
-        $today = Carbon::now()->startOfDay();
-        $total = new PulseAggregateRow();
-
-        foreach ($this->periodResolver->eachDate($start, $end) as $day) {
-            if ($day->lt($today)) {
-                $total->addRow($this->readPastDay($app, $company, $day));
-            } else {
-                $total->addRow($this->aggregator->aggregate(
-                    $app,
-                    $company,
-                    $day->copy()->startOfDay(),
-                    $day->copy()->endOfDay(),
-                ));
-            }
-        }
-
-        return $total;
-    }
-
-    private function readPastDay(
-        AppInterface $app,
-        CompanyInterface $company,
-        Carbon $day,
-    ): PulseAggregateRow {
-        $snapshot = PulseMetricsDaily::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->whereDate('metric_date', $day->toDateString())
-            ->first();
-
-        if ($snapshot !== null) {
-            return new PulseAggregateRow(
-                signals_count: (int) $snapshot->signals_count,
-                understand_count: (int) $snapshot->understand_count,
-                decide_count: (int) $snapshot->decide_count,
-                actions_executed: (int) $snapshot->actions_executed,
-                warnings_count: (int) $snapshot->warnings_count,
-                prevented_issues: (int) $snapshot->prevented_issues,
-                system_confidence_pct: $snapshot->system_confidence_pct,
-                // basis_count is lost on snapshot read; treat as 1 so the
-                // weighted-average across days still gives reasonable
-                // approximations across snapshot+live merges within a week.
-                confidence_basis_count: $snapshot->system_confidence_pct !== null ? 1 : 0,
-            );
-        }
-
         return $this->aggregator->aggregate(
             $app,
             $company,
-            $day->copy()->startOfDay(),
-            $day->copy()->endOfDay(),
+            $start,
+            $end
         );
+    }
+
+    #[Override]
+    protected function modelClass(): string
+    {
+        return PulseMetricsDaily::class;
+    }
+
+    #[Override]
+    protected function fromSnapshot(Model $snapshot): PulseAggregateRow
+    {
+        /** @var PulseMetricsDaily $snapshot */
+        return new PulseAggregateRow(
+            signals_count: (int) $snapshot->signals_count,
+            understand_count: (int) $snapshot->understand_count,
+            decide_count: (int) $snapshot->decide_count,
+            actions_executed: (int) $snapshot->actions_executed,
+            warnings_count: (int) $snapshot->warnings_count,
+            prevented_issues: (int) $snapshot->prevented_issues,
+            system_confidence_pct: $snapshot->system_confidence_pct,
+            // basis_count is lost on snapshot read; treat as 1 so the
+            // weighted-average across days still gives reasonable
+            // approximations across snapshot+live merges within a week.
+            confidence_basis_count: $snapshot->system_confidence_pct !== null ? 1 : 0,
+        );
+    }
+
+    #[Override]
+    protected function cacheClass(): string
+    {
+        return PulseMetricsCache::class;
     }
 }

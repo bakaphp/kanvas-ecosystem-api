@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsTenantRecordForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
@@ -22,6 +23,7 @@ use Override;
 #[AgentTool(name: 'Find Purchase Order')]
 class FindPurchaseOrderTool extends Tool
 {
+    use FindsTenantRecordForTool;
     use HasKanvasContext;
 
     public function __construct()
@@ -56,24 +58,19 @@ class FindPurchaseOrderTool extends Tool
      */
     public function __invoke(string $order_number): array
     {
-        $app = $this->app;
-        $company = $this->company;
+        $result = $this->findTenantRecordOrNotFound(
+            PurchaseOrder::class,
+            'order_number',
+            $order_number,
+            'purchase order'
+        );
 
-        /** @var PurchaseOrder|null $po */
-        $po = PurchaseOrder::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('order_number', trim($order_number))
-            ->where('is_deleted', false)
-            ->first();
-
-        if ($po === null) {
-            return [
-                'found' => false,
-                'order_number' => $order_number,
-                'message' => 'No purchase order with that number in the synced data — it may not have been synced yet.',
-            ];
+        if (is_array($result)) {
+            return $result;
         }
+
+        /** @var PurchaseOrder $po */
+        $po = $result;
 
         return [
             'found' => true,

@@ -17,6 +17,7 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\Agent as NeuronAIAgent;
 use NeuronAI\Agent\SystemPrompt;
+use NeuronAI\HttpClient\GuzzleHttpClient;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Providers\Gemini\Gemini;
 use NeuronAI\Tools\ToolInterface;
@@ -226,6 +227,7 @@ class BaseKanvasAgent extends NeuronAIAgent implements ProvidesToolDependencies
         return new Gemini(
             key: $key,
             model: $model,
+            httpClient: new GuzzleHttpClient(timeout: 220, connectTimeout: 220),
         );
     }
 

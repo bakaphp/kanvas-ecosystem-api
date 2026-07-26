@@ -26,6 +26,7 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\KanvasModules\Models\KanvasModule;
 use Kanvas\Models\BaseModel;
 use Kanvas\NervousSystem\Plan\Models\Plan as NervousSystemPlan;
+use Kanvas\NervousSystem\Project\Models\Project as NervousSystemProject;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Souk\Orders\Models\Order;
@@ -176,6 +177,7 @@ class SystemModules extends BaseModel
             Regions::class => 'region',
             Engagement::class => 'engagement',
             NervousSystemPlan::class => 'nervous_system_plan',
+            NervousSystemProject::class => 'nervous_system_project',
             AgentSwarm::class => 'agent_swarm',
             Employee::class => 'employee',
         ];

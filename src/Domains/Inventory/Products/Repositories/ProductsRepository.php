@@ -85,6 +85,38 @@ class ProductsRepository
         return $query->exists();
     }
 
+    /**
+     * A tag identifies a single physical device across the whole app, so this is scoped
+     * to the app and not to a company — the owning product may live in the user's own
+     * company or in a corporate one.
+     */
+    public static function findByAttributeValueInApp(
+        AppInterface $app,
+        string $attributeSlug,
+        string $value,
+    ): ?Products {
+        return Products::from('products as p')
+            ->withoutGlobalScopes()
+            ->join('products_attributes as pa', 'p.id', '=', 'pa.products_id')
+            ->join('attributes as a', 'pa.attributes_id', '=', 'a.id')
+            // Without this the joined tables' columns bleed into the model and attributes.id
+            // overwrites products.id, hydrating a Products with the wrong key.
+            ->select('p.*')
+            ->where('a.slug', '=', $attributeSlug)
+            // Legacy rows store pa.value as a raw string (not JSON-wrapped); JSON_EXTRACT throws on those.
+            ->whereRaw(
+                'CASE WHEN JSON_VALID(pa.value) = 1
+                      THEN JSON_UNQUOTE(JSON_EXTRACT(pa.value, \'$.en\'))
+                      ELSE pa.value
+                 END = ?',
+                [$value]
+            )
+            ->where('p.apps_id', '=', $app->getId())
+            ->where('p.is_deleted', '=', 0)
+            ->orderBy('p.id')
+            ->first();
+    }
+
     public static function existsByAttributeValueInCompanies(
         AppInterface $app,
         iterable $companyIds,

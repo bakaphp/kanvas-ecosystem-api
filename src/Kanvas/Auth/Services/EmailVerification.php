@@ -68,7 +68,7 @@ class EmailVerification
             throw new ValidationException('Verification link is invalid.');
         }
 
-        if (Carbon::now()->getTimestamp() > (int) $payload['exp']) {
+        if (Carbon::now()->getTimestamp() >= (int) $payload['exp']) {
             throw new ValidationException('Verification link has expired.');
         }
 

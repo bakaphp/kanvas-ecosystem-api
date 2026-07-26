@@ -204,6 +204,7 @@ class PaymentProcessorMutation
                 'card_number'  => $cardNumber,
                 'cvc'          => $cardData['cvv'] ?? null,
                 'browser_info' => $cardData['browser_info'] ?? [],
+                'save_card'    => (bool) ($cardData['save_card'] ?? false),
                 'card' => [
                     'number'          => $cardNumber,
                     'cvv'             => $cardData['cvv'] ?? null,

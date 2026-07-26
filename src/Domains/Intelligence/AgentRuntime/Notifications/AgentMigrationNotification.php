@@ -5,16 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\AgentRuntime\Notifications;
 
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
-use Kanvas\Notifications\Notification;
-use Kanvas\Templates\Actions\RenderTemplateAction;
-use Override;
 use Throwable;
 
-class AgentMigrationNotification extends Notification
+class AgentMigrationNotification extends AbstractTemplatedNotification
 {
     public const string TEMPLATE_NAME = 'agent_migration_result';
-
-    public array $channels = ['mail'];
 
     public function __construct(
         AgentDeployment $sourceDeployment,
@@ -41,12 +36,5 @@ class AgentMigrationNotification extends Notification
             'destination_machine_name' => $destinationDeployment?->machine?->name ?? 'unknown',
             'error_message' => $error?->getMessage() ?? 'no details captured',
         ]);
-    }
-
-    #[Override]
-    public function getEmailContent(): string
-    {
-        return new RenderTemplateAction($this->app, $this->company)
-            ->execute(self::TEMPLATE_NAME, $this->getData());
     }
 }

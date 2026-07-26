@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Sales;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsTenantRecordForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Souk\Orders\Models\Order;
 use NeuronAI\Tools\PropertyType;
@@ -20,6 +21,7 @@ use Override;
 #[AgentTool(name: 'Find Sales Order')]
 class FindSalesOrderTool extends Tool
 {
+    use FindsTenantRecordForTool;
     use HasKanvasContext;
 
     public function __construct()
@@ -54,24 +56,19 @@ class FindSalesOrderTool extends Tool
      */
     public function __invoke(string $order_number): array
     {
-        $app = $this->app;
-        $company = $this->company;
+        $result = $this->findTenantRecordOrNotFound(
+            Order::class,
+            'order_number',
+            $order_number,
+            'sales order'
+        );
 
-        /** @var Order|null $order */
-        $order = Order::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('order_number', trim($order_number))
-            ->where('is_deleted', false)
-            ->first();
-
-        if ($order === null) {
-            return [
-                'found' => false,
-                'order_number' => $order_number,
-                'message' => 'No sales order with that number in the synced data — it may not have been synced yet.',
-            ];
+        if (is_array($result)) {
+            return $result;
         }
+
+        /** @var Order $order */
+        $order = $result;
 
         $people = $order->people;
         $customer = $people !== null ? trim($people->firstname . ' ' . $people->lastname) : null;
