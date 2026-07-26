@@ -87,8 +87,10 @@ enum AgentProviderEnum: string
 
     /**
      * Resolve the provider from a deployment row, defaulting to OPENCLAW if the column is empty
-     * (legacy rows from before the provider field existed). Wrapped here so resolvers don't
-     * repeat the strtolower/from/fallback dance.
+     * (legacy rows from before the provider field existed) OR carries a value that isn't a valid
+     * runtime provider (e.g. an LLM name like "anthropic" that leaked into the column). Never throws —
+     * a bad provider on one deployment must not crash every plan-change / kanban-sync path that reads
+     * it. Wrapped here so resolvers don't repeat the strtolower/tryFrom/fallback dance.
      */
     public static function forDeployment(AgentDeployment $deployment): self
     {
@@ -97,6 +99,6 @@ enum AgentProviderEnum: string
             return self::OPENCLAW;
         }
 
-        return self::from(strtolower((string) $raw));
+        return self::tryFrom(strtolower($raw)) ?? self::OPENCLAW;
     }
 }

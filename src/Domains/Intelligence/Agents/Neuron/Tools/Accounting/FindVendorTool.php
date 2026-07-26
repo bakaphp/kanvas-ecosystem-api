@@ -70,9 +70,9 @@ class FindVendorTool extends Tool
         $term = $needle !== '' ? $needle : $name;
 
         $matches = Organization::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('is_deleted', false)
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
             ->where('name', 'like', '%' . $term . '%')
             ->limit($limit)
             ->get();

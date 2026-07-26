@@ -73,8 +73,6 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
         }
 
         if ($this->usesEntityRollup() && $this->entity !== null) {
-            // Dropped onto a CRM entity → its cross-channel timeline, so the agent reads
-            // the prior conversation before replying.
             return new SalesAssistKanvasMessageHistory(
                 app: $app,
                 company: $company,
@@ -85,8 +83,6 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
             );
         }
 
-        // Direct DM with a person, or a company-scoped command: per-session store,
-        // keyed on the session (threadId falls back to the session uuid).
         return new KanvasMessageHistory(
             app: $app,
             company: $company,
@@ -192,10 +188,7 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
             return [];
         }
 
-        $core = [
-            new ReadMyLedgerTool($app, $company, $agent),
-            new WhoIsUserTool($app, $company, $this->entity instanceof Users ? $this->entity : null),
-        ];
+        $core = $this->identityTools();
 
         $subject = $this->subjectEntity();
         if ($subject !== null) {
@@ -208,6 +201,33 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
             $agent,
             CapabilityFrameworkEnum::NEURON
         );
+    }
+
+    /**
+     * Identity/memory tools for an internal-teammate agent: who it's talking to + its own ledger
+     * memory. Exposed so subclasses (e.g. the PM, whose entity is a Project not a person) reuse it.
+     * who_is_user targets the session entity when that's a Users, else the authenticated human.
+     *
+     * @return list<object>
+     */
+    protected function identityTools(): array
+    {
+        $app = $this->app;
+        $company = $this->company;
+        $agent = $this->agent;
+
+        if ($app === null || $company === null || $agent === null) {
+            return [];
+        }
+
+        return [
+            new ReadMyLedgerTool($app, $company, $agent),
+            new WhoIsUserTool(
+                $app,
+                $company,
+                $this->entity instanceof Users ? $this->entity : $this->user
+            ),
+        ];
     }
 
     /**

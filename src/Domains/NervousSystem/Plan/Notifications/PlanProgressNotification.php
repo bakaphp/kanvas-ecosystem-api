@@ -11,9 +11,10 @@ use Kanvas\Notifications\Notification;
 use Override;
 
 /**
- * Mail + push notification to a plan's human owner when the agent moves work on the board
- * (a status change synced back from the runtime kanban). Template-free — content comes from the
- * passed title/message/metadata; the actor (fromUser) is the agent's user.
+ * Mail + push notification to a plan's human owner about a change to their plan — the agent moved
+ * work on the board (a status change synced from the runtime kanban) or the plan was just assigned to
+ * them. Template-free — content comes from the passed title/message/metadata; the actor (fromUser) is
+ * the agent's user, falling back to the plan's creator when the plan has no owning agent.
  */
 class PlanProgressNotification extends Notification
 {

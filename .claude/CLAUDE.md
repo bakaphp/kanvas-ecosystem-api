@@ -351,33 +351,44 @@ So:
 
 `forUpdate` is NOT a Spatie magic method (magic methods are `from*` prefixed, not `for*`). Call it directly: `Plan::forUpdate($existing, $app, $user, $data)`.
 
-**Mutation resolver becomes a 3-liner:**
+**Resolve the acting context with the `ResolvesActingContext` trait — never re-derive app/user/company by hand.**
+
+Every mutation resolver needs the same three things: the current app, the logged-in user, and their
+current company. Do **not** copy-paste `app(Apps::class)` / `auth()->user()` / `$user->getCurrentCompany()`
+into each method — use the shared trait [`App\GraphQL\Concerns\ResolvesActingContext`](../app/GraphQL/Concerns/ResolvesActingContext.php).
+It exposes `actingContext(): ActingContext` (a readonly `{ user, app, company }` value object) plus
+`normalizeDate()` for Date-scalar inputs. The context's `app` is a concrete `Apps`; `company` is a
+`CompanyInterface` — so type your DTO's context params as `AppInterface` / `CompanyInterface` (matching
+`Plan`/`Project`) and everything flows without casts.
 
 ```php
-public function create(mixed $rootValue, array $request): Plan
+use App\GraphQL\Concerns\ResolvesActingContext;
+
+class PlanMutation
 {
-    $app = app(Apps::class);
-    $user = auth()->user();
-    $company = $user->getCurrentCompany();
+    use ResolvesActingContext;
 
-    return new CreatePlanAction(
-        PlanData::from($app, $user, $company, $request['input']),
-    )->execute();
-}
+    public function create(mixed $rootValue, array $request): Plan
+    {
+        $ctx = $this->actingContext();
 
-public function update(mixed $rootValue, array $request): Plan
-{
-    $app = app(Apps::class);
-    $user = auth()->user();
-    $company = $user->getCurrentCompany();
+        return new CreatePlanAction(
+            PlanData::from($ctx->app, $ctx->user, $ctx->company, $request['input']),
+        )->execute();
+    }
 
-    /** @var Plan $plan */
-    $plan = Plan::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+    public function update(mixed $rootValue, array $request): Plan
+    {
+        $ctx = $this->actingContext();
 
-    return new UpdatePlanAction(
-        $plan,
-        PlanData::forUpdate($plan, $app, $company, $request['input']),
-    )->execute();
+        /** @var Plan $plan */
+        $plan = Plan::getByIdFromCompanyApp((int) $request['id'], $ctx->company, $ctx->app);
+
+        return new UpdatePlanAction(
+            $plan,
+            PlanData::forUpdate($plan, $ctx->app, $ctx->company, $request['input']),
+        )->execute();
+    }
 }
 ```
 

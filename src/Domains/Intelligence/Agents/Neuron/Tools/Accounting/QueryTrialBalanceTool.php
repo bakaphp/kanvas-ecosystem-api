@@ -51,8 +51,7 @@ class QueryTrialBalanceTool extends Tool
     public function __invoke(?string $as_of = null, ?string $currency = null): array
     {
         $app = $this->app;
-        $user = $this->user;
-        $company = $user->getCurrentCompany();
+        $company = $this->company;
 
         $data = new TrialBalanceRepository()->generate(
             app: $app,

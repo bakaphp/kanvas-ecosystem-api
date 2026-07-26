@@ -61,6 +61,7 @@ class CreatePlanAction
             $plan->agent_id = $this->data->agent?->getId();
             $plan->users_id = $this->data->user?->getId();
             $plan->parent_plan_id = $this->data->parentPlan?->id;
+            $plan->project_id = $this->data->project?->getId();
             $plan->entity_namespace = $this->data->entityNamespace;
             $plan->entity_id = $this->data->entityId;
             $plan->plan_type = $this->data->planType;
