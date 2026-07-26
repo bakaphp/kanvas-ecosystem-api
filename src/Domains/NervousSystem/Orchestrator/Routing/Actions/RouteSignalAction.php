@@ -59,7 +59,7 @@ class RouteSignalAction
             $classification->confidence >= self::APPROVAL_FLOOR
                 => RoutingDecision::approval($project, $classification->confidence, $classification->reason),
             default
-                => RoutingDecision::triage($classification->confidence, $classification->reason),
+            => RoutingDecision::triage($classification->confidence, $classification->reason),
         };
     }
 
