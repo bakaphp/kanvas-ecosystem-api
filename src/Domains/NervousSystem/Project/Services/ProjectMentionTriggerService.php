@@ -20,7 +20,7 @@ class ProjectMentionTriggerService
 {
     public function buildTrigger(Message $message, ?string $focusPreamble = null): string
     {
-        $text = $this->mentionText($message);
+        $text = $message->contentText();
 
         if ($focusPreamble !== null && $focusPreamble !== '') {
             $text = $focusPreamble . "\n\n" . $text;
@@ -74,21 +74,5 @@ class ProjectMentionTriggerService
             $author->getId(),
             $text,
         );
-    }
-
-    private function mentionText(Message $message): string
-    {
-        $payload = $message->message;
-        if (! is_array($payload)) {
-            return is_scalar($payload) ? (string) $payload : '';
-        }
-
-        foreach (['content', 'text', 'message', 'body'] as $key) {
-            if (isset($payload[$key]) && is_string($payload[$key])) {
-                return $payload[$key];
-            }
-        }
-
-        return '';
     }
 }

@@ -30,6 +30,16 @@ enum ProjectStatusEnum: string
     }
 
     /**
+     * The open statuses as raw string values — for `whereIn('status', ...)` filters.
+     *
+     * @return array<int, string>
+     */
+    public static function openStatusValues(): array
+    {
+        return array_map(fn (self $status): string => $status->value, self::openStatuses());
+    }
+
+    /**
      * Statuses where the project won't change further.
      *
      * @return array<int, self>

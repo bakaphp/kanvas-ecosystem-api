@@ -86,9 +86,13 @@ class StalePlanNudgeService
         /** @var CarbonInterface $latest */
         $latest = $plan->created_at;
 
-        // Real task progress = a status transition, not an arbitrary field edit.
-        foreach (['started_at', 'completed_at'] as $column) {
-            $timestamp = $plan->tasks()->max($column);
+        // Real task progress = a status transition, not an arbitrary field edit. One aggregate query
+        // for both bounds rather than a MAX() round-trip per column.
+        $taskTimes = $plan->tasks()
+            ->selectRaw('MAX(started_at) as started, MAX(completed_at) as completed')
+            ->first();
+
+        foreach ([$taskTimes?->started, $taskTimes?->completed] as $timestamp) {
             if ($timestamp !== null) {
                 $latest = $this->newer($latest, Carbon::parse((string) $timestamp));
             }

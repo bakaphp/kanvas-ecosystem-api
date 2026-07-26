@@ -85,7 +85,7 @@ class CreateNervousSystemPlanTool extends Tool
             ->where('project_id', $project->getId())
             ->where('title', $title)
             ->open()
-            ->where('is_deleted', 0)
+            ->notDeleted()
             ->first();
 
         if ($existing !== null) {

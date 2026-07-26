@@ -6,11 +6,7 @@ namespace App\Console\Commands\NervousSystem;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\NervousSystem\Project\Enums\ProjectStatusEnum;
-use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Services\ProjectHeartbeatService;
 
 /**
@@ -33,7 +29,7 @@ class ProjectHeartbeatCommand extends Command
         $force = (bool) $this->option('force');
         $projectId = $this->option('project') !== null ? (int) $this->option('project') : null;
 
-        $appIds = $this->targetAppIds($force, $projectId);
+        $appIds = $service->candidateAppIds(ignoreCadence: $force, projectId: $projectId);
 
         foreach ($appIds as $appId) {
             /** @var Apps $app */
@@ -60,37 +56,5 @@ class ProjectHeartbeatCommand extends Command
         $this->info('Project heartbeat processed ' . $appIds->count() . ' app(s).');
 
         return self::SUCCESS;
-    }
-
-    /**
-     * The apps that own a project to evaluate this run — narrowed by --project and, unless --force,
-     * gated to projects whose cadence has elapsed (so we don't spin up app scope for nothing).
-     *
-     * @return Collection<int, int>
-     */
-    private function targetAppIds(bool $force, ?int $projectId): Collection
-    {
-        $openStatuses = array_map(
-            fn (ProjectStatusEnum $status): string => $status->value,
-            ProjectStatusEnum::openStatuses(),
-        );
-
-        return Project::query()
-            ->notDeleted()
-            ->whereIn('status', $openStatuses)
-            ->when(
-                $projectId !== null,
-                fn (Builder $query): Builder => $query->where('id', $projectId),
-            )
-            ->when(
-                ! $force,
-                fn (Builder $query): Builder => $query->where(
-                    fn (Builder $inner): Builder => $inner
-                        ->whereNull('next_heartbeat_at')
-                        ->orWhere('next_heartbeat_at', '<=', now()),
-                ),
-            )
-            ->distinct()
-            ->pluck('apps_id');
     }
 }

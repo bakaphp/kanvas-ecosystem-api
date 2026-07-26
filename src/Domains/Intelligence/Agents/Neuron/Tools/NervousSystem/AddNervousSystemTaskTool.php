@@ -11,7 +11,6 @@ use Kanvas\NervousSystem\Plan\Actions\AddTaskAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
-use Kanvas\NervousSystem\Project\Models\Project;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -93,7 +92,7 @@ class AddNervousSystemTaskTool extends Tool
         $existing = Task::query()
             ->where('plan_id', $plan->getId())
             ->where('title', $title)
-            ->where('is_deleted', 0)
+            ->notDeleted()
             ->first();
 
         if ($existing !== null) {
@@ -117,9 +116,7 @@ class AddNervousSystemTaskTool extends Tool
             ]),
         )->execute();
 
-        if ($plan->project_id !== null) {
-            Project::query()->where('id', $plan->project_id)->first()?->recomputeCompletionPct();
-        }
+        $plan->project?->recomputeCompletionPct();
 
         return [
             'task_id' => $task->getId(),

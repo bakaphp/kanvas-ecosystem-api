@@ -45,7 +45,7 @@ abstract class AbstractRollupDailyMetricsJob implements ShouldQueue
     public function handle(): void
     {
         $date = ($this->date ?? Carbon::yesterday())->copy()->startOfDay();
-        $start = $date->copy()->startOfDay();
+        $start = $date->copy();
         $end = $date->copy()->endOfDay();
 
         $tuples = $this->tenantTuplesForDay($start, $end);

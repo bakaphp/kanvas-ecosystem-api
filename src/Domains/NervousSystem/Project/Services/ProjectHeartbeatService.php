@@ -6,6 +6,7 @@ namespace Kanvas\NervousSystem\Project\Services;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as SupportCollection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
@@ -34,10 +35,25 @@ class ProjectHeartbeatService
      */
     public function dueProjects(Apps $app, bool $ignoreCadence = false, ?int $projectId = null): Collection
     {
+        return $this->dueQuery($ignoreCadence, $projectId)->fromApp($app)->get();
+    }
+
+    /**
+     * The apps that own a due project — so a caller only rebinds scope for apps with candidates. Shares
+     * dueQuery() with dueProjects() so the command and service can't drift on "which projects are due".
+     *
+     * @return SupportCollection<int, int>
+     */
+    public function candidateAppIds(bool $ignoreCadence = false, ?int $projectId = null): SupportCollection
+    {
+        return $this->dueQuery($ignoreCadence, $projectId)->distinct()->pluck('apps_id');
+    }
+
+    private function dueQuery(bool $ignoreCadence, ?int $projectId): Builder
+    {
         return Project::query()
-            ->fromApp($app)
             ->notDeleted()
-            ->whereIn('status', $this->openStatusValues())
+            ->whereIn('status', ProjectStatusEnum::openStatusValues())
             ->when(
                 $projectId !== null,
                 fn (Builder $query): Builder => $query->where('id', $projectId),
@@ -49,8 +65,7 @@ class ProjectHeartbeatService
                         ->whereNull('next_heartbeat_at')
                         ->orWhere('next_heartbeat_at', '<=', now()),
                 ),
-            )
-            ->get();
+            );
     }
 
     /**
@@ -111,15 +126,17 @@ class ProjectHeartbeatService
             return true;
         }
 
-        $tasks = Task::query()
+        // One grouped query returning at most the two statuses we care about — cheaper than pulling
+        // every task row into memory just to answer "any pending?" / "any in-flight?".
+        $activeStatuses = Task::query()
             ->whereIn('plan_id', $planIds)
             ->notDeleted()
-            ->get();
+            ->whereIn('status', [TaskStatusEnum::PENDING->value, TaskStatusEnum::IN_PROGRESS->value])
+            ->distinct()
+            ->pluck('status');
 
-        $hasInFlight = $tasks->contains(fn (Task $task): bool => $task->status === TaskStatusEnum::IN_PROGRESS->value);
-        $hasPending = $tasks->contains(fn (Task $task): bool => $task->status === TaskStatusEnum::PENDING->value);
-
-        return $hasPending && ! $hasInFlight;
+        return $activeStatuses->contains(TaskStatusEnum::PENDING->value)
+            && ! $activeStatuses->contains(TaskStatusEnum::IN_PROGRESS->value);
     }
 
     /**
@@ -131,16 +148,5 @@ class ProjectHeartbeatService
         $agent = $project->pmAgent;
 
         return $agent !== null && $agent->isContainerRuntime();
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function openStatusValues(): array
-    {
-        return array_map(
-            fn (ProjectStatusEnum $status): string => $status->value,
-            ProjectStatusEnum::openStatuses(),
-        );
     }
 }

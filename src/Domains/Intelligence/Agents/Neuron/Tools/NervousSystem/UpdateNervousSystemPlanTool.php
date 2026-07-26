@@ -9,7 +9,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\NervousSystem\Plan\Actions\UpdatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
-use Kanvas\NervousSystem\Project\Models\Project;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -116,9 +115,7 @@ class UpdateNervousSystemPlanTool extends Tool
             ),
         )->execute();
 
-        if ($updated->project_id !== null) {
-            Project::query()->where('id', $updated->project_id)->first()?->recomputeCompletionPct();
-        }
+        $updated->project?->recomputeCompletionPct();
 
         return [
             'plan_id' => $updated->getId(),

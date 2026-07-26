@@ -23,6 +23,8 @@ use Throwable;
  */
 class ProjectContextService
 {
+    private const int RECENT_MESSAGE_CHAR_CAP = 1200;
+
     public function buildContextBundle(Project $project, int $historyLimit = 50): ProjectContextBundle
     {
         return new ProjectContextBundle(
@@ -175,30 +177,14 @@ class ProjectContextService
 
     private function messageContent(Message $message): string
     {
-        $payload = $message->message;
-        $raw = is_array($payload) ? $this->firstStringValue($payload) : '';
+        $raw = $message->contentText();
 
-        // Never feed an agent wake PROMPT back in as "context" — that's the growth loop. Drop any
-        // scaffolded prompt, and hard-cap every message so one long reply can't bloat the bundle.
+        // Never feed an agent wake PROMPT back in as "context" — that's the growth loop.
         if (str_starts_with(ltrim($raw), '[NS:')) {
             return '';
         }
 
-        return Str::limit($raw, 1200);
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    private function firstStringValue(array $payload): string
-    {
-        foreach (['content', 'text', 'message', 'body'] as $key) {
-            if (isset($payload[$key]) && is_string($payload[$key])) {
-                return $payload[$key];
-            }
-        }
-
-        return '';
+        return Str::limit($raw, self::RECENT_MESSAGE_CHAR_CAP);
     }
 
     /**

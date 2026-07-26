@@ -51,6 +51,7 @@ class RespondToAgentMentionListener
         // the mention routes to may be on THIS message OR any ancestor, and a routed reply threads under
         // the root (last element) so it stays flat.
         $ancestors = $message->joinAncestors();
+        $ancestors->load('channels');
         $threadRootId = (int) $ancestors->last()->getId();
         $routableEntities = $this->routableEntities($ancestors);
 
@@ -130,20 +131,26 @@ class RespondToAgentMentionListener
 
         foreach ($ancestors as $node) {
             /** @var Channel $channel */
-            foreach ($node->channels()->get() as $channel) {
-                $entity = $this->resolveChannelEntity($channel);
+            foreach ($node->channels as $channel) {
+                $namespace = $channel->entity_namespace;
+                $id = $channel->entity_id;
 
-                if (! $entity instanceof HandlesAgentMention) {
+                if ($namespace === null || $namespace === '' || $id === null) {
                     continue;
                 }
 
-                $key = $entity::class . ':' . (string) $entity->getKey();
+                // Dedup on (namespace, id) BEFORE hitting the DB — the same entity is carried on many
+                // ancestors/channels of a thread, and we only need to resolve it once.
+                $key = $namespace . ':' . $id;
                 if (isset($seen[$key])) {
                     continue;
                 }
-
                 $seen[$key] = true;
-                $entities[] = $entity;
+
+                $entity = $this->resolveChannelEntity($namespace, (int) $id);
+                if ($entity instanceof HandlesAgentMention) {
+                    $entities[] = $entity;
+                }
             }
         }
 
@@ -151,18 +158,11 @@ class RespondToAgentMentionListener
     }
 
     /**
-     * The model a channel is bound to (its entity_namespace + entity_id), or null when the channel has
-     * no entity or the class no longer resolves.
+     * The model a channel's (entity_namespace, entity_id) points at, or null when the class no longer
+     * resolves.
      */
-    private function resolveChannelEntity(Channel $channel): ?Model
+    private function resolveChannelEntity(string $namespace, int $id): ?Model
     {
-        $namespace = $channel->entity_namespace;
-        $id = $channel->entity_id;
-
-        if ($namespace === null || $namespace === '' || $id === null) {
-            return null;
-        }
-
         $class = SystemModules::convertLegacySystemModules($namespace);
 
         if (! class_exists($class) || ! is_subclass_of($class, Model::class)) {
