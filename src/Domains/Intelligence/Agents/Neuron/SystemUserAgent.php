@@ -201,10 +201,6 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
 
         $core[] = new SendEmailToUserTool($agent);
 
-        if ((string) ($agent->get(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value) ?? '') !== '') {
-            $core[] = new SendSlackDirectMessageTool($agent);
-        }
-
         return $this->mergeRegisteredTools(
             $core,
             $agent,
