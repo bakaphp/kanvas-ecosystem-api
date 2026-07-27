@@ -284,7 +284,7 @@ class CreateContentSessionAction
         $intentTool = new LeadIntentTool($lead);
         $leadIntent = $intentTool->execute();
 
-        return [
+        $generatedValues = [
             'company_name' => $lead->company->name,
             'branch_city' => $lead->company->branch->city,
             'branch_state' => $lead->company->branch->state,
@@ -304,6 +304,12 @@ class CreateContentSessionAction
             'has_potential_additional_vehicle_interest' => ! empty($relatedVehiclesOfPotentialInterest),
             'similar_recommended_vehicles' => $relatedVehiclesOfPotentialInterest,
         ];
+
+        if ($this->session->agent !== null) {
+            $generatedValues['agent_name'] = $this->session->agent->name;
+        }
+
+        return $generatedValues;
     }
 
     public function getRelatedVehicles(array $vehicleInterest, int $limit = 10): array
