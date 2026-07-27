@@ -14,6 +14,8 @@ use Kanvas\Connectors\PayWay\DataTransferObject\PayWayResponse;
 use Kanvas\Connectors\PayWay\Enums\ConfigurationEnum;
 use Kanvas\Connectors\PayWay\Enums\CustomFieldEnum;
 use Kanvas\Connectors\PayWay\PayWayEncryptor;
+use Kanvas\Payments\Actions\CreatePaymentMethodAction;
+use Kanvas\Payments\DataTransferObjet\PaymentMethod as PaymentMethodData;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Contracts\PaymentProcessorInterface;
 use Kanvas\Souk\Payments\Contracts\ThreeDSProcessorInterface;
@@ -25,6 +27,7 @@ use Kanvas\Souk\Payments\DataTransferObject\VerifyResult;
 use Kanvas\Souk\Payments\DataTransferObject\VoidResult;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Users\Models\Users;
 use Override;
 use Throwable;
 
@@ -50,6 +53,7 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
     private const string META_ERROR = 'payway_error';
     private const string META_OTP_TOKEN_ACCESO = 'payway_otp_token_acceso';
     private const string META_OTP_URL = 'payway_otp_url';
+    private const string META_SAVE_CARD = 'payway_save_card';
 
     public function __construct(
         private readonly Apps $app,
@@ -225,6 +229,7 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
     {
         try {
             $payload = $this->buildStep1Payload($payment, $order, $context);
+            $this->recordSaveCardIntent($payment, $context);
             $response = $this->client->payUsing3ds($payload);
 
             return match (true) {
@@ -618,7 +623,7 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
         $user = $payment->paymentMethod?->users_id
             ? $payment->paymentMethod->user
             : null;
-        $clienteCorreo = $user?->email ?? $order->user_email ?? '';
+        $clienteCorreo = $this->resolveClienteCorreo($user, $order);
         // PayWay spec: clienteUsuario is the merchant-side user identifier (not the email).
         $clienteUsuario = (string) ($user?->id ?? $order->users_id ?? $clienteCorreo);
         $concepto = (string) ($payment->concept ?: 'Pago orden ' . $order->order_number);
@@ -638,6 +643,39 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
         ];
     }
 
+    // PayWay rejects plus-addressing (jesus+2@kanvas.dev -> returnCode 05 "Correo con formato invalido"),
+    // so the tag is stripped and the first candidate that still validates wins.
+    private function resolveClienteCorreo(?Users $user, Order $order): string
+    {
+        $candidates = [
+            $user?->email,
+            $order->user_email,
+            $order->people?->getEmails()->first()?->email,
+        ];
+
+        foreach ($candidates as $candidate) {
+            $email = $this->stripEmailPlusTag((string) $candidate);
+
+            if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return $email;
+            }
+        }
+
+        return '';
+    }
+
+    private function stripEmailPlusTag(string $email): string
+    {
+        $email = trim($email);
+        [$local, $domain] = array_pad(explode('@', $email, 2), 2, null);
+
+        if ($domain === null) {
+            return $email;
+        }
+
+        return (strstr($local, '+', true) ?: $local) . '@' . $domain;
+    }
+
     private function buildDatos3ds(Payments $payment, Order $order, array $context): array
     {
         $card = $context['card'] ?? [];
@@ -653,18 +691,85 @@ final class PayWayProcessor implements PaymentProcessorInterface, ThreeDSProcess
         ];
     }
 
+    // Step 1 is the only point that holds the card, but numeroUuid only arrives at the
+    // terminal step — a separate request. Stash the consent plus the non-sensitive display
+    // fields (never the PAN/CVV) so the terminal handler can build the saved card.
+    private function recordSaveCardIntent(Payments $payment, array $context): void
+    {
+        if (! filter_var($context['save_card'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+            return;
+        }
+
+        if ($payment->payment_methods_id) {
+            return;
+        }
+
+        $card = $context['card'] ?? [];
+
+        $payment->addMetadata([
+            'data' => [
+                self::META_SAVE_CARD => [
+                    'expiration_date' => $this->normalizeExpiration(
+                        (string) ($card['expiration_date'] ?? $card['expiration'] ?? '')
+                    ),
+                    'zip_code' => (string) ($card['zip'] ?? $card['zip_code'] ?? ''),
+                ],
+            ],
+        ]);
+    }
+
     private function persistUuidToPaymentMethod(Payments $payment, string $numeroUuid): void
     {
-        if (empty($numeroUuid) || ! $payment->paymentMethod) {
+        if (empty($numeroUuid)) {
             return;
         }
 
         $paymentMethod = $payment->paymentMethod;
+
+        if (! $paymentMethod) {
+            $this->createSavedCard($payment, $numeroUuid);
+
+            return;
+        }
+
         $paymentMethod->metadata = array_merge(
             $paymentMethod->metadata ?? [],
             [CustomFieldEnum::PAYWAY_NUMERO_UUID->value => $numeroUuid]
         );
         $paymentMethod->save();
+    }
+
+    private function createSavedCard(Payments $payment, string $numeroUuid): void
+    {
+        $intent = $payment->getMetadata(self::META_SAVE_CARD);
+        $user = $payment->user;
+
+        if (! is_array($intent) || ! $user) {
+            return;
+        }
+
+        // stripe_card_id is the generic processor-token column; PaymentMethodMutation@delete
+        // hands it to PayWayTokenizationService::deleteToken, so the uuid has to live there too.
+        $paymentMethod = new CreatePaymentMethodAction(
+            new PaymentMethodData(
+                app: $this->app,
+                user: $user,
+                company: $this->company,
+                payment_ending_numbers: (string) $payment->payment_method_last_four,
+                payment_methods_brand: (string) $payment->payment_method_brand,
+                expiration_date: (string) ($intent['expiration_date'] ?? ''),
+                zip_code: (string) ($intent['zip_code'] ?? ''),
+                stripe_card_id: $numeroUuid,
+                processor: $this->name(),
+                metadata: [CustomFieldEnum::PAYWAY_NUMERO_UUID->value => $numeroUuid],
+            ),
+        )->execute();
+
+        $payment->payment_methods_id = $paymentMethod->getId();
+
+        $payment->addLog('payway_saved_card_created', [
+            'payment_methods_id' => $paymentMethod->getId(),
+        ]);
     }
 
     /**

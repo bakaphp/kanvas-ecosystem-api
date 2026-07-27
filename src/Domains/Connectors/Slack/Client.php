@@ -135,6 +135,24 @@ class Client
         return $this->call('users.info', ['user' => $userId])['user'] ?? [];
     }
 
+    public function lookupUserIdByEmail(string $email): ?string
+    {
+        try {
+            $id = (string) ($this->call('users.lookupByEmail', ['email' => $email])['user']['id'] ?? '');
+
+            return $id === '' ? null : $id;
+        } catch (ValidationException) {
+            return null;
+        }
+    }
+
+    public function openDirectMessageChannel(string $userId): string
+    {
+        $channel = $this->call('conversations.open', ['users' => $userId])['channel'] ?? [];
+
+        return (string) (is_array($channel) ? $channel['id'] ?? '' : '');
+    }
+
     public function authTest(): array
     {
         return $this->call('auth.test', []);

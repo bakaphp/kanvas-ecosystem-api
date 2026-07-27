@@ -22,6 +22,9 @@ class MessageApprovalMutation
         return new ApproveAgentMessageAction(
             $message,
             $request['message'] ?? null,
+            // The approver's input — e.g. { project_id } when they confirm/redirect a routing approval.
+            // Merged over the request's stored context, so it's optional for approvals that need none.
+            (array) ($request['context'] ?? []),
         )->execute();
     }
 

@@ -7,12 +7,15 @@ namespace Kanvas\Intelligence\Agents\Neuron;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Neuron\History\ChannelMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadEntityContextTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadMyLedgerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadUserActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendEmailToUserTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendSlackDirectMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\WhoIsUserTool;
 use Kanvas\Intelligence\Agents\Services\EntityContextBriefService;
 use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
@@ -73,8 +76,6 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
         }
 
         if ($this->usesEntityRollup() && $this->entity !== null) {
-            // Dropped onto a CRM entity → its cross-channel timeline, so the agent reads
-            // the prior conversation before replying.
             return new SalesAssistKanvasMessageHistory(
                 app: $app,
                 company: $company,
@@ -85,8 +86,6 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
             );
         }
 
-        // Direct DM with a person, or a company-scoped command: per-session store,
-        // keyed on the session (threadId falls back to the session uuid).
         return new KanvasMessageHistory(
             app: $app,
             company: $company,
@@ -192,10 +191,7 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
             return [];
         }
 
-        $core = [
-            new ReadMyLedgerTool($app, $company, $agent),
-            new WhoIsUserTool($app, $company, $this->entity instanceof Users ? $this->entity : null),
-        ];
+        $core = $this->identityTools();
 
         $subject = $this->subjectEntity();
         if ($subject !== null) {
@@ -203,11 +199,44 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
             $core[] = new ReadUserActivityTool($app, $company, $subject);
         }
 
+        $core[] = new SendEmailToUserTool($agent);
+
+        if ((string) ($agent->get(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value) ?? '') !== '') {
+            $core[] = new SendSlackDirectMessageTool($agent);
+        }
+
         return $this->mergeRegisteredTools(
             $core,
             $agent,
             CapabilityFrameworkEnum::NEURON
         );
+    }
+
+    /**
+     * Identity/memory tools for an internal-teammate agent: who it's talking to + its own ledger
+     * memory. Exposed so subclasses (e.g. the PM, whose entity is a Project not a person) reuse it.
+     * who_is_user targets the session entity when that's a Users, else the authenticated human.
+     *
+     * @return list<object>
+     */
+    protected function identityTools(): array
+    {
+        $app = $this->app;
+        $company = $this->company;
+        $agent = $this->agent;
+
+        if ($app === null || $company === null || $agent === null) {
+            return [];
+        }
+
+        return [
+            new ReadMyLedgerTool($app, $company, $agent),
+            new WhoIsUserTool(
+                $app,
+                $company,
+                $this->entity instanceof Users ? $this->entity : $this->user
+            ),
+        ];
     }
 
     /**

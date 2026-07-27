@@ -37,6 +37,7 @@ class UpdatePlanAction
             }
 
             $this->plan->title = $this->data->title;
+            $this->plan->project_id = $this->data->project?->getId();
             $this->plan->description = $this->data->description;
             $this->plan->priority = $this->data->priority;
             $this->plan->deadline_at = $this->data->deadlineAt;

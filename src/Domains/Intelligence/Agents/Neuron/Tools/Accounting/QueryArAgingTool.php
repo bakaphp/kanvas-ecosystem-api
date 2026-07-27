@@ -50,8 +50,7 @@ class QueryArAgingTool extends Tool
     public function __invoke(?string $as_of = null, ?string $currency = null): array
     {
         $app = $this->app;
-        $user = $this->user;
-        $company = $user->getCurrentCompany();
+        $company = $this->company;
 
         $data = new ArAgingRepository()->generate(
             app: $app,

@@ -6,16 +6,11 @@ namespace Kanvas\Intelligence\AgentRuntime\Notifications;
 
 use Kanvas\Intelligence\Agents\Models\AgentBackup;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
-use Kanvas\Notifications\Notification;
-use Kanvas\Templates\Actions\RenderTemplateAction;
-use Override;
 use Throwable;
 
-class AgentBackupNotification extends Notification
+class AgentBackupNotification extends AbstractTemplatedNotification
 {
     public const string TEMPLATE_NAME = 'agent_backup_result';
-
-    public array $channels = ['mail'];
 
     public function __construct(
         AgentBackup $backup,
@@ -42,12 +37,5 @@ class AgentBackupNotification extends Notification
             'file_size_bytes' => $backup->file_size_bytes ?? 'unknown',
             'error_message' => $error?->getMessage() ?? $backup->error_message ?? 'no details captured',
         ]);
-    }
-
-    #[Override]
-    public function getEmailContent(): string
-    {
-        return new RenderTemplateAction($this->app, $this->company)
-            ->execute(self::TEMPLATE_NAME, $this->getData());
     }
 }

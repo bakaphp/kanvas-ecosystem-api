@@ -92,6 +92,7 @@ class ScrapeScrapingDogBestSellersCommand extends Command
 
         $imported = 0;
         $updated = 0;
+        $duplicates = 0;
         $failed = 0;
 
         foreach ($categories as $category) {
@@ -102,10 +103,24 @@ class ScrapeScrapingDogBestSellersCommand extends Command
 
             $this->info(sprintf('Category "%s" (%s): %d product(s)', $category['name'], $category['slug'], count($items)));
 
+            // Amazon lists the same product under different ASINs — keep only the first per
+            // normalized name in a department so the homepage/bundle don't show duplicates.
+            $seenNames = [];
+
             foreach ($items as $item) {
                 $asin = (string) ($item['sku'] ?? $item['asin'] ?? '');
                 if ($asin === '') {
                     continue;
+                }
+
+                $nameKey = Str::slug((string) ($item['name'] ?? $item['product'] ?? ''));
+                if ($nameKey !== '' && isset($seenNames[$nameKey])) {
+                    $duplicates++;
+
+                    continue;
+                }
+                if ($nameKey !== '') {
+                    $seenNames[$nameKey] = true;
                 }
 
                 $price = (float) ($item['price'] ?? 0);
@@ -194,6 +209,7 @@ class ScrapeScrapingDogBestSellersCommand extends Command
         $this->info('Categories: ' . count($categories));
         $this->info('New imported: ' . $imported);
         $this->info('Existing updated: ' . $updated);
+        $this->info('Duplicates skipped: ' . $duplicates);
         $this->info('Failed: ' . $failed);
         $this->info('======================');
 
@@ -442,10 +458,15 @@ class ScrapeScrapingDogBestSellersCommand extends Command
             return [];
         }
 
+        // One variant per product so a multi-variant product doesn't flood the bundle.
         return Variants::query()
             ->whereIn('products_id', $productIds)
             ->where('is_deleted', 0)
-            ->pluck('id')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('products_id')
+            ->map(fn ($group) => $group->first()->getKey())
+            ->values()
             ->all();
     }
 

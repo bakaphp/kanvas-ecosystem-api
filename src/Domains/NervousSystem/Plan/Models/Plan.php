@@ -10,9 +10,11 @@ use Baka\Traits\UuidTrait;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Kanvas\Intelligence\Agents\Contracts\HandlesAgentMention;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\NervousSystem\Ledger\Enums\LedgerConfigurationEnum;
@@ -24,7 +26,11 @@ use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Observers\PlanObserver;
 use Kanvas\NervousSystem\Plan\Traits\TruncatesTitleTrait;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
+use Kanvas\NervousSystem\Project\Models\Project;
+use Kanvas\NervousSystem\Project\Services\ProjectMentionTriggerService;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
@@ -47,12 +53,15 @@ use Throwable;
  * @property bool $is_swarm_mission
  * @property int|null $users_id
  * @property int|null $parent_plan_id
+ * @property int|null $project_id
+ * @property int|null $assigned_users_id
  * @property string|null $entity_namespace
  * @property int|null $entity_id
  * @property string $plan_type
  * @property string $title
  * @property string|null $description
  * @property string $status
+ * @property array|null $capability_declined_agent_ids
  * @property int $priority
  * @property \Illuminate\Support\Carbon|null $deadline_at
  * @property int $completion_pct
@@ -71,9 +80,10 @@ use Throwable;
  * @property bool $is_deleted
  * @property \Illuminate\Support\Carbon $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read Project|null $project
  */
 #[ObservedBy([PlanObserver::class])]
-class Plan extends BaseModel
+class Plan extends BaseModel implements HandlesAgentMention
 {
     use CascadeSoftDeletes;
     use EmitsLedgerEventsForEntity;
@@ -103,6 +113,7 @@ class Plan extends BaseModel
             'apps_id' => 'integer',
             'companies_id' => 'integer',
             'agent_id' => 'integer',
+            'assigned_users_id' => 'integer',
             'swarm_id' => 'integer',
             'users_id' => 'integer',
             'parent_plan_id' => 'integer',
@@ -112,6 +123,7 @@ class Plan extends BaseModel
             'approved_by_user_id' => 'integer',
             'input' => Json::class,
             'output' => Json::class,
+            'capability_declined_agent_ids' => Json::class,
             'requires_human_approval' => 'boolean',
             'is_swarm_mission' => 'boolean',
             'is_deleted' => 'boolean',
@@ -127,6 +139,16 @@ class Plan extends BaseModel
         return $this->hasMany(Task::class, 'plan_id', 'id')->where('is_deleted', 0);
     }
 
+    /**
+     * A Plan is a valid agent-conversation entity (a worker is woken with the Plan in scope), and the
+     * chat/context path calls getName() on the entity the way it does for a Lead/People. Expose the
+     * title so a Plan-scoped run doesn't fatal on the missing method.
+     */
+    public function getName(): string
+    {
+        return $this->title ?? '';
+    }
+
     public function parent(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_plan_id', 'id');
@@ -140,6 +162,45 @@ class Plan extends BaseModel
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class, 'agent_id', 'id');
+    }
+
+    public function assignedUser(): BelongsTo
+    {
+        return $this->belongsTo(Users::class, 'assigned_users_id', 'id');
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class, 'project_id', 'id');
+    }
+
+    #[Override]
+    public function handleAgentMention(Agent $agent, Message $mention, int $threadRootId): ?object
+    {
+        if ($this->is_deleted) {
+            return null;
+        }
+
+        $project = $this->project;
+        if ($project === null || $project->is_deleted || $project->agent_id !== $agent->getId()) {
+            return null;
+        }
+
+        $focus = sprintf(
+            'You were @mentioned on the thread of PLAN #%d "%s" (status: %s). The person is asking about '
+            . 'THIS plan specifically — read this plan and its tasks in the Context and answer about it '
+            . 'directly. Do NOT give a whole-project status unless they ask for one.',
+            $this->getId(),
+            $this->title,
+            $this->status,
+        );
+
+        return new WakeAgentForProjectJob(
+            $project,
+            WakeAgentForProjectJob::REASON_MENTION,
+            new ProjectMentionTriggerService()->buildTrigger($mention, $focus),
+            $threadRootId,
+        );
     }
 
     /**
@@ -248,6 +309,15 @@ class Plan extends BaseModel
             ->where('is_deleted', 0);
     }
 
+    public function recentActivityMessages(int $limit = 15): Collection
+    {
+        $channel = $this->socialChannels()->first();
+
+        return $channel === null
+            ? new Collection()
+            : $channel->messages()->orderByDesc('messages.id')->limit($limit)->get();
+    }
+
     public function scopeOpen(Builder $query): Builder
     {
         return $query->whereIn(
@@ -295,10 +365,6 @@ class Plan extends BaseModel
         }
     }
 
-    /**
-     * Recompute completion_pct from the current task state and persist it.
-     * Returns the new percentage.
-     */
     public function recomputeCompletionPct(): int
     {
         $total = (int) $this->tasks()->where('is_deleted', 0)->count();

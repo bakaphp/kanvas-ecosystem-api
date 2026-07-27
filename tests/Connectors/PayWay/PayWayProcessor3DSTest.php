@@ -14,6 +14,7 @@ use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Infrastructure\Processors\PayWay\PayWayProcessor;
 use Kanvas\Souk\Payments\Models\Payments;
+use Kanvas\Users\Models\Users;
 use Mockery;
 use Tests\Connectors\PayWay\Fakes\FakePayWayClient;
 use Tests\TestCase;
@@ -118,6 +119,61 @@ class PayWayProcessor3DSTest extends TestCase
         $this->assertArrayNotHasKey('tarjetaCvv2', $calls[0]['payload']);
     }
 
+    public function testStartChallengeStripsPlusTagFromClienteCorreo(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::PENDING->value);
+        $order = $this->buildOrderMock();
+        $order->user_email = 'jesus+2@kanvas.dev';
+
+        $this->fakeClient->queueResponse('payUsing3ds', PayWayResponse::fromArray([
+            'returnCode' => '01',
+            'message' => 'Step 1 OK',
+            'success' => false,
+            'tokenAcceso' => 'token-plus',
+            'urlColeccionDatoDispositivo' => 'https://payway.sv/collect',
+            'referenciaId' => 'ref-plus',
+        ]));
+
+        $this->processor->startChallenge($payment, $order, [
+            'card' => [
+                'number' => '4111111111111111',
+                'cvv' => '123',
+                'expiration_date' => '2612',
+            ],
+        ]);
+
+        $calls = $this->fakeClient->getCalls('payUsing3ds');
+        $this->assertSame('jesus@kanvas.dev', $calls[0]['payload']['clienteCorreo']);
+    }
+
+    public function testStartChallengeSendsEmptyClienteCorreoWhenNoValidEmailExists(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::PENDING->value);
+        $order = $this->buildOrderMock();
+        $order->user_email = 'not-an-email';
+        $order->setRelation('people', null);
+
+        $this->fakeClient->queueResponse('payUsing3ds', PayWayResponse::fromArray([
+            'returnCode' => '01',
+            'message' => 'Step 1 OK',
+            'success' => false,
+            'tokenAcceso' => 'token-no-email',
+            'urlColeccionDatoDispositivo' => 'https://payway.sv/collect',
+            'referenciaId' => 'ref-no-email',
+        ]));
+
+        $this->processor->startChallenge($payment, $order, [
+            'card' => [
+                'number' => '4111111111111111',
+                'cvv' => '123',
+                'expiration_date' => '2612',
+            ],
+        ]);
+
+        $calls = $this->fakeClient->getCalls('payUsing3ds');
+        $this->assertSame('', $calls[0]['payload']['clienteCorreo']);
+    }
+
     public function testStartChallengeDeclineTransitionsToFailed(): void
     {
         $payment = $this->buildPaymentMock(PaymentStatusEnum::PENDING->value);
@@ -178,6 +234,94 @@ class PayWayProcessor3DSTest extends TestCase
         // Transient metadata cleared.
         $this->assertArrayNotHasKey('payway_token_acceso', $payment->metadata['data'] ?? []);
         $this->assertArrayNotHasKey('payway_seguimiento', $payment->metadata['data'] ?? []);
+    }
+
+    public function testSaveCardTrueCreatesPaymentMethodOnTerminalPaid(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::PENDING->value, user: static::$cachedUser);
+        $order = $this->buildOrderMock();
+
+        $this->fakeClient->queueResponse('payUsing3ds', PayWayResponse::fromArray([
+            'returnCode' => '01',
+            'message' => 'Step 1 OK',
+            'success' => false,
+            'tokenAcceso' => 'token-save',
+            'urlColeccionDatoDispositivo' => 'https://payway.sv/collect',
+            'referenciaId' => 'ref-save',
+        ]));
+
+        $this->processor->startChallenge($payment, $order, [
+            'save_card' => true,
+            'card' => [
+                'number' => '4111111111111111',
+                'cvv' => '123',
+                'expiration_date' => '2026-12',
+                'zip' => '11101',
+            ],
+        ]);
+
+        $this->fakeClient->queueResponse('completePayment', PayWayResponse::fromArray([
+            'returnCode' => '00',
+            'message' => 'Pago aprobado',
+            'success' => true,
+            'numeroUuid' => 'uuid-saved-card',
+            'numeroCompra' => 'compra-save',
+            'numeroAutorizacion' => 'auth-save',
+            'marcaTarjeta' => 'visa',
+            'terminacionTarjeta' => 'X-1111',
+        ]));
+
+        $this->processor->finalizeChallenge($payment, $order);
+
+        $this->assertNotNull($payment->payment_methods_id);
+
+        $saved = PaymentMethods::find($payment->payment_methods_id);
+        $this->assertSame('payway', $saved->processor);
+        $this->assertSame('uuid-saved-card', $saved->stripe_card_id);
+        $this->assertSame('uuid-saved-card', $saved->metadata[CustomFieldEnum::PAYWAY_NUMERO_UUID->value]);
+        $this->assertSame('visa', $saved->payment_methods_brand);
+        $this->assertSame('1111', $saved->payment_ending_numbers);
+        $this->assertSame('202612', $saved->expiration_date);
+        $this->assertSame(static::$cachedUser->getId(), (int) $saved->users_id);
+
+        $saved->forceDelete();
+    }
+
+    public function testSaveCardOmittedDoesNotCreatePaymentMethod(): void
+    {
+        $payment = $this->buildPaymentMock(PaymentStatusEnum::PENDING->value, user: static::$cachedUser);
+        $order = $this->buildOrderMock();
+
+        $this->fakeClient->queueResponse('payUsing3ds', PayWayResponse::fromArray([
+            'returnCode' => '01',
+            'message' => 'Step 1 OK',
+            'success' => false,
+            'tokenAcceso' => 'token-nosave',
+            'urlColeccionDatoDispositivo' => 'https://payway.sv/collect',
+            'referenciaId' => 'ref-nosave',
+        ]));
+
+        $this->processor->startChallenge($payment, $order, [
+            'card' => [
+                'number' => '4111111111111111',
+                'cvv' => '123',
+                'expiration_date' => '2612',
+            ],
+        ]);
+
+        $this->fakeClient->queueResponse('completePayment', PayWayResponse::fromArray([
+            'returnCode' => '00',
+            'message' => 'Pago aprobado',
+            'success' => true,
+            'numeroUuid' => 'uuid-not-saved',
+            'numeroCompra' => 'compra-nosave',
+        ]));
+
+        $this->processor->finalizeChallenge($payment, $order);
+
+        $this->assertNull($payment->payment_methods_id);
+        $this->assertNull($payment->getMetadata('payway_save_card'));
+        $this->assertSame(0, PaymentMethods::where('stripe_card_id', 'uuid-not-saved')->count());
     }
 
     public function testFinalizeChallengeEscenario2OtpRequired(): void
@@ -323,6 +467,7 @@ class PayWayProcessor3DSTest extends TestCase
     private function buildPaymentMock(
         string $initialStatus,
         ?PaymentMethods $paymentMethod = null,
+        ?Users $user = null,
     ): Payments {
         $payment = Mockery::mock(Payments::class)->makePartial();
         $payment->exists = true;
@@ -331,7 +476,10 @@ class PayWayProcessor3DSTest extends TestCase
         $payment->status = $initialStatus;
         $payment->metadata = [];
 
-        $paymentMethod ??= $this->buildPaymentMethodMock(null);
+        $payment->shouldReceive('getAttribute')
+            ->with('user')
+            ->andReturn($user)
+            ->byDefault();
 
         $payment->shouldReceive('paymentMethod')
             ->andReturn($paymentMethod)

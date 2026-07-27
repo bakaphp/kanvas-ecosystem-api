@@ -22,6 +22,7 @@ use Kanvas\Event\Support\Setup as EventSetup;
 use Kanvas\Exceptions\InternalServerErrorException;
 use Kanvas\Guild\Support\Setup as GuildSetup;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
+use Kanvas\NervousSystem\Orchestrator\Actions\EnsureCompanyOrchestratorAgentAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\CreateIntegrationCompanyAction;
@@ -59,7 +60,8 @@ class OnBoardingJob implements ShouldQueue
         $runOnboardingInventory = $this->app->get(AppSettingsEnums::ONBOARDING_INVENTORY_SETUP->getValue());
         $runOnboardingEvent = $this->app->get(AppSettingsEnums::ONBOARDING_EVENT_SETUP->getValue());
         $runOnboardingActionEngine = $this->app->get(AppSettingsEnums::ONBOARDING_ACTION_ENGINE_SETUP->getValue());
-        $runOnboarding = $runOnboardingGuild || $runOnboardingInventory || $runOnboardingActionEngine;
+        $runOnboardingOrchestrator = $this->app->get(AppSettingsEnums::ONBOARDING_ORCHESTRATOR_SETUP->getValue());
+        $runOnboarding = $runOnboardingGuild || $runOnboardingInventory || $runOnboardingActionEngine || $runOnboardingOrchestrator;
 
         if (! $runOnboarding) {
             return;
@@ -121,6 +123,14 @@ class OnBoardingJob implements ShouldQueue
                 [],
                 $fromCompany
             )->run();
+        }
+
+        if ($runOnboardingOrchestrator) {
+            try {
+                new EnsureCompanyOrchestratorAgentAction($this->app, $company)->execute();
+            } catch (Throwable $e) {
+                report($e);
+            }
         }
     }
 

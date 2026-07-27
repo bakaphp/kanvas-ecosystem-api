@@ -10,6 +10,7 @@ use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Task;
+use Kanvas\NervousSystem\Project\Models\Project;
 
 class UpdateTaskStatusAction
 {
@@ -59,6 +60,12 @@ class UpdateTaskStatusAction
             $plan = $this->task->plan;
             if ($plan !== null) {
                 $plan->recomputeCompletionPct();
+
+                // Roll the change up to the owning project (if the plan belongs to one) so the
+                // project's completion stays live regardless of who moved the task.
+                if ($plan->project_id !== null) {
+                    Project::query()->where('id', $plan->project_id)->first()?->recomputeCompletionPct();
+                }
             }
 
             $eventType = match ($this->newStatus) {

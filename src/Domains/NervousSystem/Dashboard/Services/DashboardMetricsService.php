@@ -6,62 +6,50 @@ namespace Kanvas\NervousSystem\Dashboard\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Kanvas\NervousSystem\Dashboard\DataTransferObject\DashboardAggregateRow;
 use Kanvas\NervousSystem\Dashboard\DataTransferObject\DashboardMetrics;
 use Kanvas\NervousSystem\Dashboard\Enums\DashboardPeriodEnum;
 use Kanvas\NervousSystem\Dashboard\Models\DashboardMetricsDaily;
 use Kanvas\NervousSystem\Dashboard\Support\DashboardMetricsCache;
 use Kanvas\NervousSystem\Dashboard\Support\DashboardPeriodResolver;
+use Kanvas\NervousSystem\Metrics\Services\AbstractMetricsReaderService;
+use Override;
 
 /**
- * Reader orchestrator. Walks each day in the requested window and
- * picks the cheaper source per day:
- *   - past day with snapshot row → read snapshot (1 SELECT)
- *   - past day without snapshot → live aggregate (cron didn't run; warn)
- *   - today → live aggregate (always — snapshot doesn't exist yet)
- *
- * Sums those into the current/prior totals, then computes derived
- * fields (workforce_leverage, human_equivalents) from the aggregates.
+ * Reader orchestrator. The cache-remember + day-by-day snapshot/live
+ * walk lives in AbstractMetricsReaderService; this class supplies the
+ * Dashboard aggregator, model, cache, and the derived-fields assembly
+ * (workforce_leverage, human_equivalents).
  */
-class DashboardMetricsService
+class DashboardMetricsService extends AbstractMetricsReaderService
 {
     private const float HOURS_PER_WORKDAY = 8.0;
 
     public function __construct(
         protected readonly DashboardMetricsAggregatorService $aggregator = new DashboardMetricsAggregatorService(),
-        protected readonly DashboardPeriodResolver $periodResolver = new DashboardPeriodResolver(),
+        DashboardPeriodResolver $periodResolver = new DashboardPeriodResolver(),
     ) {
+        parent::__construct($periodResolver);
     }
 
-    public function compute(
-        AppInterface $app,
-        CompanyInterface $company,
-        DashboardPeriodEnum $period,
-    ): DashboardMetrics {
-        $cacheKey = DashboardMetricsCache::key($app->getId(), $company->getId(), $period);
-
-        return Cache::remember(
-            $cacheKey,
-            DashboardMetricsCache::TTL_SECONDS,
-            fn (): DashboardMetrics => $this->computeFresh($app, $company, $period),
-        );
-    }
-
-    private function computeFresh(
+    #[Override]
+    protected function computeFresh(
         AppInterface $app,
         CompanyInterface $company,
         DashboardPeriodEnum $period,
     ): DashboardMetrics {
         $window = $this->periodResolver->resolve($period);
 
+        /** @var DashboardAggregateRow $current */
         $current = $this->sumWindow(
             $app,
             $company,
             $window['starts_at'],
             $window['ends_at']
         );
+        /** @var DashboardAggregateRow $prior */
         $prior = $this->sumWindow(
             $app,
             $company,
@@ -85,60 +73,52 @@ class DashboardMetricsService
         );
     }
 
-    private function sumWindow(
+    #[Override]
+    protected function newAggregateRow(): DashboardAggregateRow
+    {
+        return new DashboardAggregateRow();
+    }
+
+    #[Override]
+    protected function aggregateLive(
         AppInterface $app,
         CompanyInterface $company,
         Carbon $start,
         Carbon $end,
     ): DashboardAggregateRow {
-        $today = Carbon::now()->startOfDay();
-        $total = new DashboardAggregateRow();
-
-        foreach ($this->periodResolver->eachDate($start, $end) as $day) {
-            if ($day->lt($today)) {
-                $total->addRow($this->readPastDay($app, $company, $day));
-            } else {
-                $total->addRow($this->aggregator->aggregate(
-                    $app,
-                    $company,
-                    $day->copy()->startOfDay(),
-                    $day->copy()->endOfDay(),
-                ));
-            }
-        }
-
-        return $total;
-    }
-
-    private function readPastDay(
-        AppInterface $app,
-        CompanyInterface $company,
-        Carbon $day,
-    ): DashboardAggregateRow {
-        $snapshot = DashboardMetricsDaily::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->whereDate('metric_date', $day->toDateString())
-            ->first();
-
-        if ($snapshot !== null) {
-            return new DashboardAggregateRow(
-                plans_completed: (int) $snapshot->plans_completed,
-                mistakes_auto_corrected: (int) $snapshot->mistakes_auto_corrected,
-                mistakes_escalated: (int) $snapshot->mistakes_escalated,
-                agents_active: (int) $snapshot->agents_active,
-                time_recovered_hours: $snapshot->time_recovered_hours,
-                value_delivered_cents: $snapshot->value_delivered_cents,
-                estimated_human_hours: $snapshot->estimated_human_hours,
-            );
-        }
-
         return $this->aggregator->aggregate(
             $app,
             $company,
-            $day->copy()->startOfDay(),
-            $day->copy()->endOfDay(),
+            $start,
+            $end
         );
+    }
+
+    #[Override]
+    protected function modelClass(): string
+    {
+        return DashboardMetricsDaily::class;
+    }
+
+    #[Override]
+    protected function fromSnapshot(Model $snapshot): DashboardAggregateRow
+    {
+        /** @var DashboardMetricsDaily $snapshot */
+        return new DashboardAggregateRow(
+            plans_completed: (int) $snapshot->plans_completed,
+            mistakes_auto_corrected: (int) $snapshot->mistakes_auto_corrected,
+            mistakes_escalated: (int) $snapshot->mistakes_escalated,
+            agents_active: (int) $snapshot->agents_active,
+            time_recovered_hours: $snapshot->time_recovered_hours,
+            value_delivered_cents: $snapshot->value_delivered_cents,
+            estimated_human_hours: $snapshot->estimated_human_hours,
+        );
+    }
+
+    #[Override]
+    protected function cacheClass(): string
+    {
+        return DashboardMetricsCache::class;
     }
 
     /**

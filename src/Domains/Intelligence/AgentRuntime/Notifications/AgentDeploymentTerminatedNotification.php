@@ -5,15 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\AgentRuntime\Notifications;
 
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
-use Kanvas\Notifications\Notification;
-use Kanvas\Templates\Actions\RenderTemplateAction;
-use Override;
 
-class AgentDeploymentTerminatedNotification extends Notification
+class AgentDeploymentTerminatedNotification extends AbstractTemplatedNotification
 {
     public const string TEMPLATE_NAME = 'agent_deployment_terminated';
-
-    public array $channels = ['mail'];
 
     public function __construct(AgentDeployment $deployment)
     {
@@ -29,12 +24,5 @@ class AgentDeploymentTerminatedNotification extends Notification
             'deployment_id' => $deployment->getId(),
             'terminated_at' => $deployment->terminated_at?->toDateTimeString() ?? 'now',
         ]);
-    }
-
-    #[Override]
-    public function getEmailContent(): string
-    {
-        return new RenderTemplateAction($this->app, $this->company)
-            ->execute(self::TEMPLATE_NAME, $this->getData());
     }
 }

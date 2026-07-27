@@ -8,9 +8,11 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use InvalidArgumentException;
 use Kanvas\Connectors\Mindee\Enums\ConfigurationEnum;
-use Mindee\Client as MindeeClient;
-use Mindee\Input\PredictMethodOptions;
-use Mindee\Product\Generated\GeneratedV1;
+use Mindee\Input\PathInput;
+use Mindee\Input\UrlInputSource;
+use Mindee\V1\Client as MindeeClient;
+use Mindee\V1\ClientOptions\PredictMethodOptions;
+use Mindee\V1\Product\Generated\GeneratedV1;
 use Throwable;
 
 class Client
@@ -51,12 +53,11 @@ class Client
     ): ?array {
         try {
             // Load a file
-            $inputSource = $this->client->sourceFromPath($filePath);
             $accountName = $accountName ?? $this->accountName;
             // If the file is a URL instead of a file path
-            if (filter_var($filePath, FILTER_VALIDATE_URL)) {
-                $inputSource = $this->client->sourceFromUrl($filePath);
-            }
+            $inputSource = filter_var($filePath, FILTER_VALIDATE_URL)
+                ? new UrlInputSource($filePath)
+                : new PathInput($filePath);
 
             // Create a custom endpoint
             $customEndpoint = $this->client->createEndpoint(
@@ -99,7 +100,7 @@ class Client
     ): ?array {
         try {
             // Load a file from URL
-            $inputSource = $this->client->sourceFromUrl($fileUrl);
+            $inputSource = new UrlInputSource($fileUrl);
             $accountName = $accountName ?? $this->accountName;
 
             // Create a custom endpoint
