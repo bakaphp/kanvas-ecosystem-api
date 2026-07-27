@@ -34,8 +34,11 @@ class GenerateTimeSlots implements ShouldQueue
      *
      * @return array{0: Carbon, 1: Carbon}
      */
-    public static function resolveWindow(?Carbon $startAt, ?Carbon $endAt, ?int $horizonDays = null): array
-    {
+    public static function resolveWindow(
+        ?Carbon $startAt,
+        ?Carbon $endAt,
+        ?int $horizonDays = null,
+    ): array {
         $now = Carbon::now();
 
         $windowFrom = $startAt && $startAt->greaterThan($now) ? $startAt->clone() : $now;
@@ -58,22 +61,18 @@ class GenerateTimeSlots implements ShouldQueue
         $resource   = $rule->resource;
         $tz         = $resource->tz ?? $resource->company->timezone  ?? "America/Santo_Domingo";
 
-        // 1) Expand RRULE in venue TZ to get the days
         $rrule = RRule::createFromRfcString($rule->rrule, $rule->start_at->setTimezone($tz));
         if ($rule->end_at) {
             $rrule->getOccurrencesBefore($rule->end_at->setTimezone($tz));
         }
         $occurrences = $rrule->getOccurrencesBetween($this->windowFrom->clone()->tz($tz), $this->windowTo->clone()->tz($tz));
 
-        // 2) For each day occurrence, generate time slots based on day_rrule
         foreach ($occurrences as $dayOccurrence) {
             $dayOccurrence = Carbon::instance($dayOccurrence);
 
-            // If day_rrule exists, use it to generate slots within this day
             if ($rule->day_rrule) {
                 $this->generateSlotsForDayWithRRule($rule, $resource, $dayOccurrence, $tz);
             } else {
-                // Fallback to old behavior: single slot per occurrence
                 $localStart = $dayOccurrence;
                 $localEnd = $localStart->copy()->addMinutes($rule->slot_duration_min);
 
@@ -82,9 +81,6 @@ class GenerateTimeSlots implements ShouldQueue
         }
     }
 
-    /**
-     * Generate time slots for a specific day using day_rrule.
-     */
     protected function generateSlotsForDayWithRRule(
         ScheduleRules $rule,
         $resource,
@@ -107,7 +103,6 @@ class GenerateTimeSlots implements ShouldQueue
             ? $base->copy()->setTime((int) $um[2], (int) $um[3], (int) $um[4])
             : $base->copy()->endOfDay();
 
-        // Slot cadence comes from INTERVAL, falling back to the slot length.
         preg_match('/INTERVAL=(\d+)/', $rule->day_rrule, $im);
         $stepMinutes = isset($im[1]) ? max(1, (int) $im[1]) : max(1, $rule->slot_duration_min);
 
@@ -131,9 +126,6 @@ class GenerateTimeSlots implements ShouldQueue
         }
     }
 
-    /**
-     * Create a single time slot.
-     */
     protected function createTimeSlot(
         ScheduleRules $rule,
         $resource,
@@ -141,14 +133,13 @@ class GenerateTimeSlots implements ShouldQueue
         Carbon $localEnd,
         string $tz
     ): void {
-        // Skip if blacked out
         if ($this->isBlackedOut($resource->id, $localStart, $localEnd, $tz)) {
             return;
         }
 
-        // Compute capacity & price. Variants have no default_capacity column, so a rule
-        // without capacity_override must still land on a non-null value — the column is
-        // NOT NULL and a null here fails the whole generation job.
+        // Variants have no default_capacity column, so a rule without capacity_override must
+        // still land on a non-null value — the column is NOT NULL and a null here fails the
+        // whole generation job.
         $capacity = $rule->capacity_override ?? $resource->default_capacity ?? 1;
         $price = $resource?->getPriceInfoFromDefaultChannel()?->price;
 
