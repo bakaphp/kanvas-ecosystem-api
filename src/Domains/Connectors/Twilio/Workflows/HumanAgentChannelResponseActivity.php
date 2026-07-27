@@ -166,7 +166,9 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                     && $this->isFirstChannelMessage($channel, $message)
                 ) {
                     $body = is_string($content) ? $content : '';
-                    $content = trim($body) . "\n\n" . self::SMS_OPT_OUT_NOTICE;
+                    if (! $this->alreadyHasOptOutNotice($body)) {
+                        $content = trim($body) . "\n\n" . self::SMS_OPT_OUT_NOTICE;
+                    }
                 }
 
                 $result = new SendMessageToLeadAction($lead)->execute(
@@ -198,5 +200,20 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
             ->where('messages.id', '!=', $message->getId())
             ->where('messages.is_deleted', 0)
             ->doesntExist();
+    }
+
+    /**
+     * Skip the append when the agent already wrote opt-out language in the body,
+     * so the customer never gets a duplicated STOP notice.
+     */
+    private function alreadyHasOptOutNotice(string $body): bool
+    {
+        foreach (['reply stop', 'opt out', 'opt-out'] as $needle) {
+            if (stripos($body, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
