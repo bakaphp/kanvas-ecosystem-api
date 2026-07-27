@@ -184,13 +184,6 @@ class ProjectManagerAgent extends SystemUserAgent
         return $base . $this->currentProjectGrounding();
     }
 
-    /**
-     * Ground the PM in the ONE project it owns on EVERY turn — resolved from its own agent_id, never
-     * from conversation history. The wake path injects the bundle as a message, but a channel/Slack
-     * reply builds none; handed no context, the model confabulates a project (fabricated id, title,
-     * objective, plans). This authoritative block is always present so there is a real project to answer
-     * about and nothing to invent.
-     */
     private function currentProjectGrounding(): string
     {
         $agent = $this->agent;
