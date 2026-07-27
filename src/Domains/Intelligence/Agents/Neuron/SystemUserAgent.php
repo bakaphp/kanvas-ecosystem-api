@@ -7,15 +7,12 @@ namespace Kanvas\Intelligence\Agents\Neuron;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Neuron\History\ChannelMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadEntityContextTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadMyLedgerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadUserActivityTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendEmailToUserTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendSlackDirectMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\WhoIsUserTool;
 use Kanvas\Intelligence\Agents\Services\EntityContextBriefService;
 use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
@@ -198,8 +195,6 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
             $core[] = new ReadEntityContextTool($subject);
             $core[] = new ReadUserActivityTool($app, $company, $subject);
         }
-
-        $core[] = new SendEmailToUserTool($agent);
 
         return $this->mergeRegisteredTools(
             $core,
