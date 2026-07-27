@@ -135,6 +135,33 @@ class Client
         return $this->call('users.info', ['user' => $userId])['user'] ?? [];
     }
 
+    /**
+     * Slack user id for a workspace member by email, or null when they're not in the workspace.
+     * Slack answers `users_not_found` with ok=false, which call() turns into a ValidationException —
+     * a not-a-teammate-here result the caller must not confuse with a transport failure.
+     */
+    public function lookupUserIdByEmail(string $email): ?string
+    {
+        try {
+            $id = (string) ($this->call('users.lookupByEmail', ['email' => $email])['user']['id'] ?? '');
+
+            return $id === '' ? null : $id;
+        } catch (ValidationException) {
+            return null;
+        }
+    }
+
+    /**
+     * Open (or reuse) the direct-message channel with a user and return its channel id. Passing that id
+     * to postMessage() is what delivers a DM — Slack has no dedicated "send DM" endpoint.
+     */
+    public function openDirectMessageChannel(string $userId): string
+    {
+        $channel = $this->call('conversations.open', ['users' => $userId])['channel'] ?? [];
+
+        return (string) (is_array($channel) ? $channel['id'] ?? '' : '');
+    }
+
     public function authTest(): array
     {
         return $this->call('auth.test', []);
