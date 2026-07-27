@@ -84,6 +84,14 @@ class PdfService
             array_merge(['entity' => $entity], $data)
         );
 
+        // wkhtmltopdf can't decode HEIC/HEIF/TIFF/etc — convert any such <img> sources first.
+        $renderTemplateHtml = ImageConversionService::convertHtmlImagesToViewable(
+            $renderTemplateHtml,
+            $app,
+            user: $entity->user ?? null,
+            company: $entity->company ?? null,
+        );
+
         return self::htmlToPdf(
             app: $app,
             user: $user,

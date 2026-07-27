@@ -27,6 +27,8 @@ use Kanvas\Workflow\KanvasActivity;
 #[WorkflowAction]
 class HumanAgentChannelResponseActivity extends KanvasActivity
 {
+    private const string SMS_OPT_OUT_NOTICE = 'Reply STOP to opt out.';
+
     public $tries = 3;
 
     public function execute(Channel $channel, Apps $app, array $params): array
@@ -159,6 +161,16 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 $message->addTag('engagement');
 
+                if (
+                    $channelType === LeadCommunicationChannelEnum::SMS->value
+                    && $this->isFirstChannelMessage($channel, $message)
+                ) {
+                    $body = is_string($content) ? $content : '';
+                    if (! $this->alreadyHasOptOutNotice($body)) {
+                        $content = trim($body) . "\n\n" . self::SMS_OPT_OUT_NOTICE;
+                    }
+                }
+
                 $result = new SendMessageToLeadAction($lead)->execute(
                     $channelType,
                     $content,
@@ -180,5 +192,24 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
             company: $channel->company,
             additionalParams: $params,
         );
+    }
+
+    private function isFirstChannelMessage(Channel $channel, Message $message): bool
+    {
+        return $channel->messages()
+            ->where('messages.id', '!=', $message->getId())
+            ->where('messages.is_deleted', 0)
+            ->doesntExist();
+    }
+
+    private function alreadyHasOptOutNotice(string $body): bool
+    {
+        foreach (['reply stop', 'opt out', 'opt-out'] as $needle) {
+            if (stripos($body, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
