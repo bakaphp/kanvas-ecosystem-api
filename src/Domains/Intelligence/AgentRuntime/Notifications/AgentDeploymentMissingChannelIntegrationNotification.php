@@ -5,15 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\AgentRuntime\Notifications;
 
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Notifications\Notification;
-use Kanvas\Templates\Actions\RenderTemplateAction;
-use Override;
 
-class AgentDeploymentMissingChannelIntegrationNotification extends Notification
+class AgentDeploymentMissingChannelIntegrationNotification extends AbstractTemplatedNotification
 {
     public const string TEMPLATE_NAME = 'agent_deployment_missing_channel_integration';
-
-    public array $channels = ['mail'];
 
     /**
      * @param array<int, string> $missingRequirements
@@ -34,12 +29,5 @@ class AgentDeploymentMissingChannelIntegrationNotification extends Notification
             'provider' => $provider,
             'missing_requirements' => $missingRequirements,
         ]);
-    }
-
-    #[Override]
-    public function getEmailContent(): string
-    {
-        return new RenderTemplateAction($this->app, $this->company)
-            ->execute(self::TEMPLATE_NAME, $this->getData());
     }
 }

@@ -36,7 +36,11 @@ class CreatePeopleAction
         $company = $this->peopleData->branch->company()->firstOrFail();
         $allowDuplicateContacts = (bool) ($company->get(Defaults::ALLOW_DUPLICATE_CONTACTS->getValue()) ?? false);
 
-        if (! $allowDuplicateContacts) {
+        // Third-party syncs (Salesforce, DriveCentric, etc.) already matched-or-created by their
+        // own external id via SyncPeopleByThirdPartyCustomFieldAction — a phone/email collision
+        // here is a real-world duplicate the merge/dedup flow should see and decide on, not one
+        // this create path should silently absorb into an unrelated existing record.
+        if (! $allowDuplicateContacts && ! $this->peopleData->skipDuplicateContactCheck) {
             $this->checkIfPeopleExist($company);
         }
 

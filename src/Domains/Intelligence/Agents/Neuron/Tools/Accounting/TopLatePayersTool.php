@@ -44,8 +44,7 @@ class TopLatePayersTool extends Tool
     public function __invoke(?int $limit = null): array
     {
         $app = $this->app;
-        $user = $this->user;
-        $company = $user->getCurrentCompany();
+        $company = $this->company;
         $limit = max(1, min(50, $limit ?? 10));
 
         $aging = new ArAgingRepository()->generate(

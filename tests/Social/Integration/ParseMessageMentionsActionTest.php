@@ -127,12 +127,15 @@ class ParseMessageMentionsActionTest extends TestCase
         Bus::assertDispatched(ProcessMessageMentionsJob::class);
     }
 
-    public function testAgentAuthoredMessageDoesNotDispatch(): void
+    public function testAgentAuthoredMessageStillParsesSoItCanNotifyHumans(): void
     {
+        // Agent (from_ia) messages ARE parsed now — an agent must be able to @mention a human to
+        // notify them. The anti-loop guard (agents never wake other agents) lives in
+        // RespondToAgentMentionListener, which skips from_ia — not in this dispatch decision.
         Bus::fake([ProcessMessageMentionsJob::class]);
 
         $this->makeMessage('@Someone from the agent', fromIa: true);
 
-        Bus::assertNotDispatched(ProcessMessageMentionsJob::class);
+        Bus::assertDispatched(ProcessMessageMentionsJob::class);
     }
 }

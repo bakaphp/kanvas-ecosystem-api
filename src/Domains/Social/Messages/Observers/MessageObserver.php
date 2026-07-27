@@ -48,9 +48,10 @@ class MessageObserver
 
         $message->user->getAppProfile($message->app)->increment('total_messages_count');
 
-        // Resolve @mentions off the hot path. Skip from_ia so an agent never parses its own reply.
-        $isFromIa = (bool) ($message->getMessage()['from_ia'] ?? false);
-        if (! $isFromIa && str_contains($message->contentText(), '@')) {
+        // Resolve @mentions off the hot path — including agent (from_ia) messages, so an agent can
+        // @mention a human to notify them. RespondToAgentMentionListener skips from_ia so an agent's
+        // own reply still never wakes another agent (the anti-loop guard lives there now).
+        if (str_contains($message->contentText(), '@')) {
             ProcessMessageMentionsJob::dispatch($message);
         }
     }

@@ -1,0 +1,127 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
+
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
+use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Project\Models\Project;
+use NeuronAI\Tools\PropertyType;
+use NeuronAI\Tools\Tool;
+use NeuronAI\Tools\ToolProperty;
+use Override;
+
+/**
+ * Lets the PM create a plan (an epic of work) under its project — the "turn the objective into work"
+ * half of orchestration. The plan is linked to the project (Plan.project_id), so it shows up in the
+ * project's open-work rollup; the project's completion is recomputed.
+ */
+#[AgentTool(name: 'Create Plan')]
+class CreateNervousSystemPlanTool extends Tool
+{
+    use HasKanvasContext;
+
+    public function __construct()
+    {
+        parent::__construct(
+            name: 'create_nervous_system_plan',
+            description: 'Create a plan (a group of tasks / an epic) under a project. Use this to turn the '
+                . 'project objective or a new request into a concrete stream of work you can then add tasks to.',
+        );
+    }
+
+    /**
+     * @return array<int, ToolProperty>
+     */
+    #[Override]
+    protected function properties(): array
+    {
+        return [
+            new ToolProperty(
+                name: 'project_id',
+                type: PropertyType::INTEGER,
+                description: 'The project this plan belongs to.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'title',
+                type: PropertyType::STRING,
+                description: 'Short title of the plan / epic.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'description',
+                type: PropertyType::STRING,
+                description: 'Optional detail on the goal of this plan.',
+                required: false,
+            ),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function __invoke(int $project_id, string $title, ?string $description = null): array
+    {
+        $project = Project::query()
+            ->where('id', $project_id)
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
+            ->first();
+
+        if ($project === null) {
+            return ['error' => "Project {$project_id} was not found."];
+        }
+
+        // Idempotency: repeated wakes must not recreate a plan that already exists. Reuse an open
+        // plan with the same title under this project rather than duplicating it.
+        $existing = Plan::query()
+            ->where('project_id', $project->getId())
+            ->where('title', $title)
+            ->open()
+            ->notDeleted()
+            ->first();
+
+        if ($existing !== null) {
+            return [
+                'plan_id' => $existing->getId(),
+                'project_id' => $project->getId(),
+                'title' => $existing->title,
+                'status' => $existing->status,
+                'reused' => true,
+                'message' => 'This plan already exists on the project. Do NOT call create_nervous_system_plan '
+                    . 'again for it — use this plan_id, or move on.',
+            ];
+        }
+
+        $plan = new CreatePlanAction(
+            new PlanData(
+                app: $this->app,
+                company: $this->company,
+                title: $title,
+                planType: 'project_work',
+                user: $this->user,
+                description: $description,
+                status: PlanStatusEnum::ACTIVE,
+            ),
+        )->execute();
+
+        $plan->project_id = $project->getId();
+        $plan->saveQuietly();
+
+        $project->recomputeCompletionPct();
+
+        return [
+            'plan_id' => $plan->getId(),
+            'project_id' => $project->getId(),
+            'title' => $plan->title,
+            'status' => $plan->status,
+        ];
+    }
+}

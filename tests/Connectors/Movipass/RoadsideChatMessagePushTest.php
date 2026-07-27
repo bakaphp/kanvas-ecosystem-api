@@ -13,6 +13,7 @@ use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideChatMessageNotification;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SendRoadsideChatMessagePushActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassRoadsideAssistanceActivity;
+use Kanvas\Enums\StateEnums;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;

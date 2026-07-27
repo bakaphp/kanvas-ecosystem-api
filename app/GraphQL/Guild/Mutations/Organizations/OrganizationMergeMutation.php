@@ -46,18 +46,29 @@ class OrganizationMergeMutation
         );
     }
 
-    public function merge(mixed $rootValue, array $request): Organization
+    /**
+     * @param  array<string, mixed>  $rootValue
+     * @return array<int, Organization>
+     */
+    public function organizations(array $rootValue): array
     {
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        /** @var Organization $source */
-        $source = Organization::getByIdFromCompanyApp(
-            (int) $request['source_id'],
-            $company,
-            $app,
-        );
+        return Organization::query()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->whereIn('id', $rootValue['member_ids'])
+            ->get()
+            ->all();
+    }
+
+    public function merge(mixed $rootValue, array $request): Organization
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
 
         /** @var Organization $target */
         $target = Organization::getByIdFromCompanyApp(
@@ -66,10 +77,17 @@ class OrganizationMergeMutation
             $app,
         );
 
-        return new MergeOrganizationsAction(
-            source: $source,
-            target: $target,
-            user: $user,
-        )->execute();
+        foreach ($request['source_ids'] as $sourceId) {
+            /** @var Organization $source */
+            $source = Organization::getByIdFromCompanyApp((int) $sourceId, $company, $app);
+
+            $target = new MergeOrganizationsAction(
+                source: $source,
+                target: $target,
+                user: $user,
+            )->execute();
+        }
+
+        return $target;
     }
 }

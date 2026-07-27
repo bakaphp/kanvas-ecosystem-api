@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions;
 
-use Illuminate\Database\Eloquent\Model;
-use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -13,30 +11,22 @@ use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
-use Kanvas\Intelligence\Notifications\AgentReplyNotification;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionData;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Social\Messages\Actions\CreateMessageAction;
-use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
-use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
-use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Users\Models\Users;
-use Kanvas\Workflow\Enums\WorkflowEnum;
+use Override;
 
 /**
  * Internal (non-connector) channel responder. Unlike RuntimeAgentChannelResponderAction (which
  * only resolves OpenClaw/Hermes deployments), this routes through AgentChatKernel so every backend
  * works — Neuron, Laravel, ADK, Runtime.
  */
-class InternalAgentChannelResponderAction
+class InternalAgentChannelResponderAction extends AbstractAgentChannelResponderAction
 {
     use DispatchesAttachmentDescriptionTrait;
-
-    private const string AGENT_RESPONSE_TYPE_VERB = 'ai-agent-response';
 
     public function __construct(
         protected Agent $agent,
@@ -46,6 +36,7 @@ class InternalAgentChannelResponderAction
     ) {
     }
 
+    #[Override]
     public function execute(): Message
     {
         $payload = $this->message->getMessage();
@@ -87,7 +78,6 @@ class InternalAgentChannelResponderAction
         )->execute();
 
         $replyMessage = $this->createReplyMessage($reply);
-        $this->channel->addMessage($replyMessage, $this->agent->user);
 
         $this->notifyRecipientOfReply($replyMessage);
 
@@ -124,83 +114,9 @@ class InternalAgentChannelResponderAction
         )->execute();
     }
 
-    /**
-     * Push-notify the inbound author that the agent answered, mirroring the userChat path.
-     */
-    private function notifyRecipientOfReply(Message $replyMessage): void
+    #[Override]
+    protected function extraMessagePayload(): array
     {
-        $authorId = $this->message->users_id;
-
-        if ($authorId <= 0) {
-            return;
-        }
-
-        try {
-            $recipient = Users::getById($authorId);
-        } catch (ModelNotFoundException) {
-            return;
-        }
-
-        $recipient->notify(
-            new AgentReplyNotification(
-                $replyMessage,
-                $this->agent,
-                $this->agent->user
-            )
-        );
-    }
-
-    private function createReplyMessage(string $reply): Message
-    {
-        $app = $this->message->app;
-
-        $messageType = new CreateMessageTypeAction(
-            new MessageTypeInput(
-                $app->getId(),
-                0,
-                self::AGENT_RESPONSE_TYPE_VERB,
-                self::AGENT_RESPONSE_TYPE_VERB,
-            )
-        )->execute();
-
-        $originalPayload = $this->message->getMessage();
-
-        $messageInput = new MessageInput(
-            app: $app,
-            company: $this->message->company,
-            user: $this->agent->user,
-            type: $messageType,
-            message: AiChatMessagePayload::from([
-                'content' => $reply,
-                'from_me' => true,
-                'from_ia' => true,
-                'session_id' => $this->session?->uuid,
-                'agent_id' => (int) $this->agent->getId(),
-                'raw_data' => $reply,
-                'message_id' => '--',
-                'chat_jid' => $originalPayload['chat_jid'] ?? null,
-            ])->toArray(),
-            is_public: 1,
-            tags: [self::AGENT_RESPONSE_TYPE_VERB],
-        );
-
-        // Fire CREATED manually below, after the entity link is attached, so rules see the entity.
-        $createMessage = new CreateMessageAction($messageInput);
-        $createMessage->runWorkflow = false;
-
-        $replyMessage = $createMessage->execute();
-
-        $entity = $this->message->entity();
-        if ($entity instanceof Model) {
-            $replyMessage->addEntity($entity);
-        }
-
-        $replyMessage->fireWorkflow(
-            WorkflowEnum::CREATED->value,
-            true,
-            ['app' => $app],
-        );
-
-        return $replyMessage;
+        return ['session_id' => $this->session?->uuid];
     }
 }

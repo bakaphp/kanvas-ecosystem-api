@@ -18,9 +18,11 @@ use Spatie\LaravelData\DataCollection;
 use Tests\Scribe\ScribeTestCase;
 
 /**
- * Cross-tenant safety: every CFO Tool MUST scope to the current user's company. The tools all use
- * `auth()->user()->getCurrentCompany()` internally — a regression that drops that filter would leak
- * cross-tenant data into LLM responses, the worst-shaped bug we could ship for this domain.
+ * Cross-tenant safety: every CFO Tool MUST scope to the agent's BOUND company — `$this->company` from
+ * `HasKanvasContext`, set via `withContext()`. Resolving the company any other way (e.g.
+ * `auth()->user()->getCurrentCompany()`) reads the acting user's session company instead of the
+ * agent's tenant, which can drift — a regression there would leak cross-tenant data into LLM
+ * responses, the worst-shaped bug we could ship for this domain.
  *
  * Strategy: seed Scribe data for the current tenant, then call each tool and assert the returned
  * payload includes the seeded data shape. We can't easily simulate "another tenant" in the same

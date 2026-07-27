@@ -58,6 +58,7 @@ class AgentChatKernel
         protected readonly ?Message $sourceMessage = null,
         protected readonly bool $persistConversation = true,
         protected readonly array $documents = [],
+        protected readonly array $additionalTools = [],
     ) {
     }
 
@@ -201,6 +202,10 @@ class AgentChatKernel
             // Plumb the turn's attachment URLs so the conversation history can persist a reference
             // for describing — the handler itself only ever sees the base64 content blocks.
             $handler->setTurnMedia($this->nativeMedia());
+        }
+
+        if ($this->additionalTools !== [] && $handler instanceof BaseKanvasAgent) {
+            $handler->addTool($this->additionalTools);
         }
 
         return new RunNeuronChatAction(

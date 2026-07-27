@@ -60,8 +60,7 @@ class QueryRecentExpensesTool extends Tool
         ?int $limit = null,
     ): array {
         $app = $this->app;
-        $user = $this->user;
-        $company = $user->getCurrentCompany();
+        $company = $this->company;
         $daysBack = max(1, min(365, $days_back ?? 30));
         $limit = max(1, min(100, $limit ?? 25));
 

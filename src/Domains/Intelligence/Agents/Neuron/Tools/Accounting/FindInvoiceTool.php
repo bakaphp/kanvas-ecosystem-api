@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsTenantRecordForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use NeuronAI\Tools\PropertyType;
@@ -20,6 +21,7 @@ use Override;
 #[AgentTool(name: 'Find Invoice')]
 class FindInvoiceTool extends Tool
 {
+    use FindsTenantRecordForTool;
     use HasKanvasContext;
 
     public function __construct()
@@ -54,24 +56,19 @@ class FindInvoiceTool extends Tool
      */
     public function __invoke(string $invoice_number): array
     {
-        $app = $this->app;
-        $company = $this->company;
+        $result = $this->findTenantRecordOrNotFound(
+            Invoice::class,
+            'invoice_number',
+            $invoice_number,
+            'invoice'
+        );
 
-        /** @var Invoice|null $invoice */
-        $invoice = Invoice::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('invoice_number', trim($invoice_number))
-            ->where('is_deleted', false)
-            ->first();
-
-        if ($invoice === null) {
-            return [
-                'found' => false,
-                'invoice_number' => $invoice_number,
-                'message' => 'No invoice with that number in the synced data — it may not have been synced yet.',
-            ];
+        if (is_array($result)) {
+            return $result;
         }
+
+        /** @var Invoice $invoice */
+        $invoice = $result;
 
         return [
             'found' => true,
