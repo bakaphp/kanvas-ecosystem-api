@@ -70,6 +70,27 @@ class HumanAgentChannelResponseOptOutTest extends TestCase
         );
     }
 
+    public function testBodyWithExistingOptOutLanguageIsDetected(): void
+    {
+        $this->assertTrue($this->invokeAlreadyHasOptOutNotice('Hey there. Reply STOP to opt out.'));
+        $this->assertTrue($this->invokeAlreadyHasOptOutNotice('text STOP to opt out anytime'));
+        $this->assertTrue($this->invokeAlreadyHasOptOutNotice('you may opt-out later'));
+    }
+
+    public function testBodyWithoutOptOutLanguageIsNotDetected(): void
+    {
+        $this->assertFalse($this->invokeAlreadyHasOptOutNotice('Following up on your vehicle, are you still interested?'));
+        $this->assertFalse($this->invokeAlreadyHasOptOutNotice("we won't stop until we find you a deal"));
+    }
+
+    private function invokeAlreadyHasOptOutNotice(string $body): bool
+    {
+        $activity = new ReflectionClass(HumanAgentChannelResponseActivity::class)->newInstanceWithoutConstructor();
+
+        return new ReflectionMethod($activity, 'alreadyHasOptOutNotice')
+            ->invoke($activity, $body);
+    }
+
     private function invokeIsFirstChannelMessage(Channel $channel, Message $message): bool
     {
         $activity = new ReflectionClass(HumanAgentChannelResponseActivity::class)->newInstanceWithoutConstructor();
