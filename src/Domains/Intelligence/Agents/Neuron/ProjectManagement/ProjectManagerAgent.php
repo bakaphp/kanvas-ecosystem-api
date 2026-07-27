@@ -19,6 +19,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPla
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
+use Kanvas\NervousSystem\Project\Models\Project;
+use Kanvas\NervousSystem\Project\Services\ProjectContextService;
 use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\InMemoryChatHistory;
 use Override;
@@ -65,7 +67,7 @@ class ProjectManagerAgent extends SystemUserAgent
     #[Override]
     public function instructions(): string
     {
-        return <<<'PROMPT'
+        $base = <<<'PROMPT'
             You are the project manager (PM) for a single project. Each turn you are given a Context
             bundle (JSON): the project (id, objective, status, completion_pct), its members (each with
             role, a `users_id`, a mentionable `handle`, and — for agents only — an `agent_id`), its
@@ -178,6 +180,39 @@ class ProjectManagerAgent extends SystemUserAgent
             If a tool returns an error, read it and correct your next call — do not repeat the same
             failing call.
             PROMPT;
+
+        return $base . $this->currentProjectGrounding();
+    }
+
+    /**
+     * Ground the PM in the ONE project it owns on EVERY turn — resolved from its own agent_id, never
+     * from conversation history. The wake path injects the bundle as a message, but a channel/Slack
+     * reply builds none; handed no context, the model confabulates a project (fabricated id, title,
+     * objective, plans). This authoritative block is always present so there is a real project to answer
+     * about and nothing to invent.
+     */
+    private function currentProjectGrounding(): string
+    {
+        $agent = $this->agent;
+        if ($agent === null) {
+            return '';
+        }
+
+        $project = Project::query()
+            ->where('agent_id', $agent->getId())
+            ->notDeleted()
+            ->first();
+
+        if (! $project instanceof Project) {
+            return "\n\nYOU HAVE NO PROJECT LOADED THIS TURN. If asked about a project, say you don't have "
+                . 'one loaded and ask which project — NEVER invent a project, id, objective, plan, or task.';
+        }
+
+        $bundle = new ProjectContextService()->buildContextBundle($project, historyLimit: 10);
+
+        return "\n\nCURRENT PROJECT (authoritative — this is the ONLY project you manage; use ONLY these "
+            . "ids / objective / plans / tasks and NEVER invent or infer any other project):\n"
+            . (string) json_encode($bundle->toArray());
     }
 
     /**
