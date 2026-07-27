@@ -9,12 +9,14 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Http\File;
+use Illuminate\Support\Facades\Log;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Users\Models\Users;
 use RuntimeException;
+use Throwable;
 
 class ImageConversionService
 {
@@ -266,6 +268,47 @@ class ImageConversionService
         $converted = self::convertFilesystem($filesystem, 'jpg', $quality);
 
         return $converted->url;
+    }
+
+    /**
+     * Rewrite every `<img src="...">` in an HTML string to a viewable URL.
+     *
+     * wkhtmltopdf's WebKit can't decode HEIC/HEIF/TIFF/etc, so template-rendered
+     * HTML that embeds those formats produces broken images in the PDF. Each source
+     * is routed through getViewableUrl(); non-convertible formats are left untouched.
+     * A single unconvertible image never fails the whole render — it keeps its original URL.
+     */
+    public static function convertHtmlImagesToViewable(
+        string $html,
+        AppInterface $app,
+        ?Users $user = null,
+        ?CompanyInterface $company = null,
+        ?int $quality = null,
+    ): string {
+        return preg_replace_callback(
+            '/(<img\b[^>]*?\bsrc\s*=\s*["\'])([^"\']+)(["\'])/i',
+            function (array $matches) use ($app, $user, $company, $quality): string {
+                try {
+                    $viewableUrl = self::getViewableUrl(
+                        $matches[2],
+                        $app,
+                        quality: $quality,
+                        user: $user,
+                        company: $company,
+                    );
+                } catch (Throwable $e) {
+                    Log::warning('Failed to convert image to viewable format for PDF', [
+                        'url' => $matches[2],
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    return $matches[0];
+                }
+
+                return $matches[1] . $viewableUrl . $matches[3];
+            },
+            $html
+        ) ?? $html;
     }
 
     /**
