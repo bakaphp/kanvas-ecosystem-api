@@ -202,10 +202,6 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
             ->doesntExist();
     }
 
-    /**
-     * Skip the append when the agent already wrote opt-out language in the body,
-     * so the customer never gets a duplicated STOP notice.
-     */
     private function alreadyHasOptOutNotice(string $body): bool
     {
         foreach (['reply stop', 'opt out', 'opt-out'] as $needle) {
