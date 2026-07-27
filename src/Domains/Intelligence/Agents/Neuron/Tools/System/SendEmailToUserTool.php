@@ -19,15 +19,6 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-/**
- * Lets a teammate agent email an INTERNAL colleague — the email counterpart of send_slack_direct_message.
- * The recipient is never a free-form address the model invents: it must resolve to a real Kanvas user in
- * the agent's own company (that guard is what stops a prompt-inject from mailing an outsider). Distinct
- * from send_email, which mails the prospect/customer on a lead — this one is staff-to-staff only.
- *
- * Sends through the agent's app/company SMTP config directly (the same path NotificationMailTrait uses),
- * so it needs no per-app email template wired up.
- */
 #[AgentTool(name: 'Email Teammate')]
 class SendEmailToUserTool extends Tool
 {
