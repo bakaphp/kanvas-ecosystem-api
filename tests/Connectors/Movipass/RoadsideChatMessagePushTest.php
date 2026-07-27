@@ -6,13 +6,13 @@ namespace Tests\Connectors\Movipass;
 
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Connectors\Movipass\Actions\SendRoadsideChatMessagePushAction;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideChatMessageNotification;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SendRoadsideChatMessagePushActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassRoadsideAssistanceActivity;
-use Kanvas\Enums\StateEnums;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -274,9 +274,9 @@ final class RoadsideChatMessagePushTest extends TestCase
     public function testNotifiesCustomerWhenMechanicWritesOnSingleMemberDirectMessageChannel(): void
     {
         $mechanic = Users::factory()->create();
-        // The mechanic is the message SENDER here, so it needs an app profile — the message observer
-        // increments the sender's total_messages_count via getAppProfile().
-        $this->apps->associateUser($mechanic, StateEnums::YES->getValue());
+
+        new RegisterUsersAppAction($mechanic, $this->apps)->execute($mechanic->password);
+
         $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
         $order->metadata = [
             'assistance_case' => [
