@@ -6,6 +6,7 @@ namespace Tests\Connectors\Movipass;
 
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Actions\RegisterUsersAppAction;
 use Kanvas\Connectors\Movipass\Actions\SendRoadsideChatMessagePushAction;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
@@ -273,6 +274,9 @@ final class RoadsideChatMessagePushTest extends TestCase
     public function testNotifiesCustomerWhenMechanicWritesOnSingleMemberDirectMessageChannel(): void
     {
         $mechanic = Users::factory()->create();
+
+        new RegisterUsersAppAction($mechanic, $this->apps)->execute($mechanic->password);
+
         $order = $this->createOrder(OrderTypeEnum::ROADSIDE_ASSISTANCE->value);
         $order->metadata = [
             'assistance_case' => [
