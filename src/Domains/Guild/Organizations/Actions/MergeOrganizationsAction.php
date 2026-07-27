@@ -27,11 +27,15 @@ use Throwable;
  *     - sales_receipts.customer_organization_id
  *     - bills.vendor_organization_id
  *     - expenses.vendor_organization_id
- *   Guild (crm DB):
+ *   Guild (crm DB) — rewritten inside one `crm` transaction along with the soft-delete, so a
+ *   failure partway through can't leave some FKs on the target while source is still live:
  *     - leads.organization_id
  *     - deals.organization_id  (if present in this app)
  *     - peoples_employment_history.organizations_id
  *     - organizations_peoples  (merge, dedup on (organization_id, peoples_id))
+ *   Custom fields (`apps_custom_fields`, `ecosystem` DB): adopted onto the target when the target
+ *   doesn't already have that field name (e.g. salesforce_account_id) — a name both rows already
+ *   carry is a real conflict, left untouched for a later merge phase.
  *
  * Source Organization is soft-deleted at the end (is_deleted=1). NOT hard-deleted — preserves
  * audit trail of what got merged into what (look at the source row's `merged_into_organization_id`
@@ -99,47 +103,56 @@ class MergeOrganizationsAction
         });
 
         // ── Guild side (crm DB) ── Lead + Deal both live on the `crm` connection per Guild BaseModel.
+        // Wrapped in one transaction so a failure partway through (e.g. the employment-history
+        // rewrite) can't leave some FKs pointed at the target while others still point at a
+        // source that's about to be soft-deleted.
         $guildRewrittenCount = 0;
+        $organizationsPeoplesRebound = 0;
         $crmSchema = DB::connection('crm')->getSchemaBuilder();
 
-        if ($crmSchema->hasTable('leads') && $crmSchema->hasColumn('leads', 'organization_id')) {
-            $guildRewrittenCount += DB::connection('crm')->table('leads')
-                ->where('organization_id', $sourceId)
-                ->update(['organization_id' => $targetId]);
-        }
+        DB::connection('crm')->transaction(function () use ($sourceId, $targetId, $crmSchema, &$guildRewrittenCount, &$organizationsPeoplesRebound): void {
+            if ($crmSchema->hasTable('leads') && $crmSchema->hasColumn('leads', 'organization_id')) {
+                $guildRewrittenCount += DB::connection('crm')->table('leads')
+                    ->where('organization_id', $sourceId)
+                    ->update(['organization_id' => $targetId]);
+            }
 
-        if ($crmSchema->hasTable('deals') && $crmSchema->hasColumn('deals', 'organization_id')) {
-            $guildRewrittenCount += DB::connection('crm')->table('deals')
-                ->where('organization_id', $sourceId)
-                ->update(['organization_id' => $targetId]);
-        }
+            if ($crmSchema->hasTable('deals') && $crmSchema->hasColumn('deals', 'organization_id')) {
+                $guildRewrittenCount += DB::connection('crm')->table('deals')
+                    ->where('organization_id', $sourceId)
+                    ->update(['organization_id' => $targetId]);
+            }
 
-        // Employment history points each person's role at an org — rebind so a merged-away
-        // duplicate doesn't leave roles hanging off a soft-deleted org (the genuine-current-
-        // employer check reads these).
-        if ($crmSchema->hasTable('peoples_employment_history') && $crmSchema->hasColumn('peoples_employment_history', 'organizations_id')) {
-            $guildRewrittenCount += DB::connection('crm')->table('peoples_employment_history')
-                ->where('organizations_id', $sourceId)
-                ->update(['organizations_id' => $targetId]);
-        }
+            // Employment history points each person's role at an org — rebind so a merged-away
+            // duplicate doesn't leave roles hanging off a soft-deleted org (the genuine-current-
+            // employer check reads these).
+            if ($crmSchema->hasTable('peoples_employment_history') && $crmSchema->hasColumn('peoples_employment_history', 'organizations_id')) {
+                $guildRewrittenCount += DB::connection('crm')->table('peoples_employment_history')
+                    ->where('organizations_id', $sourceId)
+                    ->update(['organizations_id' => $targetId]);
+            }
 
-        // organizations_peoples — dedup on collision: if (target, peoples_id) already exists,
-        // delete the source row outright rather than violating the unique constraint.
-        $organizationsPeoplesRebound = $this->rebindOrganizationPeoples($sourceId, $targetId);
+            // organizations_peoples — dedup on collision: if (target, peoples_id) already exists,
+            // delete the source row outright rather than violating the unique constraint.
+            $organizationsPeoplesRebound = $this->rebindOrganizationPeoples($sourceId, $targetId);
 
-        // ── Soft-delete source + stamp the audit pointer ──
-        $this->source->is_deleted = true;
-        if ($crmSchema->hasColumn($this->source->getTable(), 'merged_into_organization_id')) {
-            $this->source->merged_into_organization_id = $targetId;
-        }
-        $this->source->save();
+            // ── Soft-delete source + stamp the audit pointer ──
+            $this->source->is_deleted = true;
+            if ($crmSchema->hasColumn($this->source->getTable(), 'merged_into_organization_id')) {
+                $this->source->merged_into_organization_id = $targetId;
+            }
+            $this->source->save();
+        });
+
+        $customFieldsAdopted = $this->adoptCustomFields();
 
         $this->recordMergeEvent(
             $sourceId,
             $targetId,
             $scribeRewrittenCount,
             $guildRewrittenCount,
-            $organizationsPeoplesRebound
+            $organizationsPeoplesRebound,
+            $customFieldsAdopted,
         );
 
         return $this->target->refresh();
@@ -157,6 +170,7 @@ class MergeOrganizationsAction
         int $scribeRewrittenCount,
         int $guildRewrittenCount,
         int $organizationsPeoplesRebound,
+        int $customFieldsAdopted,
     ): void {
         try {
             new AppendEventAction(
@@ -178,12 +192,35 @@ class MergeOrganizationsAction
                         'scribe_rows_rewritten' => $scribeRewrittenCount,
                         'guild_rows_rewritten' => $guildRewrittenCount,
                         'organizations_peoples_rebound' => $organizationsPeoplesRebound,
+                        'custom_fields_adopted' => $customFieldsAdopted,
                     ],
                 ),
             )->execute();
         } catch (Throwable $e) {
             report($e);
         }
+    }
+
+    /**
+     * Adopt each of the source's custom fields onto the target when the target doesn't already
+     * have that field name. A field both rows already carry (e.g. each has its own distinct
+     * salesforce_account_id) is a real conflict — left untouched for a later merge phase.
+     */
+    private function adoptCustomFields(): int
+    {
+        $sourceFields = $this->source->getAll();
+        $adopted = 0;
+
+        foreach ($sourceFields as $name => $value) {
+            if ($this->target->get($name) !== null) {
+                continue;
+            }
+
+            $this->target->set($name, $value);
+            $adopted++;
+        }
+
+        return $adopted;
     }
 
     /**

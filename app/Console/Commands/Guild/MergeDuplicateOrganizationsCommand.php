@@ -21,7 +21,7 @@ use Throwable;
  * Only NORMALIZED-identical names are merged (suffix-stripped + case/accent-insensitive). It
  * never fuzzy-matches, so genuinely different companies that merely share a prefix
  * ("Alpha Industries" vs "Alpha Consulting") are left alone — those need human review via the
- * findGuildOrganizationDuplicates / mergeGuildOrganizations GraphQL flow.
+ * findOrganizationDuplicates / mergeOrganizations GraphQL flow.
  *
  * Dry-run by default; pass --force to apply. The oldest row in each group is the survivor.
  */

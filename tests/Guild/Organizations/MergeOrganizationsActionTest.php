@@ -156,6 +156,27 @@ class MergeOrganizationsActionTest extends TestCase
         );
     }
 
+    public function test_adopts_custom_fields_only_when_target_lacks_them(): void
+    {
+        $source = $this->seedOrganization('ACME Source');
+        $target = $this->seedOrganization('ACME Target');
+
+        $source->set('salesforce_account_id', '001xxSOURCE');
+        $target->set('salesforce_account_id', '001xxTARGET'); // conflict — target already has one
+
+        $source->set('some_other_field', 'adopt-me');
+
+        new MergeOrganizationsAction(
+            source: $source,
+            target: $target,
+            user: static::$cachedUser,
+        )->execute();
+
+        $target->refresh();
+        $this->assertSame('001xxTARGET', $target->get('salesforce_account_id'), 'a field both rows have is left as a conflict.');
+        $this->assertSame('adopt-me', $target->get('some_other_field'), 'a field only source has is adopted onto target.');
+    }
+
     public function test_records_audit_trail_on_merge(): void
     {
         $source = $this->seedOrganization('ACME Source');

@@ -2,23 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Guild\Mutations\Organizations;
+namespace App\GraphQL\Guild\Mutations\Peoples;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Guild\Organizations\Actions\MergeOrganizationsAction;
-use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Guild\Organizations\Services\FindOrganizationDuplicatesService;
+use Kanvas\Guild\Customers\Actions\MergePeopleAction;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Services\FindPeopleDuplicatesService;
 
-/**
- * Resolvers for the duplicate-cleanup pipeline that pairs with the auto-resolve-or-create-vendor
- * flow in `ProposeBillFromPdfAction` / `ProposeExpenseFromPdfAction`.
- *
- * - `merge` collapses two Organizations (source → target), rewriting every Scribe + Guild FK and
- *   soft-deleting the source.
- * - `findDuplicates` surfaces candidate clusters (exact name, shared email, shared tax id) so the
- *   operator can review and merge in batches rather than chasing per-document.
- */
-class OrganizationMergeMutation
+class PeopleMergeMutation
 {
     /**
      * @return array<int, array<string, mixed>>
@@ -29,7 +20,7 @@ class OrganizationMergeMutation
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $groups = new FindOrganizationDuplicatesService()->generate(
+        $groups = new FindPeopleDuplicatesService()->generate(
             app: $app,
             company: $company,
             maxGroups: (int) ($request['max_groups'] ?? 100),
@@ -48,15 +39,15 @@ class OrganizationMergeMutation
 
     /**
      * @param  array<string, mixed>  $rootValue
-     * @return array<int, Organization>
+     * @return array<int, People>
      */
-    public function organizations(array $rootValue): array
+    public function peoples(array $rootValue): array
     {
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        return Organization::query()
+        return People::query()
             ->fromApp($app)
             ->fromCompany($company)
             ->whereIn('id', $rootValue['member_ids'])
@@ -64,24 +55,24 @@ class OrganizationMergeMutation
             ->all();
     }
 
-    public function merge(mixed $rootValue, array $request): Organization
+    public function merge(mixed $rootValue, array $request): People
     {
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        /** @var Organization $target */
-        $target = Organization::getByIdFromCompanyApp(
+        /** @var People $target */
+        $target = People::getByIdFromCompanyApp(
             (int) $request['target_id'],
             $company,
             $app,
         );
 
         foreach ($request['source_ids'] as $sourceId) {
-            /** @var Organization $source */
-            $source = Organization::getByIdFromCompanyApp((int) $sourceId, $company, $app);
+            /** @var People $source */
+            $source = People::getByIdFromCompanyApp((int) $sourceId, $company, $app);
 
-            $target = new MergeOrganizationsAction(
+            $target = new MergePeopleAction(
                 source: $source,
                 target: $target,
                 user: $user,
