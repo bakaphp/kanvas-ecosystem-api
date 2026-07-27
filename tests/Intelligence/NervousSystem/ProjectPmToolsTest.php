@@ -458,6 +458,41 @@ class ProjectPmToolsTest extends TestCase
         $this->assertContains('delete_nervous_system_plan', $names);
     }
 
+    public function testInstructionsGroundThePmInItsOwnProject(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+        $project = new CreateProjectAction(
+            ProjectData::from($app, $user, $company, ['title' => 'Grounding project', 'agent_id' => $agent->id]),
+        )->execute();
+
+        $pm = new ProjectManagerAgent();
+        $pm->setConfiguration($agent, null, null, $user);
+
+        $instructions = $pm->instructions();
+
+        // The PM is grounded in its real project (resolved from agent_id) — no room to confabulate one.
+        $this->assertStringContainsString('CURRENT PROJECT', $instructions);
+        $this->assertStringContainsString('Grounding project', $instructions);
+        $this->assertStringContainsString((string) $project->getId(), $instructions);
+        $this->assertStringContainsString('NEVER invent', $instructions);
+    }
+
+    public function testInstructionsRefuseToInventAProjectWhenNoneIsBound(): void
+    {
+        [$app, $company, $user] = $this->context();
+        // An agent that is not the PM of any project — the reply path must not let it fabricate one.
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $pm = new ProjectManagerAgent();
+        $pm->setConfiguration($agent, null, null, $user);
+
+        $instructions = $pm->instructions();
+
+        $this->assertStringContainsString('NO PROJECT LOADED', $instructions);
+        $this->assertStringContainsString('NEVER invent', $instructions);
+    }
+
     public function testUpdatePlanToolCompletesPlan(): void
     {
         [$app, $company, $user] = $this->context();
