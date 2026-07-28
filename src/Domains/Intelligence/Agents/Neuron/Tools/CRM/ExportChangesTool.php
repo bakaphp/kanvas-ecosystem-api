@@ -9,9 +9,11 @@ use Kanvas\Connectors\Apollo\Services\CsvExportService;
 use Kanvas\Connectors\Apollo\Services\PeopleChangesFeedService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\ToolPropertyInterface;
 use Override;
 
 /**
@@ -42,17 +44,22 @@ class ExportChangesTool extends Tool
     }
 
     /**
-     * @return array<int, ToolProperty>
+     * @return array<int, ToolPropertyInterface>
      */
     #[Override]
     protected function properties(): array
     {
         return [
-            new ToolProperty(
+            new ArrayProperty(
                 name: 'change_types',
-                type: PropertyType::ARRAY,
-                description: 'Optional list of change types to include: any of "company", "title", "email", "promotion". Omit for all types.',
+                description: 'Optional list of change types to include. Omit for all types.',
                 required: false,
+                items: new ToolProperty(
+                    name: 'change_type',
+                    type: PropertyType::STRING,
+                    description: 'One of: company, title, email, promotion.',
+                    enum: ['company', 'title', 'email', 'promotion'],
+                ),
             ),
             new ToolProperty(
                 name: 'from',
