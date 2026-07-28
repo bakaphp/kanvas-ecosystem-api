@@ -73,13 +73,18 @@ class LinkPersonToOrganizationTool extends Tool
 
         $title = $title !== null ? trim($title) : null;
         if ($title !== null && $title !== '') {
-            PeopleEmploymentHistory::firstOrCreate([
-                'apps_id' => $this->app->getId(),
-                'peoples_id' => $person->getId(),
-                'organizations_id' => $organization->getId(),
-                'position' => $title,
-                'status' => 1,
-            ]);
+            PeopleEmploymentHistory::firstOrCreate(
+                [
+                    'apps_id' => $this->app->getId(),
+                    'peoples_id' => $person->getId(),
+                    'organizations_id' => $organization->getId(),
+                    'position' => $title,
+                ],
+                [
+                    'status' => 1,
+                    'start_date' => now()->toDateString(),
+                ],
+            );
         }
 
         return [
