@@ -58,6 +58,7 @@ class EnableCorporateModeAction
             $this->switchToCorporateCompany($company);
 
             dispatch(new MigrateCorporateUserVariantsJob(
+                app: $appsModel,
                 userId: $this->user->getId(),
                 sourceCompanyId: $sourceCompanyId,
                 targetCompanyId: $company->getId(),
