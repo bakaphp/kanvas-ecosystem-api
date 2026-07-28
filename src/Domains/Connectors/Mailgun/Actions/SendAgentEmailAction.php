@@ -6,7 +6,9 @@ namespace Kanvas\Connectors\Mailgun\Actions;
 
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
@@ -40,9 +42,15 @@ class SendAgentEmailAction
 
         $entity = $message->entity();
 
+        if (get_class($entity) == Lead::class) {
+            $subject = $entity->get('title_email_follow_up');
+        } elseif (get_class($entity) == People::class) {
+            $activeLead = LeadsRepository::getPeopleActiveLead($entity);
+            $subject = $activeLead?->get('title_email_follow_up');
+        }
         // Prefer the thread anchor (lead's first-touch subject), then any frozen inbound subject.
-        $threadSubject = trim((string) (($entity?->get('title_email_follow_up'))
-            ?: ($message->message['subject'] ?? '')));
+        $threadSubject = trim((string) ($subject)
+            ?: ($message->message['subject'] ?? ''));
 
         if ($threadSubject === '') {
             // No anchor and no stored subject anywhere → derive a fresh subject from the body.
