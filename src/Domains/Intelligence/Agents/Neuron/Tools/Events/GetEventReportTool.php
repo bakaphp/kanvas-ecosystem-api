@@ -11,9 +11,11 @@ use Kanvas\Event\Reports\Repositories\InscriptionTrackRepository;
 use Kanvas\Event\Reports\Repositories\ParticipantConcentrationRepository;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\ToolPropertyInterface;
 use Override;
 use Throwable;
 
@@ -46,7 +48,7 @@ class GetEventReportTool extends Tool
     }
 
     /**
-     * @return array<int, ToolProperty>
+     * @return array<int, ToolPropertyInterface>
      */
     #[Override]
     protected function properties(): array
@@ -61,8 +63,18 @@ class GetEventReportTool extends Tool
                 enum: self::REPORTS,
             ),
             new ToolProperty(name: 'cumulative', type: PropertyType::BOOLEAN, description: 'For the two enrollment-curve reports: cumulative totals. Defaults to true.', required: false),
-            new ToolProperty(name: 'include_types', type: PropertyType::ARRAY, description: 'Optional participant-type names to include (from list_participant_types). Omit for all.', required: false),
-            new ToolProperty(name: 'exclude_types', type: PropertyType::ARRAY, description: 'Optional participant-type names to exclude.', required: false),
+            new ArrayProperty(
+                name: 'include_types',
+                description: 'Optional participant-type names to include (from list_participant_types). Omit for all.',
+                required: false,
+                items: new ToolProperty(name: 'participant_type', type: PropertyType::STRING, description: 'A participant-type name.'),
+            ),
+            new ArrayProperty(
+                name: 'exclude_types',
+                description: 'Optional participant-type names to exclude.',
+                required: false,
+                items: new ToolProperty(name: 'participant_type', type: PropertyType::STRING, description: 'A participant-type name.'),
+            ),
             new ToolProperty(name: 'top_n', type: PropertyType::INTEGER, description: 'participant_concentration only: keep the top-N orgs, collapse the rest into "Other".', required: false),
         ];
     }

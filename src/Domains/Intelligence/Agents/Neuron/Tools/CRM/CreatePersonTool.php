@@ -9,9 +9,11 @@ use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\ToolPropertyInterface;
 use Override;
 use Throwable;
 
@@ -37,7 +39,7 @@ class CreatePersonTool extends Tool
     }
 
     /**
-     * @return array<int, ToolProperty>
+     * @return array<int, ToolPropertyInterface>
      */
     #[Override]
     protected function properties(): array
@@ -54,11 +56,11 @@ class CreatePersonTool extends Tool
                 description: 'Employer / organization name. Created and linked if it does not exist yet.',
                 required: false,
             ),
-            new ToolProperty(
+            new ArrayProperty(
                 name: 'tags',
-                type: PropertyType::ARRAY,
                 description: 'Optional list of tag names to attach.',
                 required: false,
+                items: new ToolProperty(name: 'tag', type: PropertyType::STRING, description: 'A tag name.'),
             ),
             new ToolProperty(
                 name: 'custom_fields',
