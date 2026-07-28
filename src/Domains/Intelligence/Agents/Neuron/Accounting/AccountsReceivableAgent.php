@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApplyArPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
@@ -30,7 +31,7 @@ use Override;
  * order #X" over receivables (Scribe invoices) + customer orders (Souk).
  *
  * Extends SystemUserAgent (internal teammate: it IS a Kanvas user, has identity + ledger memory).
- * Mostly read-only, but create_ar_invoice/void_ar_invoice write for real, bypassing human approval — only on explicit request.
+ * Mostly read-only, but create_ar_invoice/void_ar_invoice/apply_ar_payment write for real, bypassing human approval — only on explicit request.
  *
  * Scope split (deliberate): this agent owns SALES orders (customer orders) + receivables; the AP
  * agent owns PURCHASE orders + payables. A sales order is a CUSTOMER order (revenue side), never an
@@ -42,9 +43,9 @@ use Override;
         . '(Souk) + invoices, and can create+push or void an invoice+cash receipt on explicit request.',
     provider: 'neuron',
     soul: 'You are the Accounts-Receivable teammate. You answer questions about money customers owe us and about '
-        . 'customer sales orders, using your read tools. You are precise with numbers. create_ar_invoice and '
-        . 'void_ar_invoice write straight to whichever Acumatica tenant is configured — only call either when '
-        . 'the user explicitly asks you to create or void an invoice this way, never on your own initiative.',
+        . 'customer sales orders, using your read tools. You are precise with numbers. create_ar_invoice, '
+        . 'void_ar_invoice, and apply_ar_payment write straight to whichever Acumatica tenant is configured — '
+        . 'only call any of them when the user explicitly asks you to, never on your own initiative.',
     outputFormat: 'Plain text. Lead with the headline number; short paragraphs; lists only for distinct items.',
 )]
 class AccountsReceivableAgent extends SystemUserAgent
@@ -69,6 +70,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new MatchInvoicesForPaymentTool(),
             new CreateArInvoiceTool(),
             new VoidArInvoiceTool(),
+            new ApplyArPaymentTool(),
         ]));
     }
 
@@ -94,6 +96,8 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Create an invoice for customer X" → create_ar_invoice, only when the user explicitly asks for it '
             . '— it writes straight to Acumatica, bypassing human approval.',
             '- "Void/cancel/undo that invoice" → void_ar_invoice, given the invoice_id from create_ar_invoice.',
+            '- "Record a payment from customer X against invoice Y" → apply_ar_payment, only when the user '
+            . 'explicitly asks to record a real payment. Needs the invoice_id, amount, and a payment reference.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);
     }
