@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Config;
 
+use Baka\Contracts\HashTableInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Users\Models\Users;
@@ -16,7 +17,7 @@ class ConfigManagement
         $app = app(Apps::class);
         $user = auth()->user();
         $isPublic = $user->isAdmin() && isset($request['input']['public']) ? (bool) $request['input']['public'] : false;
-        $app->set($request['input']['key'], $request['input']['value'], $isPublic);
+        $this->store($app, $request['input'], $isPublic);
 
         return true;
     }
@@ -33,7 +34,7 @@ class ConfigManagement
         $companies = CompaniesRepository::getByUuid($request['input']['entity_uuid'], app(Apps::class));
         $user = auth()->user();
         $isPublic = $user->isAdmin() && isset($request['input']['public']) ? (bool) $request['input']['public'] : false;
-        $companies->set($request['input']['key'], $request['input']['value'], $isPublic);
+        $this->store($companies, $request['input'], $isPublic);
 
         return true;
     }
@@ -54,13 +55,23 @@ class ConfigManagement
         $currentUser = auth()->user();
         $isPublic = $currentUser->isAdmin() && isset($request['input']['public']) ? (bool) $request['input']['public'] : false;
 
-        $user->set(
-            $request['input']['key'],
-            $request['input']['value'],
-            $isPublic
-        );
+        $this->store($user, $request['input'], $isPublic);
 
         return true;
+    }
+
+    /**
+     * @param HashTableInterface $entity app, company or user — anything with the settings trait
+     */
+    private function store(HashTableInterface $entity, array $input, bool $isPublic): void
+    {
+        if (! empty($input['secret'])) {
+            $entity->setEncrypted($input['key'], $input['value'], $isPublic);
+
+            return;
+        }
+
+        $entity->set($input['key'], $input['value'], $isPublic);
     }
 
     public function deleteUserSetting(mixed $root, array $request): bool

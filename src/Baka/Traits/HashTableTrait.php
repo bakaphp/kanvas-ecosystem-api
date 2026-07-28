@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
+use Baka\Contracts\HashTableInterface;
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Exceptions\ConfigurationException;
 
@@ -98,6 +100,38 @@ trait HashTableTrait
         );
 
         return true;
+    }
+
+    /**
+     * Store a value encrypted at rest (DB and Redis both hold ciphertext). get() decrypts it
+     * transparently. Use for secrets — API keys, tokens, private keys, certificates.
+     */
+    public function setEncrypted(string $key, mixed $value, bool|int $isPublic = 0): bool
+    {
+        if ($value === null) {
+            return false;
+        }
+
+        $plain = is_array($value) ? json_encode($value) : (string) $value;
+
+        return $this->set($key, HashTableInterface::SECRET_PREFIX . Crypt::encryptString($plain), $isPublic);
+    }
+
+    /**
+     * Whether the stored value for this key is encrypted at rest. Reads the raw stored form
+     * (no decryption) so the API layer can mask secrets instead of echoing them back.
+     */
+    public function isSecret(string $key): bool
+    {
+        $value = Redis::hGet($this->getSettingsRedisPrimaryKey(), $key);
+
+        if ($value === false) {
+            $this->createSettingsModel();
+            $setting = $this->getSettingsByKey($key);
+            $value = is_object($setting) ? $setting->value : null;
+        }
+
+        return is_string($value) && str_starts_with($value, HashTableInterface::SECRET_PREFIX);
     }
 
     /**
@@ -268,7 +302,7 @@ trait HashTableTrait
                 return $defaultValue;
             }
 
-            return Str::jsonToArray($value);
+            return $this->decodeSettingValue($value);
         }
 
         // Key doesn't exist in Redis, check database
@@ -276,16 +310,31 @@ trait HashTableTrait
         $setting = $this->getSettingsByKey($key);
 
         if (is_object($setting)) {
-            // Cache the value in Redis for future access
+            // Cache the raw (still-encrypted) value in Redis for future access
             $this->setInRedis($key, $setting->value);
 
-            return $setting->value;
+            return $this->decodeSettingValue($setting->value);
         }
 
         // Cache the "not found" state to prevent future database queries
         Redis::hSet($redisKey, $key, '__NULL__');
 
         return $defaultValue;
+    }
+
+    /**
+     * Decrypt an encrypted-at-rest value; otherwise decode as usual. Anything that never went
+     * through setEncrypted() is untouched, so this is a no-op for the overwhelming majority.
+     */
+    private function decodeSettingValue(mixed $value): mixed
+    {
+        if (is_string($value) && str_starts_with($value, HashTableInterface::SECRET_PREFIX)) {
+            // Decrypt, then decode as usual — a JSON secret round-trips to an array like any
+            // other setting, while a PEM/token (not JSON) comes back as the plain string.
+            $value = Crypt::decryptString(substr($value, strlen(HashTableInterface::SECRET_PREFIX)));
+        }
+
+        return Str::jsonToArray($value);
     }
 
     /**

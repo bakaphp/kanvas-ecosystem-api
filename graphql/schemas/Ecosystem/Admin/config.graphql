@@ -3,6 +3,8 @@ input ModuleConfigInput {
     value: Mixed!
     entity_uuid: String
     public: Boolean
+    "Encrypt the value at rest. Reads decrypt transparently for internal use; admin queries return it masked (null)."
+    secret: Boolean
 }
 
 type ModuleConfig {
