@@ -7,9 +7,11 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\ToolPropertyInterface;
 use Override;
 use Throwable;
 
@@ -33,18 +35,18 @@ class TagPersonTool extends Tool
     }
 
     /**
-     * @return array<int, ToolProperty>
+     * @return array<int, ToolPropertyInterface>
      */
     #[Override]
     protected function properties(): array
     {
         return [
             new ToolProperty(name: 'person_id', type: PropertyType::INTEGER, description: 'The id of the person.', required: true),
-            new ToolProperty(
+            new ArrayProperty(
                 name: 'tags',
-                type: PropertyType::ARRAY,
                 description: 'List of tag names to add (or remove when remove=true).',
                 required: true,
+                items: new ToolProperty(name: 'tag', type: PropertyType::STRING, description: 'A tag name.'),
             ),
             new ToolProperty(
                 name: 'remove',
