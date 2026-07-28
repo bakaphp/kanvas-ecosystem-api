@@ -12,14 +12,12 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\CurrentTimeTool;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\Agent as NeuronAIAgent;
 use NeuronAI\Agent\SystemPrompt;
-use NeuronAI\HttpClient\GuzzleHttpClient;
 use NeuronAI\Providers\AIProviderInterface;
-use NeuronAI\Providers\Gemini\Gemini;
 use NeuronAI\Tools\ToolInterface;
 use Override;
 
@@ -84,11 +82,6 @@ class BaseKanvasAgent extends NeuronAIAgent implements ProvidesToolDependencies
         return false;
     }
 
-    /**
-     * Per-turn "which deal is the conversation about right now" — independent
-     * of the session entity (People-keyed). Sourced from the request's lead_id
-     * by AgentChatKernel every turn.
-     */
     public function setCurrentLead(?Lead $lead): void
     {
         $this->currentLead = $lead;
@@ -188,47 +181,29 @@ class BaseKanvasAgent extends NeuronAIAgent implements ProvidesToolDependencies
         ]));
     }
 
-    /**
-     * The user a tool acts AS. Default is the configured user (the human in userChat,
-     * the AI-agent user on channels). SystemUserAgent overrides this to the agent's own
-     * user so its actions are attributed to the agent identity.
-     */
     protected function actingUser(): ?Users
     {
         return $this->user;
     }
 
-    /**
-     * The concrete model this agent will call (agent config → app default →
-     * hard default). Exposed so the chat path can record it on the turn for
-     * usage/cost rollups.
-     */
     public function resolvedModelName(): string
     {
-        $config = $this->agent->config ?? [];
-
-        return $config['model'] ?? $this->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-2.5-pro';
+        return AgentProviderService::resolveModel($this->requireAgent());
     }
 
     #[Override]
     protected function provider(): AIProviderInterface
     {
-        $config = $this->agent->config ?? [];
-        $key = $config['key'] ?? $this->app->get(ConfigurationEnum::GEMINI_KEY->value);
-        $model = $this->resolvedModelName();
+        return AgentProviderService::resolve($this->requireAgent());
+    }
 
-        if (! is_string($key) || $key === '') {
-            throw new ValidationException(
-                'Gemini API key is not configured for this agent or app.'
-                . ' Set agent.config.key or the app ' . ConfigurationEnum::GEMINI_KEY->value . ' setting.'
-            );
+    private function requireAgent(): Agent
+    {
+        if ($this->agent === null) {
+            throw new ValidationException('Agent not set. Call setConfiguration() before invoking the agent.');
         }
 
-        return new Gemini(
-            key: $key,
-            model: $model,
-            httpClient: new GuzzleHttpClient(timeout: 220, connectTimeout: 220),
-        );
+        return $this->agent;
     }
 
     #[Override]

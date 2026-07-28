@@ -28,6 +28,7 @@ class CreateAgentAction
             'created_by_users_id' => $this->agent->createdBy?->id ?? $this->agent->user->id,
             'agent_type_id' => $this->agent->agentType->id,
             'agent_model_id' => $this->agent->agentModel?->id ?? null,
+            'agent_llm_config_id' => $this->agent->agentLlmConfig?->getId(),
             'name' => $this->agent->name,
             'role' => $this->agent->role,
             'is_active' => $this->agent->is_active,
